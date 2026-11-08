@@ -61,6 +61,7 @@ export class ReaderModeSnapshot {
   superResolutionMaxHeight: number
   wideImageMode: string
   volumeKeyNavigationEnabled: boolean
+  eyeGazePageTurnEnabled: boolean
   volumeKeyBehavior: string
   columnMode: string
 
@@ -85,6 +86,7 @@ export class ReaderModeSnapshot {
     trimPageMarginsEnabled: boolean,
     wideImageMode: string,
     volumeKeyNavigationEnabled: boolean,
+    eyeGazePageTurnEnabled: boolean,
     volumeKeyBehavior: string,
     columnMode: string,
     cropStrength: string = 'standard',
@@ -126,6 +128,7 @@ export class ReaderModeSnapshot {
     this.superResolutionMaxHeight = superResolutionMaxHeight
     this.wideImageMode = wideImageMode
     this.volumeKeyNavigationEnabled = volumeKeyNavigationEnabled
+    this.eyeGazePageTurnEnabled = eyeGazePageTurnEnabled
     this.volumeKeyBehavior = volumeKeyBehavior
     this.columnMode = columnMode
   }
@@ -162,6 +165,7 @@ export class ReaderModeState {
   @Trace superResolutionMaxHeight: number = 2000
   @Trace wideImageMode: string = 'keep_single'
   @Trace volumeKeyNavigationEnabled: boolean = false
+  @Trace eyeGazePageTurnEnabled: boolean = false
   @Trace volumeKeyBehavior: string = 'up_previous_down_next'
   @Trace hydrated: boolean = false
   /** A single monitor target for consumers that need to apply a full snapshot. */
@@ -211,6 +215,7 @@ export class ReaderModeStateBridge {
       state.superResolutionMaxHeight !== next.superResolutionMaxHeight ||
       state.wideImageMode !== next.wideImageMode ||
       state.volumeKeyNavigationEnabled !== next.volumeKeyNavigationEnabled ||
+      state.eyeGazePageTurnEnabled !== next.eyeGazePageTurnEnabled ||
       state.volumeKeyBehavior !== next.volumeKeyBehavior
 
     state.pageMode = next.pageMode
@@ -242,6 +247,7 @@ export class ReaderModeStateBridge {
     state.superResolutionMaxHeight = next.superResolutionMaxHeight
     state.wideImageMode = next.wideImageMode
     state.volumeKeyNavigationEnabled = next.volumeKeyNavigationEnabled
+    state.eyeGazePageTurnEnabled = next.eyeGazePageTurnEnabled
     state.volumeKeyBehavior = next.volumeKeyBehavior
     state.hydrated = true
     if (changed) {
@@ -272,6 +278,7 @@ export class ReaderModeStateBridge {
       state.trimPageMarginsEnabled,
       state.wideImageMode,
       state.volumeKeyNavigationEnabled,
+      state.eyeGazePageTurnEnabled,
       state.volumeKeyBehavior,
       columnMode,
       state.cropStrength,

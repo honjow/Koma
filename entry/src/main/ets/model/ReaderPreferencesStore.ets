@@ -58,6 +58,7 @@ export interface ReaderPreferences {
   superResolutionMaxHeight: number
   wideImageMode: ReaderWideImageMode
   volumeKeyNavigationEnabled: boolean
+  eyeGazePageTurnEnabled: boolean
   volumeKeyBehavior: ReaderVolumeKeyBehavior
   readerImplementation: ReaderImplementation
 }
@@ -153,6 +154,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   superResolutionMaxHeight: 2000,
   wideImageMode: 'keep_single',
   volumeKeyNavigationEnabled: false,
+  eyeGazePageTurnEnabled: false,
   volumeKeyBehavior: 'up_previous_down_next',
   readerImplementation: 'shared',
 }
@@ -321,6 +323,7 @@ export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPref
     readerImplementation: value.readerImplementation === 'legacy' ? 'legacy' : 'shared',
     wideImageMode: normalizeReaderWideImageMode(value.wideImageMode),
     volumeKeyNavigationEnabled: value.volumeKeyNavigationEnabled === true,
+    eyeGazePageTurnEnabled: value.eyeGazePageTurnEnabled === true,
     volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(value.volumeKeyBehavior),
   }
 }
@@ -365,6 +368,7 @@ export function readerPreferencesFromRuntimeState(columnMode: ReaderColumnMode, 
     readerImplementation: connectKomaReaderBackendSelection().current(true),
     wideImageMode: normalizeReaderWideImageMode(runtime.wideImageMode),
     volumeKeyNavigationEnabled: runtime.volumeKeyNavigationEnabled,
+    eyeGazePageTurnEnabled: runtime.eyeGazePageTurnEnabled === true,
     volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(runtime.volumeKeyBehavior),
   })
 }
@@ -392,6 +396,7 @@ function publishReaderModeState(preferences: ReaderPreferences): void {
     preferences.trimPageMarginsEnabled,
     preferences.wideImageMode,
     preferences.volumeKeyNavigationEnabled,
+    preferences.eyeGazePageTurnEnabled,
     preferences.volumeKeyBehavior,
     preferences.columnMode,
     preferences.cropStrength,
@@ -466,6 +471,7 @@ function preferencesFromRecord(record: Record<string, Object>, fallback: ReaderP
       stringField(record, 'readerImplementation', fallback.readerImplementation)),
     wideImageMode: normalizeReaderWideImageMode(stringField(record, 'wideImageMode', fallback.wideImageMode)),
     volumeKeyNavigationEnabled: booleanField(record, 'volumeKeyNavigationEnabled', fallback.volumeKeyNavigationEnabled),
+    eyeGazePageTurnEnabled: booleanField(record, 'eyeGazePageTurnEnabled', fallback.eyeGazePageTurnEnabled) === true,
     volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(stringField(record, 'volumeKeyBehavior', fallback.volumeKeyBehavior)),
   })
 }
@@ -583,6 +589,7 @@ export function applyReaderSeriesModeOverride(
     superResolutionMaxHeight: preferences.superResolutionMaxHeight,
     wideImageMode: preferences.wideImageMode,
     volumeKeyNavigationEnabled: preferences.volumeKeyNavigationEnabled,
+    eyeGazePageTurnEnabled: preferences.eyeGazePageTurnEnabled,
     volumeKeyBehavior: preferences.volumeKeyBehavior,
   }
 }
@@ -774,6 +781,7 @@ export function rebaseReaderPreferenceChanges(base: ReaderPreferences, previous:
   if (previous.superResolutionMaxHeight !== next.superResolutionMaxHeight) rebased.superResolutionMaxHeight = next.superResolutionMaxHeight
   if (previous.wideImageMode !== next.wideImageMode) rebased.wideImageMode = next.wideImageMode
   if (previous.volumeKeyNavigationEnabled !== next.volumeKeyNavigationEnabled) rebased.volumeKeyNavigationEnabled = next.volumeKeyNavigationEnabled
+  if (previous.eyeGazePageTurnEnabled !== next.eyeGazePageTurnEnabled) rebased.eyeGazePageTurnEnabled = next.eyeGazePageTurnEnabled
   if (previous.volumeKeyBehavior !== next.volumeKeyBehavior) rebased.volumeKeyBehavior = next.volumeKeyBehavior
   if (previous.readerImplementation !== next.readerImplementation) rebased.readerImplementation = next.readerImplementation
   return normalizeReaderPreferences(rebased)
@@ -896,6 +904,7 @@ export class ReaderPreferencesStore {
     const readerImplementation = field('reader.readerImplementation', DEFAULT_READER_PREFERENCES.readerImplementation) as string
     const wideImageMode = field('reader.wideImageMode', DEFAULT_READER_PREFERENCES.wideImageMode) as string
     const volumeKeyNavigationEnabled = field('reader.volumeKeyNavigationEnabled', DEFAULT_READER_PREFERENCES.volumeKeyNavigationEnabled) as boolean
+    const eyeGazePageTurnEnabled = field('reader.eyeGazePageTurnEnabled', DEFAULT_READER_PREFERENCES.eyeGazePageTurnEnabled) as boolean
     const volumeKeyBehavior = field('reader.volumeKeyBehavior', DEFAULT_READER_PREFERENCES.volumeKeyBehavior) as string
     const normalized = normalizeReaderPreferences({
       pageMode: normalizeReaderPageMode(pageMode),
@@ -934,6 +943,7 @@ export class ReaderPreferencesStore {
       readerImplementation: normalizeReaderImplementation(readerImplementation),
       wideImageMode: normalizeReaderWideImageMode(wideImageMode),
       volumeKeyNavigationEnabled,
+      eyeGazePageTurnEnabled,
       volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(volumeKeyBehavior),
     })
     return normalized
@@ -1019,6 +1029,7 @@ export class ReaderPreferencesStore {
       'reader.readerImplementation',
       'reader.wideImageMode',
       'reader.volumeKeyNavigationEnabled',
+      'reader.eyeGazePageTurnEnabled',
       'reader.volumeKeyBehavior',
     ]
     // A book edit commits its global fields and narrow override together.
@@ -1062,6 +1073,7 @@ export class ReaderPreferencesStore {
       await store.put('reader.readerImplementation', normalized.readerImplementation)
       await store.put('reader.wideImageMode', normalized.wideImageMode)
       await store.put('reader.volumeKeyNavigationEnabled', normalized.volumeKeyNavigationEnabled)
+      await store.put('reader.eyeGazePageTurnEnabled', normalized.eyeGazePageTurnEnabled)
       await store.put('reader.volumeKeyBehavior', normalized.volumeKeyBehavior)
       if (seriesModeOverrides !== undefined) await store.put(SERIES_MODE_OVERRIDES_KEY, seriesModeOverrides)
       await store.flush()
@@ -1272,6 +1284,7 @@ export class ReaderPreferencesStore {
       readerImplementation: current.readerImplementation,
       wideImageMode: current.wideImageMode,
       volumeKeyNavigationEnabled: current.volumeKeyNavigationEnabled,
+      eyeGazePageTurnEnabled: current.eyeGazePageTurnEnabled,
       volumeKeyBehavior: current.volumeKeyBehavior,
     }
   }
@@ -1425,6 +1438,12 @@ export class ReaderPreferencesStore {
   async saveVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled: boolean): Promise<ReaderPreferences> {
     return this.mutatePreferences((next: ReaderPreferences): void => {
       next.volumeKeyNavigationEnabled = volumeKeyNavigationEnabled
+    })
+  }
+
+  async saveEyeGazePageTurnEnabled(eyeGazePageTurnEnabled: boolean): Promise<ReaderPreferences> {
+    return this.mutatePreferences((next: ReaderPreferences): void => {
+      next.eyeGazePageTurnEnabled = eyeGazePageTurnEnabled
     })
   }
 

@@ -75,6 +75,7 @@
       "reader.readerImplementation",
       "reader.wideImageMode",
       "reader.volumeKeyNavigationEnabled",
+      "reader.eyeGazePageTurnEnabled",
       "reader.volumeKeyBehavior",
       "reader.bannerFilterOverrides.v1"
     ],
@@ -109,6 +110,9 @@
     ],
     "model/AppReleaseService.ets": [
       "releases"
+    ],
+    "model/IncognitoPreferencesStore.ets": [
+      "incognito.enabled"
     ],
     "model/LibraryUpdatePreferencesStore.ets": [
       "libraryUpdate.lastCheckedAt",
