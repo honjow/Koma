@@ -166,9 +166,12 @@ export async function diagnoseSourceOperation(requestJson: string, execute: () =
         trace.finish('completed', 'resultChars=' + result.length)
       } else {
         const details = sourceFailureDetails(response)
+        const errorMessage = response.error !== undefined && typeof response.error['message'] === 'string'
+          ? (response.error['message'] as string).slice(0, 160) : ''
         trace.finish('failed', 'resultChars=' + result.length + ' reason=' +
           (details.reason === 'unknown' ? details.code : details.reason) +
-          ' error=' + details.code + ' http=' + details.status + ' kind=' + details.kind)
+          ' error=' + details.code + ' http=' + details.status + ' kind=' + details.kind +
+          ' sourceError=' + (errorMessage.length > 0 ? errorMessage : 'none'))
       }
     } catch (_error) {
       trace.finish('failed', 'reason=source_response_invalid_json')

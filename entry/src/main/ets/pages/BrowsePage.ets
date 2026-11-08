@@ -14,6 +14,7 @@ import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
+import { appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { RouterHelper } from '../common/RouterHelper'
@@ -397,13 +398,20 @@ export struct BrowsePage {
   }
 
   private async refreshSources(): Promise<void> {
-    const sourceMetadataReloaded = reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
-    this.viewModel = new BrowseViewModel(this.sourceRegistry)
-    this.viewModel.loadInstalledSources()
-    await this.loadRemoteAvailability(true)
-    if (!sourceMetadataReloaded) {
-      throw new Error('source_metadata_reload_failed')
+    const context = getContext(this) as common.UIAbilityContext
+    const sourceRevision = this.sourceRuntimeState.revision
+    if (this.displayedSourceRevision !== sourceRevision) {
+      const sourceMetadataReloaded = reloadInstalledSourcePackages(context)
+      this.viewModel = new BrowseViewModel(this.sourceRegistry)
+      this.viewModel.loadInstalledSources()
+      this.displayedSourceRevision = sourceRevision
+      if (!sourceMetadataReloaded) {
+        throw new Error('source_metadata_reload_failed')
+      }
     }
+    await this.loadRemoteAvailability(true)
+    await appSourcePackageManagerCache.prepare(context, connectLanguageState().effectiveLocale)
+    await appSourcePackageManagerCache.check(context)
   }
 
   build() {

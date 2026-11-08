@@ -208,20 +208,22 @@ export function configureReaderRemoteImageCache(
     readerImageCacheStore = new RemoteImageCacheStore(cacheDir)
   }
   if (readerImageCacheAutoCleanEnabled) {
-    void readerImageCacheStore.evictIfOver(readerImageCacheMaxBytes).catch((): void => {
-      DiagnosticLogger.warn('reader_page_source_adapter', 'cleanup_failed', '[ReaderCache] step=cleanup_failed')
-    })
+    readerImageCacheStore.maintainIfOver(readerImageCacheMaxBytes)
   }
+}
+
+/** Bound cache directory maintenance and manifest writes to reader
+ * interaction idle periods. The cache gate resumes on its own longer settle;
+ * callers resuming only the GPU path pass skipCacheGate. */
+export function setReaderImageCacheEvictionPaused(paused: boolean, skipCacheGate: boolean = false): void {
+  readerImageCacheStore?.setEvictionPaused(paused)
+  if (!skipCacheGate) readerImageCacheStore?.setManifestWritePaused(paused)
 }
 
 async function maintainReaderImageCacheAfterWrite(path: string, original?: string): Promise<void> {
   if (readerImageCacheStore === null || !readerImageCacheAutoCleanEnabled) return
-  try {
-    // Keep the just-returned image available even when one image alone exceeds the limit.
-    await readerImageCacheStore.evictIfOver(readerImageCacheMaxBytes, original === undefined ? path : [path, original])
-  } catch (_error) {
-    DiagnosticLogger.warn('reader_page_source_adapter', 'cleanup_failed', '[ReaderCache] step=cleanup_failed')
-  }
+  // Keep the just-returned image available even when one image alone exceeds the limit.
+  readerImageCacheStore.maintainIfOver(readerImageCacheMaxBytes, original === undefined ? path : [path, original])
 }
 
 /** Display compatibility is separate from the source, export and offline paths. */
@@ -369,6 +371,28 @@ function isLocalFileUri(uri: string): boolean {
   return normalized.startsWith('file://') || normalized.startsWith('mock://')
 }
 
+function readerImageDiagnosticTarget(value: string): string {
+  try {
+    const parsed = new url.URL(value)
+    const path = parsed.pathname.length > 160 ? parsed.pathname.slice(0, 160) + '...' : parsed.pathname
+    return 'host=' + parsed.hostname + ' path=' + (path.length > 0 ? path : '/')
+  } catch (_error) {
+    return 'host=invalid'
+  }
+}
+
+function readerImageHeaderNames(headers?: RemoteImageCacheHeaders): string {
+  if (headers === undefined) return 'none'
+  const names = Object.keys(headers).map((name: string): string => name.toLocaleLowerCase()).sort()
+  return names.length > 0 ? names.join(',') : 'none'
+}
+
+function readerImageTicketBytes(headers?: RemoteImageCacheHeaders): number {
+  if (headers === undefined) return 0
+  const key = Object.keys(headers).find((name: string): boolean => name.toLocaleLowerCase() === 'x-image-ticket')
+  return key === undefined ? 0 : headers[key].length
+}
+
 async function downloadDnsOverrideImage(fullUrl: string, extraHeaders: RemoteImageCacheHeaders | undefined,
   sourceId: string, hint: SourceDnsOverride, responseErrors?: SourceImageResponseErrors): Promise<ArrayBuffer> {
   const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
@@ -459,6 +483,10 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
     (coverImage ? COVER_IMAGE_READ_TIMEOUT_MS : READER_IMAGE_READ_TIMEOUT_MS)
   const connectTimeout = coverImage ? COVER_IMAGE_CONNECT_TIMEOUT_MS : 30000
   const trace = DiagnosticLogger.begin('reader_image', 'request', 'connectTimeoutMs=' + connectTimeout + ' readTimeoutMs=' + readTimeout)
+  const diagnosticStartedAt = Date.now()
+  const diagnosticTarget = readerImageDiagnosticTarget(url)
+  trace.info('request_target', diagnosticTarget + ' source=' + sourceId + ' chapterImage=' + chapterImage +
+    ' headerNames=' + readerImageHeaderNames(extraHeaders) + ' ticketBytes=' + readerImageTicketBytes(extraHeaders))
   const httpRequest = http.createHttp()
   let responseStarted: boolean = false
   let declaredBytes: number = -1
@@ -506,13 +534,15 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
     }) : await pending
     if (response.responseCode !== 200) {
       DiagnosticLogger.warn('reader_page_source_adapter', 'http_status_failed', `[ReaderImage] step=http_status_failed status=${response.responseCode}`)
-      trace.finish('failed', 'status=' + response.responseCode + ' responseStarted=' + responseStarted +
+      trace.finish('failed', 'status=' + response.responseCode + ' ' + diagnosticTarget + ' elapsedMs=' + (Date.now() - diagnosticStartedAt) +
+        ' responseStarted=' + responseStarted +
         ' declaredBytes=' + declaredBytes + ' receivedBytes=' + (response.result as ArrayBuffer).byteLength)
       // The source defines the meaning of its endpoint's response. Apply the
       // declaration only to the actual GET, without fetching the image twice.
       throw sourceImageResponseError(response.responseCode, chapterImage ? responseErrors : undefined)
     }
-    trace.finish('completed', 'status=' + response.responseCode + ' bytes=' + (response.result as ArrayBuffer).byteLength +
+    trace.finish('completed', 'status=' + response.responseCode + ' ' + diagnosticTarget + ' elapsedMs=' + (Date.now() - diagnosticStartedAt) +
+      ' bytes=' + (response.result as ArrayBuffer).byteLength +
       ' responseStarted=' + responseStarted + ' declaredBytes=' + declaredBytes)
     return response.result as ArrayBuffer
   } catch (error) {
@@ -522,7 +552,8 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
     }
     const e = error as BusinessError
     const code = e.message === 'reader_remote_image_deadline' ? 2300028 : e.code
-    trace.finish('failed', 'responseStarted=' + responseStarted + ' declaredBytes=' + declaredBytes +
+    trace.finish('failed', 'responseStarted=' + responseStarted + ' declaredBytes=' + declaredBytes + ' ' + diagnosticTarget +
+      ' elapsedMs=' + (Date.now() - diagnosticStartedAt) +
       ' receivedBytes=unknown ' + DiagnosticLogger.errorSummary(e))
     DiagnosticLogger.warn('reader_page_source_adapter', 'http_request_failed', `[ReaderImage] step=http_request_failed code=${code === undefined ? 'unknown' : code}`)
     throw new Error(`reader_remote_image_fetch_failed_${code === undefined ? 'unknown' : code}`)
@@ -805,6 +836,12 @@ async function resolveSourceRuntimeImageRequest(
   if (response.ok !== true) {
     // Required image descriptors retain safe provider diagnostics, as text pages
     // already do. Keep the optional-descriptor fallback for older sources.
+    const sourceMessage = response.error !== undefined && typeof response.error['message'] === 'string'
+      ? (response.error['message'] as string).slice(0, 120) : ''
+    DiagnosticLogger.warn('reader_image_request', 'failed', 'source=' + sourceId +
+      ' sourceVersion=' + lookup.entry.manifestVersion +
+      ' reason=' + (response.reasonCode ?? response.error?.['code'] ?? 'unknown') +
+      ' sourceError=' + (sourceMessage.length > 0 ? sourceMessage : 'none'))
     if (descriptorRequired) throw new SourceRuntimeError(response)
     return unavailableSourceImageDescriptor(sourceId)
   }
@@ -813,6 +850,12 @@ async function resolveSourceRuntimeImageRequest(
   if (data?.['dnsOverride'] !== undefined) sourceDnsOverride(data['dnsOverride'])
   const descriptor = parseSourceImageRequestDescriptor(responseJson)
   if (descriptor === undefined && descriptorRequired) throw new Error('reader_source_image_request_invalid')
+  if (descriptor !== undefined) {
+    DiagnosticLogger.info('reader_image_request', 'resolved', 'source=' + sourceId +
+      ' sourceVersion=' + lookup.entry.manifestVersion + ' ' + readerImageDiagnosticTarget(descriptor.url) +
+      ' headerNames=' + readerImageHeaderNames(descriptor.headers) +
+      ' ticketBytes=' + readerImageTicketBytes(descriptor.headers))
+  }
   return descriptor ?? unavailableSourceImageDescriptor(sourceId)
 }
 

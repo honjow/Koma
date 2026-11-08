@@ -5,6 +5,7 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 import { restoreReaderRemoteImageCache } from './ReaderPageSourceAdapter'
+import { invalidateLibraryAutomationPolicyCache } from './LibraryAutomationPreferencesStore'
 import { isValidHttpUrl, normalizeIndexUrl, parseSavedSourceIndexRepositories, SourceIndexRepository,
   serializeSourceIndexRepositories } from '../sourceRuntime/SourceIndexMetadata'
 
@@ -211,5 +212,6 @@ export function countApplicationSettings(value: ApplicationSettingsBackup | unde
 export async function reloadApplicationSettingsRuntime(context: common.UIAbilityContext): Promise<void> {
   await LanguageSettings.restore(context)
   await new AppearancePreferencesStore(context).load()
+  invalidateLibraryAutomationPolicyCache()
   await restoreReaderRemoteImageCache(context)
 }

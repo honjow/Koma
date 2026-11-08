@@ -8,7 +8,8 @@ export const DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES: number = 500 * 1024 * 1024
 const REMOTE_IMAGE_CACHE_SCHEMA_VERSION: number = 1
 const REMOTE_IMAGE_CACHE_DIR_NAME: string = 'reader-remote-image-cache'
 const REMOTE_IMAGE_CACHE_MANIFEST_NAME: string = 'manifest.v1.json'
-const READER_CACHE_ACCESS_SETTLE_MS: number = 1500
+const READER_CACHE_WRITE_SETTLE_MS: number = 400
+const EVICT_UNLINK_BATCH: number = 8
 
 export interface RemoteImageCacheManifestEntry {
   key: string
@@ -71,12 +72,14 @@ async function writeBytes(path: string, bytes: ArrayBuffer): Promise<void> {
       throw new Error('Incomplete image cache file')
     }
     await fs.rename(tempPath, path)
-  } finally {
-    await closeFileQuietly(file)
+  } catch (_error) {
     try {
       if (await fs.access(tempPath)) await fs.unlink(tempPath)
-    } catch (_error) {
+    } catch (_cleanupError) {
     }
+    throw _error as Error
+  } finally {
+    await closeFileQuietly(file)
   }
 }
 
@@ -168,10 +171,16 @@ export class RemoteImageCacheStore {
   private totalBytes: number = 0
   private accessWriteTimer: number = -1
   private accessDirty: boolean = false
+  private manifestWritePaused: boolean = false
 
   private operationTail: Promise<void> = Promise.resolve()
   private imageRequests: Map<string, Promise<string>> = new Map<string, Promise<string>>()
   private reloadRequests: Map<string, Promise<string>> = new Map<string, Promise<string>>()
+  private evictionPaused: boolean = false
+  private evictionPending: boolean = false
+  private pendingEvictionMaxBytes: number = 0
+  private pendingEvictionPreservedPaths: string[] = []
+  private resumeEviction: (() => void) | null = null
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const next = this.operationTail.then(operation, operation)
@@ -251,7 +260,7 @@ export class RemoteImageCacheStore {
       return Promise.resolve(undefined)
     }
     entry.lastAccessAt = Date.now()
-    if (this.coalesceAccessWrites) this.scheduleAccessWrite()
+    if (this.coalesceAccessWrites) this.scheduleManifestWrite()
     else await this.persist()
     console.info(`[ReaderCache] step=hit key=${key} size=${entry.size}`)
     return Promise.resolve(entry.path)
@@ -309,12 +318,50 @@ export class RemoteImageCacheStore {
       lastAccessAt: Date.now(),
       avif: this.trackAvif ? isAvifFileType(bytes, Math.min(bytes.byteLength, 128)) : undefined,
     })
-    await this.persist()
+    this.scheduleManifestWrite()
     return filePath
   }
 
   evictIfOver(maxBytes: number, preservedPath?: string | string[]): Promise<void> {
     return this.enqueue(() => this.evictIfOverNow(maxBytes, preservedPath))
+  }
+
+  /**
+   * The live continuous reader publishes many image files while the List is
+   * moving. Directory reconciliation and unlink callbacks return to the UI
+   * thread, so keep their maintenance demand outside the gesture and run the
+   * latest quota once interaction settles. Explicit cache management still
+   * calls evictIfOver directly.
+   */
+  maintainIfOver(maxBytes: number, preservedPath?: string | string[]): void {
+    if (maxBytes <= 0 || this.totalBytes <= maxBytes) return
+    this.pendingEvictionMaxBytes = maxBytes
+    const protectedPaths = typeof preservedPath === 'string' ? [preservedPath] : preservedPath ?? []
+    this.pendingEvictionPreservedPaths = Array.from(new Set(
+      this.pendingEvictionPreservedPaths.concat(protectedPaths)))
+    this.evictionPending = true
+    if (!this.evictionPaused) void this.runPendingEviction()
+  }
+
+  setEvictionPaused(paused: boolean): void {
+    this.evictionPaused = paused
+    if (paused) return
+    const resume = this.resumeEviction
+    this.resumeEviction = null
+    if (resume !== null) resume()
+    if (this.evictionPending) void this.runPendingEviction()
+  }
+
+  private async runPendingEviction(): Promise<void> {
+    if (this.evictionPaused) {
+      await new Promise<void>((resume: () => void): void => { this.resumeEviction = resume })
+    }
+    if (!this.evictionPending) return
+    this.evictionPending = false
+    const maxBytes = this.pendingEvictionMaxBytes
+    const preserved = this.pendingEvictionPreservedPaths
+    this.pendingEvictionPreservedPaths = []
+    await this.evictIfOver(maxBytes, preserved)
   }
 
   private async evictIfOverNow(maxBytes: number, preservedPath?: string | string[]): Promise<void> {
@@ -333,6 +380,7 @@ export class RemoteImageCacheStore {
     rows.sort((left: RemoteImageCacheManifestEntry, right: RemoteImageCacheManifestEntry) => {
       return left.lastAccessAt - right.lastAccessAt
     })
+    let removedSinceYield = 0
     for (const entry of rows) {
       if (this.totalBytes <= maxBytes) {
         break
@@ -345,6 +393,11 @@ export class RemoteImageCacheStore {
       }
       this.removeEntry(entry.key)
       dirty = true
+      removedSinceYield += 1
+      if (removedSinceYield >= EVICT_UNLINK_BATCH) {
+        removedSinceYield = 0
+        await new Promise<void>((resolve: () => void): void => { setTimeout(resolve, 0) })
+      }
       console.info(`[ReaderCache] step=evict key=${entry.key} size=${entry.size} total=${this.totalBytes}`)
     }
     if (dirty) await this.persist()
@@ -475,22 +528,32 @@ export class RemoteImageCacheStore {
     this.accessWriteTimer = -1
   }
 
-  private scheduleAccessWrite(): void {
+  setManifestWritePaused(paused: boolean): void {
+    this.manifestWritePaused = paused
+    // The reader pauses writes while gestures move the List; resuming starts
+    // one settled write that commits every hit and publication since then.
+    if (!paused && this.accessDirty && this.accessWriteTimer < 0) this.scheduleManifestWrite()
+  }
+
+  private scheduleManifestWrite(): void {
     this.accessDirty = true
+    if (this.manifestWritePaused) return
     this.cancelAccessWrite()
     this.accessWriteTimer = setTimeout((): void => {
       this.accessWriteTimer = -1
-      // Cache hits update in-memory eviction order immediately. Only their
-      // restart hint can wait. Serialize it with structural edits so a late
-      // timestamp write cannot overwrite a replacement, eviction or clear.
+      // Hits and new publications both update the in-memory manifest
+      // immediately; only the manifest file can wait. One settled write
+      // commits the full payload. An immediate persist from eviction,
+      // invalidation or clear cancels this timer first, so those paths stay
+      // fully synchronous.
       void this.enqueue(async (): Promise<void> => {
-        if (!this.accessDirty || this.accessWriteTimer >= 0) return
-        await this.persist(true)
+        if (!this.accessDirty || this.accessWriteTimer >= 0 || this.manifestWritePaused) return
+        await this.persist()
       }).catch((): void => {
-        // A metadata failure must not fail a hit. Retry on the next access or
-        // let the next structural write commit the live timestamps.
+        // A metadata failure must not fail a hit or a publication. Retry on
+        // the next access, publication or structural write.
       })
-    }, READER_CACHE_ACCESS_SETTLE_MS)
+    }, READER_CACHE_WRITE_SETTLE_MS)
   }
 
   private manifestPayload(): string {
@@ -501,9 +564,9 @@ export class RemoteImageCacheStore {
     return JSON.stringify(document)
   }
 
-  private async persist(accessOnly: boolean = false): Promise<void> {
+  private async persist(): Promise<void> {
     this.cancelAccessWrite()
-    const temporary = this.manifestPath + (accessOnly ? '.access.tmp' : '.tmp')
+    const temporary = this.manifestPath + '.tmp'
     const payload = this.manifestPayload()
     try {
       const file = await fs.open(temporary, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)

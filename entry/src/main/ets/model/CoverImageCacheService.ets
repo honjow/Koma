@@ -5,6 +5,7 @@ import { http } from '@kit.NetworkKit'
 import { ComicSourceKind } from './ComicModels'
 import {
   RemoteImageCacheHeaders,
+  RemoteImageCacheStats,
   RemoteImageCacheStore,
 } from './RemoteImageCacheStore'
 import {
@@ -301,6 +302,16 @@ function cacheStoreFor(context: common.UIAbilityContext): RemoteImageCacheStore 
     coverImageCacheStore = new RemoteImageCacheStore(context.cacheDir, COVER_IMAGE_CACHE_DIRECTORY_NAME)
   }
   return coverImageCacheStore
+}
+
+export function getCoverImageCacheStats(context: common.UIAbilityContext): Promise<RemoteImageCacheStats> {
+  return cacheStoreFor(context).stats()
+}
+
+export async function clearCoverImageCache(context: common.UIAbilityContext): Promise<RemoteImageCacheStats> {
+  const store = cacheStoreFor(context)
+  await store.clear()
+  return store.stats()
 }
 
 export async function invalidateCachedCoverImagePath(context: common.UIAbilityContext, path: string): Promise<boolean> {

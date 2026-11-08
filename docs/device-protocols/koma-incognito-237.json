@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-incognito-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/incognito",
+  "runId": "restore-timeout-040",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "incognito UI candidate: status strip overlay + settings privacy group + read/search bypass; uncommitted local build",
+    "page": "Restore the device screen timeout and read it back",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "237既有验收授权：唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收、结束恢复和释租。本轮保留最新开发包。"
+  },
+  "preflight": [],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    { "name": "restore-timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "120000"] },
+    { "name": "final-power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

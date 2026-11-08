@@ -2,7 +2,7 @@ import { sourceTextOverlay } from './SourceTextOverlay'
 import { sourceRequiredImageDecode } from './SourceRequiredImageDecode'
 import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
 import { configureSourceRequestPolicy } from '../sourceRuntime/SourceRequestPolicy'
-import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
+import { sourcePagePlanFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
 import { sourceTextPage, sourceTextPageRequest } from './SourceTextPageDescriptor'
 import { cacheSourceTextPageImage } from './ReaderPageSourceAdapter'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
@@ -31,6 +31,7 @@ import {
   appSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
 import { normalizeSourceImageUrl } from './SourceTextNormalizer'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { resolveSourceChapterForResume, resolveSourceChapterList } from './SourceChapterListResolver'
 import { continuationChapterIds } from './ReaderChapterSequence'
 import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
@@ -102,14 +103,21 @@ export interface SourceChapterPagesResolveResult {
   sourceFailure?: SourceFailureDetails
 }
 
-/** Reuse prepared pages across opens only while their generating settings match.
- * Offline manifests remain owned by the offline reader, outside this check.
+function sourcePagePlanIdentity(entry: SourceRuntimeRegistryEntry): string {
+  return entry.manifestVersion + '|' + entry.wasmPath
+}
+
+/** Reuse prepared pages across opens only while their generating settings and
+ * source package installation match. Offline manifests remain owned by the
+ * offline reader, outside this check.
  */
 export function sourceChapterPagesMatchSettings(chapter: Chapter, sourceId: string): boolean {
   if (chapter.pages.length === 0) return false
   try {
+    const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+    if (entry === undefined) return false
     return (chapter.sourceSettingsFingerprint ?? '') ===
-      sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
+      sourcePagePlanFingerprint(appSourceSettingsStore.loadForSource(sourceId), sourcePagePlanIdentity(entry))
   } catch (_error) {
     // Unknown settings cannot validate a plan. Normal resolution reports the
     // storage failure and retains the existing usable pages without stamping them.
@@ -315,7 +323,7 @@ async function fetchSourceChapterPages(
   }
   if (rows.length === 0) return { pages: [], reasonCode: 'source_pages_failed' }
   return { pages: await pagesFromSourceRows(request.comicId, request.chapterId, rows),
-    settingsFingerprint: sourceSettingsFingerprint(sourceRequest.settings) }
+    settingsFingerprint: sourcePagePlanFingerprint(sourceRequest.settings, sourcePagePlanIdentity(entry)) }
 }
 
 export async function resolveSourceChapterPages(
@@ -500,7 +508,10 @@ export class SourceChapterPageHydrator {
         sourceFailureReason: resolution.sourceFailureReason, sourceFailure: resolution.sourceFailure }
     }
     const fingerprint = resolution.settingsFingerprint ?? ''
-    if (fingerprint !== sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(resolvedSourceId))) {
+    const currentEntry = appSourceRuntimeRegistry.lookup(resolvedSourceId).entry
+    if (currentEntry === undefined ||
+      fingerprint !== sourcePagePlanFingerprint(appSourceSettingsStore.loadForSource(resolvedSourceId),
+        sourcePagePlanIdentity(currentEntry))) {
       return { hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' }
     }
     return this.applyPages(baselineComic, baselineChapter, resolution.pages, fingerprint)

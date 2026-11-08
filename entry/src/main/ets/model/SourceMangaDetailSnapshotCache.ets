@@ -89,6 +89,17 @@ interface CachedSourceMangaDetailSnapshot {
 export class SourceMangaDetailSnapshotCache {
   private readonly snapshots: Map<string, CachedSourceMangaDetailSnapshot> = new Map<string, CachedSourceMangaDetailSnapshot>()
 
+  size(): number {
+    return this.snapshots.size
+  }
+
+  clear(): number {
+    const count = this.snapshots.size
+    this.snapshots.clear()
+    return count
+  }
+
+
   read(
     entry: SourceRuntimeRegistryEntry,
     sourceId: string,

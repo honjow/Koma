@@ -1,4 +1,6 @@
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { connectIncognitoState, IncognitoState } from '../state/IncognitoState'
+import { IncognitoPreferences, IncognitoPreferencesStore } from '../model/IncognitoPreferencesStore'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderDisplaySettingsContent } from '../components/ReaderDisplaySettingsContent'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
@@ -12,6 +14,8 @@ import { CustomLibraryCategory, LibraryCategoryDefinition, LegacyLibraryCategory
 import { KomaAboutContent } from '../components/KomaAboutContent'
 import { KomaTranslationSettingsContent } from '../components/KomaTranslationSettingsContent'
 import { KomaTranslationCacheRow } from '../components/KomaTranslationCacheRow'
+import { KomaPageCacheRow } from '../components/KomaPageCacheRow'
+import { clearAllImageCaches, getAllImageCacheStats } from '../model/ImageCacheAggregateService'
 import { KomaTranslationSourcesContent, ModelSourcesTitleAction } from '../components/KomaTranslationSourcesContent'
 import { ReaderImageSettingsContent } from '../components/ReaderImageSettingsContent'
 import { ReaderSuperResolutionModelsContent } from '../components/ReaderSuperResolutionModelsContent'
@@ -108,10 +112,8 @@ import {
   ReaderRemoteImageCacheStats,
   DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES,
   READER_REMOTE_IMAGE_CACHE_MAX_BYTES_OPTIONS,
-  clearReaderRemoteImageCache,
   configureReaderRemoteImageCache,
   formatReaderRemoteImageCacheSize,
-  getReaderRemoteImageCacheStats,
   ReaderRemoteImageCachePreferences,
   ReaderRemoteImageCachePreferencesStore,
 } from '../model/ReaderPageSourceAdapter'
@@ -167,6 +169,7 @@ interface SettingsSection {
 
 export type SettingsPaneKey =
   'root' |
+  'incognito' |
   'appearance' |
   'library' |
   'reader' |
@@ -309,7 +312,9 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'device-sync', titleKey: 'device_sync_title', detailKey: 'device_sync_entry_detail' },
         { key: 'device-sync-webdav', titleKey: 'device_sync_webdav', detailKey: 'device_sync_entry_detail' },
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
+        { key: 'content-cache', titleKey: 'cache_content_title', detailKey: '' },
         { key: 'translation-cache', titleKey: 'cache_comic_translation', detailKey: '' },
+        { key: 'cache-settings-header', titleKey: 'settings_section_cache_settings', detailKey: '' },
         { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail' },
         { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail' },
       ],
@@ -338,6 +343,19 @@ function createSettingsSections(): SettingsSection[] {
 // Advanced; translation config is a service, while Reader keeps its live actions.
 function createSettingsRootSections(): SettingsPaneSection[] {
   return [
+    {
+      key: 'privacy',
+      titleKey: 'settings_section_privacy',
+      items: [
+        {
+          key: 'incognito',
+          titleKey: 'settings_row_incognito_title',
+          detailKey: 'settings_row_incognito_detail',
+          icon: $r('sys.symbol.eye_slash'),
+          color: ThemeConstants.STATUS_MUTED,
+        },
+      ],
+    },
     {
       key: 'primary',
       titleKey: '',
@@ -468,6 +486,7 @@ export struct SettingsPage {
   @Param searchTarget: string = ''
   @Param embeddedTracking: boolean = false
   @Local private settingsSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private incognito: IncognitoState = connectIncognitoState()
   private positionedSearchTarget: boolean = false
   @Event onOpenKomgaSettings: () => void = () => {}
   @Event onOpenKavitaSettings: () => void = () => {}
@@ -561,6 +580,10 @@ export struct SettingsPage {
 
   private appearancePreferencesStore(): AppearancePreferencesStore {
     return new AppearancePreferencesStore(this.context())
+  }
+
+  private incognitoPreferencesStore(): IncognitoPreferencesStore {
+    return new IncognitoPreferencesStore(this.context())
   }
 
   private libraryUpdatePreferencesStore(): LibraryUpdatePreferencesStore {
@@ -905,9 +928,11 @@ export struct SettingsPage {
           titleKey: 'settings_section_storage',
           rows: this.rowsByKeys([
             'image-cache',
+            'content-cache',
+            'translation-cache',
+            'cache-settings-header',
             'cache-limit',
             'cache-auto-clean',
-            'translation-cache',
           ]),
         },
       ]
@@ -1105,6 +1130,27 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         DiagnosticLogger.warn('settings_page', 'load_appearance_preferences_failed', '[Settings] step=load_appearance_preferences_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private loadIncognitoPreferences(): void {
+    void this.incognitoPreferencesStore().load()
+      .then((preferences: IncognitoPreferences) => {
+        console.info('[Settings] step=load_incognito_preferences enabled=' + preferences.enabled)
+      })
+      .catch((error: Error) => {
+        DiagnosticLogger.warn('settings_page', 'load_incognito_preferences_failed', '[Settings] step=load_incognito_preferences_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveIncognitoEnabled(enabled: boolean): void {
+    void this.incognitoPreferencesStore().saveEnabled(enabled)
+      .then((preferences: IncognitoPreferences) => {
+        console.info('[Settings] step=save_incognito enabled=' + preferences.enabled)
+      })
+      .catch((error: Error) => {
+        DiagnosticLogger.warn('settings_page', 'save_incognito_failed', '[Settings] step=save_incognito_failed code=' + safeSettingsErrorCode(error))
+        this.loadIncognitoPreferences()
       })
   }
 
@@ -1320,7 +1366,7 @@ export struct SettingsPage {
       this.imageCacheState = 'unavailable'
       return
     }
-    void getReaderRemoteImageCacheStats()
+    void getAllImageCacheStats(this.context())
       .then((stats: ReaderRemoteImageCacheStats) => {
         this.updateImageCacheDetail(stats)
         console.info('[Settings] step=image_cache_stats totalBytes=' + stats.totalBytes + ' entryCount=' + stats.entryCount)
@@ -1648,7 +1694,7 @@ export struct SettingsPage {
       return
     }
     console.info('[Settings] step=image_cache_clear_start')
-    void clearReaderRemoteImageCache()
+    void clearAllImageCaches(this.context())
       .then((stats: ReaderRemoteImageCacheStats) => {
         this.updateImageCacheDetail(stats)
         console.info('[Settings] step=image_cache_clear_done totalBytes=' + stats.totalBytes + ' entryCount=' + stats.entryCount)
@@ -2401,8 +2447,16 @@ export struct SettingsPage {
 
   @Builder
   private SectionRow(row: SettingsRow) {
-    if (row.key === 'translation-cache') {
+    if (row.key === 'cache-settings-header') {
+      Text(this.rowTitle(row))
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .padding({ left: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_XS })
+    } else if (row.key === 'translation-cache') {
       KomaTranslationCacheRow()
+    } else if (row.key === 'content-cache') {
+      KomaPageCacheRow()
     } else if (LIBRARY_AUTOMATION_SETTING_KEYS.includes(row.key)) {
       LibraryAutomationSettingRow({ rowKey: row.key, title: this.rowTitle(row), policy: this.automationPolicy,
         categories: this.automationCategories(), onChange: (change: (policy: LibraryAutomationPreferences) => void) => {
@@ -2495,28 +2549,58 @@ export struct SettingsPage {
 
   @Builder
   private SearchResultRow(result: SettingsSearchResult) {
-    ConciseListRow({
-      title: this.rowTitle(result.row),
-      subtitle: result.row.key === 'settings-category' ? this.rowBaseDetail(result.row) : this.searchResultSubtitle(result),
-      subtitleMaxLines: 2,
-      showChevron: true,
-      action: () => { this.openSearchResult(result) },
-    })
+    if (result.row.key === 'settings-category' && result.pane === 'incognito') {
+      ConciseListRow({
+        title: this.rowTitle(result.row),
+        subtitle: this.rowBaseDetail(result.row),
+        subtitleMaxLines: 2,
+        showChevron: false,
+        hasSwitch: true,
+        checked: this.incognito.enabled,
+        switchAction: (isOn: boolean) => {
+          this.settingsSearchText = ''
+          this.saveIncognitoEnabled(isOn)
+        },
+      })
+    } else {
+      ConciseListRow({
+        title: this.rowTitle(result.row),
+        subtitle: result.row.key === 'settings-category' ? this.rowBaseDetail(result.row) : this.searchResultSubtitle(result),
+        subtitleMaxLines: 2,
+        showChevron: true,
+        action: () => { this.openSearchResult(result) },
+      })
+    }
   }
 
   @Builder
   private RootPaneRow(item: SettingsPaneItem) {
-    ConciseListRow({
-      title: this.paneItemTitle(item),
-      subtitle: this.paneItemDetail(item),
-      leadingIcon: item.icon,
-      leadingIconBackgroundColor: item.color,
-      showChevron: true,
-      action: () => {
-        this.getUIContext().getFocusController().clearFocus()
-        this.onOpenSettingsPane(item.key)
-      },
-    })
+    if (item.key === 'incognito') {
+      ConciseListRow({
+        title: this.paneItemTitle(item),
+        subtitle: this.paneItemDetail(item),
+        leadingIcon: item.icon,
+        leadingIconBackgroundColor: item.color,
+        showChevron: false,
+        hasSwitch: true,
+        checked: this.incognito.enabled,
+        switchAction: (isOn: boolean) => {
+          this.saveIncognitoEnabled(isOn)
+        },
+      })
+    } else {
+      ConciseListRow({
+        title: this.paneItemTitle(item),
+        subtitle: this.paneItemDetail(item),
+        leadingIcon: item.icon,
+        leadingIconBackgroundColor: item.color,
+        showChevron: true,
+        action: () => {
+          this.getUIContext().getFocusController().clearFocus()
+          this.onOpenSettingsPane(item.key)
+        },
+      })
+    }
   }
 
   @Builder
@@ -2701,6 +2785,7 @@ export struct SettingsPage {
     if (this.pane === 'tracking') this.loadTrackerPreferences()
     if (this.pane === 'storage') this.loadImageCachePreferences()
     if (this.pane === 'about') this.loadVersion()
+    if (this.pane === 'root') this.loadIncognitoPreferences()
   }
 
   private applyLibraryFilterPreferences(preferences: LibraryFilterPreferences): void {

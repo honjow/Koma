@@ -207,6 +207,8 @@ import { configureSourceFilterPreferencesStore } from '../sourceRuntime/SourceFi
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { connectIncognitoState, IncognitoState } from '../state/IncognitoState'
+import { IncognitoStatusBarOverlay } from '../components/IncognitoStatusBarOverlay'
 import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
 import { TrackerPendingProgressDrainSummary, TrackerProgressSyncService } from '../model/TrackerProgressSyncService'
 import { ReaderTrackerProgressCoordinator } from '../model/TrackerReadingProgress'
@@ -307,6 +309,7 @@ struct Index {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private appForegroundState: AppForegroundState = connectAppForegroundState()
+  @Local private incognito: IncognitoState = connectIncognitoState()
   @Local private libraryUpdateState: LibraryUpdateState = connectLibraryUpdateState()
   @Local private libraryUpdatesUnseen: boolean = false
   @Local private readerOpen: boolean = false
@@ -482,6 +485,8 @@ struct Index {
   @Local private titleScroller: Scroller = this.rootTabScrollers[TabIndex.LIBRARY]
   private tabBarHiddenForKeyboard: boolean = false
   private readerSessionStore: ReaderSessionStore = readerSessionStore
+  private persistentReaderSessionStore: ReaderSessionStore | undefined = undefined
+  private incognitoReaderSessionStore: ReaderSessionStore | undefined = undefined
   private libraryStore: LibraryStore = seededLibraryStore
   private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
   private sourceRegistry: SourceRuntimeRegistry = sourceRuntimeRegistry
@@ -1155,7 +1160,7 @@ struct Index {
     if (sourceRequest.chapterId === committedRequest.chapterId &&
       this.readerSessionStore.getSourceHistory(target.work)?.chapterId === target.unit) return
     this.activeSourceReaderRequest = committedRequest
-    appDeviceSync.beginReadingChapter(committedRequest)
+    if (!this.incognito.enabled) appDeviceSync.beginReadingChapter(committedRequest)
     this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(committedRequest))
     this.readerSessionStore.flush()
   }
@@ -1711,13 +1716,42 @@ struct Index {
       if (context.filesDir === undefined || context.filesDir.length === 0) {
         return
       }
-      this.readerSessionStore = appReaderSessionStore(context.filesDir)
+      this.persistentReaderSessionStore = appReaderSessionStore(context.filesDir)
+      this.incognitoReaderSessionStore = undefined
+      this.applyIncognitoReaderStore()
       this.readerSessionPersistenceReady = true
       this.readerProgressRevision += 1
       console.info(`[Reader] step=progress_store_reloaded reason=${reason}`)
     } catch (_error) {
       DiagnosticLogger.warn('index', 'restore_progress_failed', '[Reader] step=restore_progress_failed reason=session_store')
     }
+  }
+
+  // Incognito keeps reading progress in a memory overlay seeded from the real
+  // store: resume and history work during the session, while nothing reaches
+  // the persistent record. Turning incognito off switches back to the real
+  // store, so the pre-incognito state returns intact.
+  private applyIncognitoReaderStore(): void {
+    const base = this.persistentReaderSessionStore
+    if (base === undefined) return
+    if (this.incognito.enabled) {
+      if (this.incognitoReaderSessionStore === undefined) {
+        const memory = new InMemoryReaderSessionStore()
+        memory.restoreReadingState(base.snapshotReadingState())
+        this.incognitoReaderSessionStore = memory
+      }
+      this.readerSessionStore = this.incognitoReaderSessionStore
+    } else {
+      this.incognitoReaderSessionStore = undefined
+      this.readerSessionStore = base
+    }
+    this.readerTrackerProgress = undefined
+  }
+
+  @Monitor('incognito.enabled')
+  private syncIncognitoReaderStore(): void {
+    this.applyIncognitoReaderStore()
+    this.readerProgressRevision += 1
   }
 
   private readReaderLabInitialColumn(work: string, unit: string): 'odd_left' | 'even_left' {
@@ -1788,9 +1822,13 @@ struct Index {
       updatedAt: Date.now(),
       columnMode: column,
     }
+    // Incognito writes progress into its memory overlay so resume works, but
+    // cross-device sync and tracker observation stay suppressed.
     this.readerSessionStore.saveProgress(progress)
-    appDeviceSync.observeReading(progress)
-    if (this.readerOpen) this.observeReaderTrackerProgress(progress)
+    if (!this.incognito.enabled) {
+      appDeviceSync.observeReading(progress)
+      if (this.readerOpen) this.observeReaderTrackerProgress(progress)
+    }
     // Keep page persistence live, but do not rebuild the covered shelf/history
     // and full chapter catalog on every page crossing. Reader close publishes
     // the saved state; a detail destination also refreshes in onShown.
@@ -2703,6 +2741,7 @@ struct Index {
           this.readerWebtoonMode = value
         },
         onObservedProgress: (progress: ReadingProgress): void => {
+          if (this.incognito.enabled) return
           appDeviceSync.observeReading(progress)
           this.observeReaderTrackerProgress(progress)
         },
@@ -3517,6 +3556,12 @@ struct Index {
             this.importMenuShown = false
           },
         }))
+
+      // Incognito status strip sits above every page below the reader. The
+      // reader route owns its own chrome, so hide the strip while it is open.
+      if (!this.readerOpen && !this.readerRouteVisible) {
+        IncognitoStatusBarOverlay()
+      }
     }
     .width('100%')
     .height('100%')

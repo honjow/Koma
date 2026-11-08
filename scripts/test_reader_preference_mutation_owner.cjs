@@ -23,7 +23,7 @@ const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
  './BackupRestoreActivity':{BackupRestoreActivity:activity}, '@kit.AbilityKit':{ConfigurationConstant:{ColorMode:{COLOR_MODE_DARK:0,COLOR_MODE_LIGHT:1,COLOR_MODE_NOT_SET:-1}}},
  '@kit.ArkData':{preferences:{async getPreferences(context){
   let row=data.get(context.filesDir);if(!row){row=new Map();data.set(context.filesDir,row)}
-  return {async has(k){return row.has(k)},async delete(k){row.delete(k)},async get(k,d){return row.has(k)?row.get(k):d},async put(k,v){row.set(k,v)},async flush(){flushCount++;const changed=failChangedOverride && row.get('reader.seriesModeOverrides.v1')!==stableOverride;if(failFlush || changed){failFlush=false;failChangedOverride=false;throw Error('fixture_flush_failed')}}};
+  return {async has(k){return row.has(k)},async delete(k){row.delete(k)},async get(k,d){return row.has(k)?row.get(k):d},async getAll(){return Object.fromEntries(row)},async put(k,v){row.set(k,v)},async flush(){flushCount++;const changed=failChangedOverride && row.get('reader.seriesModeOverrides.v1')!==stableOverride;if(failFlush || changed){failFlush=false;failChangedOverride=false;throw Error('fixture_flush_failed')}}};
  }}}, '../i18n/AppStrings':{AppStrings:{get:s=>s}},'./ComicModels':{ReadingDirection},
  '../state/ReaderModeState':{ReaderModeSnapshot:class{constructor(...a){this.args=a}},ReaderModeStateBridge:{publish:v=>published.push(v),snapshot:columnMode=>({...mod.DEFAULT_READER_PREFERENCES,columnMode})}}
 });

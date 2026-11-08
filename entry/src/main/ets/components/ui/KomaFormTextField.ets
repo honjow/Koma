@@ -8,6 +8,9 @@ export struct KomaFormTextField {
   @Param placeholder: ResourceStr = ''
   @Param value: string = ''
   @Param isPassword: boolean = false
+  // Login forms mark the account field so the system password vault can pair it
+  // with the password field for autofill suggestions and credential save prompts.
+  @Param isUsername: boolean = false
   @Param isEnabled: boolean = true
   // Only forms with field validation opt in to the native error state.
   @Param validationError: string | undefined = undefined
@@ -25,7 +28,7 @@ export struct KomaFormTextField {
         .width('100%')
 
       TextInput({ placeholder: this.placeholder, text: this.value })
-        .type(this.isPassword ? InputType.Password : InputType.Normal)
+        .type(this.isUsername ? InputType.USER_NAME : this.isPassword ? InputType.Password : InputType.Normal)
         .showPassword(false)
         .height(ThemeConstants.BUTTON_HEIGHT)
         .fontSize(ThemeConstants.FONT_SIZE_BODY)

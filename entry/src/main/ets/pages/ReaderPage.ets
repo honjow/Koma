@@ -72,6 +72,7 @@ import {
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { connectIncognitoState, IncognitoState } from '../state/IncognitoState'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
 import { ReaderTapArbiter, ReaderTapPoint, ReaderBoundarySwipe, ReaderBoundaryAxis } from '@reader-kit/ui'
@@ -1834,6 +1835,7 @@ export struct ReaderPage {
   @Local private readerPageSources: ReaderPageRenderSource[] = []
   private layout: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private readerModeState: ReaderModeState = connectReaderModeState()
+  @Local private incognito: IncognitoState = connectIncognitoState()
   private preferencesStore?: ReaderPreferencesStore
   private filesDir: string = ''
   private sourceSignature: string = ''
@@ -2984,6 +2986,8 @@ export struct ReaderPage {
       updatedAt: Date.now(),
       columnMode: this.preferences.columnMode,
     }
+    // Incognito: keep the in-session progress UI alive but leave no stored
+    // history, position or sync trace.
     this.sessionStore.saveProgress(progress)
     this.onObservedProgress(progress)
     this.reportVisibleReadingPages()
