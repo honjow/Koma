@@ -1,3 +1,4 @@
+import { autoFillManager } from '@kit.AbilityKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceAuthenticationRequest, SourceAuthenticationService } from '../sourceRuntime/SourceAuthenticationService'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
@@ -164,7 +165,10 @@ export struct SourceAuthenticationSheetHost {
     this.busy = true; this.errorText = ''
     try {
       await this.service!.run('authenticate', this.username, this.password)
-      if (this.current(epoch)) this.finish(true)
+      if (this.current(epoch)) {
+        this.offerCredentialSave()
+        this.finish(true)
+      }
       else if (this.epoch === epoch) this.close()
     } catch (error) {
       if (this.current(epoch)) this.errorText = error instanceof SourceRuntimeError &&
@@ -172,6 +176,16 @@ export struct SourceAuthenticationSheetHost {
         ? error.userTextFor(AppStrings.get('source_login_failed')) : AppStrings.get('source_login_failed')
       else if (this.epoch === epoch) this.close()
     } finally { if (this.epoch === epoch) this.busy = false }
+  }
+
+  // Offer the system password vault a save/update prompt while the form still
+  // holds the credential; a declined or failed prompt never blocks the sign-in.
+  private offerCredentialSave(): void {
+    try {
+      autoFillManager.requestAutoSave(this.getUIContext())
+    } catch (_error) {
+      // Password vault may be unavailable; the sign-in result is already applied.
+    }
   }
 
   private changeReplacement(replacing: boolean): void {
@@ -243,7 +257,7 @@ export struct SourceAuthenticationSheetHost {
     Text(AppStrings.get(this.credentialStorage === 'private' ? 'source_login_storage_private' : 'source_login_storage_memory'))
       .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
     if (!this.authenticated || this.replacing) {
-      KomaFormTextField({ label: this.usernameLabel, value: this.username, isEnabled: this.ready && !this.busy,
+      KomaFormTextField({ label: this.usernameLabel, value: this.username, isUsername: true, isEnabled: this.ready && !this.busy,
         change: (value: string) => { this.username = value } })
       KomaFormTextField({ label: this.passwordLabel, value: this.password, isPassword: true, isEnabled: this.ready && !this.busy,
         change: (value: string) => { this.password = value }, submit: () => { void this.authenticate() } })
