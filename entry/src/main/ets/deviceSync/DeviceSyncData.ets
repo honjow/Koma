@@ -107,11 +107,17 @@ function checkText(value: string, max: number, allowEmpty: boolean = false): boo
 
 export function syncPublicLabel(value: string, max: number): string {
   const text = value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim()
-  if (!checkText(text, max) || /:\/\/|(?:password|token|cookie|secret)\s*[:=]/i.test(text)) return ''
+  if (!checkText(text, max)) return ''
   return text
 }
 
+// Source/work/chapter IDs are opaque business identities; matching words such
+// as "key" in them must not make an otherwise valid reading silently disappear.
 function safeReadingId(value: string, max: number = 512): boolean {
+  return checkText(value, max)
+}
+
+function safeSharedWorkUrl(value: string, max: number): boolean {
   if (!checkText(value, max)) return false
   let decoded = value
   for (let pass = 0; pass < 3; pass++) {
@@ -119,8 +125,8 @@ function safeReadingId(value: string, max: number = 512): boolean {
     if (next === decoded) break
     decoded = next
   }
-  // Some chapter IDs include a path, stable query parameters or a title.
-  // Exclude credentials and local paths from these IDs, independently of source.
+  // A work URL is optional display/navigation metadata; do not copy one that
+  // carries account credentials into another device's shared data.
   return checkText(decoded, max) && !READING_CREDENTIAL_PARAMETER.test(decoded) &&
     !/(?:^|:)file:\/\/|\/\/[^/?#\s]*@|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/i.test(decoded)
 }
@@ -136,16 +142,14 @@ export function syncReadingPosition(page: number, total: number, date?: number):
 }
 
 function safeReadingWorkUrl(value: string): boolean {
-  return /^https?:\/\/[a-z0-9.-]+(?::[0-9]{1,5})?(?:[/?#][^\s\\"<>]*)?$/i.test(value) && safeReadingId(value, 4096)
+  return /^https?:\/\/(?:[a-z0-9.-]+|\[[0-9a-f:.]+\])(?::[0-9]{1,5})?(?:[/?#][^\s\\"<>]*)?$/i.test(value) &&
+    safeSharedWorkUrl(value, 4096)
 }
 
 export function syncCoverAddress(value: string | undefined): string | undefined {
   if (value === undefined || value.length > 2048 || !safeReadingWorkUrl(value)) return undefined
-  // Synced artwork can load on a device before its source is installed.
-  // Leave IP literals and device-local names to that device's source settings.
-  const host = /^https?:\/\/([a-z0-9.-]+)/i.exec(value)?.[1].replace(/\.$/, '') ?? ''
-  return /\.[a-z][a-z0-9-]*$/i.test(host) && !/\.(?:local|localhost|internal|lan|home\.arpa)$/i.test(host) ?
-    value : undefined
+  // The source may be hosted on the user's LAN; preserve its actual address.
+  return value
 }
 
 export function syncReadingRecent(source: string, chapter: string, date: number, title: string,

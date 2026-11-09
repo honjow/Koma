@@ -186,7 +186,7 @@ export function normalizeLocalLibraryRelativePath(path: string): string {
     normalized.length === 0 ||
     normalized.startsWith('/') ||
     normalized.includes('://') ||
-    /^[A-Za-z]:/.test(normalized) ||
+    /^[A-Za-z]:\//.test(normalized) ||
     hasUnsafeControlCharacter(normalized)
   ) {
     throw new Error(`Unsafe local library path: ${path}`)
@@ -199,9 +199,8 @@ export function normalizeLocalLibraryRelativePath(path: string): string {
     if (trimmed.length === 0 || trimmed === '.' || trimmed === '..') {
       throw new Error(`Unsafe local library path segment: ${path}`)
     }
-    if (trimmed.indexOf(':') >= 0) {
-      throw new Error(`Unsafe local library path segment: ${path}`)
-    }
+    // A colon is valid in a local filename; encodeRelativeUriPath will escape
+    // it when forming a URI. Only actual absolute/parent paths are rejected.
     safeParts.push(trimmed)
   }
   return safeParts.join('/')

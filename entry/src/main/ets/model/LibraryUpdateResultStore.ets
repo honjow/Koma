@@ -31,9 +31,6 @@ export const LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY: string = 'libraryUpdate.late
 export const LIBRARY_UPDATE_LATEST_JOB_JSON_KEY: string = 'libraryUpdate.latestJobJson'
 const LIBRARY_CHAPTER_UPDATES_KEY: string = 'libraryUpdate.chapterUpdatesJson'
 const LIBRARY_CHAPTER_UPDATES_SEEN_KEY: string = 'libraryUpdate.chapterUpdatesSeenAt'
-export const LIBRARY_UPDATE_RESULT_MAX_RESULTS: number = 200
-export const LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES: number = 80
-export const LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH: number = 256
 export const LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH: number = 512
 export const LIBRARY_UPDATE_RESULT_MAX_SOURCE_KEY_LENGTH: number = 64
 
@@ -273,7 +270,7 @@ function cloneLibraryUpdateResult(result: LibraryUpdateComicResult): LibraryUpda
 function persistLibraryUpdateResult(result: LibraryUpdateComicResult): PersistedLibraryUpdateResult {
   const message = sanitizeLibraryUpdateResultMessage(result.status, result.message)
   return {
-    comicId: clampString(result.comicId, LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH),
+    comicId: result.comicId,
     providerKind: normalizeProviderKind(result.providerKind),
     sourceKey: normalizeSourceKey(result.sourceKey),
     status: result.status,
@@ -413,10 +410,8 @@ async function createLibraryUpdateResultWantAgent(): Promise<WantAgent> {
 
 export function serializeLibraryUpdateSummary(summary: LibraryUpdateSummary): string {
   const results = summary.results
-    .slice(0, LIBRARY_UPDATE_RESULT_MAX_RESULTS)
     .map((result: LibraryUpdateComicResult): PersistedLibraryUpdateResult => persistLibraryUpdateResult(result))
   const providerSummaries = (summary.providerSummaries.length > 0 ? summary.providerSummaries : summarizeLibraryUpdateProviders(summary.results))
-    .slice(0, LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES)
     .map((providerSummary: LibraryUpdateProviderSummary): PersistedLibraryUpdateProviderSummary =>
       persistLibraryUpdateProviderSummary(providerSummary))
   const persisted: PersistedLibraryUpdateSummary = {
@@ -487,7 +482,7 @@ function hydrateLibraryUpdateResult(value: Object): LibraryUpdateComicResult | u
   }
   const safeStatus = status as LibraryUpdateResultStatus
   return {
-    comicId: clampString(comicId, LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH),
+    comicId,
     providerKind: normalizeProviderKind(providerKind),
     sourceKey: normalizeSourceKey(sourceKey),
     status: safeStatus,
@@ -563,8 +558,7 @@ export function hydrateLibraryUpdateSummaryFromJson(jsonText: string): LibraryUp
     }
     const rawResults = rawResultsObject as Object[]
     const results: LibraryUpdateComicResult[] = []
-    const cappedResults: Object[] = rawResults.slice(0, LIBRARY_UPDATE_RESULT_MAX_RESULTS)
-    for (const item of cappedResults) {
+    for (const item of rawResults) {
       const result = hydrateLibraryUpdateResult(item)
       if (result === undefined) {
         return undefined
@@ -575,8 +569,7 @@ export function hydrateLibraryUpdateSummaryFromJson(jsonText: string): LibraryUp
     const rawProviderSummariesObject = record['providerSummaries']
     if (Array.isArray(rawProviderSummariesObject)) {
       const hydratedProviderSummaries: LibraryUpdateProviderSummary[] = []
-      const cappedProviderSummaries = (rawProviderSummariesObject as Object[]).slice(0, LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES)
-      for (const item of cappedProviderSummaries) {
+      for (const item of rawProviderSummariesObject as Object[]) {
         const providerSummary = hydrateLibraryUpdateProviderSummary(item)
         if (providerSummary === undefined) {
           return undefined
@@ -682,7 +675,6 @@ export function serializeLibraryUpdateJobSnapshot(snapshot: LibraryUpdateJobSnap
     state: snapshot.state,
     updatedAt: isValidCheckedAt(snapshot.updatedAt) ? snapshot.updatedAt : Date.now(),
     providerSummaries: snapshot.providerSummaries
-      .slice(0, LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES)
       .map((providerSummary: LibraryUpdateProviderSummary): PersistedLibraryUpdateProviderSummary =>
         persistLibraryUpdateProviderSummary(providerSummary)),
   }
@@ -721,8 +713,7 @@ export function hydrateLibraryUpdateJobSnapshotFromJson(jsonText: string): Libra
       return undefined
     }
     const providerSummaries: LibraryUpdateProviderSummary[] = []
-    const cappedProviderSummaries = (rawProviderSummariesObject as Object[]).slice(0, LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES)
-    for (const item of cappedProviderSummaries) {
+    for (const item of rawProviderSummariesObject as Object[]) {
       const providerSummary = hydrateLibraryUpdateProviderSummary(item)
       if (providerSummary === undefined) {
         return undefined

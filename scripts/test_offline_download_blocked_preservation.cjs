@@ -11,7 +11,7 @@ const persistence=run(clean(fs.readFileSync(root+'/model/AppFileTextPersistence.
 const storeExports=run(clean(storeCode),{fs:io,ComicSourceKind:models.ComicSourceKind,...persistence});
 const serviceCode=fs.readFileSync(root+'/model/OfflineDownloadService.ets','utf8');
 const tree=ts.createSourceFile('Service.ts',serviceCode,ts.ScriptTarget.Latest,true);
-const helpers=tree.statements.filter(n=>ts.isFunctionDeclaration(n)&&['manifestIdentityFromComic','manifestLabelsFromDownload','applyManifestLabels'].includes(n.name?.getText(tree))).map(n=>n.getText(tree)).join('\n');
+const helpers=tree.statements.filter(n=>ts.isFunctionDeclaration(n)&&['publicSourceWorkUri','manifestIdentityFromComic','manifestLabelsFromDownload','applyManifestLabels'].includes(n.name?.getText(tree))).map(n=>n.getText(tree)).join('\n');
 const cls=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name.getText(tree)==='OfflineDownloadService');
 const method=cls.members.find(n=>n.name?.getText(tree)==='saveBlockedChapter').getText(tree);
 const {Subject}=run(helpers+'\nexport class Subject { '+method+' }',storeExports);

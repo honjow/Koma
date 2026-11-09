@@ -38,7 +38,7 @@ function errorText(code: string): string {
   if (code === 'sync_directory_parent_missing') return t('device_sync_error_parent_missing')
   if (code === 'sync_path_not_directory') return t('device_sync_error_not_directory')
   if (code === 'sync_not_webdav_directory' || code === 'sync_webdav_method_unsupported') return t('device_sync_error_not_webdav')
-  if (code === 'sync_https_directory_required') return t('device_sync_error_https')
+  if (code === 'sync_https_directory_required' || code === 'sync_invalid_directory') return t('device_sync_error_https')
   if (code === 'sync_directory_redirected') return t('device_sync_error_redirect')
   if (code === 'sync_tls_failed') return t('device_sync_error_tls')
   if (code === 'sync_network_failed' || code === 'sync_server_unavailable') return t('device_sync_error_network')

@@ -116,9 +116,6 @@ export class MangaTranslatorUiSidecarConfig {
       throw new Error('Manga translator UI base URL is invalid')
     }
     MangaTranslatorUiSidecarConfig.validateAuthority(match[2])
-    if (match[1] === 'http' && !MangaTranslatorUiSidecarConfig.isPrivateAuthority(match[2])) {
-      throw new Error('Public Manga translator UI services require HTTPS')
-    }
     MangaTranslatorUiSidecarConfig.validateAuthentication(
       this.sessionToken,
       this.username,
@@ -146,28 +143,6 @@ export class MangaTranslatorUiSidecarConfig {
         throw new Error('Manga translator UI port is invalid')
       }
     }
-  }
-
-  private static isPrivateAuthority(authority: string): boolean {
-    const host: string = MangaTranslatorUiSidecarConfig.hostAndPort(authority)[0].toLowerCase()
-    if (host === 'localhost' || host.endsWith('.localhost') || host === '[::1]') {
-      return true
-    }
-    const match: RegExpExecArray | null = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host)
-    if (match === null) {
-      return false
-    }
-    const first: number = Number.parseInt(match[1], 10)
-    const second: number = Number.parseInt(match[2], 10)
-    const third: number = Number.parseInt(match[3], 10)
-    const fourth: number = Number.parseInt(match[4], 10)
-    if (first > 255 || second > 255 || third > 255 || fourth > 255) {
-      return false
-    }
-    return first === 10 || first === 127 ||
-      (first === 172 && second >= 16 && second <= 31) ||
-      (first === 192 && second === 168) ||
-      (first === 169 && second === 254)
   }
 
   private static hostAndPort(authority: string): string[] {

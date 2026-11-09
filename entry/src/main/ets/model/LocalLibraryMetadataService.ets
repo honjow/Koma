@@ -192,7 +192,7 @@ function normalizeLocalLibraryMetadataRelativePath(path: string): string {
     normalized.length === 0 ||
     normalized.startsWith('/') ||
     normalized.includes('://') ||
-    /^[A-Za-z]:/.test(normalized) ||
+    /^[A-Za-z]:\//.test(normalized) ||
     hasUnsafeControlCharacter(normalized)
   ) {
     throw new Error(`Unsafe local library path: ${path}`)
@@ -201,7 +201,7 @@ function normalizeLocalLibraryMetadataRelativePath(path: string): string {
   const safeParts: string[] = []
   for (const part of parts) {
     const trimmed = part.trim()
-    if (trimmed.length === 0 || trimmed === '.' || trimmed === '..' || trimmed.indexOf(':') >= 0) {
+    if (trimmed.length === 0 || trimmed === '.' || trimmed === '..') {
       throw new Error(`Unsafe local library path segment: ${path}`)
     }
     safeParts.push(trimmed)

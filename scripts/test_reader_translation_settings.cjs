@@ -360,3 +360,44 @@ test('enhancement without configured translation admits future-page processing a
   host.enhancementPreference=()=>new Preference()
   assert.equal(host.translationPolicy().supportsProcessing(),false)
 })
+
+test('custom translation services accept user-configured HTTP and HTTPS endpoints', async () => {
+  const load = (name, dependencies) => {
+    const code = ts.transpileModule(fs.readFileSync(path.join(base, 'readerTranslation/services', name + '.ets'), 'utf8'), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+    }).outputText
+    const exported = {}
+    new Function('exports', 'require', code)(exported, id => dependencies[id] || {})
+    return exported
+  }
+  const requests = []
+  const transport = { async requestText(url) { requests.push(url); return { statusCode: 200, body: '{"data":[{"id":"model"}]}' } } }
+  const settings = { llmSources: [{ profile: { sourceProfileId: 'qa', sourceType: 'api',
+    capabilities: { modelCatalog: true }, baseUrl: 'http://192.168.1.20:8080/v1' }, apiKey: 'test' }] }
+  const catalog = load('ComicTranslationModelCatalogService', {
+    '../KomaTranslationSettings': { KomaTranslationSettings: { load: async () => settings } },
+    '../constants/TranslationHttpIdentity': { TranslationHttpIdentity: { USER_AGENT: 'test' } },
+  }).ComicTranslationModelCatalogService
+  assert.deepEqual(await catalog.fetchSource({}, 'qa', transport), ['model'])
+  assert.equal(requests[0], 'http://192.168.1.20:8080/v1/models')
+  const responses = load('ComicResponsesPageAnalyzer', {
+    '../constants/TranslationHttpIdentity': { TranslationHttpIdentity: { USER_AGENT: 'test' } },
+    './ComicResponsesProtocol': { ComicResponsesProtocol: { extractAssistantJson: () => '{}' } },
+  })
+  const config = new responses.ComicResponsesCallConfig()
+  Object.assign(config, { baseUrl: 'http://192.168.1.20:8080/v1', accessToken: 'test', model: 'model' })
+  assert.equal(await new responses.ComicResponsesProviderCore(transport).requestJson('test', '', config), '{}')
+  assert.equal(requests[1], 'http://192.168.1.20:8080/v1/responses')
+  const sidecar = load('MangaTranslatorUiSidecarBackend', {
+    '@kit.ArkTS': { util: { TextEncoder: class { encodeInto(value) { return new TextEncoder().encode(value) } } } },
+    './MangaTranslatorUiSidecarProtocol': { MANGA_TRANSLATOR_UI_VISUAL_ONLY_CONFIG_JSON: '{}',
+      MangaTranslatorUiSidecarProfileCatalog: { supportsConfigJson: () => true } },
+  })
+  const sidecarConfig = new sidecar.MangaTranslatorUiSidecarConfig()
+  for (const url of ['http://translator.local:5000', 'https://translator.example']) {
+    sidecarConfig.baseUrl = url
+    assert.equal(sidecarConfig.validatedBaseUrl(), url)
+  }
+  sidecarConfig.baseUrl = 'ftp://translator.example'
+  assert.throws(() => sidecarConfig.validatedBaseUrl(), /invalid/)
+})

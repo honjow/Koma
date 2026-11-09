@@ -349,6 +349,21 @@ async function main() {
   resultPreferences.set('libraryUpdate.chapterUpdatesJson',JSON.stringify(restored))
   chapterUpdates.setCachedLibraryChapterUpdates(undefined);unblock()
   assert.deepEqual(await staleRead,restored)
+  // A large shelf must retain every work and source after the result is reopened.
+  const large = summary(Array(250).fill('updated'), checkedAt + 200)
+  large.results.forEach((item, index) => { item.sourceKey = `source:${(index % 100).toString(36)}` })
+  large.results[249].comicId = `source:long-path-${'x'.repeat(300)}`
+  large.providerSummaries = service.summarizeLibraryUpdateProviders(large.results)
+  await store.save(large)
+  const coldLarge = new result.LibraryUpdateResultStore({})
+  const reopened = await coldLarge.load()
+  const reopenedJob = await coldLarge.loadJobSnapshot()
+  assert.equal(reopened.results.length, 250)
+  assert.equal(reopened.results[249].comicId, large.results[249].comicId)
+  assert.equal(reopened.providerSummaries.length, 100)
+  assert.equal(new Set(reopened.providerSummaries.map(item => item.sourceKey)).size, 100)
+  assert.equal(reopenedJob.providerSummaries.length, 100)
+  assert.equal(reopenedJob.summary.results.length, 250)
   console.log('PASS library update outcome: chapter identity/reference protection, classification, snapshot roundtrip, result persistence, failure backoff and recovery')
 }
 

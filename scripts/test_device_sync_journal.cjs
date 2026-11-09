@@ -74,8 +74,8 @@ const clone = value => structuredClone(value)
 const response = (status, body = '') => ({ responseCode: status,
   result: Uint8Array.from(Buffer.from(body)).buffer, header: {} })
 
-function transportFixture() {
-  const draft = { directory: 'https://local-fixture.invalid', username: '', password: '' }
+function transportFixture(directoryUrl = 'https://local-fixture.invalid') {
+  const draft = { directory: directoryUrl, username: '', password: '' }
   const directory = draft.directory + '/'
   const root = directory + 'koma-device-sync-v2/'
   const writerRoot = directory + 'koma-device-sync-v3/'
@@ -123,7 +123,7 @@ function transportFixture() {
     },
     destroy() {},
   }) }
-  const { DeviceSyncWebDav } = compile('DeviceSyncWebDav', {
+  const { DeviceSyncWebDav, canonicalSyncDirectory } = compile('DeviceSyncWebDav', {
     './DeviceSyncWire': wire, './DeviceSyncJournal': journal, '../remote/WebDavClient': xml,
     '@kit.NetworkKit': { http },
     '@kit.ArkTS': { taskpool: { execute: async (fn, ...args) => fn(...args) },
@@ -143,11 +143,16 @@ function transportFixture() {
     constructor(draft, witnesses, space) { super(draft, witnesses, space) }
   }
   return { draft, root, writerRoot, legacy, files, directories, trace, faults,
-    DeviceSyncWebDav: V2WebDav, WriterWebDav: DeviceSyncWebDav, seedObject, seedCommit,
+    DeviceSyncWebDav: V2WebDav, WriterWebDav: DeviceSyncWebDav, canonicalSyncDirectory, seedObject, seedCommit,
     provider: witnesses => new DeviceSyncWebDav(draft, witnesses),
     listing: filter => { filterListing = filter }, onCommit: hook => { beforeCommit = hook },
     onRequest: hook => { beforeRequest = hook } }
 }
+
+test('a percent-encoded dot in a user-selected WebDAV folder remains usable', () => {
+  const { canonicalSyncDirectory } = transportFixture()
+  assert.equal(canonicalSyncDirectory('http://example.test/books%2Earchive/'), 'http://example.test/books%2Earchive')
+})
 
 function dataset(group, key, replica, value) {
   return wire.buildSyncDataset(group,
@@ -682,6 +687,32 @@ test('saved history and live page turns from other sources reach a fresh reader 
   assert.equal(b.coldReader().getChapterProgress(loginWork, loginChapter).pageIndex, 6, 'removing history keeps the saved chapter position')
 })
 
+test('opaque chapter identities and ordinary titles are preserved across devices', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.WriterWebDav)
+  const sourceId = 'org.example.source'
+  const work = 'work?key=series-123'
+  const chapter = 'chapter?key=chapter-456'
+  const comicId = sourceId + ':' + work
+  const a = readingDevice(fixture, A, new Map([[sourceId, { enabled: true, name: 'Example' }]]))
+  const b = readingDevice(fixture, B, new Map())
+  a.reader.saveProgress({ comicId, chapterId: chapter, pageIndex: 4, totalPages: 11,
+    updatedAt: 200, progressRatio: 5 / 11, completed: false })
+  a.reader.saveSourceHistory({ comicId, sourceId, mangaId: work, chapterId: chapter,
+    title: 'Token: a story', sourceName: 'Example', chapterTitle: 'Secret: chapter one',
+    coverUri: 'http://192.168.1.4:8080/covers/example.jpg' })
+  assert.equal(a.reader.flush(), true)
+  for (const device of [a, b]) {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['reading'])).token, [])
+  }
+  const received = b.coldReader()
+  assert.equal(received.getSourceHistory(comicId).title, 'Token: a story')
+  assert.equal(received.getSourceHistory(comicId).chapterTitle, 'Secret: chapter one')
+  assert.equal(received.getSourceHistory(comicId).coverUri, 'http://192.168.1.4:8080/covers/example.jpg')
+  assert.equal(received.getChapterProgress(comicId, chapter).pageIndex, 4)
+})
+
 test('a local position missed by the old client survives an independent remote position on upgrade', async () => {
   const f = transportFixture()
   const fixture = engineFixture(f.WriterWebDav)
@@ -864,6 +895,17 @@ test('connection creates the selected directory and cleans its probe without ETa
     [f.draft.directory + '/', f.root])
   assert.equal(f.files.has(f.root + 'probe-' + id + '.json'), false)
   assert.equal(f.trace.some(row => row.method === 'LOCK'), false)
+})
+
+test('a LAN HTTP WebDAV directory completes connection and probe cleanup', async () => {
+  const f = transportFixture('http://192.168.1.4:8080/dav')
+  f.directories.clear()
+  const id = '11111111-1111-1111-1111-111111111111'
+  await f.provider().probe(id, noop)
+  assert.deepEqual(f.trace.filter(row => row.method === 'MKCOL').map(row => row.address),
+    [f.draft.directory + '/', f.root])
+  assert.ok(f.trace.some(row => row.method === 'PUT' && row.address.startsWith('http://')))
+  assert.equal(f.files.has(f.root + 'probe-' + id + '.json'), false)
 })
 
 test('parallel immutable publications retain both heads and merge their selected facts', async () => {

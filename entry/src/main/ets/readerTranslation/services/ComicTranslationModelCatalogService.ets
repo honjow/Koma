@@ -224,8 +224,8 @@ export class ComicTranslationModelCatalogService {
 
   private static apiModelsUrl(baseUrl: string): string {
     let normalized: string = baseUrl.trim().replace(/\/+$/, '')
-    if (!normalized.toLowerCase().startsWith('https://')) {
-      throw new Error('Comic provider base URL must use HTTPS')
+    if (!/^https?:\/\//i.test(normalized)) {
+      throw new Error('Comic provider base URL must use HTTP or HTTPS')
     }
     if (normalized.endsWith('/responses')) {
       normalized = normalized.substring(0, normalized.length - '/responses'.length)

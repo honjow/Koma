@@ -2364,7 +2364,7 @@
     { "name": "device_sync_no_selection", "value": "Choose what to sync first" },
     { "name": "device_sync_error_auth", "value": "The server rejected the credentials. Check your username and password." },
     { "name": "device_sync_error_permission", "value": "Check that the directory exists and your account can write to it." },
-    { "name": "device_sync_error_https", "value": "Enter the final HTTPS directory address. Redirects are disabled." },
+    { "name": "device_sync_error_https", "value": "Enter a valid HTTP or HTTPS directory address. Use the final address if it redirects." },
     { "name": "device_sync_error_tls", "value": "Check the server hostname and TLS certificate, then retry." },
     { "name": "device_sync_error_network", "value": "The server is unreachable. Check the connection and retry." },
     { "name": "device_sync_error_storage", "value": "Free space on the server and retry." },

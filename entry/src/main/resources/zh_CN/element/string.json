@@ -2364,7 +2364,7 @@
     { "name": "device_sync_no_selection", "value": "尚未选择同步内容" },
     { "name": "device_sync_error_auth", "value": "服务器拒绝了登录。请检查用户名和密码。" },
     { "name": "device_sync_error_permission", "value": "目录不可写或已移动。请检查目录和账号权限。" },
-    { "name": "device_sync_error_https", "value": "请填写有效的 HTTPS 目录地址。若地址会跳转，请使用最终目录地址。" },
+    { "name": "device_sync_error_https", "value": "请填写有效的 HTTP 或 HTTPS 目录地址。若地址会跳转，请使用最终目录地址。" },
     { "name": "device_sync_error_tls", "value": "无法验证服务器证书。请检查域名和证书后重试。" },
     { "name": "device_sync_error_network", "value": "暂时连不上服务器。请检查网络并重试。" },
     { "name": "device_sync_error_storage", "value": "服务器空间不足。请释放空间后重试。" },

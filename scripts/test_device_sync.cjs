@@ -116,6 +116,8 @@ test('business records accept unfamiliar sources, catalog addresses and ordinary
     assert.doesNotThrow(() => data.checkSyncGroupFact(group, fact))
   }
   assert.equal(data.syncCatalogAddress('https://user:secret@catalog.example.test/index.json'), false)
+  assert.equal(data.syncCoverAddress('http://[fd00::1]:8080/cover.jpg'), 'http://[fd00::1]:8080/cover.jpg')
+  assert.equal(data.syncCoverAddress('http://[fd00::1]:8080/cover.jpg?token=secret'), undefined)
 })
 
 function runtimeFixture(extra = {}, globals = {}) {

@@ -101,9 +101,11 @@ export function canonicalSyncDirectory(input: string): string {
   try {
     const raw = input.trim()
     const parsed = url.URL.parseURL(raw)
-    if (parsed.protocol === 'https:' && parsed.hostname.length > 0 && parsed.username.length === 0 &&
+    // LAN WebDAV servers commonly use HTTP. The user-selected scheme is kept;
+    // HTTPS requests still use the platform's normal certificate validation.
+    if ((parsed.protocol === 'https:' || parsed.protocol === 'http:') && parsed.hostname.length > 0 && parsed.username.length === 0 &&
       parsed.password.length === 0 && !raw.includes('?') && !raw.includes('#') &&
-      !/%2e|%2f|%5c|%00|\\/i.test(raw) && raw.length <= 1024) {
+      !/%2f|%5c|%00|\\/i.test(raw) && raw.length <= 1024) {
       return parsed.toString().replace(/\/+$/, '')
     }
   } catch (_error) {
@@ -700,7 +702,7 @@ export class DeviceSyncWebDav {
       if (code === 2300060 || code === 2300051 || code === 2300035) throw new Error('sync_tls_failed')
       if (code === 2300006 || code === 2300005) throw new Error('sync_host_unresolved')
       if (code === 2300028) throw new Error('sync_network_timeout')
-      if (code === 2300003 || code === 2300001) throw new Error('sync_https_directory_required')
+      if (code === 2300003 || code === 2300001) throw new Error('sync_invalid_directory')
       throw new Error('sync_network_failed')
     } finally {
       request.destroy()

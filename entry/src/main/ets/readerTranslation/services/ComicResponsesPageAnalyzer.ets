@@ -404,8 +404,8 @@ export class ComicResponsesProviderCore {
     if (normalized.length === 0) {
       throw new Error('Comic provider base URL is missing')
     }
-    if (!normalized.toLowerCase().startsWith('https://')) {
-      throw new Error('Comic provider base URL must use HTTPS')
+    if (!/^https?:\/\//i.test(normalized)) {
+      throw new Error('Comic provider base URL must use HTTP or HTTPS')
     }
     if (normalized.endsWith('/responses')) {
       return normalized

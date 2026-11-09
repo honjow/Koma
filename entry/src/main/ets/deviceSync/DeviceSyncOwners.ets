@@ -1121,7 +1121,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   async validateChanges(group: SyncApplyGroup): Promise<void> {
     if (group.group !== 'source-subscriptions' || group.changes.length === 0) return
     const snapshot = await new SourceIndexService(this.context).captureDeviceSyncSnapshot()
-    SourceIndexService.validateDeviceSyncSnapshot(this.applySubscriptions(group.changes, snapshot))
+    this.applySubscriptions(group.changes, snapshot)
   }
 
   async commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], saveCursor: (id: string) => void,
