@@ -65,11 +65,13 @@ require('node:test')('declared image HTTP errors reach the reader; raw 402, tick
   const names = new Set(['SourceImageResponseErrors', 'parseSourceImageResponseErrors', 'sourceImageResponseError',
     'SourceImageRequestDescriptor', 'parseSourceImageRequestHeaders', 'parseSourceImageRequestDescriptor',
     'downloadReaderRemoteBytes', 'READER_IMAGE_READ_TIMEOUT_MS', 'LARGE_READER_IMAGE_READ_TIMEOUT_MS',
-    'NETWORKKIT_DEFAULT_BUFFER_BYTES', 'READER_PAGE_IMAGE_BUFFER_BYTES'])
+    'NETWORKKIT_DEFAULT_BUFFER_BYTES', 'READER_PAGE_IMAGE_BUFFER_BYTES', 'readerImageDiagnosticTarget',
+    'readerImageHeaderNames', 'readerImageTicketBytes'])
   const selected = ast.statements.filter(node => names.has(node.name?.getText(ast)) ||
     ts.isVariableStatement(node) && node.declarationList.declarations.some(d => names.has(d.name.getText(ast))))
   let status = 402
   let requests = 0
+  let packageManifestUnavailable = false
   const http = { RequestMethod: { GET: 'GET' }, HttpDataType: { ARRAY_BUFFER: 1 }, createHttp: () => ({
     on() {}, destroy() {},
     request: async (_url, options) => {
@@ -79,10 +81,11 @@ require('node:test')('declared image HTTP errors reach the reader; raw 402, tick
     },
   }) }
   const { parse, download } = new Function('SourceRuntimeError', 'http', 'waitForSourceRequestSlot',
-    'httpHeadersForReaderRequest', 'DiagnosticLogger', 'appSourceRuntimeRegistry', compile(selected.map(s => s.getText(ast)).join('\n')) +
+    'httpHeadersForReaderRequest', 'DiagnosticLogger', 'appSourceRuntimeRegistry', 'url', compile(selected.map(s => s.getText(ast)).join('\n')) +
     '\nreturn { parse: parseSourceImageRequestDescriptor, download: downloadReaderRemoteBytes };')(
     errorExports.SourceRuntimeError, http, async () => {}, headers => headers,
-    { begin: () => ({ info() {}, warn() {}, finish() {} }), warn() {} }, { lookup: () => ({}) })
+    { begin: () => ({ info() {}, warn() {}, finish() {} }), warn() {} },
+    { lookup: () => ({entry:{packageManifestUnavailable}}) }, {URL})
   const data = { url: 'https://images.example/1.jpg', responseErrors: {
     402: 'image_quota_exhausted', 403: 'unrecognized', 429: 'rate_limited',
   } }
@@ -105,6 +108,10 @@ require('node:test')('declared image HTTP errors reach the reader; raw 402, tick
   await assert.rejects(load(), /reader_remote_image_http_403/)
   status = 429
   await assert.rejects(load(), error => error.diagnostic.kind === 'rate_limit')
+  const before = requests
+  packageManifestUnavailable = true
+  await assert.rejects(load(), error => error.diagnostic.kind === 'manifest_unavailable')
+  assert.equal(requests, before)
 })
 
 // Execute the actual adapter handoff; source-shape/constructor-arity checks do
@@ -132,6 +139,11 @@ async function sourcePageFailureChain() {
       { COPY_MANGA_API_MIN_SDK: 26, COPY_MANGA_API_FEATURE: 'source_http_copymanga_api_v1' })
   new Function('exports','require',compile(fs.readFileSync(path.join(root,'sourceRuntime/SourceRequestPolicy.ets'),'utf8')))
     (requestPolicy,()=>({url:{URL}}))
+  const sourceEntry = { sourceId:'test.source', manifestVersion:'1.0.0', wasmPath:'/packages/test/source.wasm',
+    wasmBytes:new Uint8Array(1) }
+  const registry = { lookup: () => ({ ok:true, entry:sourceEntry }) }
+  const planIdentity = sourceEntry.manifestVersion + '|' + sourceEntry.wasmPath
+  const emptyPlan = settingsIdentity.sourcePagePlanFingerprint({},planIdentity)
   const hydratedExports = {}
   new Function('exports', 'require', compile(fs.readFileSync(
     path.join(root, 'model/SourceChapterPageHydrator.ets'), 'utf8')))(hydratedExports, name => {
@@ -147,11 +159,11 @@ async function sourcePageFailureChain() {
     if (name === '../sourceRuntime/SourceRequestPolicy') return requestPolicy
     if (name === './ComicModels') return models
     if (name === '../sourceRuntime/SourceRuntimeRegistry') return { sourceRuntimeEntryEnabled: () => true }
+    if (name === '../sourceRuntime/SourceRuntimeAppRegistry') return { appSourceRuntimeRegistry: registry }
     if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { warn: () => {} } }
     if (name === './SourceTextNormalizer') return { normalizeSourceImageUrl: value => value }
     return {}
   })
-  const registry = { lookup: () => ({ ok: true, entry: { sourceId: 'test.source', wasmBytes: new Uint8Array(1) } }) }
   const request = { comicId: 'work', sourceId: 'test.source', chapterId: 'chapter' }
   for (const [code, status, expected] of [
     ['network_error', 0, 'source_failure_network'], ['timeout', 0, 'source_failure_timeout'],
@@ -196,20 +208,21 @@ async function sourcePageFailureChain() {
   assert.equal(failed.sourceFailure.kind, 'network')
   assert.equal(writes, 0)
 
-  // 237 NamiComi counterexample: an existing /source/ plan bypassed get_pages
-  // after dataSaver was saved. Only a changed snapshot should renew that plan.
+  // Preserve the settings regression and use the package-bound plan introduced
+  // by 30741ae3 after Komiic retained stale CDN URLs on a source update.
   let book = { id: 'work', createdAt: 1, sourceRuntimeId: 'test.source', sourcePath: 'https://public.example/work',
-    chapters: [{ id: 'chapter', createdAt: 1, sourcePath: 'chapter', pages: [{id:'p1',uri:'https://public.example/source/1.png'}],pageCount:1 }] }
+    chapters: [{ id: 'chapter', createdAt: 1, sourcePath: 'chapter', pages: [{id:'p1',uri:'https://public.example/source/1.png'}],
+      pageCount:1, sourceSettingsFingerprint:emptyPlan }] }
   const bookHydrator = new hydratedExports.SourceChapterPageHydrator({ getComic: () => book,
     upsertComic: next => { writes++; book=next } }, registry)
   let calls = requested
   assert.equal((await bookHydrator.ensureChapterPages('work','test.source','chapter')).hydrated,true)
-  assert.equal(requested,calls,'Empty legacy settings must keep existing pages cache-first')
+  assert.equal(requested,calls,'An unchanged source installation and settings must keep existing pages cache-first')
   settings={'dataSaver_zh-hans':true,thumbnailQuality_zh:'512'}
   response={ok:true,data:{pages:[{id:'p1',url:'https://public.example/low/1.jpg'}]}}
   assert.equal((await bookHydrator.ensureChapterPages('work','test.source','chapter')).hydrated,true)
   assert.equal(requested,++calls);assert.equal(book.chapters[0].pages[0].uri,'https://public.example/low/1.jpg')
-  assert.equal(book.chapters[0].sourceSettingsFingerprint,settingsIdentity.sourceSettingsFingerprint(settings))
+  assert.equal(book.chapters[0].sourceSettingsFingerprint,settingsIdentity.sourcePagePlanFingerprint(settings,planIdentity))
   assert.equal(book.chapters[0].id,'chapter');assert.equal(book.chapters[0].createdAt,1)
   settings={thumbnailQuality_zh:'512','dataSaver_zh-hans':true}
   await bookHydrator.ensureChapterPages('work','test.source','chapter')
@@ -222,14 +235,14 @@ async function sourcePageFailureChain() {
   settings={}
   response={ok:true,data:{pages:[{id:'p1',url:'https://public.example/source/1.png'}]}}
   await bookHydrator.ensureChapterPages('work','test.source','chapter')
-  assert.equal(book.chapters[0].sourceSettingsFingerprint,'')
+  assert.equal(book.chapters[0].sourceSettingsFingerprint,emptyPlan)
   assert.equal(book.chapters[0].pages[0].uri,'https://public.example/source/1.png')
   let release
   requestGate=new Promise(resolve=>{release=resolve})
   const pending=bookHydrator.ensureChapterPages('work','test.source','chapter',true)
   await Promise.resolve();settings={'dataSaver_zh-hans':true};release()
   assert.equal((await pending).hydrated,false)
-  assert.equal(book.chapters[0].sourceSettingsFingerprint,'','A late response cannot claim newly changed settings')
+  assert.equal(book.chapters[0].sourceSettingsFingerprint,emptyPlan,'A late response cannot claim newly changed settings')
   console.log('PASS Changed source settings renew only their chapter plan; warm plans, failure and old-response retention remain correct')
   console.log('PASS Koma page resolution preserves safe network/HTTP causes, unsupported copy, success, and library retention')
 }

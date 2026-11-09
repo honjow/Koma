@@ -686,6 +686,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   // A verification probe has its own visible-session guard; the originating
   // worker has already ended and its search guard is intentionally released.
   const installed = identity === undefined ? undefined : appSourceRuntimeRegistry.lookup(identity.sourceId).entry
+  if (installed?.packageManifestUnavailable === true) {
+    trace.finish('rejected', 'reason=source_manifest_unavailable')
+    return transportError('source_manifest_unavailable', false)
+  }
   const installedEntry = installed !== undefined && identity !== undefined && sourceRuntimeEntryEnabled(installed) &&
     installed.manifestVersion === identity.sourceVersion && sourceWebPackageIdentity(installed) === identity.packageIdentity
     ? installed : undefined

@@ -66,6 +66,8 @@ function installFixture(appVersionSupported = true, minAppVersion = '0', install
     runSourceOperationFromValidatedBytesAsync:async(request,bytes)=>{const r=JSON.parse(request);assert.equal(r.operation,'source_info');assert.deepEqual(r.settings,{});assert.equal(r.hostHints.network,false);assert.equal(registry.lookup('one').entry,old);events.push('probe');return probe.promise},
     IMPORTED_SOURCE_ROUTE:'imported', DiagnosticLogger:{error(){},info(){}},persistInstalledSources:()=>{events.push('persist');if(persistFails)throw Error('disk')},
     restoreRuntimeRegistryEntry:(entry,index)=>{events.push('restore');if(entry&&!entries.some(e=>e.sourceId===entry.sourceId))entries.splice(index,0,entry)},
+    appSourceSettingsStore:{sourcePackageChanged(){}},
+    fs:{accessSync:()=>true},readInstalledSourcePackageManifest:()=>manifest,
     SourceRuntimeStateBridge:{notifyChanged:()=>events.push('notify')},newSourceImportDirectory:()=>'/packages/new',Date,
     readImportBytes:async()=>archivedBytes, buffer:{from:bytes=>Buffer.from(bytes)},
     util:{generateRandomUUID:()=> 'fresh-storage'},
@@ -77,14 +79,16 @@ function installFixture(appVersionSupported = true, minAppVersion = '0', install
     sourceWebPackageIdentity:e=>e.archivePath,
     SourcePrivateSessionHost:{retirePackageCalls:id=>events.push('retire:'+id)} }
   const api=functions(registryFile,['sourceInfoCapabilityToken','detectSourceRuntimeCapabilities','sourceLoginScope',
-    'sourceArchiveMatches','registerSourcePackageFromBytes','installFromBytes'],{...globals,BackupRestoreActivity:{runWrite:async work=>work()}})
+    'sourceArchiveMatches','installedSourceManifestMatches','registerSourcePackageFromBytes','installFromBytes'],
+    {...globals,BackupRestoreActivity:{runWrite:async work=>work()}})
   return {api,probe,events,old,registry,set persistFails(v){persistFails=v},set registerFails(v){registerFails=v},get next(){return next}}
 }
 test('identical local archives retain the installed entry and incompatible updates cannot inherit its session', async () => {
   const catalog = 'https://catalog.example/index.json'
   const auth = {kind:'credentials',loginUrl:'https://account.example/login',credentialStorage:'memory'}
   const installed = {catalogOrigin:catalog, manifestVersion:'1.0.0', hashOk:true, authentication:auth,
-    sessionStorageIdentity:'original-storage'}
+    sessionStorageIdentity:'original-storage', manifestPath:'/packages/old/package/manifest.json',
+    wasmPath:'/packages/old/package/source.wasm', wasmBytes:new Uint8Array([1,2])}
   const archive = new Uint8Array([1])
   const local = installFixture(true, '0', installed, {
     package:{id:'one',name:'One',version:'1.0.0'}, permissions:{authentication:auth},
@@ -92,6 +96,17 @@ test('identical local archives retain the installed entry and incompatible updat
   assert.equal((await local.api.registerSourcePackageFromBytes({}, archive, 'renamed.zip', undefined, '/packages/new')).ok, true)
   assert.equal(local.registry.lookup('one').entry, local.old)
   assert.deepEqual(local.events, ['delete:/packages/new'])
+
+  const damaged = installFixture(true, '0', {...installed, packageManifestUnavailable:true}, {
+    package:{id:'one',name:'One',version:'1.0.0'}, permissions:{authentication:auth},
+  }, archive)
+  const repair = damaged.api.registerSourcePackageFromBytes({}, archive, 'renamed.zip', undefined, '/packages/new')
+  damaged.probe.resolve(JSON.stringify(response))
+  assert.equal((await repair).ok, true)
+  assert.equal(damaged.next.catalogOrigin, catalog)
+  assert.equal(damaged.next.sessionStorageIdentity, 'original-storage')
+  assert.equal(damaged.next.enabled, false)
+  assert(damaged.events.indexOf('persist') < damaged.events.indexOf('delete:/packages/old'))
 
   for (const [verified, authentication, expected] of [
     [catalog, {...auth, usernameLabel:'Email'}, 'original-storage'],
@@ -254,6 +269,20 @@ function persistenceFixture() {
     openSync:p=>{if(unreadable.has(p))throw Error('unreadable');opened.push(p);return {fd:p}},closeSync:f=>closed.push(f.fd),
     readSync:(fd,buffer)=>{reads.push(fd);const bytes=files.get(fd);new Uint8Array(buffer).set(bytes);return bytes.length},
     mkdirSync:()=>{throw Error('unexpected directory creation')}}
+  const ark = {url:{URL:class extends URL {static parseURL(value){return new URL(value)}}}}
+  const requestPolicy = evaluate('sourceRuntime/SourceRequestPolicy.ets', () => ark)
+  const websitePolicy = evaluate('sourceRuntime/SourceWebsitePolicy.ets', () => ark)
+  Object.assign(guards, requestPolicy, websitePolicy)
+  const importerModules = {
+    '@kit.ArkTS': ark, '@kit.CoreFileKit': {fileIo:nativeFs},
+    './SourceRequestPolicy': requestPolicy, './SourceWebsitePolicy': websitePolicy,
+    './SourceChapterOrder': chapterOrder, './SourceAuthenticationDescriptor': authentication,
+    './SourceRequiredImageDecodeDeclaration': requiredDecode, './SourceLocalizedNames': names,
+    './SourcePackageMetadata': guards, './SourcePackageHashWorker': {
+      computeSourcePackageSha256: bytes => require('node:crypto').createHash('sha256').update(bytes).digest('hex'),
+    },
+  }
+  const importer = evaluate('sourceRuntime/SourcePackageImporter.ets', name => importerModules[name] ?? {})
   const api=evaluate('sourceRuntime/SourceRuntimeRegistry.ets',name=>{
     if(name==='@kit.CoreFileKit')return {fileIo:nativeFs,fileUri:{getUriFromPath:p=>'file://'+p}}
     if(name==='./SourceChapterOrder')return chapterOrder
@@ -262,7 +291,7 @@ function persistenceFixture() {
     if(name==='./SourceLocalizedNames')return names
     // Exercise the original per-entry failure contract; the real native fast path is checked below.
     if(name==='./NativeSourceRuntime')return {NativeSourceRuntime:{sourcePackageFilesMatch:()=>false}}
-    if(name==='./SourcePackageImporter')return {...guards,SOURCE_REPO_PACKAGE_WASM_FILE:'source.wasm'}
+    if(name==='./SourcePackageImporter')return importer
     if(name==='../model/AppFileTextPersistence')return {writeAppTextFile:(p,text)=>{if(writeFails)throw Error('disk');writes.push({path:p,metadata:JSON.parse(text)});files.set(p,text)}}
     throw Error('unexpected registry dependency '+name)
   })
@@ -278,6 +307,60 @@ function persistenceFixture() {
   }
   return {registry,add,files,reads,writes,opened,closed,directories,unreadable,api,guards,names,set writeFails(value){writeFails=value}}
 }
+test('cold reload uses the installed manifest over old registry fields and isolates a damaged manifest', () => {
+  const f = persistenceFixture()
+  const metadataPath = '/files/registry.json'
+  const local = f.add('local')
+  f.add('restored', {enabled:false})
+  f.add('damaged')
+  assert.equal(f.registry.persistImportedToAppLocalMetadata(metadataPath).ok, true)
+  const saved = JSON.parse(f.files.get(metadataPath))
+  const limits = [{group:'main', permits:10, periodMs:1000, hosts:['example.org']}]
+  const websitePolicy = {preserveRouteCover:true}
+  for (const entry of saved.entries) {
+    const dir = '/packages/' + entry.sourceId + '/package'
+    const bytes = f.files.get(entry.wasmPath)
+    entry.wasmPath = dir + '/source.wasm'
+    f.files.set(entry.wasmPath, bytes)
+    if (entry.sourceId === 'local') {
+      entry.manifestPath = dir + '/manifest.json'
+      entry.requestLimits = [{group:'old', permits:1, periodMs:1000}]
+      f.files.set(entry.manifestPath, JSON.stringify({id:entry.sourceId,name:'Local',version:entry.manifestVersion,
+        requestLimits:limits,websitePolicy}))
+    } else {
+      entry.manifestPath = dir + '/manifest.generated.json'
+      if (entry.sourceId === 'damaged') {
+        entry.requestLimits = limits
+        entry.websitePolicy = websitePolicy
+        continue
+      }
+      f.files.set(entry.manifestPath, JSON.stringify({schemaVersion:1,
+        package:{...local.manifest.package,id:entry.sourceId},
+        runtime:{wasmPath:'source.wasm',wasmSha256:'',wasmSizeBytes:bytes.length,maxWasmBytes:bytes.length},
+        permissions:{network:false,hostImports:[],requestLimits:limits,websitePolicy},
+        contentPolicy:{}}))
+    }
+  }
+  f.files.set(metadataPath, JSON.stringify(saved))
+  const first = f.api.SourceRuntimeRegistry.reloadFromAppLocalMetadata(metadataPath)
+  assert.equal(first.ok, true)
+  for (const id of ['local','restored']) {
+    assert.deepEqual(first.registry.lookup(id).entry.requestLimits, limits)
+    assert.deepEqual(first.registry.lookup(id).entry.websitePolicy, websitePolicy)
+  }
+  assert.equal(first.registry.lookup('restored').entry.enabled, false)
+  const damaged = first.registry.lookup('damaged').entry
+  assert.equal(damaged.enabled, true)
+  assert.equal(f.api.sourceRuntimeEntryEnabled(damaged), false)
+  assert.equal(damaged.requestLimits, undefined)
+  assert.equal(first.registry.persistImportedToAppLocalMetadata(metadataPath).ok, true)
+  const next = JSON.parse(f.files.get(metadataPath))
+  assert(next.entries.every(entry => entry.requestLimits === undefined && entry.websitePolicy === undefined))
+  const second = f.api.SourceRuntimeRegistry.reloadFromAppLocalMetadata(metadataPath)
+  assert.equal(second.ok, true)
+  assert.deepEqual(second.registry.lookup('local').entry.requestLimits, limits)
+})
+
 test('installed projection retains the exact existing metadata while excluding staged, unarchived and removed sources',()=>{
   const f=persistenceFixture();f.add('keep',{enabled:false});f.add('removed');f.add('staged',{status:'staged'});f.add('unarchived',{archive:undefined})
   // Explicitly represent an admitted source without an archive (the normal helper supplies one).

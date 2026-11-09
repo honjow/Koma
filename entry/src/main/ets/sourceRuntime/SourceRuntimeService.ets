@@ -405,7 +405,7 @@ export function runRegisteredSourceApiOperationsById(
     return {
       ok: false,
       sourceId: lookup.entry.sourceId,
-      reasonCode: 'source_disabled',
+      reasonCode: lookup.entry.packageManifestUnavailable === true ? 'source_manifest_unavailable' : 'source_disabled',
       sourceCount: lookup.sourceCount,
       sourceApiOperationsOk: false,
       sourceApiOperations: { ok: false, operations: [], evidence: [] },
@@ -450,7 +450,7 @@ function admitRegisteredSourceRequest(
     return rejectRegisteredSourceRequest({
       ok: false,
       sourceId: lookup.entry.sourceId,
-      reasonCode: 'source_disabled',
+      reasonCode: lookup.entry.packageManifestUnavailable === true ? 'source_manifest_unavailable' : 'source_disabled',
       sourceCount: lookup.sourceCount,
       responseOk: false,
       attemptedWamrExecution: false,

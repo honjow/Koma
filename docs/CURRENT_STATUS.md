@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-09T07:48:58+08:00",
+  "updatedAt": "2026-11-09T09:47:57+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
   "activity": "#001 quota 逐出场景顿挫修复链全部实测闭环：evict 分批候选两段 26 次快滑无 33 毫秒以上间隔、偏好读取与滚动中 unlink 归零、>16.7 毫秒帧保持 0。",
@@ -225,10 +225,10 @@
       "reportedDate": "2026-11-08",
       "reportedAtSource": "本会话用户明确禁止书源处理里的白名单、黑名单和硬编码。",
       "registeredAt": "2026-11-08T12:19:39+08:00",
-      "updatedAt": "2026-11-08T13:22:26+08:00",
-      "status": "16个站点声明更新已公开，已逐包复验1.2.3和新版宿主请求",
-      "result": "站点域名、窗口、镜像、UA、Cookie、DNS初始化、旧章节ID和封面规则已由安装包声明。移除源ID和包版本图标倍率。订阅归并按URL结构，跨地址更新核对原发布地址的同版本摘要。源仓停用发现和WASM构建参数从具名分支移回本源元数据。16个受影响源编译并通过App清单验证，12个走当前检出版本的正式打包入口。签名HAP构建和限速、匿名请求、章节进度、会话、镜像及原图请求的具名本地回归通过。237临时安装候选，漫画柜经普通文件选择器导入，注册表读取到与包内一致的两个限速窗口。候选与原App、原源包搜索《一拳超人》均在首个响应头前超时。Mac实际WASM和同一网页的请求均未完成TLS握手。两次测试均恢复原数据、电源与租约，237保留原App与原包。书源更新提示已在共用错误分类接入，沿用列表、搜索、详情和阅读器原位置。 对照正式App 1.2.3与公开订阅版本，16个站点策略候选WASM均可按1.2.3现有宿主特性走到搜索请求。受控响应分别核到嗶哩漫画游客请求、哔咔旧分流凭据和拷贝漫画API 26约束。紳士會所1.2.1实测缺少限速能力，打包最低版本恢复为1.2.2。Simply与漫画屋首个具备本站传输能力的正式App为1.0.0，已纠正更早的配置。以各正式标签的安装代码及真实包清单和索引复验，低于门槛时下载前拒绝。当前提示候选已签名构建。 16个源均基于发布中的版本合入站点声明并提高包版本。第一批远端打包遗漏字段，已修正打包器并递增版本重发。最终最新索引有95项，本轮恰好17个版本更新。16个实际公开包的声明、版本和门槛全部与索引及App解析一致，正式1.2.3和新版宿主能力回放均进入搜索HTTP。",
-      "remaining": "1.2.3可更新这16个源，Komiic额度修复单独要求1.3.0。兼容性回放使用受控HTTP响应，漫画柜237与Mac的真实样本均未收到正常站点响应。",
+      "updatedAt": "2026-11-09T09:47:57+08:00",
+      "status": "19 个书源更新已发布，App 清单读取修复已通过本地回放和 Release 构建",
+      "result": "站点域名、窗口、镜像、UA、Cookie、DNS初始化、旧章节ID和封面规则已由安装包声明。移除源ID和包版本图标倍率。订阅归并按URL结构，跨地址更新核对原发布地址的同版本摘要。源仓停用发现和WASM构建参数从具名分支移回本源元数据。16个受影响源编译并通过App清单验证，12个走当前检出版本的正式打包入口。签名HAP构建和限速、匿名请求、章节进度、会话、镜像及原图请求的具名本地回归通过。237临时安装候选，漫画柜经普通文件选择器导入，注册表读取到与包内一致的两个限速窗口。候选与原App、原源包搜索《一拳超人》均在首个响应头前超时。Mac实际WASM和同一网页的请求均未完成TLS握手。两次测试均恢复原数据、电源与租约，237保留原App与原包。书源更新提示已在共用错误分类接入，沿用列表、搜索、详情和阅读器原位置。 对照正式App 1.2.3与公开订阅版本，16个站点策略候选WASM均可按1.2.3现有宿主特性走到搜索请求。受控响应分别核到嗶哩漫画游客请求、哔咔旧分流凭据和拷贝漫画API 26约束。紳士會所1.2.1实测缺少限速能力，打包最低版本恢复为1.2.2。Simply与漫画屋首个具备本站传输能力的正式App为1.0.0，已纠正更早的配置。以各正式标签的安装代码及真实包清单和索引复验，低于门槛时下载前拒绝。当前提示候选已签名构建。 16个源均基于发布中的版本合入站点声明并提高包版本。第一批远端打包遗漏字段，已修正打包器并递增版本重发。最终最新索引有95项，本轮恰好17个版本更新。16个实际公开包的声明、版本和门槛全部与索引及App解析一致，正式1.2.3和新版宿主能力回放均进入搜索HTTP。 11月9日确认旧 App 安装后升级的兼容性缺陷。App 重载直接校验已安装清单，两项站点规则只保留内存副本，旧登记内容不参与。坏清单保留安装项并禁止执行，同一个原包可覆盖修复并保留归属、开关和会话。19 个可在声明化之前安装的源已发布覆盖更新，最低要求 Koma 1.4.1。正式包回放确认 1.2.3、1.4.0 拒绝更新，1.4.1 覆盖安装并重启后规则、会话及开关均正确。",
+      "remaining": "App 根治目前为本地候选，真机升级和普通界面操作未验收。已安装的旧包若本身没有站点声明，需要更新书源才能取得规则。上一轮漫画柜真实样本仍保留原响应结论。",
       "evidence": [
         ".hvigor/outputs/source-policy-20261108/final-build.log",
         ".hvigor/outputs/source-policy-20261108/final-targeted-regression.log",
@@ -252,7 +252,12 @@
         "https://github.com/honjow/koma-sources/releases/tag/sources-a080d7d0f4691b18bbe36575b64ecdb414fdee33",
         ".hvigor/outputs/source-policy-20261108/compat-123/public-final/release-receipt.json",
         ".hvigor/outputs/source-policy-20261108/compat-123/public-final/compatibility.json",
-        ".hvigor/outputs/source-policy-20261108/compat-123/public-final/app-manifests.log"
+        ".hvigor/outputs/source-policy-20261108/compat-123/public-final/app-manifests.log",
+        ".hvigor/outputs/source-policy-root-20261109/public-upgrade-replay.log",
+        ".hvigor/outputs/source-policy-root-20261109/regression.log",
+        ".hvigor/outputs/source-policy-root-20261109/release-build.log",
+        "https://github.com/honjow/koma-sources/actions/runs/42547125810",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-37a7c9d94484e3dbed4b7ecfb8921a3ddfd2c6b2"
       ],
       "relatedItems": [
         "SOURCE_KOMIIC_IMAGE_QUOTA",
@@ -9787,6 +9792,13 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-policy-canonical-manifest-and-refresh-20261109",
+      "at": "2026-11-09T09:47:57+08:00",
+      "itemId": "SOURCE_DECLARATIVE_POLICY",
+      "title": "站点规则改由已安装清单恢复，覆盖更新已发布",
+      "detail": "19 个公开包均核对清单、摘要与 1.4.1 门槛。原版 1.4.1 走覆盖安装后，Buon Dua 和 Xiutaku 在受控网络回放中发出目录和搜索请求；候选 WASM 各取到 20 条真实目录。根治候选可直接恢复此前正确安装的书源规则。未操作真机。"
+    },
     {
       "id": "detail-cold-chapter-reload-20261109",
       "at": "2026-11-09T07:48:58+08:00",

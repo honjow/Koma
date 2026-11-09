@@ -1,6 +1,7 @@
 import { NativeSourceRuntime } from './NativeSourceRuntime'
 import { sourceRequestWithHostFeatures } from './SourceHostFeatures'
-import { sourceRuntimeExecutionHasDetailChapterContext, sourceRuntimeExecutionHasGuard, sourceRuntimeExecutionHasRequestLimits } from './SourceRuntimeExecutionIdentity'
+import { sourceRuntimeExecutionHasDetailChapterContext, sourceRuntimeExecutionHasGuard, sourceRuntimeExecutionHasRequestLimits,
+  sourceRuntimeExecutionManifestUnavailable, UNAVAILABLE_SOURCE_MANIFEST } from './SourceRuntimeExecutionIdentity'
 
 // TaskPool evaluates this module's transitive imports on a worker. Keep this
 // entry Native-only: Service/Runner pull in UI state and localization, whose
@@ -11,6 +12,7 @@ import { sourceRuntimeExecutionHasDetailChapterContext, sourceRuntimeExecutionHa
 // protocol features here so their source settings reach the same Native boundary.
 @Concurrent
 export function executeSourceRuntimeRequest(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  if (sourceRuntimeExecutionManifestUnavailable(httpContextJson)) return UNAVAILABLE_SOURCE_MANIFEST
   return JSON.stringify(NativeSourceRuntime.runJsonCallFromBytes(
     sourceRequestWithHostFeatures(requestJson, sourceRuntimeExecutionHasGuard(httpContextJson),
       sourceRuntimeExecutionHasDetailChapterContext(httpContextJson), sourceRuntimeExecutionHasRequestLimits(httpContextJson)), wasmBytes, httpContextJson))
@@ -20,6 +22,7 @@ export function executeSourceRuntimeRequest(requestJson: string, wasmBytes: Uint
 // that the worker already uses for detail and images.
 @Concurrent
 export function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  if (sourceRuntimeExecutionManifestUnavailable(httpContextJson)) return UNAVAILABLE_SOURCE_MANIFEST
   return NativeSourceRuntime.runRawJsonCallFromBytes(sourceRequestWithHostFeatures(requestJson,
     sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson), sourceRuntimeExecutionHasRequestLimits(httpContextJson)),
     wasmBytes, httpContextJson)
@@ -27,6 +30,7 @@ export function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uin
 
 @Concurrent
 export function runLocalCoverOperationTask(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  if (sourceRuntimeExecutionManifestUnavailable(httpContextJson)) return UNAVAILABLE_SOURCE_MANIFEST
   return NativeSourceRuntime.runRawJsonCallFromBytes(sourceRequestWithHostFeatures(requestJson,
     sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson), sourceRuntimeExecutionHasRequestLimits(httpContextJson)),
     wasmBytes, httpContextJson, true)

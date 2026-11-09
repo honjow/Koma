@@ -343,6 +343,11 @@ export async function resolveSourceChapterPages(
     return { pages: [], reasonCode: normalizeSourceLookupHydrationReason(lookup.reasonCode) }
   }
   if (!sourceRuntimeEntryEnabled(lookup.entry)) {
+    if (lookup.entry.packageManifestUnavailable === true) {
+      const reason = 'source_manifest_unavailable'
+      return { pages: [], reasonCode: reason, sourceFailureReason: reason,
+        sourceFailure: sourceFailureDetails({ ok: false, reasonCode: reason }) }
+    }
     return { pages: [], reasonCode: 'source_disabled' }
   }
   try {

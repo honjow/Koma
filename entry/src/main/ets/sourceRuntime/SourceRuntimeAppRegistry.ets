@@ -13,6 +13,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import {
   importLocalSourceArchive,
   readImportBytes,
+  readInstalledSourcePackageManifest,
   LocalSourcePackageManifest,
   normalizeSourceOperationCapabilityTokens,
   SOURCE_PACKAGE_MANIFEST_FILE,
@@ -685,6 +686,7 @@ function restoreRuntimeRegistryEntry(entry: SourceRuntimeRegistryEntry | undefin
     enabled: entry.enabled,
     capabilities: entry.capabilities,
     manifestPath: entry.manifestPath,
+    packageManifestUnavailable: entry.packageManifestUnavailable,
     wasmPath: entry.wasmPath,
     archivePath: entry.archivePath,
     packageIconPath: entry.packageIconPath,
@@ -729,6 +731,10 @@ export function exportInstalledSourcePackages(): SourcePackageBackupEntry[] {
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index]
     if (entry.importStatus !== 'imported') {
+      continue
+    }
+    if (entry.packageManifestUnavailable === true) {
+      DiagnosticLogger.warn('source_package', 'backup_package_skipped', 'reason=source_manifest_unavailable')
       continue
     }
     const iconBytes = sourcePackageIconBytes(entry)
@@ -1004,6 +1010,9 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
         JSON.stringify(normalizeSourceLocalizedNames(existing.localizedNames)) ===
           JSON.stringify(normalizeSourceLocalizedNames(entry.localizedNames)) &&
         existing.wasmByteCount === entry.wasmByteCount &&
+        existing.wasmPath === entry.wasmPath &&
+        existing.manifestPath === entry.manifestPath &&
+        (existing.packageManifestUnavailable === true) === (entry.packageManifestUnavailable === true) &&
         existing.packageIconPath === entry.packageIconPath &&
         existing.packageHomepage === entry.packageHomepage &&
         existing.packageAuthor === entry.packageAuthor &&
@@ -1074,6 +1083,7 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
       enabled: entry.enabled,
       capabilities: entry.capabilities,
       manifestPath: entry.manifestPath,
+      packageManifestUnavailable: entry.packageManifestUnavailable,
       wasmPath: entry.wasmPath,
       archivePath: entry.archivePath,
       packageIconPath: entry.packageIconPath,
@@ -1186,6 +1196,19 @@ async function sourceArchiveMatches(path: string, bytes: Uint8Array): Promise<bo
   } catch (_error) { return false }
 }
 
+function installedSourceManifestMatches(entry: SourceRuntimeRegistryEntry,
+  imported: LocalSourcePackageManifest): boolean {
+  if (entry.packageManifestUnavailable === true || entry.manifestPath === undefined || entry.wasmPath === undefined ||
+    !fs.accessSync(entry.wasmPath)) return false
+  const manifest = readInstalledSourcePackageManifest(entry.manifestPath, entry.wasmPath, entry.wasmBytes,
+    entry.sourceId, entry.manifestVersion)
+  return manifest !== undefined &&
+    JSON.stringify(manifest.permissions.requestLimits) === JSON.stringify(imported.permissions.requestLimits) &&
+    JSON.stringify(manifest.permissions.websitePolicy) === JSON.stringify(imported.permissions.websitePolicy) &&
+    JSON.stringify(entry.requestLimits) === JSON.stringify(imported.permissions.requestLimits) &&
+    JSON.stringify(entry.websitePolicy) === JSON.stringify(imported.permissions.websitePolicy)
+}
+
 async function registerSourcePackageFromBytes(
   context: common.UIAbilityContext,
   archiveBytes: Uint8Array,
@@ -1227,12 +1250,13 @@ async function registerSourcePackageFromBytes(
       return { ok: false, reasonCode: 'app_version_unsupported',
         requiredAppVersion: imported.manifest.package.minAppVersion }
     }
-    // Re-importing the exact archive is a no-op. A filename is not a publisher
-    // identity, and a different local archive never acquires a previous account.
+    // An identical archive may repair its installed files without changing
+    // publisher or account identity. Only a healthy installation is a no-op.
     const previous = appSourceRuntimeRegistry.lookup(sourceId).entry
-    if (catalogOrigin === undefined && previous?.archivePath !== undefined && previous.manifestVersion !== undefined &&
+    const sameLocalArchive = catalogOrigin === undefined && previous?.archivePath !== undefined &&
       previous.manifestVersion === imported.manifest.package.version && previous.hashOk &&
-      await sourceArchiveMatches(previous.archivePath, archiveBytes) && appSourceRuntimeRegistry.lookup(sourceId).entry === previous) {
+      await sourceArchiveMatches(previous.archivePath, archiveBytes) && appSourceRuntimeRegistry.lookup(sourceId).entry === previous
+    if (sameLocalArchive && previous !== undefined && installedSourceManifestMatches(previous, imported.manifest)) {
       await removeAppSourcePackageDir(context, packageDir)
       return { ok: true, id: sourceId, name: imported.manifest.package.name }
     }
@@ -1246,10 +1270,11 @@ async function registerSourcePackageFromBytes(
     removedExistingPosition = appSourceRuntimeRegistry.list().findIndex((entry: SourceRuntimeRegistryEntry): boolean => entry.sourceId === sourceId)
     removedExisting = appSourceRuntimeRegistry.remove(sourceId)
     const replacementEnabled = removedExisting?.enabled ?? true
+    const exactLocalRepair = sameLocalArchive && removedExisting === previous
     // The checked catalog can continue this package ID's session. The new
     // directory and version still fence all previous WASM and HTTP calls.
-    const inheritedSession = removedExisting !== undefined && verifiedSessionCatalog !== undefined &&
-      verifiedSessionCatalog === removedExisting.catalogOrigin &&
+    const inheritedSession = removedExisting !== undefined && (exactLocalRepair ||
+      (verifiedSessionCatalog !== undefined && verifiedSessionCatalog === removedExisting.catalogOrigin)) &&
       sourceLoginScope(removedExisting.authentication, removedExisting.webSessionOrigins ?? []) ===
         sourceLoginScope(imported.manifest.permissions.authentication, imported.manifest.permissions.webSessionOrigins ?? [])
       ? sourceSessionStorageIdentity(removedExisting) : undefined
@@ -1269,7 +1294,8 @@ async function registerSourcePackageFromBytes(
       packageIconPath: imported.iconPath,
       presentationDescription: removedExisting?.presentationDescription,
       presentationIcon: removedExisting?.presentationIcon,
-      catalogOrigin: catalogOrigin === undefined ? undefined : removedExisting?.catalogOrigin ?? catalogOrigin,
+      catalogOrigin: exactLocalRepair ? removedExisting?.catalogOrigin :
+        (catalogOrigin === undefined ? undefined : removedExisting?.catalogOrigin ?? catalogOrigin),
       sessionStorageIdentity: inheritedSession ?? ('source-session:' + util.generateRandomUUID(true)),
     }, removedExistingPosition)
     if (!registered.ok) {

@@ -476,9 +476,13 @@ function sourceImageResponseError(status: number, rules?: SourceImageResponseErr
 async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders, sourceId: string = '',
   dnsOverride?: SourceDnsOverride, chapterImage: boolean = false, responseErrors?: SourceImageResponseErrors,
   coverImage: boolean = false): Promise<ArrayBuffer> {
+  const installedSource = appSourceRuntimeRegistry.lookup(sourceId).entry
+  if (installedSource?.packageManifestUnavailable === true) {
+    throw new SourceRuntimeError({ ok: false, reasonCode: 'source_manifest_unavailable' })
+  }
   if (dnsOverride !== undefined) return downloadDnsOverrideImage(url, extraHeaders, sourceId, dnsOverride,
     chapterImage ? responseErrors : undefined)
-  await waitForSourceRequestSlot(appSourceRuntimeRegistry.lookup(sourceId).entry?.requestLimits, url, undefined, extraHeaders)
+  await waitForSourceRequestSlot(installedSource?.requestLimits, url, undefined, extraHeaders)
   const readTimeout = chapterImage ? LARGE_READER_IMAGE_READ_TIMEOUT_MS :
     (coverImage ? COVER_IMAGE_READ_TIMEOUT_MS : READER_IMAGE_READ_TIMEOUT_MS)
   const connectTimeout = coverImage ? COVER_IMAGE_CONNECT_TIMEOUT_MS : 30000

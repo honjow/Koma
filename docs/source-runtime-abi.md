@@ -77,6 +77,8 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 书源根 manifest 可带可选的 `requestLimits` 和 `websitePolicy`，由本源 `metadata.json` 随包生成。导入、注册与重载均校验声明。站点声明只选择已实现的能力，和账号授权、Web会话授权及TLS验证相互独立。
 
+宿主安装和重载时都从已解包的清单读取站点声明。注册表持久化安装位置和状态，运行规则只在内存中保留，旧注册表中的规则副本不参与加载。重载时核对同目录清单、书源身份、版本和 WASM 声明。清单缺失或无效时，保留该安装项以便覆盖修复，并阻止它发起书源请求。相同原包按字节确认后可恢复损坏的安装，沿用原订阅归属、设置和会话身份。备份保留已验证的包规则，恢复时写入对应包目录的清单。
+
 - `requestLimits` 最多8个滑动窗口，每项声明唯一 `group`、`permits` 和 `periodMs`。可用精确 `hosts` 或带 `prefix` 的 `firstLabels` 匹配主机，可要求指定 `requestHeaders` 存在。默认同源包同组共享，`perOrigin` 将HTTPS origin分开计数，`oncePerRequest` 使同一次HTTP调用的匹配重定向只占一次。可选 `setting.key` 覆盖次数，`windowValue` 读取「次数/秒」，`keepUntilRestart` 采用该安装首次读取的值，`maxPermits` 限制设置值。缓存命中不入队，排队可取消且不占网络超时。`source_request_limits_v1` 仅对声明有效窗口的安装包提供。
 - `websitePolicy.homepageChoices` 通过 `setting` 和 `options[{value,url}]` 选官网地址，缺省回退包首页。普通网页不获得验证授权。验证页可按精确 `systemWebAgentOrigins` 使用系统UA，普通手机网页可按精确 `mobileWebAndroidAgentOrigins` 保留站点兼容标识。`publicCookieOverrides[{origin,name,values}]` 仅允许已授权会话在同一精确origin替换唯一合法的公共Cookie项，每跳重新核验。
 - `httpProfiles[{origin,pathPrefix?,profile}]` 对当前包的精确HTTPS origin选择 `firefox133`、`chrome145` 或 `fresh_http11`。前两者用于空正文GET并保留系统代理和TLS校验。系统代理存在或原生依赖不可用时按原网络预算回退。兼容库的版本与构建见[固定构建配方](../scripts/prepare-source-browser-http.sh)。`source_http_profiles_v1` 表示系统支持 `fresh_http11`（API 26起），该模式要求无正文、Cookie及授权头的GET，使用系统代理、证书验证和HTTP/1.1，禁止连接复用及缓存，仅跟随合法HTTPS重定向，继续使用同传输限制。

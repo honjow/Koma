@@ -1100,6 +1100,9 @@ export struct MangaDetailPage {
       }
       this.sourceDetailRegistryEntry = lookup.entry
       if (!sourceRuntimeEntryEnabled(lookup.entry)) {
+        if (lookup.entry.packageManifestUnavailable === true) {
+          throw new SourceRuntimeError({ ok: false, reasonCode: 'source_manifest_unavailable' })
+        }
         throw new Error('source_disabled')
       }
       this.sourceDetailSettingsFingerprint = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))

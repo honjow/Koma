@@ -14,6 +14,7 @@ const SOURCE_FAILURE_CODES: string[] = [
   'rate_limited', 'rate_limit', 'image_quota_exhausted', 'not_found', 'content_removed', 'no_chapters', 'server_error', 'client_error', 'parse_error',
   'invalid_response', 'invalid_json', 'malformed_result', 'result_too_large', 'request_too_large',
   'source_disabled', 'source_changed', 'source_id_not_registered', 'wasm_missing', 'unsupported', 'host_feature_required',
+  'source_manifest_unavailable',
   'unsupported_operation', 'not_implemented', 'not_supported', 'wamr_runtime_error', 'runtime_error', 'source_worker_failed',
   'wasm_load_failed', 'wasm_instantiate_failed', 'wasm_environment_failed', 'missing_export',
   'wasm_call_failed', 'source_init_failed',
@@ -72,6 +73,7 @@ export function sourceFailureDetails(response: SourceRuntimeCallResponse): Sourc
   else if (candidates.some((item: string): boolean =>
     ['source_disabled', 'source_id_not_registered', 'wasm_missing'].includes(item))) kind = 'unavailable'
   else if (status === 0 && candidates.includes('host_feature_required')) kind = 'host_feature_required'
+  else if (status === 0 && candidates.includes('source_manifest_unavailable')) kind = 'manifest_unavailable'
   else if (candidates.some((item: string): boolean => ['unsupported', 'unsupported_operation', 'not_implemented', 'not_supported'].includes(item))) kind = 'unsupported'
   else if (candidates.includes('wasm_load_failed') || candidates.includes('missing_export')) kind = 'load'
   else if (candidates.some((item: string): boolean =>

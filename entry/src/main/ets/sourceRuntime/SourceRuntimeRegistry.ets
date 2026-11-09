@@ -1,5 +1,5 @@
-import { SourceWebsitePolicy, validSourceWebsitePolicy } from './SourceWebsitePolicy'
-import { SourceRateLimitRule, validSourceRequestLimits } from './SourceRequestPolicy'
+import { SourceWebsitePolicy } from './SourceWebsitePolicy'
+import { SourceRateLimitRule } from './SourceRequestPolicy'
 import { sourceRequiredImageDecodes, validSourceRequiredImageDecodes } from './SourceRequiredImageDecodeDeclaration'
 import { SourceAuthenticationDescriptor, sourceAuthenticationDescriptor, validSourceAuthentication } from './SourceAuthenticationDescriptor'
 import { SourceChapterOrder, isValidSourceChapterOrder } from './SourceChapterOrder'
@@ -14,6 +14,10 @@ import {
   normalizeSourceOperationCapabilityToken,
   normalizeSourceOperationCapabilityTokens,
   isSourcePackageIconFileName,
+  readInstalledSourcePackageManifest,
+  SOURCE_PACKAGE_MANIFEST_FILE,
+  SOURCE_PACKAGE_WASM_FILE,
+  SOURCE_REPO_PACKAGE_MANIFEST_FILE,
   SOURCE_REPO_PACKAGE_WASM_FILE,
 } from './SourcePackageImporter'
 
@@ -32,6 +36,7 @@ export interface SourceRuntimeRegistryEntryInput {
   enabled?: boolean
   capabilities?: string[]
   manifestPath?: string
+  packageManifestUnavailable?: boolean
   wasmPath?: string
   archivePath?: string
   packageIconPath?: string
@@ -71,6 +76,7 @@ export interface SourceRuntimeRegistryEntry {
   capabilities: string[]
   validationEvidence: string[]
   manifestPath?: string
+  packageManifestUnavailable?: boolean
   wasmPath?: string
   archivePath?: string
   packageIconPath?: string
@@ -135,8 +141,6 @@ export interface SourceRuntimeRegistryPersistedEntry {
   webSessionOrigins?: string[]
   authentication?: SourceAuthenticationDescriptor
   requiredImageDecodes?: string[]
-  requestLimits?: SourceRateLimitRule[]
-  websitePolicy?: SourceWebsitePolicy
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -187,7 +191,7 @@ export interface SourceRuntimeRegistryInstalledSourceSummary {
 }
 
 export function sourceRuntimeEntryEnabled(entry: SourceRuntimeRegistryEntry | undefined): boolean {
-  return entry !== undefined && entry.enabled !== false
+  return entry !== undefined && entry.enabled !== false && entry.packageManifestUnavailable !== true
 }
 
 function normalizeSourceRuntimeSourceId(sourceId: string): string {
@@ -360,7 +364,17 @@ function ensureParentDirSync(path: string): void {
   }
 }
 
-function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSourcePackageManifest {
+function installedManifestPath(entry: SourceRuntimeRegistryPersistedEntry, wasmPath: string): string | undefined {
+  if (entry.manifestPath !== undefined) return entry.manifestPath
+  const packageDir = parentPath(entry.archivePath ?? '') + '/package/'
+  if (wasmPath !== packageDir + SOURCE_REPO_PACKAGE_WASM_FILE &&
+    wasmPath !== packageDir + SOURCE_PACKAGE_WASM_FILE) return undefined
+  const sourceRepoManifest = packageDir + SOURCE_REPO_PACKAGE_MANIFEST_FILE
+  return fs.accessSync(sourceRepoManifest) ? sourceRepoManifest : packageDir + SOURCE_PACKAGE_MANIFEST_FILE
+}
+
+function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry,
+  installedManifest?: LocalSourcePackageManifest): LocalSourcePackageManifest {
   return {
     schemaVersion: 1,
     package: {
@@ -392,8 +406,10 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
       webSessionOrigins: entry.webSessionOrigins ?? [],
       authentication: sourceAuthenticationDescriptor(entry.authentication),
       requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
-      requestLimits: entry.requestLimits,
-      websitePolicy: entry.websitePolicy,
+      // The installed package owns these rules. Ignore copies written by old
+      // registries even if present, so an App upgrade cannot retain stale rules.
+      requestLimits: installedManifest?.permissions.requestLimits,
+      websitePolicy: installedManifest?.permissions.websitePolicy,
     },
     operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
     contentPolicy: {
@@ -437,8 +453,6 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     webSessionOrigins: entry.webSessionOrigins ?? [],
     authentication: sourceAuthenticationDescriptor(entry.authentication),
     requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
-    requestLimits: entry.requestLimits,
-    websitePolicy: entry.websitePolicy,
     presentationDescription: entry.presentationDescription,
     presentationIcon: entry.presentationIcon,
   }
@@ -535,7 +549,7 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
   }
   if (!validSourceWebSessionOrigins(entry.webSessionOrigins) ||
     !validSourceAuthentication(entry.authentication, entry.webSessionOrigins) ||
-    !validSourceRequiredImageDecodes(entry.requiredImageDecodes) || !validSourceRequestLimits(entry.requestLimits) || !validSourceWebsitePolicy(entry.websitePolicy)) return true
+    !validSourceRequiredImageDecodes(entry.requiredImageDecodes)) return true
   if (entry.packageMinAppVersion !== undefined && typeof entry.packageMinAppVersion !== 'string') {
     return true
   }
@@ -595,6 +609,7 @@ export class SourceRuntimeRegistry {
       capabilities: normalizedCapabilityList(input.capabilities, input.manifest),
       validationEvidence: sourceRuntimeRegistryEvidence(input),
       manifestPath: input.manifestPath,
+      packageManifestUnavailable: input.packageManifestUnavailable,
       wasmPath: input.wasmPath,
       archivePath: input.archivePath,
       packageIconPath: input.packageIconPath,
@@ -818,18 +833,22 @@ export class SourceRuntimeRegistry {
         if (wasmBytes.byteLength !== entry.wasmByteCount) {
           return reloadFailure('wasm_byte_count_mismatch', metadataPath, registry)
         }
+        const manifestPath = installedManifestPath(entry, wasmPath)
+        const installedManifest = manifestPath === undefined || entry.manifestId !== sourceId ? undefined :
+          readInstalledSourcePackageManifest(manifestPath, wasmPath, wasmBytes, sourceId, entry.manifestVersion)
 
         const registered = registry.register({
           sourceId,
           route: entry.route,
           importStatus: entry.importStatus,
-          manifest: manifestForReload(entry),
+          manifest: manifestForReload(entry, installedManifest),
           wasmBytes,
           hashOk: entry.hashOk,
           network: entry.network,
           enabled: entry.enabled === false ? false : true,
           capabilities: entry.capabilities,
-          manifestPath: entry.manifestPath,
+          manifestPath,
+          packageManifestUnavailable: manifestPath !== undefined && installedManifest === undefined,
           wasmPath,
           archivePath: entry.archivePath,
           packageIconPath: entry.packageIconPath,
@@ -843,8 +862,6 @@ export class SourceRuntimeRegistry {
           webSessionOrigins: entry.webSessionOrigins ?? [],
           authentication: sourceAuthenticationDescriptor(entry.authentication),
           requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
-          requestLimits: entry.requestLimits,
-          websitePolicy: entry.websitePolicy,
           presentationDescription: entry.presentationDescription,
           presentationIcon: entry.presentationIcon,
         })

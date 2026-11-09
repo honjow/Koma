@@ -713,6 +713,13 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
   }
 }
 
+function readSourcePackageManifest(manifestPath: string, sourceRepoLayout: boolean,
+  wasmSize: number): LocalSourcePackageManifest | undefined {
+  const raw = readTextSync(manifestPath)
+  return sourceRepoLayout ? parseSourceRepoPackageManifest(raw, wasmSize) :
+    JSON.parse(raw) as LocalSourcePackageManifest
+}
+
 export function validateNormalizedManifest(manifest: LocalSourcePackageManifest): SourceArchiveValidationReason | undefined {
   if (manifest.permissions === undefined || manifest.permissions === null ||
     !validSourceWebSessionOrigins(manifest.permissions.webSessionOrigins) ||
@@ -785,6 +792,29 @@ export function validateRestoredSourcePackage(
     return 'checksum_mismatch'
   }
   return undefined
+}
+
+/** Reload only the extracted manifest adjacent to this package's WASM. */
+export function readInstalledSourcePackageManifest(manifestPath: string, wasmPath: string,
+  wasmBytes: Uint8Array, sourceId: string, version: string): LocalSourcePackageManifest | undefined {
+  const separator = wasmPath.lastIndexOf('/')
+  if (separator < 0) return undefined
+  const directory = wasmPath.substring(0, separator + 1)
+  const sourceRepoLayout = manifestPath === directory + SOURCE_REPO_PACKAGE_MANIFEST_FILE
+  if (!sourceRepoLayout && manifestPath !== directory + SOURCE_PACKAGE_MANIFEST_FILE) return undefined
+  try {
+    const manifest = readSourcePackageManifest(manifestPath, sourceRepoLayout, wasmBytes.byteLength)
+    if (manifest === undefined || manifest.package.id !== sourceId || manifest.package.version !== version ||
+      wasmPath !== directory + manifest.runtime.wasmPath ||
+      validateNormalizedManifest(manifest) !== undefined ||
+      wasmBytes.byteLength !== manifest.runtime.wasmSizeBytes || wasmBytes.byteLength > manifest.runtime.maxWasmBytes ||
+      (manifest.runtime.wasmSha256.length > 0 && !validateImportedWasmBytes(manifest, wasmBytes))) {
+      return undefined
+    }
+    return manifest
+  } catch (_error) {
+    return undefined
+  }
 }
 
 function buildLocalSourcePackageManifest(wasmSize: number): LocalSourcePackageManifest {
@@ -895,17 +925,13 @@ export async function importLocalSourceArchive(
 
   let manifest: LocalSourcePackageManifest
   try {
-    if (sourceRepoLayout) {
-      const sourceRepoWasmPath = joinSourceRuntimePath(importedRoot, SOURCE_REPO_PACKAGE_WASM_FILE)
-      const wasmSize = fs.accessSync(sourceRepoWasmPath) ? fs.statSync(sourceRepoWasmPath).size : 0
-      const normalizedManifest = parseSourceRepoPackageManifest(readTextSync(manifestPath), wasmSize)
-      if (normalizedManifest === undefined) {
-        return { ok: false, reasonCode: 'manifest_invalid', manifestPath, attemptedWamrExecution: false }
-      }
-      manifest = normalizedManifest
-    } else {
-      manifest = JSON.parse(readTextSync(manifestPath)) as LocalSourcePackageManifest
+    const sourceRepoWasmPath = joinSourceRuntimePath(importedRoot, SOURCE_REPO_PACKAGE_WASM_FILE)
+    const wasmSize = sourceRepoLayout && fs.accessSync(sourceRepoWasmPath) ? fs.statSync(sourceRepoWasmPath).size : 0
+    const parsed = readSourcePackageManifest(manifestPath, sourceRepoLayout, wasmSize)
+    if (parsed === undefined) {
+      return { ok: false, reasonCode: 'manifest_invalid', manifestPath, attemptedWamrExecution: false }
     }
+    manifest = parsed
   } catch (_err) {
     return { ok: false, reasonCode: 'manifest_invalid', manifestPath, attemptedWamrExecution: false }
   }

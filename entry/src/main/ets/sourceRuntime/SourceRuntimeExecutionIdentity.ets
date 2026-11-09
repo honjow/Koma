@@ -30,6 +30,13 @@ export function sourceRuntimeExecutionHasRequestLimits(httpContextJson: string):
   catch (_error) { return false }
 }
 
+export const UNAVAILABLE_SOURCE_MANIFEST: string = '{"ok":false,"reasonCode":"source_manifest_unavailable"}'
+
+export function sourceRuntimeExecutionManifestUnavailable(httpContextJson: string): boolean {
+  try { return (JSON.parse(httpContextJson) as Record<string, Object>)['packageManifestUnavailable'] === true }
+  catch (_error) { return false }
+}
+
 export function sourceRuntimeExecutionHasDnsBootstrap(httpContextJson: string): boolean {
   try { return (JSON.parse(httpContextJson) as Record<string, Object>)['dnsBootstrapDeclared'] === true }
   catch (_error) { return false }

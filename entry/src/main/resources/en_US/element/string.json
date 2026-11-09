@@ -485,6 +485,7 @@
     {"name": "source_failure_unavailable", "value": "The source is disabled or its files are incomplete. Enable or reinstall it."},
     {"name": "source_failure_unsupported", "value": "This source does not support this action."},
     {"name": "source_failure_host_feature_required", "value": "This source version isn't supported. Update the source and try again"},
+    {"name": "source_failure_manifest_unavailable", "value": "Can't read the installed source manifest. Reinstall the source over the existing copy"},
     {"name": "source_failure_http", "value": "%s (HTTP %s)"},
     { "name": "browse_untitled_manga", "value": "Untitled manga" },
     { "name": "browse_section_open_listing", "value": "Open list" },

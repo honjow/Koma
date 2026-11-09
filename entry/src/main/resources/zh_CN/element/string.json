@@ -483,6 +483,7 @@
     {"name": "source_failure_unavailable", "value": "书源未启用或文件不完整，请启用或重新安装书源。"},
     {"name": "source_failure_unsupported", "value": "此书源暂不支持该操作。"},
     {"name": "source_failure_host_feature_required", "value": "当前书源版本不受支持，请更新后重试"},
+    {"name": "source_failure_manifest_unavailable", "value": "无法读取本地书源清单，请覆盖安装书源"},
     {"name": "source_failure_http", "value": "%s（HTTP %s）"},
     { "name": "browse_untitled_manga", "value": "未命名漫画" },
     { "name": "browse_section_open_listing", "value": "打开列表" },
