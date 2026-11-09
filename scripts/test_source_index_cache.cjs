@@ -33,8 +33,8 @@ function harness(store=new Map(), installedOrigin){
   getInstalledSourcePackage:()=>installedOrigin === undefined ? undefined : {catalogOrigin:installedOrigin},
   isSourcePackageMinAppVersionSatisfied:()=>true,
   computeSourcePackageSha256:bytes=>require('node:crypto').createHash('sha256').update(bytes).digest('hex'),
-  installFromBytes:async(_context,bytes,_name,id,origin,isCurrent,verifiedSessionCatalog)=>{
-   assert.equal(isCurrent(),true);installs.push({bytes,id,origin,verifiedSessionCatalog});return {ok:true,id}
+  installFromBytes:async(_context,bytes,_name,id,origin,isCurrent,preserveSessionOnUpdate)=>{
+   assert.equal(isCurrent(),true);installs.push({bytes,id,origin,preserveSessionOnUpdate});return {ok:true,id}
   },
   http:{RequestMethod:{GET:'GET'},HttpDataType:{STRING:'STRING',ARRAY_BUFFER:'ARRAY_BUFFER'},createHttp(){
    return {request(url){requestedUrls.push(url);return new Promise(resolve=>requests.push(resolve))},destroy(){}}
@@ -45,6 +45,19 @@ function harness(store=new Map(), installedOrigin){
  return {make,store,requests,requestedUrls,installs,pref,activity:exports.BackupRestoreActivity,setFail:v=>failFlush=v,setGate:v=>gate=v,get flushes(){return flushes}}
 }
 async function fetched(h,s,url,items){const r=s.fetchIndex(url);h.requests.shift()({responseCode:200,result:JSON.stringify(items)});const result=await r;await tick();return result}
+
+test('adding and restoring more than twelve subscriptions keeps every saved address',async()=>{
+ const h=harness(),service=h.make()
+ const addresses=Array.from({length:15},(_,index)=>`https://repository-${index}.example/index.json`)
+ for(const address of addresses)await service.saveRepository(address,'')
+ const saved=await service.loadSavedRepositories()
+ assert.equal(saved.length,addresses.length)
+ assert.deepEqual([...saved.map(repo=>repo.url)].sort(),[...addresses].sort())
+ const snapshot=await service.captureDeviceSyncSnapshot()
+ await service.applyDeviceSyncSnapshot(snapshot)
+ const reloaded=await h.make().loadSavedRepositories()
+ assert.deepEqual([...reloaded.map(repo=>repo.url)].sort(),[...addresses].sort())
+})
 
 test('backup restore retires late subscription results even when the same URL remains enabled',async()=>{
  const h=harness(),service=h.make(),url='https://example.test/'
@@ -95,21 +108,54 @@ test('an unavailable book source package retries its verified enabled mirror',as
  assert.equal((await pending).ok,true)
  assert.deepEqual(h.requestedUrls.slice(-2),[original.replace('index.json','A.koma'),mirror.replace('index.json','A.koma')])
  assert.equal(h.installs[0].origin,mirror)
- assert.equal(h.installs[0].verifiedSessionCatalog,original)
+ assert.equal(h.installs[0].preserveSessionOnUpdate,true)
+ // A version the pinned endpoint never offered is not swap evidence: the mirror
+ // candidate must install (device 237 gh-proxy shape, user decision 2026-11-09).
+ const upgradeBytes=Uint8Array.of(9,9,9)
+ const upgrade={...offer,version:'2',sha256:require('node:crypto').createHash('sha256').update(upgradeBytes).digest('hex')}
+ const pendingUpgrade=service.installPackage(mirror,upgrade,true)
+ await tick()
+ h.requests.shift()({responseCode:200,result:upgradeBytes.buffer})
+ assert.equal((await pendingUpgrade).ok,true)
+ // Even when another cached address advertises different bytes for this
+ // version, the selected subscription remains usable after its own hash check.
+ const alternate={...offer,sha256:upgrade.sha256}
+ const pendingAlternate=service.installPackage(mirror,alternate,true)
+ await tick()
+ h.requests.shift()({responseCode:200,result:upgradeBytes.buffer})
+ assert.equal((await pendingAlternate).ok,true)
  const requestCountBeforeMismatch=h.requestedUrls.length
- const forged={...offer,version:'2',sha256:'a'.repeat(64)}
- assert.equal((await service.installPackage(mirror,forged,true)).reasonCode,'subscription_conflict')
- assert.equal(h.requestedUrls.length,requestCountBeforeMismatch)
+ // A different cached digest must not block the selected source. The bytes
+ // actually downloaded still have to match that source's advertised digest.
+ const forged={...offer,sha256:'a'.repeat(64)}
+ const mismatch=service.installPackage(mirror,forged,true)
+ await tick()
+ h.requests.shift()({responseCode:200,result:bytes.buffer})
+ assert.equal((await mismatch).reasonCode,'checksum_mismatch')
+ assert.equal(h.requestedUrls.length,requestCountBeforeMismatch+1)
  await service.setSubscriptionDisabled(original,true)
  const mirrorOnly=service.installPackage(mirror,offer,true)
  await tick()
  h.requests.shift()({responseCode:200,result:bytes.buffer})
  assert.equal((await mirrorOnly).ok,true)
- assert.equal(h.installs[1].verifiedSessionCatalog,undefined)
+ assert.equal(h.installs[3].preserveSessionOnUpdate,true)
  for(const url of [original,mirror])await service.setSubscriptionDisabled(url,true)
  const requestCount=h.requestedUrls.length
  assert.equal((await service.installPackage(original,offer,true)).reasonCode,'subscription_unavailable')
  assert.equal(h.requestedUrls.length,requestCount)
+})
+test('updates use the selected enabled subscription without requiring the old address cache',async()=>{
+ const old='https://old.test/index.json',next='https://new.test/index.json'
+ const h=harness(new Map(),old),service=h.make()
+ const bytes=Uint8Array.of(4,5,6)
+ const offer=item('A',{version:'2',sha256:require('node:crypto').createHash('sha256').update(bytes).digest('hex')})
+ await service.saveRepository(next,'')
+ const pending=service.installPackage(next,offer,true)
+ await tick()
+ h.requests.shift()({responseCode:200,result:bytes.buffer})
+ assert.equal((await pending).ok,true)
+ assert.equal(h.installs[0].origin,next)
+ assert.equal(h.installs[0].preserveSessionOnUpdate,true)
 })
 test('successful metadata persists across service/runtime recreation, normalized URL isolated, iconUri discarded',async()=>{
  const h=harness(),s=h.make()

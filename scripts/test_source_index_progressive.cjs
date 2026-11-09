@@ -646,6 +646,20 @@ test('cached repository updates survive failed checks and reconcile installed ve
   packages[0] = installed('A', '2'); packages.splice(1, 1)
   await cache.prepare(context, 'zh'); assert.equal(cache.updateCount, 0)
 })
+test('update checks find a source in another enabled subscription after its old address disappears', async () => {
+  const old='https://old.test/index.json', next='https://new.test/index.json'
+  const packages=[{...installed('A','1'),catalogOrigin:old}]
+  const update={...entry('A'),version:'2',sha256:'a'.repeat(64)}
+  const service={loadSavedUrl:async()=>next,loadSavedRepositories:async()=>[{url:next}],
+    loadCachedIndex:async()=>[update],loadIndexIcons:async()=>{},saveUrl:async()=>{},
+    fetchIndex:async()=>({ok:true,entries:[update]})}
+  const cache=retainedCache(service,packages),context={filesDir:'data'}
+  await cache.prepare(context,'zh')
+  assert.equal(cache.updateCount,1)
+  await cache.check(context)
+  assert.equal(cache.updateCount,1)
+  assert.equal(cache.packageUpdateStatuses[0].remoteIndexUrl,next)
+})
 test('same repository update check shares the in-flight request', async () => {
   let finish, calls = 0
   const active = 'https://a.test/index.json'

@@ -108,16 +108,16 @@ test('identical local archives retain the installed entry and incompatible updat
   assert.equal(damaged.next.enabled, false)
   assert(damaged.events.indexOf('persist') < damaged.events.indexOf('delete:/packages/old'))
 
-  for (const [verified, authentication, expected] of [
-    [catalog, {...auth, usernameLabel:'Email'}, 'original-storage'],
-    [catalog, {...auth, loginUrl:'https://other.example/login'}, undefined],
-    [undefined, auth, undefined],
+  for (const [preserveSession, authentication, expected] of [
+    [true, {...auth, usernameLabel:'Email'}, 'original-storage'],
+    [true, {...auth, loginUrl:'https://other.example/login'}, undefined],
+    [false, auth, undefined],
   ]) {
     const f = installFixture(true, '0', installed, {
       package:{id:'one',name:'One',version:'1.1.0'}, permissions:{authentication},
     })
     const running = f.api.registerSourcePackageFromBytes({}, archive, 'new.koma', 'one', '/packages/new', catalog,
-      () => true, verified)
+      () => true, preserveSession)
     f.probe.resolve(JSON.stringify(response))
     assert.equal((await running).ok, true)
     assert.equal(f.next.sessionStorageIdentity, expected ?? 'source-session:fresh-storage')

@@ -44,7 +44,7 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  // Existing cached pages must not acquire a new source/network dependency.
  const adapterText=fs.readFileSync(path.join(root,'entry/src/main/ets/model/ReaderPageSourceAdapter.ets'),'utf8');
  const adapterAst=ts.createSourceFile('adapter.ts',adapterText,ts.ScriptTarget.Latest,true);
- const selected=new Set(['sourceImageMangaRoute','sourceImageProcessingFingerprint','fetchAndCacheSourceRuntimeRemoteImage','prepareSourcePagePresentation','sourceTextRequestCurrent']);
+ const selected=new Set(['sourceImageMangaRoute','sourceImageProcessingFingerprint','sourceRemoteImageCacheKey','fetchAndCacheSourceRuntimeRemoteImage','prepareSourcePagePresentation','sourceTextRequestCurrent']);
  const adapterFunctions=adapterAst.statements.filter(n=>ts.isFunctionDeclaration(n)&&selected.has(n.name?.text)).map(n=>n.getText(adapterAst)).join('\n')+'\nexport { prepareSourcePagePresentation };';
  let runtimeRequests=0,hasOriginal=true,failRuntime=false,version='1',wasmPath='/installed/1',declaredHint={kind:'baozi_banner',mode:'1'};
  const hints=new Map();const entry={sourceId:'legacy-source',manifestVersion:version,wasmPath,enabled:true};
@@ -169,6 +169,10 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  assert.equal(networkCalls,beforeCatalog+2,'adding a catalog never downloads an executable');assert.equal(state.enabledRuleCount,0);
  await store.installPlugin(pluginUrl,plugin.id);assert.equal((await store.installed())[0]?.plugins[0].version,1);assert.equal(state.enabledRuleCount,0,'new installation starts disabled');
  await store.setRuleEnabled(pluginUrl,plugin.id,plugin.id,true);await store.setPluginSettings(pluginUrl,plugin.id,{strength:9,preserve:false,unknown:'ignored'});
+ requests.set(pluginUrl,Buffer.from(JSON.stringify({...pluginIndex,revision:'empty',packs:[]})));
+ await store.refresh(pluginUrl);assert.equal((await store.list())[0].catalog.length,0,'an empty catalog is a valid refresh');
+ assert.equal((await store.installed())[0].plugins[0].version,1,'an empty catalog does not uninstall a plugin');
+ requests.set(pluginUrl,Buffer.from(JSON.stringify(pluginIndex)));await store.refresh(pluginUrl);
  const pinnedPlugin=await store.pinned();assert.deepEqual(pinnedPlugin.records[0].pluginSettings[plugin.id],{strength:4,preserve:false});
  assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'auto').length,1);assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'source').length,1);
  assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'off').length,0);
@@ -205,8 +209,11 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  assert.deepEqual(await store.installed(),pluginBackup.installations,'removing subscription keeps executable bytes and settings');
  await store.reload();assert.deepEqual(await store.installed(),pluginBackup.installations,'detached installations survive restart');
  const anotherUrl='https://other.test/index.json';requests.set(anotherUrl,requests.get(pluginUrl));requests.set('https://other.test/plugin.json',requests.get('https://plugins.test/plugin.json'));requests.set('https://other.test/processor.wasm',moduleBytes);
- await store.add(anotherUrl,'Other publisher');await assert.rejects(store.installPlugin(anotherUrl,plugin.id),/source_conflict/);
- assert.equal((await store.installed())[0].origin,pluginUrl,'editing or adding a publisher cannot reparent an installation');
+ await store.add(anotherUrl,'Other publisher');await store.installPlugin(anotherUrl,plugin.id);
+ assert.equal((await store.installed())[0].origin,pluginUrl,'updating from a new address preserves the installed collection');
+ assert.equal((await store.installed())[0].plugins[0].version,2);
+ assert.deepEqual((await store.installed())[0].pluginSettings[plugin.id],{strength:4,preserve:false});
+ assert.equal(state.enabledRuleCount,1,'updating from another address preserves activation');
  await store.restore(pluginBackup);
  await store.add(anotherUrl,'Edited publisher',undefined,pluginUrl);
  assert.deepEqual((await store.list()).map(s=>s.url),[anotherUrl],'editing replaces only the subscription address');

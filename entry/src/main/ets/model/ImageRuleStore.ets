@@ -8,7 +8,7 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { connectImageRuleState } from '../state/ImageRuleState'
 import { ImageProcessingPlugin, validateImageProcessingPlugin, imagePluginDefaults } from './ImageProcessingPlugins'
 import { SettingsFieldValues } from './SettingsFormFields'
-import { ImagePluginOffer, ImagePluginRow, imagePluginOffers, imagePluginOffersConflict, imagePluginRows } from './ImagePluginManagement'
+import { ImagePluginOffer, ImagePluginRow, imagePluginOffers, imageRulePackOffers, imagePluginRows } from './ImagePluginManagement'
 import { imagePluginNative } from './ImagePluginNative'
 import { ImageBannerRule, ImageRuleRecord, ImageRuleSnapshot, ImageRuleConfiguration, ImageRuleSubscription, ImageRuleIndex, ImageRulePack,
   ImageRulePackReference, ImagePluginCollection, validateImageRulePack, validateImageRuleConfiguration, imageRuleKey } from './ImageBannerRules'
@@ -191,7 +191,7 @@ export class ImageRuleStore {
     const pluginIndex = index.schemaVersion === 2 && index.kind === 'image_plugins'
     if ((!pluginIndex && (index.schemaVersion !== 1 || index.kind !== 'image_rules')) || !index.meta?.name?.trim() ||
       typeof index.revision !== 'string' || !index.revision || !Array.isArray(index.packs) ||
-      index.packs.length === 0 || index.packs.length > 32) throw new Error('invalid_image_rule_index')
+      index.packs.length > 32) throw new Error('invalid_image_rule_index')
     const packs: ImageRulePack[] = []
     const catalog: ImageProcessingPlugin[] = []
     const manifestHashes: Record<string, string> = {}
@@ -297,9 +297,11 @@ export class ImageRuleStore {
     const selected = offers[0]
     if (selected === undefined || (version !== undefined && selected.plugin.version !== version))
       throw new Error('image_plugin_not_in_catalog')
-    if (imagePluginOffersConflict(offers)) throw new Error('image_plugin_source_conflict')
-    this.ensureOrigin(this.configuration, url, id)
-    const requestKey = JSON.stringify([url, id])
+    const existing = this.configuration.installations.find((source: ImagePluginCollection): boolean =>
+      source.plugins.some((plugin: ImageProcessingPlugin): boolean => plugin.id === id) ||
+        source.packs.some((pack: ImageRulePack): boolean => pack.id === id))
+    const installOrigin = existing?.origin ?? url
+    const requestKey = JSON.stringify([installOrigin, id])
     const epoch = this.epochs.get(requestKey) ?? 0, generation = this.generation
     const routes = offers.filter((offer: ImagePluginOffer): boolean => offer === selected ||
       (offer.plugin.version === selected.plugin.version && offer.plugin.processor.sha256 === selected.plugin.processor.sha256 &&
@@ -334,8 +336,8 @@ export class ImageRuleStore {
         generation !== this.generation || epoch !== (this.epochs.get(requestKey) ?? 0) ||
         usedEpoch !== (this.epochs.get(catalog.url) ?? 0)) throw new Error('image_plugin_request_cancelled')
       catalog.lastDownloadAt = Date.now()
-      this.ensureOrigin(draft, url, id)
-      const source = this.collection(draft, url, catalog.customName || catalog.name)
+      this.ensureOrigin(draft, installOrigin, id)
+      const source = this.collection(draft, installOrigin, catalog.customName || catalog.name)
       const index = source.plugins.findIndex((p: ImageProcessingPlugin): boolean => p.id === id)
       const legacy = source.packs.find((pack: ImageRulePack): boolean => pack.id === id)
       if (index >= 0) source.plugins[index] = plugin
@@ -352,11 +354,16 @@ export class ImageRuleStore {
   async installRulePack(url: string, id: string): Promise<void> {
     await this.ready; this.assertReadable()
     await BackupRestoreActivity.runWrite(() => this.change((draft: ImageRuleConfiguration): void => {
-      const catalog = draft.subscriptions.find((s: ImageRuleSubscription): boolean => !s.disabled && s.url === url)
-      const offered = catalog?.packs.find((pack: ImageRulePack): boolean => pack.id === id)
-      if (!catalog || !offered) throw new Error('image_plugin_not_in_catalog')
-      this.ensureOrigin(draft, url, id)
-      const source = this.collection(draft, url, catalog.customName || catalog.name)
+      const offer = imageRulePackOffers(draft.subscriptions, id, url)[0]
+      if (offer === undefined) throw new Error('image_plugin_not_in_catalog')
+      const catalog = offer.subscription
+      const offered = offer.pack
+      const existing = draft.installations.find((source: ImagePluginCollection): boolean =>
+        source.plugins.some((plugin: ImageProcessingPlugin): boolean => plugin.id === id) ||
+          source.packs.some((pack: ImageRulePack): boolean => pack.id === id))
+      const installOrigin = existing?.origin ?? url
+      this.ensureOrigin(draft, installOrigin, id)
+      const source = this.collection(draft, installOrigin, catalog.customName || catalog.name)
       if (source.plugins.some((plugin: ImageProcessingPlugin): boolean => plugin.id === id)) throw new Error('image_plugin_already_installed')
       const index = source.packs.findIndex((pack: ImageRulePack): boolean => pack.id === id)
       const previous = index >= 0 ? source.packs[index] : undefined

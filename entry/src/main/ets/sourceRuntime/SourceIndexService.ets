@@ -412,7 +412,6 @@ export class SourceIndexService {
   // fetch a catalog, install a package, or publish a remote change as local.
   async applyDeviceSyncSnapshot(snapshot: SourceIndexDeviceSyncSnapshot): Promise<void> {
     await this.ordered(async (): Promise<void> => {
-      SourceIndexService.validateDeviceSyncSnapshot(snapshot)
       const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
       const before = await this.savedRepositories(store)
       await this.commitSavedPreferences(store, snapshot.repositories, snapshot.activeUrl || undefined,
@@ -424,10 +423,6 @@ export class SourceIndexService {
       })
       snapshot.repositories.forEach((repo: SourceIndexRepository): void => this.rememberSubscriptionState(repo))
     })
-  }
-
-  static validateDeviceSyncSnapshot(snapshot: SourceIndexDeviceSyncSnapshot): void {
-    if (snapshot.repositories.length > SOURCE_INDEX_REPOSITORY_LIMIT) throw new Error('sync_catalog_limit')
   }
 
   async saveUrl(url: string): Promise<void> {
@@ -674,18 +669,9 @@ export class SourceIndexService {
 
       const document = resolveIndexDocumentUrl(indexUrl)
       const identity = subscriptionIdentity(document)
-      const installedOrigin = requireSaved ? getInstalledSourcePackage(entry.id)?.catalogOrigin : undefined
-      if (entry.conflictingRepositories?.length || (installedOrigin !== undefined && subscriptionIdentity(installedOrigin) !== identity))
-        return { ok: false, reasonCode: 'subscription_conflict' }
-      const pinnedDocument = installedOrigin === undefined ? '' : resolveIndexDocumentUrl(installedOrigin)
-      if (pinnedDocument.length > 0 && pinnedDocument !== document) {
-        const pinned = await this.loadCachedIndex(pinnedDocument)
-        if (!pinnedDocument.startsWith('https://') || !/^[a-f0-9]{64}$/.test(entry.sha256) ||
-          !pinned?.some((offer: SourceIndexEntry): boolean =>
-            offer.id === entry.id && offer.version === entry.version && offer.sha256 === entry.sha256)) {
-          return { ok: false, reasonCode: 'subscription_conflict' }
-        }
-      }
+      // A stale or unavailable old subscription cache must never block an
+      // update from the user's selected, enabled subscription.
+      const preserveSessionOnUpdate = requireSaved && getInstalledSourcePackage(entry.id) !== undefined
       const routeKey = this.metadataRequestKey(identity)
       const saved = await this.loadSavedRepositories()
       const primary = saved.find((item: SourceIndexRepository): boolean => resolveIndexDocumentUrl(item.url) === document)
@@ -698,21 +684,11 @@ export class SourceIndexService {
           const url = resolveIndexDocumentUrl(item.url)
           if (item.disabled || url === document || subscriptionIdentity(url) !== identity) continue
           const cached = await this.loadCachedIndex(url)
-          if (cached?.some((offer: SourceIndexEntry): boolean =>
-            offer.id === entry.id && offer.version === entry.version && offer.sha256.length > 0 && offer.sha256 !== entry.sha256))
-            return { ok: false, reasonCode: 'subscription_conflict' }
           const equivalent = cached?.find((offer: SourceIndexEntry): boolean =>
             offer.id === entry.id && offer.version === entry.version && offer.sha256 === entry.sha256)
           if (equivalent !== undefined) routes.push({ url, entries: [equivalent] })
         }
       }
-      // A mirror can carry the session only if the original saved endpoint
-      // offered exactly the same archive digest. Grouping URLs alone is not proof.
-      const verifiedSessionCatalog = installedOrigin !== undefined && pinnedDocument.startsWith('https://') &&
-        /^[a-f0-9]{64}$/.test(entry.sha256) && routes.some((route: SourceIndexMetadataCacheRecord): boolean =>
-          route.url === pinnedDocument && route.entries[0].sha256 === entry.sha256) ? installedOrigin : undefined
-      const pinnedEpochKey = this.metadataRequestKey(pinnedDocument)
-      const pinnedEpoch = this.subscriptionEpoch(pinnedEpochKey)
       const recent = lastSourceDownload.get(routeKey)
       if (recent !== undefined) routes.sort((a: SourceIndexMetadataCacheRecord, b: SourceIndexMetadataCacheRecord): number =>
         Number(b.url === recent) - Number(a.url === recent))
@@ -720,14 +696,13 @@ export class SourceIndexService {
       for (const route of routes) {
         const key = this.metadataRequestKey(route.url)
         const epoch = this.subscriptionEpoch(key)
-        const current = (): boolean => epoch === this.subscriptionEpoch(key) && !BackupRestoreActivity.isRestoring() &&
-          (verifiedSessionCatalog === undefined || pinnedEpoch === this.subscriptionEpoch(pinnedEpochKey))
+        const current = (): boolean => epoch === this.subscriptionEpoch(key) && !BackupRestoreActivity.isRestoring()
         if (requireSaved) {
           const live = (await this.loadSavedRepositories()).find((item: SourceIndexRepository): boolean =>
             resolveIndexDocumentUrl(item.url) === route.url)
           if (live === undefined || live.disabled || !current()) continue
         }
-        result = await this.downloadAndInstall(route.url, route.entries[0], current, verifiedSessionCatalog)
+        result = await this.downloadAndInstall(route.url, route.entries[0], current, preserveSessionOnUpdate)
         if (result.ok) lastSourceDownload.set(routeKey, route.url)
         if (result.reasonCode !== 'http_error' && result.reasonCode !== 'network_error' &&
           result.reasonCode !== 'subscription_unavailable') break
@@ -737,7 +712,7 @@ export class SourceIndexService {
   }
 
   private async downloadAndInstall(indexUrl: string, entry: SourceIndexEntry,
-    isCurrent: () => boolean, verifiedSessionCatalog?: string): Promise<SourceIndexInstallResult> {
+    isCurrent: () => boolean, preserveSessionOnUpdate: boolean): Promise<SourceIndexInstallResult> {
     const pkgUrl = safeResolvePkgUrl(indexUrl, entry.pkg)
     if (!isValidHttpUrl(pkgUrl)) {
       return { ok: false, reasonCode: 'invalid_pkg_url' }
@@ -783,7 +758,7 @@ export class SourceIndexService {
       }
 
       if (!isCurrent()) return { ok: false, reasonCode: 'subscription_unavailable' }
-      const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id, indexUrl, isCurrent, verifiedSessionCatalog)
+      const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id, indexUrl, isCurrent, preserveSessionOnUpdate)
       if (!install.ok) {
         DiagnosticLogger.error('source_index_service', 'install_fail', '[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
         // After download the validated archive can require a newer App than the index advertises.

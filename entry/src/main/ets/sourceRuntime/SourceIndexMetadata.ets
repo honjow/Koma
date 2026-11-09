@@ -47,7 +47,6 @@ interface SourceIndexHttpUrl {
 export interface SourceIndexEntry {
   // Host-owned provenance of a merged catalog entry, never read from an index document.
   repositoryUrl?: string
-  conflictingRepositories?: string[]
   id: string
   name: string
   localizedNames?: Record<string, string>
@@ -192,9 +191,10 @@ export function normalizeSourceIndexRepositories(values: Object[]): SourceIndexR
       repositories[existingIndex] = repository
     }
   })
+  // This is the user's subscription list, not the bounded metadata cache.
+  // Saving another address must not silently evict an existing subscription.
   return repositories
     .sort((left: SourceIndexRepository, right: SourceIndexRepository): number => right.lastUsedAt - left.lastUsedAt)
-    .slice(0, SOURCE_INDEX_REPOSITORY_LIMIT)
 }
 
 export function serializeSourceIndexRepositories(repositories: SourceIndexRepository[]): string {
@@ -326,7 +326,6 @@ export function entryWithCachedIcon(entry: SourceIndexEntry, iconUri: string): S
   return {
     id: entry.id,
     repositoryUrl: entry.repositoryUrl,
-    conflictingRepositories: entry.conflictingRepositories,
     name: entry.name,
     localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
     version: entry.version,

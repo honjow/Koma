@@ -1217,7 +1217,7 @@ async function registerSourcePackageFromBytes(
   stagedPackageDir?: string,
   catalogOrigin?: string,
   isCurrent?: () => boolean,
-  verifiedSessionCatalog?: string,
+  preserveSessionOnUpdate: boolean = false,
 ): Promise<SourcePackageInstallResult> {
   ensureDirSync(appSourceRoot(context))
   ensureDirSync(appSourcePackagesRoot(context))
@@ -1271,10 +1271,10 @@ async function registerSourcePackageFromBytes(
     removedExisting = appSourceRuntimeRegistry.remove(sourceId)
     const replacementEnabled = removedExisting?.enabled ?? true
     const exactLocalRepair = sameLocalArchive && removedExisting === previous
-    // The checked catalog can continue this package ID's session. The new
-    // directory and version still fence all previous WASM and HTTP calls.
+    // A normal update keeps the session only for the same source and login
+    // scope. The new package identity still fences previous WASM and HTTP calls.
     const inheritedSession = removedExisting !== undefined && (exactLocalRepair ||
-      (verifiedSessionCatalog !== undefined && verifiedSessionCatalog === removedExisting.catalogOrigin)) &&
+      preserveSessionOnUpdate) &&
       sourceLoginScope(removedExisting.authentication, removedExisting.webSessionOrigins ?? []) ===
         sourceLoginScope(imported.manifest.permissions.authentication, imported.manifest.permissions.webSessionOrigins ?? [])
       ? sourceSessionStorageIdentity(removedExisting) : undefined
@@ -1374,7 +1374,7 @@ export async function installFromBytes(
   expectedSourceId?: string,
   catalogOrigin?: string,
   isCurrent?: () => boolean,
-  verifiedSessionCatalog?: string,
+  preserveSessionOnUpdate: boolean = false,
 ): Promise<SourcePackageInstallResult> {
   return BackupRestoreActivity.runWrite(async (): Promise<SourcePackageInstallResult> => {
     DiagnosticLogger.info('source_package', 'import_start', '[SourceManager] step=import_start source=bytes pkg=' + pkgFileName)
@@ -1382,7 +1382,7 @@ export async function installFromBytes(
     const archiveFileName = sanitized.endsWith('.koma') || sanitized.endsWith('.koma-source') ||
       sanitized.endsWith('.koma-source.zip') || sanitized.endsWith('.zip') ? sanitized : sanitized + '.koma'
     return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, expectedSourceId, undefined, catalogOrigin,
-      isCurrent, verifiedSessionCatalog)
+      isCurrent, preserveSessionOnUpdate)
   })
 }
 

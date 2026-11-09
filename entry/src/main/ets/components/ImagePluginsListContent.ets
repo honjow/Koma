@@ -49,7 +49,6 @@ export struct ImagePluginsListContent {
       const editing = new ImagePluginRow(current.source, this.editing.group)
       editing.plugin = this.editing.plugin; editing.offered = this.editing.offered
       editing.pack = this.editing.pack; editing.rule = this.editing.rule; editing.offeredPack = this.editing.offeredPack
-      editing.conflictSources = current.conflictSources
       this.editing = editing
     }
   }
@@ -58,8 +57,7 @@ export struct ImagePluginsListContent {
   private subtitle(row: ImagePluginRow): string {
     const version = row.plugin?.version ?? row.offered?.version ?? row.pack?.version ?? row.offeredPack?.version ?? 0
     const versions = row.group === 'updates' ? `v${version} → v${(row.offered?.version ?? row.offeredPack!.version)}` : `v${version}`
-    const conflict = row.conflictSources.length > 0 ? ` · ${AppStrings.get('source_subscription_conflict')}` : ''
-    return `${this.description(row)}\n${versions} · ${row.source.name}${conflict}`
+    return `${this.description(row)}\n${versions} · ${row.source.name}`
   }
   private currentRow(row: ImagePluginRow): ImagePluginRow {
     return this.rows.find((item: ImagePluginRow): boolean => item.key() === row.key()) ?? row
@@ -106,7 +104,6 @@ export struct ImagePluginsListContent {
       'image_plugins_source_conflict' : 'image_plugins_operation_failed')
   }
   private failure(row: ImagePluginRow): string {
-    if (row.conflictSources.length > 0) return AppStrings.get('source_subscription_conflict')
     const key = JSON.stringify([row.source.origin, row.id(), row.rule?.id ?? row.id()])
     if (row.source.conflicts?.includes(imageRuleKey(row.id(), row.rule?.id ?? row.id()))) return AppStrings.get('image_plugins_source_conflict')
     return this.processingState.processingFailures[key] ? AppStrings.get('image_plugins_processing_failed') : ''
@@ -156,11 +153,9 @@ export struct ImagePluginsListContent {
     if (row.group === 'available' || row.group === 'updates') {
       ConciseListRow({ title: this.title(row), wrapTitle: true, subtitle: this.subtitle(row), subtitleMaxLines: 6,
         action: (): void => { this.open(row) }, showChevron: false,
-        actionButtonText: AppStrings.get(row.conflictSources.length > 0 ? 'source_subscription_view_sources' :
-          row.group === 'updates' ? 'image_plugins_update' : 'image_plugins_install'),
+        actionButtonText: AppStrings.get(row.group === 'updates' ? 'image_plugins_update' : 'image_plugins_install'),
         actionButtonEnabled: !this.isEditingBusy(row.key()),
         actionButtonAction: (): void => {
-          if (row.conflictSources.length > 0) { this.open(row); return }
           void this.edit(row, async (): Promise<void> => {
             if (row.offered !== undefined) await this.store().installPlugin(row.source.origin, row.offered.id, row.offered.version)
             else await this.store().installRulePack(row.source.origin, row.offeredPack!.id)
@@ -211,7 +206,7 @@ export struct ImagePluginsListContent {
           }
         }
         if (this.failure(this.editing)) {
-          ListItem() { Text([this.failure(this.editing)].concat(this.editing.conflictSources).join('\n'))
+          ListItem() { Text(this.failure(this.editing))
             .fontColor(ThemeConstants.TEXT_SECONDARY).padding(ThemeConstants.SPACE_LG) }
         }
         if (this.error) {
@@ -232,7 +227,7 @@ export struct ImagePluginsListContent {
             // current store projection by key without remounting the native control.
             }, (row: ImagePluginRow): string => JSON.stringify([row.key(), row.group,
               row.plugin?.version, row.pack?.version, row.offered?.version, row.offeredPack?.version,
-              row.source.conflicts, row.conflictSources, row.source.pluginSettings]))
+              row.source.conflicts, row.source.pluginSettings]))
           }
         }
       })

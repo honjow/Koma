@@ -1,5 +1,5 @@
 import { mergeSourceIndexCatalog } from '../sourceRuntime/SourceIndexCatalog'
-import { SourceIndexMetadataCacheRecord, subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
+import { SourceIndexMetadataCacheRecord } from '../sourceRuntime/SourceIndexMetadata'
 import { common } from '@kit.AbilityKit'
 import { InstalledSourcePackage, isSourcePackageMinAppVersionSatisfied, listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceIndexEntry, SourceIndexRepository, SourceIndexService, SourceIndexFetchResult } from '../sourceRuntime/SourceIndexService'
@@ -205,7 +205,7 @@ export class SourcePackageManagerCache {
         entries?.forEach((entry: SourceIndexEntry): void => {
           const source = this.installedPackage(entry.id)
           const previous = cachedUpdates[entry.id]
-          if (source !== undefined && this.canUpdateFrom(source, entry, indexUrl) &&
+          if (source !== undefined && this.canUpdateFrom(source, entry) &&
             (previous === undefined || this.compareVersion(entry.version, previous.remoteVersion ?? '') > 0)) {
             cachedUpdates[entry.id] = { sourceId: entry.id, status: 'update', remoteEntry: entry,
               remoteIndexUrl: indexUrl, remoteVersion: entry.version, localVersion: source.version }
@@ -365,9 +365,8 @@ export class SourcePackageManagerCache {
     return this.compareVersion(entry.version, source.version) > 0 || this.needsPackageIdentityIconRepair(source, entry)
   }
 
-  private canUpdateFrom(source: InstalledSourcePackage, entry: SourceIndexEntry, url: string): boolean {
-    return (source.catalogOrigin === undefined || subscriptionIdentity(source.catalogOrigin) === subscriptionIdentity(url)) &&
-      isSourcePackageMinAppVersionSatisfied(entry.minAppVersion) && this.updateAvailableFor(source, entry)
+  private canUpdateFrom(source: InstalledSourcePackage, entry: SourceIndexEntry): boolean {
+    return isSourcePackageMinAppVersionSatisfied(entry.minAppVersion) && this.updateAvailableFor(source, entry)
   }
 
   private checkedUpdateStatuses(): SourcePackageUpdateStatus[] {
@@ -627,8 +626,6 @@ export class SourcePackageManagerCache {
       const candidates: Record<string, SourcePackageUpdateCandidate> = {}
       const records: SourceIndexMetadataCacheRecord[] = []
       const successfulRecords: SourceIndexMetadataCacheRecord[] = []
-      const installedById = new Map<string, InstalledSourcePackage>()
-      packages.forEach((source: InstalledSourcePackage): void => { installedById.set(source.id, source) })
       const indexFailures: Record<string, string> = {}
       let loadedIndexCount = 0
       let failedIndexCount = 0
@@ -649,10 +646,7 @@ export class SourcePackageManagerCache {
         }
         loadedIndexCount += 1
         records.push({ url: indexUrl, entries: result.entries })
-        successfulRecords.push({ url: indexUrl, entries: result.entries.filter((entry: SourceIndexEntry): boolean => {
-          const origin = installedById.get(entry.id)?.catalogOrigin
-          return origin === undefined || subscriptionIdentity(origin) === subscriptionIdentity(indexUrl)
-        }) })
+        successfulRecords.push({ url: indexUrl, entries: result.entries })
       }
       records.sort((a: SourceIndexMetadataCacheRecord, b: SourceIndexMetadataCacheRecord): number =>
         Number(indexFailures[a.url] !== undefined) - Number(indexFailures[b.url] !== undefined))
@@ -690,17 +684,13 @@ export class SourcePackageManagerCache {
       this.packages.forEach((source: InstalledSourcePackage) => {
         let candidate = candidates[source.id]
         const retained = retainedUpdates[source.id]
-        if (retained !== undefined && this.canUpdateFrom(source, retained.entry, retained.indexUrl) &&
+        if (retained !== undefined && this.canUpdateFrom(source, retained.entry) &&
           (candidate === undefined || this.compareVersion(retained.entry.version, candidate.entry.version) > 0)) {
           candidate = retained
         }
         const entry = candidate?.entry
-        if (entry?.conflictingRepositories?.length) {
-          nextStatuses.push({ sourceId: source.id, status: 'failed', reasonCode: 'subscription_conflict', localVersion: source.version })
-          return
-        }
         if (entry !== undefined && entry.version.length > 0 && source.version.length > 0 &&
-          this.canUpdateFrom(source, entry, candidate!.indexUrl)) {
+          this.canUpdateFrom(source, entry)) {
           updateCount += 1
           nextStatuses.push({
             sourceId: source.id,
