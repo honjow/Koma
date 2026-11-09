@@ -53,7 +53,29 @@ jobs:
       - name: Install native build dependencies
         run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential xxd pkg-config curl ca-certificates patch perl python3
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential xxd pkg-config curl ca-certificates patch perl python3 zstd
+
+      - name: Identify native build toolchain
+        id: native_toolchain
+        run: |
+          native_sdk="$OHOS_SDK_HOME/native"
+          identity="$(sha256sum /etc/os-release /usr/bin/cc /usr/bin/c++ \
+            "$native_sdk/oh-uni-package.json" "$native_sdk/build/cmake/ohos.toolchain.cmake" \
+            "$native_sdk/llvm/bin/clang" | sha256sum | cut -d ' ' -f 1)"
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+
+      # These directories contain only pinned, public native dependencies.
+      # The recipes also check their own SDK and architecture identities.
+      - name: Restore native dependency cache
+        id: native_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            Koma/.hvigor/avif-deps
+            Koma/.hvigor/archive-deps
+            Koma/.hvigor/source-browser-http
+            Koma/.hvigor/icu-regex-*
+          key: koma-native-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.native_toolchain.outputs.identity }}-${{ hashFiles('Koma/scripts/prepare-reader-avif.sh', 'Koma/scripts/prepare-comic-archive.sh', 'Koma/scripts/prepare-source-browser-http.sh', 'Koma/scripts/prepare-icu-regex.sh', 'Koma/scripts/icu-regex-data-filter.json') }}
 
       - name: Install OHPM dependencies
         run: ohpm install --all
@@ -121,6 +143,17 @@ jobs:
             Koma/build-manifest.json
           if-no-files-found: error
           retention-days: 14
+
+      - name: Save native dependency cache
+        if: github.ref == 'refs/heads/master' && steps.native_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            Koma/.hvigor/avif-deps
+            Koma/.hvigor/archive-deps
+            Koma/.hvigor/source-browser-http
+            Koma/.hvigor/icu-regex-*
+          key: ${{ steps.native_cache.outputs.cache-primary-key }}
 
   publish:
     name: Publish tagged Release
