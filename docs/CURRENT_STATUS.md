@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-09T09:47:57+08:00",
+  "updatedAt": "2026-11-10T00:25:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
   "activity": "#001 quota 逐出场景顿挫修复链全部实测闭环：evict 分批候选两段 26 次快滑无 33 毫秒以上间隔、偏好读取与滚动中 unlink 归零、>16.7 毫秒帧保持 0。",
@@ -83,6 +83,54 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "CACHE_SETTINGS_GROUP_STRUCTURE",
+      "number": 265,
+      "title": "缓存设置分组显示错误",
+      "kind": "done",
+      "owner": "Root",
+      "reportedAt": "2026-11-09T23:57:46+08:00",
+      "reportedAtSource": "用户指出缓存设置标题被放在卡片内部，要求按已有界面分组并补充开发约束。",
+      "registeredAt": "2026-11-10T00:12:00+08:00",
+      "updatedAt": "2026-11-10T00:12:00+08:00",
+      "status": "已改为两个现有样式的独立分组",
+      "result": "缓存与缓存设置分别使用现有分组容器。197 已查看完整页面并核对上限菜单及返回；通用界面复用原则已写入必读执行规则。",
+      "remaining": ""
+    },
+    {
+      "id": "OVERDEFENSE_CROSS_MODULE_AUDIT",
+      "number": 264,
+      "title": "检查各模块中阻碍正常使用的过度防御",
+      "kind": "active",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-09",
+      "reportedAtSource": "用户要求继续检查并清理其他模块中阻碍正常使用的过度防御。",
+      "registeredAt": "2026-11-09T23:13:09+08:00",
+      "updatedAt": "2026-11-10T00:25:00+08:00",
+      "status": "已修复多处误拦截，继续检查其他模块",
+      "result": "WebDAV 接受 HTTP 及目录中的编码句点；订阅保存不再截断至 12 条；阅读同步保留含 key 等字样的作品和章节身份及标题，局域网封面地址可同步；本地书库允许文件名包含英文冒号；图片插件订阅允许空目录，刷新为空保留已安装插件。翻译服务允许用户配置的 HTTP 地址，书架更新结果不再截断作品、来源和作品 ID。本地回归及构建通过；197 实测 HTTP WebDAV 连接、含冒号目录的导入及图片阅读通过，测试数据已清理，设备已恢复并释租。",
+      "remaining": "旧版可能拒收新允许的同步身份；HTTP 翻译服务尚未连接实服验证，其他模块仍须继续检查。"
+    },
+    {
+      "id": "SOURCE_SUBSCRIPTION_UPDATE_RESTRICTION",
+      "number": 263,
+      "title": "书源与图片插件跨订阅更新受阻",
+      "kind": "done",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-09",
+      "reportedAtSource": "本会话用户反馈源更新被旧限制阻断。",
+      "registeredAt": "2026-11-09T22:55:57+08:00",
+      "updatedAt": "2026-11-09T22:55:57+08:00",
+      "status": "237 已验证书源更新及图片插件跨订阅更新",
+      "result": "移除对原订阅缓存、地址及不同候选摘要的更新拦截，保留下载包校验与原设置。237 更新 19 个书源；临时图片插件从订阅 A 的 v1 更新到订阅 B 的 v2，安装归属和关闭状态保留，测试数据已清理。",
+      "remaining": "其他模块未全量审查，不据此宣称全应用不存在过度防御。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-policy-root-upgrade-20261109/root-upgrade-105-update-all-current/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-policy-root-upgrade-20261109/root-upgrade-124-update-plugin/run-metadata.json"
+      ]
+    },
     {
       "id": "DETAIL_COLD_CHAPTER_RELOAD",
       "number": 262,
@@ -218,17 +266,17 @@
       "id": "SOURCE_DECLARATIVE_POLICY",
       "number": 256,
       "title": "清理App和打包流程按书源、域名或包版本写死的特例",
-      "kind": "open",
+      "kind": "done",
       "priority": "用户直接要求",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-08",
       "reportedAtSource": "本会话用户明确禁止书源处理里的白名单、黑名单和硬编码。",
       "registeredAt": "2026-11-08T12:19:39+08:00",
-      "updatedAt": "2026-11-09T09:47:57+08:00",
-      "status": "19 个书源更新已发布，App 清单读取修复已通过本地回放和 Release 构建",
-      "result": "站点域名、窗口、镜像、UA、Cookie、DNS初始化、旧章节ID和封面规则已由安装包声明。移除源ID和包版本图标倍率。订阅归并按URL结构，跨地址更新核对原发布地址的同版本摘要。源仓停用发现和WASM构建参数从具名分支移回本源元数据。16个受影响源编译并通过App清单验证，12个走当前检出版本的正式打包入口。签名HAP构建和限速、匿名请求、章节进度、会话、镜像及原图请求的具名本地回归通过。237临时安装候选，漫画柜经普通文件选择器导入，注册表读取到与包内一致的两个限速窗口。候选与原App、原源包搜索《一拳超人》均在首个响应头前超时。Mac实际WASM和同一网页的请求均未完成TLS握手。两次测试均恢复原数据、电源与租约，237保留原App与原包。书源更新提示已在共用错误分类接入，沿用列表、搜索、详情和阅读器原位置。 对照正式App 1.2.3与公开订阅版本，16个站点策略候选WASM均可按1.2.3现有宿主特性走到搜索请求。受控响应分别核到嗶哩漫画游客请求、哔咔旧分流凭据和拷贝漫画API 26约束。紳士會所1.2.1实测缺少限速能力，打包最低版本恢复为1.2.2。Simply与漫画屋首个具备本站传输能力的正式App为1.0.0，已纠正更早的配置。以各正式标签的安装代码及真实包清单和索引复验，低于门槛时下载前拒绝。当前提示候选已签名构建。 16个源均基于发布中的版本合入站点声明并提高包版本。第一批远端打包遗漏字段，已修正打包器并递增版本重发。最终最新索引有95项，本轮恰好17个版本更新。16个实际公开包的声明、版本和门槛全部与索引及App解析一致，正式1.2.3和新版宿主能力回放均进入搜索HTTP。 11月9日确认旧 App 安装后升级的兼容性缺陷。App 重载直接校验已安装清单，两项站点规则只保留内存副本，旧登记内容不参与。坏清单保留安装项并禁止执行，同一个原包可覆盖修复并保留归属、开关和会话。19 个可在声明化之前安装的源已发布覆盖更新，最低要求 Koma 1.4.1。正式包回放确认 1.2.3、1.4.0 拒绝更新，1.4.1 覆盖安装并重启后规则、会话及开关均正确。",
-      "remaining": "App 根治目前为本地候选，真机升级和普通界面操作未验收。已安装的旧包若本身没有站点声明，需要更新书源才能取得规则。上一轮漫画柜真实样本仍保留原响应结论。",
+      "updatedAt": "2026-11-09T22:55:57+08:00",
+      "status": "237 已验证书源升级与声明加载",
+      "result": "源策略由安装包声明，已移除按源、域名和版本写死的相关特例。237 通过普通界面更新了 19 个书源，安装总数、原开关和会话标识保持；更新包的策略声明均已读回。冷启动后嗶哩漫画列表可打开。",
+      "remaining": "未逐一验证各站点内容；嗶哩漫画列表封面仍显示占位，未以此证明图片加载通过。",
       "evidence": [
         ".hvigor/outputs/source-policy-20261108/final-build.log",
         ".hvigor/outputs/source-policy-20261108/final-targeted-regression.log",
@@ -9792,6 +9840,49 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "overdefense-encoded-dot-20261110",
+      "at": "2026-11-10T00:25:00+08:00",
+      "itemId": "OVERDEFENSE_CROSS_MODULE_AUDIT",
+      "title": "允许 WebDAV 目录名中的编码句点",
+      "detail": "包含编码句点的目录地址及同步逻辑本地回归通过；最新版已安装 197。"
+    },
+    {
+      "id": "overdefense-library-update-20261110",
+      "at": "2026-11-10T00:17:00+08:00",
+      "itemId": "OVERDEFENSE_CROSS_MODULE_AUDIT",
+      "title": "保留完整书架更新结果",
+      "detail": "移除保存与读取的作品、来源数量截断及作品 ID 截断；250 本作品、100 个来源与长作品 ID 的冷读回归通过，最新版已安装 197。"
+    },
+    {
+      "id": "cache-groups-20261110",
+      "at": "2026-11-10T00:12:00+08:00",
+      "itemId": "CACHE_SETTINGS_GROUP_STRUCTURE",
+      "title": "缓存页面改回项目原生分组",
+      "detail": "197 查看两组完整页面、上限菜单及返回路径；规则写入每次必读段落。",
+      "evidence": ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/navigate-20261110T001126202698/screen.png"
+    },
+    {
+      "id": "overdefense-audit-device-20261110",
+      "at": "2026-11-10T00:12:00+08:00",
+      "itemId": "OVERDEFENSE_CROSS_MODULE_AUDIT",
+      "title": "197 验证 HTTP WebDAV 与本地目录",
+      "detail": "HTTP 连接和含冒号路径的作品导入及图片阅读通过；翻译 HTTP 仅完成本地请求路径验证。"
+    },
+    {
+      "id": "overdefense-audit-20261109",
+      "at": "2026-11-09T23:13:09+08:00",
+      "itemId": "OVERDEFENSE_CROSS_MODULE_AUDIT",
+      "title": "修复同步与订阅的误拦截",
+      "detail": "HTTP WebDAV 与超过 12 条订阅通过本地路径测试；两端宿主回放核到 key 参数身份和普通标题。197 草稿已取消，HTTP 真机测试未完成。"
+    },
+    {
+      "id": "source-update-restrictions-20261109",
+      "at": "2026-11-09T22:55:57+08:00",
+      "itemId": "SOURCE_SUBSCRIPTION_UPDATE_RESTRICTION",
+      "title": "移除跨订阅更新拦截并在 237 复验",
+      "detail": "19 个书源升级，原会话标识与开关未变；临时插件跨订阅由 v1 升至 v2。临时数据已清理，设备电源已恢复并释租。"
+    },
     {
       "id": "source-policy-canonical-manifest-and-refresh-20261109",
       "at": "2026-11-09T09:47:57+08:00",

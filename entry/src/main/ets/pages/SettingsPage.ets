@@ -316,7 +316,6 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
         { key: 'content-cache', titleKey: 'cache_content_title', detailKey: '' },
         { key: 'translation-cache', titleKey: 'cache_comic_translation', detailKey: '' },
-        { key: 'cache-settings-header', titleKey: 'settings_section_cache_settings', detailKey: '' },
         { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail' },
         { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail' },
       ],
@@ -934,7 +933,12 @@ export struct SettingsPage {
             'image-cache',
             'content-cache',
             'translation-cache',
-            'cache-settings-header',
+          ]),
+        },
+        {
+          key: 'cache-settings',
+          titleKey: 'settings_section_cache_settings',
+          rows: this.rowsByKeys([
             'cache-limit',
             'cache-auto-clean',
           ]),
@@ -2461,13 +2465,7 @@ export struct SettingsPage {
 
   @Builder
   private SectionRow(row: SettingsRow) {
-    if (row.key === 'cache-settings-header') {
-      Text(this.rowTitle(row))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .padding({ left: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_XS })
-    } else if (row.key === 'translation-cache') {
+    if (row.key === 'translation-cache') {
       KomaTranslationCacheRow()
     } else if (row.key === 'content-cache') {
       KomaPageCacheRow()
