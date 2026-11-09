@@ -10,6 +10,7 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
+import { taskpool } from '@kit.ArkTS'
 import { continuationChapterIds, firstReaderChapter, ReaderChapterOpenIntent } from './ReaderChapterSequence'
 import {
   Chapter,
@@ -251,8 +252,18 @@ export interface ReaderSessionPersistenceAdapter {
   saveRemoteHistory?(history: RemoteReadHistoryEntry[]): void
   loadSnapshot?(): ReaderSessionDocumentSnapshot
   saveSnapshot?(snapshot: ReaderSessionDocumentSnapshot): void
+  /** Serialize and stage a complete sibling off the UI thread; commit stays atomic. */
+  saveSnapshotAsync?(snapshot: ReaderSessionDocumentSnapshot, token: number): Promise<string>
+  commitSnapshotAsync?(token: string): void
+  discardSnapshotAsync?(token: string): void
   /** Legacy data is readable while its normalized document still awaits commit. */
   requiresMigration?(): boolean
+}
+
+interface ReaderSessionPersistPlan {
+  snapshot: ReaderSessionDocumentSnapshot
+  syncPositions: SyncReadingCapture[]
+  syncActions: SyncReadingActionCapture[]
 }
 
 export const READER_PROGRESS_PERSISTENCE_FILE_NAME: string = 'reader-sessions.v1.json'
@@ -373,6 +384,35 @@ function normalizeReaderSessionFilePath(filesDir: string): string {
   return dir.length === 0 ? READER_PROGRESS_PERSISTENCE_FILE_NAME : `${dir}/${READER_PROGRESS_PERSISTENCE_FILE_NAME}`
 }
 
+@Concurrent
+function writeReaderSessionSnapshotTask(filePath: string, document: ReaderSessionDocument,
+  token: number): string {
+  const payload = JSON.stringify(document)
+  const tempPath = `${filePath}.tmp-${token}`
+  let file: fs.File | undefined = undefined
+  try {
+    file = fs.openSync(tempPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
+    fs.fsyncSync(file.fd)
+    fs.closeSync(file)
+    file = undefined
+    if (fs.readTextSync(tempPath, { encoding: 'utf-8' }) !== payload) {
+      throw new Error('reader_progress_incomplete_write')
+    }
+    return tempPath
+  } catch (error) {
+    try {
+      if (file !== undefined) fs.closeSync(file)
+    } catch (_error) {
+    }
+    try {
+      if (fs.accessSync(tempPath)) fs.unlinkSync(tempPath)
+    } catch (_error) {
+    }
+    throw error as Error
+  }
+}
+
 
 export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPersistenceAdapter {
   private readonly filePath: string
@@ -420,6 +460,37 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
 
   saveSnapshot(snapshot: ReaderSessionDocumentSnapshot): void {
     this.saveDocument(snapshot)
+  }
+
+  saveSnapshotAsync(snapshot: ReaderSessionDocumentSnapshot, token: number): Promise<string> {
+    const document: ReaderSessionDocument = {
+      schemaVersion: READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
+      progress: snapshot.progress, sourceHistory: snapshot.sourceHistory, remoteHistory: snapshot.remoteHistory,
+      chapters: snapshot.chapters, readingSessions: snapshot.readingSessions, syncPositions: snapshot.syncPositions,
+      syncActions: snapshot.syncActions,
+    }
+    return taskpool.execute(writeReaderSessionSnapshotTask, this.filePath, document, token) as Promise<string>
+  }
+
+  commitSnapshotAsync(token: string): void {
+    if (BackupRestoreActivity.hasPendingRecovery()) {
+      this.discardSnapshotAsync(token)
+      throw new Error('sync_local_busy')
+    }
+    try {
+      fs.renameSync(token, this.filePath)
+      this.migrationPending = false
+    } catch (error) {
+      this.discardSnapshotAsync(token)
+      throw error as Error
+    }
+  }
+
+  discardSnapshotAsync(token: string): void {
+    try {
+      if (fs.accessSync(token)) fs.unlinkSync(token)
+    } catch (_error) {
+    }
   }
 
   requiresMigration(): boolean {
@@ -554,6 +625,8 @@ export abstract class ReaderSessionStore {
   abstract listSourceHistory(): SourceReadHistoryEntry[]
   /** Writes any queued update before the Reader route releases its session. */
   abstract flush(): boolean
+  /** Non-blocking durability boundary for work that can wait. */
+  async flushAsync(): Promise<boolean> { return this.flush() }
 
   commitChapterReadStates(mutations: ChapterReadMutation[], identity?: SyncReadingSource): ChapterReadCommitResult {
     let changedCount = 0
@@ -865,6 +938,12 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   private readonly sourceHistoryByComicId: Map<ComicId, SourceReadHistoryEntry> = new Map<ComicId, SourceReadHistoryEntry>()
   private persistTimerId: number = -1
   private persistPending: boolean = false
+  private persistRevision: number = 0
+  private persistBarrier: number = 0
+  private asyncPersistActive: boolean = false
+  private asyncPersistQueued: boolean = false
+  private asyncPersistWaiters: Array<() => void> = []
+  private activePersistPromise: Promise<void> | undefined = undefined
   private deviceSyncRevision: number = 0
   private syncPositions: SyncReadingCapture[] = []
   private syncActions: SyncReadingActionCapture[] = []
@@ -928,6 +1007,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       if (this.persistTimerId >= 0) clearTimeout(this.persistTimerId)
       this.persistTimerId = -1
       this.persistPending = false
+      this.persistBarrier += 1
       this.progressByComicId.clear()
       this.sourceHistoryByComicId.clear()
       this.remoteHistoryByComicId.clear()
@@ -1124,6 +1204,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       this.persistTimerId = -1
     }
     if (!this.persistPending) return true
+    this.persistBarrier += 1
     try {
       this.persist()
       // Only a completed commit discharges pending work. A later normal boundary can retry a failure.
@@ -1135,44 +1216,142 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     }
   }
 
+  async flushAsync(): Promise<boolean> {
+    if (this.persistTimerId >= 0) {
+      clearTimeout(this.persistTimerId)
+      this.persistTimerId = -1
+    }
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (!this.persistPending) return true
+      if (this.asyncPersistActive) {
+        await new Promise<void>((resolve: () => void): void => {
+          this.asyncPersistWaiters.push(resolve)
+        })
+        continue
+      }
+      await this.persistLatest()
+    }
+    return !this.persistPending
+  }
+
   private schedulePersist(): void {
     this.deviceSyncRevision++
+    this.persistRevision += 1
     this.persistPending = true
     if (this.persistTimerId >= 0) {
       return
     }
     this.persistTimerId = setTimeout(() => {
       this.persistTimerId = -1
-      this.flush()
+      void this.persistLatest()
     }, READER_PROGRESS_PERSIST_DEBOUNCE_MS)
   }
 
-  private persist(): void {
+  private async persistLatest(): Promise<void> {
+    if (!this.persistPending) return
+    if (this.persistTimerId >= 0) {
+      clearTimeout(this.persistTimerId)
+      this.persistTimerId = -1
+    }
+    if (this.asyncPersistActive) {
+      this.asyncPersistQueued = true
+      return
+    }
+    if (this.adapter.saveSnapshot === undefined || this.adapter.saveSnapshotAsync === undefined ||
+      this.adapter.commitSnapshotAsync === undefined || this.adapter.discardSnapshotAsync === undefined) {
+      this.flush()
+      return
+    }
+    this.asyncPersistActive = true
+    const revision = this.persistRevision
+    const barrier = ++this.persistBarrier
+    try {
+      const plan = this.buildPersistPlan()
+      if (plan === undefined) {
+        this.flush()
+        return
+      }
+      const staged = await this.adapter.saveSnapshotAsync(plan.snapshot, barrier)
+      if (barrier !== this.persistBarrier) {
+        this.adapter.discardSnapshotAsync(staged)
+        return
+      }
+      if (revision !== this.persistRevision) {
+        this.adapter.discardSnapshotAsync(staged)
+        this.asyncPersistQueued = true
+        return
+      }
+      try {
+        this.adapter.commitSnapshotAsync(staged)
+      } catch (error) {
+        this.adapter.discardSnapshotAsync(staged)
+        throw error as Error
+      }
+      this.acceptPersistPlan(plan)
+      this.persistPending = false
+      signalDeviceSyncChange('reading')
+    } catch (_error) {
+      DiagnosticLogger.warn('reader_session_store', 'persist_failed',
+        '[ReaderProgress] persist_failed pending=true async=true')
+    } finally {
+      this.asyncPersistActive = false
+      const waiters = this.asyncPersistWaiters
+      this.asyncPersistWaiters = []
+      waiters.forEach((resolve: () => void): void => { resolve() })
+      if (this.persistPending && this.asyncPersistQueued && this.persistTimerId < 0) {
+        this.asyncPersistQueued = false
+        this.persistTimerId = setTimeout(() => {
+          this.persistTimerId = -1
+          void this.persistLatest()
+        }, 0)
+      }
+    }
+  }
+
+  private buildPersistPlan(): ReaderSessionPersistPlan | undefined {
+    if (this.adapter.saveSnapshot === undefined) return undefined
     const rows: ReadingProgress[] = []
     this.progressByComicId.forEach((progress: ReadingProgress) => {
       rows.push(progress)
     })
-    if (this.adapter.saveSnapshot !== undefined) {
-      const chapters = this.listChapterStates()
-      // The most recent progress per book omits earlier chapters read before
-      // this flush. Match captures against the positions being saved per chapter.
-      const staged = stageDeviceSyncReading(chapters.flatMap((chapter: ChapterReadingState): ReadingProgress[] =>
-        chapter.position === undefined ? [] : [chapter.position]))
-      const syncPositions = this.syncPositions.filter((item: SyncReadingCapture): boolean =>
-        !deviceSyncReadingAcknowledged(item) && !staged.some((capture: SyncReadingCapture): boolean =>
-          item.comicId === capture.comicId && item.chapterId === capture.chapterId && item.space === capture.space))
-      syncPositions.push(...staged)
-      const syncActions = this.syncActions.filter((item: SyncReadingActionCapture): boolean =>
-        !deviceSyncReadingActionAcknowledged(item) || syncPositions.length > 0)
-      this.adapter.saveSnapshot({ progress: rows, sourceHistory: this.listSourceHistory(),
+    const chapters = this.listChapterStates()
+    // The most recent progress per book omits earlier chapters read before
+    // this flush. Match captures against the positions being saved per chapter.
+    const staged = stageDeviceSyncReading(chapters.flatMap((chapter: ChapterReadingState): ReadingProgress[] =>
+      chapter.position === undefined ? [] : [chapter.position]))
+    const syncPositions = this.syncPositions.filter((item: SyncReadingCapture): boolean =>
+      !deviceSyncReadingAcknowledged(item) && !staged.some((capture: SyncReadingCapture): boolean =>
+        item.comicId === capture.comicId && item.chapterId === capture.chapterId && item.space === capture.space))
+    syncPositions.push(...staged)
+    const syncActions = this.syncActions.filter((item: SyncReadingActionCapture): boolean =>
+      !deviceSyncReadingActionAcknowledged(item) || syncPositions.length > 0)
+    return {
+      snapshot: { progress: rows, sourceHistory: this.listSourceHistory(),
         remoteHistory: this.listRemoteHistory(), chapters, readingSessions: this.listReadingSessions(),
         syncPositions: syncPositions.length > 0 ? syncPositions : undefined,
-        syncActions: syncActions.length > 0 ? syncActions : undefined })
-      this.syncPositions = syncPositions
-      this.syncActions = syncActions
+        syncActions: syncActions.length > 0 ? syncActions : undefined },
+      syncPositions: syncPositions,
+      syncActions: syncActions,
+    }
+  }
+
+  private acceptPersistPlan(plan: ReaderSessionPersistPlan): void {
+    this.syncPositions = plan.syncPositions
+    this.syncActions = plan.syncActions
+  }
+
+  private persist(): void {
+    const plan = this.buildPersistPlan()
+    if (plan !== undefined) {
+      this.adapter.saveSnapshot!(plan.snapshot)
+      this.acceptPersistPlan(plan)
       signalDeviceSyncChange('reading')
       return
     }
+    const rows: ReadingProgress[] = []
+    this.progressByComicId.forEach((progress: ReadingProgress) => {
+      rows.push(progress)
+    })
     this.adapter.save(rows)
     if (this.adapter.saveSourceHistory !== undefined) {
       this.adapter.saveSourceHistory(this.listSourceHistory())

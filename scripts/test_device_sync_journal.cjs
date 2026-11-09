@@ -177,7 +177,9 @@ function readingDevice(fixture, id, installed, withShelf = false) {
   const comics = compile('../model/ComicModels')
   const registry = { getInstalledSourcePackage: source => installed.get(source) }
   const sessions = compile('../model/ReaderSessionStore', {
-    '@kit.CoreFileKit': nativeFs, './AppFileTextPersistence': { writeAppTextFile },
+    '@kit.CoreFileKit': nativeFs,
+    '@kit.ArkTS': { taskpool: { execute: async (worker, ...args) => worker(...args) } },
+    './AppFileTextPersistence': { writeAppTextFile },
     './BackupRestoreActivity': backup, '../deviceSync/DeviceSyncSignals': signals, './ComicModels': comics,
     './SourceTextOverlay': {}, './SourceRequiredImageDecode': {}, './SourceTextPageDescriptor': {},
     '../sourceRuntime/SourceRuntimeAppRegistry': registry, '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn: noop } },

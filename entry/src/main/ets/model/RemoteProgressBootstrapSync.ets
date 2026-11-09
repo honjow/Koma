@@ -2,16 +2,7 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { RemoteProgressSyncBridge } from '../state/RemoteProgressSyncState'
-import {
-  Comic,
-  ComicSourceKind,
-  ReadingProgress,
-} from './ComicModels'
-import {
-  AppFilesLibraryStorePersistenceAdapter,
-  LibraryStorePersistenceService,
-} from './LibraryPersistence'
-import { InMemoryLibraryStore } from './LibraryStore'
+import { Comic, ComicSourceKind, ReadingProgress } from './ComicModels'
 import {
   appReaderSessionStore,
   PersistentReaderSessionStore,
@@ -27,6 +18,29 @@ export interface RemoteProgressBootstrapSyncResult {
 const BOOTSTRAP_SYNC_COOLDOWN_MS: number = 60 * 1000
 const UNKNOWN_SERVER_ID: string = ''
 
+/** Index owns the live shelf. A provider keeps foreground sync from re-reading
+ * and hydrating a second full library on the UI thread. */
+let privateLibraryComics: (() => Comic[]) | null = null
+let pendingBootstrapContext: common.UIAbilityContext | null = null
+
+export function bindRemoteProgressLibrary(provider: () => Comic[]): void {
+  privateLibraryComics = provider
+  const context = pendingBootstrapContext
+  if (context !== null) {
+    pendingBootstrapContext = null
+    void new RemoteProgressBootstrapSync(context).syncAllPrivateLibraryProgress()
+  }
+}
+
+/** Run against the live library after route content has published it. */
+export function requestRemoteProgressBootstrapSync(context: common.UIAbilityContext): void {
+  if (privateLibraryComics === null) {
+    pendingBootstrapContext = context
+    return
+  }
+  void new RemoteProgressBootstrapSync(context).syncAllPrivateLibraryProgress()
+}
+
 export class RemoteProgressBootstrapSync {
   private static running: boolean = false
   private context: common.UIAbilityContext
@@ -41,25 +55,21 @@ export class RemoteProgressBootstrapSync {
 
   async syncAllPrivateLibraryProgress(): Promise<RemoteProgressBootstrapSyncResult> {
     if (BackupRestoreActivity.isRestoring()) return { synced: 0, updated: 0, failed: 0 }
+    const empty: RemoteProgressBootstrapSyncResult = { synced: 0, updated: 0, failed: 0 }
+    if (RemoteProgressBootstrapSync.running || this.isCoolingDown() || privateLibraryComics === null) return empty
+    const remoteComics = privateLibraryComics().filter((comic: Comic): boolean => {
+      return comic.sourceKind === ComicSourceKind.KOMGA_REMOTE || comic.sourceKind === ComicSourceKind.KAVITA_REMOTE
+    })
+    // No remote shelf work means no write admission and no full library read.
+    if (remoteComics.length === 0) return empty
     return BackupRestoreActivity.runWrite(async (): Promise<RemoteProgressBootstrapSyncResult> => {
-      const empty: RemoteProgressBootstrapSyncResult = { synced: 0, updated: 0, failed: 0 }
       if (RemoteProgressBootstrapSync.running || this.isCoolingDown()) {
         return empty
       }
       RemoteProgressBootstrapSync.running = true
       console.info('[BootstrapSync] step=start')
       try {
-        const libraryStore = new InMemoryLibraryStore()
-        const libraryPersistence = new LibraryStorePersistenceService(
-          libraryStore,
-          new AppFilesLibraryStorePersistenceAdapter(this.context.filesDir)
-        )
-        libraryPersistence.restore()
-
         const sessionStore = appReaderSessionStore(this.context.filesDir)
-        const remoteComics = libraryStore.listComics().filter((comic: Comic): boolean => {
-          return comic.sourceKind === ComicSourceKind.KOMGA_REMOTE || comic.sourceKind === ComicSourceKind.KAVITA_REMOTE
-        })
         const groups = this.groupByServer(remoteComics)
         const service = new RemoteProgressSyncService(this.context)
         const results = await Promise.all(Array.from(groups.keys()).map((serverId: string) => {
@@ -73,7 +83,7 @@ export class RemoteProgressBootstrapSync {
             failed: acc.failed + item.failed,
           }
         }, empty)
-        if (sessionStore.flush() === false) throw new Error('reader_progress_save_failed')
+        if (!(await sessionStore.flushAsync())) throw new Error('reader_progress_save_failed')
         RemoteProgressSyncBridge.markSuccess()
         console.info(`[BootstrapSync] step=done updated=${total.updated} synced=${total.synced} failed=${total.failed}`)
         return total

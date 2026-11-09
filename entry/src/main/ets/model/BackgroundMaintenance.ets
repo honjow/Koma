@@ -3,10 +3,9 @@ import { workScheduler } from '@kit.BackgroundTasksKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { KOMA_BUNDLE_NAME } from '../common/Constants'
-import { Chapter, sameComicIdentity } from './ComicModels'
+import { Chapter, Comic, sameComicIdentity } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
-import { hydrateLibraryStoreFromJson,
-  serializeLibraryStore, LibraryStorePersistenceService } from './LibraryPersistence'
+import { LibraryStorePersistenceService } from './LibraryPersistence'
 import { appReaderSessionStore } from './ReaderSessionStore'
 import { LibraryUpdatePreferencesStore } from './LibraryUpdatePreferencesStore'
 import { LibraryAutomationPreferencesStore } from './LibraryAutomationPreferencesStore'
@@ -110,7 +109,7 @@ async function mergeBackgroundResults(context: common.UIAbilityContext, library:
   const journals: BackgroundLibraryJournal[] = []
   for (const name of names) journals.push(JSON.parse(await fs.readText(`${directory}/${name}`)) as BackgroundLibraryJournal)
   await BackupRestoreActivity.runWrite(async (): Promise<void> => {
-    let previous: string | undefined = undefined
+    const appliedBefore: Map<string, Comic> = new Map<string, Comic>()
     const chapterIds: Map<string, Set<string>> = new Map()
     const results: LibraryUpdateComicResult[] = []
     let stale = false
@@ -124,15 +123,15 @@ async function mergeBackgroundResults(context: common.UIAbilityContext, library:
           const current = library.getComic(change.before.id)
           if (current === undefined || !sameComicIdentity(current, change.before)) continue
           if (current.updatedAt !== change.before.updatedAt) { stale = true; continue }
-          if (previous === undefined) previous = serializeLibraryStore(library)
+          if (!appliedBefore.has(current.id)) appliedBefore.set(current.id, change.before)
           chapterIds.set(current.id, new Set<string>(current.chapters.map((chapter: Chapter): string => chapter.id)))
           library.upsertComic(change.after)
         }
         results.push(observation.result)
       }
-      if (previous !== undefined) persistence.persist()
+      if (appliedBefore.size > 0) persistence.persist()
     } catch (error) {
-      if (previous !== undefined) hydrateLibraryStoreFromJson(library, previous)
+      appliedBefore.forEach((before: Comic): void => { library.upsertComic(before) })
       throw error as Error
     }
     if (results.length === 0) {

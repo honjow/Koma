@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-progress-durability-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "progress-durability-clean",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "local release candidate; async reader progress persistence",
+    "page": "reader scroll, debounced async persist, direct process kill, relaunch restore",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "No reader close or background flush between scroll and kill. Existing app data preserved."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "neutral-unlock", "uiInput": ["swipe", "630", "2180", "630", "900", "1000"], "pauseAfterMs": 800 },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "launch", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility"], "pauseAfterMs": 6000 },
+    { "name": "shelf-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-durability-shelf.png"] },
+    { "name": "shelf-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-durability-shelf.png", "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/progress-durability-clean/shelf.png"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "open-continue", "uiInput": ["click", "624", "531"], "pauseAfterMs": 5000 },
+      { "name": "reader-scroll", "uiInput": ["swipe", "630", "500", "630", "2200", "1200"], "pauseAfterMs": 3000 }
+    ]
+  },
+  "postflight": [
+    { "name": "after-scroll-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-durability-after-scroll.png"] },
+    { "name": "after-scroll-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-durability-after-scroll.png", "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/progress-durability-clean/after-scroll.png"] },
+    { "name": "after-scroll-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-durability-after-scroll.json", "-a"] },
+    { "name": "after-scroll-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-durability-after-scroll.json", "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/progress-durability-clean/after-scroll.json"] },
+    { "name": "restore-timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "10000"] },
+    { "name": "final-power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

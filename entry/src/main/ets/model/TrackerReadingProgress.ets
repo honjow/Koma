@@ -76,8 +76,12 @@ export class ReaderTrackerProgressCoordinator {
     // If the completion's first disk flush failed, retry at the next
     // observation, including the first page of the next chapter.
     if (this.pending.size === 0) return
-    if (this.store.flush()) this.drainCompletions()
-    else DiagnosticLogger.warn('tracker_reading_progress', 'deferred', '[ReaderTracker] step=deferred reason=local_progress_commit')
+    void this.store.flushAsync().then((committed: boolean): void => {
+      if (committed) this.drainCompletions()
+      else DiagnosticLogger.warn('tracker_reading_progress', 'deferred', '[ReaderTracker] step=deferred reason=local_progress_commit')
+    }).catch((): void => {
+      DiagnosticLogger.warn('tracker_reading_progress', 'deferred', '[ReaderTracker] step=deferred reason=local_progress_commit')
+    })
   }
 
   close(progressCommitted: boolean): void {

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-foreground-shelf-resume-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "foreground-shelf-resume-early",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "local release candidate; live-library bootstrap provider, no foreground full restore",
+    "page": "background to Home, resume normal shelf, immediate repeated vertical scroll",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Existing app data and installed candidate preserved. Trace starts immediately after the resume input."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "neutral-unlock", "uiInput": ["swipe", "630", "2180", "630", "900", "1000"], "pauseAfterMs": 800 },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "launch", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility"], "pauseAfterMs": 6000 },
+    { "name": "baseline-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-foreground-shelf-before.png"] },
+    { "name": "baseline-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-foreground-shelf-before.png", "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/foreground-shelf-resume/before.png"] },
+    { "name": "background", "uiInput": ["keyEvent", "Home"], "pauseAfterMs": 3000 },
+    { "name": "resume", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility"], "pauseAfterMs": 150 },
+    { "name": "clear-log", "hdcArgs": ["shell", "hilog", "-r"] }
+  ],
+  "measurement": {
+    "trace": {
+      "bufferKb": 65536,
+      "categories": ["ace", "animation", "app", "ark", "freq", "graphic", "sched", "window"],
+      "remotePath": "/data/local/tmp/koma-foreground-shelf-resume.htrace",
+      "localFile": "trace.htrace"
+    },
+    "hilog": { "hdcArgs": ["shell", "hilog", "-x"], "localFile": "hilog.txt" },
+    "actions": [
+      { "name": "shelf-down-1", "uiInput": ["swipe", "630", "2050", "630", "650", "1000"], "pauseAfterMs": 450 },
+      { "name": "shelf-up-1", "uiInput": ["swipe", "630", "650", "630", "2050", "1000"], "pauseAfterMs": 450 },
+      { "name": "shelf-down-2", "uiInput": ["swipe", "630", "2050", "630", "650", "1000"], "pauseAfterMs": 450 },
+      { "name": "shelf-up-2", "uiInput": ["swipe", "630", "650", "630", "2050", "1000"], "pauseAfterMs": 450 },
+      { "name": "shelf-down-3", "uiInput": ["swipe", "630", "2050", "630", "650", "1000"], "pauseAfterMs": 450 },
+      { "name": "shelf-up-3", "uiInput": ["swipe", "630", "650", "630", "2050", "1000"], "pauseAfterMs": 450 }
+    ]
+  },
+  "postflight": [
+    { "name": "after-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-foreground-shelf-after.png"] },
+    { "name": "after-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-foreground-shelf-after.png", "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/foreground-shelf-resume/after.png"] },
+    { "name": "after-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-foreground-shelf-after.json", "-a"] },
+    { "name": "after-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-foreground-shelf-after.json", "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/foreground-shelf-resume/after.json"] },
+    { "name": "restore-timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "10000"] },
+    { "name": "final-power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

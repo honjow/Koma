@@ -733,7 +733,7 @@ class DeviceSyncRuntime {
       if (engine.readingScope() !== scope) throw new Error('sync_connection_changed')
     }
     const reader = appReaderSessionStore(context.filesDir)
-    if (!reader.flush()) throw new Error('sync_local_busy')
+    if (!(await reader.flushAsync())) throw new Error('sync_local_busy')
     const actions = reader.pendingDeviceSyncActions()
     await this.recordReaderActions(actions, scope, guard)
     guard()

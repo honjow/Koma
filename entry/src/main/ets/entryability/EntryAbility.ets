@@ -21,7 +21,7 @@ import {
 } from '../common/Constants'
 import { RouterHelper } from '../common/RouterHelper'
 import { ReaderPreferencesStore, bindReaderThemeWindow, unbindReaderThemeWindow } from '../model/ReaderPreferencesStore'
-import { RemoteProgressBootstrapSync } from '../model/RemoteProgressBootstrapSync'
+import { requestRemoteProgressBootstrapSync } from '../model/RemoteProgressBootstrapSync'
 import { bootstrapSourceRuntimeAppRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntimeDeviceSmoke'
 import { configureSourceRuntimeHttpTransport } from '../sourceRuntime/SourceRuntimeHttpTransport'
@@ -351,7 +351,7 @@ export default class EntryAbility extends UIAbility {
 
   private syncRemoteProgressInBackground(): void {
     void this.startupPromise.then((): void => {
-      if (this.startupReady) void new RemoteProgressBootstrapSync(this.context).syncAllPrivateLibraryProgress()
+      if (this.startupReady) requestRemoteProgressBootstrapSync(this.context)
     })
   }
 

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-reader-open-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "open-continue-reader",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "local release candidate; async reader progress persistence",
+    "page": "open the normal Continue reading card from the shelf",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Existing app data preserved. Continue card showed page 10 / 67% before launch."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "neutral-unlock", "uiInput": ["swipe", "630", "2180", "630", "900", "1000"], "pauseAfterMs": 800 },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "launch", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility"], "pauseAfterMs": 6000 },
+    { "name": "baseline-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-reader-open-before.png"] },
+    { "name": "baseline-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-reader-open-before.png", "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/open-continue-reader/before.png"] },
+    { "name": "baseline-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-reader-open-before.json", "-a"] },
+    { "name": "baseline-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-reader-open-before.json", "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/open-continue-reader/before.json"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "open-continue", "uiInput": ["click", "624", "531"], "pauseAfterMs": 6000 }
+    ]
+  },
+  "postflight": [
+    { "name": "reader-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-reader-open-after.png"] },
+    { "name": "reader-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-reader-open-after.png", "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/open-continue-reader/after.png"] },
+    { "name": "reader-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-reader-open-after.json", "-a"] },
+    { "name": "reader-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-reader-open-after.json", "/Users/honjow/git/Koma/.hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/open-continue-reader/after.json"] },
+    { "name": "restore-timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "10000"] },
+    { "name": "final-power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

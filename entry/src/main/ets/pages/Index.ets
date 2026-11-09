@@ -24,6 +24,7 @@ import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state
 import { ReaderBrightnessController } from '../model/ReaderBrightnessController'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 import { applyBackgroundLibraryResults, synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
+import { bindRemoteProgressLibrary } from '../model/RemoteProgressBootstrapSync'
 import { SourcePackageManagerCache, appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaDialogMaterial, komaMenuOptions, komaToastOptions } from "../theme/KomaPopupOptions"
@@ -2626,6 +2627,7 @@ struct Index {
       if (persistenceService !== undefined) {
         try {
           persistenceService.restore()
+          bindRemoteProgressLibrary((): Comic[] => this.libraryStore.listComics())
           void activateLocalLibraryFolderAccessForComics(this.libraryStore.listComics())
             .then((summary) => {
               console.info('[LocalFolderAccess] step=restore_activate roots=' + summary.rootCount +
