@@ -1,0 +1,374 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-equipment-fling-sustained-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "equipment-fling-sustained",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate5: plain continuous dimensions + targeted row notify + local continuous page index",
+    "page": "装备我最强 sustained 20-fling forward run",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Incognito off. 20 inertial flings, forward-only, starting from the current chapter position."
+  },
+  "preflight": [
+    {
+      "name": "wake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "wakeup"
+      ]
+    },
+    {
+      "name": "keep-awake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "86400000"
+      ]
+    },
+    {
+      "name": "power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ],
+  "measurement": {
+    "trace": {
+      "bufferKb": 65536,
+      "categories": [
+        "ace",
+        "animation",
+        "app",
+        "ark",
+        "freq",
+        "graphic",
+        "sched",
+        "window"
+      ],
+      "remotePath": "/data/local/tmp/koma-equipment-fling-sustained.htrace",
+      "localFile": "trace.htrace"
+    },
+    "hilog": {
+      "hdcArgs": [
+        "shell",
+        "hilog",
+        "-x"
+      ],
+      "localFile": "hilog.txt"
+    },
+    "actions": [
+      {
+        "name": "fling-1",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-2",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-3",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-4",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-5",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-6",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-7",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-8",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-9",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-10",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-11",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-12",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-13",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-14",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-15",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-16",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-17",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-18",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-19",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-20",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      }
+    ]
+  },
+  "postflight": [
+    {
+      "name": "reader-screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/koma-sustained.png"
+      ]
+    },
+    {
+      "name": "reader-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-sustained.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-fling-sustained/reader.png"
+      ]
+    },
+    {
+      "name": "reader-layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-sustained.json",
+        "-a"
+      ]
+    },
+    {
+      "name": "reader-layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-sustained.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-fling-sustained/reader.json"
+      ]
+    },
+    {
+      "name": "final-power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

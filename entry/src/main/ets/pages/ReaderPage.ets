@@ -846,10 +846,19 @@ struct ReaderImageSurface {
     }
     .width('100%').height('100%').clip(true)
     .onAreaChange((_old: Area, next: Area) => {
-      this.viewportWidth = next.width as number
-      this.viewportHeight = next.height as number
-      this.areaGlobalX = next.globalPosition.x as number
-      this.areaGlobalY = next.globalPosition.y as number
+      const width = next.width as number
+      const height = next.height as number
+      if (width !== this.viewportWidth) this.viewportWidth = width
+      if (height !== this.viewportHeight) this.viewportHeight = height
+      // Continuous rows move on every scroll frame. Their global position is
+      // not the tap coordinate owner (routeTaps uses windowX/windowY), so
+      // writing it here only makes every visible row dirty again.
+      if (!this.routeTaps) {
+        const x = next.globalPosition.x as number
+        const y = next.globalPosition.y as number
+        if (x !== this.areaGlobalX) this.areaGlobalX = x
+        if (y !== this.areaGlobalY) this.areaGlobalY = y
+      }
     })
     // Match NextE's vertical image contract: native List owns every
     // unzoomed one-finger drag. Touch arbitrates single and double taps while
@@ -1401,9 +1410,12 @@ struct ReaderSpreadSurface {
     .height('100%')
     .clip(true)
     .onAreaChange((_old: Area, next: Area) => {
-      this.viewportWidth = next.width as number
-      this.viewportHeight = next.height as number
-      this.clampOffsets()
+      const width = next.width as number
+      const height = next.height as number
+      const changed = width !== this.viewportWidth || height !== this.viewportHeight
+      if (width !== this.viewportWidth) this.viewportWidth = width
+      if (height !== this.viewportHeight) this.viewportHeight = height
+      if (changed) this.clampOffsets()
     })
     // As with the single-page surface, keep zoom-dependent recognizer
     // options in the component declaration so ArkUI rebuilds the pan
@@ -1809,17 +1821,18 @@ export struct ReaderPage {
         this.performPageRetry(index)
       }, (): void => { settled = true })
   }
-  @Local private loadedPageIndexes: number[] = []
+  private loadedPageIndexes: number[] = []
   @Local private continuousOffset: number = 0
   @Local private settingsReady: boolean = false
   @Local private tapPreviewVisible: boolean = false
   @Local private autoPageActive: boolean = false
   @Local private thumbnailStripVisible: boolean = false
-  @Local private verticalVisibleStart: number = 0
-  @Local private verticalVisibleEnd: number = 0
+  private verticalVisibleStart: number = 0
+  private verticalVisibleEnd: number = 0
+  @Local private continuousPageIndex: number = 0
   @Local private verticalZoomedPage: number = -1
-  @Local private measuredPageWidths: number[] = []
-  @Local private measuredPageHeights: number[] = []
+  private measuredPageWidths: number[] = []
+  private measuredPageHeights: number[] = []
   @Local private measuredPageRevision: number = 0
   @Local private activeDisplayIndex: number = 0
   @Local private activeSplitSide: ReaderSplitSide = 'none'
@@ -1911,6 +1924,7 @@ export struct ReaderPage {
 
   aboutToAppear(): void {
     this.closing = false
+    this.continuousPageIndex = this.pageIndex
     this.gazeTurnOverride = null
     this.turnAssistMenuShown = false
     this.preloadNetworkMonitor = new ReaderPreloadNetworkMonitor((wifi: boolean): void => {
@@ -1923,6 +1937,11 @@ export struct ReaderPage {
     this.registerVolumeKeyConsumerIfNeeded()
     this.gazePageTurn.onStateChange((state: GazeTurnUiState): void => { this.gazeUiState = state })
     this.syncEyeGazePageTurn()
+  }
+
+  @Monitor('pageIndex')
+  private onCommittedPageIndexChanged(): void {
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) this.continuousPageIndex = this.pageIndex
   }
 
   aboutToDisappear(): void {
@@ -2382,6 +2401,7 @@ export struct ReaderPage {
       this.pageIndexSourceKey = pageKey
       this.pageIndexSource.setIndexes(this.pageIndexes())
     }
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) return
     const wideIndexes = this.widePageIndexes()
     const splitWidePages = this.preferences.wideImageMode === 'split_wide_pages' && this.usesDisplayPagePager()
     const displayKey = `${pageKey}:${this.effectiveMode()}:${this.preferences.wideImageMode}:${this.preferences.readingDirection}:${wideIndexes.join(',')}`
@@ -2479,7 +2499,11 @@ export struct ReaderPage {
     const base = (this.sessionConfig.title ?? s('reader_title_default')).trim()
     const normalized = base.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim()
     const safe = normalized.length > 0 ? normalized.substring(0, 80) : s('reader_title_default')
-    return `${safe}-${this.pageIndex + 1}`
+    return `${safe}-${this.displayPageIndex() + 1}`
+  }
+
+  private displayPageIndex(): number {
+    return this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL ? this.continuousPageIndex : this.pageIndex
   }
 
   private imageExtension(path: string): string {
@@ -2613,6 +2637,7 @@ export struct ReaderPage {
   }
 
   private pageWidth(index: number): number | undefined {
+    if (this.effectiveMode() !== ReaderMode.CONTINUOUS_SCROLL) void this.measuredPageRevision
     if (index >= 0 && index < this.measuredPageWidths.length && this.measuredPageWidths[index] > 0) {
       return this.measuredPageWidths[index]
     }
@@ -2620,6 +2645,7 @@ export struct ReaderPage {
   }
 
   private pageHeight(index: number): number | undefined {
+    if (this.effectiveMode() !== ReaderMode.CONTINUOUS_SCROLL) void this.measuredPageRevision
     if (index >= 0 && index < this.measuredPageHeights.length && this.measuredPageHeights[index] > 0) {
       return this.measuredPageHeights[index]
     }
@@ -2641,8 +2667,12 @@ export struct ReaderPage {
     heights[index] = height
     this.measuredPageWidths = widths
     this.measuredPageHeights = heights
-    this.measuredPageRevision += 1
-    this.refreshPageDataSources()
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) {
+      this.pageIndexSource.notifyChanged(index)
+    } else {
+      this.measuredPageRevision += 1
+      this.refreshPageDataSources()
+    }
   }
 
   private currentDisplayPage(): ReaderDisplayPage | undefined {
@@ -2829,6 +2859,7 @@ export struct ReaderPage {
     this.preferenceRevision += 1
     this.refreshPageDataSources()
     this.emitWebtoonMode(mode === ReaderMode.CONTINUOUS_SCROLL)
+    if (mode === ReaderMode.CONTINUOUS_SCROLL) this.continuousPageIndex = this.pageIndex
     this.persistPreferences(previous, next)
     this.resetZoomState()
     if (mode === ReaderMode.CONTINUOUS_SCROLL) {
@@ -3086,7 +3117,7 @@ export struct ReaderPage {
     return Math.max(0, Math.min(5, Math.round(this.preferences.preloadPages)))
   }
 
-  private persistCurrentProgress(): void { this.persistProgress(this.pageIndex) }
+  private persistCurrentProgress(): void { this.persistProgress(this.displayPageIndex()) }
 
   private reportVisibleReadingPages(): void {
     if (!this.readerOpen || !this.routeVisible || !this.appForegroundState.active || this.sessionLoading || this.closing) return
@@ -3641,9 +3672,10 @@ export struct ReaderPage {
 
   private pageIsZoomActive(index: number, continuous: boolean, splitSide: ReaderSplitSide = 'none'): boolean {
     if (continuous) {
-      return this.verticalZoomedPage >= 0
-        ? index === this.verticalZoomedPage
-        : index >= this.verticalVisibleStart && index <= this.verticalVisibleEnd
+      // The native List owns the mounted row set. Unzoomed continuous rows are
+      // all valid gesture targets; binding this to the scrolling visible range
+      // dirtied every row again whenever the first/last item changed.
+      return this.verticalZoomedPage < 0 || index === this.verticalZoomedPage
     }
     if (this.effectiveMode() !== ReaderMode.DUAL_PAGE) {
       return index === this.pageIndex && (splitSide === 'none' || splitSide === this.activeSplitSide)
@@ -3866,10 +3898,6 @@ export struct ReaderPage {
       }, (index: number) => `reader-vertical-page-${index}`)
     }
     .width('100%').height('100%').scrollBar(BarState.Off).cachedCount(this.pagerCachedPageCount())
-    // Image dimensions are often absent from the source payload.  Keep the
-    // List subscribed to the decoded-size revision so a row that initially
-    // used the loading fallback is immediately remeasured after decode.
-    .visibility(this.measuredPageRevision >= 0 ? Visibility.Visible : Visibility.None)
     .listDirection(Axis.Vertical)
     .enableScrollInteraction(!this.zoomed)
     .onScrollIndex((start: number, end: number) => {
@@ -3884,10 +3912,15 @@ export struct ReaderPage {
         }
         this.continuousInitialTarget = -1
       }
-      if (start >= 0 && start < this.sessionConfig.totalPages && (start !== this.pageIndex || endChanged)) {
-        if (start !== this.pageIndex) this.emitPageIndex(start)
-        this.persistProgress(start)
+      if (start >= 0 && start < this.sessionConfig.totalPages) {
+        if (start !== this.continuousPageIndex) this.continuousPageIndex = start
+        if (start !== this.pageIndex || endChanged) this.persistProgress(start)
       }
+    })
+    .onScrollStop(() => {
+      const page = this.verticalVisibleStart >= 0 ? this.verticalVisibleStart : this.continuousPageIndex
+      this.continuousPageIndex = page
+      if (page !== this.pageIndex) this.emitPageIndex(page)
     })
   }
 
@@ -3941,7 +3974,7 @@ export struct ReaderPage {
   @Builder
   private PersistentPageNumber(bottomMargin: number) {
     ReaderPageNumberOverlay({
-      value: `${this.pageIndex + 1} / ${Math.max(this.sessionConfig.totalPages, 0)}`,
+      value: `${this.displayPageIndex() + 1} / ${Math.max(this.sessionConfig.totalPages, 0)}`,
       bottomMargin,
     })
   }
@@ -3997,7 +4030,7 @@ export struct ReaderPage {
       onFilterPreviewChange: (active: boolean): void => { this.readerFilterPreview = active },
       placement: placement,
       viewportHeight: this.viewportHeight,
-      pageIndex: this.pageIndex,
+      pageIndex: this.displayPageIndex(),
       pageTotal: this.sessionConfig.pageUris.includes('source-placeholder://chapter') ? 0 : this.sessionConfig.totalPages,
       title: this.sessionConfig.title ?? s('reader_title_default'),
       chapterIndex: this.chapterIndex(),
@@ -4079,10 +4112,14 @@ export struct ReaderPage {
     .backgroundColor(readerBackground(this.preferences.backgroundMode))
     .focusable(true).defaultFocus(true)
     .onAreaChange((_old: Area, next: Area) => {
-      this.viewportWidth = next.width as number
-      this.viewportHeight = next.height as number
-      this.readerGlobalX = next.globalPosition.x as number
-      this.readerGlobalY = next.globalPosition.y as number
+      const width = next.width as number
+      const height = next.height as number
+      if (width !== this.viewportWidth) this.viewportWidth = width
+      if (height !== this.viewportHeight) this.viewportHeight = height
+      const x = next.globalPosition.x as number
+      const y = next.globalPosition.y as number
+      if (x !== this.readerGlobalX) this.readerGlobalX = x
+      if (y !== this.readerGlobalY) this.readerGlobalY = y
     })
     .onKeyEvent((event: KeyEvent): boolean => this.handleKeyEvent(event))
   }

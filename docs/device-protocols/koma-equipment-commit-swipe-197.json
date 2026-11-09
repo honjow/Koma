@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-equipment-commit-swipe-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "equipment-commit-swipe",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate5: plain continuous dimensions + targeted row notify + local continuous page index",
+    "page": "exit reader after candidate5 swipe and verify the committed page on the shelf",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "The shelf filter is 性能测试; only 装备我最强 should be visible under it."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "close-reader", "uiInput": ["keyEvent", "Back"], "pauseAfterMs": 2500 }
+    ]
+  },
+  "postflight": [
+    { "name": "shelf-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-commit-check.png"] },
+    { "name": "shelf-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-commit-check.png", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-commit-swipe/screen.png"] },
+    { "name": "shelf-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-commit-check.json", "-a"] },
+    { "name": "shelf-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-commit-check.json", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-commit-swipe/layout.json"] }
+  ]
+}

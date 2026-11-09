@@ -1,0 +1,287 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-equipment-swipe-c5-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "equipment-swipe-c5",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate5: plain continuous dimensions + targeted row notify + local continuous page index",
+    "page": "equipment reader 098 78/136 candidate5 swipe 3000 comparison",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Incognito off. Forward-only inertial swipes; the single-work category entry was already verified."
+  },
+  "preflight": [
+    {
+      "name": "wake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "wakeup"
+      ]
+    },
+    {
+      "name": "keep-awake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "86400000"
+      ]
+    },
+    {
+      "name": "power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    },
+    {
+      "name": "open-continue",
+      "uiInput": [
+        "click",
+        "630",
+        "940"
+      ],
+      "pauseAfterMs": 7000
+    }
+  ],
+  "measurement": {
+    "trace": {
+      "bufferKb": 65536,
+      "categories": [
+        "ace",
+        "animation",
+        "app",
+        "ark",
+        "freq",
+        "graphic",
+        "sched",
+        "window"
+      ],
+      "remotePath": "/data/local/tmp/koma-equipment-swipe-c5.htrace",
+      "localFile": "trace.htrace"
+    },
+    "hilog": {
+      "hdcArgs": [
+        "shell",
+        "hilog",
+        "-x"
+      ],
+      "localFile": "hilog.txt"
+    },
+    "actions": [
+      {
+        "name": "swipe-1",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      },
+      {
+        "name": "swipe-2",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      },
+      {
+        "name": "swipe-3",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      },
+      {
+        "name": "swipe-4",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      },
+      {
+        "name": "swipe-5",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      },
+      {
+        "name": "swipe-6",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      },
+      {
+        "name": "swipe-7",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      },
+      {
+        "name": "swipe-8",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      },
+      {
+        "name": "swipe-9",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      },
+      {
+        "name": "swipe-10",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      },
+      {
+        "name": "swipe-11",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      },
+      {
+        "name": "swipe-12",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 600
+      }
+    ]
+  },
+  "postflight": [
+    {
+      "name": "reader-screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/koma-swipe-c5.png"
+      ]
+    },
+    {
+      "name": "reader-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-swipe-c5.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-swipe-c5/reader.png"
+      ]
+    },
+    {
+      "name": "reader-layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-swipe-c5.json",
+        "-a"
+      ]
+    },
+    {
+      "name": "reader-layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-swipe-c5.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-swipe-c5/reader.json"
+      ]
+    },
+    {
+      "name": "final-power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

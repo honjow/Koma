@@ -1,0 +1,334 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-equipment-c5-run-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "equipment-c5-run",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate5: plain continuous dimensions + targeted row notify + local continuous page index",
+    "page": "install candidate5, enter the single-work category, open 装备我最强, run the same 10 flings",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Use fling, not swipe, to exercise real inertial scrolling one after another. Incognito off."
+  },
+  "preflight": [
+    {
+      "name": "wake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "wakeup"
+      ]
+    },
+    {
+      "name": "force-stop",
+      "hdcArgs": [
+        "shell",
+        "aa",
+        "force-stop",
+        "com.honjow.koma"
+      ]
+    },
+    {
+      "name": "neutral-unlock",
+      "uiInput": [
+        "swipe",
+        "630",
+        "2180",
+        "630",
+        "900",
+        "1000"
+      ],
+      "pauseAfterMs": 800
+    },
+    {
+      "name": "keep-awake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "86400000"
+      ]
+    },
+    {
+      "name": "power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    },
+    {
+      "name": "install",
+      "hdcArgs": [
+        "install",
+        "-r",
+        "/Users/honjow/git/Koma/entry/build/default/outputs/default/entry-default-signed.hap"
+      ],
+      "timeoutSeconds": 120
+    },
+    {
+      "name": "launch",
+      "hdcArgs": [
+        "shell",
+        "aa",
+        "start",
+        "-b",
+        "com.honjow.koma",
+        "-a",
+        "EntryAbility"
+      ],
+      "pauseAfterMs": 6000
+    },
+    {
+      "name": "shelf-screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/koma-c5-shelf.png"
+      ]
+    },
+    {
+      "name": "shelf-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-c5-shelf.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-c5-run/shelf.png"
+      ]
+    },
+    {
+      "name": "open-only-work",
+      "uiInput": [
+        "click",
+        "223",
+        "1421"
+      ],
+      "pauseAfterMs": 5000
+    },
+    {
+      "name": "open-continue",
+      "uiInput": [
+        "click",
+        "630",
+        "940"
+      ],
+      "pauseAfterMs": 7000
+    }
+  ],
+  "measurement": {
+    "trace": {
+      "bufferKb": 65536,
+      "categories": [
+        "ace",
+        "animation",
+        "app",
+        "ark",
+        "freq",
+        "graphic",
+        "sched",
+        "window"
+      ],
+      "remotePath": "/data/local/tmp/koma-equipment-c5.htrace",
+      "localFile": "trace.htrace"
+    },
+    "hilog": {
+      "hdcArgs": [
+        "shell",
+        "hilog",
+        "-x"
+      ],
+      "localFile": "hilog.txt"
+    },
+    "actions": [
+      {
+        "name": "fling-1",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-2",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-3",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-4",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-5",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-6",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-7",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-8",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-9",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "fling-10",
+        "uiInput": [
+          "fling",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "3000"
+        ],
+        "pauseAfterMs": 800
+      }
+    ]
+  },
+  "postflight": [
+    {
+      "name": "reader-screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/koma-c5-reader.png"
+      ]
+    },
+    {
+      "name": "reader-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-c5-reader.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-c5-run/reader.png"
+      ]
+    },
+    {
+      "name": "reader-layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-c5-reader.json",
+        "-a"
+      ]
+    },
+    {
+      "name": "reader-layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-c5-reader.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-c5-run/reader.json"
+      ]
+    },
+    {
+      "name": "final-power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

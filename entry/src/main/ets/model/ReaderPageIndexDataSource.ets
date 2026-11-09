@@ -24,6 +24,14 @@ export class ReaderPageIndexDataSource implements IDataSource {
     })
   }
 
+  /** Rebuild one decoded row without reloading the whole LazyForEach. */
+  notifyChanged(index: number): void {
+    if (index < 0 || index >= this.indexes.length) return
+    this.listeners.forEach((listener: DataChangeListener) => {
+      listener.onDataChange(index)
+    })
+  }
+
   registerDataChangeListener(listener: DataChangeListener): void {
     if (this.listeners.indexOf(listener) < 0) {
       this.listeners.push(listener)
