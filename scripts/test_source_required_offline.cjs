@@ -103,7 +103,7 @@ async function verifyDownload() {
     copyLocalFile:async(_from,to)=>({localPath:to}),
     fetchReaderRemoteSourceBytes:async src=>{ if(src.descriptorHint) src.requiredImageDecode=hint;return Uint8Array.from([1]).buffer },
     SourceRequiredImageDecodeService:{decodeBytes:async(_bytes,h)=>{assert.deepEqual(h,hint);decoded++;return {bytes:Uint8Array.from([2]).buffer,extension:'gif'}}},
-    writeBytesSync:(file,bytes)=>({localPath:file,size:bytes.byteLength})}
+    writeDownloadPageBytes:async(file,bytes)=>({localPath:file,size:bytes.byteLength})}
   const out={}
   new Function('exports',...Object.keys(values),js)(out,...Object.values(values))
   const worker=new out.Harness()

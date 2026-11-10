@@ -17,6 +17,7 @@ import {
 export const OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION: number = 1
 export const OFFLINE_DOWNLOAD_QUEUE_FILE_NAME: string = 'queue.v1.json'
 export const OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS: number[] = [1, 2, 3]
+const OFFLINE_DOWNLOAD_QUEUE_PROGRESS_INTERVAL_MS: number = 1000
 export const DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES: OfflineDownloadQueuePreferences = {
   foregroundConcurrencyLimit: 1,
   isPaused: false,
@@ -71,6 +72,11 @@ export interface OfflineDownloadQueuePreferences {
   foregroundConcurrencyLimit: number
   isPaused: boolean
   wifiOnly: boolean
+}
+
+export interface OfflineDownloadQueueSnapshot {
+  entries: OfflineDownloadQueueEntry[]
+  preferences: OfflineDownloadQueuePreferences
 }
 
 export interface OfflineDownloadQueueSummary {
@@ -281,6 +287,7 @@ export class OfflineDownloadQueueStore {
   private readonly filesDir: string
   private readonly rootDir: string
   private readonly queuePath: string
+  private lastProgressPersistedAt: number = 0
 
   constructor(filesDir: string) {
     this.filesDir = trimTrailingSlash(filesDir)
@@ -310,6 +317,11 @@ export class OfflineDownloadQueueStore {
 
   load(): OfflineDownloadQueueEntry[] {
     return this.loadDocument().entries
+  }
+
+  loadSnapshot(): OfflineDownloadQueueSnapshot {
+    const document: OfflineDownloadQueueDocument = this.loadDocument()
+    return { entries: document.entries, preferences: normalizePreferences(document.preferences) }
   }
 
   loadReconciledSnapshot(): OfflineDownloadQueueEntry[] {
@@ -530,6 +542,20 @@ export class OfflineDownloadQueueStore {
   }
 
   upsert(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry {
+    return this.writeEntry(entry, false)
+  }
+
+  /** Intermediate page progress is checkpointed, not fsynced once per page. */
+  upsertProgress(entry: OfflineDownloadQueueEntry): void {
+    const now: number = Date.now()
+    if (now - this.lastProgressPersistedAt < OFFLINE_DOWNLOAD_QUEUE_PROGRESS_INTERVAL_MS) {
+      return
+    }
+    this.lastProgressPersistedAt = now
+    this.writeEntry(entry, true)
+  }
+
+  private writeEntry(entry: OfflineDownloadQueueEntry, progressOnly: boolean): OfflineDownloadQueueEntry {
     const document = this.loadDocument()
     const previous = document.entries.find((item: OfflineDownloadQueueEntry): boolean =>
       item.comicId === entry.comicId && item.chapterId === entry.chapterId)
@@ -556,7 +582,7 @@ export class OfflineDownloadQueueStore {
       schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
       preferences: document.preferences,
       entries,
-    })
+    }, progressOnly)
     return normalized
   }
 
@@ -695,7 +721,7 @@ export class OfflineDownloadQueueStore {
     })
   }
 
-  private saveDocument(document: OfflineDownloadQueueDocument): void {
+  private saveDocument(document: OfflineDownloadQueueDocument, progressOnly: boolean = false): void {
     assertSafeOfflineDownloadRoot(this.filesDir, this.queuePath)
     ensureDirSync(this.rootDir)
     writeAppTextFile(this.queuePath, JSON.stringify({
@@ -703,7 +729,11 @@ export class OfflineDownloadQueueStore {
       preferences: document.preferences === undefined ? normalizePreferences() : normalizePreferences(document.preferences),
       entries: document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => normalizeEntry(entry)),
     }))
-    OfflineDownloadRuntime.publish(this.filesDir)
+    if (progressOnly) {
+      OfflineDownloadRuntime.publishProgress(this.filesDir)
+    } else {
+      OfflineDownloadRuntime.publish(this.filesDir)
+    }
   }
 
   private ensureRoot(): void {

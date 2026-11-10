@@ -41,6 +41,8 @@ import {
   publishOfflineDownloadNotification,
 } from './OfflineDownloadNotificationStore'
 
+const OFFLINE_DOWNLOAD_MANIFEST_PROGRESS_INTERVAL_MS: number = 1000
+
 function closeFileQuietly(file: fs.File | undefined): void {
   if (file === undefined) {
     return
@@ -58,14 +60,20 @@ interface OfflineDownloadPageWriteResult {
   requiredImageDecodeResolved?: boolean
 }
 
-function writeBytesSync(path: string, bytes: ArrayBuffer): OfflineDownloadPageWriteResult {
+@Concurrent
+function writeDownloadPageBytesWorker(path: string, bytes: ArrayBuffer): OfflineDownloadPageWriteResult {
   let file: fs.File | undefined = undefined
   try {
     file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
     const written = fs.writeSync(file.fd, bytes)
     if (written !== bytes.byteLength) throw new Error('Incomplete download page write')
   } finally {
-    closeFileQuietly(file)
+    if (file !== undefined) {
+      try {
+        fs.closeSync(file)
+      } catch (_error) {
+      }
+    }
   }
   const size = fs.statSync(path).size
   if (size !== bytes.byteLength) throw new Error('Incomplete download page file')
@@ -75,27 +83,23 @@ function writeBytesSync(path: string, bytes: ArrayBuffer): OfflineDownloadPageWr
   }
 }
 
-async function copyLocalFile(sourcePath: string, targetPath: string): Promise<OfflineDownloadPageWriteResult> {
-  if (sourcePath === targetPath) {
-    return {
-      size: fs.statSync(targetPath).size,
-      contentHash: createOfflineDownloadFileContentHash(targetPath),
-    }
-  }
-  let sourceFile: fs.File | undefined = undefined
-  let targetFile: fs.File | undefined = undefined
-  try {
-    sourceFile = fs.openSync(sourcePath, fs.OpenMode.READ_ONLY)
-    targetFile = fs.openSync(targetPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    await fs.copyFile(sourceFile.fd, targetFile.fd, 0)
-  } finally {
-    closeFileQuietly(sourceFile)
-    closeFileQuietly(targetFile)
+async function writeDownloadPageBytes(path: string, bytes: ArrayBuffer): Promise<OfflineDownloadPageWriteResult> {
+  return await taskpool.execute(writeDownloadPageBytesWorker, path, bytes) as OfflineDownloadPageWriteResult
+}
+
+@Concurrent
+function copyDownloadPageFileWorker(sourcePath: string, targetPath: string): OfflineDownloadPageWriteResult {
+  if (sourcePath !== targetPath) {
+    fs.copyFileSync(sourcePath, targetPath, 0)
   }
   return {
     size: fs.statSync(targetPath).size,
     contentHash: createOfflineDownloadFileContentHash(targetPath),
   }
+}
+
+async function copyLocalFile(sourcePath: string, targetPath: string): Promise<OfflineDownloadPageWriteResult> {
+  return await taskpool.execute(copyDownloadPageFileWorker, sourcePath, targetPath) as OfflineDownloadPageWriteResult
 }
 
 function extensionFromUri(uri: string): string {
@@ -200,6 +204,7 @@ export class OfflineDownloadService {
   private readonly requestContext?: common.UIAbilityContext
   private readonly store: OfflineDownloadStore
   private readonly queueStore: OfflineDownloadQueueStore
+  private lastManifestProgressPersistedAt: number = 0
 
   constructor(store: OfflineDownloadStore, queueStore?: OfflineDownloadQueueStore, requestContext?: common.UIAbilityContext) {
     this.requestContext = requestContext
@@ -348,6 +353,7 @@ export class OfflineDownloadService {
     )
     this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
     const config = createReaderSessionConfigFromComic(comic, chapterId)
+    this.lastManifestProgressPersistedAt = Date.now()
     let pageFetchFailed = false
     try {
       for (let index = 0; index < config.totalPages; index += 1) {
@@ -363,6 +369,7 @@ export class OfflineDownloadService {
         const pageId = page?.id ?? `page-${index + 1}`
         const reusablePage = reusableDownloadedPage(reusablePages, pageId, index)
         if (reusablePage !== undefined) {
+          const persistProgress: boolean = this.shouldPersistManifestProgress(index + 1 >= config.totalPages)
           manifest = this.store.recordPage(manifest, {
             pageId,
             pageIndex: index,
@@ -379,8 +386,11 @@ export class OfflineDownloadService {
             sourceTextOverlay: page === undefined ? reusablePage.sourceTextOverlay : page.sourceTextOverlay,
             requiredImageDecodeResolved: reusablePage.requiredImageDecodeResolved,
             updatedAt: reusablePage.updatedAt,
-          })
-          this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+          }, persistProgress)
+          if (persistProgress) {
+            this.queueStore.upsertProgress(this.queueStore.fromManifest(
+              manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+          }
           continue
         }
         const source = createReaderPageRenderSource(config, index, { preferOffline: false })
@@ -413,9 +423,13 @@ export class OfflineDownloadService {
           requiredImageDecodeResolved: writtenPage.requiredImageDecodeResolved,
           updatedAt: Date.now(),
         }
-        manifest = this.store.recordPage(manifest, row)
+        const persistProgress: boolean = this.shouldPersistManifestProgress(index + 1 >= config.totalPages)
+        manifest = this.store.recordPage(manifest, row, persistProgress)
         BackgroundDownloadOwner.progress(labels?.chapterTitle ?? chapter.title, manifest.downloadedPageCount, manifest.pageCount)
-        this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+        if (persistProgress) {
+          this.queueStore.upsertProgress(this.queueStore.fromManifest(
+            manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+        }
       }
       manifest.status = OfflineDownloadStatus.DOWNLOADED
       manifest = this.store.saveManifest(manifest)
@@ -459,6 +473,15 @@ export class OfflineDownloadService {
       })
   }
 
+  private shouldPersistManifestProgress(finalPage: boolean): boolean {
+    const now: number = Date.now()
+    if (!finalPage && now - this.lastManifestProgressPersistedAt < OFFLINE_DOWNLOAD_MANIFEST_PROGRESS_INTERVAL_MS) {
+      return false
+    }
+    this.lastManifestProgressPersistedAt = now
+    return true
+  }
+
   private async writePage(source: ReaderPageRenderSource, localPath: string): Promise<OfflineDownloadPageWriteResult> {
     if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
       if (source.sourceText !== undefined) {
@@ -484,11 +507,11 @@ export class OfflineDownloadService {
       const decoded = await SourceRequiredImageDecodeService.decodeBytes(bytes, source.requiredImageDecode)
       // Canonical file extension follows actual GIF bytes, never the URL suffix.
       const canonicalPath = localPath.replace(/\.[^/.]+$/, '.' + decoded.extension)
-      const result = writeBytesSync(canonicalPath, decoded.bytes)
+      const result = await writeDownloadPageBytes(canonicalPath, decoded.bytes)
       result.localPath = canonicalPath
       result.requiredImageDecodeResolved = true
       return result
     }
-    return writeBytesSync(localPath, bytes)
+    return writeDownloadPageBytes(localPath, bytes)
   }
 }

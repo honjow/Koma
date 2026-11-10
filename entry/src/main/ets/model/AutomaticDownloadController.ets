@@ -18,7 +18,9 @@ export class AutomaticDownloadController {
 
   constructor(request: OfflineDownloadBatchRequest) {
     this.request = request
-    this.unsubscribe = OfflineDownloadRuntime.subscribe(request.context.filesDir, () => { this.wake() })
+    this.unsubscribe = OfflineDownloadRuntime.subscribe(request.context.filesDir, (signal) => {
+      if (signal === 'change') this.wake()
+    })
     const network = connection.createNetConnection()
     this.network = network
     network.on('netAvailable', () => { this.wake() })

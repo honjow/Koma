@@ -22,6 +22,7 @@ import {
   OfflineDownloadQueueEntry,
   OfflineDownloadQueuePreferences,
   OfflineDownloadQueueRecoverySummary,
+  OfflineDownloadQueueSnapshot,
   OfflineDownloadQueueSummary,
   OfflineDownloadQueueStore,
   summarizeOfflineDownloadQueue,
@@ -65,6 +66,9 @@ export struct DownloadsPage {
   @Local private actionMenuKey: string = ''
   private unsubscribeQueue: (() => void) | undefined = undefined
   private queueVisible: boolean = false
+  private queueRefreshTimer: number = -1
+  private queueScrolling: boolean = false
+  private queueRefreshPending: boolean = false
   @Event onOpenReader: (comicId: string, chapterId: string) => void =
     (_comicId: string, _chapterId: string) => {}
 
@@ -95,10 +99,9 @@ export struct DownloadsPage {
   private loadQueue(): void {
     try {
       const store = this.queueStore()
-      const entries = store.load()
-      const preferences = store.loadPreferences()
-      this.entries = entries
-      this.preferences = preferences
+      const snapshot: OfflineDownloadQueueSnapshot = store.loadSnapshot()
+      this.entries = snapshot.entries
+      this.preferences = snapshot.preferences
     } catch (_error) {
       DiagnosticLogger.warn('downloads_page', 'load_queue_failed', '[Downloads] step=load_queue_failed code=queue_read_failed')
     }
@@ -126,7 +129,7 @@ export struct DownloadsPage {
   }
 
   private entryForKey(key: string): OfflineDownloadQueueEntry | undefined {
-    return this.entries.find((entry: OfflineDownloadQueueEntry) => this.rowKey(entry) === key)
+    return this.entriesByKey.get(key)
   }
 
   private moveDownload(key: string, toTop: boolean, wholeComic: boolean): void {
@@ -141,12 +144,20 @@ export struct DownloadsPage {
     }
   }
 
-  private groupForId(comicId: string, completed: boolean): DownloadComicGroup | undefined {
-    return this.visibleGroups(completed).find((group: DownloadComicGroup): boolean => group.comicId === comicId)
-  }
-
   private visibleEntries(): OfflineDownloadQueueEntry[] {
     return this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => this.matchesFilter(entry, this.filter))
+  }
+
+  @Computed
+  private get visibleEntryList(): OfflineDownloadQueueEntry[] {
+    return this.visibleEntries()
+  }
+
+  @Computed
+  private get entriesByKey(): Map<string, OfflineDownloadQueueEntry> {
+    const entries: Map<string, OfflineDownloadQueueEntry> = new Map()
+    this.entries.forEach((entry: OfflineDownloadQueueEntry): void => { entries.set(this.rowKey(entry), entry) })
+    return entries
   }
 
   private matchesFilter(entry: OfflineDownloadQueueEntry, filter: DownloadQueueFilter): boolean {
@@ -175,24 +186,37 @@ export struct DownloadsPage {
       this.entries.some((entry: OfflineDownloadQueueEntry): boolean => this.matchesFilter(entry, filter))
   }
 
-  private visibleGroups(completed: boolean): DownloadComicGroup[] {
+  private groupedEntries(completed: boolean): DownloadComicGroup[] {
     const groups: DownloadComicGroup[] = []
-    this.visibleEntries().filter((entry: OfflineDownloadQueueEntry): boolean =>
+    const groupsByComicId: Map<string, DownloadComicGroup> = new Map()
+    this.visibleEntryList.filter((entry: OfflineDownloadQueueEntry): boolean =>
       this.canRead(entry) === completed).forEach((entry: OfflineDownloadQueueEntry): void => {
-      const existing = groups.find((group: DownloadComicGroup): boolean => group.comicId === entry.comicId)
+      const existing = groupsByComicId.get(entry.comicId)
       if (existing !== undefined) {
         existing.entries.push(entry)
         return
       }
-      groups.push({
+      const group: DownloadComicGroup = {
         comicId: entry.comicId,
         title: entry.comicTitle !== undefined && entry.comicTitle.trim().length > 0
           ? entry.comicTitle
           : (this.libraryStore?.getComic(entry.comicId)?.title ?? entry.comicId),
         entries: [entry],
-      })
+      }
+      groups.push(group)
+      groupsByComicId.set(entry.comicId, group)
     })
     return groups
+  }
+
+  @Computed
+  private get activeDownloadGroups(): DownloadComicGroup[] {
+    return this.groupedEntries(false)
+  }
+
+  @Computed
+  private get completedDownloadGroups(): DownloadComicGroup[] {
+    return this.groupedEntries(true)
   }
 
   private filterLabel(): string {
@@ -349,6 +373,11 @@ export struct DownloadsPage {
       return s('downloads_overview_queued').replace('%s', `${summary.queuedCount}`)
     }
     return s('downloads_no_pending_tasks')
+  }
+
+  @Computed
+  private get queueOverviewText(): string[] {
+    return [this.queueOverviewTitle(), this.queueOverviewSubtitle()]
   }
 
   private groupSubtitle(group: DownloadComicGroup): string {
@@ -788,7 +817,7 @@ export struct DownloadsPage {
     this.queueVisible = true
     this.unsubscribeQueue?.()
     this.unsubscribeQueue = OfflineDownloadRuntime.subscribe(this.context().filesDir, () => {
-      this.loadQueue()
+      this.scheduleQueueRefresh()
     })
     this.loadQueue()
     if (!OfflineDownloadRuntime.isInitialized(this.context().filesDir)) {
@@ -799,8 +828,37 @@ export struct DownloadsPage {
 
   aboutToDisappear(): void {
     this.queueVisible = false
+    this.queueScrolling = false
+    this.queueRefreshPending = false
+    if (this.queueRefreshTimer >= 0) {
+      clearTimeout(this.queueRefreshTimer)
+      this.queueRefreshTimer = -1
+    }
     this.unsubscribeQueue?.()
     this.unsubscribeQueue = undefined
+  }
+
+  private scheduleQueueRefresh(): void {
+    if (this.queueScrolling) {
+      this.queueRefreshPending = true
+      return
+    }
+    if (!this.queueVisible || this.queueRefreshTimer >= 0) return
+    this.queueRefreshTimer = setTimeout((): void => {
+      this.queueRefreshTimer = -1
+      if (this.queueVisible) {
+        this.loadQueue()
+      }
+    }, 200)
+  }
+
+  private onQueueDidScroll(state: ScrollState): void {
+    const scrolling: boolean = state !== ScrollState.Idle
+    this.queueScrolling = scrolling
+    if (!scrolling && this.queueRefreshPending) {
+      this.queueRefreshPending = false
+      this.scheduleQueueRefresh()
+    }
   }
 
   @Builder
@@ -818,13 +876,13 @@ export struct DownloadsPage {
         .backgroundColor(ThemeConstants.SOFT_TINT)
 
         Column({ space: ThemeConstants.SPACE_XS }) {
-          Text(this.queueOverviewTitle())
+          Text(this.queueOverviewText[0])
             .fontSize(ThemeConstants.FONT_SIZE_TITLE)
             .fontWeight(FontWeight.Medium)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(this.queueOverviewSubtitle())
+          Text(this.queueOverviewText[1])
             .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
             .maxLines(1)
@@ -1058,19 +1116,18 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private DownloadGroup(comicId: string, completed: boolean) {
-    if (this.groupForId(comicId, completed) !== undefined) {
-      Column() {
+  private DownloadGroup(group: DownloadComicGroup, completed: boolean) {
+    Column() {
         Row({ space: ThemeConstants.SPACE_MD }) {
-          this.DownloadCover(comicId)
+          this.DownloadCover(group.comicId)
           Column({ space: ThemeConstants.SPACE_XS }) {
-            Text(this.groupForId(comicId, completed)!.title)
+            Text(group.title)
               .fontSize(ThemeConstants.FONT_SIZE_TITLE)
               .fontWeight(FontWeight.Medium)
               .fontColor(ThemeConstants.TEXT_PRIMARY)
               .maxLines(2)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text(this.groupSubtitle(this.groupForId(comicId, completed)!))
+            Text(this.groupSubtitle(group))
               .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
               .maxLines(1)
@@ -1083,7 +1140,7 @@ export struct DownloadsPage {
         .padding(ThemeConstants.SPACE_LG)
         .alignItems(VerticalAlign.Center)
         .onClick(() => {
-          if (this.libraryStore?.getComic(comicId) !== undefined) this.openDownloadEntry(this.groupForId(comicId, completed)!.entries[0])
+          if (this.libraryStore?.getComic(group.comicId) !== undefined) this.openDownloadEntry(group.entries[0])
         })
 
         Divider()
@@ -1091,15 +1148,14 @@ export struct DownloadsPage {
           .color(ThemeConstants.DIVIDER)
           .margin({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
 
-        ForEach(this.groupForId(comicId, completed)!.entries, (entry: OfflineDownloadQueueEntry) => {
+        ForEach(group.entries, (entry: OfflineDownloadQueueEntry) => {
           this.DownloadChapterRow(this.rowKey(entry))
         }, (entry: OfflineDownloadQueueEntry) => this.rowKey(entry))
-      }
-      .width('100%')
-      .borderRadius(ThemeConstants.RADIUS_CARD)
-      .backgroundColor(ThemeConstants.CARD)
-      .clip(true)
     }
+    .width('100%')
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
+    .clip(true)
   }
 
   @Builder
@@ -1115,6 +1171,9 @@ export struct DownloadsPage {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
         bottomPadding: ThemeConstants.SPACE_XL,
+        onDidScroll: (_offset: number, state: ScrollState): void => {
+          this.onQueueDidScroll(state)
+        },
       }) {
         if (this.entries.length === 0) {
           ListItem() {
@@ -1124,21 +1183,21 @@ export struct DownloadsPage {
           ListItem() {
             this.QueueHeader()
           }
-          if (this.visibleEntries().length === 0) {
+          if (this.visibleEntryList.length === 0) {
             ListItem() {
               this.EmptyState(this.hasActiveFilter())
             }
           }
-          if (this.visibleGroups(false).length > 0) {
+          if (this.activeDownloadGroups.length > 0) {
             ListItem() { this.DownloadSectionTitle(s('downloads_tasks_section')) }
-            ForEach(this.visibleGroups(false), (group: DownloadComicGroup) => {
-              ListItem() { this.DownloadGroup(group.comicId, false) }
+            ForEach(this.activeDownloadGroups, (group: DownloadComicGroup) => {
+              ListItem() { this.DownloadGroup(group, false) }
             }, (group: DownloadComicGroup) => group.comicId)
           }
-          if (this.visibleGroups(true).length > 0) {
+          if (this.completedDownloadGroups.length > 0) {
             ListItem() { this.DownloadSectionTitle(s('downloads_local_section')) }
-            ForEach(this.visibleGroups(true), (group: DownloadComicGroup) => {
-              ListItem() { this.DownloadGroup(group.comicId, true) }
+            ForEach(this.completedDownloadGroups, (group: DownloadComicGroup) => {
+              ListItem() { this.DownloadGroup(group, true) }
             }, (group: DownloadComicGroup) => group.comicId)
           }
         }

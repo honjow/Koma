@@ -1,6 +1,8 @@
 import { OfflineChapterDownloadManifest } from './OfflineDownloadStore'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 
+export type OfflineDownloadRuntimeSignal = 'change' | 'progress'
+
 interface OfflineDownloadExecution {
   filesDir: string
   comicId: string
@@ -27,7 +29,8 @@ export class OfflineDownloadRuntime {
   private static chapterRemovals: Map<string, Promise<void>> = new Map<string, Promise<void>>()
   private static comicRemovals: Map<string, Promise<number>> = new Map<string, Promise<number>>()
   private static slots: Map<string, OfflineDownloadSlots> = new Map<string, OfflineDownloadSlots>()
-  private static listeners: Map<string, Set<() => void>> = new Map<string, Set<() => void>>()
+  private static listeners: Map<string, Set<(signal: OfflineDownloadRuntimeSignal) => void>> =
+    new Map<string, Set<(signal: OfflineDownloadRuntimeSignal) => void>>()
 
   static initialize(filesDir: string, initialize: () => Promise<void>): Promise<void> {
     const existing = OfflineDownloadRuntime.initializations.get(filesDir)
@@ -214,10 +217,10 @@ export class OfflineDownloadRuntime {
     await Promise.allSettled(pending)
   }
 
-  static subscribe(filesDir: string, listener: () => void): () => void {
+  static subscribe(filesDir: string, listener: (signal: OfflineDownloadRuntimeSignal) => void): () => void {
     let listeners = OfflineDownloadRuntime.listeners.get(filesDir)
     if (listeners === undefined) {
-      listeners = new Set<() => void>()
+      listeners = new Set<(signal: OfflineDownloadRuntimeSignal) => void>()
       OfflineDownloadRuntime.listeners.set(filesDir, listeners)
     }
     listeners.add(listener)
@@ -228,6 +231,13 @@ export class OfflineDownloadRuntime {
 
   static publish(filesDir: string): void {
     OfflineDownloadRuntime.admitWaiting(filesDir)
-    OfflineDownloadRuntime.listeners.get(filesDir)?.forEach((listener: () => void) => listener())
+    OfflineDownloadRuntime.listeners.get(filesDir)?.forEach(
+      (listener: (signal: OfflineDownloadRuntimeSignal) => void) => listener('change'))
+  }
+
+  /** Page progress never admits new work or wakes structural queue owners. */
+  static publishProgress(filesDir: string): void {
+    OfflineDownloadRuntime.listeners.get(filesDir)?.forEach(
+      (listener: (signal: OfflineDownloadRuntimeSignal) => void) => listener('progress'))
   }
 }

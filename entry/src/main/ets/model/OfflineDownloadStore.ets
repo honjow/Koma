@@ -876,12 +876,13 @@ export class OfflineDownloadStore {
     })
   }
 
-  recordPage(manifest: OfflineChapterDownloadManifest, page: OfflineDownloadedPage): OfflineChapterDownloadManifest {
+  recordPage(manifest: OfflineChapterDownloadManifest, page: OfflineDownloadedPage,
+    persist: boolean = true): OfflineChapterDownloadManifest {
     const pages = manifest.pages.filter((item: OfflineDownloadedPage): boolean => {
       return item.pageId !== page.pageId && item.pageIndex !== page.pageIndex
     })
     pages.push(page)
-    return this.saveManifest({
+    const next: OfflineChapterDownloadManifest = {
       schemaVersion: OFFLINE_DOWNLOAD_SCHEMA_VERSION,
       comicId: manifest.comicId,
       chapterId: manifest.chapterId,
@@ -898,7 +899,8 @@ export class OfflineDownloadStore {
       chapterTitle: manifest.chapterTitle,
       integrityHash: manifest.integrityHash,
       failureReasonCode: manifest.failureReasonCode,
-    })
+    }
+    return persist ? this.saveManifest(next) : next
   }
 
   resolveDownloadedPage(
