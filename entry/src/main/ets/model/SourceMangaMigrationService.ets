@@ -56,11 +56,12 @@ export async function prepareMangaMigration(
   const current = (): boolean => isCurrent() && registry.lookup(manga.sourceId).entry === entry &&
     settingsRevision === appSourceSettingsStore.revisionForSource(manga.sourceId)
   const settings = appSourceSettingsStore.loadForSource(manga.sourceId)
+  const settingsFingerprint = sourceSettingsFingerprint(settings)
   if (!current()) throw new Error('migration_source_changed')
   // Detail previews and migration share this process cache. Its reader already
   // enforces entry, settings and route identity; only complete catalogs qualify.
   // The existing commit guard still checks the entry and settings again.
-  const cached = sourceMangaDetailSnapshotCache.read(entry, manga.sourceId, manga.id, manga.url)
+  const cached = sourceMangaDetailSnapshotCache.read(entry, manga.sourceId, manga.id, manga.url, settingsFingerprint)
   if (cached?.chaptersResolved && cached.chapters.length > 0) {
     return preparedMigrationFromSnapshot(manga, entry, settingsRevision, settings, cached)
   }
@@ -79,7 +80,7 @@ export async function prepareMangaMigration(
   const snapshot: SourceMangaDetailSnapshot = { detail, chapters: catalog.chapters,
     chaptersResolved: true, excludedChapterIds: catalog.excludedChapterIds }
   const prepared = preparedMigrationFromSnapshot(manga, entry, settingsRevision, settings, snapshot)
-  sourceMangaDetailSnapshotCache.write(entry, manga.sourceId, manga.id, snapshot, settingsRevision)
+  sourceMangaDetailSnapshotCache.write(entry, manga.sourceId, manga.id, snapshot, settingsRevision, settingsFingerprint)
   return prepared
 }
 

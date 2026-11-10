@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-11T02:26:00+08:00",
+  "updatedAt": "2026-11-11T03:56:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
   "activity": "#266 MYCOMIC 共享阅读器已按原图尺寸自动切条漫，历史直读 403 已修；0.1.29 与宿主改动未发布。",
@@ -83,6 +83,29 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "HISTORY_ONLY_DETAIL_COLD_RELOAD",
+      "number": 270,
+      "title": "仅历史作品冷启动重复加载章节",
+      "kind": "done",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-11",
+      "reportedAtSource": "用户指出未加入书架但存在于历史中的作品，从历史封面进入详情页后，冷启动必然重新请求作品详情和章节；书架作品不会。",
+      "registeredAt": "2026-11-11T03:51:00+08:00",
+      "updatedAt": "2026-11-11T03:56:00+08:00",
+      "closedAt": "2026-11-11T03:56:00+08:00",
+      "status": "已在197冷启动验证",
+      "result": "详情与完整章节目录快照现在持久保存在本机，按书源包身份和书源设置指纹校验。书架与仅历史作品共用同一读取路径，冷启动先恢复快照，手动刷新才强制请求。仅保存完整目录和不含图片页 URL 的元数据，最多32项或8MB，不进入备份和设备同步。197 使用未入书架的 MYCOMIC《水性杨花的老师总是在背黑锅》先首次打开写入10章快照，再结束进程重启并从历史封面进入，详情直接显示10/10，hilog 没有 get_manga 或 get_chapters。",
+      "remaining": "只覆盖197、MYCOMIC该作品和本机缓存命中路径。书源设置指纹与包版本失效已由逻辑测试覆盖，真实升包/改设置后的强制重载及设置页总缓存清除尚未单独设备验收。",
+      "evidence": [
+        ".hvigor/outputs/detail-history-cache-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/open-history-detail-first-20261111T0311/detail.png",
+        ".hvigor/outputs/detail-history-cache-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/open-history-detail-first-20261111T0311/source-detail-snapshots.v1.json",
+        ".hvigor/outputs/detail-history-cache-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-cold-history-detail-20261111T0353/detail.png",
+        ".hvigor/outputs/detail-history-cache-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-cold-history-detail-20261111T0353/hilog-cold.txt",
+        ".hvigor/outputs/detail-history-cache-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-20261111T0356/run-metadata.json"
+      ]
+    },
     {
       "id": "READER_WIDE_SPLIT_FIRST_FRAME_FLASH",
       "number": 269,
@@ -10016,6 +10039,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "history-only-detail-cache-20261111",
+      "at": "2026-11-11T03:56:00+08:00",
+      "itemId": "HISTORY_ONLY_DETAIL_COLD_RELOAD",
+      "title": "仅历史作品的详情目录缓存已统一",
+      "detail": "详情与完整章节目录新增本机持久快照，按书源包身份、设置指纹和路由校验，只保存完整目录且不保存图片页 URL。197《水性杨花的老师总是在背黑锅》首次从历史封面进入写入10章快照，结束进程重启后再次进入直接显示10/10，hilog 无 get_manga/get_chapters。设备恢复10000ms覆盖和SLEEP并释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/detail-history-cache-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-cold-history-detail-20261111T0353/hilog-cold.txt"
+    },
     {
       "id": "reader-wide-split-first-frame-20261111",
       "at": "2026-11-11T02:26:00+08:00",

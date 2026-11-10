@@ -64,6 +64,7 @@ import {
   parseMangaDetailFromSourceItem,
 } from '../model/MangaDetailModels'
 import { sourceMangaDetailSnapshotCache } from '../model/SourceMangaDetailSnapshotCache'
+import { sourceMangaDetailSnapshotPersistence } from '../model/SourceMangaDetailSnapshotPersistence'
 import { sourceChapterDisplayRows } from '../model/SourceChapterVisibility'
 import { resolveSourceChapterList } from '../model/SourceChapterListResolver'
 import { ReaderChapterDescriptor, cloneReaderChapterDescriptor } from '../model/ReaderChapterSequence'
@@ -930,6 +931,16 @@ export struct MangaDetailPage {
     const sourceId = this.params.sourceId
     if (sourceId !== undefined && sourceId.trim().length > 0 &&
       mangaId !== undefined && mangaId.trim().length > 0) {
+      try {
+        await sourceMangaDetailSnapshotPersistence.hydrate(getContext(this) as common.UIAbilityContext)
+      } catch (error) {
+        DiagnosticLogger.warn('source_detail_cache', 'hydrate_failed', String(error))
+      }
+      if (this.params.sourceId?.trim() !== sourceId.trim() || this.params.mangaId?.trim() !== mangaId.trim()) return
+      // Hydration can supply a complete local catalog for a history-only work.
+      // Seed again before the request guard so this route has the same behavior
+      // as a persisted shelf record on a cold start.
+      this.seedSourceDetailFromInitialRouteManga()
       await this.loadSourceMangaDetail(sourceId, mangaId)
       return
     }
@@ -1123,7 +1134,8 @@ export struct MangaDetailPage {
         throw new Error('source_disabled')
       }
       this.sourceDetailSettingsFingerprint = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
-      const cached = forceReload ? undefined : sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
+      const cached = forceReload ? undefined : sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId,
+        this.sourceMangaRouteUrl(sourceId, mangaId), this.sourceDetailSettingsFingerprint)
       // A complete catalog already shown for this route needs no request on
       // entry. A synced list of IDs is insufficient unless every row exists
       // locally and it was resolved with the current source settings.
@@ -1182,7 +1194,7 @@ export struct MangaDetailPage {
           detail,
           chapters,
           chaptersResolved: false,
-        }, this.sourceDetailSettingsRevision)
+        }, this.sourceDetailSettingsRevision, this.sourceDetailSettingsFingerprint)
       }
       let chaptersLoadFailed = false
       let chaptersFailureText = s('manga_detail_load_source_chapters_failed')
@@ -1259,7 +1271,7 @@ export struct MangaDetailPage {
           chapters,
           chaptersResolved: this.sourceChaptersResolved,
           excludedChapterIds,
-        }, this.sourceDetailSettingsRevision)
+        }, this.sourceDetailSettingsRevision, this.sourceDetailSettingsFingerprint)
       }
     } catch (error) {
       if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
@@ -1310,8 +1322,13 @@ export struct MangaDetailPage {
     const comicId = this.sourceComicId(sourceId, mangaId)
     const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
     const lookup = this.sourceRegistry.lookup(sourceId)
+    try {
+      this.sourceDetailSettingsFingerprint = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
+    } catch (error) {
+      DiagnosticLogger.exception('persistence', 'source_detail_settings_read_failed', error as Error)
+    }
     const cached = lookup.entry === undefined ? undefined : sourceMangaDetailSnapshotCache.read(
-      lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
+      lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId), this.sourceDetailSettingsFingerprint)
     if (cached !== undefined && cached.chaptersResolved) {
       this.manga = cached.detail
       if (libraryComic?.customCoverUri) this.manga.coverUrl = libraryComic.customCoverUri

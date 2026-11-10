@@ -68,7 +68,11 @@ test('target preparation reuses a complete preview but rejects a changed source,
   assert.deepEqual(clone(prepared.comic.sourceMetadata.excludedChapterIds), ['ad'])
   await assert.rejects(prepareMangaMigration(registry, manga, () => false), /migration_source_changed/)
   await assert.rejects(prepareMangaMigration(registry, { ...manga, url: 'https://owned.invalid/other' }, () => true), /unexpected network/)
+  // Registry entries are recreated on restart. Stable package identity owns
+  // this local snapshot, so an equal source object reuses the same catalog.
   currentEntry = { ...entry }
+  assert.equal((await prepareMangaMigration(registry, manga, () => true)).comic.chapters.length, 1)
+  currentEntry = { ...entry, manifestVersion: '2' }
   await assert.rejects(prepareMangaMigration(registry, manga, () => true), /unexpected network/)
   cache.write(currentEntry, manga.sourceId, manga.id, { ...snapshot, chaptersResolved: false }, '0')
   await assert.rejects(prepareMangaMigration(registry, manga, () => true), /unexpected network/)
@@ -126,6 +130,30 @@ test('restarted volume numbers require unique correspondence and ambiguous chapt
   one.chapters[0].volumeNumber = '1'; another.chapters[0].volumeNumber = '2'
   assert.equal(core.migrationChapterMatch(one.chapters[0], one.chapters, another.chapters), undefined)
   assert.deepEqual(clone(core.migrationCategoryIds({ categoryIds: ['favorite'] }, { categoryIds: ['custom:1'] }, true)), ['custom:1', 'favorite'])
+})
+
+test('local detail snapshots survive reconstruction but reject package or settings changes', () => {
+  const { SourceMangaDetailSnapshotCache } = load('model/SourceMangaDetailSnapshotCache')
+  const cache = new SourceMangaDetailSnapshotCache(), persisted = [], cleared = []
+  cache.setPersistence({ persist: records => persisted.push(records), clear: () => cleared.push(true) })
+  const entry = { sourceId: 'source.test', manifestId: 'pkg', manifestVersion: '1.0.0', wasmByteCount: 42,
+    wasmBytes: new Uint8Array([1]) }
+  const snapshot = { detail: { id: 'work', title: 'Series', chapterCount: 1, isInLibrary: false },
+    chapters: [{ id: 'chapter-1', title: 'Chapter 1', isRead: false, isDownloaded: false }], chaptersResolved: true }
+  cache.write(entry, 'source.test', 'work', { ...snapshot, chaptersResolved: false }, '0', 'settings-a')
+  assert.equal(persisted.length, 0)
+  cache.write(entry, 'source.test', 'work', snapshot, '0', 'settings-a')
+  assert.equal(persisted.length, 1)
+  assert.equal(cache.read(entry, 'source.test', 'work', undefined, 'settings-a').chapters[0].id, 'chapter-1')
+  const restored = new SourceMangaDetailSnapshotCache()
+  restored.restore(cache.persistenceRecords())
+  assert.equal(restored.read(entry, 'source.test', 'work', undefined, 'settings-a').detail.title, 'Series')
+  assert.equal(restored.read(entry, 'source.test', 'work', undefined, 'settings-b'), undefined)
+  assert.equal(restored.read({ ...entry, manifestVersion: '1.0.1' },
+    'source.test', 'work', undefined, 'settings-a'), undefined)
+  cache.clear()
+  assert.equal(cleared.length, 1)
+  restored.clear()
 })
 test('a failed Reader persistence commit restores old memory and disk, and a retry preserves read timestamps', () => {
   let disk = { progress: [], sourceHistory: [], chapters: [] }, fail = true

@@ -1,9 +1,11 @@
 import { AppStrings } from '../i18n/AppStrings'
 import { komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { sourceMangaDetailSnapshotCache } from '../model/SourceMangaDetailSnapshotCache'
+import { sourceMangaDetailSnapshotPersistence } from '../model/SourceMangaDetailSnapshotPersistence'
 import { ConciseListRow } from './ui/ConciseListRow'
+import { common } from '@kit.AbilityKit'
 
-/** Detail and chapter rows cached for the current process. */
+/** Local detail and chapter rows, available again after an app restart. */
 @ComponentV2
 export struct KomaPageCacheRow {
   @Local private count: number = 0
@@ -12,6 +14,10 @@ export struct KomaPageCacheRow {
   aboutToAppear(): void {
     this.active = true
     this.count = sourceMangaDetailSnapshotCache.size()
+    const context = getContext(this) as common.UIAbilityContext
+    void sourceMangaDetailSnapshotPersistence.hydrate(context).then((): void => {
+      if (this.active) this.count = sourceMangaDetailSnapshotCache.size()
+    }).catch((): void => {})
   }
 
   aboutToDisappear(): void { this.active = false }
@@ -26,8 +32,14 @@ export struct KomaPageCacheRow {
       message: AppStrings.format('cache_clear_confirm', AppStrings.get('cache_content_title')),
       primaryButton: { value: AppStrings.get('common_cancel'), action: () => {} },
       secondaryButton: { value: AppStrings.get('common_clear'), action: (): void => {
-        sourceMangaDetailSnapshotCache.clear()
-        if (this.active) this.count = 0
+        const context = getContext(this) as common.UIAbilityContext
+        void sourceMangaDetailSnapshotPersistence.hydrate(context).then((): void => {
+          sourceMangaDetailSnapshotCache.clear()
+          if (this.active) this.count = 0
+        }).catch((): void => {
+          sourceMangaDetailSnapshotCache.clear()
+          if (this.active) this.count = 0
+        })
       } },
     })
   }
