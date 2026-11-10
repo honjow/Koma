@@ -1830,11 +1830,15 @@ export struct ReaderPage {
   private verticalVisibleStart: number = 0
   private verticalVisibleEnd: number = 0
   @Local private continuousPageIndex: number = 0
+  @Local private pagedPageIndex: number = 0
   @Local private verticalZoomedPage: number = -1
   private measuredPageWidths: number[] = []
   private measuredPageHeights: number[] = []
   @Local private measuredPageRevision: number = 0
   @Local private activeDisplayIndex: number = 0
+  /** Swiper's .index() binding. Only external navigation moves it; swipe
+   * updates would make Swiper seek again over every cached page. */
+  private pagedSwiperIndex: number = 0
   @Local private activeSplitSide: ReaderSplitSide = 'none'
   @Local private readerGlobalX: number = 0
   @Local private readerGlobalY: number = 0
@@ -1919,12 +1923,13 @@ export struct ReaderPage {
     })
 
   private currentOverlayTapScope(): string {
-    return `${this.sourceSignature}:${this.pageIndex}:${this.activeDisplayIndex}`
+    return `${this.sourceSignature}:${this.displayPageIndex()}:${this.activeDisplayIndex}`
   }
 
   aboutToAppear(): void {
     this.closing = false
     this.continuousPageIndex = this.pageIndex
+    this.pagedPageIndex = this.pageIndex
     this.gazeTurnOverride = null
     this.turnAssistMenuShown = false
     this.preloadNetworkMonitor = new ReaderPreloadNetworkMonitor((wifi: boolean): void => {
@@ -1941,10 +1946,12 @@ export struct ReaderPage {
 
   @Monitor('pageIndex')
   private onCommittedPageIndexChanged(): void {
-    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) this.continuousPageIndex = this.pageIndex
+    this.continuousPageIndex = this.pageIndex
+    this.pagedPageIndex = this.pageIndex
   }
 
   aboutToDisappear(): void {
+    this.commitLocalPageIndex()
     this.overlayTapArbiter.cancel()
     this.preloadNetworkMonitor?.dispose()
     this.preloadNetworkMonitor = null
@@ -2013,12 +2020,13 @@ export struct ReaderPage {
       return
     }
     this.scheduleStatusBarVisibility()
-    if (this.isLastReadingUnitVisibleAndLoaded(this.pageIndex)) this.persistCurrentProgress()
+    if (this.isLastReadingUnitVisibleAndLoaded(this.displayPageIndex())) this.persistCurrentProgress()
   }
 
   @Monitor('appForegroundState.active', 'sessionLoading')
   private onReaderForegroundChanged(): void {
-    if (this.isLastReadingUnitVisibleAndLoaded(this.pageIndex)) this.persistCurrentProgress()
+    if (!this.appForegroundState.active) this.commitLocalPageIndex()
+    if (this.isLastReadingUnitVisibleAndLoaded(this.displayPageIndex())) this.persistCurrentProgress()
   }
 
   @Monitor('closeRequestId')
@@ -2027,6 +2035,7 @@ export struct ReaderPage {
       return
     }
     this.observedCloseRequestId = this.closeRequestId
+    this.commitLocalPageIndex()
     this.closeReaderRoute()
   }
 
@@ -2203,6 +2212,7 @@ export struct ReaderPage {
     this.statusBarEpoch += 1
     this.clearStatusBarHideTimer()
     this.stopAutoPage()
+    this.commitLocalPageIndex()
     this.persistCurrentProgress()
     this.sessionStore.flush()
     this.applyAppStatusBarVisible(this.appShellUsesDarkMode()).then(() => {
@@ -2317,6 +2327,8 @@ export struct ReaderPage {
     this.displayPageSourceKey = ''
     this.resetZoomState()
     this.rebuildReaderPageSources()
+    this.continuousPageIndex = this.pageIndex
+    this.pagedPageIndex = this.pageIndex
     this.refreshPageDataSources(true)
     if (resetPage && this.sessionConfig.totalPages > 0 && this.pageIndex >= this.sessionConfig.totalPages) {
       this.emitPageIndex(this.sessionConfig.totalPages - 1)
@@ -2411,7 +2423,7 @@ export struct ReaderPage {
     const displayKey = `${pageKey}:${this.effectiveMode()}:${this.preferences.wideImageMode}:${this.preferences.readingDirection}:${splitWidePages ? wideIndexes.join(',') : ''}`
     if (force || displayKey !== this.displayPageSourceKey) {
       const total = this.sessionConfig.totalPages
-      const sourcePage = total <= 0 ? 0 : Math.max(0, Math.min(this.pageIndex, total - 1))
+      const sourcePage = total <= 0 ? 0 : Math.max(0, Math.min(this.displayPageIndex(), total - 1))
       const preferredSide = this.activeSplitSide
       const pages = buildReaderDisplayPages(
         total,
@@ -2424,6 +2436,7 @@ export struct ReaderPage {
       this.displayPageSource.setPages(pages)
       const displayIndex = readerDisplayIndexForPage(pages, sourcePage, preferredSide)
       this.activeDisplayIndex = Math.max(0, displayIndex)
+      this.pagedSwiperIndex = this.activeDisplayIndex
       const activePage = this.currentDisplayPage()
       this.activeSplitSide = activePage?.splitSide ?? 'none'
       if (this.routeVisible && this.usesDisplayPagePager() && pages.length > 0) {
@@ -2494,7 +2507,7 @@ export struct ReaderPage {
   }
 
   private pageImageSourceLabel(): string {
-    return this.sourceFor(this.pageIndex).kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE
+    return this.sourceFor(this.displayPageIndex()).kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE
       ? s('reader_image_info_local')
       : s('reader_image_info_cached')
   }
@@ -2507,7 +2520,13 @@ export struct ReaderPage {
   }
 
   private displayPageIndex(): number {
-    return this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL ? this.continuousPageIndex : this.pageIndex
+    return this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL ? this.continuousPageIndex : this.pagedPageIndex
+  }
+
+  /** Publish the live page only at a host-visible boundary, not on every swipe. */
+  private commitLocalPageIndex(): void {
+    const page = this.displayPageIndex()
+    if (page !== this.pageIndex) this.emitPageIndex(page)
   }
 
   private imageExtension(path: string): string {
@@ -2525,7 +2544,7 @@ export struct ReaderPage {
   }
 
   private async pageImageFileForSystemAction(): Promise<string> {
-    const source = this.sourceFor(this.pageIndex)
+    const source = this.sourceFor(this.displayPageIndex())
     if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER ||
       (source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST && source.imageUri.length === 0)) {
       throw new Error('reader_page_source_unavailable')
@@ -2702,9 +2721,10 @@ export struct ReaderPage {
   private setDisplayPage(index: number, animated: boolean = this.preferences.pageTurnAnimation): void {
     const previousDisplayIndex = this.activeDisplayIndex
     const page = this.setActiveDisplayIndex(index)
-    if (page === undefined || (previousDisplayIndex === this.activeDisplayIndex && page.pageIndex === this.pageIndex)) {
+    if (page === undefined || (previousDisplayIndex === this.activeDisplayIndex && page.pageIndex === this.displayPageIndex())) {
       return
     }
+    this.pagedPageIndex = page.pageIndex
     this.resetZoomState()
     if (page.pageIndex !== this.pageIndex) {
       this.emitPageIndex(page.pageIndex)
@@ -2719,9 +2739,7 @@ export struct ReaderPage {
     if (page === undefined) {
       return
     }
-    if (page.pageIndex !== this.pageIndex) {
-      this.emitPageIndex(page.pageIndex)
-    }
+    this.pagedPageIndex = page.pageIndex
     this.persistProgress(page.pageIndex)
   }
 
@@ -2730,9 +2748,9 @@ export struct ReaderPage {
       return this.activeDisplayIndex > 0
     }
     if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
-      return this.spreadIndexForPage(this.pageIndex) > 0
+      return this.spreadIndexForPage(this.displayPageIndex()) > 0
     }
-    return this.pageIndex > 0
+    return this.displayPageIndex() > 0
   }
 
   private canNext(): boolean {
@@ -2740,15 +2758,15 @@ export struct ReaderPage {
       return this.activeDisplayIndex + 1 < this.displayPages.length
     }
     if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
-      return this.spreadIndexForPage(this.pageIndex) + 1 < this.spreadIndexes().length
+      return this.spreadIndexForPage(this.displayPageIndex()) + 1 < this.spreadIndexes().length
     }
-    return this.pageIndex + 1 < this.sessionConfig.totalPages
+    return this.displayPageIndex() + 1 < this.sessionConfig.totalPages
   }
   private chapterIndex(): number { return Math.max(0, this.sessionConfig.chapterIds.indexOf(this.sessionConfig.chapterId)) }
 
   private canTurnOnePageInDoublePage(): boolean {
     return this.effectiveMode() === ReaderMode.DUAL_PAGE &&
-      this.pageIndex + 1 < this.sessionConfig.totalPages
+      this.displayPageIndex() + 1 < this.sessionConfig.totalPages
   }
 
   private turnOnePageInDoublePage(): void {
@@ -2756,7 +2774,7 @@ export struct ReaderPage {
     if (!this.canTurnOnePageInDoublePage()) {
       return
     }
-    const target = this.pageIndex + 1
+    const target = this.displayPageIndex() + 1
     const next = this.copyPreferences()
     // NextE alternates the first spread parity when stepping one page so the
     // newly exposed page becomes the leading page of the next spread.
@@ -2779,7 +2797,9 @@ export struct ReaderPage {
       }
       return
     }
-    if (target === this.pageIndex) return
+    if (target === this.displayPageIndex()) return
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) this.continuousPageIndex = target
+    else this.pagedPageIndex = target
     this.resetZoomState()
     if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) {
       this.emitPageIndex(target)
@@ -2801,13 +2821,13 @@ export struct ReaderPage {
     }
     if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
       const starts = this.spreadIndexes()
-      const nextSpread = this.spreadIndexForPage(this.pageIndex) + 1
+      const nextSpread = this.spreadIndexForPage(this.displayPageIndex()) + 1
       if (nextSpread >= 0 && nextSpread < starts.length) {
         this.setPage(starts[nextSpread])
       }
       return
     }
-    this.setPage(this.pageIndex + 1)
+    this.setPage(this.displayPageIndex() + 1)
   }
 
   private previousPage(): void {
@@ -2817,13 +2837,13 @@ export struct ReaderPage {
     }
     if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
       const starts = this.spreadIndexes()
-      const previousSpread = this.spreadIndexForPage(this.pageIndex) - 1
+      const previousSpread = this.spreadIndexForPage(this.displayPageIndex()) - 1
       if (previousSpread >= 0 && previousSpread < starts.length) {
         this.setPage(starts[previousSpread])
       }
       return
     }
-    this.setPage(this.pageIndex - 1)
+    this.setPage(this.displayPageIndex() - 1)
   }
 
   private scrollContinuousTo(index: number, animated: boolean): void {
@@ -2851,6 +2871,8 @@ export struct ReaderPage {
   }
 
   private onModeChange(mode: ReaderMode): void {
+    const currentPage = this.displayPageIndex()
+    this.commitLocalPageIndex()
     const previous = this.copyPreferences()
     const next = this.copyPreferences()
     next.pageMode = mode === ReaderMode.DUAL_PAGE ? 'double_page' :
@@ -2863,11 +2885,12 @@ export struct ReaderPage {
     this.preferenceRevision += 1
     this.refreshPageDataSources()
     this.emitWebtoonMode(mode === ReaderMode.CONTINUOUS_SCROLL)
-    if (mode === ReaderMode.CONTINUOUS_SCROLL) this.continuousPageIndex = this.pageIndex
+    if (mode === ReaderMode.CONTINUOUS_SCROLL) this.continuousPageIndex = currentPage
+    else this.pagedPageIndex = currentPage
     this.persistPreferences(previous, next)
     this.resetZoomState()
     if (mode === ReaderMode.CONTINUOUS_SCROLL) {
-      this.continuousInitialTarget = this.pageIndex
+      this.continuousInitialTarget = currentPage
       setTimeout(() => {
         if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && this.continuousInitialTarget >= 0) {
           this.listScroller.scrollToIndex(this.continuousInitialTarget, false, ScrollAlign.START)
@@ -2945,11 +2968,15 @@ export struct ReaderPage {
   }
 
   private applyPreferences(next: ReaderPreferences, persist: boolean): void {
+    const currentPage = this.displayPageIndex()
+    this.commitLocalPageIndex()
     const previous = this.copyPreferences()
     const previousMode = this.effectiveMode()
     const previousTapZone = this.preferences.tapZonePreset
     const previousTapInvert = this.preferences.tapZoneInvert
     this.preferences = next
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) this.continuousPageIndex = currentPage
+    else this.pagedPageIndex = currentPage
     if (previous.eyeGazePageTurnEnabled !== next.eyeGazePageTurnEnabled) {
       this.gazeTurnOverride = null
       if (next.eyeGazePageTurnEnabled) this.stopAutoPage()
@@ -2969,7 +2996,7 @@ export struct ReaderPage {
     this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
     this.emitWebtoonMode(this.preferences.pageMode === 'continuous_scroll' || this.preferences.readingDirection === ReadingDirection.WEBTOON)
     if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && previousMode !== ReaderMode.CONTINUOUS_SCROLL) {
-      this.continuousInitialTarget = this.pageIndex
+      this.continuousInitialTarget = currentPage
       setTimeout(() => {
         if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && this.continuousInitialTarget >= 0) {
           this.listScroller.scrollToIndex(this.continuousInitialTarget, false, ScrollAlign.START)
@@ -3035,7 +3062,7 @@ export struct ReaderPage {
       this.verticalVisibleStart <= last && this.verticalVisibleEnd >= last
   }
 
-  private persistProgress(index: number = this.pageIndex): void {
+  private persistProgress(index: number = this.displayPageIndex()): void {
     if (this.sessionConfig.comicId.length === 0 || this.sessionConfig.chapterId.length === 0 || this.sessionConfig.totalPages <= 0) return
     // A source failure placeholder has no real reading position.
     if (this.sessionConfig.pageUris.includes('source-placeholder://chapter')) return
@@ -3114,7 +3141,7 @@ export struct ReaderPage {
    * the user-selected cache depth because that cache hides network latency.
    */
   private pagerCachedPageCount(): number {
-    const activeSource = this.sourceFor(this.pageIndex)
+    const activeSource = this.sourceFor(this.displayPageIndex())
     if (activeSource.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
       return 0
     }
@@ -3126,9 +3153,9 @@ export struct ReaderPage {
 
   private reportVisibleReadingPages(): void {
     if (!this.readerOpen || !this.routeVisible || !this.appForegroundState.active || this.sessionLoading || this.closing) return
-    let pages: number[] = [this.pageIndex]
+    let pages: number[] = [this.displayPageIndex()]
     if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
-      const second = this.spreadSecondIndex(this.pageIndex)
+      const second = this.spreadSecondIndex(this.displayPageIndex())
       if (second >= 0 && second < this.sessionConfig.totalPages) pages.push(second)
     } else if (!this.usesDisplayPagePager() && this.verticalVisibleStart >= 0) {
       pages = []
@@ -3153,7 +3180,7 @@ export struct ReaderPage {
     }
     this.maybeResumeAutoPage(index)
     this.reportVisibleReadingPages()
-    if (this.isLastReadingUnitVisibleAndLoaded(this.pageIndex)) this.persistCurrentProgress()
+    if (this.isLastReadingUnitVisibleAndLoaded(this.displayPageIndex())) this.persistCurrentProgress()
   }
 
   private isPageReadyForAutoPage(index: number): boolean {
@@ -3171,10 +3198,10 @@ export struct ReaderPage {
 
   private nextAutoPageIndex(): number {
     if (this.effectiveMode() !== ReaderMode.DUAL_PAGE) {
-      return this.pageIndex + 1
+      return this.displayPageIndex() + 1
     }
     const starts = this.spreadIndexes()
-    const currentSpread = this.spreadIndexForPage(this.pageIndex)
+    const currentSpread = this.spreadIndexForPage(this.displayPageIndex())
     const nextSpread = currentSpread + 1
     return nextSpread >= 0 && nextSpread < starts.length ? starts[nextSpread] : -1
   }
@@ -3307,11 +3334,11 @@ export struct ReaderPage {
 
   private doubleTapTargetForPagedMode(x: number): number {
     if (this.effectiveMode() !== ReaderMode.DUAL_PAGE) {
-      return this.pageIndex
+      return this.displayPageIndex()
     }
     const starts = this.spreadIndexes()
-    const spread = this.spreadIndexForPage(this.pageIndex)
-    const start = spread >= 0 && spread < starts.length ? starts[spread] : this.pageIndex
+    const spread = this.spreadIndexForPage(this.displayPageIndex())
+    const start = spread >= 0 && spread < starts.length ? starts[spread] : this.displayPageIndex()
     const second = this.hasSpreadSecond(start) ? this.spreadSecondIndex(start) : -1
     if (second < 0) {
       return start
@@ -3497,7 +3524,7 @@ export struct ReaderPage {
 
   private sourceRetryConfig: ReaderSessionConfig | null = null
 
-  private retryCurrentPage(index: number = this.pageIndex): void {
+  private retryCurrentPage(index: number = this.displayPageIndex()): void {
     if (this.canAuthenticatePage(index)) this.authenticatePage(index)
     else this.performPageRetry(index)
   }
@@ -3548,7 +3575,7 @@ export struct ReaderPage {
 
   /** The current reading unit is the chapter's real last one (and is loaded). */
   private isAtForwardBoundaryUnit(): boolean {
-    if (!this.isLastReadingUnitVisibleAndLoaded(this.pageIndex)) {
+    if (!this.isLastReadingUnitVisibleAndLoaded(this.displayPageIndex())) {
       return false
     }
     // Continuous scrolling adds its own real-bottom requirement: the last image
@@ -3561,7 +3588,7 @@ export struct ReaderPage {
       return this.displayPages.length > 0 && this.activeDisplayIndex === 0
     }
     if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
-      return this.spreadIndexForPage(this.pageIndex) === 0
+      return this.spreadIndexForPage(this.displayPageIndex()) === 0
     }
     return this.listScroller.currentOffset().yOffset <= 0 && this.verticalVisibleStart <= 0
   }
@@ -3593,7 +3620,7 @@ export struct ReaderPage {
 
   private pagedBoundaryMotion(index: number, offset: number): void {
     const current = this.effectiveMode() === ReaderMode.DUAL_PAGE
-      ? this.spreadIndexForPage(this.pageIndex) : this.activeDisplayIndex
+      ? this.spreadIndexForPage(this.displayPageIndex()) : this.activeDisplayIndex
     if (index === current && this.pagedBoundaryScope === `${this.sessionConfig.chapterId}:${this.currentOverlayTapScope()}`) {
       this.pagedBoundarySwipe.observeNative(offset)
     }
@@ -3683,9 +3710,9 @@ export struct ReaderPage {
       return this.verticalZoomedPage < 0 || index === this.verticalZoomedPage
     }
     if (this.effectiveMode() !== ReaderMode.DUAL_PAGE) {
-      return index === this.pageIndex && (splitSide === 'none' || splitSide === this.activeSplitSide)
+      return index === this.displayPageIndex() && (splitSide === 'none' || splitSide === this.activeSplitSide)
     }
-    const start = this.spreadIndexes()[this.spreadIndexForPage(this.pageIndex)]
+    const start = this.spreadIndexes()[this.spreadIndexForPage(this.displayPageIndex())]
     return index === start || index === this.spreadSecondIndex(start)
   }
 
@@ -3779,7 +3806,7 @@ export struct ReaderPage {
         this.ReaderPageSlot(page.pageIndex, page.splitSide)
       }, (page: ReaderDisplayPage) => `reader-page-${page.pageIndex}-${page.splitSide}`)
     }
-    .index(this.activeDisplayIndex)
+    .index(this.pagedSwiperIndex)
     .direction(this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? Direction.Rtl : Direction.Ltr)
     .vertical(this.effectiveMode() === ReaderMode.VERTICAL_PAGE)
     .loop(false)
@@ -3801,7 +3828,7 @@ export struct ReaderPage {
         this.ReaderPageSlot(page.pageIndex, page.splitSide)
       }, (page: ReaderDisplayPage) => `reader-vertical-paged-${page.pageIndex}-${page.splitSide}`)
     }
-    .index(this.activeDisplayIndex)
+    .index(this.pagedSwiperIndex)
     .direction(Direction.Ltr)
     .vertical(true)
     .loop(false)
@@ -3868,7 +3895,7 @@ export struct ReaderPage {
         })
       }, (start: number) => `reader-spread-${start}`)
     }
-    .index(this.spreadIndexForPage(this.pageIndex))
+    .index(this.spreadIndexForPage(this.displayPageIndex()))
     .direction(this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? Direction.Rtl : Direction.Ltr)
     .vertical(false)
     .loop(false)
@@ -3882,14 +3909,14 @@ export struct ReaderPage {
       this.resetZoomState()
       const starts = this.spreadIndexes()
       const page = index >= 0 && index < starts.length ? starts[index] : 0
-      this.emitPageIndex(page)
+      this.pagedPageIndex = page
       this.persistProgress(page)
     })
   }
 
   @Builder
   private ContinuousReader() {
-    List({ initialIndex: this.pageIndex, scroller: this.listScroller }) {
+    List({ initialIndex: this.displayPageIndex(), scroller: this.listScroller }) {
       LazyForEach(this.pageIndexSource, (index: number) => {
         ListItem() {
           this.ReaderPageSlot(index, 'none', false, true)
@@ -3931,13 +3958,13 @@ export struct ReaderPage {
 
   @Builder
   private ReaderThumbnailStrip() {
-    List({ initialIndex: this.pageIndex, scroller: this.thumbnailScroller, space: ThemeConstants.SPACE_SM }) {
+    List({ initialIndex: this.displayPageIndex(), scroller: this.thumbnailScroller, space: ThemeConstants.SPACE_SM }) {
       LazyForEach(this.pageIndexSource, (index: number) => {
         ListItem() {
           ReaderThumbnailTile({
             source: this.sourceFor(index),
             pageIndex: index,
-            selected: index === this.pageIndex,
+            selected: index === this.displayPageIndex(),
             sourceWidth: this.pageWidth(index) ?? 0,
             sourceHeight: this.pageHeight(index) ?? 0,
             thumbnailCache: this.thumbnailPixelMapCache,
@@ -4050,7 +4077,7 @@ export struct ReaderPage {
       canGoPreviousChapter: this.continuationChapterIds().indexOf(this.sessionConfig.chapterId) > 0,
       canGoNextChapter: this.continuationChapterIds().indexOf(this.sessionConfig.chapterId) >= 0 &&
         this.continuationChapterIds().indexOf(this.sessionConfig.chapterId) + 1 < this.continuationChapterIds().length,
-      pageFailed: this.failedPages.includes(this.pageIndex),
+      pageFailed: this.failedPages.includes(this.displayPageIndex()),
       zoomScale: this.zoomScale,
       autoPageActive: this.autoPageActive,
       gazeSelected: this.gazeRequested(),
@@ -4058,11 +4085,12 @@ export struct ReaderPage {
       gazeAvailable: this.readerOpen && !this.sessionLoading && this.sessionConfig.totalPages > 0,
       canTurnOnePageInDoublePage: this.canTurnOnePageInDoublePage(),
       thumbStripVisible: this.thumbnailStripVisible,
-      pageImageWidth: this.pageWidth(this.pageIndex) ?? 0,
-      pageImageHeight: this.pageHeight(this.pageIndex) ?? 0,
+      pageImageWidth: this.pageWidth(this.displayPageIndex()) ?? 0,
+      pageImageHeight: this.pageHeight(this.displayPageIndex()) ?? 0,
       pageImageSourceLabel: this.pageImageSourceLabel(),
       thumbnailStrip: (): void => { this.ReaderThumbnailStrip() },
       onVisibleChange: (visible: boolean) => {
+        if (visible) this.commitLocalPageIndex()
         this.chromeShown = visible
         if (this.routeVisible) {
           this.setReaderStatusBarForChrome(visible)
