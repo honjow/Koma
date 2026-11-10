@@ -512,7 +512,7 @@ export class BrowseViewModel {
     return scope === 'browse' ? this.browseWebChallengeGate : this.searchWebChallengeGate
   }
 
-  private clearWebChallenge(scope: SourceWebChallengeScope): void {
+  private clearWebChallenge(scope: SourceWebChallengeScope, keepRejected: boolean = false): void {
     const authenticationGate = scope === 'browse' ? this.browseAuthenticationGate : this.searchAuthenticationGate
     authenticationGate.clear()
     if (scope === 'browse') this.browseAuthentication = null
@@ -521,7 +521,10 @@ export class BrowseViewModel {
     this.challengeGate(scope).clear()
     const receipt = scope === 'browse' ? this.browseWebChallenge : this.searchWebChallenge
     const handle = scope === 'browse' ? this.browseChallengeHandle : this.searchChallengeHandle
-    if (receipt !== null && handle !== undefined) clearSourceRejectedRequest(receipt.sourceId, handle)
+    // A verified retry re-enters this load path while it still owns the one
+    // response/document staged for its original request. Clearing that here
+    // would force the retried read back to the unverified network.
+    if (!keepRejected && receipt !== null && handle !== undefined) clearSourceRejectedRequest(receipt.sourceId, handle)
     if (scope === 'browse') { this.browseWebChallenge = null; this.browseChallengeHandle = undefined }
     else { this.searchWebChallenge = null; this.searchChallengeHandle = undefined }
   }
@@ -775,8 +778,8 @@ export class BrowseViewModel {
     this.browseDestinationCache.set(key, snapshot)
   }
 
-  private beginBrowseLoad(intent: BrowseLoadIntent, retainsCurrentContent: boolean): void {
-    this.clearWebChallenge('browse')
+  private beginBrowseLoad(intent: BrowseLoadIntent, retainsCurrentContent: boolean, keepRejected: boolean = false): void {
+    this.clearWebChallenge('browse', keepRejected)
     this.loadingBrowse = true
     this.browseLoadIntent = intent
     this.browseErrorIntent = BrowseLoadIntent.NONE
@@ -961,7 +964,7 @@ export class BrowseViewModel {
       this.homeSections = []
       this.applyBrowseListing(listing, cached?.listingResult ?? { manga: [], hasNextPage: false }, 1)
     }
-    this.beginBrowseLoad(BrowseLoadIntent.LISTING_REPLACEMENT, cached !== undefined)
+    this.beginBrowseLoad(BrowseLoadIntent.LISTING_REPLACEMENT, cached !== undefined, operationGuardId !== undefined)
     if (cached !== undefined && !this.hasBrowseContent()) this.browseContentState = BrowseContentState.EMPTY
     const challengeCurrent = this.webChallengeGuard('browse')
     try {
@@ -1204,7 +1207,7 @@ export class BrowseViewModel {
       this.hasMoreBrowse = false
       return
     }
-    this.beginBrowseLoad(BrowseLoadIntent.PAGINATION, true)
+    this.beginBrowseLoad(BrowseLoadIntent.PAGINATION, true, operationGuardId !== undefined)
     const challengeCurrent = this.webChallengeGuard('browse')
     try {
       const more = await this.loadMangaListing(source, listing.id, page, cursor, this.browseFilterValues, this.filters, challengeCurrent, operationGuardId)
@@ -1261,7 +1264,9 @@ export class BrowseViewModel {
     this.loadingSearch = true
     this.searchErrorMessage = ''
     this.searchNeedsWebSession = false
-    this.clearWebChallenge('search')
+    // A verified search retry re-enters with its operation guard. Keep the
+    // staged response/document for that exact read; only a fresh search clears it.
+    this.clearWebChallenge('search', operationGuardId !== undefined)
     let challengeCurrent = this.webChallengeGuard('search')
     let continueEmptyPage = false
     try {
@@ -1362,7 +1367,7 @@ export class BrowseViewModel {
     this.loadingSearch = true
     this.searchErrorMessage = ''
     this.searchNeedsWebSession = false
-    this.clearWebChallenge('search')
+    this.clearWebChallenge('search', operationGuardId !== undefined)
     let challengeCurrent = this.webChallengeGuard('search')
     try {
       // Empty filtered pages do not change the native grid's geometry, so it

@@ -14,6 +14,8 @@ import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGate'
+import { clearSourceRejectedRequest, selectSourceRejectedRequest } from '../sourceRuntime/SourceRuntimeHttpTransport'
+import { newSourceRuntimeOperationGuardId, registerSourceRuntimeOperationGuard } from '../sourceRuntime/SourceRuntimeOperationGuard'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
@@ -412,6 +414,7 @@ export struct MangaDetailPage {
   @Local private detailWebChallengeShown: boolean = false
   @Local private detailWebChallengeParams: MangaWebRouteParam = { url: '', title: '' }
   private detailWebChallengeGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+  private detailChallengeHandle?: string
   @Local private detailAuthentication: SourceWebChallengeReceipt | null = null
   @Local private authentication: SourceAuthenticationRequest | null = null
   private detailAuthenticationGate: SourceWebChallengeGate = new SourceWebChallengeGate()
@@ -433,11 +436,18 @@ export struct MangaDetailPage {
   private detailWebChallengeId: number = 0
   private detailWebChallengeClosing: boolean = false
 
-  private clearDetailWebChallenge(): void {
+  private clearDetailWebChallenge(keepRejected: boolean = false): void {
     this.detailAuthenticationGate.clear()
     this.detailAuthentication = null
     this.detailWebChallengeGate.clear()
     this.detailWebChallenge = null
+    // The verified retry re-enters with the same operation guard; clearing its
+    // staged response here would force the retried read back to the network.
+    if (keepRejected) return
+    const handle = this.detailChallengeHandle
+    this.detailChallengeHandle = undefined
+    const sourceId = this.sourceDetailRegistryEntry?.sourceId ?? this.params.sourceId?.trim() ?? ''
+    if (handle !== undefined && sourceId.length > 0) clearSourceRejectedRequest(sourceId, handle)
   }
 
   @Monitor('chrome.visible', 'detailWebChallenge')
@@ -508,7 +518,7 @@ export struct MangaDetailPage {
     this.detailWebChallenge = this.detailWebChallengeGate.issue(sourceId, 'detail', eligible,
       (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId),
       async (): Promise<void> => { await this.loadSourceMangaDetail(sourceId, mangaId, true, true, retryStage) },
-      error instanceof SourceRuntimeError && error.diagnostic.kind === 'challenge')
+      error instanceof SourceRuntimeError && error.diagnostic.kind === 'challenge', this.detailChallengeHandle)
   }
 
   @Builder
@@ -856,10 +866,10 @@ export struct MangaDetailPage {
     let waitingForWifi = false
     try {
       const queue = this.downloadQueue()
-      const preferences = queue.loadPreferences()
-      paused = preferences.isPaused
-      waitingForWifi = !paused && !canRunOfflineDownloadQueueNow(preferences)
-      queue.load().forEach((entry: OfflineDownloadQueueEntry) => {
+      const snapshot = queue.loadSnapshot()
+      paused = snapshot.preferences.isPaused
+      waitingForWifi = !paused && !canRunOfflineDownloadQueueNow(snapshot.preferences)
+      snapshot.entries.forEach((entry: OfflineDownloadQueueEntry) => {
         if (entry.comicId === comicId) summaries.set(entry.chapterId, entry)
       })
     } catch (error) {
@@ -1080,7 +1090,7 @@ export struct MangaDetailPage {
   private async loadSourceMangaDetail(sourceId: string, mangaId: string, forceReload: boolean = false,
     automaticRecovery: boolean = false, retryStage: 'detail' | 'chapters' = 'detail'): Promise<void> {
     this.closeDetailWebChallenge()
-    this.clearDetailWebChallenge()
+    this.clearDetailWebChallenge(automaticRecovery)
     const retainedDetail = this.sourceDetailDataResolved ? this.manga : undefined
     const retainedChapters = retainedDetail === undefined ? [] : this.chapters.slice()
     const retainedChaptersResolved = this.sourceChaptersResolved
@@ -1140,7 +1150,10 @@ export struct MangaDetailPage {
         detail = retainedDetail
         chapters = retainedChapters
       } else {
-        const loaded = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
+        const detailGuardId = this.detailChallengeHandle ?? newSourceRuntimeOperationGuardId()
+        this.detailChallengeHandle = detailGuardId
+        const loaded = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId, detailGuardId,
+          (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId))
         if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
           return
         }
@@ -1466,18 +1479,32 @@ export struct MangaDetailPage {
   private async runSourceMangaOperation(
     entry: SourceRuntimeRegistryEntry,
     operation: string,
-    mangaId: string
+    mangaId: string,
+    guardId?: string,
+    isActive?: () => boolean,
   ): Promise<SourceMangaDetailLoadResult> {
     const args: SourceMangaRequestArgs = { mangaId, mangaUrl: this.sourceMangaRouteUrl(entry.sourceId, mangaId) }
     const request = this.buildSourceDetailRequestJson(entry.sourceId, operation, args, { network: true })
-    const responseJson = await diagnoseSourceOperation(request, () => executeMangaDetailSourceOperation(
-      request,
-      this.copyWasmBytes(entry),
-      sourceHttpIdentityJson(entry, undefined, operation === 'get_manga', operation),
-    ))
+    const releaseGuard = guardId === undefined || isActive === undefined ? undefined :
+      registerSourceRuntimeOperationGuard(guardId, isActive)
+    let responseJson: string
+    try {
+      responseJson = await diagnoseSourceOperation(request, () => executeMangaDetailSourceOperation(
+        request,
+        this.copyWasmBytes(entry),
+        sourceHttpIdentityJson(entry, guardId, operation === 'get_manga', operation),
+      ))
+    } finally {
+      releaseGuard?.()
+    }
     const runtimeResponse = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (runtimeResponse.ok !== true) {
-      throw new SourceRuntimeError(runtimeResponse)
+      const runtimeError = new SourceRuntimeError(runtimeResponse)
+      if (guardId !== undefined && (runtimeError.diagnostic.kind === 'challenge' ||
+        (runtimeError.diagnostic.code === 'auth_required' && entry.authentication === undefined))) {
+        selectSourceRejectedRequest(entry.sourceId, guardId, runtimeError.challengeRequestId)
+      }
+      throw runtimeError
     }
     const response = runtimeResponse as SourceOperationResponsePayload
     const item = this.sourceMangaResponseItem(response)
