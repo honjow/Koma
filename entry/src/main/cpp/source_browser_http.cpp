@@ -183,7 +183,8 @@ napi_value KomaSourceBrowserHttp(napi_env e, napi_callback_info info) {
       napi_get_array_length(e, v[2], &n) != napi_ok || n > 128 ||
       napi_get_value_int64(e, v[3], &timeout) != napi_ok || timeout < 1 ||
       timeout > 60000 || !str(e, v[4], w->profile, 32) ||
-      (w->profile != "firefox133" && w->profile != "chrome145")) {
+      (w->profile != "firefox133" && w->profile != "chrome145" &&
+       w->profile != "chrome116" && w->profile != "chrome131_android")) {
     napi_throw_type_error(e, nullptr, "invalid request");
     return nullptr;
   }

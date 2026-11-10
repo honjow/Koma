@@ -2,7 +2,10 @@ import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { webview } from '@kit.ArkWeb'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { hasNewSourceClearance, sourceClearanceCookieState } from '../sourceRuntime/SourceWebChallengeGate'
-import { cancelSourceWebProbe, probeSourceWebSession, sourceRejectedRequestUserAgent } from '../sourceRuntime/SourceRuntimeHttpTransport'
+import { cancelSourceWebDocument, cancelSourceWebProbe, probeSourceWebSession, sourceRejectedRequestUserAgent,
+  stageSourceWebDocument } from '../sourceRuntime/SourceRuntimeHttpTransport'
+import { renderedDocumentFallbackEnabled as sourceRenderedDocumentFallbackEnabled,
+  renderedDocumentReadySelector } from '../sourceRuntime/SourceWebsitePolicy'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { AppStrings } from '../i18n/AppStrings'
 import { mangaHttpUrl } from '../model/MangaWebLink'
@@ -35,6 +38,7 @@ export struct SourceWebSessionSheet {
   private pageUrl: string = ''
   private pageFailed: boolean = false
   private pageHttpStatus: number = 0
+  private autoDocumentAttempt: number = 0
   private active: boolean = false
   private epoch: number = 0
   private controller: webview.WebviewController = new webview.WebviewController()
@@ -51,7 +55,10 @@ export struct SourceWebSessionSheet {
     this.controllerReady = false
     this.clearanceBaseline = undefined
     const session = this.params.sourceSession
-    if (!this.completed && session !== undefined) cancelSourceWebProbe(session.sourceId, session.sessionId)
+    if (!this.completed && session !== undefined) {
+      cancelSourceWebProbe(session.sourceId, session.sessionId)
+      cancelSourceWebDocument(session.sourceId, session.sessionId)
+    }
   }
 
   @Monitor('params')
@@ -64,6 +71,8 @@ export struct SourceWebSessionSheet {
     this.pageUrl = ''
     this.pageFailed = false
     this.pageHttpStatus = 0
+    const session = this.params.sourceSession
+    if (session !== undefined) cancelSourceWebDocument(session.sourceId, session.sessionId)
     if (this.active && this.controllerReady) this.loadInitialPage()
   }
 
@@ -74,7 +83,10 @@ export struct SourceWebSessionSheet {
     this.epoch += 1
     this.clearanceBaseline = undefined
     const session = this.params.sourceSession
-    if (session !== undefined) cancelSourceWebProbe(session.sourceId, session.sessionId)
+    if (session !== undefined) {
+      cancelSourceWebProbe(session.sourceId, session.sessionId)
+      cancelSourceWebDocument(session.sourceId, session.sessionId)
+    }
     this.onClose()
   }
 
@@ -97,6 +109,11 @@ export struct SourceWebSessionSheet {
   private loadInitialPage(): void {
     if (!this.active) return
     this.controllerReady = true
+    // Cloudflare Turnstile runs in a cross-origin iframe; its cookies must be accepted.
+    try {
+      webview.WebCookieManager.putAcceptCookieEnabled(true)
+      webview.WebCookieManager.putAcceptThirdPartyCookieEnabled(true)
+    } catch (_error) {}
     const url = mangaHttpUrl(this.params.url)
     if (url === undefined) {
       this.loading = false
@@ -105,6 +122,32 @@ export struct SourceWebSessionSheet {
     const session = this.params.sourceSession
     const loginUserAgent = session === undefined ? undefined :
       appSourceWebSessionStore.pendingLoginUserAgent(session.sourceId, session.sessionId)
+    const declaredWebUserAgent = session === undefined ? undefined :
+      appSourceRuntimeRegistry.lookup(session.sourceId).entry?.websitePolicy?.webSessionUserAgent
+    const androidWebAgent = session === undefined ? false :
+      appSourceRuntimeRegistry.lookup(session.sourceId).entry?.websitePolicy?.webSessionAndroidAgent === true
+    if (androidWebAgent) {
+      try {
+        const native = this.controller.getUserAgent()
+        this.controller.setCustomUserAgent(native.replace(') AppleWebKit', '; Android 10) AppleWebKit'))
+      } catch (_error) {
+        this.controllerReady = false
+        this.loading = false
+        DiagnosticLogger.warn('source_web_session', 'identity_setup_failed', 'stage=set_android_user_agent')
+        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
+        return
+      }
+    }
+    if (declaredWebUserAgent !== undefined && declaredWebUserAgent.length > 0 && !androidWebAgent) {
+      try { this.controller.setCustomUserAgent(declaredWebUserAgent) }
+      catch (_error) {
+        this.controllerReady = false
+        this.loading = false
+        DiagnosticLogger.warn('source_web_session', 'identity_setup_failed', 'stage=set_declared_user_agent')
+        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
+        return
+      }
+    }
     if (loginUserAgent !== undefined) {
       try { this.controller.setCustomUserAgent(loginUserAgent) }
       catch (_error) {
@@ -113,7 +156,7 @@ export struct SourceWebSessionSheet {
         return
       }
     }
-    if (session?.requestHandle !== undefined) {
+    if (session?.requestHandle !== undefined && declaredWebUserAgent === undefined && !androidWebAgent) {
       const requestUa = sourceRejectedRequestUserAgent(session.sourceId, session.requestHandle, url)
       // Explicitly reset the UA when the verified package declares the system
       // identity for this origin. Unified search can reuse this controller.
@@ -196,6 +239,14 @@ export struct SourceWebSessionSheet {
       ' failed=' + this.pageFailed + ' baselineKnown=' + (this.clearanceBaseline !== undefined) +
       ' matchingDocument=' + (event !== undefined && event.url === this.pageUrl) +
       ' sessionPresent=' + (this.params.sourceSession !== undefined))
+    const endedSession = this.params.sourceSession
+    if (endedSession !== undefined && event !== undefined && event.url === this.pageUrl && !this.pageFailed) {
+      void this.autoCompleteRenderedDocument(this.epoch, endedSession.sourceId, endedSession.sessionId)
+    }
+    // A declared readiness selector owns automatic completion; clearance/probe
+    // remains the path for sources that only declare the boolean fallback.
+    if (renderedDocumentReadySelector(endedSession === undefined ? undefined :
+      appSourceRuntimeRegistry.lookup(endedSession.sourceId).entry?.websitePolicy).length > 0) return
     if (!this.autoRetryOnClearance || this.autoRetryStarted ||
       this.clearanceBaseline === undefined || event === undefined || event.url !== this.pageUrl || this.params.sourceSession === undefined) return
     try {
@@ -272,8 +323,155 @@ export struct SourceWebSessionSheet {
     this.updateNavState()
   }
 
+  private renderedDocumentFallbackEnabled(sourceId: string): boolean {
+    return sourceRenderedDocumentFallbackEnabled(appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy)
+  }
+
+  private webFetchBridgeEnabled(sourceId: string): boolean {
+    return appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy?.webFetchBridge === true
+  }
+
+  /** Probe one same-origin in-page fetch to prove the WebView session can serve reads. */
+  private async probeWebViewFetch(sourceId: string): Promise<void> {
+    if (!this.webFetchBridgeEnabled(sourceId)) return
+    try {
+      const started = await this.controller.runJavaScript(
+        "(() => { try { const a = document.querySelector('div.grid > div.group a'); if (!a) return 'no-link'; const url = a.href; fetch(url, { credentials: 'include' }).then(async (r) => { const t = await r.text(); window.__komaWebFetch = JSON.stringify({ status: r.status, length: t.length }); }).catch(() => { window.__komaWebFetch = JSON.stringify({ status: -1, length: 0 }); }); return 'started'; } catch (e) { return 'error'; } })()")
+      if (this.decodeJavaScriptString(started) !== 'started') {
+        DiagnosticLogger.info('source_web_session', 'web_fetch_probe', 'state=' + String(started).slice(0, 16))
+        return
+      }
+      for (let index = 0; index < 20; index += 1) {
+        await this.delay(500)
+        const rawValue = await this.controller.runJavaScript('window.__komaWebFetch || ""')
+        const raw = typeof rawValue === 'string' ? this.decodeJavaScriptString(rawValue) : ''
+        if (raw.length > 0) {
+          try {
+            const parsed = JSON.parse(raw) as Record<string, Object>
+            DiagnosticLogger.info('source_web_session', 'web_fetch_probe',
+              'status=' + String(parsed['status']) + ' length=' + String(parsed['length']))
+          } catch (_error) {}
+          return
+        }
+      }
+      DiagnosticLogger.info('source_web_session', 'web_fetch_probe', 'state=timeout')
+    } catch (_error) {
+      DiagnosticLogger.info('source_web_session', 'web_fetch_probe', 'state=failed')
+    }
+  }
+
+  private delay(milliseconds: number): Promise<void> {
+    return new Promise<void>((resolve: (value: void) => void): void => {
+      setTimeout((): void => { resolve() }, milliseconds)
+    })
+  }
+
+  private decodeJavaScriptString(raw: string): string {
+    if (!raw.startsWith('"')) return raw
+    try { return JSON.parse(raw) as string } catch (_error) { return raw }
+  }
+
+  private async renderedDocumentReady(selector: string): Promise<boolean> {
+    try {
+      const raw = await this.controller.runJavaScript(
+        "(() => { try { return document.querySelector(" + JSON.stringify(selector) + ") !== null } catch (e) { return false } })()")
+      if (typeof raw !== 'string' || raw.length === 0 || raw.length > 16) return false
+      if (raw === 'true' || raw === '"true"') return true
+      return JSON.parse(raw) === true
+    } catch (_error) {
+      return false
+    }
+  }
+
+  /** Close the verification sheet only after the declared content actually exists. */
+  private async autoCompleteRenderedDocument(epoch: number, sourceId: string, sessionId: string): Promise<void> {
+    const policy = appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy
+    const selector = renderedDocumentReadySelector(policy)
+    if (selector.length === 0 || this.autoRetryStarted || this.loading || this.pageFailed || this.completing ||
+      this.completed) return
+    const attempt = this.autoDocumentAttempt + 1
+    this.autoDocumentAttempt = attempt
+    for (let index = 0; index < 4; index += 1) {
+      if (!this.isCurrent(epoch, sourceId, sessionId) || this.autoRetryStarted || this.loading ||
+        this.pageFailed || this.completing || this.autoDocumentAttempt !== attempt) return
+      if (await this.renderedDocumentReady(selector)) {
+        this.autoRetryStarted = true
+        await this.completeSourceSession(true, false, false, true)
+        return
+      }
+      await this.delay(600)
+    }
+  }
+
+  /** Capture only the visible requested document; no source JS, cookies or other tabs. */
+  private async stageRenderedDocument(epoch: number, sourceId: string, sessionId: string): Promise<boolean> {
+    const session = this.params.sourceSession
+    const requestHandle = session?.requestHandle
+    const policyEnabled = this.renderedDocumentFallbackEnabled(sourceId)
+    if (requestHandle === undefined || !policyEnabled || this.pageFailed || this.loading) {
+      DiagnosticLogger.info('source_web_session', 'document_capture_blocked',
+        'reason=' + (requestHandle === undefined ? 'no_request_handle' : !policyEnabled ? 'policy_disabled' :
+          this.pageFailed ? 'page_failed' : 'loading') + ' revision=' + this.pageRevision)
+      return false
+    }
+    try {
+      const raw = await this.controller.runJavaScript(
+        "(() => { try { return JSON.stringify({url: location.href, type: document.contentType || '', ready: document.readyState, html: document.documentElement ? document.documentElement.outerHTML : ''}) } catch (e) { return '' } })()")
+      if (!this.isCurrent(epoch, sourceId, sessionId) || typeof raw !== 'string' ||
+        raw.length === 0 || raw.length > 4 * 1024 * 1024) {
+        DiagnosticLogger.info('source_web_session', 'document_capture_blocked',
+          'reason=result_invalid current=' + this.isCurrent(epoch, sourceId, sessionId) +
+          ' string=' + (typeof raw === 'string') + ' length=' + (typeof raw === 'string' ? raw.length : -1))
+        return false
+      }
+      // ArkWeb returns the script value as JSON. A script that already returns
+      // a JSON string is encoded once more, so decode until a plain object is
+      // reached instead of silently reading an empty document.
+      let decoded: Object = JSON.parse(raw) as Object
+      let nested = false
+      if (typeof decoded === 'string') {
+        decoded = JSON.parse(decoded as string) as Object
+        nested = true
+      }
+      if (decoded === null || typeof decoded !== 'object' || Array.isArray(decoded)) {
+        DiagnosticLogger.info('source_web_session', 'document_capture_blocked',
+          'reason=decoded_invalid nested=' + nested + ' rawLength=' + raw.length)
+        return false
+      }
+      const parsed = decoded as Record<string, Object>
+      const url = typeof parsed['url'] === 'string' ? parsed['url'] as string : ''
+      const type = typeof parsed['type'] === 'string' ? (parsed['type'] as string).toLowerCase() : ''
+      const ready = parsed['ready'] === 'complete' || parsed['ready'] === 'interactive'
+      const html = typeof parsed['html'] === 'string' ? parsed['html'] as string : ''
+      if (!ready || html.length === 0 || html.length > 2 * 1024 * 1024) {
+        DiagnosticLogger.info('source_web_session', 'document_capture_blocked',
+          'reason=' + (!ready ? 'not_ready' : 'html_size') + ' bytes=' + html.length +
+          ' nested=' + nested + ' rawLength=' + raw.length)
+        return false
+      }
+      if (type.length > 0 && !type.includes('text/html') && !type.includes('application/xhtml+xml')) {
+        DiagnosticLogger.info('source_web_session', 'document_capture_blocked', 'reason=content_type')
+        return false
+      }
+      const staged = stageSourceWebDocument(sourceId, sessionId, requestHandle, url, html)
+      DiagnosticLogger.info('source_web_session', 'document_handoff',
+        'state=' + (staged ? 'staged' : 'rejected') + ' bytes=' + html.length +
+        ' sameRequest=' + (url === this.params.url))
+      if (staged) await this.probeWebViewFetch(sourceId)
+      return staged
+    } catch (_error) {
+      DiagnosticLogger.warn('source_web_session', 'document_capture_failed', 'stage=run_javascript')
+      return false
+    }
+  }
+
   private async completeSourceSession(automatic: boolean = false, needsNativeProbe: boolean = false,
-    failedLanding: boolean = false): Promise<void> {
+    failedLanding: boolean = false, documentReady: boolean = false): Promise<void> {
+    DiagnosticLogger.info('source_web_session', 'complete_enter',
+      'automatic=' + automatic + ' loading=' + this.loading + ' completing=' + this.completing +
+      ' completed=' + this.completed + ' controllerReady=' + this.controllerReady +
+      ' failed=' + this.pageFailed + ' revision=' + this.pageRevision +
+      ' sessionPresent=' + (this.params.sourceSession !== undefined))
     if (!this.active || !this.controllerReady || this.loading || this.completing || this.completed ||
       this.params.sourceSession === undefined || this.params.sourceSession.sessionId.length === 0) return
     const epoch = this.epoch
@@ -290,7 +488,18 @@ export struct SourceWebSessionSheet {
       if (automatic && ((this.pageFailed && !canProbeFailedLanding) || this.loading || this.pageRevision !== pageRevision)) return
       const customUa = this.controller.getCustomUserAgent()
       const actualUa = customUa.length > 0 ? customUa : this.controller.getUserAgent()
-      if (automatic && needsNativeProbe) {
+      let documentStaged = false
+      if (this.renderedDocumentFallbackEnabled(sourceId) && (!automatic || documentReady)) {
+        const staged = await this.stageRenderedDocument(epoch, sourceId, sessionId)
+        documentStaged = staged
+        if (!staged && !automatic) {
+          if (this.isCurrent(epoch, sourceId, sessionId)) {
+            this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
+          }
+          return
+        }
+      }
+      if (automatic && needsNativeProbe && !documentStaged) {
         if (!this.canProbeOriginal()) return
         const current = (): boolean => this.isCurrent(epoch, sourceId, sessionId) && this.canProbeOriginal() &&
           !this.loading && this.pageRevision === pageRevision &&
@@ -304,6 +513,12 @@ export struct SourceWebSessionSheet {
       }
       const status = appSourceWebSessionStore.complete(sourceId, sessionId, this.controller.getUrl(), actualUa)
       if (status.state !== 'available') throw new Error('session_unavailable')
+      try {
+        const completedCookies = readSourceWebCookies(this.controller.getUrl())
+        DiagnosticLogger.info('source_web_session', 'clearance_after_complete',
+          'state=' + sourceClearanceCookieState(completedCookies) +
+          ' cookiePresent=' + (completedCookies.length > 0))
+      } catch (_error) {}
       this.completed = true
       this.onCompleted(status)
     } catch (_error) {
@@ -375,7 +590,12 @@ export struct SourceWebSessionSheet {
             label: AppStrings.get('source_web_complete'), icon: $r('sys.symbol.checkmark'),
             kind: 'primary', compact: true, busy: this.completing,
             isEnabled: this.controllerReady && !this.loading && !this.completed && this.params.sourceSession !== undefined,
-            action: () => { void this.completeSourceSession() },
+            action: () => {
+              DiagnosticLogger.info('source_web_session', 'complete_pressed',
+                'loading=' + this.loading + ' completing=' + this.completing + ' completed=' + this.completed +
+                ' controllerReady=' + this.controllerReady + ' sessionPresent=' + (this.params.sourceSession !== undefined))
+              void this.completeSourceSession()
+            },
           })
         }
         .width('100%')

@@ -1,4 +1,5 @@
 import { sourceDnsTarget } from '../sourceRuntime/SourceWebsitePolicy'
+import { image } from '@kit.ImageKit'
 import { SourceRequiredImageDecode, sourceRequiredImageDecode, SourceRequiredImageDecodeService,
   readSourceImageBytes } from './SourceRequiredImageDecode'
 import { SourceTextOverlay } from './SourceTextOverlay'
@@ -31,6 +32,7 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import { ComicId, ComicSourceKind } from './ComicModels'
 import { ReaderSessionConfig } from './ReaderSessionStore'
+import { ReaderImageHeaderProbe, ReaderImagePixelSize, readerImagePixelSize } from '@reader-kit/core'
 import {
   DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES,
   RemoteImageCacheHeaders,
@@ -475,7 +477,8 @@ function sourceImageResponseError(status: number, rules?: SourceImageResponseErr
 
 async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders, sourceId: string = '',
   dnsOverride?: SourceDnsOverride, chapterImage: boolean = false, responseErrors?: SourceImageResponseErrors,
-  coverImage: boolean = false): Promise<ArrayBuffer> {
+  coverImage: boolean = false, onSize?: (width: number, height: number) => void,
+  sizeKey?: string): Promise<ArrayBuffer> {
   const installedSource = appSourceRuntimeRegistry.lookup(sourceId).entry
   if (installedSource?.packageManifestUnavailable === true) {
     throw new SourceRuntimeError({ ok: false, reasonCode: 'source_manifest_unavailable' })
@@ -492,6 +495,25 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
   trace.info('request_target', diagnosticTarget + ' source=' + sourceId + ' chapterImage=' + chapterImage +
     ' headerNames=' + readerImageHeaderNames(extraHeaders) + ' ticketBytes=' + readerImageTicketBytes(extraHeaders))
   const httpRequest = http.createHttp()
+  const headerProbe = new ReaderImageHeaderProbe()
+  try {
+    httpRequest.on('dataReceive', (data: ArrayBuffer) => {
+      if (headerProbe.done()) return
+      const size = headerProbe.push(data)
+      if (size === undefined) return
+      // One stable identity per page: the source image URI, not the resolved
+      // request URL. The reader looks sizes up by the page it rendered.
+      readerImageSizeCache.set(sizeKey ?? url, size)
+      if (onSize !== undefined) {
+        // The HTTP data callback owns no ArkUI state; hand the numbers to the
+        // reader on its own turn so a transport thread can never write @Local.
+        const notify = onSize
+        setTimeout((): void => { notify(size.width, size.height) }, 0)
+      }
+      DiagnosticLogger.info('reader_image_size', 'resolved',
+        'width=' + size.width + ' height=' + size.height + ' chunkBytes=' + data.byteLength)
+    })
+  } catch (_error) {}
   let responseStarted: boolean = false
   let declaredBytes: number = -1
   let normalDeadline: number = -1
@@ -548,7 +570,15 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
     trace.finish('completed', 'status=' + response.responseCode + ' ' + diagnosticTarget + ' elapsedMs=' + (Date.now() - diagnosticStartedAt) +
       ' bytes=' + (response.result as ArrayBuffer).byteLength +
       ' responseStarted=' + responseStarted + ' declaredBytes=' + declaredBytes)
-    return response.result as ArrayBuffer
+    const imageBytes = response.result as ArrayBuffer
+    try {
+      const sizeSource: image.ImageSource = image.createImageSource(imageBytes)
+      sizeSource.getImageInfo().then((info: image.ImageInfo): void => {
+        readerImageSizeCache.set(url, { width: info.size.width, height: info.size.height })
+        sizeSource.release()
+      }).catch((): void => {})
+    } catch (_error) {}
+    return imageBytes
   } catch (error) {
     // Keep an observed HTTP status intact instead of rewrapping it as transport "unknown".
     if (error instanceof SourceRuntimeError || /^reader_remote_image_http_\d+$/.test((error as Error).message)) {
@@ -574,14 +604,16 @@ export async function fetchAndCacheReaderRemoteImage(
   forceReload: boolean = false,
   chapterImage: boolean = true,
   coverImage: boolean = false,
+  onSize?: (width: number, height: number) => void,
 ): Promise<string> {
   if (readerImageCacheStore === null) throw new Error('reader_remote_image_cache_unconfigured')
   const request = await resolveReaderRemoteRequest(uri, identity, context)
   const path = await readerImageCacheStore.getOrFetch(request.url, request.headers,
     () => downloadReaderRemoteBytes(request.requestUrl, request.headers, identity?.sourceRuntimeId ?? '', undefined,
-      chapterImage, undefined, coverImage),
+      chapterImage, undefined, coverImage, onSize, uri),
     undefined, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
+  if (onSize !== undefined) void probeReaderImageFileSize(path, onSize)
   return path
 }
 
@@ -932,6 +964,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   onRequiredDecode?: (hint: SourceRequiredImageDecode | undefined) => void,
   discoverCachedRequired: boolean = false,
   coverImage: boolean = false,
+  onSize?: (width: number, height: number) => void,
 ): Promise<string> {
   if (readerImageCacheStore === null) {
     throw new Error('reader_remote_image_cache_unconfigured')
@@ -939,7 +972,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   const sourceId = sourceRuntimeId.trim()
   const chapterImage = priority === SourceWorkerPriority.FOREGROUND
   if (sourceId.length === 0) {
-    return fetchAndCacheReaderRemoteImage(uri, undefined, undefined, forceReload, chapterImage, coverImage)
+    return fetchAndCacheReaderRemoteImage(uri, undefined, undefined, forceReload, chapterImage, coverImage, onSize)
   }
   // Source page IDs can be chapter-local, so the original image URI belongs in the cache identity.
   const route = sourceImageMangaRoute(mangaUrl)
@@ -947,6 +980,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   const cachedFast = forceReload ? undefined : await readerImageCacheStore.get('', undefined, cacheKeySeed)
   const hintKey = cacheKeySeed + ':processing:' + sourceImageProcessingFingerprint(sourceId)
   if (cachedFast !== undefined && cachedFast.length > 0) {
+    if (onSize !== undefined) void probeReaderImageFileSize(cachedFast, onSize)
     if (onProcessing === undefined && onRequiredDecode === undefined) return cachedFast
     const hintPath = await readerImageCacheStore.get('source-image-processing.json', undefined, hintKey)
     if (hintPath !== undefined) {
@@ -984,15 +1018,17 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   }
   if (cachedFast !== undefined && cachedFast.length > 0) return cachedFast
   if (imageRequest === undefined) {
-    return fetchAndCacheReaderRemoteImage(uri, { sourceRuntimeId: sourceId }, undefined, forceReload, chapterImage, coverImage)
+    return fetchAndCacheReaderRemoteImage(uri, { sourceRuntimeId: sourceId }, undefined, forceReload, chapterImage,
+      coverImage, onSize)
   }
   const resolvedRequest = imageRequest
   const cacheHeaders = resolvedRequest.headers
   const path = await readerImageCacheStore.getOrFetch(resolvedRequest.url, cacheHeaders,
     () => downloadReaderRemoteBytes(resolvedRequest.url, resolvedRequest.headers, sourceId, resolvedRequest.dnsOverride,
-      chapterImage, resolvedRequest.responseErrors, coverImage),
+      chapterImage, resolvedRequest.responseErrors, coverImage, onSize, uri),
     cacheKeySeed, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
+  if (onSize !== undefined) void probeReaderImageFileSize(path, onSize)
   return path
 }
 
@@ -1060,6 +1096,41 @@ export interface ReaderPageRenderSourceOptions {
 }
 
 let readerOfflineDownloadsDir: string = ''
+export type ReaderImageSize = ReaderImagePixelSize
+export const readerImageSizeCache: Map<string, ReaderImageSize> = new Map()
+
+/**
+ * Read dimensions from an already cached original without another request.
+ * Used when a page is served from the image cache, where no download callback
+ * exists. Probing only reads the header bytes and never delays presentation.
+ */
+export async function probeReaderImageFileSize(path: string,
+  onSize: (width: number, height: number) => void): Promise<void> {
+  try {
+    const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
+    try {
+      const stat = fs.statSync(path)
+      if (stat.size <= 0) return
+      const capacity = Math.min(stat.size, 64 * 1024)
+      const buffer = new ArrayBuffer(capacity)
+      const read = fs.readSync(file.fd, buffer)
+      if (read <= 0) return
+      const size = readerImagePixelSize(new Uint8Array(buffer, 0, Math.min(read, capacity)))
+      if (size !== undefined) {
+        DiagnosticLogger.info('reader_image_size', 'cached',
+          'width=' + size.width + ' height=' + size.height + ' readBytes=' + read)
+        onSize(size.width, size.height)
+      } else {
+        DiagnosticLogger.info('reader_image_size', 'cached_unparsed', 'readBytes=' + read)
+      }
+    } finally {
+      fs.closeSync(file)
+    }
+  } catch (_error) {
+    // Cached-file probing is additive; the visible image path stays unchanged.
+    DiagnosticLogger.info('reader_image_size', 'cached_failed', '')
+  }
+}
 
 export function configureReaderOfflineDownloads(filesDir: string): void {
   readerOfflineDownloadsDir = filesDir
@@ -1336,7 +1407,9 @@ async function prepareSourcePagePresentation(source: ReaderPageRenderSource, ori
   return prepared
 }
 
-export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource, context?: common.UIAbilityContext, forceReload: boolean = false, presentation?: ReaderBannerPresentation): Promise<string> {
+export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource, context?: common.UIAbilityContext,
+  forceReload: boolean = false, presentation?: ReaderBannerPresentation,
+  onSize?: (width: number, height: number) => void): Promise<string> {
   if (source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
     return fetchAndCacheSourceRuntimeTextPage(source, forceReload)
   }
@@ -1356,10 +1429,13 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
           source.imageProcessing = hint; source.imageProcessingResolved = true; source.imageProcessingFingerprint = processingFingerprint
         }, discoverCachedProcessing, (hint: SourceRequiredImageDecode | undefined): void => { retainRequiredDecode(source, hint) },
         source.requiredImageDecode !== undefined ||
-          (appSourceRuntimeRegistry.lookup(source.sourceRuntimeId).entry?.requiredImageDecodes ?? []).includes('jm_stripes_v1'))
+          (appSourceRuntimeRegistry.lookup(source.sourceRuntimeId).entry?.requiredImageDecodes ?? []).includes('jm_stripes_v1'),
+        false, onSize)
       return prepareSourcePagePresentation(source, original, context, presentation)
     }
-    return prepareSourcePagePresentation(source, await fetchAndCacheReaderRemoteImage(source.imageUri, source, context, forceReload), context, presentation)
+    return prepareSourcePagePresentation(source,
+      await fetchAndCacheReaderRemoteImage(source.imageUri, source, context, forceReload, true, false, onSize),
+      context, presentation)
   }
   return source.uri
 }

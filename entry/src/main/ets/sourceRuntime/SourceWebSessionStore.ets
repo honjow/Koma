@@ -239,6 +239,14 @@ export class SourceWebSessionStore {
       origin: session.status.origin, state: session.status.state }
   }
 
+  /** The exact verification attempt currently open; a persisted grant is not this attempt. */
+  pendingStatus(sourceId: string): SourceWebSessionStatus {
+    const session = this.pending.get(sourceId)
+    if (session === undefined) return emptyStatus(sourceId)
+    return { sourceId, sessionId: session.status.sessionId, initialUrl: session.status.initialUrl,
+      origin: session.status.origin, state: session.status.state }
+  }
+
   requestSession(identity: SourceHttpIdentity, fullUrl: string): SourceWebRequestSession | undefined {
     const origin = sourceWebOrigin(fullUrl)
     const session = this.current(identity.sourceId, origin)

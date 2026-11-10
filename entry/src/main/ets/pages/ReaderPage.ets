@@ -6,11 +6,13 @@ import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
 import { ReaderImageEffectsLayer } from '@reader-kit/ui'
+import { READER_RUNTIME_SHAPE_POLICY, ReaderImagePixelSize, readerReadingShape } from '@reader-kit/core'
 import { komaReaderImageEffects } from '../readerLab/KomaReaderDisplayEffects'
 import { readerModeSelection } from '../model/ReaderPreferencesStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ReaderSmartKeyNavigation } from '../model/ReaderSmartKeyNavigation'
 import { image } from '@kit.ImageKit'
+import { readerImageSizeCache } from '../model/ReaderPageSourceAdapter'
 import { ReaderPreloadNetworkMonitor, readerRemotePreloadAllowed } from '../model/ReaderPreloadNetwork'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { LengthMetrics, window } from '@kit.ArkUI'
@@ -373,8 +375,10 @@ struct ReaderImageSurface {
       return
     }
     try {
+      const streamedSize = (width: number, height: number): void => { this.publishImageInfo(width, height) }
       const filePath = await prepareReaderDisplayImage(
-        await fetchAndCacheReaderRemoteSource(this.source, getContext(this) as common.UIAbilityContext))
+        await fetchAndCacheReaderRemoteSource(this.source, getContext(this) as common.UIAbilityContext,
+          false, undefined, streamedSize))
       if (this.disposed || run !== this.generation) return
       this.displayUri = readerDisplayUri(filePath)
       console.info(`[ReaderImage] step=display_ready page=${this.pageIndex + 1}`)
@@ -1750,6 +1754,40 @@ export struct ReaderPage {
    * override, so the settings sheet can label it and offer 恢复默认.
    */
   @Local private seriesOverrideActive: boolean = false
+  @Local private formatAutoApplied: boolean = false
+
+  private applyCachedImageSize(index: number): void {
+    const size = readerImageSizeCache.get(this.sourceFor(index).imageUri)
+    if (size === undefined) return
+    this.rememberImageInfo(index, size.width, size.height)
+  }
+
+  /**
+   * First-open format hint from originals this session actually measured.
+   * Runs at most once, never overrides a per-comic choice the reader already
+   * made, and persists only this comic: onModeChange writes a series override,
+   * so the global reading default of other books stays untouched.
+   */
+  private maybeApplyMeasuredFormat(): void {
+    if (this.formatAutoApplied || this.seriesOverrideActive || !this.settingsReady) return
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) { this.formatAutoApplied = true; return }
+    const sizes: Array<ReaderImagePixelSize | undefined> = []
+    let known = 0
+    const limit = Math.min(this.measuredPageWidths.length, READER_RUNTIME_SHAPE_POLICY.sample)
+    for (let index = 0; index < limit; index += 1) {
+      const width = this.measuredPageWidths[index] ?? 0
+      const height = this.measuredPageHeights[index] ?? 0
+      const valid = Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0
+      if (valid) known += 1
+      sizes.push(valid ? { width, height } : undefined)
+    }
+    const shape = readerReadingShape(sizes)
+    DiagnosticLogger.info('reader_format_auto', 'evaluate', 'known=' + known + ' shape=' + shape)
+    if (shape !== 'webtoon') return
+    this.formatAutoApplied = true
+    this.onModeChange(ReaderMode.CONTINUOUS_SCROLL)
+  }
+
   @Event onPageIndexChange: (value: number) => void = (_value: number) => {}
   @Event onChromeVisibleChange: (value: boolean) => void = (_value: boolean) => {}
   @Event onWebtoonModeChange: (value: boolean) => void = (_value: boolean) => {}
@@ -2071,6 +2109,9 @@ export struct ReaderPage {
       this.rebuildReaderPageSources()
       this.preferenceRevision += 1
       this.refreshPageDataSources()
+      // Originals can finish (or be probed from cache) before preferences
+      // settle. That early evidence must still get its one format decision.
+      this.maybeApplyMeasuredFormat()
       this.tapPreviewVisible = false
       this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
       this.emitWebtoonMode(this.preferences.pageMode === 'continuous_scroll' || this.preferences.readingDirection === ReadingDirection.WEBTOON)
@@ -2084,6 +2125,7 @@ export struct ReaderPage {
       this.settingsReady = true
       this.rebuildReaderPageSources()
       this.refreshPageDataSources()
+      this.maybeApplyMeasuredFormat()
       this.tapPreviewVisible = false
       this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
       this.registerVolumeKeyConsumerIfNeeded()
@@ -3136,7 +3178,14 @@ export struct ReaderPage {
       if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE && source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
         continue
       }
-      void fetchAndCacheReaderRemoteSource(source, getContext(this) as common.UIAbilityContext).catch(() => {
+      const page = index
+      void fetchAndCacheReaderRemoteSource(source, getContext(this) as common.UIAbilityContext,
+        false, undefined, (width: number, height: number): void => {
+          // Lookahead originals provide the first-open evidence too; the
+          // format decision stays idempotent through formatAutoApplied.
+          this.rememberImageInfo(page, width, height)
+          this.maybeApplyMeasuredFormat()
+        }).catch(() => {
         // The visible page owns user-facing failure/retry.  Lookahead is
         // opportunistic and must never turn a successful page into an error.
         if (epoch !== this.prefetchEpoch) {
@@ -3190,6 +3239,8 @@ export struct ReaderPage {
 
   private onImageLoaded(index: number): void {
     this.rememberSourceFailure(index, undefined)
+    this.applyCachedImageSize(index)
+    this.maybeApplyMeasuredFormat()
     if (this.failedPages.includes(index)) this.failedPages = this.failedPages.filter((item: number) => item !== index)
     if (!this.loadedPageIndexes.includes(index)) {
       this.loadedPageIndexes = this.loadedPageIndexes.concat([index])
@@ -3792,6 +3843,7 @@ export struct ReaderPage {
         onImageInfo: (page: number, width: number, height: number) => {
           if (page === index) {
             this.rememberImageInfo(page, width, height)
+            this.maybeApplyMeasuredFormat()
           }
         },
         onLoaded: (page: number) => { this.onImageLoaded(page) },
@@ -3897,6 +3949,7 @@ export struct ReaderPage {
           },
           onImageInfo: (page: number, width: number, height: number) => {
             this.rememberImageInfo(page, width, height)
+            this.maybeApplyMeasuredFormat()
           },
           onLoaded: (page: number) => { this.onImageLoaded(page) },
           onFailed: (page: number) => { this.onImageFailed(page) },

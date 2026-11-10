@@ -102,6 +102,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private preparationCancellation: ReaderCancellation = new ReaderCancellation()
   private sourceRequests: Map<string, Promise<string>> = new Map()
   private preloadedSizes: Map<string, KomaReaderPreloadedSize> = new Map()
+  /** First-open format evidence: dimensions read from the page's own download. */
+  onPageSize: ((unitId: string, index: number, width: number, height: number) => void) | undefined = undefined
   private preloadedSizeVersions: Map<string, number> = new Map()
   private refreshingSources: Map<string, Promise<void>> = new Map()
   private automaticallyRefreshedUnits: Set<string> = new Set()
@@ -497,7 +499,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const revision = this.presentationRevision
     const policy = this.bannerPolicy()
     const request = this.ruleSnapshot.then(async (snapshot: ImageRuleSnapshot): Promise<string> => {
-      const path = await fetchAndCacheReaderRemoteSource(source, this.requestContext, forceReload, { snapshot, policy })
+      const path = await fetchAndCacheReaderRemoteSource(source, this.requestContext, forceReload, { snapshot, policy },
+        (width: number, height: number): void => {
+          this.onPageSize?.(this.unitId(key), index, width, height)
+        })
       if (revision !== this.presentationRevision || policy !== this.bannerPolicy()) throw new Error('reader_source_page_processing_stale')
       return path
     })

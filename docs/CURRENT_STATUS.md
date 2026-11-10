@@ -2,11 +2,11 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：237 已复核 Koma、NextE、NextN 公共半模态的滚动透底。覆盖源详情和普通自定义主题色，漫画源设置沿用相同标题栏。详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。197 已确认备份页重进直接显示现有记录。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。1.2.3 已发布，公开下载包已核对。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。
+当前结果：237 已复核 Koma、NextE、NextN 公共半模态的滚动透底。覆盖源详情和普通自定义主题色，漫画源设置沿用相同标题栏。详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。197 已确认备份页重进直接显示现有记录。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。1.2.3 已发布，公开下载包已核对。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。WebDAV 同步候选已加入分片清理、定向续读和冲突提示，待真机验证。
 
 设备：197与103已完成本次同步验证，原设置、电源及租约均已恢复，两机保留无测试CA的正常包。临时WebDAV已关闭，私钥和随机凭据已清理。此前的备份验证临时记录已清理。237 已恢复原源包、测试数据和电源并释租，保留 1.2.1 同签验收包。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
-书源检查：CosplayTele、Buon Dua、哔咔、拷贝漫画、绅士会所和紳士漫畫已公开。CosplayTele 可用当前正式版，其余最低 Koma 1.2.0。237 已验两绅士源真实列表、封面和阅读。拷贝漫画封面修复、Komiic新图标、东立、科技大观园、漫画柜及zero搬运网的具名修复均已公开。Koma 1.2.2 已发布。六漫画、咚漫、Cartoon18 的具名栏目或筛选修复已上线，新增 Utifa 已进入正式索引。点名的八个新源均已进入正式订阅。嗶哩漫畫 0.1.0、禁漫天堂 0.1.1 和 Komiic 0.1.15 已公开，最低 Koma 1.2.1。禁漫天堂 0.1.1 补齐正式包的正文解扰声明；Komiic 双镜像真实登录通过，237 已核对 .cc 登录、正文和退出。拷贝漫画新图标已公开，237 已核对同位置的新旧显示。绅士会所的网格空首行修复已公开，237 已核对长标题正常使用两行。Kiutaku 与 Xiutaku 0.1.1 已上正式订阅，分别最低要求 Koma 1.2.0 与 1.2.2。现有源继续核对上游功能、补足样本并逐项修复。
+书源检查：CosplayTele、Buon Dua、哔咔、拷贝漫画、绅士会所和紳士漫畫已公开。CosplayTele 可用当前正式版，其余最低 Koma 1.2.0。237 已验两绅士源真实列表、封面和阅读。拷贝漫画封面修复、Komiic新图标、东立、科技大观园、漫画柜及zero搬运网的具名修复均已公开。Koma 1.2.2 已发布。六漫画、咚漫、Cartoon18 的具名栏目或筛选修复已上线，新增 Utifa 已进入正式索引。点名的八个新源均已进入正式订阅。嗶哩漫畫 0.1.0、禁漫天堂 0.1.1 和 Komiic 0.1.15 已公开，最低 Koma 1.2.1。禁漫天堂 0.1.1 补齐正式包的正文解扰声明；Komiic 双镜像真实登录通过，237 已核对 .cc 登录、正文和退出。拷贝漫画新图标已公开，237 已核对同位置的新旧显示。绅士会所的网格空首行修复已公开，237 已核对长标题正常使用两行。Kiutaku 与 Xiutaku 0.1.1 已上正式订阅，分别最低要求 Koma 1.2.0 与 1.2.2。现有源继续核对上游功能、补足样本并逐项修复。MYCOMIC 已在真实 237 复测：0.1.16 仍只到网页验证入口，probe 403/clearance missing；197 与 237 均已恢复正式 0.1.7，0.1.16 未发布。
 
 事项使用固定编号，重新打开问题沿用原号。进度页默认按「最近活动」排列，可切到「最近提出」或在「全部」里按编号查找。
 
@@ -18,11 +18,11 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-10T11:51:31+08:00",
+  "updatedAt": "2026-11-11T00:24:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "READER_FIRST_OPEN_FORMAT",
-  "activity": "#005 本地条漫首次打开补齐原图尺寸探测，连续滚动入口统一为「连续滚动（条漫）」；Debug 构建通过，真机待验。",
-  "nextAction": "真机验证本地条漫首次打开和日漫从右到左的首次打开",
+  "activeId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+  "activity": "#266 MYCOMIC 共享阅读器已按原图尺寸自动切条漫，历史直读 403 已修；0.1.29 与宿主改动未发布。",
+  "nextAction": "整理 0.1.29 与宿主改动的发布，并验证书架继续阅读入口与 legacy 阅读实现",
   "proof": [
     {
       "label": "正式主仓",
@@ -84,6 +84,92 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "DOWNLOAD_MANAGER_UI_JANK",
+      "number": 268,
+      "title": "下载任务期间界面卡顿",
+      "kind": "active",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-10",
+      "reportedAtSource": "用户反馈下载任务多或下载进行中时滑动卡顿，下载管理页较明显，并要求继续深挖 UI 线程密集运算。",
+      "registeredAt": "2026-11-10T18:30:00+08:00",
+      "updatedAt": "2026-11-10T18:40:00+08:00",
+      "status": "已消除已确认的高频主线程阻塞，待用户场景实测",
+      "result": "对照 NextE 的下载进度隔离方案，Koma 原先每页同步写入并校验整份清单、再次读写整份队列，并立即通知所有队列消费者。现在图片写入和内容哈希在 TaskPool 执行；清单和队列进度最多每秒持久化一次，最终状态强制落盘；页面进度信号不再唤醒自动下载控制器；下载管理页每次只解析一次快照、合并通知，滚动期间暂停进度重建，并用 @Computed 缓存筛选与分组。书架下载筛选改用启动时已核对的持久队列投影，不再在列表刷新中逐个校验 manifest 和文件。非下载路径中，历史页分组和设置页分区/行定义改为按数据变化缓存，避免每次构建重复全量计算。197 单页章节重下成功，连续六次往返惯性滚动无崩溃或重建异常。",
+      "remaining": "尚未做大量任务下优化前后主线程帧耗时对照，也未取得反馈用户的同机录屏或 trace；书架队列投影仍有单次同步 JSON 解析，详情进度仍会重新装饰整章列表，备份选择、本地归档和诊断导出仍有用户触发的同步文件操作。",
+      "evidence": [
+        ".hvigor/outputs/device-sync-independent/notification-services-qa/download-jank-log/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/navigate-20261110T182802388553/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/install-20261110T182711234520/run-metadata.json"
+      ]
+    },
+    {
+      "id": "DOWNLOAD_NOTIFICATION_REPEATED_ALERT",
+      "number": 267,
+      "title": "下载完成章节反复响铃",
+      "kind": "active",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-10",
+      "reportedAtSource": "用户反馈漫画下载每完成一章都会提示，系统已设置静默通知仍会响铃。",
+      "registeredAt": "2026-11-10T16:52:00+08:00",
+      "updatedAt": "2026-11-10T16:52:00+08:00",
+      "status": "发布参数已修复，197 无法做投递对照",
+      "result": "下载结果通知复用同一通知 ID，并明确关闭声音、振动、横幅和锁屏提醒，同时启用仅首次提醒。通知请求回归和 Debug 构建通过；197 实际章节重下已成功，但系统通知能力为关闭，日志返回 code=disabled，不能在该机观察静默投递。",
+      "remaining": "需在已开启通知的设备确认下载完成卡存在且连续章节更新不响铃；197 测试已恢复电源并释租，保留最终开发包。",
+      "evidence": [
+        ".hvigor/outputs/device-sync-independent/notification-services-qa/download-notification-log3/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/navigate-20261110T165029604037/screen.png"
+      ]
+    },
+    {
+      "id": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "number": 266,
+      "title": "MYCOMIC 浏览 HTTP 403 与网页验证入口",
+      "kind": "active",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-10",
+      "reportedAtSource": "用户在本会话报告 MYCOMIC 浏览返回 HTTP 403；同一入口用 WebView 能正常浏览并出现 Cloudflare 验证，但应用页不弹 CF；随后指定用 237 验证。",
+      "registeredAt": "2026-11-10T12:44:00+08:00",
+      "updatedAt": "2026-11-11T00:24:00+08:00",
+      "status": "列表/封面/详情/章节/阅读与历史直读已打通；共享阅读器自动条漫已生效；未发布",
+      "result": "确实不存在可复用的 cf_clearance，WebView 验证成功后清除率仍为 missing。宿主为显式声明 websitePolicy.renderedDocumentFallback 的源新增一次性的验证页文档回放：验证页加载完成后读取当前可见 HTML，与原 GET 的源、操作 guard、请求文本精确绑定，重试时以 200 bodyText 交给源解析，不新增 WASM ABI，也不后台自动开 WebView。0.1.17 在真实 237 上手动完成即回放成功。0.1.18 把声明升级为 readySelector（div.grid > div.group）：宿主在每次主文档加载后检查该选择器，站点真实列表出现才暂存文档、自动关闭验证半模态并重试。237 实测只点浏览、没有点完成并重试，日志为自动路径 complete_enter automatic=true、document_handoff_reused=used_once、get_manga_list completed，页面显示「美丽新世界！」「艳母」等真实作品网格。 站点不写 cf_clearance，原生网络栈无法复用验证会话。新增通用 WebView fetch bridge：源声明 webFetchBridge 后，浏览页保持一个隐藏的持久 WebView；验证完成后在同一会话内 fetch 详情/章节 URL，通过 runJavaScript 回传（230-335KB 已验证），宿主作为 200 bodyText 交给源。237 实测列表自动完成、详情 web_fetch_bridge status=200 bytes=335475、get_pages status=200 bytes=114876、5 张阅读图片全部 200，阅读页显示 1/60。不改变阅读界面。 用户随后在 237 截图（mycomic-auto-close-127）指出列表没有任何封面，卡片只有灰底书本占位。自动条漫判断连续失败：onImageInfo 不触发、裸 http 取图 403、imageUri 非 file:// 被跳过、displayUri 为空或不可解码使显示端测量从未进入。阅读图实际由 biccam.com 直连返回 200，content-type 为 image/jpeg，单张 951B–293KB，说明图床不受 Cloudflare 保护，失败集中在尺寸测量接线而不是取图本身。 0.1.29 在 237 列表封面已正常显示。历史直接进阅读的 403 也已修复：bridge 的隐藏 WebView 改由应用根常驻持有（SourceWebFetchBridgeHost），历史入口实测正常出图。自动条漫改在共享阅读器生效：KomaReaderLabAdapter 在同一次图片下载或缓存探测中取得原图尺寸，reader-core 的 ReaderImageHeaderProbe 与 readerReadingShape 负责解析和判定；237 实测原图 720x4200，known=1 即判 webtoon，会话切到连续滚动，并把本书 pageMode=continuous_scroll 写入 seriesModeOverrides。旧版 ReaderPage 的同类接线保留给 legacy 阅读实现，设备未验。",
+      "remaining": "MYCOMIC 0.1.29 与宿主改动均未发布。bridge host 是单源单实例，第二个需要 webFetchBridge 的源会覆盖当前会话；书架继续阅读入口与 legacy 阅读实现未单独在设备验证。包子 0.1.21 的 webSessionAndroidAgent 试点保留，首次仍挑战一次。bridge 目前只支持 GET、无 body、同源页面；其他源需要逐源真机验证后才能声明 webFetchBridge。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/mycomic-cf-20261110/mycomic-open-008/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/mycomic-cf-20261110/mycomic-challenge-037/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/mycomic-cf-20261110/mycomic-import-047/registry.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/mycomic-cf-20261110/mycomic-open-048/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/mycomic-cf-20261110/mycomic-open-048/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/mycomic-cf-20261110/mycomic-import-053/registry.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/mycomic-cf-20261110/mycomic-open-054/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/mycomic-cf-20261110/mycomic-open-054/screen.png",
+        "设备身份校正：29Q0223919000743=ALN-AL80=197；192.168.50.237:12345=VDE-AL00=237；上述 device237__VDE-AL00 路径实为 197 截图，标签待更正。",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-import-077/registry.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-open-082/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-open-082/screen.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-refresh-083/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-restore-import-085/registry.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/mycomic-cf-20261110/mycomic-restore-import-067/registry.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-handoff-diag-119/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-handoff-diag-119/screen.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-handoff-diag-119/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-auto-close-127/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-auto-close-127/screen.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-auto-close-127/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-bridge-read-178/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-probe-read-191/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-size-read-202/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-size-read-202/screen.png"
+        ,".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-stream-237-20261110/direct-history-001/screen.png"
+        ,".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-stream-237-20261110/shared-format-001/hilog.txt"
+        ,".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-stream-237-20261110/persist-format-001/reader-pref.txt"
+        ,".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-stream-237-20261110/scroll-check-001/screen.png"
+      ]
+    },
+    {
       "id": "CACHE_SETTINGS_GROUP_STRUCTURE",
       "number": 265,
       "title": "缓存设置分组显示错误",
@@ -135,23 +221,33 @@
       "id": "DETAIL_COLD_CHAPTER_RELOAD",
       "number": 262,
       "title": "冷启动进入详情反复重新加载章节",
-      "kind": "open",
+      "kind": "done",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-09",
       "reportedAtSource": "本会话用户报告冷启动进入详情会重新加载章节，精确消息时刻未核实。",
       "registeredAt": "2026-11-09T07:48:58+08:00",
-      "updatedAt": "2026-11-09T07:48:58+08:00",
-      "status": "197 已核完整目录冷启动与手动刷新",
-      "result": "进入详情原本无条件请求详情和章节。现复用设置一致且章节齐全的已存目录。197 上《腦洞學生會》先补全目录，再结束进程重开，203 章可见且未新增详情或章节请求。手动重新加载仍请求两者。",
-      "remaining": "新同步历史作品的真实无目录入口尚未实机验证；当前仅按代码与本地逻辑检查确认会请求章节。",
-      "evidence": [".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/navigate-20261109T074454747802/run-metadata.json", ".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/navigate-20261109T074647053243/run-metadata.json"]
+      "updatedAt": "2026-11-10T02:02:31+08:00",
+      "closedAt": "2026-11-10T02:02:31+08:00",
+      "status": "已关闭",
+      "result": "197 上《归还者的魔法要特别》按场景标注的无目录同步历史入口首进时，hilog 连续记录一次 get_manga 和一次 get_chapters；结束进程重开后二次进入，同段日志不再出现这两个请求，详情保持 261/261。随后连续录屏覆盖书架点击到详情稳定的 5.227 秒、72 帧完整过渡，未见反复加载。完整目录状态再次冷启动的请求时序读回为空；手动刷新仍按原行为请求详情和章节。",
+      "remaining": "只覆盖 197 具名作品和本次同步样本；其他设备、其他同步样本未重复验收。",
+      "evidence": [
+        ".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/detail-enter-A-20261110A/run-metadata.json",
+        ".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/detail-reenter-B-20261110A/run-metadata.json",
+        ".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/detail-enter-recording-20261110C/summary.json",
+        ".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/detail-enter-recording-20261110C/frames/frame-timeline.tsv",
+        ".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/detail-enter-hilog-20261110D/run-metadata.json",
+        ".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/dynamic-gate-20261110C/run-metadata.json",
+        ".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/restore-20261110C/run-metadata.json",
+        "scripts/test_detail_catalog_reuse.cjs"
+      ]
     },
     {
       "id": "READER_EYE_GAZE_PR1",
       "number": 261,
       "title": "PR #1 眼动翻页的相机与误翻页修复",
-      "kind": "open",
+      "kind": "pending_verification",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-09",
@@ -240,27 +336,31 @@
       "id": "SHELF_WORK_INFO_ON_UPDATE",
       "number": 257,
       "title": "书架检查更新刷新连载状态和作品资料",
-      "kind": "active",
+      "kind": "pending_verification",
       "status": "197 开关已验证",
       "owner": "Root",
       "result": "检查章节时刷新连载状态。封面、简介、作者、画师、分级和标签由「刷新作品资料」开关控制，默认关闭。作品状态筛选已接书源状态。",
       "remaining": "真实书源资料变化未做设备端对照。",
       "reportedAt": null,
       "reportedAtSource": "本会话用户反馈，精确消息时刻未核实。",
-      "relatedItems": ["SHELF_REMOVE_SOURCE_FAVORITES"]
+      "relatedItems": [
+        "SHELF_REMOVE_SOURCE_FAVORITES"
+      ]
     },
     {
       "id": "SHELF_REMOVE_SOURCE_FAVORITES",
       "number": 258,
       "title": "书源作品可从书架多选菜单移出",
-      "kind": "active",
+      "kind": "pending_verification",
       "status": "197 确认框已验证",
       "owner": "Root",
       "result": "移出沿用原确认框。书源作品移出后保留下载。",
       "remaining": "保存和同步已用测试数据验证，197 只验证确认和取消，原作品保留。",
       "reportedAt": null,
       "reportedAtSource": "本会话用户反馈，精确消息时刻未核实。",
-      "relatedItems": ["SHELF_WORK_INFO_ON_UPDATE"]
+      "relatedItems": [
+        "SHELF_WORK_INFO_ON_UPDATE"
+      ]
     },
     {
       "id": "SOURCE_DECLARATIVE_POLICY",
@@ -316,7 +416,8 @@
       "id": "SOURCE_KOMIIC_IMAGE_QUOTA",
       "number": 254,
       "title": "Komiic图片额度用完时只显示页面加载失败",
-      "kind": "open",
+      "kind": "exception",
+      "progressPhase": "verification",
       "priority": "用户反馈",
       "owner": "Root",
       "reportedAt": null,
@@ -344,7 +445,9 @@
         "https://github.com/honjow/koma-sources/releases/tag/sources-a080d7d0f4691b18bbe36575b64ecdb414fdee33",
         ".hvigor/outputs/source-policy-20261108/compat-123/public-final/komiic-quota.json"
       ],
-      "relatedItems": ["SOURCE_KOMIIC_CC_DIRECT"]
+      "relatedItems": [
+        "SOURCE_KOMIIC_CC_DIRECT"
+      ]
     },
     {
       "id": "MODEL_PROVIDER_MANAGEMENT_CHROME",
@@ -383,7 +486,9 @@
       "result": "瓜子漫画和动漫屋的书源名与时间同行。修改前后，两条卡片的高度一致。",
       "updatedAt": "2026-11-08T10:02:43+08:00",
       "closedAt": "2026-11-08T10:02:43+08:00",
-      "evidencePaths": [".hvigor/outputs/history-source-label-20261108/history-197.png"]
+      "evidencePaths": [
+        ".hvigor/outputs/history-source-label-20261108/history-197.png"
+      ]
     },
     {
       "id": "SOURCE_BILIMANGA_BROWSE_COVER_DEMAND",
@@ -427,14 +532,18 @@
       "result": "缩略图和页码共用宽度。197 实测第 35、36 页出图时逐帧收窄，横滑和回滑后正文仍在第 29 页。",
       "updatedAt": "2026-11-08T09:21:53+08:00",
       "closedAt": "2026-11-08T09:21:53+08:00",
-      "relatedItems": ["READER_THUMBNAIL_COLD_LOAD"],
-      "evidencePaths": [".hvigor/outputs/reader-rail-width-20261108/rail-transition.jpg"]
+      "relatedItems": [
+        "READER_THUMBNAIL_COLD_LOAD"
+      ],
+      "evidencePaths": [
+        ".hvigor/outputs/reader-rail-width-20261108/rail-transition.jpg"
+      ]
     },
     {
       "id": "SOURCE_SESSION_UPDATE_CONTINUITY",
       "number": 249,
       "title": "书源更新保留登录会话",
-      "kind": "active",
+      "kind": "pending_verification",
       "priority": "用户直接要求",
       "owner": "Root",
       "reportedAt": null,
@@ -461,7 +570,7 @@
       "id": "SOURCE_BROWSE_DESTINATION_CACHE",
       "number": 248,
       "title": "书源分类即时切换及登录提示",
-      "kind": "active",
+      "kind": "pending_verification",
       "priority": "用户直接要求",
       "owner": "Root",
       "reportedAt": null,
@@ -586,25 +695,30 @@
       "id": "LIBRARY_SCROLL_OCCASIONAL_STALL",
       "number": 244,
       "title": "书架滑动偶发卡顿",
-      "kind": "open",
+      "kind": "exception",
+      "progressPhase": "verification",
       "priority": "用户反馈",
-      "status": "197 三轮滑动采样未复现",
-      "stage": "197 真机对照",
+      "status": "197 回前台后立即滑动未再复现长帧",
+      "stage": "197 最终候选回前台路径已采样",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-08",
       "reportedAtSource": "本轮用户反馈，原始消息时刻未核实。",
-      "result": "同步与图片缓存已减负。197 最后一次书架采样最慢界面帧3.92毫秒。",
-      "remaining": "用户反馈的偶发停顿在本轮采样未复现。",
-      "updatedAt": "2026-11-08T08:35:59+08:00",
+      "result": "197 最终候选从主屏恢复书架后 150ms 开始连续六次上下滑动，trace 覆盖 1021 个应用帧，最长 5.572ms，0 帧超过 8.3ms。代码路径上，回前台的私有库进度同步不再在 UI 线程重读并 hydrate 整份书库；后台更新结果合并也不再为回滚序列化整库，只回滚受影响的几本。",
+      "remaining": "用户主观的偶发小停顿继续在实际使用中观察；本轮只覆盖 197 单机回前台路径和六次滑动，不是所有后台任务或其他设备组合。",
+      "updatedAt": "2026-11-10T04:06:00+08:00",
       "relatedItems": [
         "CONTINUOUS_PERFORMANCE"
       ],
       "evidencePaths": [
         ".hvigor/outputs/reader-stall-root-20261108/shelf-base-frames.jsonl",
         ".hvigor/outputs/reader-stall-cache-20261108/shelf-fixed-frames.jsonl",
-        ".hvigor/outputs/reader-stall-source-refresh-20261108/shelf-fixed-frames.jsonl"
-      ]
+        ".hvigor/outputs/reader-stall-source-refresh-20261108/shelf-fixed-frames.jsonl",
+        ".hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/foreground-shelf-resume-early/trace.htrace",
+        ".hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/foreground-shelf-resume-early/audit/trace.db",
+        ".hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/foreground-shelf-resume-early/after.png"
+      ],
+      "latestCounterexampleAt": "2026-11-08T21:10:00+08:00"
     },
     {
       "id": "WEBDAV_REDUNDANT_READING_DECISIONS",
@@ -816,7 +930,7 @@
       "id": "DOWNLOAD_USER_FLOW",
       "number": 3,
       "title": "章节下载、跨书批量与后台队列体验",
-      "kind": "open",
+      "kind": "pending_verification",
       "priority": "用户直接反馈",
       "owner": "Root",
       "reportedAt": null,
@@ -826,7 +940,12 @@
       "stage": "跨书批量、仅 Wi-Fi 和后台继续待核",
       "result": "下载统一进入持久队列；下载范围、取消、重试、删除与本机已下载分清。原长按钮外层绑定菜单导致宽度失效，已恢复原生按钮锚点。197 蔚蓝档案单章实际下载为 1/1，旧下载 Chibi Son Bra did her best! 从下载管理打开第 2/8 页。详情加载回归及其证据见 #002。",
       "remaining": "跨书确认及双书实际传输、非 Wi-Fi 等待和系统后台续跑仍待真机；生产队列双书同章 ID 隔离、去重和 Wi-Fi 准入恢复已经用模拟系统接口执行验证。",
-      "relatedItems": ["DETAIL_CHAPTER_LIST_ACTIONS", "MANGA_DETAIL_LOADING_LAYOUT_SHIFT", "MANGA_DETAIL_PERSISTED_BACKGROUND_REFRESH", "SOURCE_GUAZI_EMPTY_CHAPTERS"],
+      "relatedItems": [
+        "DETAIL_CHAPTER_LIST_ACTIONS",
+        "MANGA_DETAIL_LOADING_LAYOUT_SHIFT",
+        "MANGA_DETAIL_PERSISTED_BACKGROUND_REFRESH",
+        "SOURCE_GUAZI_EMPTY_CHAPTERS"
+      ],
       "evidence": [
         ".hvigor/outputs/download-flow-20261108/multiple-books-wifi-logic.log",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T030755516071/run-metadata.json",
@@ -1078,7 +1197,7 @@
       "id": "SOURCE_COLD_COVER_SERIAL_ADMISSION",
       "number": 15,
       "title": "书源冷缓存下的封面和页面加载慢",
-      "kind": "open",
+      "kind": "pending_verification",
       "priority": "用户直接要求",
       "owner": "Root负责宿主、源修复及237验证；Terra已完成71源静态分类",
       "status": "237原版六漫画冷封面已验，宿主修复已合入本地主分支",
@@ -1124,7 +1243,8 @@
       "id": "SOURCE_KOMIIC_CC_DIRECT",
       "number": 16,
       "title": "Komiic 切换 .cc 后偶发连接失败及正文大图问题",
-      "kind": "open",
+      "kind": "exception",
+      "progressPhase": "needs_work",
       "priority": "用户直接反馈",
       "owner": "Root 真机和设置；source_known_fixes 正式源和现网对照",
       "status": "0.1.15 已公开，双镜像真实账号与 237 .cc 阅读已验",
@@ -1313,7 +1433,7 @@
       "id": "SOURCE_EXPLICIT_LOGIN_ENTRY",
       "number": 22,
       "title": "需要登录的书源明确提示并提供快捷登录入口",
-      "kind": "active",
+      "kind": "pending_verification",
       "priority": "用户直接要求",
       "owner": "device_preparation宿主实现；new_source_ports源侧接入；Root审查和237验收",
       "status": "哔咔0.1.0正式源包已发，237已核两入口与未登录状态；账号缓存与关闭文案修复已提交，237 已走重开；1.2.2 已移除正文重复关闭",
@@ -1599,7 +1719,7 @@
       "id": "SOURCE_MANHUAREN_EXPLICIT_BLOCKED",
       "number": 28,
       "title": "漫画人明确屏蔽且无游客章节仍显示通用失败",
-      "kind": "open",
+      "kind": "active",
       "priority": "全源覆盖发现",
       "owner": "device_preparation候选；Root验收",
       "status": "网页/API根因已核，候选或验收进行中",
@@ -1852,7 +1972,7 @@
       "id": "SOURCE_ALL_PROVIDER_COVERAGE",
       "number": 39,
       "title": "所有现有书源的分层覆盖检查",
-      "kind": "open",
+      "kind": "active",
       "priority": "用户直接要求",
       "owner": "Terra 专职既有源功能对照、样本覆盖与修复；Root 负责宿主、237与分发",
       "status": "六漫画、咚漫和 Cartoon18 已核公开版；MANGA Plus Creators 翻页候选待真机",
@@ -2161,7 +2281,7 @@
       "id": "SOURCE_OLDMASTERQ_HTTP_ERRORS",
       "number": 51,
       "title": "老夫子将站点拒绝显示为通用错误",
-      "kind": "open",
+      "kind": "pending_verification",
       "priority": "全源覆盖发现",
       "owner": "具名源修复，Root 验收",
       "status": "0.1.2 可装候选已核官网与 WASM，待 237",
@@ -2181,7 +2301,7 @@
       "id": "SOURCE_NAMEPARA_ARCHIVE_CONCURRENCY",
       "number": 52,
       "title": "菇菇四格每次开章串行重取四页目录",
-      "kind": "open",
+      "kind": "pending_verification",
       "priority": "全源覆盖发现",
       "owner": "具名源修复，Root 验收",
       "status": "0.1.2 可装候选通过本地真实并发，待 237",
@@ -2200,7 +2320,7 @@
       "id": "SOURCE_TENCENT_PUBLIC_CHAPTER_AND_PAID",
       "number": 53,
       "title": "腾讯动漫《铳火》免费正文解析失败，明确付费章节误报拒绝",
-      "kind": "open",
+      "kind": "pending_verification",
       "priority": "全源覆盖发现",
       "owner": "具名源修复，Root 验收",
       "status": "0.1.4 可装候选通过官网与 WASM，待 237",
@@ -2219,7 +2339,7 @@
       "id": "SOURCE_IKMMH_REGION_DENIAL",
       "number": 54,
       "title": "爱看漫明确地区限制被当成书源运行异常",
-      "kind": "open",
+      "kind": "pending_verification",
       "priority": "全源覆盖发现",
       "owner": "具名源修复，Root 验收",
       "status": "0.1.3 本地 WASM 已核，正常阅读待证",
@@ -2238,7 +2358,7 @@
       "id": "SOURCE_HENTAIFOX_TRANSPORT_ERROR",
       "number": 55,
       "title": "HentaiFox 中文 TLS 失败被当成缺 HTTP 状态的运行异常",
-      "kind": "open",
+      "kind": "pending_verification",
       "priority": "全源覆盖发现",
       "owner": "具名源修复，Root 验收",
       "status": "0.1.3 本地 WASM 已核，正常阅读待证",
@@ -2257,7 +2377,7 @@
       "id": "SOURCE_MH1234_EXPLICIT_EMPTY_CATALOGUE",
       "number": 56,
       "title": "漫画1234网《未成年lovers》空目录误报解析失败",
-      "kind": "open",
+      "kind": "pending_verification",
       "priority": "全源覆盖发现",
       "owner": "具名源修复，Root 验收",
       "status": "0.1.9 可装候选已核官网与 WASM，待 237",
@@ -2639,6 +2759,7 @@
       "number": 69,
       "title": "92 漫画有章节列表但正文打不开",
       "kind": "external",
+      "progressPhase": "needs_work",
       "priority": "用户直接反馈",
       "owner": "书源子代理（237），Root 维护工作单",
       "status": "237 已复现正文请求被站点拒绝",
@@ -2680,7 +2801,7 @@
       "id": "SOURCE_FAILURE_USER_COPY",
       "number": 71,
       "title": "书源失败提示给出无依据的更新和导出日志指引",
-      "kind": "active",
+      "kind": "pending_verification",
       "priority": "用户直接反馈",
       "owner": "Root",
       "status": "已改文案与失败分类，执行回归通过",
@@ -2699,6 +2820,7 @@
       "number": 72,
       "title": "书源与图片插件订阅镜像",
       "kind": "external",
+      "progressPhase": "verification",
       "priority": "用户直接需求",
       "owner": "Root：目录、安装和 237 普通路径验证",
       "status": "237 已验证合并、停用和镜像安装，书源包切换等待新版目录发布",
@@ -2727,7 +2849,7 @@
       "number": 73,
       "title": "详情页章节多选与批量操作",
       "priority": "用户直接需求",
-      "kind": "active",
+      "kind": "pending_verification",
       "status": "197 单栏和 103 双栏均复验全选、取消全选及退出",
       "stage": "章节多选与默认 HDS 返回键已核对",
       "owner": "Root：Koma 漫画详情",
@@ -2980,6 +3102,7 @@
       "title": "92漫画网页有章节，App 获取不到",
       "priority": "P1（用户直接反馈）",
       "kind": "external",
+      "progressPhase": "needs_work",
       "status": "0.1.7 章节修复已实机验收，双端拒绝样本待站点响应",
       "owner": "书源：source_92，Root 维护工作单",
       "reportedAt": "2026-11-04T13:02:03+08:00",
@@ -3033,7 +3156,7 @@
       "number": 82,
       "title": "断开后显示未连接，重新连接提示暂不可用",
       "priority": "P1（用户直接反馈）",
-      "kind": "open",
+      "kind": "pending_verification",
       "status": "重连阻塞分支已修复，待真机复现原故障",
       "owner": "Root：漫画追踪",
       "dependencies": [],
@@ -3054,7 +3177,7 @@
       "number": 83,
       "title": "追踪首次授权失败、第二次才成功",
       "priority": "P1（用户直接反馈）",
-      "kind": "open",
+      "kind": "pending_verification",
       "status": "Bangumi 授权入口已补回登录跳转参数",
       "owner": "Root：漫画追踪",
       "dependencies": [],
@@ -3154,6 +3277,7 @@
       "title": "排查书源章节编号缺失",
       "priority": "P1（用户直接反馈）",
       "kind": "external",
+      "progressPhase": "needs_work",
       "status": "七个书源修复已发布，实站目录受限",
       "owner": "Root：中文书源",
       "dependencies": [],
@@ -3180,7 +3304,7 @@
       "number": 88,
       "title": "已读几十话仍提示无可同步进度",
       "priority": "P1（用户直接反馈）",
-      "kind": "open",
+      "kind": "pending_verification",
       "status": "33 话原样本已核 Bangumi 章末上传，MyAnimeList 手动上传待验",
       "owner": "Root：漫画追踪",
       "dependencies": [],
@@ -3649,14 +3773,14 @@
       "id": "CONTINUOUS_PERFORMANCE",
       "number": 1,
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "197 优化候选长测短停顿明显下降",
-      "stage": "1.4.0 优化候选与基线同手势 A/B",
-      "kind": "open",
+      "status": "条漫连续滑动已达标；分页长帧定位到 Swiper 缓存页重建",
+      "stage": "197 分页固定窗口 3/5 页对照已验",
+      "kind": "active",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "偏好加载合并为一次 Preferences.getAll，远端图片缓存目录维护改到滚动停稳后。合法 key 候选 SHA 1aa5a641 已实测提交，四项帧指标全部不低于优化基线最佳段。 缓存写入候选 SHA 2e08e22b 实测 fs 回调 708→118 毫秒（-83%），但六段 156 次快滑长测暴露顿挫：每段 3-6 次 35-98 毫秒手势帧间隔，元因为读完一章的重复偏好读取、约 1.2MB 缓存清单 stringify 进入滚动窗口、滚动中 unlink 与定时回调。 交互暂停写候选 SHA 238e741d 修复后普通跨章段顿挫清零，但 quota 逐出场景（每段 100+ 次 step=evict）仍有 5 次 42-63 毫秒间隔：交互暂停门在快滑间隙约 440 毫秒即被 420 毫秒恢复延迟重新打开，逐出与清单写泄漏回滚动窗口。 门滞后候选 SHA 735f35db 修复：缓存门与超分 GPU 门分离，缓存门恢复滞后 1.6 秒（连续快滑期间保持关闭，真正停稳后才逐出与写清单），并给自动化策略缓存加并发去重与恢复代数防覆盖、阅读器 aboutToAppear 预热。quota 逐出场景 26 次快滑两段复测：33 毫秒以上手势帧间隔 0 次，最长手势帧间隔 21.3-21.8 毫秒，PreferencesGetValue 与 fs.unlink 0 次，ValueSerializer 总量 2.6 毫秒，above8_3=23-30 波动带内，>16.7 毫秒帧保持 0。",
-      "remaining": "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。above8_3 仍在波动带内（23-34 帧），栈集中在 ArkUI FlushDirtyNodeUpdate（引擎内部未打点）与 AreaChange 引擎分发（滚动期 JS 99.3% 位于其中，onAreaChange 无法动态注销），应用层可识别浪费已全部消除，继续压缩属 ArkUI 引擎行为边界。 evict 分批限速已在 quota 触发场景实测通过（33 毫秒以上间隔 0 次、unlink 与偏好读取滚动中归零），更长会话的逐出分布继续以 step=evict 日志按轮确认。 一次 62.4 毫秒 PreferencesGetValue 来自自动化策略之外的未识别 store，源待 JS 侧插桩定位（暂缓，已不再复现于最近两轮）。 timer 小回调已归因为每约 140 毫秒一次的 1.5-2.4KB 消息反序列化（单次 1-5.5 毫秒，总占用约 13 毫秒/秒，非顿挫源），暂缓。 rkit-* 组件 id 全量改名经核查不执行：NextE/NextN 宿主运行时 getRectangleById 与 ohosTest 断言合计数百处消费这些 id，无法在不重新验收两宿主的情况下满足不退化边界；用户批准的共享变更授权保持开放，待用户对跨宿主同步范围重新决定。 共享 Kit 的滚动范围合并候选 01798b1 未显示收益；Koma 子模块本地已回到 3483d20。reader-kit 原仓本地 revert 580cd8b 尚待用户明确授权后才能推送远端 main。",
+      "result": "连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
+      "remaining": "左右分页长帧不随 Swiper 窗口大小变化，替换容器或缩窗的收益假设不成立；固定 3/5 页实验已撤回，包回到 1ed00638。下一步应先定位 FlushDirtyNodeUpdate 内 160 次资源查询和 13 个 ForEachNode 的真实归属（ReaderPage build 域还是 Swiper 内部），再决定是否继续优化。连续条漫已稳定在 11.6ms 无 >16.7ms 帧。共享 main 固定 270c0e1。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -3735,7 +3859,20 @@
         ".hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate3-trace/closeout-vsync-baseline-comparison-1104.json",
         ".hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/closeout-profiler-capability-1104",
         ".hvigor/outputs/detail-chapter-loading-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail/detail-install",
-        ".hvigor/outputs/continuous-scroll-20261106/reanalyse-existing-sched/vsync-gap-main-thread-scheduling.json"
+        ".hvigor/outputs/continuous-scroll-20261106/reanalyse-existing-sched/vsync-gap-main-thread-scheduling.json",
+        ".hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/progress-durability-clean/after-scroll.json",
+        ".hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/progress-restore-clean/restored.json",
+        ".hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-swipe-c5/trace.htrace",
+        ".hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-swipe-c5/audit/trace.db",
+        ".hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-fling-sustained/trace.htrace",
+        ".hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-fling-sustained/audit/trace.db",
+        ".hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-commit-swipe/screen.png",
+        ".hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-c7-run/trace.htrace",
+        ".hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-c7-run/audit/trace.db",
+        ".hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-turns/trace.htrace",
+        ".hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-turns/audit/trace.db",
+        ".hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-zoomguard/trace.htrace",
+        ".hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-zoomguard/audit/trace.db"
       ],
       "latestCounterexampleAt": "2026-11-08T21:10:00+08:00",
       "evidencePoints": [
@@ -3783,7 +3920,7 @@
         "date": "2026-10-26"
       },
       "previousClosedAt": "2026-11-08T08:35:59+08:00",
-      "updatedAt": "2026-11-08T21:58:00+08:00",
+      "updatedAt": "2026-11-10T11:26:00+08:00",
       "evidence": [
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
@@ -5016,6 +5153,7 @@
       "title": "已配置Kavita普通阅读与历史重开",
       "status": "PARKED_USER：只待用户明确重提",
       "kind": "parked",
+      "progressPhase": "verification",
       "result": "PARKED_USER：只待用户明确重提",
       "remaining": "四私库实际验收已被人类明确搁置；不由heartbeat、旧记录或交接自主复活。",
       "closedAt": null,
@@ -6722,6 +6860,7 @@
       "title": "书源官方中文名未整体核验",
       "priority": "P2（后续处理）",
       "kind": "external",
+      "progressPhase": "needs_work",
       "status": "等待两处书源的官方名称原件",
       "owner": "source_terra：源故障与官方名称核对",
       "dependencies": [],
@@ -6771,6 +6910,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
       "kind": "external",
+      "progressPhase": "verification",
       "status": "DB117 已交付，Noy 等待账号",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
@@ -8015,6 +8155,7 @@
       "title": "无限动漫《古见同学》加载失败",
       "priority": "P2（后续处理）",
       "kind": "external",
+      "progressPhase": "needs_work",
       "status": "等待《古见同学》官方目录可用",
       "stage": "等待外部条件",
       "owner": "source_terra：237书源故障",
@@ -8095,6 +8236,7 @@
       "title": "大模型辅助每源每漫画规则与排序",
       "priority": "P3（后续增强）",
       "kind": "parked",
+      "progressPhase": "needs_work",
       "status": "用户明确暂不实施",
       "stage": "后续增强暂缓",
       "owner": "Root：后续按用户决定推进",
@@ -8284,6 +8426,7 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "external",
+      "progressPhase": "verification",
       "status": "本轮功能已交付，剩余追踪服务等待账号",
       "stage": "等待外部条件",
       "owner": "Root",
@@ -9499,7 +9642,8 @@
       "id": "READER_ASYNC_PAGE_ROLLBACK",
       "number": 229,
       "title": "翻页时偶发退回前一页",
-      "kind": "open",
+      "kind": "exception",
+      "progressPhase": "verification",
       "priority": "P1（当前用户反馈）",
       "owner": "Root",
       "status": "已修正本地复现的回调错序，103正常包连续与快速反向通过",
@@ -9702,6 +9846,7 @@
       "number": 235,
       "title": "条漫模式进入阅读时顶部闪一下",
       "kind": "external",
+      "progressPhase": "verification",
       "priority": "后排（用户指定）",
       "status": "197与103普通入口验收通过，等待共享仓库写权限",
       "stage": "设备验证通过；本地提交，未推送",
@@ -9758,16 +9903,16 @@
       "id": "WEBDAV_AUTO_PROGRESS_STALE",
       "number": 237,
       "title": "WebDAV 自动同步时另一台设备的阅读进度未更新",
-      "kind": "bug",
+      "kind": "pending_verification",
       "priority": "用户反馈",
-      "status": "197 与 103 已验证跨设备续读",
-      "stage": "同章同页、书架收发、损坏数据回退已验证",
+      "status": "候选已实现：分片清理、定向续读与冲突提示，待设备验证",
+      "stage": "本地回归和 Debug 构建通过；真机未验",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户报告，原始消息时间未核实。",
-      "result": "197 的阅读进度同步到 103，续读到同一章同一页。103 下拉收到了收藏和章节目录。另用独立 AList 验证损坏的数据组能回退。",
-      "remaining": "待验证必须登录的书源能否双机续读，以及空闲时的请求频率。",
+      "result": "2026-11-10 候选：发布时不再重新下载校验已存在的分片；旧目录摘要块生成删除，避免目录每刷新一次就永久累积；历史和书架续读按作品桶定向读取，不再整组全量加载；本地与远端位置不同且本地时间不早于远端时显示「保留本机／使用另一台设备」选择。原验证仍保留：197 的阅读进度同步到 103，续读到同一章同一页，103 下拉收到收藏和章节目录，独立 AList 验证损坏组回退。",
+      "remaining": "待设备验证定向续读、冲突弹窗和旧目录块清理；真实 WebDAV 请求量、耗时和登录书源双机续读仍未知。",
       "closedAt": null,
       "relatedItems": [
         "READING_HISTORY_SYNC"
@@ -9793,7 +9938,7 @@
         "原排查记录｜本地用当前调度和双副本合并实现复现。阅读保存触发延迟 15 秒，发送端先切后台会撤掉本次调度；接收端前台同步成功后没有后续拉取。首次合并暂缓的最近阅读章节会连同该书的后续章节页位一起暂缓，其他书仍可同步。界面将不同原因合为跳过项。另用设置页的按钮分流和双副本同步逻辑连续执行三次立即同步。每次任务成功，接收端已读到服务器上的新页码，但待核对作品的进度不写入本机，另一本书更新。待核对入口在同步内容下方、状态上方的待处理项目；模拟原差异关联待核验进度时，状态仍提示核对但预览没有可选差异。双副本继续复现确认循环。只剩一条可见差异时明确选择并确认，选择实际写入且自动开关维持开启，但未列出的待核验阅读差异仍使管理页立即显示有差异待核对，再打开预览没有可选项。对应记录解除保护并确认后提示才清除。用户进一步报告差异处理后进度和历史仍不一致。本地双副本用支持范围内的作品、无差异连接和模拟章节核验失败复跑：发端保留新章页但从未发布对应阅读记录，发端和收端连续两轮立即同步均结束且无错误，收端历史和页码仍为空。此复现解释独立于暂缓的失效路径，用户现场原因尚未确认。用户提供的现用 WebDAV 目录返回 207。逐一校验现存 6 次提交和全部 7 个分片，最新包含 2 个分类、1 条排序、1 个订阅，整个现存提交链和旧分片均无阅读记录、页码及收藏作品。使用真实服务器和当前接收端同步引擎在主机回放，18 次请求，应用分类与订阅共 4 项，阅读 0 项，仍记录为成功且无待核对，服务端没有写入。手机端未上传的具体筛除点尚未取得。 当前候选已去掉按书源、包版本和作品公开性筛选，收发本机保存的历史和章页。用临时 AList，197 与 103 实测包子漫画《歸還者的魔法要特別》001 01 从第 19 页自动更新到第 24 页，独立复核两机正文一致。",
         "原验证记录｜当前候选已自动应用所选组，不再按书源名单筛选。订阅和搜索写入实际存储，书架同步完整章节目录，接收端用同一目录计算未读和筛选。同步内容在同步总览共用，继承旧选择并在无连接时可保存。测试已验证首轮撤销范围、损坏分片的组隔离、新端默认偏好不覆盖已有值，以及缺源设备收到 440 个章节 ID 后重载可得 439 个未读。当前候选通过临时 AList v3.66.0 双主机副本双向收发。两端重载后各有 440 个章节 ID、439 个未读，续读为第 2 章第 6 页及第 9 页。197 真机从设置进入总览改范围，取消连接表单后回原页，重启读回并恢复原勾选。103 用同签名候选走通横屏设置路径，独立复核确认共享范围只在总览。连接表单返回后选择保持，冷启动后读回已修改范围并恢复测试前勾选。使用用户真实 WebDAV，197 已登录 Komiic 并读到《ONE PIECE 航海王》1196 话第 4 页，103 未登录即可点历史续读到相同正文。103 仅手动模式下由历史下拉收到第 6 页。书架下拉完成后收到瓜子《装备我最强》收藏、封面、273 话及第 61 页，章节检查有手动发起日志。独立 AList 制造缺片，新设备回退到第 6 页，已有第 9 页的设备保持原值，修复缺片后追到第 9 页，健康书架组持续可用。单独损坏封面及提交回复丢失时的重试已执行。Komiic 样本允许匿名打开正文，登录硬门槛和真机空闲请求量仍未核。旧记录没有可靠身份时留在原设备。"
       ],
-      "updatedAt": "2026-11-08T00:20:03+08:00"
+      "updatedAt": "2026-11-10T11:06:31+08:00"
     }
   ],
   "source": {
@@ -9849,6 +9994,173 @@
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
     {
+      "id": "mycomic-shared-auto-webtoon-20261111",
+      "at": "2026-11-11T00:22:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "共享阅读器按原图尺寸自动切条漫",
+      "detail": "设备实际使用共享阅读器，legacy ReaderPage 的读数接线不会执行。改由 KomaReaderLabAdapter 在下载或缓存探测时上报原图尺寸，reader-core 判定；237 实测 720x4200、known=1 shape=webtoon，会话切连续滚动，本书 pageMode=continuous_scroll 已写入偏好。",
+      "kind": "checkpoint",
+      "evidence": "        \".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-stream-237-20261110/shared-format-001/hilog.txt\""
+    },
+    {
+      "id": "mycomic-root-bridge-host-20261111",
+      "at": "2026-11-11T00:19:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "历史直读 403 修复",
+      "detail": "bridge 的隐藏 WebView 依赖浏览页存活，历史与书架入口没有浏览页。改为应用根常驻 SourceWebFetchBridgeHost，transport 在 bridge 不可用时先准备会话；237 从历史直接打开第一章已正常出图。",
+      "kind": "checkpoint",
+      "evidence": "        \".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-stream-237-20261110/direct-history-001/screen.png\""
+    },
+    {
+      "id": "mycomic-cover-restored-20261111",
+      "at": "2026-11-11T00:12:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "列表封面恢复正常",
+      "detail": "0.1.29 在 237 列表所有卡片封面正常加载，之前的灰底占位是旧包状态；本次没有改封面代码。",
+      "kind": "checkpoint",
+      "evidence": "        \".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-stream-237-20261110/open-source-001/screen.png\""
+    },
+    {
+      "id": "mycomic-download-size-redesign-20261110",
+      "at": "2026-11-10T23:45:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "重做下载流尺寸方案",
+      "detail": "重新核对代码后确认现有实现有三处断裂：dataReceive 只解析单个数据块且不覆盖 WebP/AVIF，尺寸写入使用远端 URL 而读取使用 imageUri，消费者只在图片显示完成后读取。改为在同一个 GET 内累积图片头、按页面身份回调，并在下载中直接通知阅读页，不额外请求也不等整包完成。",
+      "kind": "checkpoint",
+      "evidence": "entry/src/main/ets/model/ReaderPageSourceAdapter.ets"
+    },
+    {
+      "id": "mycomic-auto-format-retry-20261110",
+      "at": "2026-11-10T22:30:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "自动条漫判断四条取尺寸路径均未生效",
+      "detail": "依次尝试阅读组件图片信息回调、带 Referer 的裸 http 探测、缓存文件测量、显示图测量，分别因回调不触发、403、imageUri 不是 file://、displayUri 为空或不可解码而没有拿到尺寸。阅读页始终停在 1/60。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-size-read-202/hilog.txt"
+    },
+    {
+      "id": "mycomic-cover-missing-20261110",
+      "at": "2026-11-10T23:05:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "列表封面全部未显示",
+      "detail": "237 列表截图显示每张卡片只有灰底书本占位。列表数据、详情和正文图片可用，封面仍由宿主原生 HTTP 获取，没有接入 WebView bridge；封面域名、Referer 和失败状态码尚未查证。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-auto-close-127/screen.png"
+    },
+    {
+      "id": "mycomic-auto-format-20261110",
+      "at": "2026-11-10T21:20:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "首次自动条漫判断未生效",
+      "detail": "不能确认 MYCOMIC 全部是条漫，未保留 webtoon 标签。已在阅读器加入首次尺寸判断（首屏实测尺寸 + 在线前 3 张带 Referer 探测），但 237 首次打开仍显示 1/60 单页，判断未触发；下一步需确认 ReaderSessionConfig.pageUris 是原始 http 还是缓存 URI，以及图片尺寸回调是否到达。详情/章节/阅读本身已通过 webFetchBridge 正常工作。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-format-read-187/layout.json"
+    },
+    {
+      "id": "mycomic-webfetch-bridge-20261110",
+      "at": "2026-11-10T20:36:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "WebView fetch bridge 打通 MYCOMIC 详情与阅读",
+      "detail": "新增通用 webFetchBridge：验证完成后隐藏 WebView 复用会话，页面内 fetch 详情/章节 URL，runJavaScript 回传 HTML。237 实测详情 web_fetch_bridge status=200 bytes=335475、get_pages status=200 bytes=114876、5 张阅读图片全部 200，阅读页显示 1/60。列表、封面、详情、章节、阅读全部可用，不改变阅读界面。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-bridge-read-178/hilog.txt"
+    },
+    {
+      "id": "mycomic-clearance-final-20261110",
+      "at": "2026-11-10T20:08:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "验证后无 cf_clearance，站点限制确认",
+      "detail": "在验证完成且 Cookie 保存之后读取，clearance_after_complete=missing、cookiePresent=true：不是宿主读不到，而是站点不写 cf_clearance。五种网络身份详情请求全部 403；WebView 内容可以回放，但每个 URL 需要一次 WebView 加载。非 WebView 没有可复刻路径。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-clearance-160/hilog.txt"
+    },
+    {
+      "id": "mycomic-androidprofile-baozimh-20261110",
+      "at": "2026-11-10T20:00:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "chrome131_android 仍 403；包子 Android UA 试点列表正常",
+      "detail": "MYCOMIC 使用 chrome131_android 时 native_transfer eligible=true，详情仍 403 challenge；加上系统 UA、Android 注入 UA、chrome116、chrome145，五种身份全部失败。包子 0.1.21 声明 webSessionAndroidAgent 后，验证页首次仍挑战且 clearance missing，但 probe 成功、列表正常显示；挑战频率还需更多样本对比。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-androidprofile-156/hilog.txt"
+    },
+    {
+      "id": "mycomic-four-identity-20261110",
+      "at": "2026-11-10T19:50:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "四种网络身份验证完成：详情仍 403",
+      "detail": "系统 UA、Android 注入 UA、chrome116、chrome145 均已验证；Android UA 已确认非原生（customUaEqualsNative=false），chrome145 native_transfer eligible=true、TLS 握手完成，详情请求全部返回 403 challenge。curl-impersonate 最新 profile 也只到 chrome116，升级无效。Mihon 依赖 Android OkHttp/BoringSSL 与 CloudflareInterceptor，HarmonyOS 没有等价网络栈；详情和阅读不改 WebView 就没有可复刻路径。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-android-open-150/hilog.txt"
+    },
+    {
+      "id": "mycomic-detail-url-challenge-20261110",
+      "at": "2026-11-10T19:08:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "详情请求带 WebView 会话仍 403，文档回放无法跨 URL",
+      "detail": "详情 get_manga 已接入挑战和操作 guard，验证页加载完成后能自动暂存详情 HTML；但宿主的详情请求即使 session=attached、cookieState=present、uaSource=webview 仍返回 403 challenge，说明 Cloudflare 只认 WebView 执行环境。文档回放按 URL 绑定，列表的成功不能覆盖详情、章节或阅读，照此扩展每个新页面都要挑战一次，不可接受。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-detail3-138/hilog.txt"
+    },
+    {
+      "id": "download-manager-ui-jank-20261110",
+      "at": "2026-11-10T18:30:00+08:00",
+      "itemId": "DOWNLOAD_MANAGER_UI_JANK",
+      "title": "下载页面写入移出 UI 线程并合并进度刷新",
+      "detail": "按 NextE 的进度节流、页面激活门控和分组投影缓存方向，改造 Koma 下载页写盘、清单/队列进度持久化、运行时信号和下载管理筛选分组；书架下载筛选不再同步重验每个 manifest，历史页分组和设置页静态结构也改为缓存投影。Debug 构建与下载回归通过；197 单页重下及连续滚动通过，帧耗时对照和用户同机 trace 尚未取得。"
+    },
+    {
+      "id": "mycomic-237-auto-close-20261110",
+      "at": "2026-11-10T18:20:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "MYCOMIC 验证页在 237 自动关闭",
+      "detail": "0.1.18 以 readySelector 声明列表卡片节点；宿主在验证页加载完成后检查选择器，满足才暂存文档并自动完成。237 上只点浏览、没有点完成并重试：complete_enter automatic=true、document_handoff_reused=used_once、get_manga_list completed，验证半模态自动关闭并显示真实列表。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-auto-close-127/hilog.txt"
+    },
+    {
+      "id": "mycomic-handoff-search-generic-20261110",
+      "at": "2026-11-10T18:05:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "文档回放补到源内搜索重试路径",
+      "detail": "源内搜索首屏与分页重试此前会无条件 clearWebChallenge('search')，把已暂存的验证响应和原请求一起清掉；现与浏览一致，仅在该重试携带操作 guard 时保留，新搜索才清理。该修复不绑定 MYCOMIC，所有声明 renderedDocumentFallback 的源共用。Release 构建通过，搜索路径未在设备验证。",
+      "kind": "checkpoint",
+      "evidence": "entry/src/main/ets/viewmodel/BrowseViewModel.ets"
+    },
+    {
+      "id": "mycomic-237-handoff-20261110",
+      "at": "2026-11-10T17:58:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "MYCOMIC 列表页在 237 通过宿主文档回放打通",
+      "detail": "宿主新增 source_web_document_handoff_v1，仅对 websitePolicy.renderedDocumentFallback=true 的源生效：验证页 onPageEnd 后按源、操作 guard、请求文本绑定当前可见 HTML，原 GET 重试时一次性以 200 bodyText 交回源解析。237 上验证页实显 MYCOMIC 列表，点完成并重试后 document_handoff_reused=used_once、get_manga_list 完成，页面显示「美丽新世界！」「艳母」等真实作品网格。仅验列表页，详情/目录/阅读未验；0.1.17 未发布。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-handoff-diag-119/hilog.txt"
+    },
+    {
+      "id": "download-notification-silent-20261110",
+      "at": "2026-11-10T16:52:00+08:00",
+      "itemId": "DOWNLOAD_NOTIFICATION_REPEATED_ALERT",
+      "title": "下载完成通知改为单条静默更新",
+      "detail": "通知 ID 保持 4101，取消逐章变化的消息标识；isAlertOnce=true，声音、振动、横幅和锁屏标志均关闭。通知请求回归、Debug 构建和 197 单页章节重下通过；197 系统通知关闭，仅得到 code=disabled，未声称完成静默投递验收。"
+    },
+    {
+      "id": "mycomic-237-real-20261110",
+      "at": "2026-11-10T17:05:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "MYCOMIC 在真实 237 复测仍 403；197/237 已恢复 0.1.7",
+      "detail": "真实 237（VDE-AL00）普通导入 0.1.16 后，验证半模态打开且 WebView 实显 MYCOMIC 列表，但 probe op=11 仍 403，clearance_cookie=missing；验证页刷新后 attempted=true 仍无 clearance。197 与 237 均已恢复正式 0.1.7，测试包清理、电源 10000ms+suspend、租约释放。0.1.16 未发布。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-open-082/hilog.txt"
+    },
+    {
+      "id": "mycomic-cloudflare-403-20261110",
+      "at": "2026-11-10T16:20:00+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "MYCOMIC 403 实际在 197 复现，237 未执行",
+      "detail": "29Q0223919000743 型号为 ALN-AL80，即 197；本轮所有“237”截图和 hilog 实际来自 197。237 是 VDE-AL00（192.168.50.237:12345），未执行。197 上 0.1.15/0.1.16 均弹出验证入口但 probe 仍 403、clearance missing；测试包已清理、电源恢复并 suspend、租约释放。该结果不能登记为 237 验收。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/mycomic-cf-20261110/mycomic-open-048/hilog.txt"
+    },
+    {
       "id": "local-reader-format-probe-20261110",
       "at": "2026-11-10T11:51:31+08:00",
       "itemIds": [
@@ -9858,6 +10170,104 @@
       "detail": "本地图片、本地文件夹和压缩包导入的页面没有标签或原图宽高，首次打开此前拿不到自动判断输入。新增打开前最多读取 6 张本地页原图尺寸的探测，只对本地文件夹/压缩包且已有格式未确定时执行，仍由既有 readerSessionFormat 判定，不覆盖全局/单书设置；连续布局的 0.75 占位保留。连续滚动入口文案改为「连续滚动（条漫）」。Debug assembleHap 通过，真机未验。",
       "kind": "checkpoint",
       "evidence": ".hvigor/outputs/local-reader-format-20261110/build.log"
+    },
+    {
+      "id": "continuous-paged-window-size-20261110",
+      "at": "2026-11-10T11:26:00+08:00",
+      "itemIds": [
+        "CONTINUOUS_PERFORMANCE"
+      ],
+      "title": "分页固定窗口 3/5 页对照",
+      "detail": "Swiper 内用 ForEach 限制为 5 页：1173 帧、最长 25.387ms、18 个 >16.7ms、FlushDirty 22 次 >8ms 共 346.7ms；3 页：1185 帧、26.746ms、19 个 >16.7ms、25 次共 401.7ms。两者帧内仍约 160 次 UpdateResConfig、13 个 ForEachNode，与窗口大小无关，3 页因平移频繁略差。实验已撤回。"
+    },
+    {
+      "id": "webdav-shard-focused-resume-20261110",
+      "at": "2026-11-10T11:06:31+08:00",
+      "itemIds": [
+        "WEBDAV_AUTO_PROGRESS_STALE",
+        "WEBDAV_REDUNDANT_READING_DECISIONS"
+      ],
+      "title": "同步分片生命周期、定向续读与冲突提示候选",
+      "detail": "发布前只校验本次新对象；章节目录旧摘要块生成删除；历史和书架续读按作品桶读取；本地与远端位置不同且本地时间不早于远端时显示选择。29 项 device-sync 本地回归和 Debug assembleHap 通过；真机与真实 WebDAV 未验。",
+      "affectsActivity": true
+    },
+    {
+      "id": "continuous-paged-swiper-cache-rebuild-20261110",
+      "at": "2026-11-10T11:06:00+08:00",
+      "itemIds": [
+        "CONTINUOUS_PERFORMANCE"
+      ],
+      "title": "分页长帧定位到 Swiper 缓存页重建",
+      "detail": "197 分页 10 次 RTL 翻页逐项对照：翻页不更新页码/父级状态、.index 用稳定值、cachedCount=0、去掉进度回调四项都仍出现 23-26ms 最长帧；trace 每次滑动更新 6-7 个 ForEach 缓存页、约 150 次 UpdateResConfig 和 2-6ms PartialGC。本地页码改动翻到 83 页、打开工具栏、退出后详情 83/127 均正确，性能未改善。"
+    },
+    {
+      "id": "progress-stage-and-conditions-20261110",
+      "at": "2026-11-10T03:02:41+08:00",
+      "itemIds": [
+        "SOURCE_KOMIIC_IMAGE_QUOTA",
+        "LIBRARY_SCROLL_OCCASIONAL_STALL",
+        "SOURCE_KOMIIC_CC_DIRECT",
+        "SOURCE_92_CHAPTER_PAGES_UNAVAILABLE",
+        "SUBSCRIPTION_MIRROR_FALLBACK",
+        "SOURCE_92_CHAPTER_LIST_MISSING",
+        "SOURCE_CHAPTER_ORDINAL_AUDIT",
+        "KAVITA_HISTORY",
+        "SOURCE_OFFICIAL_CHINESE_NAMES",
+        "SOURCE_SETTINGS_MIGRATION_AUDIT",
+        "WUXIAN_GUJIAN_LOAD_FAILURE",
+        "LLM_SOURCE_MANGA_RULE_ASSISTANCE",
+        "FEATURE_PARITY_IMPLEMENTATION",
+        "READER_ASYNC_PAGE_ROLLBACK",
+        "READER_WEBTOON_ENTRY_TOP_FLICKER"
+      ],
+      "affectsActivity": false,
+      "title": "纠正进度分类的维度",
+      "detail": "处理阶段与等待原因分开；按原记录核对受影响事项，不改变原结论、验收、授权或事项最近活动。"
+    },
+    {
+      "id": "progress-lifecycle-classification-20261110",
+      "at": "2026-11-10T02:41:08+08:00",
+      "itemIds": [
+        "READER_EYE_GAZE_PR1",
+        "SHELF_WORK_INFO_ON_UPDATE",
+        "SHELF_REMOVE_SOURCE_FAVORITES",
+        "SOURCE_SESSION_UPDATE_CONTINUITY",
+        "SOURCE_BROWSE_DESTINATION_CACHE",
+        "READER_FIRST_OPEN_FORMAT",
+        "DOWNLOAD_USER_FLOW",
+        "SOURCE_COLD_COVER_SERIAL_ADMISSION",
+        "SOURCE_EXPLICIT_LOGIN_ENTRY",
+        "SOURCE_OLDMASTERQ_HTTP_ERRORS",
+        "SOURCE_NAMEPARA_ARCHIVE_CONCURRENCY",
+        "SOURCE_TENCENT_PUBLIC_CHAPTER_AND_PAID",
+        "SOURCE_IKMMH_REGION_DENIAL",
+        "SOURCE_HENTAIFOX_TRANSPORT_ERROR",
+        "SOURCE_MH1234_EXPLICIT_EMPTY_CATALOGUE",
+        "SOURCE_FAILURE_USER_COPY",
+        "DETAIL_CHAPTER_LIST_ACTIONS",
+        "TRACKER_RECONNECT_UNAVAILABLE",
+        "TRACKER_BROWSER_FIRST_ATTEMPT",
+        "TRACKER_SYNC_PROGRESS_MISSING",
+        "WEBDAV_AUTO_PROGRESS_STALE",
+        "SOURCE_KOMIIC_IMAGE_QUOTA",
+        "LIBRARY_SCROLL_OCCASIONAL_STALL",
+        "SOURCE_KOMIIC_CC_DIRECT",
+        "READER_ASYNC_PAGE_ROLLBACK",
+        "SOURCE_MANHUAREN_EXPLICIT_BLOCKED",
+        "SOURCE_ALL_PROVIDER_COVERAGE",
+        "CONTINUOUS_PERFORMANCE"
+      ],
+      "affectsActivity": false,
+      "title": "整理事项处理阶段",
+      "detail": "按原事项现有结果区分处理中、已处理待验证与异常待复现；保留原证据、关闭状态和最近活动顺序。"
+    },
+    {
+      "id": "detail-cold-dynamic-20261110",
+      "at": "2026-11-10T02:02:31+08:00",
+      "itemId": "DETAIL_COLD_CHAPTER_RELOAD",
+      "title": "#262 动态录屏与请求时序闭环",
+      "detail": "197 无目录入口首进记录 get_manga/get_chapters，冷重启二进不再请求；连续录屏覆盖点击到稳定详情。设备已恢复原超时并释租。",
+      "evidence": ".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/detail-enter-recording-20261110C/summary.json"
     },
     {
       "id": "overdefense-encoded-dot-20261110",
@@ -9994,7 +10404,9 @@
       "at": "2026-11-08T14:29:10+08:00",
       "title": "Koma 1.4.0 已发布",
       "detail": "公开 HAP、构建清单和更新日志均已核对。",
-      "itemIds": ["RELEASE_1_4_0"],
+      "itemIds": [
+        "RELEASE_1_4_0"
+      ],
       "kind": "checkpoint"
     },
     {
@@ -10002,7 +10414,10 @@
       "at": "2026-11-08T13:45:50+08:00",
       "title": "197 验证作品资料开关和书架移出入口",
       "detail": "书架设置开关由关闭切为开启并恢复关闭。书源作品多选后打开移出确认并取消，原作品和续读页保留。已恢复电源和租约。",
-      "itemIds": ["SHELF_WORK_INFO_ON_UPDATE", "SHELF_REMOVE_SOURCE_FAVORITES"],
+      "itemIds": [
+        "SHELF_WORK_INFO_ON_UPDATE",
+        "SHELF_REMOVE_SOURCE_FAVORITES"
+      ],
       "kind": "checkpoint"
     },
     {
@@ -10010,7 +10425,10 @@
       "at": "2026-11-08T13:41:29+08:00",
       "title": "修正书架作品状态刷新和书源作品移出",
       "detail": "构建通过。无新章节仍刷新状态，开关与自定义封面优先规则通过执行验证。批量移出保存失败可回退，成功后接收端收到移出记录。",
-      "itemIds": ["SHELF_WORK_INFO_ON_UPDATE", "SHELF_REMOVE_SOURCE_FAVORITES"],
+      "itemIds": [
+        "SHELF_WORK_INFO_ON_UPDATE",
+        "SHELF_REMOVE_SOURCE_FAVORITES"
+      ],
       "kind": "checkpoint"
     },
     {
@@ -10018,7 +10436,10 @@
       "at": "2026-11-08T11:41:39+08:00",
       "title": "复现Komiic游客额度并核对大模型服务入口",
       "detail": "两个镜像的原图与取票均明确返回额度耗尽。源与通用宿主分类通过本地验证。237实显大模型服务空态，右上角加号打开添加菜单和API表单。",
-      "itemIds": ["SOURCE_KOMIIC_IMAGE_QUOTA", "MODEL_PROVIDER_MANAGEMENT_CHROME"],
+      "itemIds": [
+        "SOURCE_KOMIIC_IMAGE_QUOTA",
+        "MODEL_PROVIDER_MANAGEMENT_CHROME"
+      ],
       "kind": "checkpoint"
     },
     {
@@ -10353,7 +10774,9 @@
       "at": "2026-11-08T03:46:46+08:00",
       "title": "#004 瓜子漫画 0.1.6 已公开",
       "detail": "正式订阅已列出新包，从公开地址回下载执行《装备我最强》真实请求，确认作者正确和目录 273 章。设备此前核对的是本地候选。",
-      "itemIds": ["SOURCE_GUAZI_DISPLAY_TEXT"],
+      "itemIds": [
+        "SOURCE_GUAZI_DISPLAY_TEXT"
+      ],
       "kind": "verified"
     },
     {
@@ -21964,6 +22387,54 @@
         ".hvigor/outputs/webdav-unattended-20261106/device-chapter-page-readback.json",
         ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/webdav-unattended/observe-20261106T192915838687/screen.png"
       ]
+    },
+    {
+      "id": "reader-progress-async-persist-20261110",
+      "at": "2026-11-10T04:06:00+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "阅读进度写盘移出 UI 线程",
+      "detail": "自动保存改为后台序列化和临时文件写入，UI 只做代次校验与原子替换；回前台不再重读整库。197 条漫 14/15→13/15 后等待 3 秒杀进程，重开仍为 13/15。",
+      "kind": "verified"
+    },
+    {
+      "id": "foreground-shelf-no-full-restore-20261110",
+      "at": "2026-11-10T04:06:00+08:00",
+      "itemId": "LIBRARY_SCROLL_OCCASIONAL_STALL",
+      "title": "回前台书架滑动不再由整库同步读取触发",
+      "detail": "197 最终候选回前台后 150ms 起连续六次滑动，1021 个应用帧最长 5.572ms，0 帧超 8.3ms；后台结果回滚改为仅回滚受影响条目。",
+      "kind": "verified"
+    },
+    {
+      "id": "reader-continuous-area-list-20261110",
+      "at": "2026-11-10T06:02:00+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "条漫 area 回调与整 List 重建已移出滚动窗口",
+      "detail": "area 回调只写变化值，连续尺寸只通知对应行，页码停稳后提交；197 3000 swipe 最长 20.231→11.603ms、>16.7ms 1→0，20 fling 1300 帧无 >16.7ms。",
+      "kind": "verified"
+    },
+    {
+      "id": "reader-kit-main-pin-20261110",
+      "at": "2026-11-10T06:25:00+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "共享 reader-kit 恢复本地 revert 并固定 main",
+      "detail": "共享 main 0c925b9 包含 580cd8b revert 与连续 moving 优化；Koma gitlink 固定同提交，Release 构建通过。continuous-entry 42/42 通过，全量 553 中 7 个既有失败。",
+      "kind": "verified"
+    },
+    {
+      "id": "reader-shared-main-270c0e1-20261110",
+      "at": "2026-11-10T09:40:00+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "共享 main 固定 270c0e1，撤回无滤镜包装跳过",
+      "detail": "270c0e1 保留本地 revert 与 moving 优化，原图片效果包装恢复；c7 同场景 1325 帧最长 12.326ms，无 >16.7ms。c6 的 33/21/97ms 回归随包装跳过撤回。",
+      "kind": "verified"
+    },
+    {
+      "id": "reader-paged-geometry-20261110",
+      "at": "2026-11-10T10:05:00+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "左右分页跳过全章宽页重算并保护未缩放翻页",
+      "detail": "单页/上下分页不再因每张图尺寸重载 displayPages；未缩放不递增 zoomResetToken。197 RTL 10 次翻页最长 40.696→25.568ms，>16.7ms 17→14，仍未达标。",
+      "kind": "progress"
     }
   ],
   "reportAgeAudit": {

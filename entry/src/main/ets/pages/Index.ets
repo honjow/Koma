@@ -87,6 +87,7 @@ import {
   continuationChapterIds,
 } from '../model/ReaderChapterSequence'
 import { SourceBrowsePage } from './SourceBrowsePage'
+import { SourceWebFetchBridgeHost } from '../components/SourceWebFetchBridgeHost'
 import { SourceSearchPage } from './SourceSearchPage'
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
 import { MangaGridItem } from '../components/MangaGridItem'
@@ -3400,6 +3401,9 @@ struct Index {
 
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
+      // Application-scoped bridged WebView: history and shelf reader entries
+      // must not depend on SourceBrowsePage still being mounted.
+      SourceWebFetchBridgeHost()
       if (this.languageState.effectiveLocale.length >= 0) {
         HdsNavigation(this.appPathStack) {
           HdsTabs({ controller: this.tabController }) {

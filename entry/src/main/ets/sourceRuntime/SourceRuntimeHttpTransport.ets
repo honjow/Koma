@@ -12,7 +12,8 @@ import { BusinessError, deviceInfo } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
 import { NativeSourceRuntime, SourceBrowserHttpTiming } from './NativeSourceRuntime'
 import { appSourceSettingsStore } from './SourceSettingsStore'
-import { sourceDnsTarget, SOURCE_FRESH_HTTP_MIN_SDK, SourceGuestHttp, SourceGuestCookie, SourceGuestCookieCapture, SourceGuestNumberedPath, declaredSourceHttpProfile, mergeDeclaredSourceCookies } from './SourceWebsitePolicy'
+import { sourceDnsTarget, SOURCE_FRESH_HTTP_MIN_SDK, SourceGuestHttp, SourceGuestCookie, SourceGuestCookieCapture, SourceGuestNumberedPath, declaredSourceHttpProfile, mergeDeclaredSourceCookies, renderedDocumentFallbackEnabled } from './SourceWebsitePolicy'
+import { sourceWebFetchBridge } from './SourceWebFetchBridge'
 import { initializeSourceDnsBootstrap, requestSourceDnsHop, sourceDnsBootstrapIp, sourceDnsOverride,
   SourceDnsOverride, SourceDnsBootstrapScope } from './SourceDnsBootstrapTransport'
 import { requestSourceRcpHop, sourceRcpResponseText, SourceRcpTransportFailure } from './SourceRcpTransport'
@@ -82,6 +83,12 @@ interface VerifiedSourceGet {
   responseJson: string
 }
 
+interface VerifiedSourceDocument {
+  request: RejectedSourceGet
+  sessionId: string
+  responseJson: string
+}
+
 // Legacy callers keep their last failed read per source. A unified-search
 // operation has its own handle, so another operation cannot replace that GET.
 // Neither requests nor responses are persisted or exposed to the Web document.
@@ -90,6 +97,7 @@ const rejectedSourceCandidates: Map<string, Map<string, RejectedSourceGet>> = ne
 let rejectedSourceSequence: number = 0
 let activeSourceWebProbe: ActiveSourceWebProbe | undefined = undefined
 let verifiedSourceGet: VerifiedSourceGet | undefined = undefined
+let verifiedSourceDocument: VerifiedSourceDocument | undefined = undefined
 
 function rejectedSourceGetKey(sourceId: string, requestHandle?: string): string {
   return JSON.stringify([sourceId, requestHandle ?? null])
@@ -114,10 +122,16 @@ export function clearSourceRejectedRequest(sourceId: string, requestHandle: stri
   rejectedSourceCandidates.delete(key)
   if (verifiedSourceGet?.request.identity.sourceId === sourceId &&
     verifiedSourceGet.request.identity.operationGuardId === requestHandle) verifiedSourceGet = undefined
+  if (verifiedSourceDocument?.request.identity.sourceId === sourceId &&
+    verifiedSourceDocument.request.identity.operationGuardId === requestHandle) {
+    DiagnosticLogger.info('source_http', 'document_handoff', 'state=cancelled')
+    verifiedSourceDocument = undefined
+  }
 }
 
 /** Select only a host-observed GET belonging to this source and operation. */
 export function selectSourceRejectedRequest(sourceId: string, requestHandle: string, challengeRequestId?: string): void {
+  if (verifiedSourceDocument?.request.identity.sourceId === sourceId) verifiedSourceDocument = undefined
   const key = rejectedSourceGetKey(sourceId, requestHandle)
   const candidates = rejectedSourceCandidates.get(key)
   // Old sources do not opt in. Retain their existing single-GET fallback.
@@ -125,6 +139,55 @@ export function selectSourceRejectedRequest(sourceId: string, requestHandle: str
   const selected = challengeRequestId === undefined ? undefined : candidates?.get(challengeRequestId)
   if (selected !== undefined) selected.selectedByChallengeId = true
   rejectedSourceGets.set(key, selected ?? null)
+}
+
+/** Stage one visible WebView document for the exact rejected GET. The Host consumes it once. */
+export function stageSourceWebDocument(sourceId: string, sessionId: string, requestHandle: string,
+  documentUrl: string, html: string): boolean {
+  try {
+    const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+    if (!renderedDocumentFallbackEnabled(entry?.websitePolicy)) {
+      DiagnosticLogger.info('source_http', 'document_handoff', 'state=rejected reason=policy')
+      return false
+    }
+    const key = rejectedSourceGetKey(sourceId, requestHandle)
+    const request = rejectedSourceGets.get(key)
+    if (request === undefined || request === null || request.identity.sourceId !== sourceId ||
+      request.identity.operationGuardId !== requestHandle) {
+      DiagnosticLogger.info('source_http', 'document_handoff', 'state=rejected reason=request')
+      return false
+    }
+    if (request.rejectedUrl !== documentUrl) {
+      DiagnosticLogger.info('source_http', 'document_handoff', 'state=rejected reason=url')
+      return false
+    }
+    if (html.length === 0 || html.length > 2 * 1024 * 1024) {
+      DiagnosticLogger.info('source_http', 'document_handoff', 'state=rejected reason=html_size bytes=' + html.length)
+      return false
+    }
+    // The document belongs to this open verification attempt. A persisted
+    // grant for the same origin has its own session id and must not shadow it.
+    const pending = appSourceWebSessionStore.pendingStatus(sourceId)
+    if (pending.sessionId !== sessionId || pending.origin !== sourceWebOrigin(request.rejectedUrl)) {
+      DiagnosticLogger.info('source_http', 'document_handoff', 'state=rejected reason=session')
+      return false
+    }
+    const response = new SourceHttpSuccessEnvelope(200, html)
+    response.networkPerformed = false
+    verifiedSourceDocument = { request, sessionId, responseJson: JSON.stringify(response) }
+    DiagnosticLogger.info('source_http', 'document_handoff', 'state=staged bytes=' + html.length)
+    return true
+  } catch (_error) {
+    return false
+  }
+}
+
+export function cancelSourceWebDocument(sourceId: string, sessionId: string): void {
+  if (verifiedSourceDocument?.request.identity.sourceId === sourceId &&
+    verifiedSourceDocument.sessionId === sessionId) {
+    DiagnosticLogger.info('source_http', 'document_handoff', 'state=cancelled reason=session_closed')
+    verifiedSourceDocument = undefined
+  }
 }
 
 const SOURCE_HTTP_DEFAULT_TIMEOUT_MS: number = 15000
@@ -705,6 +768,27 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   }
   const freshHttp = declaredSourceHttpProfile(installedEntry?.websitePolicy, url) === 'fresh_http11'
   const guestSearch = envelope.guestSearch === true
+  // A source that opted into the WebView bridge may read through its granted
+  // session when the native transport is rejected. Misses fall through to the
+  // existing network path; the bridge never widens permissions by itself.
+  if (installedEntry?.websitePolicy?.webFetchBridge === true && !guestSearch && !nativeSession &&
+    probe === undefined && method === 'GET' && body.length === 0 && identity !== undefined) {
+    if (!sourceWebFetchBridge.availableFor(identity.sourceId)) {
+      // Reader opened from history/shelf: no browse page exists to host the
+      // granted session, so prepare the application-scoped WebView once.
+      await sourceWebFetchBridge.prepare(identity.sourceId, url)
+    }
+    const bridged = sourceWebFetchBridge.availableFor(identity.sourceId)
+      ? await sourceWebFetchBridge.fetch(identity.sourceId, url) : undefined
+    if (bridged !== undefined && bridged.status >= 200 && bridged.status < 300) {
+      trace.info('web_fetch_bridge', 'status=' + bridged.status + ' bytes=' + bridged.body.length)
+      trace.finish('completed', 'state=web_fetch_bridge')
+      const bridgedEnvelope = new SourceHttpSuccessEnvelope(bridged.status, bridged.body)
+      bridgedEnvelope.networkPerformed = false
+      return JSON.stringify(bridgedEnvelope)
+    }
+    trace.info('web_fetch_bridge', 'state=miss')
+  }
   const guestPolicy = installedEntry?.websitePolicy?.guestHttp
   if (guestSearch && (guestPolicy === undefined || identity === undefined || probe !== undefined ||
     identity.credentialGrantId !== undefined || method !== 'GET' || body.length !== 0 || envelope.dnsOverride !== undefined ||
@@ -733,6 +817,44 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         trace.finish('completed', 'state=verification_response_reused')
         return ready.responseJson
       }
+    }
+  }
+  if (!guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceDocument !== undefined) {
+    const ready = verifiedSourceDocument
+    const requestMatch = ready.request.requestJson === requestJson
+    const byteContextMatch = ready.request.httpContextJson === httpContextJson
+    // The staged document is bound to the same operation identity, not to a
+    // byte-identical identity string: re-entry may serialize the same fields
+    // in a different order. The exact request text above still anchors the
+    // target GET, and the package fingerprint prevents cross-build reuse.
+    const contextMatch = identity !== undefined && (byteContextMatch ||
+      (ready.request.identity.sourceId === identity.sourceId &&
+        ready.request.identity.sourceVersion === identity.sourceVersion &&
+        ready.request.identity.packageIdentity === identity.packageIdentity &&
+        ready.request.identity.operationGuardId === identity.operationGuardId &&
+        ready.request.identity.diagnosticOperation === identity.diagnosticOperation))
+    if (identity !== undefined && requestMatch && contextMatch) {
+      verifiedSourceDocument = undefined
+      const sessionMatch = appSourceWebSessionStore.status(identity.sourceId,
+        sourceWebOrigin(ready.request.rejectedUrl)).sessionId === ready.sessionId
+      const granted = appSourceWebSessionStore.requestSession(identity, ready.request.rejectedUrl) !== undefined
+      DiagnosticLogger.info('source_http', 'document_handoff_reuse',
+        'request=true context=true session=' + sessionMatch + ' granted=' + granted)
+      if (sessionMatch && granted) {
+        DiagnosticLogger.info('source_http', 'document_handoff_reused', 'state=used_once')
+        trace.finish('completed', 'state=document_handoff_reused')
+        return ready.responseJson
+      }
+    } else {
+      const guardMatch = ready.request.identity.operationGuardId === identity?.operationGuardId
+      const versionMatch = ready.request.identity.sourceVersion === identity?.sourceVersion
+      const packageMatch = ready.request.identity.packageIdentity === identity?.packageIdentity
+      const operationMatch = ready.request.identity.diagnosticOperation === identity?.diagnosticOperation
+      DiagnosticLogger.info('source_http', 'document_handoff_reuse',
+        'state=miss request=' + requestMatch + ' context=' + contextMatch + ' bytes=' + byteContextMatch +
+        ' identity=' + (identity !== undefined) +
+        ' guard=' + guardMatch + ' version=' + versionMatch + ' package=' + packageMatch + ' op=' + operationMatch +
+        ' savedLength=' + ready.request.httpContextJson.length + ' nowLength=' + httpContextJson.length)
     }
   }
   if (freshHttp) {
@@ -1098,6 +1220,7 @@ export async function probeSourceWebSession(sourceId: string, sessionId: string,
 export function cancelSourceWebProbe(sourceId: string, sessionId: string): void {
   if (activeSourceWebProbe?.sourceId === sourceId && activeSourceWebProbe.sessionId === sessionId) activeSourceWebProbe = undefined
   if (verifiedSourceGet?.request.identity.sourceId === sourceId && verifiedSourceGet.sessionId === sessionId) verifiedSourceGet = undefined
+  if (verifiedSourceDocument?.request.identity.sourceId === sourceId && verifiedSourceDocument.sessionId === sessionId) verifiedSourceDocument = undefined
 }
 
 export function configureSourceRuntimeHttpTransport(): boolean {

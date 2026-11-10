@@ -34,6 +34,7 @@ import { KomaReaderInitialPolicy } from './KomaReaderInitialPolicy'
 import { KomaReaderPreferenceBridge } from './KomaReaderPreferenceBridge'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 import { ReaderMode } from '../model/ReaderSessionStore'
+import { READER_RUNTIME_SHAPE_POLICY, ReaderImagePixelSize, readerReadingShape } from '@reader-kit/core'
 import { readerSessionFormatForOpen } from '../model/ReaderLocalFormatProbe'
 import { ReaderSettingsContent } from '../components/ReaderSettingsContent'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
@@ -202,6 +203,8 @@ export struct KomaReaderLabPage {
   private imageSave: ReaderImageSaveHost | null = null
   private imageShare: ReaderImageShareHost | null = null
   private adapter: KomaReaderLabAdapter | null = null
+  private measuredPageSizes: Map<string, ReaderImagePixelSize> = new Map()
+  private autoFormatApplied: boolean = false
   private chapterRequest: ReaderCancellation | null = null
   private chapterProbeUsed: boolean = false
   private readerClosed: boolean = false
@@ -363,6 +366,9 @@ export struct KomaReaderLabPage {
         (): boolean => readerRemotePreloadAllowed(this.hostPreferences?.preloadWifiOnly === true),
         () => effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride))
       this.adapter = adapter
+      adapter.onPageSize = (unitId: string, index: number, width: number, height: number): void => {
+        this.onMeasuredPageSize(unitId, index, width, height)
+      }
       adapter.onAuthenticationRequested = (sourceId: string, unit: ReaderUnitKey, current: () => boolean,
         reopen: boolean): Promise<boolean> => this.requestSourceAuthentication(sourceId, unit, current, reopen)
       this.imageSave = new ReaderSystemImageSaveHost(context)
@@ -1141,6 +1147,47 @@ export struct KomaReaderLabPage {
     if (mode === 'vertical_page') return ReaderMode.VERTICAL_PAGE
     if (mode === 'continuous_scroll') return ReaderMode.CONTINUOUS_SCROLL
     return ReaderMode.SINGLE_PAGE
+  }
+
+  private onMeasuredPageSize(unitId: string, index: number, width: number, height: number): void {
+    if (width <= 0 || height <= 0) return
+    this.measuredPageSizes.set(JSON.stringify([unitId, index]), { width, height })
+    this.maybeApplyMeasuredFormat(unitId)
+  }
+
+  /**
+   * First-open format hint for the shared reader. Same evidence policy as the
+   * legacy page, applied to the session this page actually renders. The
+   * decision runs once and only widens this comic's persisted mode.
+   */
+  private maybeApplyMeasuredFormat(unitId: string): void {
+    if (this.autoFormatApplied || this.seriesOverrideActive || !this.productionEntry) return
+    const current = this.hostPreferences
+    const session = this.session
+    if (current === null || session === null || this.readerClosed) return
+    if (current.pageMode === 'continuous_scroll' ||
+      current.readingDirection === ReadingDirection.WEBTOON) {
+      this.autoFormatApplied = true
+      return
+    }
+    const sizes: Array<ReaderImagePixelSize | undefined> = []
+    let known = 0
+    for (let index = 0; index < READER_RUNTIME_SHAPE_POLICY.sample; index += 1) {
+      const size = this.measuredPageSizes.get(JSON.stringify([unitId, index]))
+      if (size !== undefined) known += 1
+      sizes.push(size)
+    }
+    const shape = readerReadingShape(sizes)
+    DiagnosticLogger.info('reader_format_auto', 'evaluate_shared', 'known=' + known + ' shape=' + shape)
+    if (shape !== 'webtoon') return
+    this.autoFormatApplied = true
+    const next = normalizeReaderPreferences(current)
+    next.pageMode = 'continuous_scroll'
+    const policy = KomaReaderInitialPolicy.resolveHost(next, next.columnMode)
+    session.setPolicy(policy)
+    // enqueuePreferenceWrite reads hostPreferences as the baseline; leaving the
+    // current value in place is what makes this a real per-comic change.
+    this.enqueuePreferenceWrite(KomaReaderPreferenceBridge.applyPolicy(current, policy))
   }
 
   private onHostPreferencesChanged(next: ReaderPreferences, fromCoveredEditor: boolean = false): void {

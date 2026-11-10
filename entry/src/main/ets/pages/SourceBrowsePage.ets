@@ -4,6 +4,8 @@ import { komaMenuOptions, komaSheetOptions, komaToastOptions } from "../theme/Ko
 import { SourceSettingsSheetHost } from '../components/SourceSettingsSheetHost'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
+import { webview } from '@kit.ArkWeb'
+import { requestSourceWebFetchBridgeHost } from '../sourceRuntime/SourceWebFetchBridge'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
@@ -135,6 +137,12 @@ export struct SourceBrowsePage {
     this.webChallengeClosing = true
     this.webChallengeId = 0
     this.webChallengeShown = false
+    const bridgeSource = this.webChallengeParams.sourceSession?.sourceId
+    const bridgeUrl = this.webChallengeParams.url
+    if (bridgeSource !== undefined && bridgeSource.length > 0 && bridgeUrl.length > 0) {
+      // The root host owns the WebView; browse only hands over the granted URL.
+      requestSourceWebFetchBridgeHost(bridgeSource, bridgeUrl)
+    }
     if (id > 0) void this.viewModel.completeWebChallenge(scope, id, this.chrome.visible)
   }
 

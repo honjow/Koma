@@ -45,9 +45,31 @@ export interface SourceDnsBootstrap {
   addressesKey: string
 }
 
+/** Opt-in readiness for handing the visible verification document to its GET. */
+export interface SourceRenderedDocumentPolicy {
+  readySelector: string
+}
+
 export interface SourceWebsitePolicy {
   homepageChoices?: SourceHomepageChoices
   httpProfiles?: SourceHttpProfile[]
+  // Opt-in only: the host may hand the visible verification page's document
+  // to the exact rejected GET once. `true` keeps manual completion; an object
+  // with `readySelector` lets the host close the sheet automatically when the
+  // page actually contains the declared content. No background WebView opens.
+  // See stageSourceWebDocument for the binding rules.
+  renderedDocumentFallback?: boolean | SourceRenderedDocumentPolicy
+  // Opt-in browser identity for this source's verification WebView. An empty
+  // value keeps the engine default; the value must also be usable by the
+  // source request so a clearance obtained here stays valid afterwards.
+  webSessionUserAgent?: string
+  // Opt-in: use the native engine UA with an Android token instead of the
+  // OpenHarmony token Cloudflare does not recognize. Keeps Chrome/WebKit
+  // versions and the mobile fingerprint consistent.
+  webSessionAndroidAgent?: boolean
+  // Opt-in: source HTTP reads may be served by an in-page fetch in the
+  // granted WebView session when the native transport is rejected.
+  webFetchBridge?: boolean
   systemWebAgentOrigins?: string[]
   publicCookieOverrides?: SourceCookieOverride[]
   dnsBootstrap?: SourceDnsBootstrap
@@ -184,6 +206,18 @@ export function validSourceWebsitePolicy(value?: Object): boolean {
   if (!validGuestHttp(policy['guestHttp']) || !validDnsBootstrap(policy['dnsBootstrap'])) return false
   if (!validChapterIdentity(policy['chapterIdentity']) ||
     (policy['preserveRouteCover'] !== undefined && typeof policy['preserveRouteCover'] !== 'boolean')) return false
+  const renderedDocument = policy['renderedDocumentFallback']
+  if (renderedDocument !== undefined && typeof renderedDocument !== 'boolean') {
+    const rule = asRecord(renderedDocument)
+    const selector = rule?.['readySelector']
+    if (rule === undefined || typeof selector !== 'string' || selector.length === 0 || selector.length > 256 ||
+      /[<\\\r\n]/.test(selector)) return false
+  }
+  const sessionAgent = policy['webSessionUserAgent']
+  if (sessionAgent !== undefined && (typeof sessionAgent !== 'string' || sessionAgent.length === 0 ||
+    sessionAgent.length > 256 || /[\r\n]/.test(sessionAgent))) return false
+  if (policy['webSessionAndroidAgent'] !== undefined && typeof policy['webSessionAndroidAgent'] !== 'boolean') return false
+  if (policy['webFetchBridge'] !== undefined && typeof policy['webFetchBridge'] !== 'boolean') return false
   const coverSuffix = policy['routeCoverPlaceholderSuffix']
   if (coverSuffix !== undefined && (typeof coverSuffix !== 'string' || !safePath(coverSuffix))) return false
   const ordinaryOrigins = policy['mobileWebAndroidAgentOrigins']
@@ -217,7 +251,7 @@ export function validSourceWebsitePolicy(value?: Object): boolean {
       const prefix = entry?.['pathPrefix']
       const profile = entry?.['profile']
       if (!isOrigin(entry?.['origin']) || typeof profile !== 'string' ||
-        !['firefox133', 'chrome145', 'fresh_http11'].includes(profile) ||
+        !['firefox133', 'chrome145', 'chrome116', 'chrome131_android', 'fresh_http11'].includes(profile) ||
         (prefix !== undefined && (typeof prefix !== 'string' || !/^\/[A-Za-z0-9_./-]{0,128}$/.test(prefix) ||
           prefix.includes('..')))) return false
     }
@@ -245,6 +279,18 @@ export function selectedPolicyHomepage(policy: SourceWebsitePolicy | undefined, 
   if (choices === undefined) return undefined
   const saved = read(choices.setting)
   return choices.options.find((option: SourceHomepageChoice): boolean => option.value === saved)?.url
+}
+
+export function renderedDocumentFallbackEnabled(policy: SourceWebsitePolicy | undefined): boolean {
+  const value = policy?.renderedDocumentFallback
+  return value === true || (value !== undefined && value !== false && typeof value === 'object')
+}
+
+export function renderedDocumentReadySelector(policy: SourceWebsitePolicy | undefined): string {
+  const value = policy?.renderedDocumentFallback
+  if (value === undefined || value === false || typeof value !== 'object') return ''
+  const selector = (value as SourceRenderedDocumentPolicy).readySelector
+  return typeof selector === 'string' ? selector : ''
 }
 
 export function declaredSourceHttpProfile(policy: SourceWebsitePolicy | undefined, fullUrl: string): string {
