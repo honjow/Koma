@@ -491,7 +491,9 @@ export struct LibraryPage {
     const comicAvailability = new Map<ComicId, OfflineDownloadStatus>()
     try {
       const context = getContext(this) as common.UIAbilityContext
-      const entries = new OfflineDownloadQueueStore(context.filesDir).loadReconciledSnapshot()
+      // Startup reconciliation already validates manifests off the UI thread. Filtering uses the
+      // durable queue projection instead of restating every downloaded manifest while the shelf moves.
+      const entries = new OfflineDownloadQueueStore(context.filesDir).load()
       const entriesByComicId = new Map<ComicId, OfflineDownloadQueueEntry[]>()
       entries.forEach((entry: OfflineDownloadQueueEntry) => {
         if (entry.status !== OfflineDownloadStatus.DOWNLOADED) {
