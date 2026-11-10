@@ -447,6 +447,11 @@ export struct HistoryPage {
     return sections.filter((section: HistorySection): boolean => section.items.length > 0)
   }
 
+  @Computed
+  private get historySectionList(): HistorySection[] {
+    return this.historySections()
+  }
+
   /** ArkUI ForEach keys must change when a history row moves groups or advances within a chapter. */
   private historyItemRenderIdentity(item: HistoryItem): string {
     return JSON.stringify([
@@ -706,7 +711,7 @@ export struct HistoryPage {
         ListItem() {
           this.HistoryHeader()
         }
-        ForEach(this.historySections(), (section: HistorySection) => {
+        ForEach(this.historySectionList, (section: HistorySection) => {
           ListItem() {
             this.HistoryGroupHeader(section)
           }

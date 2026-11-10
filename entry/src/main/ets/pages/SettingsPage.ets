@@ -439,6 +439,19 @@ function createSettingsRootSections(): SettingsPaneSection[] {
   ]
 }
 
+let settingsSectionsCache: SettingsSection[] | undefined = undefined
+let settingsRootSectionsCache: SettingsPaneSection[] | undefined = undefined
+
+function settingsSections(): SettingsSection[] {
+  if (settingsSectionsCache === undefined) settingsSectionsCache = createSettingsSections()
+  return settingsSectionsCache
+}
+
+function settingsRootSections(): SettingsPaneSection[] {
+  if (settingsRootSectionsCache === undefined) settingsRootSectionsCache = createSettingsRootSections()
+  return settingsRootSectionsCache
+}
+
 function safeSettingsErrorCode(error: Error): string {
   return normalizeLibraryUpdateFailureCode(error.name) ?? 'unknown'
 }
@@ -976,7 +989,7 @@ export struct SettingsPage {
       return []
     }
     const results: SettingsSearchResult[] = []
-    createSettingsRootSections().forEach((section: SettingsPaneSection) => {
+    settingsRootSections().forEach((section: SettingsPaneSection) => {
       section.items.forEach((item: SettingsPaneItem) => {
         if (!this.paneItemTitle(item).toLowerCase().includes(query)) return
         results.push({ key: `category:${item.key}`, pane: item.key, sectionTitle: '',
@@ -1023,12 +1036,12 @@ export struct SettingsPage {
   }
 
   private sectionsByKeys(keys: string[]): SettingsSection[] {
-    return createSettingsSections().filter((section: SettingsSection): boolean => keys.includes(section.key))
+    return settingsSections().filter((section: SettingsSection): boolean => keys.includes(section.key))
   }
 
   private rowsByKeys(keys: string[]): SettingsRow[] {
     const rows: SettingsRow[] = []
-    createSettingsSections().forEach((section: SettingsSection) => {
+    settingsSections().forEach((section: SettingsSection) => {
       section.rows.forEach((row: SettingsRow) => {
         if (keys.includes(row.key) &&
           (row.key !== 'local-library-refresh' || canRescanLocalLibraryFolder()) &&
@@ -2630,7 +2643,7 @@ export struct SettingsPage {
   @Builder
   private RootSettings() {
     Column({ space: ThemeConstants.SPACE_LG }) {
-      ForEach(createSettingsRootSections(), (section: SettingsPaneSection) => {
+      ForEach(settingsRootSections(), (section: SettingsPaneSection) => {
         this.RootSection(section)
       }, (section: SettingsPaneSection) => section.key)
     }
