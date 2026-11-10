@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-11T00:24:00+08:00",
+  "updatedAt": "2026-11-11T02:26:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
   "activity": "#266 MYCOMIC 共享阅读器已按原图尺寸自动切条漫，历史直读 403 已修；0.1.29 与宿主改动未发布。",
@@ -83,6 +83,29 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "READER_WIDE_SPLIT_FIRST_FRAME_FLASH",
+      "number": 269,
+      "title": "首张宽页先显示整页再跳成拆分",
+      "kind": "done",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-11",
+      "reportedAtSource": "用户在本会话报告：宽图模式选择拆分宽页后，首次进入阅读器的第一张图为宽页时会先显示完整页，再跳成拆分图。",
+      "registeredAt": "2026-11-11T02:26:00+08:00",
+      "updatedAt": "2026-11-11T02:26:00+08:00",
+      "closedAt": "2026-11-11T02:26:00+08:00",
+      "status": "已在197按普通入口验证",
+      "result": "拆分宽页开启时，宽高未知或已判定为宽页的整页投影继续保留加载反馈，直到 core 发布左右半页拓扑，再暴露像素。197 使用《艳母》第01卷第1页（1650×738）从书架冷启动进入，完整录屏没有出现未拆分的整页，等待后直接显示阅读方向对应的右侧半页。",
+      "remaining": "仅覆盖197、该作品该页、单页RTL拆分；其他阅读方向、分页轴及未测量后续页未单独验收。共享阅读器本地提交3af4c90；未推送。",
+      "evidence": [
+        ".hvigor/outputs/reader-wide-split-first-frame-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/first-page-transition-20261111T0210/koma_reader_wide_split_first_page_20261111_0210.mp4",
+        ".hvigor/outputs/reader-wide-split-first-frame-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/first-page-transition-20261111T0210/frames-review/frame-timeline.tsv",
+        ".hvigor/outputs/reader-wide-split-first-frame-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-scroll-20261111T0217/scrolled.png",
+        ".hvigor/outputs/reader-wide-split-first-frame-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/page-image-2-20261111T0223/page1.jpg",
+        ".hvigor/outputs/reader-wide-split-first-frame-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-2-20261111T0226/run-metadata.json"
+      ]
+    },
     {
       "id": "DOWNLOAD_MANAGER_UI_JANK",
       "number": 268,
@@ -9993,6 +10016,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-wide-split-first-frame-20261111",
+      "at": "2026-11-11T02:26:00+08:00",
+      "itemId": "READER_WIDE_SPLIT_FIRST_FRAME_FLASH",
+      "title": "首张宽页拆分闪烁已修复并验收",
+      "detail": "拆分宽页开启时，宽高未知或已判定为宽页的整页帧不再暴露像素，继续显示加载反馈，直到 core 发布左右半页拓扑。197《艳母》第01卷第1页冷启动录屏从书架点击到稳定无整页闪现，直接进入右侧半页；设置页读回拆分宽页开启，源图为1650×738。设备已恢复10000ms覆盖和SLEEP并释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/reader-wide-split-first-frame-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/first-page-transition-20261111T0210/koma_reader_wide_split_first_page_20261111_0210.mp4"
+    },
     {
       "id": "mycomic-shared-auto-webtoon-20261111",
       "at": "2026-11-11T00:22:00+08:00",
