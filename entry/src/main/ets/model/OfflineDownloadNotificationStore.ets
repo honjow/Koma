@@ -16,6 +16,10 @@ import {
 
 export type OfflineDownloadNotificationStatus = 'enabled' | 'disabled' | 'unavailable'
 
+// NotificationFlagStatus.TYPE_CLOSE is 2. The NotificationKit namespace does
+// not re-export that enum in this SDK, so keep the stable API value named here.
+const NOTIFICATION_FLAG_CLOSE: number = 2
+
 export type OfflineDownloadNotificationDispatchCode =
   'delivered' |
     'disabled' |
@@ -86,7 +90,6 @@ export async function publishOfflineDownloadNotification(
         manifest.downloadedPageCount,
         manifest.pageCount,
       ),
-      manifest.updatedAt,
     )
   }
   if (manifest.status === OfflineDownloadStatus.FAILED ||
@@ -100,7 +103,6 @@ export async function publishOfflineDownloadNotification(
         firstNonEmpty(labels?.comicTitle, manifest.comicId),
         manifest.failureReasonCode ?? manifest.status,
       ),
-      manifest.updatedAt,
     )
   }
   return { delivered: false, code: 'not_needed' }
@@ -109,7 +111,6 @@ export async function publishOfflineDownloadNotification(
 async function publishOfflineDownloadNotificationText(
   title: string,
   text: string,
-  updatedAt: number,
 ): Promise<OfflineDownloadNotificationDispatchResult> {
   try {
     const enabled = await notificationManager.isNotificationEnabled()
@@ -119,8 +120,16 @@ async function publishOfflineDownloadNotificationText(
     const request: notificationManager.NotificationRequest = {
       id: 4101,
       label: 'koma.downloads',
-      appMessageId: `koma.download.${updatedAt}`,
       notificationSlotType: notificationManager.SlotType.CONTENT_INFORMATION,
+      // Download completion is informational. Close every attention channel so
+      // system silent mode cannot be bypassed by repeated notification updates.
+      notificationFlags: {
+        soundEnabled: NOTIFICATION_FLAG_CLOSE,
+        vibrationEnabled: NOTIFICATION_FLAG_CLOSE,
+        bannerEnabled: NOTIFICATION_FLAG_CLOSE,
+        lockScreenEnabled: NOTIFICATION_FLAG_CLOSE,
+      },
+      isAlertOnce: true,
       wantAgent: await createOfflineDownloadWantAgent(),
       tapDismissed: true,
       content: {
