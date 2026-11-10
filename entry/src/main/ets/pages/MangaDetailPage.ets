@@ -148,6 +148,12 @@ interface MangaDetailRouteParams {
   initialManga?: SourceManga
 }
 
+interface DetailReadActionPresentation {
+  label: string
+  chapterLabel: string
+  pageLabel: string
+}
+
 interface SourceOperationDataPayload {
   manga?: Record<string, Object>
   item?: Record<string, Object>
@@ -838,6 +844,7 @@ export struct MangaDetailPage {
 
   @Monitor('readerProgressRevision')
   private onReadingStateRevision(): void {
+    if (!this.chrome.visible) return
     this.applyChapterStatesToCurrent()
   }
 
@@ -1681,9 +1688,16 @@ export struct MangaDetailPage {
     })
   }
 
-  private firstUnreadChapterId(): string | undefined {
+  @Computed
+  private get firstUnreadChapterValue(): string | undefined {
+    void this.readerSessionStore
+    void this.readerProgressRevision
     return firstReaderChapter(this.chapters, sourceChapterOrderFor(this.manga?.sourceId),
       (id: string): boolean => this.readerSessionStore.isChapterRead(this.currentComicId(), id))?.id
+  }
+
+  private firstUnreadChapterId(): string | undefined {
+    return this.firstUnreadChapterValue
   }
 
   private currentReadingProgress(): ReadingProgress | undefined {
@@ -1693,7 +1707,8 @@ export struct MangaDetailPage {
       this.readerSessionStore.getComicProgress(comic)
   }
 
-  private progressChapterId(): string | undefined {
+  @Computed
+  private get progressChapterValue(): string | undefined {
     const progress = this.currentReadingProgress()
     if (progress === undefined || progress.chapterId.trim().length === 0) {
       return undefined
@@ -1703,8 +1718,17 @@ export struct MangaDetailPage {
       : undefined
   }
 
-  private primaryReadChapterId(): string | undefined {
+  private progressChapterId(): string | undefined {
+    return this.progressChapterValue
+  }
+
+  @Computed
+  private get primaryReadChapterValue(): string | undefined {
     return this.progressChapterId() ?? this.firstUnreadChapterId()
+  }
+
+  private primaryReadChapterId(): string | undefined {
+    return this.primaryReadChapterValue
   }
 
   private hasReadableChapters(): boolean {
@@ -2256,7 +2280,8 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
     return this.trackingMappings.find((mapping: ComicTrackerMapping): boolean => mapping.providerId === providerId)
   }
 
-  private trackingVisibleProviders(): TrackerProviderConfig[] {
+  @Computed
+  private get trackingVisibleProviders(): TrackerProviderConfig[] {
     return TRACKER_PROVIDER_CONFIGS.filter((provider: TrackerProviderConfig): boolean =>
       this.trackingProviderConnected(provider.providerId) || this.trackingMapping(provider.providerId)?.mappingState === 'confirmed')
       .sort((left: TrackerProviderConfig, right: TrackerProviderConfig): number =>
@@ -2652,46 +2677,56 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
     }
   }
 
-  private primaryReadLabel(): string {
-    return this.progressChapterId() !== undefined
-      ? s('library_continue_reading')
-      : s('common_start_reading')
-  }
-
-  private primaryReadChapterLabel(): string {
-    const chapterId = this.progressChapterId()
-    const chapter = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)
-    if (chapter === undefined) {
-      return ''
-    }
-    return chapter.title.trim().replace(/\s+/g, ' ') || s('manga_detail_chapter_untitled')
-  }
-
-  private primaryReadPageLabel(): string {
+  @Computed
+  private get readActionPresentation(): DetailReadActionPresentation {
     const chapterId = this.progressChapterId()
     if (chapterId === undefined) {
-      return ''
+      return {
+        label: s('common_start_reading'),
+        chapterLabel: '',
+        pageLabel: '',
+      }
     }
+    const chapter = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)
+    const chapterLabel = chapter === undefined ? '' :
+      (chapter.title.trim().replace(/\s+/g, ' ') || s('manga_detail_chapter_untitled'))
+    let pageLabel = ''
     const comicId = this.currentComicId()
     const progress = this.readerSessionStore.getChapterProgress(comicId, chapterId)
     const comic = this.libraryStore?.getComic(comicId)
-    const chapter = comic?.chapters.find((item: Chapter): boolean => item.id === chapterId)
+    const comicChapter = comic?.chapters.find((item: Chapter): boolean => item.id === chapterId)
     let config: ReaderSessionConfig = {
       comicId, chapterId, chapterIds: this.allChapterIds(),
       totalPages: progress?.totalPages ?? 0, pageUris: [],
     }
     // Source metadata may not have hydrated pages yet. In that case the matching
     // chapter position supplies its known count; loaded chapters use Reader's config.
-    if (comic !== undefined && chapter !== undefined &&
-      (chapter.pages.length > 0 || chapterPagesAreLocalOffline(comic.sourceKind))) {
+    if (comic !== undefined && comicChapter !== undefined &&
+      (comicChapter.pages.length > 0 || chapterPagesAreLocalOffline(comic.sourceKind))) {
       config = createReaderSessionConfigFromComic(comic, chapterId)
     }
-    if (config.totalPages <= 0) {
-      return ''
+    if (config.totalPages > 0) {
+      pageLabel = this.formatString('manga_detail_resume_page', [
+        this.readerSessionStore.restorePageIndex(config) + 1, config.totalPages,
+      ])
     }
-    return this.formatString('manga_detail_resume_page', [
-      this.readerSessionStore.restorePageIndex(config) + 1, config.totalPages,
-    ])
+    return {
+      label: s('library_continue_reading'),
+      chapterLabel: chapterLabel,
+      pageLabel: pageLabel,
+    }
+  }
+
+  private primaryReadLabel(): string {
+    return this.readActionPresentation.label
+  }
+
+  private primaryReadChapterLabel(): string {
+    return this.readActionPresentation.chapterLabel
+  }
+
+  private primaryReadPageLabel(): string {
+    return this.readActionPresentation.pageLabel
   }
 
   private primaryReadPositionLabel(): string {
@@ -2896,7 +2931,7 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
         } else {
           ListItem() {
             Column({ space: ThemeConstants.SPACE_SM }) {
-              if (this.trackingVisibleProviders().length === 0) {
+              if (this.trackingVisibleProviders.length === 0) {
                 ConciseListRow({
                   title: s('manga_detail_tracker_mapping_account_missing'),
                   showChevron: true,
@@ -2904,9 +2939,9 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
                 })
               } else {
                 GroupedListSection() {
-                  ForEach(this.trackingVisibleProviders(), (provider: TrackerProviderConfig, index: number) => {
+                  ForEach(this.trackingVisibleProviders, (provider: TrackerProviderConfig, index: number) => {
                     this.TrackingProviderRow(provider)
-                    if (index < this.trackingVisibleProviders().length - 1) ListDivider()
+                    if (index < this.trackingVisibleProviders.length - 1) ListDivider()
                   }, (provider: TrackerProviderConfig): string => provider.providerId)
                 }
               }
