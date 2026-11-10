@@ -4289,9 +4289,10 @@ struct Index {
     // with the previous selection icon. Normal navigation uses the default icon and action.
     const content: Record<string, Object> = { 'title': title, 'backIcon': {} as Record<string, Object> }
     const items: Record<string, Object>[] = []
-    // Keep two useful direct actions, with the native anchored overflow third.
-    // Refresh remains available through pull-to-refresh and the grouped menu.
-    // A local work without a page URL must not advertise a non-working action.
+    // Fixed work-page pair: the host always renders WebView and Share together
+    // when a public page URL exists. Sources supply only that URL; they never
+    // add their own title button or a duplicate Share in the overflow menu.
+    // A work without a page URL must not advertise either action.
     if (chrome.webActionsAvailable) {
       items.push({ 'content': { 'label': AppStrings.get('manga_detail_menu_open_webview'),
         'icon': $r('sys.symbol.worldclock'), 'isEnabled': true,

@@ -5,7 +5,7 @@
 ## 共享仓库与依赖同步
 
 - 共享代码在 Koma 同级的独立 `reader-kit` 原仓的 `main` 维护。执行 Git 写操作前先核对 `git rev-parse --show-toplevel`、当前分支和 `git remote get-url --push origin`。推送使用原仓配置的 `origin` 和认证方式。遇到 403，先核对实际仓库和推送地址。
-- Koma 的 `third_party/reader-kit` 只按提交检出，用于构建和验收。禁止在该子模块内提交、维护开发分支或推送。先从独立原仓推送 `main`，读回远端，确认 Koma 的公共依赖地址能检出该提交，再更新 Koma 的 gitlink。
+- Koma 的 `third_party/reader-kit` 只按提交检出，用于构建和验收。禁止在该子模块内提交、维护或移动开发分支、推送，也不得改用其他远端或身份尝试推送。先从独立原仓 `/Users/honjow/git/reader-kit` 的 `main` 和它配置的 `origin`（`git@github-3003h:erosTeam/reader-kit.git`）推送，读回远端，确认 Koma 的公共依赖地址能检出该提交，再更新 Koma 的 gitlink。遇到 403 必须停止并核对原仓与认证，不得换身份重试。
 - Koma 的模块配置和 OHPM 从子模块读取依赖。CI 先递归检出 gitlink，再同步共享远端 `main` 并记录实际构建使用的 SHA。即使后续有同步步骤，初始 gitlink 也必须在公共远端可取。
 
 ## 参考如何使用

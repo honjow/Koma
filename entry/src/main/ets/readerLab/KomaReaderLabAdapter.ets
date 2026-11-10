@@ -33,6 +33,9 @@ import {
   createReaderPageRenderSources, fetchAndCacheReaderRemoteSource, prepareReaderDisplayImage,
 } from '../model/ReaderPageSourceAdapter'
 
+const MAX_AUTOMATIC_PAGE_RETRIES: number = 3
+const AUTOMATIC_PAGE_RETRY_DELAY_MS: number[] = [300, 800, 1500]
+
 export class KomaReaderLabChapterChoice {
   key: ReaderUnitKey
   title: string
@@ -107,7 +110,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private preloadedSizeVersions: Map<string, number> = new Map()
   private refreshingSources: Map<string, Promise<void>> = new Map()
   private automaticallyRefreshedUnits: Set<string> = new Set()
-  private automaticPageRetries: Set<string> = new Set()
+  private automaticPageRetries: Map<string, number> = new Map()
   private bannerPolicy: () => BannerFilterMode
   private ruleSnapshot: Promise<ImageRuleSnapshot>
   private presentationRevision: number = 0
@@ -574,8 +577,14 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     // Authentication/challenge, TLS, invalid source data and decode errors need their own handling.
     return [2300006, 2300007, 2300018, 2300028, 2300052, 2300055, 2300056, 2300999]
       .some((code: number): boolean => error.message === `reader_remote_image_fetch_failed_${code}`) ||
-      [404, 408, 410, 500, 502, 503, 504]
+      [408, 429, 500, 502, 503, 504]
         .some((status: number): boolean => error.message === `reader_remote_image_http_${status}`)
+  }
+
+  private delayAutomaticPageRetry(milliseconds: number): Promise<void> {
+    return new Promise<void>((resolve: (value: void) => void): void => {
+      setTimeout((): void => { resolve() }, milliseconds)
+    })
   }
 
   async load(page: ReaderPage, kind: ReaderAssetKind, cancellation: ReaderCancellation, forceReload: boolean): Promise<ReaderAsset> {
@@ -602,34 +611,47 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       if (notice !== null) return notice
       throw error
     }
-    let filePath: string
-    try {
-      filePath = await this.sourceFile(page.unit, page.sourceIndex, forceReload)
-    } catch (error) {
-      cancellation.check()
-      if (this.closed) throw new Error('closed_koma_reader')
-      const notice = this.authenticationNotice(error as Error, page, kind, cancellation)
-      if (notice !== null) return notice
-      const retryId = JSON.stringify([this.unitId(page.unit), page.key])
-      if (forceReload || source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE ||
-        source.sourceRuntimeId === undefined || source.sourceRuntimeId.length === 0 ||
-        this.automaticPageRetries.has(retryId) || !this.recoverableImageFailure(error as Error)) {
-        throw error as Error
+    const retryId = JSON.stringify([this.unitId(page.unit), page.key])
+    let retries = this.automaticPageRetries.get(retryId) ?? 0
+    let filePath = ''
+    while (true) {
+      try {
+        filePath = await this.sourceFile(page.unit, page.sourceIndex, forceReload || retries > 0)
+        break
+      } catch (error) {
+        cancellation.check()
+        if (this.closed) throw new Error('closed_koma_reader')
+        const notice = this.authenticationNotice(error as Error, page, kind, cancellation)
+        if (notice !== null) return notice
+        if (forceReload || source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE ||
+          source.sourceRuntimeId === undefined || source.sourceRuntimeId.length === 0 ||
+          retries >= MAX_AUTOMATIC_PAGE_RETRIES || !this.recoverableImageFailure(error as Error)) {
+          throw error as Error
+        }
+        retries += 1
+        this.automaticPageRetries.set(retryId, retries)
+        DiagnosticLogger.info('reader', 'automatic_page_retry',
+          `attempt=${retries}/${MAX_AUTOMATIC_PAGE_RETRIES} delay=${AUTOMATIC_PAGE_RETRY_DELAY_MS[retries - 1]} reason=${(error as Error).message}`)
+        const unitId = this.unitId(page.unit)
+        if (retries === 1) {
+          if (!this.automaticallyRefreshedUnits.has(unitId)) {
+            this.automaticallyRefreshedUnits.add(unitId)
+            await this.refreshPageSources(page.unit, cancellation)
+          } else {
+            // Neighbour failures join the same fresh plan, rather than refetching the chapter per image.
+            await this.refreshingSources.get(unitId)
+          }
+        } else {
+          const pending = this.refreshingSources.get(unitId)
+          if (pending !== undefined) await pending
+        }
+        cancellation.check()
+        if (this.closed) throw new Error('closed_koma_reader')
+        await this.delayAutomaticPageRetry(AUTOMATIC_PAGE_RETRY_DELAY_MS[retries - 1])
+        cancellation.check()
       }
-      this.automaticPageRetries.add(retryId)
-      DiagnosticLogger.info('reader', 'automatic_page_retry', 'attempt=1 reason=' + (error as Error).message)
-      const unitId = this.unitId(page.unit)
-      if (!this.automaticallyRefreshedUnits.has(unitId)) {
-        this.automaticallyRefreshedUnits.add(unitId)
-        await this.refreshPageSources(page.unit, cancellation)
-      } else {
-        // Neighbour failures join the same fresh plan, rather than refetching the chapter per image.
-        await this.refreshingSources.get(unitId)
-      }
-      cancellation.check()
-      if (this.closed) throw new Error('closed_koma_reader')
-      filePath = await this.sourceFile(page.unit, page.sourceIndex, true)
     }
+    this.automaticPageRetries.delete(retryId)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     const displayPath = await prepareReaderDisplayImage(filePath)

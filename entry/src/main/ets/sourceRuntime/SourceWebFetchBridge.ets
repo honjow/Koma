@@ -95,7 +95,7 @@ export class SourceWebFetchBridge {
         const parsed = JSON.parse(raw) as Record<string, Object>
         const status = typeof parsed['status'] === 'number' ? parsed['status'] as number : -1
         const body = typeof parsed['body'] === 'string' ? parsed['body'] as string : ''
-        if (status < 0 || body.length === 0) return undefined
+        if (status < 0 || body.length === 0 || this.isChallenge(body)) return undefined
         return { status, body }
       }
       DiagnosticLogger.info('source_web_fetch', 'timeout', 'source=' + sourceId)
@@ -108,6 +108,14 @@ export class SourceWebFetchBridge {
   private decode(raw: string): string {
     if (!raw.startsWith('"')) return raw
     try { return JSON.parse(raw) as string } catch (_error) { return raw }
+  }
+
+  // A hidden page can briefly expose its challenge document before the
+  // session settles. Never hand that HTML to a source parser as a 200 read.
+  private isChallenge(body: string): boolean {
+    const head = body.slice(0, 8192).toLowerCase()
+    return head.includes('cf-chl') || head.includes('challenge-platform') ||
+      head.includes('just a moment') || head.includes('attention required')
   }
 
   private delay(milliseconds: number): Promise<void> {

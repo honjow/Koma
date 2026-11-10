@@ -1,4 +1,4 @@
-import { sourceDnsTarget } from '../sourceRuntime/SourceWebsitePolicy'
+import { sourceDnsTarget, sourceImageFallbackUrl } from '../sourceRuntime/SourceWebsitePolicy'
 import { image } from '@kit.ImageKit'
 import { SourceRequiredImageDecode, sourceRequiredImageDecode, SourceRequiredImageDecodeService,
   readSourceImageBytes } from './SourceRequiredImageDecode'
@@ -478,7 +478,7 @@ function sourceImageResponseError(status: number, rules?: SourceImageResponseErr
 async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders, sourceId: string = '',
   dnsOverride?: SourceDnsOverride, chapterImage: boolean = false, responseErrors?: SourceImageResponseErrors,
   coverImage: boolean = false, onSize?: (width: number, height: number) => void,
-  sizeKey?: string): Promise<ArrayBuffer> {
+  sizeKey?: string, allowHostFallback: boolean = true): Promise<ArrayBuffer> {
   const installedSource = appSourceRuntimeRegistry.lookup(sourceId).entry
   if (installedSource?.packageManifestUnavailable === true) {
     throw new SourceRuntimeError({ ok: false, reasonCode: 'source_manifest_unavailable' })
@@ -559,6 +559,14 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
       pending.then(resolve, reject)
     }) : await pending
     if (response.responseCode !== 200) {
+      const fallbackUrl = allowHostFallback
+        ? sourceImageFallbackUrl(installedSource?.websitePolicy, url) : undefined
+      if (response.responseCode === 404 && fallbackUrl !== undefined) {
+        DiagnosticLogger.info('reader_image', 'host_fallback', 'status=404 retry=alternate-host')
+        trace.finish('fallback', 'status=404 retry=alternate-host')
+        return await downloadReaderRemoteBytes(fallbackUrl, extraHeaders, sourceId, dnsOverride, chapterImage,
+          responseErrors, coverImage, onSize, sizeKey, false)
+      }
       DiagnosticLogger.warn('reader_page_source_adapter', 'http_status_failed', `[ReaderImage] step=http_status_failed status=${response.responseCode}`)
       trace.finish('failed', 'status=' + response.responseCode + ' ' + diagnosticTarget + ' elapsedMs=' + (Date.now() - diagnosticStartedAt) +
         ' responseStarted=' + responseStarted +

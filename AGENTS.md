@@ -28,7 +28,7 @@
 | 工作 | 当前依据 |
 | --- | --- |
 | App 与中文源 | [唯一当前工作单](docs/CURRENT_STATUS.md)：用户查看的 bug 进度页，不是执行台账 |
-| 共享 Reader | 先读[原仓维护与依赖同步](docs/agent-guides/reader-rewrite-standards.md#共享仓库与依赖同步)。只在独立原仓提交和推送。另见[共同职责](third_party/reader-kit/README.md#consumer-contract)和已指定跨宿主工作单。 |
+| 共享 Reader | 先读[原仓维护与依赖同步](docs/agent-guides/reader-rewrite-standards.md#共享仓库与依赖同步)。只在独立原仓 `/Users/honjow/git/reader-kit` 提交和推送；禁止在 Koma 的 `third_party/reader-kit` 子模块内提交、移动分支或推送，禁止改用其他远端或身份重试。另见[共同职责](third_party/reader-kit/README.md#consumer-contract)和已指定跨宿主工作单。 |
 | 产品与架构 | [执行规则](docs/agent-guides/koma-rules.md)、原工作单中的当前已采用决定 |
 | 书源 | [运行方向](docs/WASM_SOURCE_RUNTIME_DIRECTION.md)、[ABI](docs/source-runtime-abi.md) |
 | 本地证据 | [产物目录](docs/CONTROLLER_ARTIFACTS.md) |

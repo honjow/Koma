@@ -93,6 +93,7 @@ import {
   removeComicRecordAndPersistLibraryStore,
   updateLocalLibraryMetadataAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
+  refreshSourceComicCoverAndPersistLibraryStore,
   refreshSourceMangaDetailAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import {
@@ -1486,6 +1487,16 @@ export struct MangaDetailPage {
     const comicId = this.sourceComicId(sourceId, mangaId)
     const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
     this.activeLibraryComicId = libraryComic?.id ?? ''
+    // Publish a changed source cover before the optional chapter refresh. The
+    // shelf reads the live library owner; waiting for a resolved chapter
+    // catalog left the in-memory shelf row on the old cover until restart.
+    if (libraryComic !== undefined && this.libraryStore !== undefined && this.libraryPersistenceService !== undefined &&
+      detail.coverUrl !== undefined && detail.coverUrl.trim().length > 0) {
+      if (refreshSourceComicCoverAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService,
+        libraryComic.id, sourceId, mangaId, detail.coverUrl)) {
+        this.onLibraryChanged()
+      }
+    }
     const chapterIdentity = appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy?.chapterIdentity
     const identity = libraryComic !== undefined && this.sourceChaptersResolved
       ? reconcileSourceChapterIdentity(libraryComic, mangaId, chapters,
@@ -2766,7 +2777,9 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
     }
   }
 
-  @Computed
+  // Page counts live in the library/reader stores. Their mutations are not
+  // reactive inputs here, so this projection must be recomputed when the
+  // detail rebuilds instead of being cached across a chapter page update.
   private get readActionPresentation(): DetailReadActionPresentation {
     const chapterId = this.progressChapterId()
     if (chapterId === undefined) {
@@ -3613,7 +3626,7 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
     if ((this.shouldRenderChapterList() || (!this.usesDetailPanes && !this.sourceDetailDataResolved)) &&
       !this.isDetailPending() && this.feedbackText.length > 0) {
       ListItem() {
-        this.DetailFailureFeedback()
+        this.DetailFailureFeedback(!this.usesDetailPanes)
       }
     }
 
@@ -3706,7 +3719,7 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
     } else if ((this.usesDetailPanes || this.sourceDetailDataResolved) &&
       !this.isDetailPending() && this.feedbackText.length > 0) {
       ListItem() {
-        this.DetailFailureFeedback()
+        this.DetailFailureFeedback(this.usesDetailPanes)
       }
     }
   }

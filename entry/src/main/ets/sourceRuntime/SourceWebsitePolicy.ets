@@ -6,6 +6,7 @@ export interface SourceHomepageChoice { value: string; url: string }
 export interface SourceHomepageChoices { setting: string; options: SourceHomepageChoice[] }
 export interface SourceHttpProfile { origin: string; pathPrefix?: string; profile: string }
 export interface SourceCookieOverride { origin: string; name: string; values: string[] }
+export interface SourceImageUrlFallback { from: string; to: string }
 export interface SourceGuestCookie { name: string; value?: string }
 export interface SourceGuestCookieCapture { path: string; name: string }
 export interface SourceGuestNumberedPath { prefix: string; suffix: string; numberSeparator?: string }
@@ -79,6 +80,7 @@ export interface SourceWebsitePolicy {
   mobileWebAndroidAgentOrigins?: string[]
   chapterIdentity?: SourceChapterIdentityPolicy
   publicWorkUrlDomains?: string[]
+  imageUrlFallbacks?: SourceImageUrlFallback[]
 }
 
 function asRecord(value: Object | undefined): Record<string, Object> | undefined {
@@ -227,6 +229,16 @@ export function validSourceWebsitePolicy(value?: Object): boolean {
   if (workDomains !== undefined && (!Array.isArray(workDomains) || workDomains.length > 16 ||
     !workDomains.every((domain: Object): boolean => typeof domain === 'string' &&
       /^[a-z0-9][a-z0-9.-]{0,250}\.[a-z]{2,63}$/.test(domain)))) return false
+  const imageFallbacks = policy['imageUrlFallbacks']
+  if (imageFallbacks !== undefined) {
+    if (!Array.isArray(imageFallbacks) || imageFallbacks.length > 8) return false
+    for (const value of imageFallbacks as Object[]) {
+      const rule = asRecord(value)
+      if (rule === undefined || typeof rule['from'] !== 'string' || typeof rule['to'] !== 'string' ||
+        !/^[a-z0-9][a-z0-9.-]{0,250}\.[a-z]{2,63}$/.test(rule['from']) ||
+        !/^[a-z0-9][a-z0-9.-]{0,250}\.[a-z]{2,63}$/.test(rule['to']) || rule['from'] === rule['to']) return false
+    }
+  }
   const rawChoices = policy['homepageChoices']
   if (rawChoices !== undefined) {
     const choices = asRecord(rawChoices)
@@ -279,6 +291,22 @@ export function selectedPolicyHomepage(policy: SourceWebsitePolicy | undefined, 
   if (choices === undefined) return undefined
   const saved = read(choices.setting)
   return choices.options.find((option: SourceHomepageChoice): boolean => option.value === saved)?.url
+}
+
+/** Rewrite only the host after a declared image host fails; path, query and cache identity stay unchanged. */
+export function sourceImageFallbackUrl(policy: SourceWebsitePolicy | undefined, fullUrl: string): string | undefined {
+  const rules = policy?.imageUrlFallbacks
+  if (rules === undefined || rules.length === 0) return undefined
+  try {
+    const parsed = new url.URL(fullUrl)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return undefined
+    const rule = rules.find((item: SourceImageUrlFallback): boolean => item.from === parsed.hostname)
+    if (rule === undefined) return undefined
+    return `${parsed.protocol}//${rule.to}${parsed.port.length > 0 ? ':' + parsed.port : ''}` +
+      `${parsed.pathname}${parsed.search}${parsed.hash}`
+  } catch (_error) {
+    return undefined
+  }
 }
 
 export function renderedDocumentFallbackEnabled(policy: SourceWebsitePolicy | undefined): boolean {

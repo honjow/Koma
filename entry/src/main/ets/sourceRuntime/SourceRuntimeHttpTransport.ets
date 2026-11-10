@@ -773,19 +773,34 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   // existing network path; the bridge never widens permissions by itself.
   if (installedEntry?.websitePolicy?.webFetchBridge === true && !guestSearch && !nativeSession &&
     probe === undefined && method === 'GET' && body.length === 0 && identity !== undefined) {
-    if (!sourceWebFetchBridge.availableFor(identity.sourceId)) {
-      // Reader opened from history/shelf: no browse page exists to host the
-      // granted session, so prepare the application-scoped WebView once.
-      await sourceWebFetchBridge.prepare(identity.sourceId, url)
-    }
-    const bridged = sourceWebFetchBridge.availableFor(identity.sourceId)
-      ? await sourceWebFetchBridge.fetch(identity.sourceId, url) : undefined
-    if (bridged !== undefined && bridged.status >= 200 && bridged.status < 300) {
-      trace.info('web_fetch_bridge', 'status=' + bridged.status + ' bytes=' + bridged.body.length)
-      trace.finish('completed', 'state=web_fetch_bridge')
-      const bridgedEnvelope = new SourceHttpSuccessEnvelope(bridged.status, bridged.body)
-      bridgedEnvelope.networkPerformed = false
-      return JSON.stringify(bridgedEnvelope)
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (attempt > 0) {
+        // A first read can leave the hidden page on a challenge document.
+        // Drop that ready marker and let prepare load the target afresh.
+        sourceWebFetchBridge.detach(identity.sourceId)
+      }
+      if (!sourceWebFetchBridge.availableFor(identity.sourceId)) {
+        // Reader opened from history/shelf: no browse page exists to host the
+        // granted session, so prepare the application-scoped WebView once.
+        await sourceWebFetchBridge.prepare(identity.sourceId, url)
+      }
+      const bridged = sourceWebFetchBridge.availableFor(identity.sourceId)
+        ? await sourceWebFetchBridge.fetch(identity.sourceId, url) : undefined
+      if (bridged !== undefined && bridged.status >= 200 && bridged.status < 300) {
+        trace.info('web_fetch_bridge', 'status=' + bridged.status + ' bytes=' + bridged.body.length)
+        trace.finish('completed', 'state=web_fetch_bridge')
+        const bridgedEnvelope = new SourceHttpSuccessEnvelope(bridged.status, bridged.body)
+        bridgedEnvelope.networkPerformed = false
+        return JSON.stringify(bridgedEnvelope)
+      }
+      // The first read can race the hidden WebView's document/challenge
+      // transition. Retry once before falling back to native HTTP.
+      if (attempt === 0) {
+        trace.info('web_fetch_bridge', 'state=retry')
+        await new Promise<void>((resolve: (value: void) => void): void => {
+          setTimeout((): void => { resolve() }, 1000)
+        })
+      }
     }
     trace.info('web_fetch_bridge', 'state=miss')
   }
