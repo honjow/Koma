@@ -12,6 +12,8 @@ import { LibrarySearchSource } from '../model/LibrarySearchQuery'
 export interface MangaDetailRouteParam {
   mangaId: string
   sourceId?: string
+  /** Persisted display name used only to explain a missing source on the detail route. */
+  sourceName?: string
   initialManga?: SourceManga
   chrome?: MangaDetailRouteChromeState
 }

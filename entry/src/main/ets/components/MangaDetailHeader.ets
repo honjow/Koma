@@ -21,6 +21,7 @@ export struct MangaDetailHeader {
   @Param showChapterCount: boolean = true
   @Param sourceKind: ComicSourceKind | undefined = undefined
   @Param remoteServerId: string = ''
+  @Param sourceUnavailable: boolean = false
   @Event onSourceClick: () => void = () => {}
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private failedCoverUrl: string = ''
@@ -181,11 +182,20 @@ export struct MangaDetailHeader {
             .backgroundColor(this.statusBackgroundColor())
 
           if (this.manga.sourceName !== undefined && this.manga.sourceName.length > 0) {
-            Text(this.manga.sourceName)
+            Row({ space: ThemeConstants.SPACE_XS }) {
+              Text(this.manga.sourceName)
+                .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(ThemeConstants.BRAND_PRIMARY)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+              if (this.sourceUnavailable) {
+                SymbolGlyph($r('sys.symbol.exclamationmark_triangle_fill'))
+                  .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+                  .fontColor([ThemeConstants.DANGER])
+              }
+            }
               .constraintSize({ maxWidth: '100%' })
-              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(ThemeConstants.BRAND_PRIMARY)
               .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
               .borderRadius(ThemeConstants.RADIUS_ROUND)
               .backgroundColor(ThemeConstants.SOFT_TINT)

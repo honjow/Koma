@@ -1513,7 +1513,7 @@ struct Index {
     this.cancelHistoryResume()
     if (source !== undefined) {
       RouterHelper.pushMangaDetail({
-        mangaId: source.mangaId, sourceId: source.sourceId,
+        mangaId: source.mangaId, sourceId: source.sourceId, sourceName: source.sourceName,
         initialManga: {
           id: source.mangaId, sourceId: source.sourceId, title: source.title,
           coverUrl: source.coverUri, url: source.mangaUrl,
@@ -1951,6 +1951,7 @@ struct Index {
       ? {
         mangaId: remoteMangaId,
         sourceId,
+        sourceName: comic.sourceMetadata?.sourceName,
         initialManga: {
           id: remoteMangaId,
           sourceId,
@@ -1973,6 +1974,7 @@ struct Index {
       const detailParam: MangaDetailRouteParam = {
         mangaId: sourceRequest.mangaId,
         sourceId: sourceRequest.sourceId,
+        sourceName: sourceRequest.sourceName,
         initialManga: {
           id: sourceRequest.mangaId,
           sourceId: sourceRequest.sourceId,
@@ -2005,6 +2007,7 @@ struct Index {
       ? {
         mangaId: remoteMangaId,
         sourceId,
+        sourceName: comic?.sourceMetadata?.sourceName,
         initialManga: {
           id: remoteMangaId,
           sourceId,

@@ -11,7 +11,9 @@ import { SEARCH_TITLE_BOTTOM_HEIGHT, TrackerSearchTitleFieldContentBuilder } fro
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
-import { MangaWebRouteParam } from '../common/RouterHelper'
+import { MangaWebRouteParam, SourcePackageManagerRouteParam } from '../common/RouterHelper'
+import { RouteName } from '../common/Constants'
+import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGate'
 import { clearSourceRejectedRequest, selectSourceRejectedRequest } from '../sourceRuntime/SourceRuntimeHttpTransport'
@@ -148,6 +150,7 @@ export const MANGA_DETAIL_ROUTE_NAME: string = 'MangaDetailPage'
 interface MangaDetailRouteParams {
   mangaId?: string
   sourceId?: string
+  sourceName?: string
   initialManga?: SourceManga
 }
 
@@ -341,6 +344,9 @@ export struct MangaDetailPage {
   private downloadRefreshTimer: number = -1
   @Local private localRefreshText: string = ''
   @Local private feedbackText: string = ''
+  // Non-empty only when this route cannot resolve its source package. The
+  // failure block owns the single recovery action for that state.
+  @Local private missingSourceName: string = ''
   @Local private activeLibraryComicId: string = ''
   @Local private linkShareBusy: boolean = false
   private linkShareController?: systemShare.ShareController = undefined
@@ -628,6 +634,10 @@ export struct MangaDetailPage {
     if (!this.initialDetailLoadStarted) {
       this.initialDetailLoadStarted = true
       void this.loadMangaDetail()
+    } else if (this.missingSourceName.length > 0) {
+      // Returning from the source manager may have installed or enabled the
+      // package. Retry only the missing-source state; normal revisits stay cached.
+      void this.loadMangaDetail()
     }
     this.scheduleDownloadRefresh()
   }
@@ -732,6 +742,31 @@ export struct MangaDetailPage {
   private canReloadSourceDetail(): boolean {
     return (this.params.sourceId?.trim().length ?? 0) > 0 &&
       (this.params.mangaId?.trim().length ?? 0) > 0
+  }
+
+  private missingSourceDisplayName(sourceId: string): string {
+    const currentName = this.manga?.sourceName?.trim() ?? ''
+    if (currentName.length > 0) return currentName
+    const mangaId = this.params.mangaId?.trim() ?? ''
+    const comic = mangaId.length === 0 ? undefined :
+      this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
+    const libraryName = comic?.sourceMetadata?.sourceName?.trim() ?? ''
+    if (libraryName.length > 0) return libraryName
+    const routeName = this.params.sourceName?.trim() ?? ''
+    return routeName.length > 0 ? routeName : sourceId
+  }
+
+  private openMissingSourceRecovery(): void {
+    const sourceId = this.params.sourceId?.trim() ?? ''
+    if (sourceId.length === 0) return
+    const name = this.missingSourceName.length > 0 ? this.missingSourceName : sourceId
+    const recovery: SourcePackageManagerRouteParam = {
+      settingsSourceId: '',
+      recoverySourceId: sourceId,
+      recoverySourceName: name,
+      chrome: new SourceCatalogPageChrome(),
+    }
+    RouterHelper.getAppPathStack()?.pushPath({ name: RouteName.SOURCE_PACKAGE_MANAGER, param: recovery })
   }
 
   private canPullRefreshDetail(): boolean {
@@ -1127,6 +1162,7 @@ export struct MangaDetailPage {
         throw new Error(lookup.reasonCode ?? 'source lookup failed')
       }
       this.sourceDetailRegistryEntry = lookup.entry
+      this.missingSourceName = ''
       if (!sourceRuntimeEntryEnabled(lookup.entry)) {
         if (lookup.entry.packageManifestUnavailable === true) {
           throw new SourceRuntimeError({ ok: false, reasonCode: 'source_manifest_unavailable' })
@@ -1277,7 +1313,14 @@ export struct MangaDetailPage {
       if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
         return
       }
-      const failureText = this.sourceOperationFailureText(error, 'get_manga', 'manga_detail_load_source_failed')
+      const currentLookup = this.sourceRegistry.lookup(sourceId)
+      const sourceUnavailable = !currentLookup.ok || currentLookup.entry === undefined ||
+        currentLookup.entry.packageManifestUnavailable === true || !sourceRuntimeEntryEnabled(currentLookup.entry)
+      const unavailableName = sourceUnavailable ? this.missingSourceDisplayName(sourceId) : ''
+      this.missingSourceName = unavailableName
+      const failureText = unavailableName.length > 0
+        ? s('device_sync_missing_source').replace('%s', unavailableName)
+        : this.sourceOperationFailureText(error, 'get_manga', 'manga_detail_load_source_failed')
       if (backgroundRefresh) return
       this.publishDetailWebChallenge(error, sourceId, mangaId, requestEpoch, 'detail', automaticRecovery)
       if (retainedDetail !== undefined) {
@@ -1286,7 +1329,9 @@ export struct MangaDetailPage {
         this.sourceDetailDataResolved = true
         this.sourceChaptersResolved = retainedChaptersResolved
         this.sourceDetailContentState = waitingForChapters ? SourceDetailContentState.ERROR : retainedState
-        this.feedbackText = failureText
+        // A readable cached detail keeps its content. The source chip warning
+        // icon is the only inline hint; starting a chapter owns the blocking prompt.
+        this.feedbackText = waitingForChapters ? failureText : ''
         return
       }
       const fallbackDetail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
@@ -3543,6 +3588,7 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
           showChapterCount: this.shouldShowChapterCount(),
           sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
           remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
+          sourceUnavailable: this.missingSourceName.length > 0,
           onSourceClick: (): void => {
             const sourceId = this.manga?.sourceId
             const name = this.manga?.sourceName
@@ -3867,19 +3913,23 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
   }
 
   @Builder
-  private DetailFailureFeedback() {
-    if (this.detailAuthentication !== null) {
-      Column({ space: ThemeConstants.SPACE_MD }) {
-        Text(s('source_login_required')).width('100%').fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
-        KomaActionButton({ label: s('source_login'), kind: 'primary', action: () => { this.authenticateSource() } })
-      }.width('100%')
-    } else {
-      Column({ space: ThemeConstants.SPACE_MD }) {
-        Text(this.feedbackText).width('100%').fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
-        if (this.sourceDetailContentState === SourceDetailContentState.ERROR && this.canReloadSourceDetail()) {
-          KomaActionButton({ label: s('common_retry'), action: () => { void this.refreshMangaDetail() } })
-        }
-      }.width('100%')
+  private DetailFailureFeedback(ownsMissingSourceFeedback: boolean) {
+    if (!(this.missingSourceName.length > 0 && !ownsMissingSourceFeedback)) {
+      if (this.detailAuthentication !== null) {
+        Column({ space: ThemeConstants.SPACE_MD }) {
+          Text(s('source_login_required')).width('100%').fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+          KomaActionButton({ label: s('source_login'), kind: 'primary', action: () => { this.authenticateSource() } })
+        }.width('100%')
+      } else {
+        Column({ space: ThemeConstants.SPACE_MD }) {
+          Text(this.feedbackText).width('100%').fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+          if (this.sourceDetailContentState === SourceDetailContentState.ERROR && this.missingSourceName.length > 0) {
+            KomaActionButton({ label: s('device_sync_find_source'), action: () => { this.openMissingSourceRecovery() } })
+          } else if (this.sourceDetailContentState === SourceDetailContentState.ERROR && this.canReloadSourceDetail()) {
+            KomaActionButton({ label: s('common_retry'), action: () => { void this.refreshMangaDetail() } })
+          }
+        }.width('100%')
+      }
     }
   }
 
