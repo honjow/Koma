@@ -3406,6 +3406,7 @@ struct Index {
             TabContent() {
               LibraryPage({
                 libraryScroller: this.rootTabScrollers[TabIndex.LIBRARY],
+                active: this.selectedTab === TabIndex.LIBRARY && this.rootNavigationVisible,
                 libraryStore: this.libraryStore,
                 libraryPreferencesRevision: this.libraryPreferencesRevision,
                 libraryComics: this.libraryComics,
@@ -3496,7 +3497,7 @@ struct Index {
               HistoryPage({
                 scroller: this.rootTabScrollers[TabIndex.HISTORY],
                 libraryStore: this.libraryStore,
-                active: this.selectedTab === TabIndex.HISTORY,
+                active: this.selectedTab === TabIndex.HISTORY && this.rootNavigationVisible,
                 readerSessionStore: this.readerSessionStore,
                 readerProgressRevision: this.readerProgressRevision,
                 onRefresh: async (): Promise<void> => { await this.syncFromRootRefresh() },

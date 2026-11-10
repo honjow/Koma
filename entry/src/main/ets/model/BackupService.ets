@@ -1236,7 +1236,7 @@ export class BackupService {
     const fileNames = await this.localBackupFileNames()
     const records: BackupLocalFileRecord[] = []
     for (let index = 0; index < fileNames.length; index += 1) {
-      const record = this.readLocalBackupRecord(fileNames[index], true)
+      const record = await this.readLocalBackupRecordAsync(fileNames[index], true)
       if (record !== undefined) {
         records.push(record)
       }
@@ -1260,7 +1260,7 @@ export class BackupService {
     if (targetName !== sourceName) {
       fs.moveFileSync(sourcePath, targetPath, 0)
     }
-    const record = this.readLocalBackupRecord(targetName)
+    const record = await this.readLocalBackupRecordAsync(targetName)
     if (record === undefined) {
       throw new Error('backup_local_rename_failed')
     }
@@ -1279,7 +1279,7 @@ export class BackupService {
 
   async selectLocalBackup(fileName: string): Promise<BackupImportSelectionPreview> {
     const safeName = this.requireLocalBackupFileName(fileName)
-    const payload = fs.readTextSync(this.localBackupPath(safeName), { encoding: 'utf-8' })
+    const payload = await fs.readText(this.localBackupPath(safeName), { encoding: 'utf-8' })
     const preview = this.preview(payload)
     DiagnosticLogger.info('backup', 'local_select', '[Backup] step=local_select')
     return {
@@ -1630,6 +1630,25 @@ export class BackupService {
     try {
       const payload = fs.readTextSync(path, { encoding: 'utf-8' })
       return this.localBackupRecord(safeName, fs.statSync(path).size, this.preview(payload))
+    } catch (_error) {
+      if (strictRead) {
+        throw new Error('backup_local_read_failed')
+      }
+      return undefined
+    }
+  }
+
+  private async readLocalBackupRecordAsync(fileName: string,
+    strictRead: boolean = false): Promise<BackupLocalFileRecord | undefined> {
+    const safeName = this.requireLocalBackupFileName(fileName)
+    const path = this.localBackupPath(safeName)
+    if (!(await fs.access(path))) {
+      return undefined
+    }
+    try {
+      const stat = await fs.stat(path)
+      const payload = await fs.readText(path, { encoding: 'utf-8' })
+      return this.localBackupRecord(safeName, stat.size, this.preview(payload))
     } catch (_error) {
       if (strictRead) {
         throw new Error('backup_local_read_failed')

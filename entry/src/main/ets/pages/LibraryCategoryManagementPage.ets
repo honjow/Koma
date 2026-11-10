@@ -183,13 +183,25 @@ export struct LibraryCategoryManagementPage {
     }
   }
 
+  @Computed
+  private get categoryUsageCounts(): Map<string, number> {
+    // Category rows must not rescan the complete library once per row during
+    // every build. Rebuild this projection only when the page refreshes its
+    // categories or the shelf changes.
+    void this.categories
+    const counts = new Map<string, number>()
+    if (this.libraryStore === undefined) return counts
+    this.libraryStore.listComics().forEach((comic: Comic): void => {
+      if (comic.categoryIds === undefined) return
+      new Set<string>(comic.categoryIds).forEach((categoryId: string): void => {
+        counts.set(categoryId, (counts.get(categoryId) ?? 0) + 1)
+      })
+    })
+    return counts
+  }
+
   private categoryUsageCount(categoryId: string): number {
-    if (this.libraryStore === undefined) {
-      return 0
-    }
-    return this.libraryStore.listComics().filter((comic: Comic): boolean => {
-      return comic.categoryIds !== undefined && comic.categoryIds.includes(categoryId)
-    }).length
+    return this.categoryUsageCounts.get(categoryId) ?? 0
   }
 
   @Builder

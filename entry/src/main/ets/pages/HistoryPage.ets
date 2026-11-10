@@ -105,12 +105,14 @@ export struct HistoryPage {
 
   @Monitor('remoteProgress.syncRevision')
   private onRemoteProgressSyncRevChanged(): void {
+    if (!this.active) return
     void this.remoteProgress.syncRevision
     this.reloadHistory('bootstrap_sync')
   }
 
   @Monitor('readerProgressRevision')
   private onReaderProgressRevisionChanged(): void {
+    if (!this.active) return
     this.reloadHistory('reader_progress')
   }
 

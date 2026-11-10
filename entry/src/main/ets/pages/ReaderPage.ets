@@ -2467,6 +2467,26 @@ export struct ReaderPage {
     return out
   }
 
+  /** O(1) equivalents of the spread array for interaction/build hot paths. */
+  private spreadCount(): number {
+    const total = this.sessionConfig.totalPages
+    if (total <= 0) return 0
+    return this.preferences.columnMode === 'even_left' ? 1 + Math.floor(total / 2) : Math.floor((total + 1) / 2)
+  }
+
+  private spreadStartAtIndex(index: number): number {
+    if (index <= 0) return 0
+    return this.preferences.columnMode === 'even_left' ? index * 2 - 1 : index * 2
+  }
+
+  private spreadStartForPage(pageIndex: number): number {
+    const page = Math.max(0, Math.min(pageIndex, Math.max(this.sessionConfig.totalPages - 1, 0)))
+    if (this.preferences.columnMode === 'even_left') {
+      return page <= 0 ? 0 : (page % 2 === 0 ? page - 1 : page)
+    }
+    return page - page % 2
+  }
+
   private spreadIndexForPage(pageIndex: number): number {
     const normalized = Math.max(0, Math.min(pageIndex, Math.max(this.sessionConfig.totalPages - 1, 0)))
     if (this.preferences.columnMode === 'even_left') {
@@ -2575,8 +2595,8 @@ export struct ReaderPage {
     }
     const exportDir = `${this.filesDir}/reader-exports`
     const exportPath = `${exportDir}/${this.pageImageTitle()}.${extension}`
-    if (!fs.accessSync(exportDir)) {
-      fs.mkdirSync(exportDir)
+    if (!(await fs.access(exportDir))) {
+      await fs.mkdir(exportDir)
     }
     let sourceFile: fs.File | undefined = undefined
     let targetFile: fs.File | undefined = undefined
@@ -2587,10 +2607,10 @@ export struct ReaderPage {
       return exportPath
     } finally {
       if (sourceFile !== undefined) {
-        try { fs.closeSync(sourceFile) } catch (_error) {}
+        try { await fs.close(sourceFile) } catch (_error) {}
       }
       if (targetFile !== undefined) {
-        try { fs.closeSync(targetFile) } catch (_error) {}
+        try { await fs.close(targetFile) } catch (_error) {}
       }
     }
   }
@@ -2627,10 +2647,10 @@ export struct ReaderPage {
         await fs.copyFile(sourceFile.fd, targetFile.fd, 0)
       } finally {
         if (sourceFile !== undefined) {
-          try { fs.closeSync(sourceFile) } catch (_error) {}
+          try { await fs.close(sourceFile) } catch (_error) {}
         }
         if (targetFile !== undefined) {
-          try { fs.closeSync(targetFile) } catch (_error) {}
+          try { await fs.close(targetFile) } catch (_error) {}
         }
       }
       this.showReaderToast(s('reader_image_saved'))
@@ -2758,7 +2778,7 @@ export struct ReaderPage {
       return this.activeDisplayIndex + 1 < this.displayPages.length
     }
     if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
-      return this.spreadIndexForPage(this.displayPageIndex()) + 1 < this.spreadIndexes().length
+      return this.spreadIndexForPage(this.displayPageIndex()) + 1 < this.spreadCount()
     }
     return this.displayPageIndex() + 1 < this.sessionConfig.totalPages
   }
@@ -2820,10 +2840,9 @@ export struct ReaderPage {
       return
     }
     if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
-      const starts = this.spreadIndexes()
       const nextSpread = this.spreadIndexForPage(this.displayPageIndex()) + 1
-      if (nextSpread >= 0 && nextSpread < starts.length) {
-        this.setPage(starts[nextSpread])
+      if (nextSpread >= 0 && nextSpread < this.spreadCount()) {
+        this.setPage(this.spreadStartAtIndex(nextSpread))
       }
       return
     }
@@ -2836,10 +2855,9 @@ export struct ReaderPage {
       return
     }
     if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
-      const starts = this.spreadIndexes()
       const previousSpread = this.spreadIndexForPage(this.displayPageIndex()) - 1
-      if (previousSpread >= 0 && previousSpread < starts.length) {
-        this.setPage(starts[previousSpread])
+      if (previousSpread >= 0 && previousSpread < this.spreadCount()) {
+        this.setPage(this.spreadStartAtIndex(previousSpread))
       }
       return
     }
@@ -3053,10 +3071,8 @@ export struct ReaderPage {
         this.activeDisplayIndex === this.displayPages.length - 1
     }
     if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
-      const starts = this.spreadIndexes()
-      const spread = this.spreadIndexForPage(index)
-      const start = starts[spread]
-      return start !== undefined && (start === last || this.spreadSecondIndex(start) === last)
+      const start = this.spreadStartForPage(index)
+      return start === last || this.spreadSecondIndex(start) === last
     }
     return this.continuousInitialTarget < 0 && this.verticalVisibleStart >= 0 &&
       this.verticalVisibleStart <= last && this.verticalVisibleEnd >= last
@@ -3200,10 +3216,9 @@ export struct ReaderPage {
     if (this.effectiveMode() !== ReaderMode.DUAL_PAGE) {
       return this.displayPageIndex() + 1
     }
-    const starts = this.spreadIndexes()
     const currentSpread = this.spreadIndexForPage(this.displayPageIndex())
     const nextSpread = currentSpread + 1
-    return nextSpread >= 0 && nextSpread < starts.length ? starts[nextSpread] : -1
+    return nextSpread >= 0 && nextSpread < this.spreadCount() ? this.spreadStartAtIndex(nextSpread) : -1
   }
 
   private waitForAutoPage(index: number): void {
@@ -3336,9 +3351,7 @@ export struct ReaderPage {
     if (this.effectiveMode() !== ReaderMode.DUAL_PAGE) {
       return this.displayPageIndex()
     }
-    const starts = this.spreadIndexes()
-    const spread = this.spreadIndexForPage(this.displayPageIndex())
-    const start = spread >= 0 && spread < starts.length ? starts[spread] : this.displayPageIndex()
+    const start = this.spreadStartForPage(this.displayPageIndex())
     const second = this.hasSpreadSecond(start) ? this.spreadSecondIndex(start) : -1
     if (second < 0) {
       return start
@@ -3712,7 +3725,7 @@ export struct ReaderPage {
     if (this.effectiveMode() !== ReaderMode.DUAL_PAGE) {
       return index === this.displayPageIndex() && (splitSide === 'none' || splitSide === this.activeSplitSide)
     }
-    const start = this.spreadIndexes()[this.spreadIndexForPage(this.displayPageIndex())]
+    const start = this.spreadStartForPage(this.displayPageIndex())
     return index === start || index === this.spreadSecondIndex(start)
   }
 
@@ -3907,8 +3920,7 @@ export struct ReaderPage {
     .onGestureSwipe((index: number, info: SwiperAnimationEvent): void => { this.pagedBoundaryMotion(index, info.currentOffset) })
     .onChange((index: number) => {
       this.resetZoomState()
-      const starts = this.spreadIndexes()
-      const page = index >= 0 && index < starts.length ? starts[index] : 0
+      const page = index >= 0 && index < this.spreadCount() ? this.spreadStartAtIndex(index) : 0
       this.pagedPageIndex = page
       this.persistProgress(page)
     })

@@ -781,7 +781,9 @@ export struct SourcePackageManagerPage {
 
   private availablePackageUpdates(): SourcePackageUpdateCandidate[] {
     const candidates: SourcePackageUpdateCandidate[] = []
+    const candidateIndexById = new Map<string, number>()
     this.updatableIndexEntries().forEach((entry: SourceIndexEntry): void => {
+      candidateIndexById.set(entry.id, candidates.length)
       candidates.push({ entry, indexUrl: entry.repositoryUrl ?? this.sourceIndexUrl.trim() })
     })
     this.packageUpdateStatuses.forEach((status: SourcePackageUpdateStatus): void => {
@@ -789,9 +791,12 @@ export struct SourcePackageManagerPage {
       const installed = this.installedPackage(status.sourceId)
       if (status.status !== 'update' || entry === undefined || installed === undefined ||
         status.remoteIndexUrl === undefined || !this.updateAvailableFor(installed, entry)) return
-      const index = candidates.findIndex((candidate: SourcePackageUpdateCandidate): boolean => candidate.entry.id === entry.id)
+      const index = candidateIndexById.get(entry.id) ?? -1
       const candidate: SourcePackageUpdateCandidate = { entry, indexUrl: status.remoteIndexUrl }
-      if (index < 0) candidates.push(candidate)
+      if (index < 0) {
+        candidateIndexById.set(entry.id, candidates.length)
+        candidates.push(candidate)
+      }
       else if (this.compareVersion(entry.version, candidates[index].entry.version) > 0 ||
         (this.compareVersion(entry.version, candidates[index].entry.version) === 0 &&
           this.entryDeclaresPackageIcon(entry) && !this.entryDeclaresPackageIcon(candidates[index].entry))) {
@@ -819,7 +824,7 @@ export struct SourcePackageManagerPage {
       this.chrome.search.query.trim().length === 0 ||
       sourceMatchesCatalogSearch(this.chrome.search.query, resolveSourceLocalizedName(name, localizedNames, locale), name, localizedNames, id)
     const allUpdates = this.availablePackageUpdates().filter((candidate: SourcePackageUpdateCandidate): boolean => matches(candidate.entry))
-    const updating = allUpdates.map((candidate: SourcePackageUpdateCandidate): string => candidate.entry.id)
+    const updating = new Set<string>(allUpdates.map((candidate: SourcePackageUpdateCandidate): string => candidate.entry.id))
     const updates = allUpdates.filter((candidate: SourcePackageUpdateCandidate): boolean => {
       const entry = candidate.entry
       const installed = this.installedPackage(entry.id)
@@ -828,7 +833,7 @@ export struct SourcePackageManagerPage {
     })
     return { updates, missing: this.missingIndexEntries().filter((entry: SourceIndexEntry): boolean =>
       matches(entry) && matchesName(entry.id, entry.name, entry.localizedNames)),
-      installed: this.packages.filter((source: InstalledSourcePackage): boolean => !updating.includes(source.id) &&
+      installed: this.packages.filter((source: InstalledSourcePackage): boolean => !updating.has(source.id) &&
         sourceMatchesCatalogFilters(source.lang, source.nsfw, source.contentRating, filters) &&
         matchesName(source.id, source.name, source.localizedNames)) }
   }
@@ -872,7 +877,8 @@ export struct SourcePackageManagerPage {
     return rows.length > 0 ? rows[rows.length - 1].id : ''
   }
 
-  private checkedUpdateStatuses(): SourcePackageUpdateStatus[] {
+  @Computed
+  private get checkedUpdateStatuses(): SourcePackageUpdateStatus[] {
     return this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean => {
       return status.status === 'update' && status.remoteEntry !== undefined && status.remoteIndexUrl !== undefined &&
         this.installedPackage(status.sourceId) !== undefined
@@ -1636,7 +1642,7 @@ export struct SourcePackageManagerPage {
     if (this.sourceIndexBatchBusy()) {
       return
     }
-    const statuses = this.checkedUpdateStatuses()
+    const statuses = this.checkedUpdateStatuses
     if (statuses.length === 0) {
       this.showToast(t('source_pkg_batch_no_updates'))
       return
@@ -2166,9 +2172,9 @@ export struct SourcePackageManagerPage {
           },
         })
 
-        if (this.checkedUpdateStatuses().length > 0) {
+        if (this.checkedUpdateStatuses.length > 0) {
           KomaActionButton({
-            label: tf('source_pkg_batch_update_available', this.checkedUpdateStatuses().length),
+            label: tf('source_pkg_batch_update_available', this.checkedUpdateStatuses.length),
             kind: 'secondary',
             compact: true,
             controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,

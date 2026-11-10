@@ -63,6 +63,7 @@ export struct ChapterListSection {
   @Param presentation: ChapterListPresentation = new ChapterListPresentation()
   @Local private readStateMenuChapterId: string = ''
   @Local private downloadMenuChapterId: string = ''
+  private lastReportedChapterIds: string[] = []
   @Param downloadActionsAvailable: boolean = true
   @Event onDisplayOrderChange: (chapterIds: string[]) => void = (_chapterIds: string[]) => {}
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
@@ -80,9 +81,27 @@ export struct ChapterListSection {
     return this.sortedChapterList()
   }
 
+  @Computed
+  private get sortedChapterIds(): string[] {
+    return this.sortedChapters.map((chapter: MangaChapterItem): string => chapter.id)
+  }
+
+  @Computed
+  private get sortedChapterIdSet(): Set<string> {
+    return new Set<string>(this.sortedChapterIds)
+  }
+
   @Monitor('sortedChapters')
   private reportDisplayOrder(): void {
-    this.onDisplayOrderChange(this.filteredChapterIds())
+    const ids = this.sortedChapterIds
+    // Chapter state updates can replace the array without changing its order.
+    // Do not invalidate the title/chapter selection consumers in that case.
+    if (ids.length === this.lastReportedChapterIds.length &&
+      ids.every((id: string, index: number): boolean => id === this.lastReportedChapterIds[index])) {
+      return
+    }
+    this.lastReportedChapterIds = ids
+    this.onDisplayOrderChange(ids)
   }
 
   @Monitor('chapters')
@@ -92,12 +111,12 @@ export struct ChapterListSection {
   }
 
   private selectedIdsInFilter(): string[] {
-    return Array.from(new Set<string>(this.filteredChapterIds().filter((id: string): boolean =>
+    return Array.from(new Set<string>(this.sortedChapterIds.filter((id: string): boolean =>
       this.presentation.selectedChapterIds.has(id))))
   }
 
   private setChapterSelected(chapterId: string, selected: boolean): void {
-    if (!this.presentation.selectionMode || !this.filteredChapterIds().includes(chapterId)) {
+    if (!this.presentation.selectionMode || !this.sortedChapterIdSet.has(chapterId)) {
       return
     }
     const next = new Set<string>(this.presentation.selectedChapterIds)
@@ -229,11 +248,11 @@ export struct ChapterListSection {
   }
 
   private shouldShowLanguageFilter(): boolean {
-    return this.presentation.languageFilter.length > 0 || this.languageOptions().length > 1
+    return this.presentation.languageFilter.length > 0 || this.languageOptions.length > 1
   }
 
   private shouldShowGroupFilter(): boolean {
-    return this.presentation.groupFilter.length > 0 || this.groupOptions().length > 1
+    return this.presentation.groupFilter.length > 0 || this.groupOptions.length > 1
   }
 
   private resetFilters(): void {
@@ -251,15 +270,16 @@ export struct ChapterListSection {
   }
 
   private ensureMetadataFiltersAvailable(): void {
-    if (this.presentation.languageFilter.length > 0 && !this.languageOptions().includes(this.presentation.languageFilter)) {
+    if (this.presentation.languageFilter.length > 0 && !this.languageOptions.includes(this.presentation.languageFilter)) {
       this.presentation.languageFilter = ''
     }
-    if (this.presentation.groupFilter.length > 0 && !this.groupOptions().includes(this.presentation.groupFilter)) {
+    if (this.presentation.groupFilter.length > 0 && !this.groupOptions.includes(this.presentation.groupFilter)) {
       this.presentation.groupFilter = ''
     }
   }
 
-  private languageOptions(): string[] {
+  @Computed
+  private get languageOptions(): string[] {
     const values: string[] = []
     this.chapters.forEach((chapter: MangaChapterItem) => {
       const value = this.normalizeMetadataValue(chapter.language)
@@ -271,7 +291,8 @@ export struct ChapterListSection {
     return values
   }
 
-  private groupOptions(): string[] {
+  @Computed
+  private get groupOptions(): string[] {
     const values: string[] = []
     this.chapters.forEach((chapter: MangaChapterItem) => {
       const value = this.normalizeMetadataValue(chapter.scanlator)
@@ -285,10 +306,6 @@ export struct ChapterListSection {
 
   private normalizeMetadataValue(value: string | undefined): string {
     return value === undefined ? '' : value.trim()
-  }
-
-  private filteredChapterIds(): string[] {
-    return this.sortedChapters.map((chapter: MangaChapterItem): string => chapter.id)
   }
 
   private chapterTitle(chapter: MangaChapterItem): string {
@@ -455,7 +472,7 @@ export struct ChapterListSection {
         .onClick(() => {
           this.setLanguageFilter('')
         })
-      ForEach(this.languageOptions(), (language: string) => {
+      ForEach(this.languageOptions, (language: string) => {
         MenuItem({ content: this.formatLanguage(language) })
           .onClick(() => {
             this.setLanguageFilter(language)
@@ -471,7 +488,7 @@ export struct ChapterListSection {
         .onClick(() => {
           this.setGroupFilter('')
         })
-      ForEach(this.groupOptions(), (group: string) => {
+      ForEach(this.groupOptions, (group: string) => {
         MenuItem({ content: group })
           .onClick(() => {
             this.setGroupFilter(group)

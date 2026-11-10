@@ -241,6 +241,7 @@ export struct LibraryPage {
   @Param libraryPreferencesRevision: number = 0
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param readerProgressRevision: number = 0
+  @Param active: boolean = true
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private displayedComics: Comic[] = []
   @Local private displayedRevision: number = 0
@@ -386,9 +387,16 @@ export struct LibraryPage {
 
   @Monitor('libraryComics', 'libraryRevision')
   private syncDisplayedSnapshotFromProps(): void {
+    if (!this.active) return
     this.refreshDisplayedSnapshotFromStore()
     this.displayedRevision = this.libraryRevision
     this.removeMissingSelectedComics()
+  }
+
+  @Monitor('active')
+  private onActiveChanged(): void {
+    if (!this.active) return
+    this.refreshDisplayedSnapshotFromStore()
   }
 
   @Monitor('remoteProgress.syncRevision')
@@ -399,6 +407,7 @@ export struct LibraryPage {
 
   @Monitor('readerSessionStore', 'readerProgressRevision')
   private onReaderProgressSnapshotChanged(): void {
+    if (!this.active) return
     void this.readerProgressRevision
     this.refreshDisplayedSnapshotFromStore()
   }
@@ -953,11 +962,24 @@ export struct LibraryPage {
     return s('library_metadata_status_all')
   }
 
-  private viewModel(): LibraryViewModel {
+  @Computed
+  private get displayedLibraryViewModel(): LibraryViewModel {
+    // Keep the shelf projection tied to the snapshots that can change it. The
+    // previous helper rebuilt every card and scanned the whole library once per
+    // caller, including repeated calls from the same build pass.
+    void this.displayedRevision
+    void this.readerProgressRevision
+    void this.languageState.effectiveLocale
     return createLibraryViewModelFromComics(this.displayedComics, this.readerSessionStore, this.presentationByComicId)
   }
 
-  private continueReading(): ContinueReadingCardViewModel {
+  @Computed
+  private get continueReadingCard(): ContinueReadingCardViewModel {
+    // This card intentionally considers the complete shelf, not the filtered
+    // projection. Cache that independent scan across header/layout builders.
+    void this.libraryRevision
+    void this.readerProgressRevision
+    void this.languageState.effectiveLocale
     return createLibraryViewModelFromComics(
       this.libraryStore.listComics(),
       this.readerSessionStore,
@@ -965,8 +987,16 @@ export struct LibraryPage {
     ).continueReading
   }
 
+  private viewModel(): LibraryViewModel {
+    return this.displayedLibraryViewModel
+  }
+
+  private continueReading(): ContinueReadingCardViewModel {
+    return this.continueReadingCard
+  }
+
   private hasContinueReading(): boolean {
-    return this.continueReading().comicId.length > 0
+    return this.continueReadingCard.comicId.length > 0
   }
 
   private gridComics(): ComicCoverInfo[] {

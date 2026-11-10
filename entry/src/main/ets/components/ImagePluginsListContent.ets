@@ -19,6 +19,11 @@ class ImagePluginActivation {
   constructor(enabled: boolean) { this.enabled = enabled }
 }
 
+interface ImagePluginGroupRows {
+  key: string
+  rows: ImagePluginRow[]
+}
+
 @ComponentV2
 export struct ImagePluginsListContent {
   @Param subscriptions: ImageRuleSubscription[] = []
@@ -59,8 +64,23 @@ export struct ImagePluginsListContent {
     const versions = row.group === 'updates' ? `v${version} → v${(row.offered?.version ?? row.offeredPack!.version)}` : `v${version}`
     return `${this.description(row)}\n${versions} · ${row.source.name}`
   }
+  @Computed
+  private get rowsByKey(): Map<string, ImagePluginRow> {
+    const indexed = new Map<string, ImagePluginRow>()
+    this.rows.forEach((row: ImagePluginRow): void => { indexed.set(row.key(), row) })
+    return indexed
+  }
+  @Computed
+  private get pluginGroups(): ImagePluginGroupRows[] {
+    return ['updates', 'installed', 'available']
+      .map((key: string): ImagePluginGroupRows => ({
+        key: key,
+        rows: this.rows.filter((row: ImagePluginRow): boolean => row.group === key),
+      }))
+      .filter((group: ImagePluginGroupRows): boolean => group.rows.length > 0)
+  }
   private currentRow(row: ImagePluginRow): ImagePluginRow {
-    return this.rows.find((item: ImagePluginRow): boolean => item.key() === row.key()) ?? row
+    return this.rowsByKey.get(row.key()) ?? row
   }
   private isPluginEnabled(row: ImagePluginRow): boolean {
     return this.activations.get(row.key())?.enabled ?? this.currentRow(row).enabled()
@@ -217,20 +237,18 @@ export struct ImagePluginsListContent {
   }
   build() {
     Column({ space: ThemeConstants.SPACE_LG }) {
-      ForEach(['updates', 'installed', 'available'], (group: string) => {
-        if (this.rows.some((row: ImagePluginRow): boolean => row.group === group)) {
-          GroupedListSection({ title: AppStrings.get('image_plugins_' + group) }) {
-            ForEach(this.rows.filter((row: ImagePluginRow): boolean => row.group === group), (row: ImagePluginRow, index: number) => {
-              this.PluginRow(row)
-              if (index + 1 < this.rows.filter((item: ImagePluginRow): boolean => item.group === group).length) { ListDivider() }
-            // The row closure holds structural data. Switch state reads the
-            // current store projection by key without remounting the native control.
-            }, (row: ImagePluginRow): string => JSON.stringify([row.key(), row.group,
-              row.plugin?.version, row.pack?.version, row.offered?.version, row.offeredPack?.version,
-              row.source.conflicts, row.source.pluginSettings]))
-          }
+      ForEach(this.pluginGroups, (group: ImagePluginGroupRows) => {
+        GroupedListSection({ title: AppStrings.get('image_plugins_' + group.key) }) {
+          ForEach(group.rows, (row: ImagePluginRow, index: number) => {
+            this.PluginRow(row)
+            if (index + 1 < group.rows.length) { ListDivider() }
+          // The row closure holds structural data. Switch state reads the
+          // current store projection by key without remounting the native control.
+          }, (row: ImagePluginRow): string => JSON.stringify([row.key(), row.group,
+            row.plugin?.version, row.pack?.version, row.offered?.version, row.offeredPack?.version,
+            row.source.conflicts, row.source.pluginSettings]))
         }
-      })
+      }, (group: ImagePluginGroupRows): string => group.key)
       if (this.error && !this.editorShown) { Text(this.error).fontColor(ThemeConstants.TEXT_SECONDARY).padding(ThemeConstants.SPACE_MD) }
     }.width('100%')
     .bindSheet($$this.editorShown, this.Editor, komaModalSheetOptions({ height: SheetSize.MEDIUM,

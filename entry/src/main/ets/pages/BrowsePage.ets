@@ -168,7 +168,8 @@ export struct BrowsePage {
     this.onOpenOpdsBrowse()
   }
 
-  private configuredPrivateSourceEntries(): PrivateBrowseSourceEntry[] {
+  @Computed
+  private get configuredPrivateSourceEntries(): PrivateBrowseSourceEntry[] {
     const entries: PrivateBrowseSourceEntry[] = []
     if (this.komgaConfigured) {
       entries.push({
@@ -266,7 +267,7 @@ export struct BrowsePage {
   private PrivateSourceListItems() {
     ListItem() {
       GroupedListSection({ title: s('browse_private_sources_heading') }) {
-        ForEach(this.configuredPrivateSourceEntries(), (entry: PrivateBrowseSourceEntry, index: number) => {
+        ForEach(this.configuredPrivateSourceEntries, (entry: PrivateBrowseSourceEntry, index: number) => {
           SourceListItem({
             title: entry.title,
             subtitle: entry.detail,
@@ -277,7 +278,7 @@ export struct BrowsePage {
               this.openPrivateSource(entry.key)
             },
           })
-          if (index + 1 < this.configuredPrivateSourceEntries().length) {
+          if (index + 1 < this.configuredPrivateSourceEntries.length) {
             ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
           }
         }, (entry: PrivateBrowseSourceEntry) => JSON.stringify([entry.key, entry.title, entry.detail, entry.badge]))
@@ -437,7 +438,7 @@ export struct BrowsePage {
           .width('100%')
           .justifyContent(FlexAlign.Center)
         }
-      } else if (this.enabledRuntimeSources.length === 0 && this.configuredPrivateSourceEntries().length === 0) {
+      } else if (this.enabledRuntimeSources.length === 0 && this.configuredPrivateSourceEntries.length === 0) {
         ListItem() {
           this.EmptySources()
         }
@@ -445,7 +446,7 @@ export struct BrowsePage {
         if (this.pinnedRuntimeSources.length > 0) {
           this.PinnedSourceListItems()
         }
-        if (this.configuredPrivateSourceEntries().length > 0) {
+        if (this.configuredPrivateSourceEntries.length > 0) {
           this.PrivateSourceListItems()
         }
         if (this.enabledRuntimeSources.length > 0) {

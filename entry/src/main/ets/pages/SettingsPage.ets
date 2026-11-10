@@ -970,12 +970,13 @@ export struct SettingsPage {
     return ['appearance', 'library', 'reader', 'services', 'downloads', 'tracking', 'backup', 'storage', 'advanced', 'about']
   }
 
-  private normalizedSettingsSearchText(): string {
+  @Computed
+  private get normalizedSettingsSearchText(): string {
     return this.settingsSearchText.trim().toLowerCase()
   }
 
   private isSettingsSearchActive(): boolean {
-    return this.pane === 'root' && this.normalizedSettingsSearchText().length > 0
+    return this.pane === 'root' && this.normalizedSettingsSearchText.length > 0
   }
 
   private isReaderWebtoonLayout(): boolean {
@@ -983,8 +984,9 @@ export struct SettingsPage {
       (this.readingDirection === ReadingDirection.WEBTOON && this.pageMode !== 'vertical_page')
   }
 
-  private settingsSearchResults(): SettingsSearchResult[] {
-    const query = this.normalizedSettingsSearchText()
+  @Computed
+  private get settingsSearchResults(): SettingsSearchResult[] {
+    const query = this.normalizedSettingsSearchText
     if (query.length === 0) {
       return []
     }
@@ -2685,7 +2687,7 @@ export struct SettingsPage {
   @Builder
   private SearchResults() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      if (this.settingsSearchResults().length === 0) {
+      if (this.settingsSearchResults.length === 0) {
         GroupedListSection({ title: s('settings_section_search_results') }) {
           ConciseListRow({
             title: s('settings_search_empty_title'),
@@ -2695,9 +2697,9 @@ export struct SettingsPage {
         }
       } else {
         GroupedListSection({ title: s('settings_section_search_results') }) {
-          ForEach(this.settingsSearchResults(), (result: SettingsSearchResult, index: number) => {
+          ForEach(this.settingsSearchResults, (result: SettingsSearchResult, index: number) => {
             this.SearchResultRow(result)
-            if (index < this.settingsSearchResults().length - 1) {
+            if (index < this.settingsSearchResults.length - 1) {
               ListDivider()
             }
           }, (result: SettingsSearchResult) => result.key)
