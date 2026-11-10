@@ -2402,9 +2402,13 @@ export struct ReaderPage {
       this.pageIndexSource.setIndexes(this.pageIndexes())
     }
     if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) return
-    const wideIndexes = this.widePageIndexes()
     const splitWidePages = this.preferences.wideImageMode === 'split_wide_pages' && this.usesDisplayPagePager()
-    const displayKey = `${pageKey}:${this.effectiveMode()}:${this.preferences.wideImageMode}:${this.preferences.readingDirection}:${wideIndexes.join(',')}`
+    // Wide-page indexing only changes display pages when a split pager is in
+    // use. Single/vertical and joined double-page modes already keep one
+    // display item per source page; scanning every page after each decode
+    // would reload the whole pager for no geometry change.
+    const wideIndexes = splitWidePages ? this.widePageIndexes() : []
+    const displayKey = `${pageKey}:${this.effectiveMode()}:${this.preferences.wideImageMode}:${this.preferences.readingDirection}:${splitWidePages ? wideIndexes.join(',') : ''}`
     if (force || displayKey !== this.displayPageSourceKey) {
       const total = this.sessionConfig.totalPages
       const sourcePage = total <= 0 ? 0 : Math.max(0, Math.min(this.pageIndex, total - 1))
@@ -2878,6 +2882,7 @@ export struct ReaderPage {
   }
 
   private resetZoomState(): void {
+    if (!this.zoomed && this.zoomScale === 1 && this.verticalZoomedPage < 0) return
     this.zoomed = false
     this.zoomScale = 1
     this.verticalZoomedPage = -1
