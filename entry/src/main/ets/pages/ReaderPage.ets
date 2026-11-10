@@ -33,8 +33,8 @@ import {
   getReaderSessionPageHeight,
   getReaderSessionPageId,
   getReaderSessionPageWidth,
-  readerSessionFormat,
 } from '../model/ReaderSessionStore'
+import { readerSessionFormatForOpen } from '../model/ReaderLocalFormatProbe'
 import {
   DEFAULT_READER_PREFERENCES,
   ReaderBackgroundMode,
@@ -2060,7 +2060,7 @@ export struct ReaderPage {
       }
       this.preferencesStore = new ReaderPreferencesStore(context)
       this.preferences = await this.preferencesStore.loadForComic(this.sessionConfig.comicId,
-        readerSessionFormat(this.sessionConfig))
+        await readerSessionFormatForOpen(this.sessionConfig))
       this.seriesOverrideActive =
         await this.preferencesStore.seriesModeOverride(this.sessionConfig.comicId) !== undefined
       // Pairing parity belongs to the active comic/chapter progress.  The

@@ -108,7 +108,7 @@
     { "name": "common_more_actions", "value": "More actions" },
     { "name": "reader_page_mode_single", "value": "Single page" },
     { "name": "reader_page_mode_double", "value": "Double page" },
-    { "name": "reader_page_mode_continuous", "value": "Continuous scroll" },
+    { "name": "reader_page_mode_continuous", "value": "Continuous scroll (Webtoon)" },
     { "name": "reader_page_mode_vertical_page", "value": "Vertical page" },
     { "name": "reader_direction_ltr", "value": "Left to right" },
     { "name": "reader_direction_rtl", "value": "Right to left" },

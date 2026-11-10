@@ -18,11 +18,11 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-10T00:25:00+08:00",
+  "updatedAt": "2026-11-10T11:51:31+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": null,
-  "activity": "#001 quota 逐出场景顿挫修复链全部实测闭环：evict 分批候选两段 26 次快滑无 33 毫秒以上间隔、偏好读取与滚动中 unlink 归零、>16.7 毫秒帧保持 0。",
-  "nextAction": "",
+  "activeId": "READER_FIRST_OPEN_FORMAT",
+  "activity": "#005 本地条漫首次打开补齐原图尺寸探测，连续滚动入口统一为「连续滚动（条漫）」；Debug 构建通过，真机待验。",
+  "nextAction": "真机验证本地条漫首次打开和日漫从右到左的首次打开",
   "proof": [
     {
       "label": "正式主仓",
@@ -792,16 +792,24 @@
     {
       "id": "READER_FIRST_OPEN_FORMAT",
       "title": "首次打开按作品自动选择条漫或从右到左分页",
-      "kind": "open",
+      "kind": "pending_verification",
       "priority": "用户直接反馈",
       "owner": "Root",
       "reportedAt": null,
       "reportedAtSource": "本会话用户要求参考其他阅读器，条漫首次使用条漫模式，日漫首次使用默认从右到左。精确消息时刻未核实。",
       "registeredAt": "2026-11-08T03:45:37+08:00",
-      "status": "已有标签识别路径，普通入口待逐类验收",
-      "stage": "核对首次和已有偏好",
-      "result": "共享和旧阅读器共用首次模式逻辑。已核代码路径：明确标签优先，原图尺寸足够时才以连续长图识别条漫。全局阅读方式仍为默认且无单书设置时，识别为条漫用连续滚动，识别为日漫用右到左；保留用户已有的全局和单书选择。",
-      "remaining": "按用户指定顺序检查条漫和日漫的真实首次打开，保留用户已有手动方向。",
+      "updatedAt": "2026-11-10T11:51:31+08:00",
+      "status": "本地自动判断输入已补齐，Debug 构建通过",
+      "stage": "候选待真机首次打开验收",
+      "result": "共享和旧阅读器共用首次模式逻辑。既有标签/原图尺寸判定保留；本轮补齐本地输入：打开本地书籍前最多读取 6 张本地页原图尺寸，仅对本地文件夹/压缩包且已有格式未确定时执行，再交给既有 readerSessionFormat 判断，不覆盖全局或单书设置。连续布局尺寸未知时的 0.75 占位保留。连续滚动入口统一为「连续滚动（条漫）」。Debug assembleHap 通过。",
+      "remaining": "真机分别验证本地图片、本地文件夹和压缩包的条漫首次打开，确认日漫首次仍从右到左，并确认已有全局/单书设置不被覆盖。",
+      "evidence": [
+        "entry/src/main/ets/model/ReaderLocalFormatProbe.ets",
+        "entry/src/main/ets/readerLab/KomaReaderLabPage.ets",
+        "entry/src/main/ets/pages/ReaderPage.ets",
+        "entry/src/main/resources/zh_CN/element/string.json",
+        ".hvigor/outputs/local-reader-format-20261110/build.log"
+      ],
       "number": 5
     },
     {
@@ -9840,6 +9848,17 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "local-reader-format-probe-20261110",
+      "at": "2026-11-10T11:51:31+08:00",
+      "itemIds": [
+        "READER_FIRST_OPEN_FORMAT"
+      ],
+      "title": "#005 本地首次自动判断补齐尺寸输入",
+      "detail": "本地图片、本地文件夹和压缩包导入的页面没有标签或原图宽高，首次打开此前拿不到自动判断输入。新增打开前最多读取 6 张本地页原图尺寸的探测，只对本地文件夹/压缩包且已有格式未确定时执行，仍由既有 readerSessionFormat 判定，不覆盖全局/单书设置；连续布局的 0.75 占位保留。连续滚动入口文案改为「连续滚动（条漫）」。Debug assembleHap 通过，真机未验。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/local-reader-format-20261110/build.log"
+    },
     {
       "id": "overdefense-encoded-dot-20261110",
       "at": "2026-11-10T00:25:00+08:00",
