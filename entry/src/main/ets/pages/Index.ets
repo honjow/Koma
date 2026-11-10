@@ -1,5 +1,7 @@
 import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { SyncGroup } from '../deviceSync/DeviceSyncFacts'
+import { SyncReadingWorkConflict } from '../deviceSync/DeviceSyncEngine'
+import { SyncReadingWorkProgress } from '../deviceSync/DeviceSyncData'
 import { DeviceSyncConnectionPage, DeviceSyncOverviewPage, DeviceSyncReviewPage, DeviceSyncReviewReason,
   DeviceSyncWebDavChrome, DeviceSyncWebDavPage } from './DeviceSyncPages'
 import { ImagePluginsPage } from './ImagePluginsPage'
@@ -516,6 +518,7 @@ struct Index {
   private sourceReaderOpenRequest: number = 0
   private historyResumeLoadingTimer: number = -1
   private historyResumeLoadingDialog: number = -1
+  private readingConflictHold?: () => void
   /**
    * Landing hint for the crossed-into chapter: 'end' asks a continuous session
    * to align the last image's bottom. It follows the same session publication
@@ -1230,7 +1233,24 @@ struct Index {
     this.readerOpenIntent = intent
     this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
     let comic = this.readerComicForOpen(comicId)
-    const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
+    let targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
+    if (chapterId === undefined && comic !== undefined && comic.sourceRuntimeId !== undefined &&
+      comic.remoteResourceId !== undefined && !this.incognito.enabled) {
+      const syncChapter = targetChapterId ?? comic.chapters[0]?.id
+      if (syncChapter !== undefined) {
+        const syncRequest: SourceReaderSessionRequest = { comicId: comic.id, sourceId: comic.sourceRuntimeId,
+          mangaId: comic.remoteResourceId, mangaUrl: comic.sourcePath, sourceName: comic.sourceMetadata?.sourceName,
+          title: comic.title, chapterId: syncChapter, chapterIds: [syncChapter],
+          chapterTitles: [comic.chapters.find((item: Chapter): boolean => item.id === syncChapter)?.title ?? ''] }
+        const conflict = await appDeviceSync.waitForReadingSync(syncRequest)
+        if (conflict !== undefined) {
+          this.showReadingResumeConflict(conflict, syncRequest)
+          return
+        }
+        comic = this.readerComicForOpen(comicId) ?? comic
+        targetChapterId = this.readerChapterIdForOpen(comic, chapterId)
+      }
+    }
     if (targetChapterId !== undefined && comic?.sourceRuntimeId && !this.hasAvailableOfflineReaderPages(comicId, targetChapterId) &&
       appDeviceSync.receivedReading(comicId, targetChapterId)) {
       const history = this.readerSessionStore.getSourceHistory(comicId)
@@ -1407,12 +1427,55 @@ struct Index {
       })
     }, 220)
     this.historyResumeLoadingTimer = timer
+    let conflict: SyncReadingWorkConflict | undefined
     try {
-      await appDeviceSync.waitForReadingSync()
+      conflict = await appDeviceSync.waitForReadingSync(request)
     } finally {
       if (this.historyResumeLoadingTimer === timer) this.closeHistoryResumeLoading()
     }
     if (!isCurrent()) return
+    if (conflict !== undefined) {
+      this.showReadingResumeConflict(conflict, request)
+      return
+    }
+    const history = this.readerSessionStore.getSourceHistory(request.comicId)
+    const latest = history === undefined ? undefined : sourceReaderSessionRequestFromHistory(history)
+    if (latest !== undefined) await this.openSourceReader(latest)
+  }
+
+  private readingProgressLabel(progress: SyncReadingWorkProgress): string {
+    const chapter = progress.recent.chapterTitle || progress.recent.chapter || progress.recent.title
+    const total = progress.total > 0 ? ' / ' + progress.total.toString() : ''
+    return chapter + ' · ' + (progress.page + 1).toString() + total
+  }
+
+  private showReadingResumeConflict(conflict: SyncReadingWorkConflict, request: SourceReaderSessionRequest): void {
+    this.readingConflictHold?.()
+    this.readingConflictHold = appDeviceSync.holdAutomaticForReview()
+    const message = AppStrings.get('device_sync_progress_conflict_message') + '\n' +
+      AppStrings.get('device_sync_progress_remote') + ': ' + this.readingProgressLabel(conflict.remote) + '\n' +
+      AppStrings.get('device_sync_progress_local') + ': ' + this.readingProgressLabel(conflict.local)
+    this.getUIContext().showAlertDialog({ title: AppStrings.get('device_sync_progress_conflict_title'), message,
+      systemMaterial: komaDialogMaterial(), autoCancel: false,
+      primaryButton: { value: AppStrings.get('device_sync_keep_local_progress'), action: (): void => {
+        void this.resolveReadingResumeConflict(conflict, false, request)
+      } },
+      secondaryButton: { value: AppStrings.get('device_sync_use_remote_progress'), action: (): void => {
+        void this.resolveReadingResumeConflict(conflict, true, request)
+      } },
+    })
+  }
+
+  private async resolveReadingResumeConflict(conflict: SyncReadingWorkConflict, useRemote: boolean,
+    request: SourceReaderSessionRequest): Promise<void> {
+    try {
+      await appDeviceSync.resolveReadingResumeConflict(conflict, useRemote)
+    } catch (_error) {
+      this.showToast(AppStrings.get('device_sync_progress_resolve_failed'))
+    } finally {
+      this.readingConflictHold?.()
+      this.readingConflictHold = undefined
+    }
     const history = this.readerSessionStore.getSourceHistory(request.comicId)
     const latest = history === undefined ? undefined : sourceReaderSessionRequestFromHistory(history)
     if (latest !== undefined) await this.openSourceReader(latest)
@@ -2576,6 +2639,8 @@ struct Index {
 
   aboutToDisappear(): void {
     this.cancelHistoryResume()
+    this.readingConflictHold?.()
+    this.readingConflictHold = undefined
     this.readingStatisticsRecorder.close()
     if (this.catalogHeaderActions !== undefined && !this.catalogHeaderActions.isDisposed()) this.catalogHeaderActions.dispose()
     this.catalogHeaderActions = undefined

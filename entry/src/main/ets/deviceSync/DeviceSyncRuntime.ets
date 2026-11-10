@@ -8,7 +8,7 @@ import { appReaderSessionStore } from '../model/ReaderSessionStore'
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import { getInstalledSourcePackage } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingRound,
-  syncRequiresExplicitReview } from './DeviceSyncEngine'
+  SyncReadingWorkConflict, SyncReadingWorkResult, syncRequiresExplicitReview } from './DeviceSyncEngine'
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { KomaDeviceSyncOwners, SyncShelfRemoval } from './DeviceSyncOwners'
 import {
@@ -487,20 +487,53 @@ class DeviceSyncRuntime {
     if (this.view.selected.includes('shelf') || this.view.selected.includes('reading')) this.schedule(0)
   }
 
-  async waitForReadingSync(): Promise<void> {
-    if (!this.foreground || !this.automaticAllowed() || !this.view.selected.includes('reading')) return
-    const running = this.activeSync
-    if (running === undefined && (this.view.busy || Date.now() - this.view.lastSuccess < 2000)) return
-    let timer = -1
-    try {
-      await Promise.race([running ?? this.sync(true), new Promise<void>((resolve: () => void): void => {
-        timer = setTimeout(resolve, 2000)
-      })])
-    } catch (_error) {
-      // The existing local position remains usable when transfer is unavailable.
-    } finally {
-      if (timer >= 0) clearTimeout(timer)
+  async waitForReadingSync(request?: SourceReaderSessionRequest): Promise<SyncReadingWorkConflict | undefined> {
+    if (!this.foreground || !this.automaticAllowed() || !this.view.selected.includes('reading')) return undefined
+    if (this.activeSync !== undefined) {
+      const waiting = this.activeSync
+      let timer = -1
+      try {
+        await Promise.race([waiting, new Promise<void>((resolve: () => void): void => {
+          timer = setTimeout(resolve, 2000)
+        })])
+      } catch (_error) {
+      } finally {
+        if (timer >= 0) clearTimeout(timer)
+      }
+      if (this.activeSync === waiting) return undefined
     }
+    if (this.view.busy || request === undefined) return undefined
+    try {
+      await this.recordPositions()
+      const focused = this.needed().syncReadingWork(request.sourceId, request.mangaId)
+      let timer = -1
+      const result = await Promise.race([focused, new Promise<SyncReadingWorkResult | undefined>((resolve): void => {
+        timer = setTimeout((): void => resolve(undefined), 2000)
+      })])
+      if (timer >= 0) clearTimeout(timer)
+      if (result?.conflict !== undefined) {
+        return result.conflict
+      }
+    } catch (_error) {
+      // The saved local position remains usable when the focused read fails.
+    }
+    return undefined
+  }
+
+  async resolveReadingResumeConflict(conflict: SyncReadingWorkConflict, useRemote: boolean): Promise<void> {
+    const engine = this.needed()
+    const guard = engine.requestGuard()
+    if (useRemote) await engine.applyReadingFocus(conflict.facts, guard)
+    else engine.mergeReadingFocusFacts(conflict.facts)
+    const chosen = useRemote ? conflict.remote : conflict.local
+    const edits: DeviceSyncLocalEdit[] = [{ key: syncKey(['recent', conflict.source, conflict.work]),
+      kind: 'set', value: JSON.stringify(chosen.recent) }]
+    if (chosen.position !== undefined) {
+      edits.push({ key: syncKey(['position', conflict.source, conflict.work, chosen.chapter]),
+        kind: 'set', value: JSON.stringify(chosen.position) })
+    }
+    engine.recordEdits('reading', edits)
+    this.schedule(0)
   }
 
   private automaticAllowed(): boolean {

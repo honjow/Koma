@@ -65,6 +65,15 @@ export interface SyncPositionValue {
   pageTable?: string // Kept when reading the legacy dataset.
 }
 
+export interface SyncReadingWorkProgress {
+  recent: SyncRecentValue
+  position?: SyncPositionValue
+  chapter: string
+  page: number
+  total: number
+  date: number
+}
+
 export interface SyncReaderMode {
   mode: string
   direction: string
@@ -231,6 +240,20 @@ export function syncGroupVisibleValue(group: SyncGroup, fact: SyncFact): string 
   const concurrent = fact.values.filter((edit: SyncEdit): boolean => !syncObserves(fact.cleared, edit.version) &&
     deletes.every((barrier: SyncEdit): boolean => syncObserves(edit.observed, barrier.version)))
   return concurrent[concurrent.length - 1]?.value ?? value
+}
+
+/** One work's visible resume position, shared by full and targeted reads. */
+export function syncReadingWorkProgress(facts: SyncFact[], source: string, work: string): SyncReadingWorkProgress | undefined {
+  const recentFact = facts.find((fact: SyncFact): boolean => fact.key === syncKey(['recent', source, work]))
+  const recentValue = recentFact === undefined ? undefined : syncGroupVisibleValue('reading', recentFact)
+  if (recentValue === undefined) return undefined
+  const recent = JSON.parse(recentValue) as SyncRecentValue
+  const positionFact = facts.find((fact: SyncFact): boolean =>
+    fact.key === syncKey(['position', source, work, recent.chapter]))
+  const positionValue = positionFact === undefined ? undefined : syncGroupVisibleValue('reading', positionFact)
+  const position = positionValue === undefined ? undefined : JSON.parse(positionValue) as SyncPositionValue
+  return { recent, position, chapter: recent.chapter, page: position?.page ?? recent.savedPage ?? 0,
+    total: position?.total ?? 0, date: position?.date ?? recent.date }
 }
 
 function isSourceWork(parts: string[]): boolean {

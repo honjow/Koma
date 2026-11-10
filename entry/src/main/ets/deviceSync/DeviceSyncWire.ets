@@ -144,7 +144,8 @@ function compareKey(a: SyncFact, b: SyncFact): number {
   return a.key === b.key ? 0 : a.key < b.key ? -1 : 1
 }
 
-function rootBucket(key: string): string {
+/** Deterministic first-level bucket shared by the full sync and per-work reads. */
+export function syncRootBucket(key: string): string {
   return (parseInt(syncDigest(key).substring(0, 2), 16) & 63).toString(16).padStart(2, '0')
 }
 
@@ -194,7 +195,7 @@ export function buildSyncDataset(id: string, facts: SyncFact[], epoch: number, p
   const old = new Map<string, SyncShardRef>()
   previous?.shards.forEach((shard: SyncShardRef): void => { old.set(shard.bucket, shard) })
   facts.map(checkedSyncFact).sort(compareKey).forEach((fact: SyncFact): void => {
-    const key = rootBucket(bucketKey(fact.key))
+    const key = syncRootBucket(bucketKey(fact.key))
     const rows = roots.get(key)
     if (rows === undefined) roots.set(key, [fact])
     else rows.push(fact)
@@ -218,7 +219,7 @@ export function decodeSyncShard(id: string, ref: SyncShardRef, body: string,
   const ids = new Set<string>()
   return shard.facts.map((raw: SyncFact): SyncFact => {
     const fact = checkedSyncFact(raw)
-    if (ids.has(fact.key) || rootBucket(bucketKey(fact.key)) !== parts[0] ||
+    if (ids.has(fact.key) || syncRootBucket(bucketKey(fact.key)) !== parts[0] ||
       (parts.length > 1 && !syncDigest(fact.key).startsWith(parts[1]))) throw new Error('sync_invalid_bucket')
     ids.add(fact.key)
     return fact

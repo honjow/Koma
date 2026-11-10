@@ -3,10 +3,10 @@ import {
   applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleHeads, syncVisibleValue, SyncEdit,
   SyncEditKind, SyncFact, SyncGroup, SyncVersion, SYNC_GROUPS,
 } from './DeviceSyncFacts'
-import { checkSyncGroupFact, SyncRecentValue, SyncWorkLabel, syncBucketKey, syncBusinessKey, syncGroupVisibleValue, syncKey, syncKeyParts,
-  SYNC_SHELF_DATASET, syncShelfMove } from './DeviceSyncData'
+import { checkSyncGroupFact, SyncReadingWorkProgress, syncReadingWorkProgress, SyncRecentValue, SyncWorkLabel,
+  syncBucketKey, syncBusinessKey, syncGroupVisibleValue, syncKey, syncKeyParts, SYNC_SHELF_DATASET, syncShelfMove } from './DeviceSyncData'
 import {
-  decodeSyncShard, syncDatasetBytes, syncDigest, syncShardPath, syncDatasetBranches,
+  decodeSyncShard, syncDatasetBytes, syncDigest, syncRootBucket, syncShardPath, syncDatasetBranches,
   SyncDatasetRef, SyncManifest, SyncShardRef, SYNC_MAX_ROUND_BYTES,
 } from './DeviceSyncWire'
 import {
@@ -45,6 +45,19 @@ export interface SyncMergeConflict {
   deleted: boolean
   label?: string
   retainLocalOnDelete?: boolean
+}
+
+export interface SyncReadingWorkConflict {
+  source: string
+  work: string
+  local: SyncReadingWorkProgress
+  remote: SyncReadingWorkProgress
+  facts: SyncFact[]
+}
+
+export interface SyncReadingWorkResult {
+  applied: boolean
+  conflict?: SyncReadingWorkConflict
 }
 
 export interface SyncPreviewGroup {
@@ -135,6 +148,13 @@ function prepareSyncPlan(prepared: PreparedGroup[], existing: SyncManifest | und
 interface CheckedShard {
   data?: SyncFact[]
   error?: string
+}
+
+interface FocusManifestCache {
+  generation: number
+  space: string
+  at: number
+  remote: SyncRemoteManifest
 }
 
 const DEFAULT_GROUPS: SyncGroup[] = ['shelf', 'reading']
@@ -247,8 +267,10 @@ export class DeviceSyncEngine {
   private probeGeneration: number = 0
   private prepared?: PreparedSync
   private running?: Promise<void>
+  private focusRunning?: Promise<SyncReadingWorkResult>
   lastReadingRound?: SyncReadingRound
   private appliedRemoteTag: string = ''
+  private focusManifest?: FocusManifestCache
   private cache: DatasetCache[] = []
   private cacheSize: number = 0
   private restoreInProgress: boolean = false
@@ -422,6 +444,9 @@ export class DeviceSyncEngine {
       // successful persistence replaces the endpoint and invalidates old work.
       this.generation++
       this.prepared = undefined
+      this.focusManifest = undefined
+      this.cache = []
+      this.cacheSize = 0
       SYNC_GROUPS.forEach((group: SyncGroup): void => { this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1) })
       if (previousCredential !== undefined) await this.removeUnusedCredential(previousCredential).catch((): void => {})
     } catch (error) {
@@ -505,8 +530,6 @@ export class DeviceSyncEngine {
     if (!(savedReview && configuration?.endpointIdentity === endpointIdentity(draft)) &&
       (existing === undefined || existing.credential === '') && (this.tested === undefined || !sameConnection(draft, this.tested) ||
       draft.password !== this.tested.password)) throw new Error('sync_test_required')
-    this.cache = []
-    this.cacheSize = 0
     const provider = new DeviceSyncWebDav(draft, existing?.frontier, existing?.space, this.publicationWriter())
     const remote = await provider.readManifest(guard)
     this.checkHighWater(existing, remote)
@@ -609,7 +632,7 @@ export class DeviceSyncEngine {
   }
 
   confirm(token: string, choices: SyncMergeChoice[]): Promise<void> {
-    if (this.running !== undefined) return Promise.reject(new Error('sync_already_running'))
+    if (this.running !== undefined || this.focusRunning !== undefined) return Promise.reject(new Error('sync_already_running'))
     const prepared = this.prepared
     this.prepared = undefined
     if (prepared === undefined || prepared.preview.token !== token) return Promise.reject(new Error('sync_preview_changed'))
@@ -649,6 +672,7 @@ export class DeviceSyncEngine {
 
   syncNow(probeOnly: boolean = false): Promise<void> {
     if (this.running !== undefined) return this.running
+    if (this.focusRunning !== undefined) return this.focusRunning.then((): Promise<void> => this.syncNow(probeOnly))
     return this.start((): Promise<void> => this.runActive(probeOnly))
   }
 
@@ -676,11 +700,16 @@ export class DeviceSyncEngine {
       for (let attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) await this.recoverIntent()
         let remote = await provider.readManifest(guard, '', probeOnly && attempt === 0)
+        if (attempt === 0) this.focusManifest = { generation: this.generation, space: provider.spaceId(),
+          at: Date.now(), remote }
         const appliedTag = JSON.stringify([configured.endpointIdentity, configured.selected, remote.etag, remote.hash])
         if (probeOnly && active !== undefined && !remote.warning && appliedTag === this.appliedRemoteTag &&
           !active.groups.some((group: SyncGroupState): boolean => configured.selected.includes(group.id) && group.pending.length > 0)) return
         this.checkHighWater(this.active(), remote)
-        if (remote.manifest?.maintenance === true) remote = await this.finishMaintenance(provider, remote, guard)
+        if (remote.manifest?.maintenance === true) {
+          this.focusManifest = undefined
+          remote = await this.finishMaintenance(provider, remote, guard)
+        }
         this.checkHighWater(this.active(), remote)
         await this.rememberRemote(provider.spaceId(), remote, guard)
         if (remote.manifest?.maintenance === true) throw new Error('sync_maintenance_running')
@@ -708,6 +737,7 @@ export class DeviceSyncEngine {
         try {
           await this.execute(provider, this.active() ?? connection, configured.credential, configured.selected, remote,
             proposal, guard, false, configured.endpointIdentity, [], active === undefined)
+          if (proposal.publish) this.focusManifest = undefined
           await this.maybeMaintain(provider, guard).catch((): void => {})
           if (remote.warning) throw new Error(remote.warning)
           if (groupErrors.length > 0) throw new Error('sync_partial:' + groupErrors[0])
@@ -721,6 +751,7 @@ export class DeviceSyncEngine {
       throw new Error('sync_remote_changed')
     } catch (error) {
       guard()
+      this.focusManifest = undefined
       const active = this.active()
       if (active !== undefined) {
         await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
@@ -731,6 +762,150 @@ export class DeviceSyncEngine {
       }
       throw error as Error
     }
+  }
+
+  /** Read only the bucket that contains one work's reading records. */
+  async syncReadingWork(source: string, work: string): Promise<SyncReadingWorkResult> {
+    if (this.running !== undefined || this.focusRunning !== undefined) throw new Error('sync_already_running')
+    this.requireEnabled()
+    const active = this.active()
+    if (active === undefined || !active.selected.includes('reading') || active.enabled === false ||
+      (active.restoreReview === true && syncRequiresExplicitReview(active))) return { applied: false }
+    const generation = this.generation
+    const guard = this.transferGuard(generation)
+    const pending = this.runReadingWork(source, work, guard).finally((): void => { this.focusRunning = undefined })
+    this.focusRunning = pending
+    return pending
+  }
+
+  private async runReadingWork(source: string, work: string, guard: SyncRequestGuard): Promise<SyncReadingWorkResult> {
+    const remoteFacts = await this.readReadingWorkFocus(source, work, guard)
+    if (remoteFacts.length === 0) return { applied: false }
+    const current = this.active()?.groups.find((group: SyncGroupState): boolean => group.id === 'reading')
+    const localFacts = current?.facts ?? []
+    const local = syncReadingWorkProgress(localFacts, source, work)
+    const remote = syncReadingWorkProgress(remoteFacts, source, work)
+    if (remote === undefined) return { applied: false }
+    if (local === undefined) {
+      await this.applyReadingFocus(remoteFacts, guard)
+      return { applied: true }
+    }
+    const pending = current?.pending.some((item: SyncPendingEdit): boolean => {
+      const parts = syncKeyParts(item.key)
+      return (parts[0] === 'recent' || parts[0] === 'position') && parts[1] === source && parts[2] === work
+    }) ?? false
+    const localRecent = localFacts.find((fact: SyncFact): boolean => fact.key === syncKey(['recent', source, work]))
+    const remoteRecent = remoteFacts.find((fact: SyncFact): boolean => fact.key === syncKey(['recent', source, work]))
+    const localPosition = localFacts.find((fact: SyncFact): boolean =>
+      fact.key === syncKey(['position', source, work, local.chapter]))
+    const remotePosition = remoteFacts.find((fact: SyncFact): boolean =>
+      fact.key === syncKey(['position', source, work, remote.chapter]))
+    const concurrent = (localRecent !== undefined && syncVisibleHeads(localRecent).length > 1) ||
+      (remoteRecent !== undefined && syncVisibleHeads(remoteRecent).length > 1) ||
+      (localPosition !== undefined && syncVisibleHeads(localPosition).length > 1) ||
+      (remotePosition !== undefined && syncVisibleHeads(remotePosition).length > 1)
+    const remoteUnseen = remoteRecent !== undefined && remoteRecent.values.some((edit: SyncEdit): boolean =>
+      localRecent === undefined || !syncObserves(localRecent.seen, edit.version))
+    const differs = local.chapter !== remote.chapter || local.page !== remote.page
+    // The remote is allowed to advance a device that has not read here since.
+    // Once local time wins, a differing position is ambiguous: it may be a
+    // deliberate reread or a stale save made before this remote was pulled.
+    if (differs && (pending || concurrent || (local.date >= remote.date && remoteUnseen))) {
+      return { applied: false, conflict: { source, work, local, remote, facts: remoteFacts } }
+    }
+    if (differs) {
+      await this.applyReadingFocus(remoteFacts, guard)
+      return { applied: true }
+    }
+    // Same visible position: retain the remote dots so the next local save
+    // observes both sides instead of creating another stale conflict.
+    this.mergeReadingFocusFacts(remoteFacts)
+    return { applied: false }
+  }
+
+  private async readReadingWorkFocus(source: string, work: string, guard: SyncRequestGuard): Promise<SyncFact[]> {
+    const active = this.active()
+    if (active === undefined) return []
+    const provider = new DeviceSyncWebDav(await readSyncCredential(active.credential), active.frontier, active.space,
+      this.publicationWriter())
+    const cached = this.focusManifest
+    const remote = cached !== undefined && cached.generation === this.generation && cached.space === active.space &&
+      Date.now() - cached.at < 5000 ? cached.remote : await provider.readManifest(guard)
+    if (remote !== cached?.remote) {
+      this.focusManifest = { generation: this.generation, space: active.space, at: Date.now(), remote }
+    }
+    if (remote.manifest === undefined) return []
+    if (remote.manifest.maintenance === true) return []
+    const root = syncRootBucket(syncKey([source, work]))
+    let facts: SyncFact[] = []
+    for (const ref of groupDatasets(remote.manifest, 'reading')) {
+      const shards = ref.shards.filter((shard: SyncShardRef): boolean => shard.bucket === root || shard.bucket.startsWith(root + '-'))
+      if (shards.length === 0) continue
+      const focused: SyncDatasetRef = { id: ref.id, schema: ref.schema, shards }
+      facts = mergeSyncFacts(facts, await this.loadDataset(provider, focused, guard, 'reading'))
+    }
+    const result: SyncFact[] = []
+    const keys = new Set<string>()
+    facts.forEach((fact: SyncFact): void => {
+      const parts = syncKeyParts(fact.key)
+      if (keys.has(fact.key) || parts.length < 3 || parts[1] !== source || parts[2] !== work ||
+        (parts[0] !== 'recent' && parts[0] !== 'position' && parts[0] !== 'read' && parts[0] !== 'bookmark')) return
+      keys.add(fact.key)
+      result.push(fact)
+    })
+    return result
+  }
+
+  /** Keep both causal candidates without changing the local projection. */
+  mergeReadingFocusFacts(facts: SyncFact[]): void {
+    if (facts.length === 0) return
+    const space = this.active()?.space
+    this.storage.update((state: SyncLocalDocument): void => {
+      const active = state.active
+      if (active === undefined || active.space !== space) return
+      const current = active.groups.find((group: SyncGroupState): boolean => group.id === 'reading')
+      if (current === undefined) return
+      active.groups = replaceGroup(active.groups, { id: 'reading', facts: mergeSyncFacts(current.facts, facts),
+        baseline: current.baseline, pending: current.pending, deferred: current.deferred, deferredRoots: current.deferredRoots })
+    })
+  }
+
+  /** Apply only the fetched work's visible values and keep the local receipt. */
+  async applyReadingFocus(facts: SyncFact[], guard: SyncRequestGuard): Promise<void> {
+    if (facts.length === 0) return
+    const active = this.active()
+    if (active === undefined) return
+    const current = active.groups.find((group: SyncGroupState): boolean => group.id === 'reading')
+    if (current === undefined) return
+    const merged = mergeSyncFacts(current.facts, facts)
+    const local = await this.owner.snapshot('reading', false, guard, active.space, false)
+    const localValues = byLocalValue(local.values)
+    const focusKeys = new Set<string>(facts.map((fact: SyncFact): string => fact.key))
+    const changes: SyncLocalValue[] = []
+    merged.forEach((fact: SyncFact): void => {
+      if (!focusKeys.has(fact.key)) return
+      const value = syncGroupVisibleValue('reading', fact)
+      if (value !== localValues.get(fact.key)) changes.push({ key: fact.key, value: value ?? '' })
+    })
+    if (changes.length === 0) {
+      this.mergeReadingFocusFacts(facts)
+      return
+    }
+    const nextValues = byLocalValue(local.values)
+    changes.forEach((change: SyncLocalValue): void => {
+      if (change.value === '') nextValues.delete(change.key)
+      else nextValues.set(change.key, change.value)
+    })
+    const nextGroup: SyncGroupState = { id: 'reading', facts: merged, baseline: localValueRows(nextValues),
+      pending: current.pending, deferred: current.deferred, deferredRoots: current.deferredRoots }
+    await this.owner.commit([{ group: 'reading', changes }], [{ group: 'reading', revision: local.revision }],
+      (id: string): void => {
+        this.storage.update((state: SyncLocalDocument): void => {
+          if (state.active === undefined || state.active.space !== active.space) return
+          state.active.groups = replaceGroup(state.active.groups, nextGroup)
+          state.localReceipt = id
+        })
+      })
   }
 
   private checkHighWater(connection: SyncSavedConnection | undefined, remote: SyncRemoteManifest): void {
@@ -1334,6 +1509,7 @@ export class DeviceSyncEngine {
     this.generation++
     this.reviewGeneration++
     this.prepared = undefined
+    this.focusManifest = undefined
     before.forEach((group: SyncGroup): void => {
       if (!selected.includes(group)) this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1)
     })
@@ -1472,7 +1648,8 @@ export class DeviceSyncEngine {
 
   recoverOnForeground(): Promise<void> {
     if (!this.isEnabled()) return Promise.resolve()
-    if (this.running !== undefined) return this.running
+    if (this.running !== undefined) return this.running.then((): void => {})
+    if (this.focusRunning !== undefined) return this.focusRunning.then((): Promise<void> => this.recoverOnForeground())
     return this.start(async (): Promise<void> => {
       await this.cleanProbes()
       await this.recoverIntent()
@@ -1623,6 +1800,7 @@ export class DeviceSyncEngine {
     this.generation++
     this.prepared = undefined
     this.tested = undefined
+    this.focusManifest = undefined
     SYNC_GROUPS.forEach((group: SyncGroup): void => { this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1) })
     this.cache = []
     this.cacheSize = 0
@@ -1663,6 +1841,7 @@ export class DeviceSyncEngine {
     this.generation++
     this.prepared = undefined
     this.restoreInProgress = true
+    this.focusManifest = undefined
     SYNC_GROUPS.forEach((group: SyncGroup): void => { this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1) })
     const current = this.storage.load()
     this.restoreBefore = current.active

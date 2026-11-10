@@ -298,6 +298,7 @@ function engineFixture(providerOverride) {
     }
     async readObject(ref, guard) {
       guard()
+      this.server.objectReads = (this.server.objectReads ?? 0) + 1
       return this.server.objects.get(wire.syncShardPath(ref))
     }
     async storeObject(object, guard) {
@@ -786,6 +787,125 @@ test('the newest reading time resolves equal positions on first merge and differ
   assert.equal(left.values.get('reading').get(recentKey), newerRecent)
   assert.equal(right.values.get('reading').get(recentKey), newerRecent)
   assert.equal(right.engine.knownReadingValue(key), newerReread)
+})
+
+test('a focused reading read fetches only the work bucket and applies newer progress', async () => {
+  const { replica, draft, servers } = engineFixture()
+  const source = 'org.focused.koma'
+  const work = 'work:focused'
+  const chapter = 'chapter:one'
+  const nextChapter = 'chapter:two'
+  const recentKey = data.syncKey(['recent', source, work])
+  const firstPosition = data.syncKey(['position', source, work, chapter])
+  const nextPosition = data.syncKey(['position', source, work, nextChapter])
+  const recent = (id, date, page) => JSON.stringify(data.syncReadingRecent(source, id, date, 'Focused', 'Source', id, page))
+  const position = (page, date) => JSON.stringify({ page, total: 10, date })
+  const initial = new Map([[recentKey, recent(chapter, 100, 0)], [firstPosition, position(0, 100)]])
+  const left = replica(A, [['reading', new Map(initial)]])
+  const right = replica(B, [['reading', new Map(initial)]])
+  await left.engine.testConnection(draft)
+  await left.engine.confirm((await left.engine.prepare(draft, ['reading'])).token, [])
+  await right.engine.testConnection(draft)
+  await right.engine.confirm((await right.engine.prepare(draft, ['reading'])).token, [])
+
+  const nextRecent = recent(nextChapter, 200, 4)
+  const nextPage = position(4, 200)
+  left.values.get('reading').set(recentKey, nextRecent)
+  left.values.get('reading').set(nextPosition, nextPage)
+  left.engine.recordEdits('reading', [{ key: recentKey, kind: 'set', value: nextRecent },
+    { key: nextPosition, kind: 'set', value: nextPage }])
+  await left.engine.syncNow()
+
+  const server = servers.get(draft.directory)
+  server.objectReads = 0
+  const result = await right.engine.syncReadingWork(source, work)
+  assert.equal(result.applied, true)
+  assert.equal(server.objectReads, 1)
+  assert.equal(right.values.get('reading').get(recentKey), nextRecent)
+  assert.equal(right.values.get('reading').get(nextPosition), nextPage)
+})
+
+test('a focused reading read reports a concurrent local save instead of overwriting it', async () => {
+  const { replica, draft, servers } = engineFixture()
+  const source = 'org.focused.koma'
+  const work = 'work:conflict'
+  const chapter = 'chapter:one'
+  const nextChapter = 'chapter:two'
+  const recentKey = data.syncKey(['recent', source, work])
+  const firstPosition = data.syncKey(['position', source, work, chapter])
+  const nextPosition = data.syncKey(['position', source, work, nextChapter])
+  const recent = (id, date, page) => JSON.stringify(data.syncReadingRecent(source, id, date, 'Focused', 'Source', id, page))
+  const position = (page, date) => JSON.stringify({ page, total: 10, date })
+  const initial = new Map([[recentKey, recent(chapter, 100, 0)], [firstPosition, position(0, 100)]])
+  const left = replica(A, [['reading', new Map(initial)]])
+  const right = replica(B, [['reading', new Map(initial)]])
+  await left.engine.testConnection(draft)
+  await left.engine.confirm((await left.engine.prepare(draft, ['reading'])).token, [])
+  await right.engine.testConnection(draft)
+  await right.engine.confirm((await right.engine.prepare(draft, ['reading'])).token, [])
+
+  const remoteRecent = recent(nextChapter, 200, 4)
+  const remotePage = position(4, 200)
+  left.values.get('reading').set(recentKey, remoteRecent)
+  left.values.get('reading').set(nextPosition, remotePage)
+  left.engine.recordEdits('reading', [{ key: recentKey, kind: 'set', value: remoteRecent },
+    { key: nextPosition, kind: 'set', value: remotePage }])
+  await left.engine.syncNow()
+
+  const localRecent = recent(chapter, 300, 7)
+  const localPage = position(7, 300)
+  right.values.get('reading').set(recentKey, localRecent)
+  right.values.get('reading').set(firstPosition, localPage)
+  right.engine.recordEdits('reading', [{ key: recentKey, kind: 'set', value: localRecent },
+    { key: firstPosition, kind: 'set', value: localPage }])
+  const server = servers.get(draft.directory)
+  server.objectReads = 0
+  const result = await right.engine.syncReadingWork(source, work)
+  assert.equal(result.applied, false)
+  assert.equal(result.conflict.local.chapter, chapter)
+  assert.equal(result.conflict.remote.chapter, nextChapter)
+  assert.equal(server.objectReads, 1)
+  assert.equal(right.values.get('reading').get(recentKey), localRecent)
+  assert.equal(right.values.get('reading').get(firstPosition), localPage)
+})
+
+test('a refreshed chapter catalog deletes the previous block generation', async () => {
+  const { replica, draft } = engineFixture()
+  const source = 'org.catalog.koma'
+  const work = 'work:catalog'
+  const catalog = (ids, date) => {
+    const blocks = []
+    let current = []
+    let length = 2
+    ids.forEach(id => {
+      const size = JSON.stringify(id).length + 1
+      if (length + size > 4096 && current.length > 0) { blocks.push(current); current = []; length = 2 }
+      current.push(id)
+      length += size
+    })
+    if (current.length > 0) blocks.push(current)
+    const digest = require('node:crypto').createHash('sha256').update(JSON.stringify(ids)).digest('hex')
+    return [[data.syncKey(['chapter-catalog', source, work]),
+      JSON.stringify({ digest, count: ids.length, blocks: blocks.length, date })]].concat(
+      blocks.map((block, index) => [data.syncKey(['chapter-catalog-block', source, work, digest, index.toString()]),
+        JSON.stringify(block)]))
+  }
+  const first = catalog(Array.from({ length: 900 }, (_, index) => 'chapter-' + index.toString().padStart(6, '0')), 1)
+  const second = catalog(Array.from({ length: 901 }, (_, index) => 'chapter-' + index.toString().padStart(6, '0')), 2)
+  const left = replica(A, [['shelf', new Map(first)]])
+  await left.engine.testConnection(draft)
+  await left.engine.confirm((await left.engine.prepare(draft, ['shelf'])).token, [])
+  const shelf = left.values.get('shelf')
+  first.forEach(([key]) => { shelf.delete(key) })
+  second.forEach(([key, value]) => { shelf.set(key, value) })
+  left.engine.recordEdits('shelf', second.map(([key, value]) => ({ key, kind: 'set', value })))
+  await left.engine.syncNow()
+  const group = left.engine.active().groups.find(item => item.id === 'shelf')
+  const oldKey = first.find(([key]) => key.includes('chapter-catalog-block'))[0]
+  const oldFact = group.facts.find(fact => fact.key === oldKey)
+  assert.ok(oldFact)
+  assert.equal(facts.syncVisibleValue(oldFact), undefined)
+  assert.ok(oldFact.barriers.length > 0)
 })
 
 test('a real preference change keeps its dot through a rejected conditional write and a lost reply', async () => {

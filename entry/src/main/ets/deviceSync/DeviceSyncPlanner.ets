@@ -3,7 +3,7 @@ import {
   SyncEditKind, SyncFact, SyncGroup, SyncVersion,
 } from './DeviceSyncFacts'
 import {
-  checkSyncGroupFact, SyncRecentValue, syncBucketKey, syncGroupVisibleValue, syncKey, syncKeyParts,
+  checkSyncGroupFact, SyncChapterCatalog, SyncRecentValue, syncBucketKey, syncGroupVisibleValue, syncKey, syncKeyParts,
   SYNC_READING_DATASET, SYNC_SHELF_CATALOG_DATASET, SYNC_READER_SETTINGS_DATASET, SYNC_SUBSCRIPTIONS_DATASET,
   SYNC_SEARCH_DATASET, syncShelfMove, syncShelfMoveDestination,
 } from './DeviceSyncData'
@@ -338,6 +338,27 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
       const kind: SyncEditKind = shelfMoveValue(row.id, key, value) ? 'reset' : 'set'
       editFact(key, kind, value, row.requiresPreview || choice?.useLocal === true ? remoteFact : undefined)
     })
+    // A catalog block key includes the catalog digest. Without this pass every
+    // catalog refresh leaves the previous block set in the writer's facts,
+    // so a daily-updated shelf keeps re-uploading and re-reading old catalogs.
+    if (row.id === 'shelf') {
+      const currentCatalogDigests = new Map<string, string>()
+      row.local.values.forEach((item: SyncLocalValue): void => {
+        const parts = syncKeyParts(item.key)
+        if (parts[0] !== 'chapter-catalog') return
+        const header = JSON.parse(item.value) as SyncChapterCatalog
+        currentCatalogDigests.set(syncKey([parts[1], parts[2]]), header.digest)
+      })
+      Array.from(edits.keys()).forEach((key: string): void => {
+        const parts = syncKeyParts(key)
+        if (parts[0] !== 'chapter-catalog-block') return
+        const current = currentCatalogDigests.get(syncKey([parts[1], parts[2]]))
+        if (current === undefined || parts[3] === current || isDeferred(key) || protectedKeys.has(key)) return
+        const fact = edits.get(key)
+        if (fact === undefined || syncVisibleValue(fact) === undefined) return
+        editFact(key, 'delete', '')
+      })
+    }
     row.removed.forEach((key: string): void => {
       if (row.id === 'shelf') {
         const parts = syncKeyParts(key)

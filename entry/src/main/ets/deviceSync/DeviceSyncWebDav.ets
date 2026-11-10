@@ -611,18 +611,14 @@ export class DeviceSyncWebDav {
   }
 
   private async writePublication(path: string, body: string, manifest: SyncManifest, guard: SyncRequestGuard,
-    selected: string[], beforeSend: () => void | Promise<void> = (): void => {}): Promise<void> {
+    _selected: string[], beforeSend: () => void | Promise<void> = (): void => {}): Promise<void> {
     await this.ensureWriterRoot(guard)
     const segment = path.split('/')[1]
     await this.ensureCollection(this.writerRoot + this.writer + '/', guard)
     await this.ensureCollection(this.writerRoot + this.writer + '/' + segment + '/', guard)
-    for (const dataset of manifest.datasets) {
-      if (!selected.includes(dataset.id)) continue
-      for (const ref of dataset.shards) {
-        const content = await this.readObject(ref, guard)
-        if (syncDigest(content) !== ref.hash || syncUtf8(content).byteLength !== ref.bytes) throw new Error('sync_shard_damaged')
-      }
-    }
+    // Every new object was already read back by storeObject. Reused refs are
+    // content-addressed and immutable; re-downloading the whole dataset here
+    // made one page save issue dozens of redundant GETs on slow WebDAV servers.
     await beforeSend()
     requireSuccess((await this.requestAt('PUT', this.writerRoot + path, guard, body)).status)
   }
