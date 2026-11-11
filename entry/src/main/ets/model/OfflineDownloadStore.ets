@@ -358,6 +358,13 @@ function createManifestIntegrityHash(manifest: OfflineChapterDownloadManifest): 
   return createOfflineDownloadStableHash(manifestIntegrityPayload(manifest))
 }
 
+/** Used before on-disk migrations so a damaged record is never silently rewritten. */
+export function hasValidOfflineManifestIntegrity(manifest: OfflineChapterDownloadManifest): boolean {
+  return manifest.integrityHash.trim().length > 0 &&
+    manifest.downloadedPageCount === manifest.pages.length &&
+    createManifestIntegrityHash(manifest) === manifest.integrityHash
+}
+
 function matchesDownloadedPage(page: OfflineDownloadedPage, pageId: string, pageIndex: number): boolean {
   if (pageId.trim().length > 0) {
     return page.pageId === pageId

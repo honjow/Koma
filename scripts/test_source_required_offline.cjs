@@ -94,6 +94,7 @@ async function verifyHydration() {
 verifyHydration().catch(error=>{console.error(error);process.exitCode=1})
 
 async function verifyDownload() {
+  const format=load(fs.readFileSync(base+'DownloadImageFormat.ets','utf8'), {})
   const source=fs.readFileSync(base+'OfflineDownloadService.ets','utf8')
   const tree=ts.createSourceFile('download.ets',source,ts.ScriptTarget.Latest,true)
   const cls=tree.statements.find(node=>node.name?.text==='OfflineDownloadService')
@@ -103,6 +104,7 @@ async function verifyDownload() {
   const kinds={LOCAL_FILE_IMAGE:'local',REMOTE_URL_IMAGE:'remote',SOURCE_TEXT_REQUEST:'text'}
   let decoded=0
   const values={ReaderPageRenderKind:kinds,cacheSourceTextPageImage:async()=>'/text',
+    ...format,
     copyLocalFile:async(_from,to)=>({localPath:to}),
     fetchReaderRemoteSourceBytes:async src=>{ if(src.descriptorHint) src.requiredImageDecode=hint;return Uint8Array.from([1]).buffer },
     SourceRequiredImageDecodeService:{decodeBytes:async(_bytes,h)=>{assert.deepEqual(h,hint);decoded++;return {bytes:Uint8Array.from([2]).buffer,extension:'gif'}}},
@@ -115,6 +117,33 @@ async function verifyDownload() {
   const offline=await worker.writePage({kind:'local',imageUri:'/canonical.gif',requiredImageDecode:hint,
     requiredImageDecodeResolved:true},'/pages/p2.gif')
   assert.equal(offline.requiredImageDecodeResolved,true);assert.equal(decoded,1)
+  for (const [bytes, original, expected] of [
+    [[0xff,0xd8,0xff,0xe0], '/pages/001.img', '/pages/001.jpg'],
+    [[0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a], '/pages/002.jpg', '/pages/002.png'],
+    [Array.from(Buffer.from('RIFF1234WEBP')), '/pages/003.img', '/pages/003.webp'],
+    [Array.from(Buffer.from('GIF89a')), '/pages/004.img', '/pages/004.gif'],
+    [[1,2,3], '/pages/005.img', '/pages/005.img'],
+  ]) {
+    values.fetchReaderRemoteSourceBytes=async()=>Uint8Array.from(bytes).buffer
+    const dynamic = {}
+    new Function('exports',...Object.keys(values),js)(dynamic,...Object.values(values))
+    assert.equal((await new dynamic.Harness().writePage({kind:'remote'}, original)).localPath, expected)
+  }
+  const copyNode=tree.statements.find(node=>node.name?.text==='copyDownloadPageFileWorker')
+  const copySource=copyNode.getText(tree).replace(/@Concurrent\s*/g,'')
+  const workerJs=ts.transpileModule(copySource+'\nexports.copy=copyDownloadPageFileWorker',
+    {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
+  const copyOut={}, copyIo={...io,copyFileSync:fs.copyFileSync}
+  new Function('exports','fs','downloadImagePathForBytes','createOfflineDownloadFileContentHash',workerJs)(
+    copyOut,copyIo,format.downloadImagePathForBytes,()=> 'fixture-hash')
+  const temp=fs.mkdtempSync(path.join(os.tmpdir(),'koma-copy-image-'))
+  try {
+    const from=path.join(temp,'source'), target=path.join(temp,'001.img')
+    fs.writeFileSync(from,Buffer.from([0xff,0xd8,0xff,0xe0,0x11]))
+    const copied=copyOut.copy(from,target)
+    assert.equal(copied.localPath,path.join(temp,'001.jpg'))
+    assert.deepEqual(fs.readFileSync(copied.localPath),fs.readFileSync(from))
+  } finally { fs.rmSync(temp,{recursive:true,force:true}) }
   await assert.rejects(worker.writePage({kind:'text',requiredImageDecode:hint},'/pages/p3.png'),/source_required_decode_invalid/)
   console.log('download writes canonical descriptor output and does not decode resolved local image again')
 }

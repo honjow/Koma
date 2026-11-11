@@ -1,6 +1,7 @@
 import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
 import { SourceRequiredImageDecodeService } from './SourceRequiredImageDecode'
+import { downloadImagePathForBytes } from './DownloadImageFormat'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -88,12 +89,18 @@ async function writeDownloadPageBytes(path: string, bytes: ArrayBuffer): Promise
 
 @Concurrent
 function copyDownloadPageFileWorker(sourcePath: string, targetPath: string): OfflineDownloadPageWriteResult {
+  const source = fs.openSync(sourcePath, fs.OpenMode.READ_ONLY)
+  const header = new ArrayBuffer(32)
+  let count: number = 0
+  try { count = fs.readSync(source.fd, header) } finally { fs.closeSync(source) }
+  targetPath = downloadImagePathForBytes(targetPath, new Uint8Array(header, 0, count))
   if (sourcePath !== targetPath) {
     fs.copyFileSync(sourcePath, targetPath, 0)
   }
   return {
     size: fs.statSync(targetPath).size,
     contentHash: createOfflineDownloadFileContentHash(targetPath),
+    localPath: targetPath,
   }
 }
 
@@ -519,6 +526,9 @@ export class OfflineDownloadService {
       result.requiredImageDecodeResolved = true
       return result
     }
-    return writeDownloadPageBytes(localPath, bytes)
+    const detectedPath = downloadImagePathForBytes(localPath, new Uint8Array(bytes, 0, Math.min(32, bytes.byteLength)))
+    const result = await writeDownloadPageBytes(detectedPath, bytes)
+    result.localPath = detectedPath
+    return result
   }
 }

@@ -14,6 +14,7 @@ import {
 } from './OfflineDownloadStore'
 import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
 import { normalizeDownloadLayout } from './DownloadLayoutMigration'
+import { migrateOfflineImageSuffixes } from './OfflineDownloadImageMigrationWorker'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 
 const CONTENT_STORAGE_SCHEMA_VERSION: number = 1
@@ -445,6 +446,15 @@ async function prepareInternal(context: common.UIAbilityContext): Promise<void> 
       normalizeDownloadLayout(joinPath(root.path, OFFLINE_DOWNLOAD_ROOT_DIR_NAME),
         offlineDownloadIndexDirectory(root.path, context.filesDir),
         (sourceId: string): string => sourceDisplayName(sourceId))
+      try {
+        // Run before reader entry so existing file paths cannot change under an
+        // open chapter; filesystem scanning and renames stay off the UI thread.
+        const summary = await taskpool.execute(migrateOfflineImageSuffixes, root.path, context.filesDir) as string
+        DiagnosticLogger.info('storage', 'download_image_suffix_migration', summary)
+      } catch (error) {
+        // A durable per-chapter journal restores interrupted work on the next launch.
+        DiagnosticLogger.exception('storage', 'download_image_suffix_migration_failed', error as Error)
+      }
     }
   } catch (error) {
     rootResolutionFailed = true
