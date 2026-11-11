@@ -301,16 +301,22 @@ export struct BackupManagementPage {
         this.loadAutomaticPreferences()
         this.loadLocalBackups()
         if (result.ran) {
-          this.showToast(t('backup_local_saved_toast'))
+          if (result.warningCode === 'backup_auto_external_copy_failed') {
+            this.showToast(t('backup_auto_local_saved_external_failed'))
+          } else if (result.warningCode !== undefined) {
+            this.showToast(t('backup_auto_local_saved_followup_failed'))
+          } else {
+            this.showToast(t('backup_local_saved_toast'))
+          }
         } else if (result.failureCode !== undefined) {
-          this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage(result.failureCode))
+          this.showInfoDialog(t('backup_auto_run_failed_title'), tf('backup_auto_run_failed_message', result.failureCode))
         } else {
           this.showToast(t('backup_auto_skipped_toast'))
         }
       })
       .catch((_error: Error) => {
         DiagnosticLogger.error('backup_management_page', 'auto_run_now_failed', '[BackupManagement] step=auto_run_now_failed code=backup_auto_export_failed')
-        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_auto_export_failed'))
+        this.showInfoDialog(t('backup_auto_run_failed_title'), tf('backup_auto_run_failed_message', 'backup_auto_export_failed'))
       })
       .finally(() => {
         this.busy = false
