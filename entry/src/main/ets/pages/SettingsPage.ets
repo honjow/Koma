@@ -9,6 +9,7 @@ import { FormTitleActionState } from '../state/FormTitleActionState'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { LibraryAutomationSettingRow, LIBRARY_AUTOMATION_SETTING_KEYS } from '../components/LibraryAutomationSettingRow'
 import { LibraryAutomationPreferences, defaultLibraryAutomationPreferences } from '../model/LibraryAutomationPolicy'
+import { AppearanceState, connectAppearanceState } from '../state/AppearanceState'
 import { LibraryAutomationPreferencesStore } from '../model/LibraryAutomationPreferencesStore'
 import { CustomLibraryCategory, LibraryCategoryDefinition, LegacyLibraryCategory, LEGACY_LIBRARY_CATEGORIES } from '../model/ComicModels'
 import { KomaAboutContent } from '../components/KomaAboutContent'
@@ -234,6 +235,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'theme', titleKey: 'settings_row_theme_title', detailKey: 'settings_row_theme_detail' },
         { key: 'theme-color', titleKey: 'settings_row_theme_color_title', detailKey: 'settings_row_theme_color_detail' },
         { key: 'language', titleKey: 'settings_row_language_title', detailKey: 'settings_row_language_detail' },
+        { key: 'auto-hide-bottom-bar', titleKey: 'settings_auto_hide_bottom_bar', detailKey: 'settings_auto_hide_bottom_bar_hint' },
       ],
     },
     {
@@ -511,6 +513,8 @@ export function settingsPaneTitle(pane: SettingsPaneKey): string {
 @ComponentV2
 export struct SettingsPage {
   @Param scroller: Scroller = new Scroller()
+  @Event onRootScroll: (offset: number, state: ScrollState) => void = (_offset: number, _state: ScrollState) => {}
+  @Local private appearanceState: AppearanceState = connectAppearanceState()
   @Event onLibraryPreferencesChanged: () => void = () => {}
   @Event onOpenSettingsPane: (pane: SettingsPaneKey, rowKey?: string) => void = (_pane: SettingsPaneKey, _rowKey?: string) => {}
   @Param searchTarget: string = ''
@@ -2217,7 +2221,7 @@ export struct SettingsPage {
   }
 
   private isSwitchRow(row: SettingsRow): boolean {
-    return row.key === 'library-background-update' || row.key === 'library-auto-update' ||
+    return row.key === 'auto-hide-bottom-bar' || row.key === 'library-background-update' || row.key === 'library-auto-update' ||
       row.key === 'library-badges' ||
       row.key === 'cache-auto-clean' ||
       row.key === 'download-wifi-only' ||
@@ -2235,6 +2239,7 @@ export struct SettingsPage {
   }
 
   private switchRowValue(row: SettingsRow): boolean {
+    if (row.key === 'auto-hide-bottom-bar') return this.appearanceState.autoHideBottomBar
     if (row.key === 'library-background-update') return !this.libraryUpdatePreferences.foregroundOnly
     if (row.key === 'library-auto-update') {
       return this.libraryUpdatePreferences.autoCheckEnabled
@@ -2280,6 +2285,13 @@ export struct SettingsPage {
   }
 
   private setSwitchRowValue(row: SettingsRow, value: boolean): void {
+    if (row.key === 'auto-hide-bottom-bar') {
+      void this.appearancePreferencesStore().saveAutoHideBottomBar(value).catch((error: Error): void => {
+        DiagnosticLogger.exception('settings_page', 'save_bottom_bar_auto_hide_failed', error)
+        this.showToast(s('settings_auto_hide_bottom_bar_save_failed'))
+      })
+      return
+    }
     // Keep the persisted enum shared with the reader; this is only its boolean projection.
     if (row.key === 'reader-volume-key-behavior') { this.saveReaderVolumeKeyBehavior(value ? 'up_next_down_previous' : 'up_previous_down_next'); return }
     if (row.key === 'reader-preload-wifi-only') { this.saveReaderPreloadWifiOnly(value); return }
@@ -2518,8 +2530,9 @@ export struct SettingsPage {
         title: this.rowTitle(row),
         // The switch itself is the state affordance. Repeating “on/off” in
         // the subtitle adds noise and hides the setting's actual purpose.
-        subtitle: row.key === 'library-background-update' && !this.libraryUpdatePreferences.autoCheckEnabled
-          ? s('library_background_update_paused') : '',
+        subtitle: row.key === 'auto-hide-bottom-bar' ? s('settings_auto_hide_bottom_bar_hint') :
+          row.key === 'library-background-update' && !this.libraryUpdatePreferences.autoCheckEnabled
+            ? s('library_background_update_paused') : '',
         showChevron: false,
         hasSwitch: true,
         checked: this.switchRowValue(row),
@@ -2886,6 +2899,7 @@ export struct SettingsPage {
       Column() {
         SecondaryListScaffold({
           scroller: this.scroller,
+          onDidScroll: this.onRootScroll,
           listSpace: ThemeConstants.SPACE_LG,
           bottomPadding: ThemeConstants.SPACE_XL,
           floatingTabTailPadding: this.pane === 'root' ? ThemeConstants.FLOATING_TAB_BAR_CLEARANCE : 0,

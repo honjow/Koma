@@ -6,6 +6,7 @@ import { DeviceSyncConnectionPage, DeviceSyncOverviewPage, DeviceSyncReviewPage,
   DeviceSyncWebDavChrome, DeviceSyncWebDavPage } from './DeviceSyncPages'
 import { ImagePluginsPage } from './ImagePluginsPage'
 import { ImageRuleStore } from '../model/ImageRuleStore'
+import { AppearanceState, connectAppearanceState } from '../state/AppearanceState'
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
 import { SourceCatalogSectionsBuilder, SOURCE_MANAGER_SECTIONS_HEIGHT } from '../components/SourceCatalogSections'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
@@ -540,6 +541,10 @@ struct Index {
   @Local private libraryComics: Comic[] = seededLibraryStore.listComics()
   private tabController: HdsTabsController = new HdsTabsController()
   private rootTabScrollers: Scroller[] = [new Scroller(), new Scroller(), new Scroller(), new Scroller()]
+  @Local private appearanceState: AppearanceState = connectAppearanceState()
+  private bottomBarVisibleByScroll: boolean = true
+  private bottomBarOffsets: number[] = [0, 0, 0, 0]
+  private bottomBarAnimationTimer: number = -1
   @Local private titleScroller: Scroller = this.rootTabScrollers[TabIndex.LIBRARY]
   private tabBarHiddenForKeyboard: boolean = false
   private readerSessionStore: ReaderSessionStore = readerSessionStore
@@ -625,7 +630,46 @@ struct Index {
       this.tabController.applyHideAnimation(HdsAnimationMode.SCROLL_ANIMATION)
       return
     }
-    this.tabController.applyShowAnimation(HdsAnimationMode.SCROLL_ANIMATION)
+    if (this.bottomBarVisibleByScroll) this.tabController.applyShowAnimation(HdsAnimationMode.SCROLL_ANIMATION)
+  }
+
+  @Monitor('appearanceState.autoHideBottomBar')
+  private applyBottomBarAutoHide(): void {
+    this.rootTabScrollers.forEach((scroller: Scroller, index: number): void => {
+      this.tabController.unbindScroller(scroller)
+      if (this.appearanceState.autoHideBottomBar) this.tabController.bindScroller(index, scroller)
+    })
+    this.restoreBottomBar()
+  }
+
+  private restoreBottomBar(): void {
+    if (this.bottomBarVisibleByScroll) return
+    this.bottomBarVisibleByScroll = true
+    if (!this.tabBarHiddenForKeyboard) this.tabController.applyShowAnimation(HdsAnimationMode.SCROLL_ANIMATION)
+  }
+
+  private onRootTabScroll(index: number, offset: number, state: ScrollState): void {
+    // Accumulate small scroll updates so a slow reverse gesture also restores the bar.
+    const previous = this.bottomBarOffsets[index]
+    if (index !== this.selectedTab || !this.appearanceState.autoHideBottomBar || this.tabBarHiddenForKeyboard) {
+      this.bottomBarOffsets[index] = offset
+      return
+    }
+    if (offset <= 6) {
+      this.bottomBarOffsets[index] = offset
+      this.restoreBottomBar()
+      return
+    }
+    if (state === ScrollState.Idle || this.bottomBarAnimationTimer !== -1) return
+    const delta = offset - previous
+    if (Math.abs(delta) <= 6) return
+    this.bottomBarOffsets[index] = offset
+    const visible = delta < 0
+    if (visible === this.bottomBarVisibleByScroll) return
+    this.bottomBarVisibleByScroll = visible
+    if (visible) this.tabController.applyShowAnimation(HdsAnimationMode.SCROLL_ANIMATION)
+    else this.tabController.applyHideAnimation(HdsAnimationMode.SCROLL_ANIMATION)
+    this.bottomBarAnimationTimer = setTimeout((): void => { this.bottomBarAnimationTimer = -1 }, 180)
   }
 
   @Monitor('libraryUpdateState.revision')
@@ -2704,6 +2748,9 @@ struct Index {
   }
 
   aboutToDisappear(): void {
+    this.rootTabScrollers.forEach((scroller: Scroller): void => { this.tabController.unbindScroller(scroller) })
+    if (this.bottomBarAnimationTimer !== -1) clearTimeout(this.bottomBarAnimationTimer)
+    this.bottomBarAnimationTimer = -1
     this.cancelHistoryResume()
     this.readingConflictHold?.()
     this.readingConflictHold = undefined
@@ -3505,6 +3552,7 @@ struct Index {
             TabContent() {
               LibraryPage({
                 libraryScroller: this.rootTabScrollers[TabIndex.LIBRARY],
+                onRootScroll: (offset: number, state: ScrollState): void => { this.onRootTabScroll(TabIndex.LIBRARY, offset, state) },
                 active: this.selectedTab === TabIndex.LIBRARY && this.rootNavigationVisible,
                 libraryStore: this.libraryStore,
                 libraryPreferencesRevision: this.libraryPreferencesRevision,
@@ -3562,6 +3610,7 @@ struct Index {
               BrowsePage({
                 chrome: this.browseCatalogChrome,
                 browseScroller: this.rootTabScrollers[TabIndex.BROWSE],
+                onRootScroll: (offset: number, state: ScrollState): void => { this.onRootTabScroll(TabIndex.BROWSE, offset, state) },
                 active: this.selectedTab === TabIndex.BROWSE,
                 navigationVisible: this.rootNavigationVisible,
                 sourceRegistry: this.sourceRegistry,
@@ -3595,6 +3644,7 @@ struct Index {
             TabContent() {
               HistoryPage({
                 scroller: this.rootTabScrollers[TabIndex.HISTORY],
+                onRootScroll: (offset: number, state: ScrollState): void => { this.onRootTabScroll(TabIndex.HISTORY, offset, state) },
                 libraryStore: this.libraryStore,
                 active: this.selectedTab === TabIndex.HISTORY && this.rootNavigationVisible,
                 readerSessionStore: this.readerSessionStore,
@@ -3622,6 +3672,7 @@ struct Index {
                 enhancementModelsRevision: this.enhancementModelsRevision,
                 onEnhancementModelsChanged: () => { this.enhancementModelsRevision += 1 },
                 scroller: this.rootTabScrollers[TabIndex.SETTINGS],
+                onRootScroll: (offset: number, state: ScrollState): void => { this.onRootTabScroll(TabIndex.SETTINGS, offset, state) },
             preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
                 pane: 'root',
                 onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
@@ -3675,6 +3726,7 @@ struct Index {
               materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
             },
           } as HdsTabsFloatingStyle)
+          .onAppear(() => { this.applyBottomBarAutoHide() })
           .onTabBarClick((index: number) => {
             if (index < 0 || index >= this.tabIconBounceTriggers.length) return
             const triggers = this.tabIconBounceTriggers.slice()
@@ -3685,6 +3737,7 @@ struct Index {
             this.leaveLibrarySelection(index)
             this.selectedTab = index
             this.titleScroller = this.rootTabScrollers[index]
+            this.restoreBottomBar()
             if (index === TabIndex.HISTORY) appDeviceSync.historyOpened()
             if (index === TabIndex.LIBRARY) appDeviceSync.bookshelfOpened()
           })

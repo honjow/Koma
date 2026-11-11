@@ -80,6 +80,7 @@ interface HistoryItem {
 @ComponentV2
 export struct HistoryPage {
   @Param scroller: Scroller = new Scroller()
+  @Event onRootScroll: (offset: number, state: ScrollState) => void = (_offset: number, _state: ScrollState) => {}
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param active: boolean = false
   @Param readerSessionStore?: ReaderSessionStore = undefined
@@ -699,6 +700,7 @@ export struct HistoryPage {
   private HistoryList() {
     SecondaryListScaffold({
       scroller: this.scroller,
+      onDidScroll: this.onRootScroll,
       scrollEnabled: this.scrollEnabled,
       alwaysEnableEdgeSpring: false,
       listSpace: ThemeConstants.SPACE_MD,

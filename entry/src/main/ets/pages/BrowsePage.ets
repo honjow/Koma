@@ -129,6 +129,7 @@ export struct BrowsePage {
   @Local private opdsConfigured: boolean = false
   @Local private webDavConfigured: boolean = false
   @Param browseScroller: Scroller = new Scroller()
+  @Event onRootScroll: (offset: number, state: ScrollState) => void = (_offset: number, _state: ScrollState) => {}
   @Param active: boolean = false
   @Param navigationVisible: boolean = true
   private displayedSourceRevision: number = -1
@@ -419,6 +420,7 @@ export struct BrowsePage {
     Stack() {
     PullRefreshListScaffold({
       scroller: this.browseScroller,
+      onDidScroll: this.onRootScroll,
       pinnedOverlayHeight: this.chrome.searchHeight,
       listSpace: ThemeConstants.SPACE_SM,
       bottomPadding: ThemeConstants.SPACE_XL,

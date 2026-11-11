@@ -272,6 +272,7 @@ export struct LibraryPage {
   @Local private containerWidth: number = gridFallbackContainerWidth()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Param libraryScroller: Scroller = new Scroller()
+  @Event onRootScroll: (offset: number, state: ScrollState) => void = (_offset: number, _state: ScrollState) => {}
   private activeFilterCount(): number {
     let count = 0
     if (this.filterSource !== 'all') {
@@ -2215,6 +2216,9 @@ export struct LibraryPage {
     .clipContent(ContentClipMode.CONTENT_ONLY)
     .enableScrollInteraction(this.scrollEnabled)
     .edgeEffect(EdgeEffect.None)
+    .onDidScroll((_offset: number, state: ScrollState) => {
+      this.onRootScroll(this.libraryScroller.currentOffset().yOffset, state)
+    })
   }
 
   private shouldShowCoverUri(
@@ -2434,6 +2438,7 @@ export struct LibraryPage {
   private LibraryListSurface() {
       SecondaryListScaffold({
         scroller: this.libraryScroller,
+        onDidScroll: this.onRootScroll,
         scrollEnabled: this.scrollEnabled,
         alwaysEnableEdgeSpring: false,
         listSpace: this.viewMode === 'list' ? ThemeConstants.SPACE_SM : ThemeConstants.SPACE_LG,

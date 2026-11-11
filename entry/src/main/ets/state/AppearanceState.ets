@@ -3,6 +3,7 @@ import { AppStorageV2 } from '@kit.ArkUI'
 @ObservedV2
 export class AppearanceState {
   @Trace accentColor: string = 'emerald'
+  @Trace autoHideBottomBar: boolean = true
 }
 
 export function connectAppearanceState(): AppearanceState {

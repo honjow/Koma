@@ -12,6 +12,7 @@ export interface AppearancePreferences {
 
 const APPEARANCE_PREFERENCES_STORE_NAME: string = 'koma_appearance_preferences_v1'
 const ACCENT_COLOR_KEY: string = 'appearance.accentColor'
+const AUTO_HIDE_BOTTOM_BAR_KEY: string = 'appearance.autoHideBottomBar'
 
 export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
   accentColor: 'emerald',
@@ -66,6 +67,7 @@ export class AppearancePreferencesStore {
       const raw = await store.get(ACCENT_COLOR_KEY, DEFAULT_APPEARANCE_PREFERENCES.accentColor) as string
       const accentColor = normalizeAppearanceAccentColor(raw)
       connectAppearanceState().accentColor = accentColor
+      connectAppearanceState().autoHideBottomBar = await store.get(AUTO_HIDE_BOTTOM_BAR_KEY, true) as boolean
       return { accentColor }
     })
   }
@@ -87,6 +89,24 @@ export class AppearancePreferencesStore {
       }
       connectAppearanceState().accentColor = normalized
       return { accentColor: normalized }
+    }))
+  }
+
+  async saveAutoHideBottomBar(enabled: boolean): Promise<void> {
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<void> => {
+      const store = await this.preferences()
+      const existed = await store.has(AUTO_HIDE_BOTTOM_BAR_KEY)
+      const previous = await store.get(AUTO_HIDE_BOTTOM_BAR_KEY, true)
+      try {
+        await store.put(AUTO_HIDE_BOTTOM_BAR_KEY, enabled)
+        await store.flush()
+      } catch (error) {
+        if (existed) await store.put(AUTO_HIDE_BOTTOM_BAR_KEY, previous)
+        else await store.delete(AUTO_HIDE_BOTTOM_BAR_KEY)
+        await store.flush()
+        throw error as Error
+      }
+      connectAppearanceState().autoHideBottomBar = enabled
     }))
   }
 

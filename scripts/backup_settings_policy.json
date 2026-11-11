@@ -142,6 +142,7 @@
       "credits"
     ],
     "model/BackupService.ets": [
+      "backup.automatic.defaultPathApplied",
       "backup.automatic.lastRunAt",
       "backup.automatic.lastFailureCode",
       "backup.automatic.directoryOwnedModes",

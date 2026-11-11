@@ -84,6 +84,28 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "HOME_BOTTOM_BAR_AUTO_HIDE",
+      "number": 280,
+      "title": "主页导航栏自动隐藏",
+      "kind": "done",
+      "progressPhase": "completed",
+      "priority": "用户需求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-12",
+      "reportedAtSource": "用户要求参考 NextE 实现主页导航栏自动隐藏。",
+      "registeredAt": "2026-11-12T00:31:00+08:00",
+      "updatedAt": "2026-11-12T00:31:00+08:00",
+      "status": "197 已验证滚动、开关与键盘",
+      "result": "外观页新增自动隐藏底部栏开关，默认开启并纳入设置备份。197 核对书架、浏览、历史和设置页滚动、反向恢复，连续录屏检查收起和出现；关闭开关后滚动保持显示，重启后关闭状态保留，测试后恢复开启。键盘打开时底栏隐藏，关闭后恢复。",
+      "remaining": "103 平板未验证。",
+      "evidence": [
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/home-bar-motion-20261112T002857471404/home-bar-motion-20261112T002857471404.mp4",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T003112177046/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T003116223839/screen.png"
+      ]
+    },
+    {
       "id": "MANGA_DETAIL_MISSING_SOURCE_HINT",
       "number": 271,
       "title": "详情页书源不可用提示与历史入口不一致",

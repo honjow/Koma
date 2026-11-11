@@ -216,6 +216,7 @@ async function verifyRoundTrip() {
   const count = checkInventory(backup.PORTABLE_FIELDS)
   const valuesForStore = {}
   const structuredValues = {
+    'appearance.autoHideBottomBar': false,
     'migration.selectedSources': JSON.stringify(['source-b', 'source-a']),
     'migration.matchOptions': JSON.stringify({ deepSearch: true, prioritizeChapters: false }),
     'source_index.repositories.v1': JSON.stringify([
