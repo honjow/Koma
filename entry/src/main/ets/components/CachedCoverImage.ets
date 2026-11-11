@@ -20,11 +20,41 @@ import {
 import { coverImageAutomaticRetryDelayMs } from '../model/CoverImageRetryPolicy'
 
 const COVER_DECODE_MAX_EDGE: number = 320
+const COVER_FADE_DURATION_MS: number = 200
 
 interface AnimatedCover {
   uri: string
   signature: string
   generation: number
+}
+
+/** Native image path used by cross-search results that manage their own URI. */
+@ComponentV2
+export struct NativeCoverImage {
+  @Param uri: string = ''
+  @Param objectFit: ImageFit = ImageFit.Cover
+  @Event onError: () => void = () => {}
+  @Local private visible: boolean = false
+
+  @Monitor('uri')
+  private onUriChanged(): void {
+    this.visible = false
+  }
+
+  build() {
+    Image(this.uri)
+      .width('100%')
+      .height('100%')
+      .objectFit(this.objectFit)
+      .interpolation(ImageInterpolation.Medium)
+      .opacity(this.visible ? 1 : 0)
+      .onComplete(() => {
+        this.getUIContext().animateTo({ duration: COVER_FADE_DURATION_MS, curve: Curve.EaseOut }, () => {
+          this.visible = true
+        })
+      })
+      .onError(() => { this.onError() })
+  }
 }
 
 export function cachedCoverFailureKey(
@@ -56,6 +86,8 @@ export struct CachedCoverImage {
   @Event onError: () => void = () => {}
   @Local private pixelMap: image.PixelMap | undefined = undefined
   @Local private animatedCover: AnimatedCover | undefined = undefined
+  @Local private animatedCoverVisible: boolean = false
+  @Local private fadeStaticCover: boolean = false
   @Local private loading: boolean = false
   @Local private failedSignature: string = ''
   private disposed: boolean = false
@@ -153,6 +185,7 @@ export struct CachedCoverImage {
   private async replacePixelMap(
     lease: CoverPixelMapLease,
     signature: string,
+    fromMemory: boolean = false,
   ): Promise<void> {
     // Render the new map before giving the prior lease back to the cache. The
     // cache may release an unindexed, unleased map immediately, so reversing
@@ -160,6 +193,9 @@ export struct CachedCoverImage {
     // flash blank) between detail-list cover identities.
     const previousLease = this.pixelMapLease
     this.pixelMapLease = lease
+    // A memory hit can paint in the first frame. Keep it immediate; fade only
+    // when a loaded image actually replaces a placeholder, not another cover.
+    this.fadeStaticCover = !fromMemory && this.pixelMap === undefined && this.animatedCover === undefined
     this.pixelMap = lease.pixelMap
     this.animatedCover = undefined
     this.displayedSignature = signature
@@ -171,6 +207,13 @@ export struct CachedCoverImage {
 
   private onAnimatedCoverReady(cover: AnimatedCover): void {
     if (this.disposed || this.animatedCover?.generation !== cover.generation) return
+    if (this.pixelMap === undefined) {
+      this.getUIContext().animateTo({ duration: COVER_FADE_DURATION_MS, curve: Curve.EaseOut }, () => {
+        this.animatedCoverVisible = true
+      })
+    } else {
+      this.animatedCoverVisible = true
+    }
     this.completedAutomaticRetries = 0
     this.cancelAutomaticRetry()
     const lease = this.pixelMapLease
@@ -248,7 +291,7 @@ export struct CachedCoverImage {
     const cachedLease = coverPixelMapMemoryCache.acquire(memoryCacheKey)
     if (cachedLease !== undefined) {
       if (!this.disposed && this.sourceSignature === signature && this.decodeGeneration === generation) {
-        await this.replacePixelMap(cachedLease, signature)
+        await this.replacePixelMap(cachedLease, signature, true)
       } else {
         await coverPixelMapMemoryCache.release(cachedLease)
       }
@@ -294,6 +337,7 @@ export struct CachedCoverImage {
           const displayUri = resolvedUri.startsWith('/') ? fileUri.getUriFromPath(resolvedUri) : resolvedUri
           // Feed the already cached original to the native Image. Avoid allocating
           // every frame as a PixelMap and keep static covers on the thumbnail cache.
+          this.animatedCoverVisible = false
           this.animatedCover = { uri: displayUri, signature, generation }
           this.displayedSignature = signature
           this.failedSignature = ''
@@ -418,6 +462,7 @@ export struct CachedCoverImage {
       .height('100%')
       .objectFit(this.objectFit)
       .interpolation(ImageInterpolation.Medium)
+      .opacity(this.animatedCoverVisible ? 1 : 0)
       .onComplete(() => { this.onAnimatedCoverReady(cover) })
       .onError(() => { this.onAnimatedCoverError(cover) })
   }
@@ -430,6 +475,9 @@ export struct CachedCoverImage {
           .height('100%')
           .objectFit(this.objectFit)
           .interpolation(ImageInterpolation.Medium)
+          .transition(this.fadeStaticCover
+            ? TransitionEffect.asymmetric(TransitionEffect.OPACITY.animation({ duration: COVER_FADE_DURATION_MS, curve: Curve.EaseOut }), TransitionEffect.IDENTITY)
+            : TransitionEffect.IDENTITY)
       }
       if (this.animatedCover !== undefined) {
         this.AnimatedCoverImage(this.animatedCover)

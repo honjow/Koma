@@ -485,6 +485,9 @@ struct Index {
   }
 
   private downloadsTitleBarOptions(chrome: DownloadsChrome): Record<string, Object> {
+    // HDS keeps the modifier used by the play icon; refresh the title options
+    // when the system changes colour mode, without changing queue state.
+    void this.appearanceState.colorMode
     const title = chrome.selecting ? AppStrings.get('downloads_selected_count').replace('%s', String(chrome.selectedCount)) :
       AppStrings.get('route_downloads_title')
     const options = this.navDestTitleBarOpts(title)
@@ -509,7 +512,7 @@ struct Index {
         if (chrome.queueAction !== 'downloads_action_pause_all') {
           const play = new SymbolGlyphModifier($r('sys.symbol.play'))
           // Match the HDS icon size and center the triangle's visual weight.
-          play.fontSize(ThemeConstants.FONT_SIZE_H1).translate({ x: 2 })
+          play.fontSize(ThemeConstants.FONT_SIZE_H1).fontColor([$r('sys.color.font_primary')]).translate({ x: 2 })
           icon = play
         }
         items.push({ 'content': { 'label': AppStrings.get(chrome.queueAction), 'icon': icon,

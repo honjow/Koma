@@ -7,6 +7,7 @@ import { preferences } from '@kit.ArkData'
 import { AppStrings } from '../i18n/AppStrings'
 import { ReaderSeriesFormat, ReadingDirection } from './ComicModels'
 import { ReaderModeSnapshot, ReaderModeStateBridge } from '../state/ReaderModeState'
+import { connectAppearanceState } from '../state/AppearanceState'
 
 export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll' | 'vertical_page'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
@@ -747,6 +748,8 @@ function applyPublishedTheme(mode: ReaderThemeMode): void {
     : mode === 'light' ? ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT
     : ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
   themeContext.getApplicationContext().setColorMode(colorMode)
+  // Explicit app mode changes do not invoke UIAbility.onConfigurationUpdate.
+  connectAppearanceState().colorMode = colorMode
   appliedThemeMode = mode
 }
 

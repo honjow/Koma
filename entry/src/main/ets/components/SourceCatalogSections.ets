@@ -5,6 +5,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomaSegmentedControl } from './ui/KomaSegmentedControl'
 import { KomaSearchField } from './KomaSearchField'
+import { AppearanceState, connectAppearanceState } from '../state/AppearanceState'
 
 export const SOURCE_MANAGER_SECTIONS_HEIGHT: number = 64
 
@@ -14,6 +15,7 @@ struct SourceCatalogSections {
 
   @Local private sourceCache: SourcePackageManagerCache = appSourcePackageManagerCache
   @Local private imageRuleState: ImageRuleState = connectImageRuleState()
+  @Local private appearanceState: AppearanceState = connectAppearanceState()
 
   private sourceUpdateCount(): number {
     void this.sourceCache.revision
@@ -39,17 +41,22 @@ struct SourceCatalogSections {
         left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
     } else {
     Stack({ alignContent: Alignment.Center }) {
-      KomaSegmentedControl({
-        labels: [AppStrings.get('settings_row_sources_title'), AppStrings.get('image_plugins_title')],
-        selectedIndex: this.chrome.section === 'sources' ? 0 : 1,
-        select: (index: number): void => {
-          if (index !== 0 && this.chrome.searchExpanded) this.getUIContext().getFocusController().clearFocus()
-          // Keep HDS actions outside the segmented control's selection animation.
-          this.getUIContext().animateToImmediately({ duration: 0 }, (): void => {
-            this.chrome.selectSection(index === 0 ? 'sources' : 'plugins')
-          })
-        },
-      })
+      // This title-bar ComponentContent is retained across theme changes. The
+      // native segment caches its colours, so refresh just it on a mode change;
+      // selection and scroll position remain owned by chrome and the page.
+      ForEach([this.appearanceState.colorMode], (_mode: number) => {
+        KomaSegmentedControl({
+          labels: [AppStrings.get('settings_row_sources_title'), AppStrings.get('image_plugins_title')],
+          selectedIndex: this.chrome.section === 'sources' ? 0 : 1,
+          select: (index: number): void => {
+            if (index !== 0 && this.chrome.searchExpanded) this.getUIContext().getFocusController().clearFocus()
+            // Keep HDS actions outside the segmented control's selection animation.
+            this.getUIContext().animateToImmediately({ duration: 0 }, (): void => {
+              this.chrome.selectSection(index === 0 ? 'sources' : 'plugins')
+            })
+          },
+        })
+      }, (mode: number): string => mode.toString())
       // The native segments still handle selection and animation.
       Row() {
         SourceCatalogSegmentBadge({ label: AppStrings.get('settings_row_sources_title'),

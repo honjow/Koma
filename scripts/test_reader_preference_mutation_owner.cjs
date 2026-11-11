@@ -1,7 +1,7 @@
 const fs = require('node:fs'), assert = require('node:assert/strict');
 const ts = require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript');
 const root = require('node:path').resolve(__dirname, '..') + '/';
-const data = new Map(), published = []; let failFlush = false, failChangedOverride = false, stableOverride; let flushCount = 0;
+const data = new Map(), published = [], appearance = { colorMode: -1 }; let failFlush = false, failChangedOverride = false, stableOverride; let flushCount = 0;
 const ReadingDirection = { LEFT_TO_RIGHT:'left_to_right', RIGHT_TO_LEFT:'right_to_left', WEBTOON:'webtoon' };
 function evaluate(file, deps) {
  const exp={}; const source=fs.readFileSync(root+file,'utf8').replace(/@ObservedV2\s*|@Trace\s+/g,''); const out=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
@@ -20,14 +20,17 @@ const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
   let row=data.get(context.filesDir);if(!row){row=new Map();data.set(context.filesDir,row)}
   return {async has(k){return row.has(k)},async delete(k){row.delete(k)},async get(k,d){return row.has(k)?row.get(k):d},async getAll(){return Object.fromEntries(row)},async put(k,v){row.set(k,v)},async flush(){flushCount++;const changed=failChangedOverride && row.get('reader.seriesModeOverrides.v1')!==stableOverride;if(failFlush || changed){failFlush=false;failChangedOverride=false;throw Error('fixture_flush_failed')}}};
  }}}, '../i18n/AppStrings':{AppStrings:{get:s=>s}},'./ComicModels':{ReadingDirection},
- '../state/ReaderModeState':{ReaderModeSnapshot:class{constructor(...a){this.args=a}},ReaderModeStateBridge:{publish:v=>published.push(v),snapshot:columnMode=>({...mod.DEFAULT_READER_PREFERENCES,columnMode})}}
+ '../state/ReaderModeState':{ReaderModeSnapshot:class{constructor(...a){this.args=a}},ReaderModeStateBridge:{publish:v=>published.push(v),snapshot:columnMode=>({...mod.DEFAULT_READER_PREFERENCES,columnMode})}},
+ '../state/AppearanceState':{connectAppearanceState:()=>appearance}
 });
 const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreferencesStore(ctx), other=new mod.ReaderPreferencesStore(ctx);
 (async()=>{
  let applied=[];ctx.getApplicationContext=()=>({setColorMode:n=>{if(n===0 && ctx.failTheme)throw Error('platform_fail');applied.push(n)}});
  await store.save(mod.DEFAULT_READER_PREFERENCES);assert.deepEqual(applied,[]);
  mod.bindReaderThemeWindow(ctx);await store.load();assert.deepEqual(applied,[-1]);
- await store.saveThemeMode('dark');await store.saveThemeMode('light');await store.saveThemeMode('system');assert.deepEqual(applied,[-1,0,1,-1]);
+ await store.saveThemeMode('dark');assert.equal(appearance.colorMode,0);
+ await store.saveThemeMode('light');assert.equal(appearance.colorMode,1);
+ await store.saveThemeMode('system');assert.equal(appearance.colorMode,-1);assert.deepEqual(applied,[-1,0,1,-1]);
  failFlush=true;await assert.rejects(()=>store.saveThemeMode('dark'));assert.equal((await store.load()).themeMode,'system');assert.equal(applied.at(-1),-1);
  ctx.failTheme=true;await assert.rejects(()=>store.saveThemeMode('dark'),/platform_fail/);assert.equal((await store.load()).themeMode,'system');ctx.failTheme=false;
  mod.unbindReaderThemeWindow();await store.saveThemeMode('dark');assert.equal(applied.at(-1),-1);mod.bindReaderThemeWindow(ctx);await store.load();assert.equal(applied.at(-1),0);

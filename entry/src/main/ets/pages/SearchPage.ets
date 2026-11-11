@@ -15,7 +15,7 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
-import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
+import { CachedCoverImage, NativeCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT } from '../components/SearchTitleField'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import {
@@ -1093,14 +1093,12 @@ export struct SearchPage {
               },
             })
           } else {
-            Image(item.coverUri)
-              .width('100%')
-              .height('100%')
-              .objectFit(ImageFit.Cover)
-              .interpolation(ImageInterpolation.Medium)
-              .onError(() => {
+            NativeCoverImage({
+              uri: item.coverUri ?? '',
+              onError: () => {
                 this.markCoverUriFailed(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id, item.sourceMangaUrl)
-              })
+              },
+            })
           }
         } else {
           SymbolGlyph($r('sys.symbol.book'))

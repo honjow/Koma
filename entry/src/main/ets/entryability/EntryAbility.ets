@@ -28,6 +28,7 @@ import { configureSourceRuntimeHttpTransport } from '../sourceRuntime/SourceRunt
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
 import { AppForegroundStateBridge } from '../state/AppForegroundState'
+import { connectAppearanceState } from '../state/AppearanceState'
 import {
   captureKomaDeviceVerificationIsolation,
   shouldSuppressKomaDeviceVerificationBackgroundSideEffects,
@@ -191,6 +192,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onConfigurationUpdate(config: Configuration): void {
+    if (config.colorMode !== undefined) connectAppearanceState().colorMode = config.colorMode
     this.publishLayoutWindowWidth()
   }
 
