@@ -217,6 +217,8 @@ async function verifyRoundTrip() {
   const valuesForStore = {}
   const structuredValues = {
     'appearance.autoHideBottomBar': false,
+    'download.notifications.enabled': true,
+    'download.notifications.sound': 'vibrate',
     'migration.selectedSources': JSON.stringify(['source-b', 'source-a']),
     'migration.matchOptions': JSON.stringify({ deepSearch: true, prioritizeChapters: false }),
     'source_index.repositories.v1': JSON.stringify([
@@ -300,6 +302,7 @@ async function verifyRoundTrip() {
     { name: sourceGroup.name, values: { 'source_index.repositories.v1': '[]', 'source_index.url': 'https://extra.example.test/' }, clearedKeys: [] },
     { name: 'koma_manga_migration_v1', values: { 'migration.selectedSources': '[1]' }, clearedKeys: [] },
     { name: 'koma_search_history_v1', values: { 'search.results.only': true }, clearedKeys: [] },
+    { name: 'koma_download_notifications_v1', values: { 'download.notifications.sound': 'unknown' }, clearedKeys: [] },
   ]) {
     const countBefore = mutations
     await assert.rejects(backup.importApplicationSettings({}, { schemaVersion: 2, preferences: [invalid] }), /backup_application_settings_invalid/)

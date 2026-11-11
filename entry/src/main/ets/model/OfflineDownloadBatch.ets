@@ -8,6 +8,7 @@ import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore, isOfflineDownload
 import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from './OfflineDownloadService'
 import { OfflineDownloadStatus, OfflineDownloadStore } from './OfflineDownloadStore'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
+import { publishOfflineDownloadSummary } from './OfflineDownloadNotificationStore'
 import { runOrderedDownloadQueueBatch } from './OfflineDownloadQueueExecution'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -35,7 +36,7 @@ async function runOfflineDownloadBatch(
   const runtimeKey = komaRuntimeStorageKey(request.context)
   const queue = new OfflineDownloadQueueStore(storageBase, runtimeKey)
   if (targets.length === 0 || !canRunOfflineDownloadQueueNow(queue.loadPreferences())) return 0
-  return BackgroundDownloadOwner.run(request.context, () => executeBatch(request, targets, storageBase, runtimeKey))
+  return executeBatch(request, targets, storageBase, runtimeKey)
 }
 
 async function executeBatch(request: OfflineDownloadBatchRequest, targets: OfflineDownloadQueueEntry[],
@@ -109,13 +110,35 @@ export function resumeAutomaticDownloads(request: OfflineDownloadBatchRequest): 
     const storageBase = await ensureKomaContentStorageBase(request.context)
     const runtimeKey = komaRuntimeStorageKey(request.context)
     const queue = new OfflineDownloadQueueStore(storageBase, runtimeKey)
-    while (canRunOfflineDownloadQueueNow(queue.loadPreferences())) {
-      // New requests resume when eligible. Previously staged records stay staged.
-      const targets = queue.load().filter((entry: OfflineDownloadQueueEntry): boolean =>
-        entry.automatic === true && !entry.pausedByUser && isOfflineDownloadTaskPending(entry) &&
-          entry.status !== OfflineDownloadStatus.DOWNLOADING)
-      if (targets.length === 0) return
-      if (await runOfflineDownloadBatch(request, targets) === 0) return
+    let completed = 0
+    let failed = 0
+    const first = queue.load().some((entry: OfflineDownloadQueueEntry): boolean =>
+      entry.automatic === true && !entry.pausedByUser && isOfflineDownloadTaskPending(entry) &&
+        entry.status !== OfflineDownloadStatus.DOWNLOADING)
+    if (!first || !canRunOfflineDownloadQueueNow(queue.loadPreferences())) return
+    await BackgroundDownloadOwner.run(request.context, async (): Promise<void> => {
+      while (canRunOfflineDownloadQueueNow(queue.loadPreferences())) {
+        // New requests resume when eligible. Previously staged records stay staged.
+        const targets = queue.load().filter((entry: OfflineDownloadQueueEntry): boolean =>
+          entry.automatic === true && !entry.pausedByUser && isOfflineDownloadTaskPending(entry) &&
+            entry.status !== OfflineDownloadStatus.DOWNLOADING)
+        if (targets.length === 0) break
+        const count = await runOfflineDownloadBatch(request, targets)
+        const current = queue.load()
+        targets.forEach((target: OfflineDownloadQueueEntry): void => {
+          const entry = current.find((item: OfflineDownloadQueueEntry): boolean => item.comicId === target.comicId &&
+            item.chapterId === target.chapterId && item.requestId === target.requestId)
+          if (entry === undefined) return
+          if (entry.status === OfflineDownloadStatus.DOWNLOADED) completed += 1
+          else if (!isOfflineDownloadTaskPending(entry) && !entry.pausedByUser && !entry.canceling) failed += 1
+        })
+        if (count === 0) break
+      }
+    })
+    const pending = queue.load().some((entry: OfflineDownloadQueueEntry): boolean =>
+      entry.automatic === true && isOfflineDownloadTaskPending(entry))
+    if (!pending && (completed > 0 || failed > 0)) {
+      await publishOfflineDownloadSummary(request.context, completed, failed)
     }
   }).finally(() => { automaticBatches.delete(filesDir) })
   automaticBatches.set(filesDir, pending)

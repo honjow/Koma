@@ -6,6 +6,9 @@
     "model/AppearancePreferencesStore.ets": [
       "koma_appearance_preferences_v1"
     ],
+    "model/DownloadNotificationPreferences.ets": [
+      "koma_download_notifications_v1"
+    ],
     "model/BackupService.ets": [
       "koma_backup_automatic_v1",
       "koma_backup_content_v1"

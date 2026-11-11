@@ -155,26 +155,6 @@ test('detail login preserves the exact failed stage and canceled login may reope
   }
 })
 
-test('Legacy login consumes completion once and cancellation cannot retry a retained page request', async () => {
-  const tree = ts.createSourceFile('legacy.ts', read('pages/ReaderPage').replace(/\bstruct /g, 'class '), ts.ScriptTarget.Latest, true)
-  const owner = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'ReaderPage')
-  const names = ['sourceSupportsAuthentication', 'canAuthenticatePage', 'rememberSourceFailure', 'authenticatePage', 'retryCurrentPage', 'performPageRetry']
-  const body = `exports.Page=class Page { ${names.map(name => owner.members.find(n => n.name?.text === name).getText(tree)).join('\n')} }`
-  const entry = { sourceId: 'synthetic-source', enabled: true, authentication: { kind: 'credentials' } }, exports = {}
-  new Function('exports', 'appSourceRuntimeRegistry', 'SourceAuthenticationRequest', compile(body))(
-    exports, { lookup: () => ({ entry }) }, authentication.SourceAuthenticationRequest)
-  const page = new exports.Page()
-  Object.assign(page, { sessionConfig: { sourceRuntimeId: entry.sourceId, pageUris: ['https://image.invalid/1'] },
-    pageSourceFailures: { 0: { code: 'auth_required', reason: 'unknown', status: 401 } },
-    pageIndex: 0, readerOpen: true, routeVisible: true, closing: false, failedPages: [0], loadedRevision: 0 })
-  page.retryCurrentPage(); const canceled = page.authentication
-  canceled.cancel(); assert.equal(canceled.current(), false); await canceled.complete(); assert.equal(page.loadedRevision, 0)
-  page.retryCurrentPage(); const complete = page.authentication
-  await complete.complete(); await complete.complete(); assert.equal(page.loadedRevision, 1)
-  page.pageSourceFailures = { 0: { code: 'auth_required', reason: 'unknown', status: 401 } }
-  page.retryCurrentPage(); const replaced = page.authentication
-  page.retryCurrentPage(); assert.equal(replaced.current(), false); await replaced.complete(); assert.equal(page.loadedRevision, 1)
-})
 
 test('chapter identity ambiguity retains the readable catalog and skips snapshot writes', async () => {
   for (const forceReload of [false, true]) {

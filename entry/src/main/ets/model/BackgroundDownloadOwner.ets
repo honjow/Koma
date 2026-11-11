@@ -77,6 +77,9 @@ export class BackgroundDownloadOwner {
     const request: notificationManager.NotificationRequest = {
       id: task.notificationId,
       notificationSlotType: notificationManager.SlotType.LIVE_VIEW,
+      // Progress updates must not re-alert for every page or chapter.
+      isAlertOnce: true,
+      notificationFlags: { soundEnabled: 2, vibrationEnabled: 2, bannerEnabled: 2 },
       content: { notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_SYSTEM_LIVE_VIEW,
         systemLiveView: { typeCode: 8, title: AppStrings.get('downloads_title'), text: title } },
       template: { name: 'downloadTemplate', data: { title, fileName: title,

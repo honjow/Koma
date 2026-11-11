@@ -9,10 +9,7 @@ import {
   KOMA_LAUNCH_ROUTE_PARAM,
 } from '../common/Constants'
 import { AppStrings } from '../i18n/AppStrings'
-import {
-  OfflineChapterDownloadManifest,
-  OfflineDownloadStatus,
-} from './OfflineDownloadStore'
+import { loadDownloadNotificationPreferences } from './DownloadNotificationPreferences'
 
 export type OfflineDownloadNotificationStatus = 'enabled' | 'disabled' | 'unavailable'
 
@@ -34,13 +31,6 @@ export interface OfflineDownloadNotificationDispatchResult {
 export interface OfflineDownloadNotificationLabels {
   comicTitle?: string
   chapterTitle?: string
-}
-
-function firstNonEmpty(left: string | undefined, right: string): string {
-  if (left !== undefined && left.trim().length > 0) {
-    return left.trim()
-  }
-  return right
 }
 
 export function getOfflineDownloadNotificationStatusLabel(status: OfflineDownloadNotificationStatus): string {
@@ -76,70 +66,55 @@ export async function requestOfflineDownloadNotificationPermission(context: comm
   return getOfflineDownloadNotificationStatus()
 }
 
-export async function publishOfflineDownloadNotification(
-  manifest: OfflineChapterDownloadManifest,
-  labels?: OfflineDownloadNotificationLabels,
-): Promise<OfflineDownloadNotificationDispatchResult> {
-  if (manifest.status === OfflineDownloadStatus.DOWNLOADED) {
-    return publishOfflineDownloadNotificationText(
-      AppStrings.get('download_notification_complete_title'),
-      AppStrings.format(
-        'download_notification_complete_text',
-        firstNonEmpty(labels?.chapterTitle, manifest.chapterId),
-        firstNonEmpty(labels?.comicTitle, manifest.comicId),
-        manifest.downloadedPageCount,
-        manifest.pageCount,
-      ),
-    )
+export async function cancelOfflineDownloadSummary(): Promise<void> {
+  try { await notificationManager.cancel(4101, 'koma.downloads') }
+  catch (error) {
+    DiagnosticLogger.warn('offline_download_notification_store', 'cancel_download_notification_failed',
+      '[OfflineDownloadNotificationStore] step=cancel_download_notification_failed code=' + (error as BusinessError).code)
   }
-  if (manifest.status === OfflineDownloadStatus.FAILED ||
-    manifest.status === OfflineDownloadStatus.PARTIAL ||
-    manifest.status === OfflineDownloadStatus.BLOCKED) {
-    return publishOfflineDownloadNotificationText(
-      AppStrings.get('download_notification_failed_title'),
-      AppStrings.format(
-        'download_notification_failed_text',
-        firstNonEmpty(labels?.chapterTitle, manifest.chapterId),
-        firstNonEmpty(labels?.comicTitle, manifest.comicId),
-        manifest.failureReasonCode ?? manifest.status,
-      ),
-    )
-  }
-  return { delivered: false, code: 'not_needed' }
 }
 
-async function publishOfflineDownloadNotificationText(
-  title: string,
-  text: string,
-): Promise<OfflineDownloadNotificationDispatchResult> {
+/** After a user has declined the system prompt, the platform requires its settings sheet. */
+export async function openOfflineDownloadSystemSettings(context: common.UIAbilityContext): Promise<OfflineDownloadNotificationStatus> {
+  try { await notificationManager.openNotificationSettings(context) }
+  catch (error) {
+    DiagnosticLogger.warn('offline_download_notification_store', 'open_notification_settings_failed',
+      '[OfflineDownloadNotificationStore] step=open_notification_settings_failed code=' + (error as BusinessError).code)
+  }
+  return getOfflineDownloadNotificationStatus()
+}
+
+/** One result per drained queue, rather than one interrupting notification per chapter. */
+export async function publishOfflineDownloadSummary(context: common.UIAbilityContext,
+  completed: number, failed: number): Promise<OfflineDownloadNotificationDispatchResult> {
+  if (completed === 0 && failed === 0) return { delivered: false, code: 'not_needed' }
   try {
-    const enabled = await notificationManager.isNotificationEnabled()
-    if (!enabled) {
+    const settings = await loadDownloadNotificationPreferences(context)
+    if (!settings.enabled || !await notificationManager.isNotificationEnabled()) {
       return { delivered: false, code: 'disabled' }
     }
     const request: notificationManager.NotificationRequest = {
       id: 4101,
       label: 'koma.downloads',
       notificationSlotType: notificationManager.SlotType.CONTENT_INFORMATION,
-      // Download completion is informational. Close every attention channel so
-      // system silent mode cannot be bypassed by repeated notification updates.
+      // Flags only suppress alerts; channel and system notification settings remain authoritative.
       notificationFlags: {
-        soundEnabled: NOTIFICATION_FLAG_CLOSE,
-        vibrationEnabled: NOTIFICATION_FLAG_CLOSE,
-        bannerEnabled: NOTIFICATION_FLAG_CLOSE,
-        lockScreenEnabled: NOTIFICATION_FLAG_CLOSE,
+        soundEnabled: settings.sound === 'silent' || settings.sound === 'vibrate' ? NOTIFICATION_FLAG_CLOSE : 0,
+        vibrationEnabled: settings.sound === 'silent' || settings.sound === 'sound' ? NOTIFICATION_FLAG_CLOSE : 0,
       },
-      isAlertOnce: true,
+      isAlertOnce: false,
       wantAgent: await createOfflineDownloadWantAgent(),
       tapDismissed: true,
       content: {
         notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
         normal: {
-          title,
-          text,
+          title: AppStrings.get(failed > 0 ? 'download_notification_failed_title' : 'download_notification_complete_title'),
+          text: AppStrings.format('download_notification_summary', completed, failed),
         },
       },
     }
+    // A user can turn notifications off while the queue finishes or WantAgent is prepared.
+    if (!(await loadDownloadNotificationPreferences(context)).enabled) return { delivered: false, code: 'disabled' }
     await notificationManager.publish(request)
     return { delivered: true, code: 'delivered' }
   } catch (error) {

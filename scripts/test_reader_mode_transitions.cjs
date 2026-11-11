@@ -54,20 +54,6 @@ test('legacy WEBTOON direction command explicitly selects continuous and a later
  assert.equal(Initial.resolveHost(f.get(),'odd_left').layout,'spread')
 })
 
-test('legacy bottom mode command shares the same dormant-direction and WEBTOON release rule',()=>{
- const exports={}, modes={DUAL_PAGE:'dual',CONTINUOUS_SCROLL:'continuous',VERTICAL_PAGE:'vertical',SINGLE_PAGE:'single'}
- new Function('exports','readerModeSelection','ReaderMode','setTimeout',compile(`export class Legacy { ${method('pages/ReaderPage','ReaderPage','onModeChange')} }`))(exports,pair.readerModeSelection,modes,()=>0)
- for(const direction of Object.values(ReadingDirection)) {
-  const page=new exports.Legacy()
-  Object.assign(page,{preferences:{pageMode:'single_page',readingDirection:direction},preferenceRevision:0,pageIndex:0,
-   copyPreferences:()=>({...page.preferences}),refreshPageDataSources(){},emitWebtoonMode(){},persistPreferences(){},resetZoomState(){},routeVisible:false})
-  page.onModeChange(modes.CONTINUOUS_SCROLL)
-  assert.equal(page.preferences.readingDirection,direction)
-  page.onModeChange(modes.DUAL_PAGE)
-  assert.equal(page.preferences.readingDirection,direction==='webtoon'?'left_to_right':direction)
-  assert.equal(Initial.resolveHost(page.preferences,'odd_left').layout,'spread')
- }
-})
 
 
 const modes={SINGLE_PAGE:'single',DUAL_PAGE:'dual',CONTINUOUS_SCROLL:'continuous',VERTICAL_PAGE:'vertical'}
@@ -89,3 +75,15 @@ for(const direction of Object.values(ReadingDirection)) for(const mode of ['sing
   assert.equal(preferences.readingDirection,direction,'projection must not mutate dormant persisted choice')
  })
 }
+
+test('webtoon keeps wide rotation dormant without discarding the paged preference', () => {
+ const settings = { pageMode: 'continuous_scroll', readingDirection: ReadingDirection.WEBTOON,
+  wideImageMode: 'rotate_wide_pages', spreadLayoutMode: 'joined' }
+ const continuous = Initial.resolveHost(settings, 'odd_left')
+ assert.equal(continuous.layout, 'continuous')
+ assert.equal(continuous.rotateWidePages, true)
+ assert.equal(continuous.rotateWidePagesInContinuous, false)
+ const paged = Initial.resolveHost({ ...settings, pageMode: 'single_page', readingDirection: ReadingDirection.RIGHT_TO_LEFT }, 'odd_left')
+ assert.equal(paged.layout, 'single')
+ assert.equal(paged.rotateWidePages, true)
+})

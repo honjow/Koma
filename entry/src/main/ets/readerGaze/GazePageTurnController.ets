@@ -3,8 +3,7 @@
  *
  * Mirrors the ReaderVolumeKeys pattern: the host route owns one controller
  * and re-evaluates it whenever visibility or preference signals change. The
- * page-turn action is injected by the host (shared reader: ReaderInputPort
- * move; legacy reader: its internal user page-turn). When active it requests
+ * page-turn action is injected by the host through ReaderInputPort. When active it requests
  * the camera permission, runs the camera service feeding the gaze engine, and
  * fires the injected move (plus a soft haptic tick) when the engine triggers.
  * UI state (phase and error) is exposed through one listener.

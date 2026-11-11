@@ -39,7 +39,7 @@ export class KomaReaderPreferenceBridge {
       eyeGazePageTurnEnabled: current.eyeGazePageTurnEnabled,
       smartKeyPageTurnEnabled: current.smartKeyPageTurnEnabled,
       volumeKeyBehavior: current.volumeKeyBehavior,
-      readerImplementation: current.readerImplementation === 'legacy' ? 'legacy' : 'shared',
+      readerImplementation: 'shared',
     })
   }
 

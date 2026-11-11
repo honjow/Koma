@@ -3,7 +3,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 
 function s(key: string): string { return AppStrings.get(key) }
 
-/** The original Koma reader title, shared by legacy and shared-reader entry.
+/** Koma's reader title.
  * Keep the confirmed title/chapter/page typography and spacing together.
  */
 @ComponentV2

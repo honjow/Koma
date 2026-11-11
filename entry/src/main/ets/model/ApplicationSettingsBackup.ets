@@ -33,6 +33,7 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
   'koma_chapter_list_preferences_v1': ['chapterList.overrides.v1'],
   'koma_library_automation_v1': ['automation.policy'],
   'koma_app_preferences_v1': ['app.language'],
+  'koma_download_notifications_v1': ['download.notifications.enabled', 'download.notifications.sound'],
   'koma_appearance_preferences_v1': ['appearance.accentColor', 'appearance.autoHideBottomBar'],
   'koma_library_filter_preferences': [
     'library.sort', 'library.sortDirection', 'library.sortConfigured', 'library.viewMode', 'library.listDensity', 'library.showBadges',
@@ -60,7 +61,11 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
 export const APPLICATION_SETTINGS_BACKUP_STORES: string[] = Object.keys(PORTABLE_FIELDS)
 
 function checkPortableValue(name: string, key: string, value: ApplicationSettingValue): void {
-  if (name === 'koma_appearance_preferences_v1' && key === 'appearance.autoHideBottomBar') {
+  if (name === 'koma_download_notifications_v1') {
+    if (key === 'download.notifications.enabled' && typeof value !== 'boolean') throw new Error('backup_application_settings_invalid')
+    if (key === 'download.notifications.sound' && (typeof value !== 'string' ||
+      !['silent', 'sound', 'vibrate', 'sound_vibrate'].includes(value))) throw new Error('backup_application_settings_invalid')
+  } else if (name === 'koma_appearance_preferences_v1' && key === 'appearance.autoHideBottomBar') {
     if (typeof value !== 'boolean') throw new Error('backup_application_settings_invalid')
   } else if (name === 'koma_manga_migration_v1') {
     if (typeof value !== 'string') throw new Error('backup_application_settings_invalid')

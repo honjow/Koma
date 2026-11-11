@@ -47,7 +47,7 @@ function s(key: string): string {
   return AppStrings.get(key)
 }
 
-/** Host-owned settings UI shared by the legacy and optional reader surfaces. */
+/** Host-owned reader settings UI. */
 @ComponentV2
 export struct ReaderSettingsContent {
   @Param readerMode: ReaderMode = ReaderMode.SINGLE_PAGE
@@ -107,7 +107,7 @@ export struct ReaderSettingsContent {
   private copyPreferences(): ReaderPreferences {
     const p = this.preferences
     return {
-      readerImplementation: p.readerImplementation === 'legacy' ? 'legacy' : 'shared',
+      readerImplementation: 'shared',
       pageMode: p.pageMode,
       readingDirection: p.readingDirection,
       themeMode: p.themeMode,

@@ -17,6 +17,8 @@ export class KomaReaderInitialPolicy {
     policy.firstPageAlone = column === 'even_left'
     policy.splitWidePages = preferences.wideImageMode === 'split_wide_pages'
     policy.rotateWidePages = preferences.wideImageMode === 'rotate_wide_pages'
+    // Wide-page preferences stay saved for paged layouts, but never rotate a webtoon.
+    policy.rotateWidePagesInContinuous = false
     return policy
   }
 

@@ -7,7 +7,6 @@ import { preferences } from '@kit.ArkData'
 import { AppStrings } from '../i18n/AppStrings'
 import { ReaderSeriesFormat, ReadingDirection } from './ComicModels'
 import { ReaderModeSnapshot, ReaderModeStateBridge } from '../state/ReaderModeState'
-import { KomaReaderBackend, connectKomaReaderBackendSelection } from '../state/KomaReaderBackendSelectionState'
 
 export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll' | 'vertical_page'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
@@ -22,7 +21,8 @@ export type ReaderVolumeKeyBehavior = 'up_previous_down_next' | 'up_next_down_pr
 export type ReaderWideImageMode = 'keep_single' | 'split_wide_pages' | 'rotate_wide_pages'
 export type ReaderSpreadLayoutMode = 'joined' | 'split'
 export type ReaderColumnMode = 'odd_left' | 'even_left'
-export type ReaderImplementation = 'shared' | 'legacy'
+// Retain the serialized field solely to read backups made before the old reader was removed.
+export type ReaderImplementation = 'shared'
 
 export interface ReaderPreferences {
   bannerFilter?: BannerFilterMode
@@ -322,7 +322,7 @@ export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPref
     superResolutionModel: normalizeReaderSuperResolutionModel(value.superResolutionModel),
     superResolutionBackend: (value.superResolutionBackend === 'cpu' || value.superResolutionBackend === 'vulkan') ? value.superResolutionBackend : 'auto',
     superResolutionMaxHeight: normalizeReaderSuperResolutionMaxHeight(value.superResolutionMaxHeight),
-    readerImplementation: value.readerImplementation === 'legacy' ? 'legacy' : 'shared',
+    readerImplementation: 'shared',
     wideImageMode: normalizeReaderWideImageMode(value.wideImageMode),
     volumeKeyNavigationEnabled: value.volumeKeyNavigationEnabled === true,
     eyeGazePageTurnEnabled: value.eyeGazePageTurnEnabled === true,
@@ -368,7 +368,7 @@ export function readerPreferencesFromRuntimeState(columnMode: ReaderColumnMode, 
     superResolutionModel: normalizeReaderSuperResolutionModel(runtime.superResolutionModel),
     superResolutionBackend: (runtime.superResolutionBackend === 'cpu' || runtime.superResolutionBackend === 'vulkan') ? runtime.superResolutionBackend : 'auto',
     superResolutionMaxHeight: normalizeReaderSuperResolutionMaxHeight(runtime.superResolutionMaxHeight),
-    readerImplementation: connectKomaReaderBackendSelection().current(true),
+    readerImplementation: 'shared',
     wideImageMode: normalizeReaderWideImageMode(runtime.wideImageMode),
     volumeKeyNavigationEnabled: runtime.volumeKeyNavigationEnabled,
     eyeGazePageTurnEnabled: runtime.eyeGazePageTurnEnabled === true,
@@ -414,8 +414,6 @@ function publishReaderModeState(preferences: ReaderPreferences): void {
     preferences.preloadWifiOnly,
     preferences.displaySettings,
   ))
-  connectKomaReaderBackendSelection().select(
-    preferences.readerImplementation === 'legacy' ? KomaReaderBackend.LEGACY : KomaReaderBackend.SHARED, true)
 }
 
 function normalizeReaderDirection(value: string, fallback: ReadingDirection): ReadingDirection {
@@ -1436,12 +1434,6 @@ export class ReaderPreferencesStore {
     })
   }
 
-  async saveReaderImplementation(implementation: ReaderImplementation): Promise<ReaderPreferences> {
-    return this.mutatePreferences((next: ReaderPreferences): void => {
-      next.readerImplementation = normalizeReaderImplementation(implementation)
-    })
-  }
-
   async saveWideImageMode(wideImageMode: ReaderWideImageMode): Promise<ReaderPreferences> {
     return this.mutatePreferences((next: ReaderPreferences): void => {
       next.wideImageMode = wideImageMode
@@ -1476,6 +1468,6 @@ export class ReaderPreferencesStore {
   }
 }
 
-function normalizeReaderImplementation(value: string): ReaderImplementation {
-  return value === 'legacy' ? 'legacy' : 'shared'
+function normalizeReaderImplementation(_value: string): ReaderImplementation {
+  return 'shared'
 }

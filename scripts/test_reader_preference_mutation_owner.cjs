@@ -8,10 +8,6 @@ function evaluate(file, deps) {
  new Function('exports','require',out)(exp,n=>{if(n in deps)return deps[n];throw Error('unexpected import '+n)});return exp;
 }
 const activity = evaluate('entry/src/main/ets/model/BackupRestoreActivity.ets',{}).BackupRestoreActivity;
-let backendSelection;
-const backendModule = evaluate('entry/src/main/ets/state/KomaReaderBackendSelectionState.ets',{
- '@kit.ArkUI':{AppStorageV2:{connect:(type,key,factory)=>backendSelection ??= factory()}}
-});
 const display = evaluate('entry/src/main/ets/model/ReaderDisplaySettings.ets',{});
 const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
  '../deviceSync/DeviceSyncSignals':evaluate('entry/src/main/ets/deviceSync/DeviceSyncSignals.ets',{}),
@@ -19,7 +15,6 @@ const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
   './ImageProcessingPlugins':evaluate('entry/src/main/ets/model/ImageProcessingPlugins.ets',{})
  }),
  './ReaderDisplaySettings':display,
- '../state/KomaReaderBackendSelectionState':backendModule,
  './BackupRestoreActivity':{BackupRestoreActivity:activity}, '@kit.AbilityKit':{ConfigurationConstant:{ColorMode:{COLOR_MODE_DARK:0,COLOR_MODE_LIGHT:1,COLOR_MODE_NOT_SET:-1}}},
  '@kit.ArkData':{preferences:{async getPreferences(context){
   let row=data.get(context.filesDir);if(!row){row=new Map();data.set(context.filesDir,row)}
@@ -92,20 +87,14 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  await store.savePreloadPages(5);assert.equal((await store.load()).preloadPages,5,'rejected operation must not poison owner');
  activity.beginRestore();await assert.rejects(()=>store.savePreloadPages(1),/backup_restore_busy/);await store.saveForBackupRestore(baseline);activity.finishRestore();
  assert.equal((await store.load()).preloadPages,baseline.preloadPages);
- // The committed preference owner also drives the backend captured by future opens.
- await store.saveReaderImplementation('legacy');
- assert.equal(backendSelection.current(true),'legacy');
- const runtimeView=mod.readerPreferencesFromRuntimeState('odd_left');
- assert.equal(runtimeView.readerImplementation,'legacy','runtime snapshot must preserve the committed backend');
- await store.saveChangesForComic('A',runtimeView,{...runtimeView,showPageNumber:!runtimeView.showPageNumber});
- assert.equal((await store.load()).readerImplementation,'legacy','editing reader controls must retain the selected backend');
- failFlush=true;await assert.rejects(()=>store.saveReaderImplementation('shared'),/fixture_flush_failed/);
- assert.equal(backendSelection.current(true),'legacy','failed persistence must not change the backend');
- await store.load();assert.equal(backendSelection.current(true),'legacy');
+ // Old persisted backend choices and backups must open with the remaining shared reader.
+ const cacheForMigration=data.get(ctx.filesDir);
+ cacheForMigration.set('reader.readerImplementation','legacy');
+ assert.equal((await store.load()).readerImplementation,'shared');
  activity.beginRestore();
- await store.saveForBackupRestore({...baseline,readerImplementation:'shared'});
- assert.equal(backendSelection.current(true),'shared','committed restore must override a previous in-process selection');
+ await store.saveForBackupRestore({...baseline,readerImplementation:'legacy'});
  activity.finishRestore();
+ assert.equal((await store.load()).readerImplementation,'shared');
  // A rejected per-book edit must not enter the Preferences cache or a later unrelated save.
  await store.save(mod.DEFAULT_READER_PREFERENCES);
  const seed=await store.loadForComic('book-B');
@@ -186,6 +175,6 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  console.log('PASS: banner global inheritance, book isolation, failed write rollback, migration copy and removal');
  console.log('PASS: mode commands, dormant RTL, legacy WEBTOON, global restore and fresh store reopen');
  console.log('PASS: one book commit, rejected override/reset cache rollback, later unrelated commits and other-book isolation');
- console.log('PASS: committed backend selection, rejected save and backup restore publication');
+ console.log('PASS: legacy backend preference and backup migrate to shared reader');
  console.log('PASS: common mutation owner, field deltas, two book overrides, reset, restore admission, flush publication and rejection recovery');
 })().catch(e=>{console.error(e);process.exitCode=1});

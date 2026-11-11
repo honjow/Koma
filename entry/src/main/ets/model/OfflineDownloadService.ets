@@ -38,7 +38,6 @@ import {
 } from './OfflineDownloadQueueStore'
 import {
   OfflineDownloadNotificationLabels as OfflineDownloadLabels,
-  publishOfflineDownloadNotification,
 } from './OfflineDownloadNotificationStore'
 
 const OFFLINE_DOWNLOAD_MANIFEST_PROGRESS_INTERVAL_MS: number = 1000
@@ -269,7 +268,6 @@ export class OfflineDownloadService {
     manifest.failureReasonCode = reasonCode
     manifest = this.store.saveManifest(applyManifestLabels(manifest, comic, chapter, labels))
     this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter?.title))
-    this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter?.title })
     return manifest
   }
 
@@ -466,12 +464,10 @@ export class OfflineDownloadService {
         manifest = this.store.saveManifest(manifest)
         this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
         trace.warn('download_final_validation_failed', `[ReaderOffline] step=download_final_validation_failed pages=${finalValidation.availablePageCount}/${finalValidation.pageCount} reason=${manifest.failureReasonCode}`)
-        this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
         return manifest
       }
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       trace.info('download_done', `[ReaderOffline] step=download_done pages=${manifest.downloadedPageCount}/${manifest.pageCount}`)
-      this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
       return manifest
     } catch (error) {
       void error
@@ -480,16 +476,8 @@ export class OfflineDownloadService {
       manifest = this.store.saveManifest(manifest)
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       trace.warn('download_failed', `[ReaderOffline] step=download_failed pages=${manifest.downloadedPageCount}/${manifest.pageCount} reason=page_fetch_failed ${DiagnosticLogger.errorSummary(error as Error)}`)
-      this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
       return manifest
     }
-  }
-
-  private publishNotification(manifest: OfflineChapterDownloadManifest, labels?: OfflineDownloadLabels): void {
-    void publishOfflineDownloadNotification(manifest, labels)
-      .then((result) => {
-        DiagnosticLogger.info('download', 'download_notification', '[ReaderOffline] step=download_notification code=' + result.code)
-      })
   }
 
   private shouldPersistManifestProgress(finalPage: boolean): boolean {
