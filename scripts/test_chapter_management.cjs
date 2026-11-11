@@ -18,16 +18,20 @@ const io = {
   openSync: (p, mode) => ({ fd: fs.openSync(p, mode ? 'w' : 'r') }), closeSync: f => fs.closeSync(f.fd),
   readTextSync: p => fs.readFileSync(p, 'utf8'), writeSync: fs.writeSync, fsyncSync: fs.fsyncSync,
   renameSync: fs.renameSync, unlinkSync: fs.unlinkSync, statSync: fs.statSync,
+  rmdirSync: fs.rmdirSync,
+  listFileSync: p => fs.readdirSync(p),
   readSync: (fd, data) => fs.readSync(fd, Buffer.from(data), 0, data.byteLength, null),
 }
 const logger = { exception() {} }
+const directoryIndex = load('DownloadDirectoryIndex', { '@kit.CoreFileKit': { fileIo: io } })
 const persistence = load('AppFileTextPersistence', { '@kit.CoreFileKit': { fileIo: io }, '../diagnostics/DiagnosticLogger': { DiagnosticLogger: logger } })
 const activity = load('BackupRestoreActivity')
 const overlays = load('SourceTextOverlay')
+const comicModels = load('ComicModels', {
+  '../i18n/AppStrings': { AppStrings: { get: key => key } },
+})
 const downloads = load('OfflineDownloadStore', { './SourceTextOverlay': overlays, './AppFileTextPersistence': persistence,
-  '@kit.CoreFileKit': { fileIo: io }, './ComicModels': load('ComicModels', {
-    '../i18n/AppStrings': { AppStrings: { get: key => key } },
-  }) })
+  '@kit.CoreFileKit': { fileIo: io }, './DownloadDirectoryIndex': directoryIndex, './ComicModels': comicModels })
 const queues = load('OfflineDownloadQueueStore', {
   './BackupRestoreActivity': activity, './AppFileTextPersistence': persistence,
   '@kit.CoreFileKit': { fileIo: io }, './OfflineDownloadRuntime': { OfflineDownloadRuntime: { publish() {} } },
@@ -87,6 +91,49 @@ async function main() {
     assert.equal(new preferences.ChapterListPreferencesStore({}).load('a').readFilter, 'all')
 
     const disk = new downloads.OfflineDownloadStore(dir)
+    const sameNameA = disk.createManifest('same-name-a', 'chapter', 1, 'queued',
+      { sourceKind: comicModels.ComicSourceKind.PRIVATE_LIBRARY, sourceId: 'source-a', seriesId: 'same-name-a' },
+      { comicTitle: '同名作品', chapterTitle: '第01话', sourceName: '书源甲' })
+    const sameNameB = disk.createManifest('same-name-b', 'chapter', 1, 'queued',
+      { sourceKind: comicModels.ComicSourceKind.PRIVATE_LIBRARY, sourceId: 'source-b', seriesId: 'same-name-b' },
+      { comicTitle: '同名作品', chapterTitle: '第01话', sourceName: '书源乙' })
+    assert.equal(path.basename(disk.comicDir(sameNameA.comicId)), '同名作品 [书源甲]')
+    assert.equal(path.basename(disk.comicDir(sameNameB.comicId)), '同名作品 [书源乙]')
+    assert.equal(disk.loadManifest(sameNameA.comicId, 'chapter').sourceName, '书源甲')
+    assert.equal(disk.loadManifest(sameNameB.comicId, 'chapter').sourceName, '书源乙')
+
+    const layoutRoot = path.join(dir, 'layout')
+    const writeLegacyLayout = (comicDirectory, chapterDirectory, comicId, sourceId) => {
+      const chapterDir = path.join(layoutRoot, comicDirectory, chapterDirectory)
+      fs.mkdirSync(path.join(chapterDir, '.koma'), { recursive: true })
+      fs.writeFileSync(path.join(chapterDir, '.koma', 'manifest.v1.json'), JSON.stringify({
+        comicId, chapterId: comicId + '-chapter', comicTitle: '同名作品', chapterTitle: '第01话',
+        sourceId, pages: [],
+      }))
+    }
+    writeLegacyLayout('0123456789abcdef', '1111111111111111', 'legacy-a', 'source-a')
+    writeLegacyLayout('fedcba9876543210', '2222222222222222', 'legacy-b', 'source-b')
+    fs.mkdirSync(path.join(layoutRoot, '裸名作品', '第01话', '.koma'), { recursive: true })
+    fs.writeFileSync(path.join(layoutRoot, '裸名作品', '第01话', '.koma', 'manifest.v1.json'), JSON.stringify({
+      comicId: 'legacy-c', chapterId: 'legacy-c-chapter', comicTitle: '裸名作品', chapterTitle: '第01话',
+      sourceId: 'source-c', pages: [],
+    }))
+    const layout = load('DownloadLayoutMigration', {
+      '@kit.CoreFileKit': { fileIo: io },
+      '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { exception() {}, info() {} } },
+      './DownloadDirectoryIndex': directoryIndex,
+    })
+    const sourceName = sourceId => sourceId === 'source-a' ? '书源甲' : sourceId === 'source-b' ? '书源乙' : '书源丙'
+    layout.normalizeDownloadLayout(layoutRoot, sourceName)
+    const legacyManifestA = path.join(layoutRoot, '同名作品 [书源甲]', '第01话', '.koma', 'manifest.v1.json')
+    const legacyManifestB = path.join(layoutRoot, '同名作品 [书源乙]', '第01话', '.koma', 'manifest.v1.json')
+    assert.equal(JSON.parse(fs.readFileSync(legacyManifestA, 'utf8')).sourceName, '书源甲')
+    assert.equal(JSON.parse(fs.readFileSync(legacyManifestB, 'utf8')).sourceName, '书源乙')
+    const layoutDirectories = () => fs.readdirSync(layoutRoot).filter(name => !name.startsWith('.')).sort()
+    assert.deepEqual(layoutDirectories(), ['同名作品 [书源乙]', '同名作品 [书源甲]', '裸名作品 [书源丙]'])
+    layout.normalizeDownloadLayout(layoutRoot, sourceName)
+    assert.deepEqual(layoutDirectories(), ['同名作品 [书源乙]', '同名作品 [书源甲]', '裸名作品 [书源丙]'])
+
     let manifest = disk.createManifest('a', '1', 2, 'downloaded')
     // Download filenames may use .img; the exported extension must reflect received bytes.
     for (const index of [1, 0]) {
@@ -118,6 +165,7 @@ async function main() {
       './ReaderPageSourceAdapter': render, '@kit.CoreFileKit': { fileIo: asyncIo, fileUri: { getUriFromPath:p=>'file://'+p } },
       '@kit.ArkTS': { taskpool: { execute: async (fn,...args) => fn(...args) } }, '@kit.BasicServicesKit': { zlib },
       '@kit.ShareKit': {}, '@kit.ArkData': {}, './OfflineDownloadStore': downloads, '../i18n/AppStrings': {},
+      './KomaContentStorage': { ensureKomaContentStorageBase: async context => context.filesDir },
     })
     const plan = JSON.parse(archive.chapterArchivePagesWorker(dir, 'a', '1'))
     assert.deepEqual(plan.map(p => p.name), ['00001.png', '00002.jpg'])
@@ -132,7 +180,7 @@ async function main() {
     const created = fs.readdirSync(dir).filter(name => !beforeDirs.has(name))
     for (const name of created) assert.equal(fs.readdirSync(path.join(dir,name)).some(x => /\.(cbz|zip)$/.test(x)), false)
     console.log('CBZ actual archive preserves original pages, includes rendered overlay JPEG and rejects failed rendering')
-    assert.ok(plan[0].path.includes('00001-'))
+    assert.equal(path.basename(plan[0].path), '001.img')
     fs.unlinkSync(plan[1].path)
     assert.throws(() => archive.chapterArchivePagesWorker(dir, 'a', '1'), /download_incomplete/)
     console.log('Production queue ordering, per-book preference isolation/rollback and complete ordered CBZ plan passed')

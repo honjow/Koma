@@ -1,4 +1,4 @@
-import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
 import { SourceRequiredImageDecodeService } from './SourceRequiredImageDecode'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
@@ -141,10 +141,20 @@ function manifestIdentityFromComic(comic: Comic): OfflineChapterManifestIdentity
   }
 }
 
+function manifestSourceNameFromComic(comic: Comic): string | undefined {
+  const storedName = comic.sourceMetadata?.sourceName?.trim() ?? ''
+  const sourceId = comic.sourceRuntimeId?.trim() ?? ''
+  if (sourceId.length === 0) return storedName.length > 0 ? storedName : undefined
+  const fallback = storedName.length > 0 ? storedName : sourceId
+  const displayName = sourceDisplayName(sourceId, fallback).trim()
+  return displayName.length > 0 ? displayName : fallback
+}
+
 function manifestLabelsFromDownload(comic: Comic, chapter?: Chapter, labels?: OfflineDownloadLabels): OfflineChapterManifestLabels {
   return {
     comicTitle: labels?.comicTitle ?? comic.title,
     chapterTitle: labels?.chapterTitle ?? chapter?.title,
+    sourceName: manifestSourceNameFromComic(comic),
   }
 }
 
@@ -157,6 +167,7 @@ function applyManifestLabels(
   const manifestLabels = manifestLabelsFromDownload(comic, chapter, labels)
   manifest.comicTitle = manifestLabels.comicTitle
   manifest.chapterTitle = manifestLabels.chapterTitle
+  manifest.sourceName = manifestLabels.sourceName
   return manifest
 }
 
@@ -195,9 +206,9 @@ export function canRunOfflineDownloadQueueNow(preferences: OfflineDownloadQueueP
 }
 
 @Concurrent
-function initializeOfflineDownloadQueue(filesDir: string): void {
+function initializeOfflineDownloadQueue(filesDir: string, runtimeKey: string): void {
   // Startup restores queue state; explicit scans retain full page-content validation.
-  new OfflineDownloadQueueStore(filesDir).reconcileWithManifests({ validateContentHash: false })
+  new OfflineDownloadQueueStore(filesDir, runtimeKey).reconcileWithManifests({ validateContentHash: false })
 }
 
 export class OfflineDownloadService {
@@ -209,13 +220,13 @@ export class OfflineDownloadService {
   constructor(store: OfflineDownloadStore, queueStore?: OfflineDownloadQueueStore, requestContext?: common.UIAbilityContext) {
     this.requestContext = requestContext
     this.store = store
-    this.queueStore = queueStore ?? new OfflineDownloadQueueStore(store.filesRootDir())
+    this.queueStore = queueStore ?? new OfflineDownloadQueueStore(store.filesRootDir(), store.runtimeKey())
   }
 
-  static ensureQueueInitialized(filesDir: string): Promise<void> {
-    return OfflineDownloadRuntime.initialize(filesDir, async (): Promise<void> => {
-      await taskpool.execute(new taskpool.Task(initializeOfflineDownloadQueue, filesDir))
-      OfflineDownloadRuntime.publish(filesDir)
+  static ensureQueueInitialized(filesDir: string, runtimeKey: string = filesDir): Promise<void> {
+    return OfflineDownloadRuntime.initialize(runtimeKey, async (): Promise<void> => {
+      await taskpool.execute(new taskpool.Task(initializeOfflineDownloadQueue, filesDir, runtimeKey))
+      OfflineDownloadRuntime.publish(runtimeKey)
     })
   }
 
@@ -225,8 +236,9 @@ export class OfflineDownloadService {
 
   async blockChapterDownload(comic: Comic, chapterId: string, reasonCode: string, labels?: OfflineDownloadLabels): Promise<OfflineChapterDownloadManifest> {
     const filesDir = this.store.filesRootDir()
-    await OfflineDownloadService.ensureQueueInitialized(filesDir)
-    return OfflineDownloadRuntime.run(filesDir, comic.id, chapterId,
+    const runtimeKey = this.store.runtimeKey()
+    await OfflineDownloadService.ensureQueueInitialized(filesDir, runtimeKey)
+    return OfflineDownloadRuntime.run(runtimeKey, comic.id, chapterId,
       async (): Promise<OfflineChapterDownloadManifest> => this.saveBlockedChapter(comic, chapterId, reasonCode, labels))
   }
 
@@ -261,9 +273,10 @@ export class OfflineDownloadService {
     const trace = DiagnosticLogger.begin('download', 'chapter')
     try {
       const filesDir = this.store.filesRootDir()
-      await OfflineDownloadService.ensureQueueInitialized(filesDir)
-      const key = OfflineDownloadRuntime.key(filesDir, comic.id, chapterId)
-      const manifest = await OfflineDownloadRuntime.run(filesDir, comic.id, chapterId,
+      const runtimeKey = this.store.runtimeKey()
+      await OfflineDownloadService.ensureQueueInitialized(filesDir, runtimeKey)
+      const key = OfflineDownloadRuntime.key(runtimeKey, comic.id, chapterId)
+      const manifest = await OfflineDownloadRuntime.run(runtimeKey, comic.id, chapterId,
         () => {
           const start = (): Promise<OfflineChapterDownloadManifest> => {
             if (!isRequested()) throw new Error('download_request_removed')

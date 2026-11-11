@@ -86,6 +86,7 @@ import {
   OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS,
   OfflineDownloadQueueStore,
 } from '../model/OfflineDownloadQueueStore'
+import { ensureKomaContentStorageBase, komaContentStorageBase, komaRuntimeStorageKey } from '../model/KomaContentStorage'
 import {
   OfflineDownloadNotificationStatus,
   getOfflineDownloadNotificationStatus,
@@ -611,7 +612,8 @@ export struct SettingsPage {
   }
 
   private offlineDownloadQueueStore(): OfflineDownloadQueueStore {
-    return new OfflineDownloadQueueStore(this.context().filesDir)
+    const context = this.context()
+    return new OfflineDownloadQueueStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
   }
 
   private libraryFilterStore(): LibraryFilterStore {
@@ -1880,7 +1882,9 @@ export struct SettingsPage {
 
   private async saveDownloadForegroundConcurrencyLimit(limit: number): Promise<void> {
     try {
-      await OfflineDownloadService.ensureQueueInitialized(this.context().filesDir)
+      const context = this.context()
+      const storageBase = await ensureKomaContentStorageBase(context)
+      await OfflineDownloadService.ensureQueueInitialized(storageBase, komaRuntimeStorageKey(context))
       this.downloadForegroundConcurrencyLimit = this.offlineDownloadQueueStore().setForegroundConcurrencyLimit(limit).foregroundConcurrencyLimit
       console.info('[Settings] step=save_download_concurrency limit=' + this.downloadForegroundConcurrencyLimit)
     } catch (error) {
@@ -1891,7 +1895,9 @@ export struct SettingsPage {
 
   private async saveDownloadWifiOnly(wifiOnly: boolean): Promise<void> {
     try {
-      await OfflineDownloadService.ensureQueueInitialized(this.context().filesDir)
+      const context = this.context()
+      const storageBase = await ensureKomaContentStorageBase(context)
+      await OfflineDownloadService.ensureQueueInitialized(storageBase, komaRuntimeStorageKey(context))
       this.downloadWifiOnly = this.offlineDownloadQueueStore().setWifiOnly(wifiOnly).wifiOnly
       console.info('[Settings] step=save_download_wifi_only value=' + this.downloadWifiOnly)
     } catch (error) {

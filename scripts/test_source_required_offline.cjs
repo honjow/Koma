@@ -17,11 +17,14 @@ const io = { accessSync: fs.existsSync, mkdirSync: p => fs.mkdirSync(p, { recurs
   openSync: (p,m) => ({ fd: fs.openSync(p,m ? 'w' : 'r') }), closeSync: f => fs.closeSync(f.fd),
   writeSync: (fd,v) => fs.writeSync(fd, typeof v === 'string' ? v : Buffer.from(v)),
   readTextSync: p => fs.readFileSync(p,'utf8'), fsyncSync: fs.fsyncSync, renameSync: fs.renameSync,
-  unlinkSync: fs.unlinkSync, statSync: p => typeof p === 'number' ? fs.fstatSync(p) : fs.statSync(p), readSync: (fd,b) => fs.readSync(fd,Buffer.from(b),0,b.byteLength,null) }
+  unlinkSync: fs.unlinkSync, statSync: p => typeof p === 'number' ? fs.fstatSync(p) : fs.statSync(p),
+  listFileSync: p => fs.readdirSync(p), readSync: (fd,b) => fs.readSync(fd,Buffer.from(b),0,b.byteLength,null) }
+const directoryIndex = load(fs.readFileSync(base+'DownloadDirectoryIndex.ets','utf8'), { fs: io })
 const models = load(fs.readFileSync(base+'ComicModels.ets','utf8'), {})
 const persistence = load(fs.readFileSync(base+'AppFileTextPersistence.ets','utf8'), { fs: io })
 const offline = load(fs.readFileSync(base+'OfflineDownloadStore.ets','utf8'),
-  { fs: io, ComicSourceKind: models.ComicSourceKind, sourceTextOverlay: actual.sourceTextOverlay, ...persistence })
+  { fs: io, ComicSourceKind: models.ComicSourceKind, sourceTextOverlay: actual.sourceTextOverlay,
+    ...directoryIndex, ...persistence })
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-required-offline-'))
 try {
   const store = new offline.OfflineDownloadStore(tmp)

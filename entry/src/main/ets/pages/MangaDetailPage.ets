@@ -26,6 +26,7 @@ import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { reconcileSourceChapterIdentity } from '../model/SourceChapterIdentity'
 import { protectedSourceChapterIds } from '../model/SourceChapterIdentityGuard'
+import { ensureKomaContentStorageBase, komaContentStorageBase, komaRuntimeStorageKey } from '../model/KomaContentStorage'
 import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { trackerChapterProgress } from '../model/TrackerReadingProgress'
 import { mangaHttpUrl } from '../model/MangaWebLink'
@@ -878,7 +879,8 @@ export struct MangaDetailPage {
   }
 
   private downloadQueue(): OfflineDownloadQueueStore {
-    return new OfflineDownloadQueueStore((getContext(this) as common.UIAbilityContext).filesDir)
+    const context = getContext(this) as common.UIAbilityContext
+    return new OfflineDownloadQueueStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
   }
 
   private scheduleDownloadRefresh(): void {
@@ -1498,10 +1500,11 @@ export struct MangaDetailPage {
       }
     }
     const chapterIdentity = appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy?.chapterIdentity
+    const storageContext = getContext(this) as common.UIAbilityContext
     const identity = libraryComic !== undefined && this.sourceChaptersResolved
       ? reconcileSourceChapterIdentity(libraryComic, mangaId, chapters,
-        protectedSourceChapterIds(libraryComic, (getContext(this) as common.UIAbilityContext).filesDir,
-          this.readerSessionStore, chapterIdentity), chapterIdentity)
+        protectedSourceChapterIds(libraryComic, komaContentStorageBase(storageContext),
+          this.readerSessionStore, chapterIdentity, komaRuntimeStorageKey(storageContext)), chapterIdentity)
       : undefined
     if (persistResolvedChapterMetadata && this.sourceChaptersResolved) {
       this.refreshSourceLibraryDetail(sourceId, mangaId, detail, identity?.chapters ?? chapters, true, excludedChapterIds)
@@ -2137,8 +2140,9 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
     }
     this.downloadBusy = true
     try {
-      const filesDir = (getContext(this) as common.UIAbilityContext).filesDir
-      await OfflineDownloadService.ensureQueueInitialized(filesDir)
+      const context = getContext(this) as common.UIAbilityContext
+      const storageBase = await ensureKomaContentStorageBase(context)
+      await OfflineDownloadService.ensureQueueInitialized(storageBase, komaRuntimeStorageKey(context))
       if (!this.chrome.visible) return
       if (!this.isInLibrary && this.manga?.sourceId !== undefined && !await this.handleAddToLibrary(false)) return
       const comic = this.libraryStore?.getComic(this.currentComicId())

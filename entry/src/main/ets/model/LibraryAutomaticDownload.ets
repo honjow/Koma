@@ -8,6 +8,7 @@ import { newlyAddedChapterIds, comicMatchesAutomationCategories } from './Librar
 import { LibraryBatchDownloadQueue, LibraryBatchDownloadTarget } from './LibraryBatchDownloadQueue'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { writeAppTextFile } from './AppFileTextPersistence'
+import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from './KomaContentStorage'
 
 interface PendingAutomaticChapter { comicId: string; chapterId: string }
 let draining: Promise<void> = Promise.resolve()
@@ -57,7 +58,8 @@ export function drainPendingAutomaticChapters(context: common.UIAbilityContext,
     if (!policy.autoDownloadNewChapters) return
     const pending = loadPending(context)
     if (pending.length === 0) return
-    const batch = new LibraryBatchDownloadQueue(context.filesDir, library, reader)
+    const storageBase = await ensureKomaContentStorageBase(context)
+    const batch = new LibraryBatchDownloadQueue(storageBase, library, reader, komaRuntimeStorageKey(context))
     for (const comicId of Array.from(new Set<string>(pending.map((item: PendingAutomaticChapter): string => item.comicId)))) {
       const comic = library.getComic(comicId)
       if (comic === undefined || !comicMatchesAutomationCategories(comic, policy.downloadIncludedCategories,

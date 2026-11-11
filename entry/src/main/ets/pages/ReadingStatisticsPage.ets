@@ -7,6 +7,7 @@ import { KomaMenuListRow } from '../components/ui/KomaMenuListRow'
 import { LibraryStore } from '../model/LibraryStore'
 import { ReaderSessionStore } from '../model/ReaderSessionStore'
 import { OfflineDownloadQueueStore, OfflineDownloadQueueEntry } from '../model/OfflineDownloadQueueStore'
+import { komaContentStorageBase, komaRuntimeStorageKey } from '../model/KomaContentStorage'
 import { OfflineDownloadStatus } from '../model/OfflineDownloadStore'
 import { ReadingStatistics, ReadingLibraryStatistics, ReadingStatisticsPeriod, ReadingSessionRecord,
   ReadingDayStatistics, summarizeReadingSessions, summarizeReadingLibrary, readingCalendarDays } from '../model/ReadingStatistics'
@@ -35,7 +36,8 @@ export struct ReadingStatisticsPage {
     this.records = this.sessionStore?.listReadingSessions() ?? []
     const downloaded = new Set<string>()
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext
-    new OfflineDownloadQueueStore(context.filesDir).load().forEach((entry: OfflineDownloadQueueEntry): void => {
+    new OfflineDownloadQueueStore(komaContentStorageBase(context), komaRuntimeStorageKey(context)).load()
+      .forEach((entry: OfflineDownloadQueueEntry): void => {
       if (entry.status === OfflineDownloadStatus.DOWNLOADED) downloaded.add(JSON.stringify([entry.comicId, entry.chapterId]))
     })
     if (this.sessionStore !== undefined) this.libraryStatistics = summarizeReadingLibrary(

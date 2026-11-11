@@ -1,5 +1,6 @@
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { protectedSourceChapterIds } from './SourceChapterIdentityGuard'
+import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from './KomaContentStorage'
 import { appReaderSessionStore } from './ReaderSessionStore'
 import { Comic } from './ComicModels'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
@@ -160,12 +161,15 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
   const reader = appReaderSessionStore(request.context.filesDir)
   const previousChapterIds = libraryChapterIdSnapshot(request.libraryStore)
   try {
+    const storageBase = await ensureKomaContentStorageBase(request.context)
+    const runtimeKey = komaRuntimeStorageKey(request.context)
     const automaticPolicy = policy
     const service = new LibraryUpdateService(request.libraryStore, request.sourceRegistry,
       request.libraryPersistenceService, new RemoteServerStore(request.context),
       (comic: Comic): Set<string> | undefined => protectedSourceChapterIds(
-        comic, request.context.filesDir, reader,
-        request.sourceRegistry.lookup(comic.sourceRuntimeId ?? '').entry?.websitePolicy?.chapterIdentity),
+        comic, storageBase, reader,
+        request.sourceRegistry.lookup(comic.sourceRuntimeId ?? '').entry?.websitePolicy?.chapterIdentity,
+        runtimeKey),
       request.reason === 'due' && automaticPolicy !== undefined ?
         (comic: Comic): boolean => shouldAutomaticallyUpdateComic(comic, reader, automaticPolicy) : undefined,
       policy?.refreshWorkInfo === true)

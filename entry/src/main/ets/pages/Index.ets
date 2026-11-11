@@ -177,6 +177,12 @@ import {
   OfflineDownloadStore,
 } from '../model/OfflineDownloadStore'
 import {
+  ensureKomaContentStorageBase,
+  komaContentStorageBase,
+  komaContentStorageUri,
+  komaRuntimeStorageKey,
+} from '../model/KomaContentStorage'
+import {
   appReaderSessionStore,
   InMemoryReaderSessionStore,
   ReaderSessionConfig,
@@ -765,7 +771,7 @@ struct Index {
       if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
         return false
       }
-      const validation = new OfflineDownloadStore(context.filesDir)
+      const validation = new OfflineDownloadStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
         .validateDownloadedChapter(comicId, chapterId, { validateContentHash: false })
       return validation.manifest !== undefined &&
         validation.availablePageCount > 0 &&
@@ -1201,7 +1207,7 @@ struct Index {
     // Finished downloads own their local bytes and labels even after unfavoriting.
     // A detached Reader snapshot must never re-add the work to the bookshelf.
     const context = getContext(this) as common.UIAbilityContext
-    const validation = new OfflineDownloadStore(context.filesDir)
+    const validation = new OfflineDownloadStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
       .validateDownloadedChapter(comicId, chapterId, { validateContentHash: false })
     const manifest = validation.manifest
     if (manifest === undefined || validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED) {
@@ -1630,7 +1636,7 @@ struct Index {
       if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
         return undefined
       }
-      const store = new OfflineDownloadStore(context.filesDir)
+      const store = new OfflineDownloadStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
       const validation = store.validateDownloadedChapter(comic.id, chapterId, { validateContentHash: false })
       const hasReaderReadyPages = validation.availablePageCount > 0 &&
         (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
@@ -2560,8 +2566,12 @@ struct Index {
       void new ReaderPreferencesStore(context).copyBannerOverride(comicId, '', true).catch((): void => {
         DiagnosticLogger.warn('index', 'banner_choice_cleanup_failed', '[library-remove] banner_choice_cleanup_failed')
       })
-      void OfflineDownloadService.ensureQueueInitialized(context.filesDir)
-        .then((): Promise<number> => new OfflineDownloadQueueStore(context.filesDir).deleteComicDownloads(comicId))
+      void ensureKomaContentStorageBase(context)
+        .then(async (storageBase: string): Promise<number> => {
+          const runtimeKey = komaRuntimeStorageKey(context)
+          await OfflineDownloadService.ensureQueueInitialized(storageBase, runtimeKey)
+          return new OfflineDownloadQueueStore(storageBase, runtimeKey).deleteComicDownloads(comicId)
+        })
         .then((removedCount: number) => {
           console.info(`[library-remove] downloads_cleanup removed=${removedCount}`)
         })
@@ -2665,6 +2675,7 @@ struct Index {
     })
     RouterHelper.consumePendingLaunchRoute()
     const context = getContext(this) as common.UIAbilityContext
+    this.retryPublicContentStorage(0)
     if (!this.readerSessionPersistenceReady) {
       this.reloadReaderSessionStore('app_appear')
     }
@@ -2725,6 +2736,28 @@ struct Index {
         this.triggerPendingTrackerProgressSync(context)
       }, 250)
     }
+  }
+
+  /** The DOWNLOAD picker needs a foreground UI ability; retry after the first page is present. */
+  private retryPublicContentStorage(attempt: number): void {
+    setTimeout(() => {
+      const hostContext = this.getUIContext().getHostContext() as common.UIAbilityContext
+      void ensureKomaContentStorageBase(hostContext).then((storageBase: string) => {
+        if (storageBase !== hostContext.filesDir) {
+          DiagnosticLogger.info('storage', 'content_storage_activated', 'root=public')
+          void new BackupService(hostContext).ensureDefaultAutomaticBackupDirectory(komaContentStorageUri())
+            .catch((error: Error): void => {
+              DiagnosticLogger.exception('backup', 'automatic_default_directory_failed', error)
+            })
+          this.refreshLibrarySnapshot()
+          this.readerProgressRevision += 1
+          return
+        }
+        if (attempt < 2) this.retryPublicContentStorage(attempt + 1)
+      }).catch((error: Error): void => {
+        DiagnosticLogger.exception('storage', 'content_storage_retry_failed', error)
+      })
+    }, attempt === 0 ? 800 : 2500)
   }
 
   private catalogUpdateCount(): number {

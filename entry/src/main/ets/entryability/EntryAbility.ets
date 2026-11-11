@@ -40,6 +40,8 @@ import { TRACKER_APP_CALLBACK_URI } from '../model/TrackerModels'
 import { TrackerOAuthCompletionService } from '../model/TrackerOAuthCompletionService'
 import { connectTrackerBrowserAuthorization } from '../state/TrackerBrowserAuthorizationState'
 import { automationEpoch, finishAutomationRestore, resetGeneratedAutomationWork } from '../model/AutomationStateEpoch'
+import { komaContentStorageUri, prepareKomaContentStorage, waitKomaContentStorageReady } from '../model/KomaContentStorage'
+import { BackupService } from '../model/BackupService'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
 const ENTRY_PAGE: string = 'pages/Index'
@@ -160,7 +162,15 @@ export default class EntryAbility extends UIAbility {
       DiagnosticLogger.error('app', 'configure_window_failed', '[EntryAbility] step=configure_window_failed code=window_configure_failed')
     }
 
-    void this.startupPromise.then((): void => {
+    void this.startupPromise.then(async (): Promise<void> => {
+      if (!this.startupReady) return
+      try {
+        await prepareKomaContentStorage(this.context)
+        await waitKomaContentStorageReady()
+        await new BackupService(this.context).ensureDefaultAutomaticBackupDirectory(komaContentStorageUri())
+      } catch (error) {
+        DiagnosticLogger.exception('backup', 'automatic_default_directory_failed', error as Error)
+      }
       if (!this.startupReady) return
       windowStage.loadContent(ENTRY_PAGE, (err) => {
         if (err.code) {

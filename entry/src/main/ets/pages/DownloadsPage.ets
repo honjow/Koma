@@ -27,6 +27,11 @@ import {
   OfflineDownloadQueueStore,
   summarizeOfflineDownloadQueue,
 } from '../model/OfflineDownloadQueueStore'
+import {
+  ensureKomaContentStorageBase,
+  komaContentStorageBase,
+  komaRuntimeStorageKey,
+} from '../model/KomaContentStorage'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { RouterHelper } from '../common/RouterHelper'
@@ -77,12 +82,15 @@ export struct DownloadsPage {
   }
 
   private queueStore(): OfflineDownloadQueueStore {
-    return new OfflineDownloadQueueStore(this.context().filesDir)
+    const context = this.context()
+    return new OfflineDownloadQueueStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
   }
 
   private async initializeQueue(): Promise<void> {
     try {
-      await OfflineDownloadService.ensureQueueInitialized(this.context().filesDir)
+      const context = this.context()
+      const storageBase = await ensureKomaContentStorageBase(context)
+      await OfflineDownloadService.ensureQueueInitialized(storageBase, komaRuntimeStorageKey(context))
       if (this.queueVisible) {
         this.loadQueue()
       }
@@ -455,7 +463,8 @@ export struct DownloadsPage {
 
   private hasReadableDownloadedManifest(entry: OfflineDownloadQueueEntry): boolean {
     try {
-      const validation = new OfflineDownloadStore(this.context().filesDir)
+      const context = this.context()
+      const validation = new OfflineDownloadStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
         .validateDownloadedChapter(entry.comicId, entry.chapterId, { validateContentHash: false })
       return validation.manifest !== undefined &&
         validation.availablePageCount > 0 &&
@@ -589,6 +598,8 @@ export struct DownloadsPage {
       queue.startStagedWork()
       this.preferences = queue.resumeAllQueuedWork()
       this.loadQueue()
+      // Resume is a structural queue change; wake the automatic execution owner.
+      OfflineDownloadRuntime.publish(this.context().filesDir)
     } catch (error) {
       DiagnosticLogger.exception('downloads_page', 'queue_resume_failed', error as Error)
       this.showToast(s('downloads_toast_resume_failed'))

@@ -3,6 +3,7 @@ import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
+import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from './KomaContentStorage'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 import { restoreReaderRemoteImageCache } from './ReaderPageSourceAdapter'
 import { invalidateLibraryAutomationPolicyCache } from './LibraryAutomationPreferencesStore'
@@ -163,7 +164,8 @@ export async function exportApplicationSettings(context: common.UIAbilityContext
     snapshots.push({ name, values: JSON.parse(JSON.stringify(values)) as Record<string, ApplicationSettingValue>,
       clearedKeys: fields.filter((key: string): boolean => values[key] === undefined) })
   }
-  const download = new OfflineDownloadQueueStore(context.filesDir).loadPreferences()
+  const storageBase = await ensureKomaContentStorageBase(context)
+  const download = new OfflineDownloadQueueStore(storageBase, komaRuntimeStorageKey(context)).loadPreferences()
   const result: ApplicationSettingsBackup = {
     schemaVersion: 2,
     preferences: snapshots,
@@ -192,7 +194,8 @@ export async function importApplicationSettings(
     await store.flush()
   }
   if (document.downloadPreferences !== undefined) {
-    const store = new OfflineDownloadQueueStore(context.filesDir)
+    const storageBase = await ensureKomaContentStorageBase(context)
+    const store = new OfflineDownloadQueueStore(storageBase, komaRuntimeStorageKey(context))
     const current = store.loadPreferences()
     current.foregroundConcurrencyLimit = document.downloadPreferences.foregroundConcurrencyLimit
     current.wifiOnly = document.downloadPreferences.wifiOnly

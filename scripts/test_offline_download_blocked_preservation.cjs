@@ -4,17 +4,18 @@ const ts=require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/n
 const root=path.resolve(__dirname,'../entry/src/main/ets');
 const clean=s=>s.replace(/import[\s\S]*?from '[^']+'\n/g,'');
 function run(s,g){const e={};new Function('exports',...Object.keys(g),ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText)(e,...Object.values(g));return e;}
-const io={accessSync:fs.existsSync,mkdirSync:(p)=>fs.mkdirSync(p,{recursive:true}),OpenMode:{READ_ONLY:0,WRITE_ONLY:1,CREATE:2,TRUNC:4},openSync:(p,m)=>({fd:fs.openSync(p,m?'w':'r')}),closeSync:f=>fs.closeSync(f.fd),writeSync:(fd,v)=>fs.writeSync(fd,typeof v==='string'?v:Buffer.from(v)),readTextSync:p=>fs.readFileSync(p,'utf8'),fsyncSync:fs.fsyncSync,renameSync:fs.renameSync,unlinkSync:fs.unlinkSync,statSync:fs.statSync,readSync:(fd,a)=>fs.readSync(fd,Buffer.from(a),0,a.byteLength,null)};
+const io={accessSync:fs.existsSync,mkdirSync:(p)=>fs.mkdirSync(p,{recursive:true}),OpenMode:{READ_ONLY:0,WRITE_ONLY:1,CREATE:2,TRUNC:4},openSync:(p,m)=>({fd:fs.openSync(p,m?'w':'r')}),closeSync:f=>fs.closeSync(f.fd),writeSync:(fd,v)=>fs.writeSync(fd,typeof v==='string'?v:Buffer.from(v)),readTextSync:p=>fs.readFileSync(p,'utf8'),fsyncSync:fs.fsyncSync,renameSync:fs.renameSync,unlinkSync:fs.unlinkSync,statSync:fs.statSync,listFileSync:p=>fs.readdirSync(p),readSync:(fd,a)=>fs.readSync(fd,Buffer.from(a),0,a.byteLength,null)};
 const models=run(clean(fs.readFileSync(root+'/model/ComicModels.ets','utf8')),{});
 const storeCode=fs.readFileSync(root+'/model/OfflineDownloadStore.ets','utf8');
 const persistence=run(clean(fs.readFileSync(root+'/model/AppFileTextPersistence.ets','utf8')),{fs:io});
-const storeExports=run(clean(storeCode),{fs:io,ComicSourceKind:models.ComicSourceKind,...persistence});
+const directoryIndex=run(clean(fs.readFileSync(root+'/model/DownloadDirectoryIndex.ets','utf8')),{fs:io});
+const storeExports=run(clean(storeCode),{fs:io,ComicSourceKind:models.ComicSourceKind,...directoryIndex,...persistence});
 const serviceCode=fs.readFileSync(root+'/model/OfflineDownloadService.ets','utf8');
 const tree=ts.createSourceFile('Service.ts',serviceCode,ts.ScriptTarget.Latest,true);
-const helpers=tree.statements.filter(n=>ts.isFunctionDeclaration(n)&&['publicSourceWorkUri','manifestIdentityFromComic','manifestLabelsFromDownload','applyManifestLabels'].includes(n.name?.getText(tree))).map(n=>n.getText(tree)).join('\n');
+const helpers=tree.statements.filter(n=>ts.isFunctionDeclaration(n)&&['publicSourceWorkUri','manifestIdentityFromComic','manifestSourceNameFromComic','manifestLabelsFromDownload','applyManifestLabels'].includes(n.name?.getText(tree))).map(n=>n.getText(tree)).join('\n');
 const cls=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name.getText(tree)==='OfflineDownloadService');
 const method=cls.members.find(n=>n.name?.getText(tree)==='saveBlockedChapter').getText(tree);
-const {Subject}=run(helpers+'\nexport class Subject { '+method+' }',storeExports);
+const {Subject}=run(helpers+'\nexport class Subject { '+method+' }',{...storeExports,sourceDisplayName:(_id,fallback)=>fallback});
 let results=[];
 for(const kind of ['partial','downloaded','empty','new']){
  for(const reason of ['source_pages_failed','source_disabled','source_not_installed']){

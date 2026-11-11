@@ -28,15 +28,17 @@ export class LibraryBatchDownloadQueue {
   private readonly queue: OfflineDownloadQueueStore
   private readonly downloads: OfflineDownloadStore
   private readonly filesDir: string
+  private readonly runtimeKeyValue: string
   private readonly library: LibraryStore
   private readonly reader: ReaderSessionStore
 
-  constructor(filesDir: string, library: LibraryStore, reader: ReaderSessionStore) {
+  constructor(filesDir: string, library: LibraryStore, reader: ReaderSessionStore, runtimeKey?: string) {
     this.filesDir = filesDir
+    this.runtimeKeyValue = runtimeKey ?? filesDir
     this.library = library
     this.reader = reader
-    this.queue = new OfflineDownloadQueueStore(filesDir)
-    this.downloads = new OfflineDownloadStore(filesDir)
+    this.queue = new OfflineDownloadQueueStore(filesDir, this.runtimeKeyValue)
+    this.downloads = new OfflineDownloadStore(filesDir, this.runtimeKeyValue)
   }
 
   private isRemoteComic(comic: Comic): boolean {
@@ -55,7 +57,7 @@ export class LibraryBatchDownloadQueue {
     if (manifest !== undefined) {
       return manifest.status
     }
-    return OfflineDownloadRuntime.isActive(this.filesDir, comicId, chapterId) ? OfflineDownloadStatus.DOWNLOADING : undefined
+    return OfflineDownloadRuntime.isActive(this.runtimeKeyValue, comicId, chapterId) ? OfflineDownloadStatus.DOWNLOADING : undefined
   }
 
   prepare(comicIds: ComicId[], unreadOnly: boolean): LibraryBatchDownloadPlan {
@@ -98,7 +100,7 @@ export class LibraryBatchDownloadQueue {
       comicId: target.comicId, chapterId: target.chapterId, comicTitle: target.comicTitle,
       chapterTitle: target.chapterTitle, pageCount: target.pageCount,
     }))
-    await OfflineDownloadService.ensureQueueInitialized(this.filesDir)
+    await OfflineDownloadService.ensureQueueInitialized(this.filesDir, this.runtimeKeyValue)
     const entries = this.queue.load()
     const additions: OfflineDownloadQueueEntry[] = []
     for (const target of snapshot) {

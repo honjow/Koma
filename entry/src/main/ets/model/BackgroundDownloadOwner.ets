@@ -5,6 +5,7 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { AppStrings } from '../i18n/AppStrings'
 import { createOfflineDownloadWantAgent } from './OfflineDownloadNotificationStore'
 import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
+import { komaContentStorageBase, komaRuntimeStorageKey } from './KomaContentStorage'
 
 /** One data-transfer task owns all native download callers and their shared concurrency slots. */
 export class BackgroundDownloadOwner {
@@ -33,7 +34,10 @@ export class BackgroundDownloadOwner {
           const task = BackgroundDownloadOwner.notification
           if (task === undefined || (task.continuousTaskId !== undefined && info.id !== task.continuousTaskId)) return
           BackgroundDownloadOwner.notification = undefined
-          try { new OfflineDownloadQueueStore(context.filesDir).pauseAllQueuedWork() }
+          try {
+            new OfflineDownloadQueueStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
+              .pauseAllQueuedWork()
+          }
           catch (error) { DiagnosticLogger.exception('downloads', 'background_cancel_pause_failed', error as Error) }
         }
         BackgroundDownloadOwner.cancel = cancel

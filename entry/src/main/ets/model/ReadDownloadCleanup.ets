@@ -9,6 +9,7 @@ import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { writeAppTextFile } from './AppFileTextPersistence'
+import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from './KomaContentStorage'
 
 interface ReadCleanupCandidate { comicId: string; chapterId: string }
 
@@ -54,13 +55,15 @@ export class ReadDownloadCleanup {
     const run = BackupRestoreActivity.runWrite(async (): Promise<void> => {
       await this.observations
       const policy = await new LibraryAutomationPreferencesStore(context).load()
-      const queue = new OfflineDownloadQueueStore(this.filesDir)
+      const storageBase = await ensureKomaContentStorageBase(context)
+      const runtimeKey = komaRuntimeStorageKey(context)
+      const queue = new OfflineDownloadQueueStore(storageBase, runtimeKey)
       for (const candidate of this.candidates().slice()) {
         const comic = library.getComic(candidate.comicId)
         const ids = comic === undefined ? [] : chaptersToRemoveAfterReading(comic, candidate.chapterId, reader, policy)
         let active = false
         for (const chapterId of ids) {
-          if (OfflineDownloadRuntime.isActive(this.filesDir, candidate.comicId, chapterId)) { active = true; continue }
+          if (OfflineDownloadRuntime.isActive(runtimeKey, candidate.comicId, chapterId)) { active = true; continue }
           await queue.deleteChapterDownload(candidate.comicId, chapterId)
         }
         if (active) continue

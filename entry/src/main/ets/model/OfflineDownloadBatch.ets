@@ -11,6 +11,7 @@ import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
 import { runOrderedDownloadQueueBatch } from './OfflineDownloadQueueExecution'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from './KomaContentStorage'
 
 export interface OfflineDownloadBatchRequest {
   context: common.UIAbilityContext
@@ -30,18 +31,21 @@ export function recoverableDownloadEntry(entry: OfflineDownloadQueueEntry): bool
 async function runOfflineDownloadBatch(
   request: OfflineDownloadBatchRequest, targets: OfflineDownloadQueueEntry[],
 ): Promise<number> {
-  const queue = new OfflineDownloadQueueStore(request.context.filesDir)
+  const storageBase = await ensureKomaContentStorageBase(request.context)
+  const runtimeKey = komaRuntimeStorageKey(request.context)
+  const queue = new OfflineDownloadQueueStore(storageBase, runtimeKey)
   if (targets.length === 0 || !canRunOfflineDownloadQueueNow(queue.loadPreferences())) return 0
-  return BackgroundDownloadOwner.run(request.context, () => executeBatch(request, targets))
+  return BackgroundDownloadOwner.run(request.context, () => executeBatch(request, targets, storageBase, runtimeKey))
 }
 
-async function executeBatch(request: OfflineDownloadBatchRequest, targets: OfflineDownloadQueueEntry[]): Promise<number> {
-  const queue = new OfflineDownloadQueueStore(request.context.filesDir)
-  await OfflineDownloadService.ensureQueueInitialized(request.context.filesDir)
-  const service = new OfflineDownloadService(new OfflineDownloadStore(request.context.filesDir), queue, request.context)
+async function executeBatch(request: OfflineDownloadBatchRequest, targets: OfflineDownloadQueueEntry[],
+  storageBase: string, runtimeKey: string): Promise<number> {
+  const queue = new OfflineDownloadQueueStore(storageBase, runtimeKey)
+  await OfflineDownloadService.ensureQueueInitialized(storageBase, runtimeKey)
+  const service = new OfflineDownloadService(new OfflineDownloadStore(storageBase, runtimeKey), queue, request.context)
   let completed = 0
   await runOrderedDownloadQueueBatch(queue, targets, async (entry: OfflineDownloadQueueEntry): Promise<void> => {
-      const isPending = (): boolean => !OfflineDownloadRuntime.isRemovingChapter(request.context.filesDir,
+      const isPending = (): boolean => !OfflineDownloadRuntime.isRemovingChapter(runtimeKey,
         entry.comicId, entry.chapterId) && queue.load().some((current: OfflineDownloadQueueEntry): boolean =>
           current.comicId === entry.comicId && current.chapterId === entry.chapterId &&
           current.status !== OfflineDownloadStatus.DOWNLOADED)
@@ -100,7 +104,9 @@ export function resumeAutomaticDownloads(request: OfflineDownloadBatchRequest): 
   const active = automaticBatches.get(filesDir)
   if (active !== undefined) return active
   const pending = Promise.resolve().then(async (): Promise<void> => {
-    const queue = new OfflineDownloadQueueStore(filesDir)
+    const storageBase = await ensureKomaContentStorageBase(request.context)
+    const runtimeKey = komaRuntimeStorageKey(request.context)
+    const queue = new OfflineDownloadQueueStore(storageBase, runtimeKey)
     while (canRunOfflineDownloadQueueNow(queue.loadPreferences())) {
       // New requests resume when eligible. Previously staged records stay staged.
       const targets = queue.load().filter((entry: OfflineDownloadQueueEntry): boolean =>

@@ -15,6 +15,7 @@ import { resolveSourceChapterList } from './SourceChapterListResolver'
 import { fetchSourceMangaDetail } from './SourceMangaDetailRequest'
 import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
 import { protectedSourceChapterIds } from './SourceChapterIdentityGuard'
+import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from './KomaContentStorage'
 import { mergeSourceChapters } from './LibraryUpdateService'
 import { canMigrateLibraryComic, MangaMigrationOptions, migrationCategoryIds,
   planMangaMigrationReadState } from './SourceMangaMigration'
@@ -109,10 +110,11 @@ export async function commitMangaMigration(
     const existing = library.listComics().find((comic: Comic): boolean =>
       comic.sourceRuntimeId === prepared.manga.sourceId && comic.remoteResourceId === prepared.manga.id)
     const target = JSON.parse(JSON.stringify(prepared.comic)) as Comic
+    const storageBase = await ensureKomaContentStorageBase(context)
     if (existing !== undefined) {
       const policy = prepared.entry.websitePolicy?.chapterIdentity
       const identity = reconcileSourceChapterIdentity(existing, prepared.manga.id, prepared.chapters,
-        protectedSourceChapterIds(existing, context.filesDir, reader, policy), policy)
+        protectedSourceChapterIds(existing, storageBase, reader, policy, komaRuntimeStorageKey(context)), policy)
       const retained = JSON.parse(JSON.stringify(existing)) as Comic
       retained.chapters = identity.storedChapters
       target.id = existing.id

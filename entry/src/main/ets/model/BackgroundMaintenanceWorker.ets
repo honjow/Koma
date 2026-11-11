@@ -18,6 +18,7 @@ import { LibraryUpdateService, summarizeResults } from './LibraryUpdateService'
 import { publishLibraryUpdateNotification } from './LibraryUpdateResultStore'
 import { writeAutomaticBackupToDirectory } from './BackupAutomaticDirectory'
 import { writeAppTextFile } from './AppFileTextPersistence'
+import { ensureKomaBackgroundContentStorageBase } from './KomaContentStorage'
 import { RemoteServerStore, KomgaServerRecord, KavitaServerRecord, WebDavServerRecord, OpdsServerRecord } from './RemoteServerStore'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { exportInstalledSourcePackages } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -51,6 +52,7 @@ export async function executeBackgroundMaintenance(context: common.Context, work
     DiagnosticLogger.warn('maintenance', 'configuration_missing', 'files_dir=' + context.filesDir)
     return
   }
+  const contentBase = await ensureKomaBackgroundContentStorageBase(context)
   const processes = await appManager.getRunningProcessInformation()
   if (processes.some((process: appManager.ProcessInformation): boolean => process.processName === KOMA_BUNDLE_NAME &&
     (process.state === appManager.ProcessState.STATE_FOREGROUND || process.state === appManager.ProcessState.STATE_ACTIVE))) {
@@ -70,7 +72,7 @@ export async function executeBackgroundMaintenance(context: common.Context, work
     // after background entry (in-flight updates/downloads) from their atomic persisted documents.
     const libraryPath = `${context.filesDir}/${LIBRARY_STORE_PERSISTENCE_FILE_NAME}`
     const progressPath = `${context.filesDir}/${READER_PROGRESS_PERSISTENCE_FILE_NAME}`
-    const queuePath = `${context.filesDir}/${OFFLINE_DOWNLOAD_ROOT_DIR_NAME}/${OFFLINE_DOWNLOAD_QUEUE_FILE_NAME}`
+    const queuePath = `${contentBase}/${OFFLINE_DOWNLOAD_ROOT_DIR_NAME}/${OFFLINE_DOWNLOAD_QUEUE_FILE_NAME}`
     if (await fs.access(libraryPath)) document['libraryStore'] = await fs.readText(libraryPath)
     if (await fs.access(progressPath)) document['readingProgress'] = await fs.readText(progressPath)
     if (document['downloadQueue'] !== undefined && await fs.access(queuePath)) document['downloadQueue'] = await fs.readText(queuePath)
@@ -109,8 +111,8 @@ export async function executeBackgroundMaintenance(context: common.Context, work
   hydrateLibraryStoreFromJson(library, await fs.readText(libraryPath))
   const reader = appReaderSessionStore(context.filesDir)
   const service = new LibraryUpdateService(library, registry, undefined, new SnapshotRemoteServerStore(context, config.servers),
-    (comic: Comic): Set<string> | undefined => protectedSourceChapterIds(comic, context.filesDir, reader,
-      registry.lookup(comic.sourceRuntimeId ?? '').entry?.websitePolicy?.chapterIdentity),
+    (comic: Comic): Set<string> | undefined => protectedSourceChapterIds(comic, contentBase, reader,
+      registry.lookup(comic.sourceRuntimeId ?? '').entry?.websitePolicy?.chapterIdentity, context.filesDir),
     (comic: Comic): boolean => shouldAutomaticallyUpdateComic(comic, reader, config.policy),
     config.policy.refreshWorkInfo === true)
   const cursorPath = `${context.filesDir}/${UPDATE_CURSOR}`

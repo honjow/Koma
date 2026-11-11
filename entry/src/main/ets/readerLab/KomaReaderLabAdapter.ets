@@ -25,6 +25,7 @@ import { activateLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAcc
 import { AppFilesLibraryStorePersistenceAdapter, hydrateLibraryStoreFromJson } from '../model/LibraryPersistence'
 import { ReaderSessionConfig, cloneReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { OfflineDownloadStore } from '../model/OfflineDownloadStore'
+import { komaContentStorageBase, komaRuntimeStorageKey } from '../model/KomaContentStorage'
 import { createKomaReaderLabOfflineConfig } from './KomaReaderLabOfflineConfig'
 import { KomaReaderLabThumbnailProvider } from './KomaReaderLabThumbnailProvider'
 import { KomaReaderCatalogHost } from './KomaReaderCatalogHost'
@@ -156,6 +157,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   }
   private requestContext?: common.UIAbilityContext
   private filesDir: string
+  private offlineStorageBase: string
+  private runtimeKey: string
   private thumbnails: KomaReaderLabThumbnailProvider
   private catalogHost: KomaReaderCatalogHost | null
 
@@ -174,11 +177,13 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     this.remotePreloadAllowed = remotePreloadAllowed
     this.requestContext = requestContext
     this.filesDir = filesDir
+    this.offlineStorageBase = requestContext === undefined ? filesDir : komaContentStorageBase(requestContext)
+    this.runtimeKey = requestContext === undefined ? filesDir : komaRuntimeStorageKey(requestContext)
     this.thumbnails = new KomaReaderLabThumbnailProvider(cacheDir)
     this.catalogHost = catalogHost
     const payload = new AppFilesLibraryStorePersistenceAdapter(filesDir).load()
     if (payload !== undefined) hydrateLibraryStoreFromJson(this.library, payload)
-    configureReaderOfflineDownloads(filesDir)
+    configureReaderOfflineDownloads(this.offlineStorageBase)
     if (cacheDir.length > 0) configureReaderRemoteImageCache(cacheDir)
   }
 
@@ -262,7 +267,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     let config = createReaderSessionConfigFromComic(comic, key.unit)
     if (config.totalPages <= 0 && config.chapterId.length > 0) {
       try {
-        const validation = new OfflineDownloadStore(this.filesDir).validateDownloadedChapter(
+        const validation = new OfflineDownloadStore(this.offlineStorageBase, this.runtimeKey).validateDownloadedChapter(
           comic.id, key.unit, { validateContentHash: false })
         config = createKomaReaderLabOfflineConfig(config, validation)
       } catch (_error) {

@@ -285,15 +285,21 @@ function entryFromManifestValidation(validation: OfflineDownloadManifestValidati
 
 export class OfflineDownloadQueueStore {
   private readonly filesDir: string
+  private readonly runtimeKeyValue: string
   private readonly rootDir: string
   private readonly queuePath: string
   private lastProgressPersistedAt: number = 0
 
-  constructor(filesDir: string) {
+  constructor(filesDir: string, runtimeKey?: string) {
     this.filesDir = trimTrailingSlash(filesDir)
+    this.runtimeKeyValue = trimTrailingSlash(runtimeKey ?? filesDir)
     this.rootDir = joinPath(this.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME)
     this.queuePath = joinPath(this.rootDir, OFFLINE_DOWNLOAD_QUEUE_FILE_NAME)
     this.ensureRoot()
+  }
+
+  runtimeKey(): string {
+    return this.runtimeKeyValue
   }
 
   fromManifest(
@@ -324,6 +330,28 @@ export class OfflineDownloadQueueStore {
     return { entries: document.entries, preferences: normalizePreferences(document.preferences) }
   }
 
+  /** Merge the old sandbox queue without allowing an older legacy row to replace current progress. */
+  mergeFromLegacy(legacy: OfflineDownloadQueueStore): void {
+    const currentExists = fs.accessSync(this.queuePath)
+    const current = this.loadDocument()
+    const previous = legacy.loadDocument()
+    const entries = current.entries.slice()
+    previous.entries.forEach((entry: OfflineDownloadQueueEntry): void => {
+      const index = entries.findIndex((item: OfflineDownloadQueueEntry): boolean =>
+        item.comicId === entry.comicId && item.chapterId === entry.chapterId)
+      if (index < 0) {
+        entries.push(entry)
+      } else if (entry.updatedAt > entries[index].updatedAt) {
+        entries[index] = entry
+      }
+    })
+    this.saveDocument({
+      schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+      preferences: currentExists ? current.preferences : previous.preferences,
+      entries,
+    })
+  }
+
   loadReconciledSnapshot(): OfflineDownloadQueueEntry[] {
     // Library filtering only needs file availability; do not scan every image on the UI thread.
     return this.reconciledEntries(this.loadDocument(), false, { validateContentHash: false }).entries
@@ -344,10 +372,10 @@ export class OfflineDownloadQueueStore {
 
   private reconciledEntries(document: OfflineDownloadQueueDocument, persistManifestState: boolean,
     options?: OfflineDownloadValidationOptions): OfflineDownloadQueueReconcileResult {
-    const store = new OfflineDownloadStore(this.filesDir)
+    const store = new OfflineDownloadStore(this.filesDir, this.runtimeKeyValue)
     let changed = false
     const entries = document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => {
-      if (!shouldReconcileEntry(entry) || OfflineDownloadRuntime.isActive(this.filesDir, entry.comicId, entry.chapterId)) {
+      if (!shouldReconcileEntry(entry) || OfflineDownloadRuntime.isActive(this.runtimeKeyValue, entry.comicId, entry.chapterId)) {
         return entry
       }
       const validation = persistManifestState ?
@@ -390,7 +418,7 @@ export class OfflineDownloadQueueStore {
   }
 
   async recoverFromManifests(): Promise<OfflineDownloadQueueRecoverySummary> {
-    const store = new OfflineDownloadStore(this.filesDir)
+    const store = new OfflineDownloadStore(this.filesDir, this.runtimeKeyValue)
     const scan = await store.scanDownloadedChapterManifests()
     const document = this.loadDocument()
     const entries = document.entries.slice()
@@ -405,7 +433,7 @@ export class OfflineDownloadQueueStore {
     }
     let changed = false
     scan.validations.forEach((validation: OfflineDownloadManifestValidation) => {
-      if (OfflineDownloadRuntime.isActive(this.filesDir, validation.comicId, validation.chapterId)) {
+      if (OfflineDownloadRuntime.isActive(this.runtimeKeyValue, validation.comicId, validation.chapterId)) {
         summary.skippedCount += 1
         return
       }
@@ -502,7 +530,7 @@ export class OfflineDownloadQueueStore {
     const preferences = this.loadPreferences()
     preferences.isPaused = true
     const committed = this.savePreferences(preferences)
-    OfflineDownloadRuntime.requestPause(this.filesDir)
+    OfflineDownloadRuntime.requestPause(this.runtimeKeyValue)
     return committed
   }
 
@@ -643,8 +671,8 @@ export class OfflineDownloadQueueStore {
       const entry = entries.get(id)
       if (chapter === undefined || entry?.status === OfflineDownloadStatus.DOWNLOADED ||
         entry?.status === OfflineDownloadStatus.DOWNLOADING ||
-        OfflineDownloadRuntime.isActive(this.filesDir, comic.id, id) ||
-        OfflineDownloadRuntime.isRemovingChapter(this.filesDir, comic.id, id)) return
+        OfflineDownloadRuntime.isActive(this.runtimeKeyValue, comic.id, id) ||
+        OfflineDownloadRuntime.isRemovingChapter(this.runtimeKeyValue, comic.id, id)) return
       if (entry?.status === OfflineDownloadStatus.QUEUED && entry.automatic === true) return
       if (entry !== undefined) {
         entry.automatic = true
@@ -706,16 +734,16 @@ export class OfflineDownloadQueueStore {
   }
 
   async deleteChapterDownload(comicId: ComicId, chapterId: string): Promise<void> {
-    await OfflineDownloadRuntime.removeChapterDownload(this.filesDir, comicId, chapterId, async (): Promise<void> => {
-      const store = new OfflineDownloadStore(this.filesDir)
+    await OfflineDownloadRuntime.removeChapterDownload(this.runtimeKeyValue, comicId, chapterId, async (): Promise<void> => {
+      const store = new OfflineDownloadStore(this.filesDir, this.runtimeKeyValue)
       await store.deleteChapterDownload(comicId, chapterId)
       this.remove(comicId, chapterId)
     })
   }
 
   async deleteComicDownloads(comicId: ComicId): Promise<number> {
-    return OfflineDownloadRuntime.removeComicDownloads(this.filesDir, comicId, async (): Promise<number> => {
-      const store = new OfflineDownloadStore(this.filesDir)
+    return OfflineDownloadRuntime.removeComicDownloads(this.runtimeKeyValue, comicId, async (): Promise<number> => {
+      const store = new OfflineDownloadStore(this.filesDir, this.runtimeKeyValue)
       await store.deleteComicDownloads(comicId)
       return this.removeComic(comicId)
     })
@@ -730,9 +758,9 @@ export class OfflineDownloadQueueStore {
       entries: document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => normalizeEntry(entry)),
     }))
     if (progressOnly) {
-      OfflineDownloadRuntime.publishProgress(this.filesDir)
+      OfflineDownloadRuntime.publishProgress(this.runtimeKeyValue)
     } else {
-      OfflineDownloadRuntime.publish(this.filesDir)
+      OfflineDownloadRuntime.publish(this.runtimeKeyValue)
     }
   }
 

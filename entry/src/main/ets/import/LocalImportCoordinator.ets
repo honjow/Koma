@@ -3,6 +3,7 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs, fileUri, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
+import { ensureKomaContentStorageBase } from '../model/KomaContentStorage'
 import {
   ArchiveExtractionResult,
   ArchiveExtractionService,
@@ -93,6 +94,7 @@ export type LocalImageImportItemResult = LocalImageImportSucceededResult | Local
 export interface LocalArchiveImportRequest {
   context: common.UIAbilityContext
   sourceUri: string
+  storageBase?: string
   title?: string
   comicId?: string
   importedAt?: number
@@ -101,6 +103,7 @@ export interface LocalArchiveImportRequest {
 export interface LocalImageImportRequest {
   context: common.UIAbilityContext
   sourceUris: string[]
+  storageBase?: string
   title?: string
   comicId?: string
   importedAt?: number
@@ -426,7 +429,8 @@ export class LocalImportCoordinator {
 
   async preparePickedArchive(request: LocalArchiveImportRequest): Promise<LocalArchiveImportSelection> {
     assertSupportedPickedArchive(request.sourceUri)
-    const paths = createManagedImportPaths(request.context.filesDir)
+    const storageBase = request.storageBase ?? request.context.filesDir
+    const paths = createManagedImportPaths(storageBase)
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_CACHE_PATHS,
       sourceUri: request.sourceUri,
@@ -434,7 +438,7 @@ export class LocalImportCoordinator {
       cacheRootDir: paths.rootDir,
       extractionDir: paths.extractionDir,
     })
-    await createManagedImportRoot(request.context.filesDir, paths.rootDir)
+    await createManagedImportRoot(storageBase, paths.rootDir)
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_COPY_STARTED,
       sourceUri: request.sourceUri,
@@ -536,6 +540,7 @@ export class LocalImportCoordinator {
       step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_STARTED,
     })
     const uris = await pickArchiveUris(context, maxSelectNumber)
+    const storageBase = await ensureKomaContentStorageBase(context)
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_RETURNED,
       uriCount: uris.length,
@@ -550,6 +555,7 @@ export class LocalImportCoordinator {
         results.push(await this.importPickedArchive({
           context,
           sourceUri: uri,
+          storageBase,
         }))
       } catch (error) {
         results.push({
@@ -564,7 +570,8 @@ export class LocalImportCoordinator {
 
   async preparePickedImages(request: LocalImageImportRequest): Promise<LocalImageImportSelection> {
     const supportedSourceUris = request.sourceUris.filter((sourceUri: string) => isSupportedImagePath(sourceUri))
-    const paths = createManagedImportPaths(request.context.filesDir)
+    const storageBase = request.storageBase ?? request.context.filesDir
+    const paths = createManagedImportPaths(storageBase)
     const selection: LocalImageImportSelection = {
       sourceUris: request.sourceUris,
       copiedImages: [],
@@ -577,7 +584,7 @@ export class LocalImportCoordinator {
       cacheRootDir: selection.cacheRootDir,
       extractionDir: selection.extractionDir,
     })
-    await createManagedImportRoot(request.context.filesDir, selection.cacheRootDir)
+    await createManagedImportRoot(storageBase, selection.cacheRootDir)
     await fs.mkdir(selection.extractionDir, false)
 
     const usedFileNames = new Set<string>()
@@ -682,9 +689,11 @@ export class LocalImportCoordinator {
       return []
     }
     try {
+      const storageBase = await ensureKomaContentStorageBase(context)
       return [await this.importPickedImages({
         context,
         sourceUris: uris,
+        storageBase,
       })]
     } catch (error) {
       return [{

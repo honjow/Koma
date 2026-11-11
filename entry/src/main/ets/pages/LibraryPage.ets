@@ -72,6 +72,11 @@ import { OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
 import { TrackerPreferencesStore, ComicTrackerMapping } from '../model/TrackerModels'
 import { LibrarySmartCategory, comicMatchesSmartCategory } from '../model/LibrarySmartCategory'
 import { LibraryBatchDownloadPlan, LibraryBatchDownloadQueue } from '../model/LibraryBatchDownloadQueue'
+import {
+  ensureKomaContentStorageBase,
+  komaContentStorageBase,
+  komaRuntimeStorageKey,
+} from '../model/KomaContentStorage'
 import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import {
   isRemovableLocalComic,
@@ -345,9 +350,9 @@ export struct LibraryPage {
       this.titleMenuItem(s('common_remove'), $r('sys.symbol.trash'),
         () => { this.showBatchRemoveConfirmation() }, this.selectedRemovableCount() > 0),
       this.titleMenuItem(s('library_download_unread'), $r('sys.symbol.arrow_down_to_line'),
-        () => { this.confirmSelectedComicsDownload(true) }, this.selectedCount() > 0 && !this.batchDownloadBusy),
+        () => { void this.confirmSelectedComicsDownload(true) }, this.selectedCount() > 0 && !this.batchDownloadBusy),
       this.titleMenuItem(s('library_download_all'), $r('sys.symbol.arrow_down_to_line'),
-        () => { this.confirmSelectedComicsDownload(false) }, this.selectedCount() > 0 && !this.batchDownloadBusy),
+        () => { void this.confirmSelectedComicsDownload(false) }, this.selectedCount() > 0 && !this.batchDownloadBusy),
     ] : [
       this.titleMenuItem(s('tab_search'), $r('sys.symbol.magnifyingglass'),
         () => { this.onSearchRequested() }),
@@ -502,7 +507,7 @@ export struct LibraryPage {
       const context = getContext(this) as common.UIAbilityContext
       // Startup reconciliation already validates manifests off the UI thread. Filtering uses the
       // durable queue projection instead of restating every downloaded manifest while the shelf moves.
-      const entries = new OfflineDownloadQueueStore(context.filesDir).load()
+      const entries = new OfflineDownloadQueueStore(komaContentStorageBase(context), komaRuntimeStorageKey(context)).load()
       const entriesByComicId = new Map<ComicId, OfflineDownloadQueueEntry[]>()
       entries.forEach((entry: OfflineDownloadQueueEntry) => {
         if (entry.status !== OfflineDownloadStatus.DOWNLOADED) {
@@ -1560,13 +1565,16 @@ export struct LibraryPage {
     return lines.join('\n\n')
   }
 
-  private confirmSelectedComicsDownload(unreadOnly: boolean): void {
+  private async confirmSelectedComicsDownload(unreadOnly: boolean): Promise<void> {
     if (this.batchDownloadBusy || this.selectedIds.size === 0) {
       return
     }
+    this.batchDownloadBusy = true
     try {
       const context = getContext(this) as common.UIAbilityContext
-      const queue = new LibraryBatchDownloadQueue(context.filesDir, this.libraryStore, this.readerSessionStore)
+      const storageBase = await ensureKomaContentStorageBase(context)
+      const queue = new LibraryBatchDownloadQueue(storageBase, this.libraryStore, this.readerSessionStore,
+        komaRuntimeStorageKey(context))
       const plan = queue.prepare(Array.from(this.selectedIds), unreadOnly)
       const title = s(unreadOnly ? 'library_download_unread' : 'library_download_all')
       const message = this.batchDownloadMessage(plan)
@@ -1587,6 +1595,8 @@ export struct LibraryPage {
       })
     } catch (_error) {
       this.showToast(s('library_download_enqueue_failed'))
+    } finally {
+      this.batchDownloadBusy = false
     }
   }
 

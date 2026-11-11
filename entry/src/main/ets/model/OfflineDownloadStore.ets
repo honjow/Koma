@@ -7,6 +7,18 @@ import {
   ComicSourceKind,
   PageId,
 } from './ComicModels'
+import {
+  DownloadChapterIndexEntry,
+  DownloadComicIndexEntry,
+  DownloadDirectoryIndexFile,
+  DOWNLOAD_METADATA_DIR_NAME,
+  downloadManifestPath,
+  downloadPageFileName,
+  ensureDownloadDirectory,
+  legacyDownloadManifestPath,
+  loadOrScanDownloadDirectoryIndex,
+  saveDownloadDirectoryIndex,
+} from './DownloadDirectoryIndex'
 
 export const OFFLINE_DOWNLOAD_SCHEMA_VERSION: number = 1
 export const OFFLINE_DOWNLOAD_ROOT_DIR_NAME: string = 'downloads'
@@ -69,6 +81,7 @@ export interface OfflineChapterDownloadManifest {
   schemaVersion: number
   sourceKind?: ComicSourceKind
   sourceId?: string
+  sourceName?: string
   sourceMangaUrl?: string
   comicId: ComicId
   comicTitle?: string
@@ -104,6 +117,7 @@ export interface OfflineChapterManifestIdentity {
 export interface OfflineChapterManifestLabels {
   comicTitle?: string
   chapterTitle?: string
+  sourceName?: string
 }
 
 export interface OfflineDownloadManifestValidation {
@@ -260,6 +274,7 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
       parsed.sourceKind !== ComicSourceKind.OPDS_REMOTE &&
       parsed.sourceKind !== ComicSourceKind.WEBDAV_REMOTE) ||
     (parsed.sourceId !== undefined && typeof parsed.sourceId !== 'string') ||
+    (parsed.sourceName !== undefined && typeof parsed.sourceName !== 'string') ||
     (parsed.sourceMangaUrl !== undefined && typeof parsed.sourceMangaUrl !== 'string') ||
     typeof parsed.comicId !== 'string' ||
     (parsed.comicTitle !== undefined && typeof parsed.comicTitle !== 'string') ||
@@ -342,47 +357,60 @@ function matchesDownloadedPage(page: OfflineDownloadedPage, pageId: string, page
 export class OfflineDownloadStore {
   private readonly filesDir: string
   private readonly rootDir: string
+  private readonly runtimeKeyValue: string
+  private directoryIndex: DownloadDirectoryIndexFile
 
-  constructor(filesDir: string) {
+  constructor(filesDir: string, runtimeKey?: string) {
     this.filesDir = trimTrailingSlash(filesDir)
     this.rootDir = joinOfflineDownloadPath(this.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME)
+    this.runtimeKeyValue = trimTrailingSlash(runtimeKey ?? filesDir)
     this.ensureRoot()
+    this.directoryIndex = loadOrScanDownloadDirectoryIndex(this.rootDir)
   }
 
   filesRootDir(): string {
     return this.filesDir
   }
 
+  runtimeKey(): string {
+    return this.runtimeKeyValue
+  }
+
   chapterDir(comicId: ComicId, chapterId: string): string {
+    const indexed = this.directoryIndex.comics[comicId]?.chapters[chapterId]?.directory
     const path = joinOfflineDownloadPath(
       this.comicDir(comicId),
-      createOfflineDownloadStableHash(chapterId)
+      indexed ?? createOfflineDownloadStableHash(chapterId)
     )
     assertSafeOfflineDownloadRoot(this.filesDir, path)
     return path
   }
 
   comicDir(comicId: ComicId): string {
-    const path = joinOfflineDownloadPath(this.rootDir, createOfflineDownloadStableHash(comicId))
+    const indexed = this.directoryIndex.comics[comicId]
+    const path = joinOfflineDownloadPath(this.rootDir,
+      indexed?.directory ?? createOfflineDownloadStableHash(comicId))
     assertSafeOfflineDownloadRoot(this.filesDir, path)
     return path
   }
 
   manifestPath(comicId: ComicId, chapterId: string): string {
-    return joinOfflineDownloadPath(this.chapterDir(comicId, chapterId), OFFLINE_DOWNLOAD_MANIFEST_NAME)
+    return downloadManifestPath(this.chapterDir(comicId, chapterId))
   }
 
   pageFilePath(comicId: ComicId, chapterId: string, pageId: string, pageIndex: number, extension: string): string {
-    const fileName = `${String(pageIndex + 1).padStart(5, '0')}-${createOfflineDownloadStableHash(pageId)}.${normalizeExtension(extension)}`
+    const fileName = downloadPageFileName(pageIndex, normalizeExtension(extension))
     const path = joinOfflineDownloadPath(this.chapterDir(comicId, chapterId), fileName)
     assertSafeOfflineDownloadRoot(this.filesDir, path)
     return path
   }
 
   loadManifest(comicId: ComicId, chapterId: string): OfflineChapterDownloadManifest | undefined {
-    const path = this.manifestPath(comicId, chapterId)
+    let path = this.manifestPath(comicId, chapterId)
     if (!fs.accessSync(path)) {
-      return undefined
+      const legacyPath = legacyDownloadManifestPath(this.chapterDir(comicId, chapterId))
+      if (!fs.accessSync(legacyPath)) return undefined
+      path = legacyPath
     }
     try {
       return safeParseManifest(fs.readTextSync(path, { encoding: 'utf-8' }))
@@ -675,6 +703,7 @@ export class OfflineDownloadStore {
         schemaVersion: manifest.schemaVersion,
         sourceKind: manifest.sourceKind,
         sourceId: manifest.sourceId,
+        sourceName: manifest.sourceName,
         comicId: manifest.comicId,
         comicTitle: manifest.comicTitle,
         seriesId: manifest.seriesId,
@@ -695,6 +724,7 @@ export class OfflineDownloadStore {
         schemaVersion: manifest.schemaVersion,
         sourceKind: manifest.sourceKind,
         sourceId: manifest.sourceId,
+        sourceName: manifest.sourceName,
         comicId: manifest.comicId,
         comicTitle: manifest.comicTitle,
         seriesId: manifest.seriesId,
@@ -733,11 +763,13 @@ export class OfflineDownloadStore {
         if (!fs.statSync(ownerPath).isDirectory()) continue
         const chapters = fs.listFileSync(ownerPath)
         for (const chapter of chapters) {
+          if (chapter.startsWith('.')) continue
           const chapterPath = joinOfflineDownloadPath(ownerPath, chapter)
           assertSafeOfflineDownloadRoot(this.filesDir, chapterPath)
           if (!fs.statSync(chapterPath).isDirectory()) continue
-          const path = joinOfflineDownloadPath(chapterPath, OFFLINE_DOWNLOAD_MANIFEST_NAME)
-          if (!fs.accessSync(path)) return undefined
+          let path = downloadManifestPath(chapterPath)
+          if (!fs.accessSync(path)) path = legacyDownloadManifestPath(chapterPath)
+          if (!fs.accessSync(path)) continue
           const manifest = safeParseManifest(fs.readTextSync(path, { encoding: 'utf-8' }))
           if (manifest.comicId === comicId) ids.push(manifest.chapterId)
         }
@@ -799,8 +831,12 @@ export class OfflineDownloadStore {
   }
 
   saveManifest(manifest: OfflineChapterDownloadManifest): OfflineChapterDownloadManifest {
-    const chapterDir = this.chapterDir(manifest.comicId, manifest.chapterId)
-    ensureDirSync(chapterDir)
+    const ensured = ensureDownloadDirectory(this.rootDir, this.directoryIndex, manifest.comicId,
+      manifest.chapterId, manifest.comicTitle ?? '', manifest.chapterTitle ?? '',
+      manifest.sourceId ?? '', manifest.sourceName ?? '')
+    this.directoryIndex = ensured.index
+    saveDownloadDirectoryIndex(this.rootDir, this.directoryIndex)
+    const chapterDir = ensured.chapterDir
     const pages = manifest.pages.slice().sort((left: OfflineDownloadedPage, right: OfflineDownloadedPage): number => {
       return left.pageIndex - right.pageIndex
     }).map((page: OfflineDownloadedPage): OfflineDownloadedPage => {
@@ -830,6 +866,7 @@ export class OfflineDownloadStore {
       schemaVersion: OFFLINE_DOWNLOAD_SCHEMA_VERSION,
       sourceKind: manifest.sourceKind,
       sourceId: manifest.sourceId,
+      sourceName: manifest.sourceName,
       sourceMangaUrl: manifest.sourceMangaUrl,
       comicId: manifest.comicId,
       comicTitle: normalizeOptionalManifestLabel(manifest.comicTitle),
@@ -845,7 +882,10 @@ export class OfflineDownloadStore {
       failureReasonCode: manifest.failureReasonCode,
     }
     normalized.integrityHash = createManifestIntegrityHash(normalized)
-    writeAppTextFile(this.manifestPath(manifest.comicId, manifest.chapterId), JSON.stringify(normalized))
+    ensureDirSync(joinOfflineDownloadPath(chapterDir, DOWNLOAD_METADATA_DIR_NAME))
+    writeAppTextFile(downloadManifestPath(chapterDir), JSON.stringify(normalized))
+    const legacyPath = legacyDownloadManifestPath(chapterDir)
+    try { if (fs.accessSync(legacyPath)) fs.unlinkSync(legacyPath) } catch (_error) {}
     return normalized
   }
 
@@ -861,6 +901,7 @@ export class OfflineDownloadStore {
       schemaVersion: OFFLINE_DOWNLOAD_SCHEMA_VERSION,
       sourceKind: identity?.sourceKind,
       sourceId: identity?.sourceId,
+      sourceName: labels?.sourceName,
       sourceMangaUrl: identity?.sourceMangaUrl,
       comicId,
       comicTitle: labels?.comicTitle,
@@ -893,6 +934,7 @@ export class OfflineDownloadStore {
       pages,
       sourceKind: manifest.sourceKind,
       sourceId: manifest.sourceId,
+      sourceName: manifest.sourceName,
       sourceMangaUrl: manifest.sourceMangaUrl,
       comicTitle: manifest.comicTitle,
       seriesId: manifest.seriesId,
@@ -928,12 +970,27 @@ export class OfflineDownloadStore {
     const chapterDir = this.chapterDir(comicId, chapterId)
     assertSafeOfflineDownloadRoot(this.filesDir, chapterDir)
     await this.deleteDownloadDir(chapterDir)
+    const comic = this.directoryIndex.comics[comicId]
+    if (comic !== undefined) {
+      const chapters: Record<string, DownloadChapterIndexEntry> = {}
+      Object.keys(comic.chapters).forEach((key: string) => {
+        if (key !== chapterId) chapters[key] = comic.chapters[key]
+      })
+      comic.chapters = chapters
+      saveDownloadDirectoryIndex(this.rootDir, this.directoryIndex)
+    }
   }
 
   async deleteComicDownloads(comicId: ComicId): Promise<void> {
     const comicDir = this.comicDir(comicId)
     assertSafeOfflineDownloadRoot(this.filesDir, comicDir)
     await this.deleteDownloadDir(comicDir)
+    const comics: Record<string, DownloadComicIndexEntry> = {}
+    Object.keys(this.directoryIndex.comics).forEach((key: string) => {
+      if (key !== comicId) comics[key] = this.directoryIndex.comics[key]
+    })
+    this.directoryIndex.comics = comics
+    saveDownloadDirectoryIndex(this.rootDir, this.directoryIndex)
   }
 
   private async deleteDownloadDir(targetDir: string): Promise<void> {

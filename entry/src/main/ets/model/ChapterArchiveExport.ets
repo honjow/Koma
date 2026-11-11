@@ -8,6 +8,7 @@ import { OfflineDownloadedChapterStatus, OfflineDownloadStore } from './OfflineD
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceTextOverlay } from './SourceTextOverlay'
 import { fetchAndCacheReaderRemoteSource, ReaderPageRenderKind } from './ReaderPageSourceAdapter'
+import { ensureKomaContentStorageBase } from './KomaContentStorage'
 
 export interface ChapterArchiveFile { path: string; uri: string; fileName: string }
 interface ArchivePage { path: string; name: string; pageId?: string; sourceId?: string; overlay?: SourceTextOverlay }
@@ -57,7 +58,8 @@ function xml(value: string): string {
 
 export async function prepareChapterArchive(context: common.UIAbilityContext,
   comicId: string, chapterId: string, comicTitle: string, chapterTitle: string): Promise<ChapterArchiveFile> {
-  const plan = await taskpool.execute(chapterArchivePagesWorker, context.filesDir, comicId, chapterId) as string
+  const storageBase = await ensureKomaContentStorageBase(context)
+  const plan = await taskpool.execute(chapterArchivePagesWorker, storageBase, comicId, chapterId) as string
   const pages = JSON.parse(plan) as ArchivePage[]
   const directory = await fs.mkdtemp(`${context.cacheDir}/chapter-export-XXXXXX`)
   const staging = `${directory}/pages`

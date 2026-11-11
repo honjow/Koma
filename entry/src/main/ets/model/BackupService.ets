@@ -8,7 +8,11 @@ import { ComicCoverBackup, PreparedComicCovers, exportComicCovers,
 import { localLibraryFolderRootUrisFromComics } from './LocalLibraryFolderContract'
 import { InMemoryLibraryStore } from './LibraryStore'
 import { hydrateLibraryStoreFromJson } from './LibraryPersistence'
-import { writeAutomaticBackupToDirectory, releaseAutomaticBackupDirectory } from './BackupAutomaticDirectory'
+import {
+  activateBackupDirectory,
+  releaseAutomaticBackupDirectory,
+  writeAutomaticBackupToDirectory,
+} from './BackupAutomaticDirectory'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
@@ -85,6 +89,7 @@ import {
   OfflineDownloadQueuePreferences,
   normalizeOfflineDownloadFailureReasonCode,
 } from './OfflineDownloadQueueStore'
+import { komaContentStorageBase } from './KomaContentStorage'
 import {
   LocalLibraryMetadataBackupEntry,
   exportLocalLibraryMetadataBackupEntries,
@@ -131,6 +136,7 @@ const BACKUP_AUTOMATIC_PREFS_STORE_NAME: string = 'koma_backup_automatic_v1'
 const BACKUP_CONTENT_PREFS_STORE_NAME: string = 'koma_backup_content_v1'
 const BACKUP_AUTOMATIC_DIRECTORY_MODES_KEY: string = 'backup.automatic.directoryOwnedModes'
 const BACKUP_AUTOMATIC_DIRECTORY_KEY: string = 'backup.automatic.directoryUri'
+const BACKUP_AUTOMATIC_DEFAULT_PATH_APPLIED_KEY: string = 'backup.automatic.defaultPathApplied'
 const BACKUP_AUTOMATIC_BACKGROUND_KEY: string = 'backup.automatic.backgroundEnabled'
 const BACKUP_AUTOMATIC_ENABLED_KEY: string = 'backup.automatic.enabled'
 const BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY: string = 'backup.automatic.intervalHours'
@@ -297,6 +303,7 @@ export interface BackupAutomaticRunResult {
   created?: BackupLocalFileRecord
   skippedReason?: string
   failureCode?: string
+  warningCode?: string
 }
 
 export const DEFAULT_BACKUP_AUTOMATIC_PREFERENCES: BackupAutomaticPreferences = {
@@ -914,6 +921,25 @@ export class BackupService {
     configureSourceFilterPreferencesStore(context)
   }
 
+  /** Apply the public Download app folder once for automatic backups. Explicit later choices win. */
+  async ensureDefaultAutomaticBackupDirectory(uri: string): Promise<boolean> {
+    if (uri.trim().length === 0) return false
+    if (BackupRestoreActivity.isRestoring()) return false
+    const store = await this.automaticPreferences()
+    const applied = await store.get(BACKUP_AUTOMATIC_DEFAULT_PATH_APPLIED_KEY, false) as boolean
+    if (applied) return false
+    const current = (await store.get(BACKUP_AUTOMATIC_DIRECTORY_KEY, '') as string).trim()
+    if (current.length === 0) {
+      await activateBackupDirectory(uri)
+      await store.put(BACKUP_AUTOMATIC_DIRECTORY_KEY, uri)
+      await store.put(BACKUP_AUTOMATIC_DIRECTORY_MODES_KEY, 0)
+    }
+    await store.put(BACKUP_AUTOMATIC_DEFAULT_PATH_APPLIED_KEY, true)
+    await store.flush()
+    DiagnosticLogger.info('backup', 'automatic_default_directory', `applied=${current.length === 0}`)
+    return current.length === 0
+  }
+
   async export(content?: BackupContentPreferences): Promise<string> {
     return JSON.stringify(await this.buildBackupDocument(BACKUP_SCHEMA_VERSION, false, content))
   }
@@ -984,6 +1010,7 @@ export class BackupService {
   async saveAutomaticPreferences(patch: BackupAutomaticPreferencesPatch): Promise<BackupAutomaticPreferences> {
     return queueBackupPreferences(() => BackupRestoreActivity.runWrite(async (): Promise<BackupAutomaticPreferences> => {
       const current = await this.readAutomaticPreferences()
+      const directoryChanged = patch.directoryUri !== undefined && patch.directoryUri !== current.directoryUri
       const next = normalizeBackupAutomaticPreferences({
         directoryUri: patch.directoryUri ?? current.directoryUri,
         directoryOwnedModes: patch.directoryUri === undefined || patch.directoryUri === current.directoryUri
@@ -993,7 +1020,8 @@ export class BackupService {
         intervalHours: patch.intervalHours ?? current.intervalHours,
         retentionCount: patch.retentionCount ?? current.retentionCount,
         lastRunAt: current.lastRunAt,
-        lastFailureCode: current.lastFailureCode,
+        // A failure from the previous directory no longer describes the newly selected target.
+        lastFailureCode: directoryChanged ? '' : current.lastFailureCode,
       })
       try { await this.persistAutomaticPreferences(next) }
       catch (error) {
@@ -1236,7 +1264,8 @@ export class BackupService {
     const fileNames = await this.localBackupFileNames()
     const records: BackupLocalFileRecord[] = []
     for (let index = 0; index < fileNames.length; index += 1) {
-      const record = await this.readLocalBackupRecordAsync(fileNames[index], true)
+      // Retention must not fail because one unrelated legacy file is unreadable.
+      const record = await this.readLocalBackupRecordAsync(fileNames[index])
       if (record !== undefined) {
         records.push(record)
       }
@@ -1588,14 +1617,13 @@ export class BackupService {
   }
 
   private writeLocalBackup(fileName: string, payload: string): BackupLocalFileRecord {
+    // Validate the payload before creating the file. Re-reading a large completed file here
+    // would report "export failed" after the backup already exists.
+    const preview = this.localBackupFilePreview(payload)
     ensureDir(this.localBackupsDir())
     const targetName = this.uniqueLocalBackupFileName(fileName)
     writeAppTextFile(this.localBackupPath(targetName), payload)
-    const record = this.readLocalBackupRecord(targetName)
-    if (record === undefined) {
-      throw new Error('backup_local_write_failed')
-    }
-    return record
+    return this.localBackupRecord(targetName, buffer.byteLength(payload, 'utf-8'), preview)
   }
 
   private localBackupFilePreview(payload: string): BackupLocalFilePreview {
@@ -1733,7 +1761,8 @@ export class BackupService {
   }
 
   private downloadQueuePath(): string {
-    return joinBackupPath(joinBackupPath(this.context.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME), OFFLINE_DOWNLOAD_QUEUE_FILE_NAME)
+    return joinBackupPath(joinBackupPath(komaContentStorageBase(this.context), OFFLINE_DOWNLOAD_ROOT_DIR_NAME),
+      OFFLINE_DOWNLOAD_QUEUE_FILE_NAME)
   }
 
   private async exportRemoteServers(): Promise<RemoteServerBackupDocument> {
@@ -1860,19 +1889,32 @@ export class BackupService {
     now: number,
   ): Promise<BackupAutomaticRunResult> {
     let created: BackupLocalFileRecord | undefined = undefined
+    let deletedCount = 0
     try {
       created = await this.exportLocal()
       // A settings edit during export must survive. Only the completion fields belong to this job.
-      let deletedCount = 0
+      let warningCode: string | undefined = undefined
       const nextPreferences = await queueBackupPreferences(async (): Promise<BackupAutomaticPreferences> => {
         const current = await this.readAutomaticPreferences()
         if (current.directoryUri !== undefined && current.directoryUri.length > 0) {
-          await writeAutomaticBackupToDirectory(current.directoryUri,
-            await fs.readText(this.localBackupPath(created!.fileName)), current.retentionCount, now)
+          try {
+            await writeAutomaticBackupToDirectory(current.directoryUri,
+              await fs.readText(this.localBackupPath(created!.fileName)), current.retentionCount, now)
+          } catch (error) {
+            // The local backup is already durable. An unavailable external copy is a warning,
+            // not a failed export of the backup the user can see.
+            warningCode = 'backup_auto_external_copy_failed'
+            DiagnosticLogger.exception('backup', 'automatic_external_copy_failed', error as Error)
+          }
         }
-        deletedCount = await this.pruneLocalBackups(current.retentionCount)
+        try {
+          deletedCount = await this.pruneLocalBackups(current.retentionCount)
+        } catch (error) {
+          // The public backup has already been written. Retaining extra local files is better than a false failure.
+          DiagnosticLogger.exception('backup', 'local_retention_failed', error as Error)
+        }
         current.lastRunAt = normalizeBackupAutomaticLastRunAt(now)
-        current.lastFailureCode = ''
+        current.lastFailureCode = warningCode ?? ''
         await this.persistAutomaticPreferences(current)
         return current
       })
@@ -1882,14 +1924,31 @@ export class BackupService {
         created,
         deletedCount,
         preferences: nextPreferences,
+        warningCode,
       }
-    } catch (_error) {
+    } catch (error) {
+      if (created !== undefined) {
+        let preferencesValue = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
+        try {
+          preferencesValue = await queueBackupPreferences(async (): Promise<BackupAutomaticPreferences> => {
+            const current = await this.readAutomaticPreferences()
+            current.lastRunAt = normalizeBackupAutomaticLastRunAt(now)
+            current.lastFailureCode = 'backup_auto_followup_failed'
+            await this.persistAutomaticPreferences(current)
+            return current
+          })
+        } catch (_preferenceError) {}
+        DiagnosticLogger.exception('backup', 'automatic_followup_failed', error as Error)
+        return {
+          ran: true,
+          created,
+          deletedCount,
+          preferences: preferencesValue,
+          warningCode: 'backup_auto_followup_failed',
+        }
+      }
       const nextPreferences = await queueBackupPreferences(async (): Promise<BackupAutomaticPreferences> => {
         const current = await this.readAutomaticPreferences()
-        // The export already exists even when retention cleanup fails; do not recreate it on every foreground.
-        if (created !== undefined) {
-          current.lastRunAt = normalizeBackupAutomaticLastRunAt(now)
-        }
         current.lastFailureCode = 'backup_auto_export_failed'
         await this.persistAutomaticPreferences(current)
         return current
@@ -1956,7 +2015,7 @@ export class BackupService {
       return
     }
     const payload = normalizeBackupDownloadQueuePayload(downloadQueue)
-    ensureDir(joinBackupPath(this.context.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME))
+    ensureDir(joinBackupPath(komaContentStorageBase(this.context), OFFLINE_DOWNLOAD_ROOT_DIR_NAME))
     writeAppTextFile(this.downloadQueuePath(), payload)
   }
 }

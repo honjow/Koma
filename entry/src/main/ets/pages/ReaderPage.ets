@@ -58,6 +58,7 @@ import {
   fetchAndCacheReaderRemoteSource,
   prepareReaderDisplayImage,
 } from '../model/ReaderPageSourceAdapter'
+import { komaContentStorageBase } from '../model/KomaContentStorage'
 import { ReadingDirection, ReadingProgress } from '../model/ComicModels'
 import { CoverPixelMapLease, CoverPixelMapMemoryCache } from '../model/CoverPixelMapMemoryCache'
 import { ReaderTapZoneRegion, readerTapZoneRegions, resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
@@ -2094,7 +2095,7 @@ export struct ReaderPage {
       this.filesDir = context.filesDir ?? ''
       if (this.filesDir.length > 0) {
         configureReaderRemoteImageCache(context.cacheDir)
-        configureReaderOfflineDownloads(this.filesDir)
+        configureReaderOfflineDownloads(komaContentStorageBase(context))
       }
       this.preferencesStore = new ReaderPreferencesStore(context)
       this.preferences = await this.preferencesStore.loadForComic(this.sessionConfig.comicId,
