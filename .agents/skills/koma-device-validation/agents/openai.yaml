@@ -1,0 +1,4 @@
+interface:
+  display_name: "Koma Device Validation"
+  short_description: "Search-first Koma device acceptance"
+  default_prompt: "Validate this Koma device flow using the existing search route, one bounded protocol, and explicit dialog-state evidence."
