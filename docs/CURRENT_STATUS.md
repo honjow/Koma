@@ -6,7 +6,7 @@
 
 设备：197与103已完成本次同步验证，原设置、电源及租约均已恢复，两机保留无测试CA的正常包。临时WebDAV已关闭，私钥和随机凭据已清理。此前的备份验证临时记录已清理。237 本次完成龙禁漫 P2 验证后已删除临时包、恢复 10 秒超时并释租，保留 1.4.2 code15 同签包和已安装的龙禁漫 0.1.2。 237 本轮复现并验证哔哩漫画书架续读，已删除临时包、恢复 10 秒超时并释租，保留 1.4.2 code15 与哔哩漫画 0.1.5。237 本轮阅读失败态复验未触发失败瞬间：临时 WLAN 代理只影响系统检查、应用图片请求未经过它，代理已恢复为“无”，临时截图/布局已删除，超时恢复 10000ms 读回后休眠并释租。200 本轮两项问题已复测，原超时已恢复并释租。197 本轮详情缺源提示验证后已恢复电源并释租；测试临时停用的动漫屋仍保持停用，由用户自行启用。四私库搁置。
 
-书源检查：CosplayTele、Buon Dua、哔咔、拷贝漫画、绅士会所和紳士漫畫已公开。CosplayTele 可用当前正式版，其余最低 Koma 1.2.0。237 已验两绅士源真实列表、封面和阅读。拷贝漫画封面修复、Komiic新图标、东立、科技大观园、漫画柜及zero搬运网的具名修复均已公开。Koma 1.2.2 已发布。六漫画、咚漫、Cartoon18 的具名栏目或筛选修复已上线，新增 Utifa 已进入正式索引。点名的八个新源均已进入正式订阅。嗶哩漫畫 0.1.0、禁漫天堂 0.1.1 和 Komiic 0.1.15 已公开，最低 Koma 1.2.1。禁漫天堂 0.1.1 补齐正式包的正文解扰声明；Komiic 双镜像真实登录通过，237 已核对 .cc 登录、正文和退出。拷贝漫画新图标已公开，237 已核对同位置的新旧显示。绅士会所的网格空首行修复已公开，237 已核对长标题正常使用两行。Kiutaku 与 Xiutaku 0.1.1 已上正式订阅，分别最低要求 Koma 1.2.0 与 1.2.2。现有源继续核对上游功能、补足样本并逐项修复。MYCOMIC 0.1.29 已在 237 打通列表、封面、详情、章节、阅读和历史直读，并已发布，最低 App 版本 1.4.2；App 1.4.2 已锚定，未发布。 哔哩漫画加入书架后继续阅读报错已定位为宿主 source:// 内部定位串被书源当成作品 URL 校验；0.1.5 修复后已在 237 看到正文图片。0.1.5 已发布，公开索引与包已核。龙禁漫 0.1.2 已发布，最低 App 1.4.2，公开索引与包已核。
+书源检查：CosplayTele、Buon Dua、哔咔、拷贝漫画、绅士会所和紳士漫畫已公开。CosplayTele 可用当前正式版，其余最低 Koma 1.2.0。237 已验两绅士源真实列表、封面和阅读。拷贝漫画封面修复、Komiic新图标、东立、科技大观园、漫画柜及zero搬运网的具名修复均已公开。Koma 1.2.2 已发布。六漫画、咚漫、Cartoon18 的具名栏目或筛选修复已上线，新增 Utifa 已进入正式索引。点名的八个新源均已进入正式订阅。嗶哩漫畫 0.1.0、禁漫天堂 0.1.1 和 Komiic 0.1.15 已公开，最低 Koma 1.2.1。禁漫天堂 0.1.1 补齐正式包的正文解扰声明；Komiic 双镜像真实登录通过，237 已核对 .cc 登录、正文和退出。拷贝漫画新图标已公开，237 已核对同位置的新旧显示。绅士会所的网格空首行修复已公开，237 已核对长标题正常使用两行。Kiutaku 与 Xiutaku 0.1.1 已上正式订阅，分别最低要求 Koma 1.2.0 与 1.2.2。现有源继续核对上游功能、补足样本并逐项修复。MYCOMIC 0.1.29 已在 237 打通列表、封面、详情、章节、阅读和历史直读，并已发布，最低 App 版本 1.4.2；App 1.4.2 已锚定，未发布。 哔哩漫画加入书架后继续阅读报错已定位为宿主 source:// 内部定位串被书源当成作品 URL 校验；0.1.5 修复后已在 237 看到正文图片。0.1.5 已发布，公开索引与包已核。龙禁漫 0.1.2 已发布，最低 App 1.4.2，公开索引与包已核。 237 已对禁漫天堂做三部作品 41 章全量下载抽样，队列全部完成、无卡死页；《秘密教学》第 1 话 112/125 的显示与磁盘/队列不一致待查。
 
 事项使用固定编号，重新打开问题沿用原号。进度页默认按「最近活动」排列，可切到「最近提出」或在「全部」里按编号查找。
 
@@ -16,13 +16,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "Koma 1.4.2 已发布；公开下载目录的同名书源隔离与可读名称迁移已在 197 验证并本地提交 8b8b01e4；禁漫天堂短图与下载修复待发布边界",
+  "state": "Koma 1.4.2 已发布；禁漫天堂短图与下载修复已在 237 完成三部作品 41 章抽样下载，源仓无代码改动，发布边界待用户决定",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-11T13:43:30+08:00",
+  "updatedAt": "2026-11-11T14:40:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "JMCOMIC_SHORT_IMAGE_DOWNLOAD",
-  "activity": "公开下载目录已迁移为「作品名 [书源名]/章节/001.ext」，两个同名书源按源隔离；197 已验旧章节翻页与冷启动续读",
-  "nextAction": "下载目录重构不推送、不发版；继续按用户决定处理禁漫天堂短图与下载修复的发布边界",
+  "activity": "237 全量下载《Body Position》16 章、《醉后关系》20 章全部完成，无卡死页；《秘密教学》第 1 话 112/125 显示与队列/磁盘不一致待查",
+  "nextAction": "定位下载管理 112/125 与磁盘清单不一致；按用户决定是否发布 App 修复并调整禁漫天堂 minAppVersion",
   "proof": [
     {
       "label": "正式主仓",
@@ -10144,11 +10144,11 @@
       "reportedDate": "2026-11-11",
       "reportedAtSource": "用户在本会话报告禁漫天堂《秘密教学》264话第26图稳定加载失败，WebView 正常，并要求在 237 定位、修复、抽样下载和检查下载自动重试；原始消息时刻未核实。",
       "registeredAt": "2026-11-11T13:35:00+08:00",
-      "updatedAt": "2026-11-11T13:35:00+08:00",
-      "status": "短图解码、下载重试与继续队列已修；237 阅读和 5 章下载已验，源版本与发布待收口",
+      "updatedAt": "2026-11-11T14:40:00+08:00",
+      "status": "短图解码、下载重试与继续队列已修；237 完成三部作品 41 章抽样下载与阅读验证，源版本与发布待收口",
       "stage": "待收口：源仓无代码改动，App 修复未推送或发布",
-      "result": "237 复现《秘密教学》264 话第 26 图：缓存清单确认 00026.webp 为 82 字节、720x1，宿主必解扰在 height<rows 时抛 source_required_decode_dimensions，页面被判不可用；重试仍失败。改为短图按无操作条带还原并重新编码 JPEG 后，237 阅读第 26 图不再出现 page_unavailable，缓存生成 825 字节 source-required.jpg。下载侧补 300/800/1500ms 自动重试，仅对网络类和 HTTP 408/429/5xx 生效；继续队列原先只改偏好不唤醒执行器，已在提交队列变更后发布 change 信号。237 抽样下载《秘密教学》5 章，最终显示 125/125、89/89、94/94、30/30、105/105；中途曾出现 112/125，自动重验后恢复。",
-      "remaining": "源 0.1.5 的 get_pages/get_image_request 已正确返回 jm_stripes_v1 与 00026.webp，缺失处理在 Koma 宿主，源仓没有需要提交的代码改动，因此未生成新书源版本。App 修复尚未推送或发布，禁漫天堂 minAppVersion 仍为 1.4.1。237 的下载抽样只覆盖一部作品的 5 章，未完成多作品全量下载；112/125 的失败瞬间日志尚未取得。",
+      "result": "237 复现《秘密教学》264 话第 26 图：缓存清单确认 00026.webp 为 82 字节、720x1，宿主必解扰在 height<rows 时抛 source_required_decode_dimensions，页面被判不可用；重试仍失败。改为短图按无操作条带还原并重新编码 JPEG 后，237 阅读第 26 图不再出现 page_unavailable，缓存生成 825 字节 source-required.jpg。下载侧补 300/800/1500ms 自动重试，仅对网络类和 HTTP 408/429/5xx 生效；继续队列原先只改偏好不唤醒执行器，已在提交队列变更后发布 change 信号。237 抽样下载《秘密教学》5 章，最终显示 125/125、89/89、94/94、30/30、105/105；中途曾出现 112/125，自动重验后恢复。 随后在 237 继续抽样全量下载：《Body Position》16/16 章、《醉后关系》20/20 章全部完成，队列最终只有 downloaded，无 partial/failed；连同《秘密教学》5 章共 41 章，抽查期间未再出现一直重载不了的图片。阅读器打开《醉后关系》第 1 话 1/30 正常显示。同时观察到：下载管理在同一时段把《秘密教学》第 1 话显示为 112/125 部分完成，而队列仍记 125/125、磁盘目录 001–125.jpg 齐全、章节目录下没有 manifest.v1.json；点「重试」不改变该显示。",
+      "remaining": "下载管理 112/125 与队列 125/125、磁盘 125 个文件、缺失 manifest.v1.json 之间的不一致尚未定位。源 0.1.5 的 get_pages/get_image_request 已正确返回 jm_stripes_v1 与 00026.webp，缺失处理在 Koma 宿主，源仓没有需要提交的代码改动，因此未生成新书源版本；App 修复尚未推送或发布，禁漫天堂 minAppVersion 仍为 1.4.1，是否随修复提升需用户决定。",
       "evidence": [
         "entry/src/main/ets/model/SourceRequiredImageDecodeWorker.ets",
         "entry/src/main/ets/model/SourceRequiredImageDecodePrimitives.ets",
@@ -10157,7 +10157,12 @@
         "docs/device-protocols/jinmantiantang-image-237.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/retry-011",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/verify-final-016",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/cleanup-049"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/cleanup-049",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/sample-060",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/sample-090",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/sample-101",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/sample-102",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/cleanup-105"
       ]
     },
     {
@@ -10171,12 +10176,13 @@
       "reportedDate": "2026-11-11",
       "reportedAtSource": "用户要求公共 Download 目录里的作品、章节和图片名称可读，并追问两个书源下载同名作品时如何避免共用目录或互相覆盖；原始消息时刻未核实。",
       "registeredAt": "2026-11-11T13:38:00+08:00",
-      "updatedAt": "2026-11-11T13:43:30+08:00",
-      "closedAt": "2026-11-11T13:43:30+08:00",
-      "status": "已在 197 验证并提交 8b8b01e4",
-      "result": "作品目录使用「作品名 [书源名]」，身份仍以 comicId + chapterId 为准；同一显示名下再冲突时追加 (2)。页面文件改为 001.jpg、002.jpg，清单移动到 .koma/manifest.v1.json。旧哈希目录迁移时依次取已有名称、已安装书源的本地化显示名、sourceId，并同时修正页面绝对路径；v2 已改成的可读裸作品名也会补书源后缀。197 首次迁移 90 个章节、2349 页，文件管理器可见 Love Bullet [MangaDex（简体中文）] / 爱上恋爱 / 033.png 等名称；迁移前已有的《魔奴嫁》01話 51/51 可从下载管理打开，翻到 7/51 后冷启动仍续读 7/51。最终包再次冷启动日志为 chapters=0 pages=0，未重复改名。",
-      "remaining": "设备实测覆盖 197 现有 90 个章节；两个书源显示名完全相同而生成 (2) 后缀的物理下载样本未单独造出，当前由唯一目录分配逻辑覆盖。只完成本地提交，未推送、未发版；103 平板未纳入这次目录迁移验证。",
+      "updatedAt": "2026-11-11T14:26:00+08:00",
+      "closedAt": "2026-11-11T14:26:00+08:00",
+      "status": "197 完整验收通过并提交 a96cbf77",
+      "result": "作品目录使用「作品名 [书源名]」，身份仍以 comicId + chapterId 为准；同一显示名下再冲突时追加 (2)。页面文件为 001.jpg、002.jpg，章节元数据规范名为 .koma/manifest.json，同时兼容并迁移上一版 .koma/manifest.v1.json 与更早的章节根 manifest.v1.json；目录扫描优先规范清单，迁移完成后删除旧清单。旧哈希目录迁移时依次取已有名称、已安装书源的本地化显示名、sourceId，并同时修正页面绝对路径；v2 已改成的可读裸作品名也会补书源后缀。197 的 v7 包首次启动迁移 90 个章节、2349 页，随后两次冷启动均为 chapters=0 pages=0；《魔奴嫁》旧离线章节从 7/51 翻到 8/51，冷启动后仍为 8/51。重试《蔚蓝档案四格漫画》第二部第六话得到 1/1 页并从下载管理打开；文件管理器可见 蔚蓝档案四格漫画 [蔚蓝档案官方漫画]/第二部第六话：吃冰粉吗？/001.png。自动备份在应用内目录成功生成，切到 Koma-QA-Folder-20261009 后冷启动保持，再次运行生成 koma-auto-*.json，文件管理器可见 Koma-QA-Folder-20261009/Koma-Backups 下两份文件。",
+      "remaining": "当前 197 资料库没有跨书源同名作品，未制造两份真实网络下载；下载管理测试夹具已覆盖「同名作品 [书源甲]」与「同名作品 [书源乙]」的独立目录、规范清单迁移和旧清单删除。只完成本地提交，未推送、未发版；103 平板未纳入这次目录迁移验证。",
       "evidence": [
+        "a96cbf77",
         "entry/src/main/ets/model/DownloadDirectoryIndex.ets",
         "entry/src/main/ets/model/DownloadLayoutMigration.ets",
         "entry/src/main/ets/model/KomaContentStorage.ets",
@@ -10185,7 +10191,12 @@
         ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/downloads-open-first-downloaded-20261111T133615584516/downloads-reader.png",
         ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/downloads-open-first-downloaded-20261111T134134929892/downloads-reader-layout.json",
         ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/install-20261111T134058735018/run-metadata.json",
-        ".hvigor/outputs/content-storage-public-root-20261111/qa/entry-default-signed-read-dirs-v6.hap"
+        ".hvigor/outputs/content-storage-public-root-20261111/qa/entry-default-signed-read-dirs-v7.hap",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/install-20261111T135009490509/run-metadata.json",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/restart-20261111T135251450610/run-metadata.json",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/downloads-open-blue-download-20261111T140336922431/downloads-blue-reader.png",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/file-manager-open-blue-chapter-20261111T140255600351/file-manager-blue-chapter.png",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/file-manager-open-koma-backups-20261111T142307622511/file-manager-koma-backups.png"
       ],
       "progressPhase": "completed"
     }
@@ -10242,6 +10253,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "download-readable-manifest-v7-20261111",
+      "at": "2026-11-11T14:26:00+08:00",
+      "itemId": "DOWNLOAD_PUBLIC_READABLE_LAYOUT",
+      "title": "下载目录规范清单完成 197 全链路验收",
+      "detail": "v7 包将章节元数据统一为 .koma/manifest.json，并兼容迁移上一版隐藏清单与旧平铺清单。197 首次迁移 90 章、2349 页，后续冷启动不再迁移；旧章节 7/51→8/51 且冷启动保持，新下载 1/1 页可从下载管理打开，文件管理器显示可读作品/章节/001.png。自动备份应用内与外部 Koma-QA-Folder 均运行成功，外部备份文件可见，最终目录设置冷启动保持。设备待恢复原电源与超时后释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/restart-20261111T142337773686/run-metadata.json"
+    },
     {
       "id": "history-only-detail-cache-20261111",
       "at": "2026-11-11T03:56:00+08:00",
@@ -22874,6 +22894,15 @@
         ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/downloads-open-first-downloaded-20261111T133615584516/downloads-reader.png",
         ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/install-20261111T134058735018/run-metadata.json"
       ]
+    },
+    {
+      "id": "jmcomic-sample-download-275-20261111",
+      "at": "2026-11-11T14:40:00+08:00",
+      "itemId": "JMCOMIC_SHORT_IMAGE_DOWNLOAD",
+      "title": "#275 禁漫天堂三部作品抽样下载完成",
+      "detail": "237 全量下载《Body Position》16 章与《醉后关系》20 章，队列最终全部 downloaded，无 partial/failed；连同《秘密教学》5 章共 41 章。阅读器打开《醉后关系》第 1 话 1/30 正常显示。同一时段下载管理把《秘密教学》第 1 话显示为 112/125，而队列 125/125、目录 001-125.jpg 齐全、章节目录无 manifest.v1.json，点重试不改变，该显示与校验不一致保留为未定位。临时截图与布局已删除，超时 10000ms 读回并释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/sample-101"
     }
   ],
   "reportAgeAudit": {
