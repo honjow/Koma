@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "name": "shared-reader-koma-terminal-feedback-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-terminal-feedback-20261111",
+  "runId": "cleanup-012-rm",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "reader-kit 21e9b4c via Koma debug assembleHap",
+    "page": "读取 237 当前 App 版本、阅读偏好与前台界面，作为失败态/加载态互斥验证的基线",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "只读基线；不点击、不切章、不安装。"
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"], "pauseAfterMs": 600 },
+    { "name": "cleanup-temp", "hdcArgs": ["shell", "rm", "-f", "/data/local/tmp/koma-terminal-baseline.png", "/data/local/tmp/koma-terminal-baseline.json", "/data/local/tmp/koma-proxy-settings.png", "/data/local/tmp/koma-proxy-settings.json", "/data/local/tmp/koma-settings.png", "/data/local/tmp/koma-settings.json", "/data/local/tmp/koma-wlan.png", "/data/local/tmp/koma-wlan.json", "/data/local/tmp/koma-network.png", "/data/local/tmp/koma-network.json", "/data/local/tmp/koma-network2.png", "/data/local/tmp/koma-network2.json", "/data/local/tmp/koma-proxy.png", "/data/local/tmp/koma-proxy.json", "/data/local/tmp/koma-proxy2.png", "/data/local/tmp/koma-proxy2.json", "/data/local/tmp/koma-proxy3.png", "/data/local/tmp/koma-proxy3.json", "/data/local/tmp/koma-proxy4.png", "/data/local/tmp/koma-proxy4.json", "/data/local/tmp/koma-proxy5.png", "/data/local/tmp/koma-proxy5.json", "/data/local/tmp/koma-back.png", "/data/local/tmp/koma-back.json", "/data/local/tmp/koma-resume.png", "/data/local/tmp/koma-resume.json", "/data/local/tmp/koma-next.png", "/data/local/tmp/koma-next.json", "/data/local/tmp/koma-chrome.png", "/data/local/tmp/koma-chrome.json", "/data/local/tmp/koma-menu.png", "/data/local/tmp/koma-menu.json", "/data/local/tmp/koma-fail.png", "/data/local/tmp/koma-fail.json", "/data/local/tmp/koma-proxy-none.png", "/data/local/tmp/koma-proxy-none.json", "/data/local/tmp/koma-proxy-none2.png", "/data/local/tmp/koma-proxy-none2.json", "/data/local/tmp/koma-proxy-none3.png", "/data/local/tmp/koma-proxy-none3.json", "/data/local/tmp/koma-proxy-dialog.png", "/data/local/tmp/koma-proxy-dialog.json", "/data/local/tmp/koma-proxy-saved.png", "/data/local/tmp/koma-proxy-saved.json", "/data/local/tmp/koma-restored.png", "/data/local/tmp/koma-restored.json", "/data/local/tmp/koma-proxy-check.png", "/data/local/tmp/koma-proxy-check.json", "/data/local/tmp/koma-inspect.png", "/data/local/tmp/koma-inspect.json", "/data/local/tmp/koma-final.png", "/data/local/tmp/koma-net.png", "/data/local/tmp/koma-recover.png"] },
+    { "name": "restore-timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "10000"] },
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "suspend", "hdcArgs": ["shell", "power-shell", "suspend"] }
+  ]
+}

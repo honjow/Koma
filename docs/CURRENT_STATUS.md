@@ -4,9 +4,9 @@
 
 当前结果：237 已复核 Koma、NextE、NextN 公共半模态的滚动透底。覆盖源详情和普通自定义主题色，漫画源设置沿用相同标题栏。详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。197 已确认备份页重进直接显示现有记录。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。1.2.3 已发布，公开下载包已核对。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。WebDAV 同步候选已加入分片清理、定向续读和冲突提示，待真机验证。详情页书源不可用状态已收敛：有可读缓存时只在书源名后显示实心红色警告，无缓存时失败区提供查找书源；197 已实测。
 
-设备：197与103已完成本次同步验证，原设置、电源及租约均已恢复，两机保留无测试CA的正常包。临时WebDAV已关闭，私钥和随机凭据已清理。此前的备份验证临时记录已清理。237 本次完成龙禁漫 P2 验证后已删除临时包、恢复 10 秒超时并释租，保留 1.4.2 code15 同签包和已安装的龙禁漫 0.1.2。200 本轮两项问题已复测，原超时已恢复并释租。197 本轮详情缺源提示验证后已恢复电源并释租；测试临时停用的动漫屋仍保持停用，由用户自行启用。四私库搁置。
+设备：197与103已完成本次同步验证，原设置、电源及租约均已恢复，两机保留无测试CA的正常包。临时WebDAV已关闭，私钥和随机凭据已清理。此前的备份验证临时记录已清理。237 本次完成龙禁漫 P2 验证后已删除临时包、恢复 10 秒超时并释租，保留 1.4.2 code15 同签包和已安装的龙禁漫 0.1.2。 237 本轮复现并验证哔哩漫画书架续读，已删除临时包、恢复 10 秒超时并释租，保留 1.4.2 code15 与哔哩漫画 0.1.5。237 本轮阅读失败态复验未触发失败瞬间：临时 WLAN 代理只影响系统检查、应用图片请求未经过它，代理已恢复为“无”，临时截图/布局已删除，超时恢复 10000ms 读回后休眠并释租。200 本轮两项问题已复测，原超时已恢复并释租。197 本轮详情缺源提示验证后已恢复电源并释租；测试临时停用的动漫屋仍保持停用，由用户自行启用。四私库搁置。
 
-书源检查：CosplayTele、Buon Dua、哔咔、拷贝漫画、绅士会所和紳士漫畫已公开。CosplayTele 可用当前正式版，其余最低 Koma 1.2.0。237 已验两绅士源真实列表、封面和阅读。拷贝漫画封面修复、Komiic新图标、东立、科技大观园、漫画柜及zero搬运网的具名修复均已公开。Koma 1.2.2 已发布。六漫画、咚漫、Cartoon18 的具名栏目或筛选修复已上线，新增 Utifa 已进入正式索引。点名的八个新源均已进入正式订阅。嗶哩漫畫 0.1.0、禁漫天堂 0.1.1 和 Komiic 0.1.15 已公开，最低 Koma 1.2.1。禁漫天堂 0.1.1 补齐正式包的正文解扰声明；Komiic 双镜像真实登录通过，237 已核对 .cc 登录、正文和退出。拷贝漫画新图标已公开，237 已核对同位置的新旧显示。绅士会所的网格空首行修复已公开，237 已核对长标题正常使用两行。Kiutaku 与 Xiutaku 0.1.1 已上正式订阅，分别最低要求 Koma 1.2.0 与 1.2.2。现有源继续核对上游功能、补足样本并逐项修复。MYCOMIC 0.1.29 已在 237 打通列表、封面、详情、章节、阅读和历史直读，并已发布，最低 App 版本 1.4.2；App 1.4.2 已锚定，未发布。龙禁漫 0.1.2 已发布，最低 App 1.4.2，公开索引与包已核。
+书源检查：CosplayTele、Buon Dua、哔咔、拷贝漫画、绅士会所和紳士漫畫已公开。CosplayTele 可用当前正式版，其余最低 Koma 1.2.0。237 已验两绅士源真实列表、封面和阅读。拷贝漫画封面修复、Komiic新图标、东立、科技大观园、漫画柜及zero搬运网的具名修复均已公开。Koma 1.2.2 已发布。六漫画、咚漫、Cartoon18 的具名栏目或筛选修复已上线，新增 Utifa 已进入正式索引。点名的八个新源均已进入正式订阅。嗶哩漫畫 0.1.0、禁漫天堂 0.1.1 和 Komiic 0.1.15 已公开，最低 Koma 1.2.1。禁漫天堂 0.1.1 补齐正式包的正文解扰声明；Komiic 双镜像真实登录通过，237 已核对 .cc 登录、正文和退出。拷贝漫画新图标已公开，237 已核对同位置的新旧显示。绅士会所的网格空首行修复已公开，237 已核对长标题正常使用两行。Kiutaku 与 Xiutaku 0.1.1 已上正式订阅，分别最低要求 Koma 1.2.0 与 1.2.2。现有源继续核对上游功能、补足样本并逐项修复。MYCOMIC 0.1.29 已在 237 打通列表、封面、详情、章节、阅读和历史直读，并已发布，最低 App 版本 1.4.2；App 1.4.2 已锚定，未发布。 哔哩漫画加入书架后继续阅读报错已定位为宿主 source:// 内部定位串被书源当成作品 URL 校验；0.1.5 修复后已在 237 看到正文图片。0.1.5 已发布，公开索引与包已核。龙禁漫 0.1.2 已发布，最低 App 1.4.2，公开索引与包已核。
 
 事项使用固定编号，重新打开问题沿用原号。进度页默认按「最近活动」排列，可切到「最近提出」或在「全部」里按编号查找。
 
@@ -16,13 +16,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "MYCOMIC #266 与龙禁漫 #267 已关闭；#271 详情缺源提示已在 197 验证；App 1.4.2 code15 未发布",
+  "state": "Koma 1.4.2 已发布；哔哩漫画 0.1.5 已发布并在 237 验证；阅读失败态叠加加载反馈的修复待真机确认",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-11T06:06:00+08:00",
+  "updatedAt": "2026-11-11T12:20:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "CONTINUOUS_PERFORMANCE",
-  "activity": "#271 详情页缺源提示收敛为书源名警告图标；197 验证通过",
-  "nextAction": "发布 App 1.4.2 并更新 Koma 子模块 gitlink",
+  "activity": "共享阅读器失败态不再显示加载反馈（reader-kit 68f4018），待 237 失败页复验",
+  "nextAction": "真实网络失败时复验失败页只显示失败面板",
   "proof": [
     {
       "label": "正式主仓",
@@ -10056,6 +10056,81 @@
       ],
       "updatedAt": "2026-11-10T11:06:31+08:00",
       "progressPhase": null
+    },
+    {
+      "id": "RELEASE_1_4_2",
+      "number": 272,
+      "title": "Koma 1.4.2 正式发布",
+      "kind": "done",
+      "progressPhase": "completed",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-11",
+      "reportedAtSource": "用户在本会话要求按当前提交发布 1.4.2。",
+      "registeredAt": "2026-11-11T06:25:00+08:00",
+      "updatedAt": "2026-11-11T06:25:00+08:00",
+      "status": "1.4.2 code15 已发布，release 与构建清单已核",
+      "result": "提交 532f3da9（chore(release): prepare v1.4.2）推送 master 并打 tag v1.4.2；Build OHOS CI 42914221604 成功。GitHub release v1.4.2 非 draft、非 prerelease，资产为 build-manifest.json 与 Koma_1.4.2_ohos-release-unsigned.hap。build-manifest 读回 commit=532f3da9、readerKitCommit=34eeb49、versionName=1.4.2、versionCode=15、buildMode=release、signed=false；下载 HAP 37636989 字节，sha256=6040c6b7e3bc28e2626e71667f357ad86c73c8945c610f47327a687568d505c5。本地 release 构建 signed HAP 38,011,418 字节，sha256=acbfa63ed12a2bd9d1fc50036c9fac4c9279c8dff6194419ec105624a5422d8b。",
+      "remaining": "线上发布的是 CI 构建的 unsigned HAP，签名由下载方处理；本地 signed HAP 未上传。1.4.2 设备端只覆盖 237 的 P2 与 MYCOMIC 按钮路径，其他机型和完整回归未在本轮执行。",
+      "evidence": [
+        "changelog/v1.4.2.md",
+        ".hermes-artifacts/release/1.4.2-15-c865aa44/manifest.json",
+        "https://github.com/honjow/Koma/releases/tag/v1.4.2"
+      ]
+    },
+    {
+      "id": "BILIMANGA_SHELF_RESUME",
+      "number": 273,
+      "title": "哔哩漫画加入书架后继续阅读报错",
+      "kind": "done",
+      "progressPhase": "completed",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-11",
+      "reportedAtSource": "用户在本会话报告哔哩漫画加入书架后继续阅读报错，并要求先静态检查、237 实测复现、修复后再次验证；原始消息时间未核实。",
+      "registeredAt": "2026-11-11T07:45:00+08:00",
+      "updatedAt": "2026-11-11T09:10:00+08:00",
+      "status": "哔哩漫画 0.1.5 已发布并在 237 验证",
+      "stage": "237 真机实测",
+      "result": "237 先复现：作品加入书架后点继续阅读显示「无法加载页面」，日志 get_pages 无 HTTP 请求即失败。本地 CLI 对书架 sourcePath 复现 identity_mismatch。原因：宿主以 source://net.bilimanga.koma/bilimanga:917 作为 comic.sourcePath 传给 get_pages 的 mangaUrl，书源把任何非空 mangaUrl 当作品详情 URL 校验。0.1.5 只校验真实详情 URL，忽略 source:// 内部 locator，保留 mangaId 身份约束和错误 URL 拒绝。237 导入 0.1.5 后，书架作品继续阅读两次 get_pages 均 completed，随后 9 次 get_image_request 均 completed，18/19 页正文图片正常显示。 发布：提交 6be3542 推 master，Build and publish source library CI 42936051446 成功；release sources-6be354251293d3ebc91384ac2178ef08629f8c8a 非 draft、非 prerelease 且为 latest。公开 index.json 共 96 个源，哔哩漫画 version=0.1.5、minAppVersion=1.4.1、sha256=47363d7aff9551fcd1a039a9f429cad2dd5886b7d09bcff34773ddf44308fecf，与下载包一致。公开包复核：source:// 已不再触发 identity_mismatch，错误作品 URL 仍返回 identity_mismatch。",
+      "remaining": "宿主 get_pages 仍会把书架 source:// 占位传给 mangaUrl；本次按书源规范在 0.1.5 忽略该 locator，未改宿主。书架另一本哔哩漫画作品和真实网络异常分支未逐项复验；其他同样把 mangaUrl 当详情 URL 校验的源仍可能遇到同类问题。",
+      "closedAt": "2026-11-11T07:45:00+08:00",
+      "evidence": [
+        "docs/device-protocols/koma-bilimanga-shelf-237.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/bilimanga-shelf-237-20261111/repro/repro-024/library-store.v1.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/bilimanga-shelf-237-20261111/repro/verify-001/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/bilimanga-shelf-237-20261111/repro/verify-002/reader-settled.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/bilimanga-shelf-237-20261111/repro/cleanup-005/run-metadata.json",
+        "/Users/honjow/git/koma-sources/sources/bilimanga/src/lib.rs",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/bilimanga-shelf-237-20261111/repro/repro-022/imported.png"
+      ]
+    },
+    {
+      "id": "READER_FAILURE_LOADING_OVERLAP",
+      "number": 274,
+      "title": "阅读失败态与加载指示器同时出现",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户反馈",
+      "owner": "Root：共享阅读器",
+      "reportedAt": null,
+      "reportedDate": "2026-11-11",
+      "reportedAtSource": "用户在本会话报告自动重试会碰到加载指示器和重试提示同时出现，并指出组件运行周期处理有问题；原始消息时间未核实。",
+      "registeredAt": "2026-11-11T12:10:00+08:00",
+      "updatedAt": "2026-11-11T12:20:00+08:00",
+      "status": "共享阅读器终态资产不再显示加载反馈，等待真机确认失败页",
+      "stage": "待 237 复验失败页",
+      "result": "分页阅读中失败面板与加载占位是同一格的两个兄弟节点，占位是否显示由 reader-ui 的 ReaderImagePresentation 决定。237 的阅读偏好为 reader.wideImageMode=split_wide_pages，哔哩漫画页面不带宽高：拆分拓扑未就绪时 splitTopologyPending 把 failed 也当作 loading，失败面板上就会同时出现加载条。共享阅读器改为终态优先：failed/suppressed 一律返回 empty，几何和入场条件不再重新打开加载反馈。提交 21e9b4c（reader-kit 原仓 main）已推送；68f4018 补充 failed/suppressed + waitingForGeometry 的判定断言，node --test tests/reader-continuous-loading.test.cjs 6/6 通过。Koma 本地 assembleHap 构建通过。",
+      "remaining": "失败瞬间的界面尚未在 237 实测复现：系统 WLAN 代理不作用于应用的图片请求，临时代理只影响系统检查，已恢复为无。用户在真实网络失败时复现即可确认“只有面板”；连续滚动模式的两分支本就互斥，本次未改。Koma 的 gitlink 与共享阅读器变更尚未提交推送。",
+      "evidence": [
+        "third_party/reader-kit/reader-ui/src/main/ets/ReaderImagePlaceholder.ets",
+        "third_party/reader-kit/tests/reader-continuous-loading.test.cjs",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-terminal-feedback-20261111/observe-004-preferences/reader-preferences.bin",
+        "docs/device-protocols/shared-reader-koma-terminal-feedback-237.json",
+        "https://github.com/erosTeam/reader-kit/commit/21e9b4c",
+        "https://github.com/erosTeam/reader-kit/commit/68f4018"
+      ]
     }
   ],
   "source": {
@@ -22686,6 +22761,39 @@
       "title": "#271 详情页书源不可用提示关闭",
       "detail": "197 停用动漫屋后从历史封面进入缓存详情，书源名胶囊内显示实心红色警告；无缓存错误态保留单条文案和单按钮。源码分块提交，动漫屋由用户自行启用。",
       "kind": "verified"
+    },
+    {
+      "id": "app-release-142-20261111",
+      "at": "2026-11-11T06:25:00+08:00",
+      "itemId": "RELEASE_1_4_2",
+      "title": "Koma 1.4.2 正式发布",
+      "detail": "提交 532f3da9，tag v1.4.2；CI 42914221604 成功；release 非 draft，manifest commit 532f3da9/readerKit 34eeb49，unsigned HAP 37636989 字节 sha256 6040c6b7…。",
+      "kind": "verified"
+    },
+    {
+      "id": "bilimanga-shelf-resume-273-verify-20261111",
+      "at": "2026-11-11T07:45:00+08:00",
+      "itemId": "BILIMANGA_SHELF_RESUME",
+      "title": "#273 哔哩漫画书架续读修复并在 237 验证",
+      "detail": "237 复现加入书架后继续阅读显示无法加载页面，get_pages 立即失败；本地 CLI 返回 identity_mismatch。0.1.5 忽略 source:// 内部 locator 后，237 get_pages 两次 completed、get_image_request 9 次 completed，18/19 页图片显示。",
+      "kind": "verified"
+    },
+    {
+      "id": "bilimanga-release-015-20261111",
+      "at": "2026-11-11T09:10:00+08:00",
+      "itemId": "BILIMANGA_SHELF_RESUME",
+      "title": "#273 哔哩漫画 0.1.5 发布",
+      "detail": "提交 6be3542 推 master；CI 42936051446 成功；latest release sources-6be35425 已核，公开 index.json 96 源，哔哩漫画 0.1.5/minAppVersion 1.4.1/sha256 47363d7a…，公开包 source:// 路径与错误 URL 行为均已复核。",
+      "kind": "verified"
+    },
+    {
+      "id": "reader-terminal-feedback-20261111",
+      "at": "2026-11-11T12:20:00+08:00",
+      "itemId": "READER_FAILURE_LOADING_OVERLAP",
+      "title": "#274 共享阅读器失败态不再叠加加载反馈",
+      "detail": "237 阅读偏好读回 wideImageMode=split_wide_pages；分页格内占位是失败面板的兄弟节点，拆分拓扑未就绪时 failed 仍被算成 loading。ReaderImagePresentation 改为 failed/suppressed 终态优先，reader-kit 21e9b4c 已推送、68f4018 补断言且 6/6 通过，Koma assembleHap 通过。设备临时代理只影响系统检查、不作用于图片请求，已恢复为无代理并清理临时文件，超时 10000ms 读回后休眠释租；失败瞬间的界面仍待真机确认。",
+      "kind": "checkpoint",
+      "evidence": "third_party/reader-kit/reader-ui/src/main/ets/ReaderImagePlaceholder.ets；third_party/reader-kit/tests/reader-continuous-loading.test.cjs；.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-terminal-feedback-20261111"
     }
   ],
   "reportAgeAudit": {
