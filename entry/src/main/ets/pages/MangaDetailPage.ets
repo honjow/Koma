@@ -32,7 +32,7 @@ import { trackerChapterProgress } from '../model/TrackerReadingProgress'
 import { mangaHttpUrl } from '../model/MangaWebLink'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { CachedCoverImage } from '../components/CachedCoverImage'
-import { ChapterArchiveActions } from '../model/ChapterArchiveExport'
+import { ChapterArchiveActions, CHAPTER_ARCHIVE_SAVE_FAILED } from '../model/ChapterArchiveExport'
 import { selectComicCover, saveComicPersonalization, discardUncommittedComicCover } from '../model/ComicPersonalization'
 import { ColorMetrics, ComponentContent, LengthMetrics } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
@@ -82,8 +82,8 @@ import {
   readerFormatFromTags,
   setCompleteSourceChapterCatalog,
 } from '../model/ComicModels'
-import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from '../model/OfflineDownloadService'
-import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
+import { downloadBlockedReason, OfflineDownloadService, OfflineDownloadWaitReason } from '../model/OfflineDownloadService'
+import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore, isOfflineDownloadTaskPending } from '../model/OfflineDownloadQueueStore'
 import { OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
 import {
   OfflineDownloadStatus,
@@ -623,7 +623,8 @@ export struct MangaDetailPage {
         this.manga?.title ?? '', chapter.title, share, () => this.chrome.visible && this.currentComicId() === comicId)
     } catch (error) {
       DiagnosticLogger.exception('chapters', 'archive_export_failed', error as Error)
-      if (this.chrome.visible) this.showToast(s('chapter_archive_failed'))
+      if (this.chrome.visible) this.showToast(s(
+        (error as Error).message === CHAPTER_ARCHIVE_SAVE_FAILED ? CHAPTER_ARCHIVE_SAVE_FAILED : 'chapter_archive_failed'))
     } finally { this.chapterArchiveBusy = false }
   }
 
@@ -901,13 +902,11 @@ export struct MangaDetailPage {
     if (chapters.length === 0) return chapters
     const comicId = this.currentComicId()
     const summaries = new Map<string, OfflineDownloadQueueEntry>()
-    let paused = false
-    let waitingForWifi = false
+    let wait: OfflineDownloadWaitReason | undefined
     try {
       const queue = this.downloadQueue()
       const snapshot = queue.loadSnapshot()
-      paused = snapshot.preferences.isPaused
-      waitingForWifi = !paused && !canRunOfflineDownloadQueueNow(snapshot.preferences)
+      wait = downloadBlockedReason(snapshot.preferences)
       snapshot.entries.forEach((entry: OfflineDownloadQueueEntry) => {
         if (entry.comicId === comicId) summaries.set(entry.chapterId, entry)
       })
@@ -940,9 +939,12 @@ export struct MangaDetailPage {
       const summary = summaries.get(chapter.id)
       if (summary !== undefined) {
         next.downloadStatus = summary.status
-        if (summary.status === OfflineDownloadStatus.QUEUED || summary.status === OfflineDownloadStatus.PARTIAL) {
-          if (paused || summary.failureReasonCode === 'paused') next.downloadStatus = 'paused'
-          else if (waitingForWifi || summary.failureReasonCode === 'wifi_only') next.downloadStatus = 'waiting_wifi'
+        if (summary.canceling) next.downloadStatus = 'canceling'
+        else if (isOfflineDownloadTaskPending(summary)) {
+          if (summary.pausedByUser || wait === 'paused') next.downloadStatus = 'paused'
+          else if (wait === 'offline') next.downloadStatus = 'waiting_network'
+          else if (wait === 'wifi_only') next.downloadStatus = 'waiting_wifi'
+          else if (summary.status !== OfflineDownloadStatus.DOWNLOADING) next.downloadStatus = 'queued'
         }
         if (summary.pageCount > 0 && (summary.status === OfflineDownloadStatus.DOWNLOADING ||
           summary.status === OfflineDownloadStatus.PARTIAL)) {
@@ -2095,7 +2097,8 @@ export struct MangaDetailPage {
     return this.chapters.filter((chapter: MangaChapterItem): boolean => {
       if (!targets.has(chapter.id) || chapter.isDownloaded || chapter.downloadStatus === 'queued' ||
         chapter.downloadStatus === 'downloading' || chapter.downloadStatus === 'waiting_wifi' ||
-        chapter.downloadStatus === 'paused') return false
+        chapter.downloadStatus === 'paused' || chapter.downloadStatus === 'waiting_network' ||
+        chapter.downloadStatus === 'canceling') return false
       return mode !== ChapterBatchDownloadMode.FAILED_ONLY || chapter.downloadStatus === 'failed' ||
         chapter.downloadStatus === 'partial' || chapter.downloadStatus === 'blocked'
     }).map((chapter: MangaChapterItem): string => chapter.id)
@@ -2157,10 +2160,10 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
         this.showToast(s('manga_detail_no_matching_chapters'))
         return
       }
-      const preferences = queue.loadPreferences()
-      this.showToast(preferences.isPaused ? s('downloads_status_paused') :
-        !canRunOfflineDownloadQueueNow(preferences) ? s('downloads_status_waiting_wifi') :
-        this.formatString('library_download_enqueued', [count]))
+      const wait = downloadBlockedReason(queue.loadPreferences())
+      this.showToast(wait === 'paused' ? s('downloads_status_paused') :
+        wait === 'offline' ? s('downloads_status_waiting_network') :
+          wait === 'wifi_only' ? s('downloads_status_waiting_wifi') : this.formatString('library_download_enqueued', [count]))
     } catch (error) {
       DiagnosticLogger.exception('manga_detail_page', 'detail_enqueue_failed', error as Error)
       this.showToast(s('library_download_enqueue_failed'))

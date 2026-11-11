@@ -203,6 +203,11 @@ export class OfflineDownloadRuntime {
     })
   }
 
+  static requestChapterPause(filesDir: string, comicId: string, chapterId: string): void {
+    const execution = OfflineDownloadRuntime.executions.get(OfflineDownloadRuntime.key(filesDir, comicId, chapterId))
+    if (execution !== undefined) execution.pauseRequested = true
+  }
+
   static isPauseRequested(key: string): boolean {
     return OfflineDownloadRuntime.executions.get(key)?.pauseRequested ?? false
   }

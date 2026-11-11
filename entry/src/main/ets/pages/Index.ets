@@ -59,7 +59,7 @@ import {
   BottomBuilderShowType,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
-import { ComponentContent, LoadingDialogV2 } from '@kit.ArkUI'
+import { ComponentContent, LoadingDialogV2, SymbolGlyphModifier } from '@kit.ArkUI'
 import { LibraryPage, LibraryTitleBarPresentation } from './LibraryPage'
 import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
@@ -109,6 +109,7 @@ import { OpdsServerPage } from './OpdsServerPage'
 import { SourcePackageManagerPage } from './SourcePackageManagerPage'
 import { WebDavServerPage } from './WebDavServerPage'
 import { DownloadsPage } from './DownloadsPage'
+import { DownloadsChrome, DownloadsCommand } from '../state/DownloadsChrome'
 import { BackupManagementPage } from './BackupManagementPage'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { TrackerSettingsPage } from './TrackerSettingsPage'
@@ -486,6 +487,53 @@ struct Index {
       'action': (): void => { chrome.createRequest++ } }
     const items: Record<string, Object>[] = [{ 'content': add }]
     content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
+    return options
+  }
+
+  private downloadsTitleBarOptions(chrome: DownloadsChrome): Record<string, Object> {
+    const title = chrome.selecting ? AppStrings.get('downloads_selected_count').replace('%s', String(chrome.selectedCount)) :
+      AppStrings.get('route_downloads_title')
+    const options = this.navDestTitleBarOpts(title)
+    const content = options['content'] as Record<string, Object>
+    const items: Record<string, Object>[] = []
+    const add = (label: string, command: DownloadsCommand, visible: boolean = true): void => {
+      if (!visible) return
+      items.push({ 'content': { 'label': AppStrings.get(label), 'type': TextStyleMode.NORMAL,
+        'action': (): void => { chrome.request(command) } } as Record<string, Object> })
+    }
+    if (chrome.selecting) {
+      add(chrome.allSelected ? 'downloads_deselect_all' : 'library_action_select_all', 'toggleAll', chrome.hasVisible)
+      add('downloads_pause_selected', 'pauseSelected', chrome.canPauseSelected)
+      add('downloads_resume_selected', 'resumeSelected', chrome.canResumeSelected)
+      add('downloads_action_retry_failed', 'retrySelected', chrome.canRetrySelected)
+      add('downloads_cancel_selected', 'cancelSelected', chrome.canCancelSelected)
+      add('downloads_action_delete_files', 'deleteSelected', chrome.canDeleteSelected)
+      add('downloads_exit_selection', 'exitSelection')
+    } else {
+      if (chrome.queueAction.length > 0) {
+        let icon: Resource | SymbolGlyphModifier = $r('sys.symbol.pause')
+        if (chrome.queueAction !== 'downloads_action_pause_all') {
+          const play = new SymbolGlyphModifier($r('sys.symbol.play'))
+          // Match the HDS icon size and center the triangle's visual weight.
+          play.fontSize(ThemeConstants.FONT_SIZE_H1).translate({ x: 2 })
+          icon = play
+        }
+        items.push({ 'content': { 'label': AppStrings.get(chrome.queueAction), 'icon': icon,
+          'action': (): void => { chrome.request('queue') } } as Record<string, Object> })
+      } else {
+        add('downloads_action_retry_failed', 'retryAll', chrome.hasRetryable)
+      }
+      add('downloads_cancel_all_tasks', 'cancelAll', chrome.hasTasks)
+      add('downloads_action_retry_failed', 'retryAll', chrome.queueAction.length > 0 && chrome.hasRetryable)
+      add('downloads_clear_failed', 'clearFailed', chrome.hasFailures)
+      add('downloads_delete_completed', 'deleteDownloaded', chrome.hasDownloaded)
+      add('chapter_list_menu_enter_selection', 'select', chrome.hasVisible)
+      add('downloads_action_rescan', 'rescan')
+    }
+    // HDS counts the More button as a slot. A queue or failure action stays
+    // visible even when there are no runnable downloads.
+    const hasPrimary = chrome.selecting || chrome.queueAction.length > 0 || chrome.hasRetryable || chrome.hasTasks
+    content['menu'] = { 'value': items, 'maxCount': hasPrimary ? 2 : 1 } as Record<string, Object>
     return options
   }
 
@@ -2182,6 +2230,10 @@ struct Index {
   private sourceManagerOpening: boolean = false
 
   private openSettingsSecondary(routeName: string): void {
+    if (routeName === RouteName.DOWNLOADS) {
+      RouterHelper.pushDownloads()
+      return
+    }
     if (routeName !== RouteName.SOURCE_PACKAGE_MANAGER) {
       this.appPathStack.pushPath({ name: routeName })
       return
@@ -3342,13 +3394,20 @@ struct Index {
     } else if (name === RouteName.DOWNLOADS) {
       HdsNavDestination() {
         DownloadsPage({
+          chrome: param as DownloadsChrome,
           libraryStore: this.libraryStore,
           onOpenReader: (comicId: ComicId, chapterId: string) => {
             this.openDownloadedChapter(comicId, chapterId)
           },
         })
       }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_downloads_title')))
+      .titleBar(this.downloadsTitleBarOptions(param as DownloadsChrome))
+      .onBackPressed((): boolean => {
+        const chrome = param as DownloadsChrome
+        if (!chrome.selecting) return false
+        chrome.request('exitSelection')
+        return true
+      })
     } else if (name === RouteName.BACKUP_MANAGEMENT) {
       HdsNavDestination() {
         BackupManagementPage({ refreshRevision: this.backupSettingsRevision,

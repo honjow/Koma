@@ -1,16 +1,30 @@
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs, fileUri, picker } from '@kit.CoreFileKit'
 import { taskpool } from '@kit.ArkTS'
-import { zlib } from '@kit.BasicServicesKit'
+import { BusinessError, zlib } from '@kit.BasicServicesKit'
 import { systemShare } from '@kit.ShareKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
 import { OfflineDownloadedChapterStatus, OfflineDownloadStore } from './OfflineDownloadStore'
 import { AppStrings } from '../i18n/AppStrings'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { SourceTextOverlay } from './SourceTextOverlay'
 import { fetchAndCacheReaderRemoteSource, ReaderPageRenderKind } from './ReaderPageSourceAdapter'
 import { ensureKomaContentStorageBase } from './KomaContentStorage'
 
 export interface ChapterArchiveFile { path: string; uri: string; fileName: string }
+export interface ArchiveChapter {
+  id: string
+  title: string
+}
+
+export interface WorkArchiveProgress {
+  isCanceled: () => boolean
+  onChapterPrepared: (count: number) => void
+}
+
+export const CHAPTER_ARCHIVE_CANCELED: string = 'chapter_archive_canceled'
+export const CHAPTER_ARCHIVE_INCOMPLETE: string = 'chapter_archive_incomplete:'
+export const CHAPTER_ARCHIVE_SAVE_FAILED: string = 'chapter_archive_save_failed'
 interface ArchivePage { path: string; name: string; pageId?: string; sourceId?: string; overlay?: SourceTextOverlay }
 
 
@@ -58,35 +72,78 @@ function xml(value: string): string {
 
 export async function prepareChapterArchive(context: common.UIAbilityContext,
   comicId: string, chapterId: string, comicTitle: string, chapterTitle: string): Promise<ChapterArchiveFile> {
+  return await prepareArchive(context, comicId, comicTitle, [{ id: chapterId, title: chapterTitle }], chapterTitle)
+}
+
+export async function prepareWorkArchive(context: common.UIAbilityContext, comicId: string, comicTitle: string,
+  chapters: ArchiveChapter[], progress: WorkArchiveProgress): Promise<ChapterArchiveFile> {
+  return await prepareArchive(context, comicId, comicTitle, chapters, undefined, progress)
+}
+
+async function prepareArchive(context: common.UIAbilityContext, comicId: string, comicTitle: string,
+  chapters: ArchiveChapter[], singleChapterTitle?: string, progress?: WorkArchiveProgress): Promise<ChapterArchiveFile> {
+  const checkCanceled = (): void => {
+    if (progress?.isCanceled()) throw new Error(CHAPTER_ARCHIVE_CANCELED)
+  }
+  if (chapters.length === 0) throw new Error('chapter_archive_empty')
+  checkCanceled()
   const storageBase = await ensureKomaContentStorageBase(context)
-  const plan = await taskpool.execute(chapterArchivePagesWorker, storageBase, context.filesDir, comicId, chapterId) as string
-  const pages = JSON.parse(plan) as ArchivePage[]
   const directory = await fs.mkdtemp(`${context.cacheDir}/chapter-export-XXXXXX`)
   const staging = `${directory}/pages`
-  const fileName = `${comicTitle} - ${chapterTitle}`.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 140) + '.cbz'
+  const title = singleChapterTitle === undefined ? comicTitle : `${comicTitle} - ${singleChapterTitle}`
+  const fileName = title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 140) + '.cbz'
   const path = `${directory}/${fileName}`
   await fs.mkdir(staging)
   const copied: string[] = []
+  let pageCount = 0
+  let ready = false
   try {
-    for (const page of pages) {
-      // A CBZ cannot carry the local overlay descriptor: export the same
-      // presentation as Reader, while retaining original download bytes/hash.
-      const sourcePath = page.overlay === undefined ? page.path : await fetchAndCacheReaderRemoteSource({
-        kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE, uri: `file://${page.path}`, imageUri: page.path,
-        pageId: page.pageId, sourceRuntimeId: page.sourceId, sourceTextOverlay: page.overlay, skipBannerFilter: true,
-      }, context)
-      copied.push(`${staging}/${page.name}`)
-      await fs.copyFile(sourcePath, copied[copied.length - 1])
+    for (let index = 0; index < chapters.length; index += 1) {
+      checkCanceled()
+      const chapter = chapters[index]
+      let plan: string
+      try {
+        plan = await taskpool.execute(chapterArchivePagesWorker, storageBase, context.filesDir, comicId, chapter.id) as string
+      } catch (error) {
+        if (progress !== undefined) throw new Error(CHAPTER_ARCHIVE_INCOMPLETE + chapter.title)
+        throw error as Error
+      }
+      const pages = JSON.parse(plan) as ArchivePage[]
+      for (const page of pages) {
+        checkCanceled()
+        // A CBZ cannot carry the local overlay descriptor. Export the Reader
+        // presentation while retaining original download bytes and hash.
+        const sourcePath = page.overlay === undefined ? page.path : await fetchAndCacheReaderRemoteSource({
+          kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE, uri: `file://${page.path}`, imageUri: page.path,
+          pageId: page.pageId, sourceRuntimeId: page.sourceId, sourceTextOverlay: page.overlay, skipBannerFilter: true,
+        }, context)
+        pageCount += 1
+        const name = progress === undefined ? page.name :
+          `${String(pageCount).padStart(8, '0')}${page.name.substring(page.name.lastIndexOf('.'))}`
+        copied.push(`${staging}/${name}`)
+        try {
+          await fs.copyFile(sourcePath, copied[copied.length - 1])
+        } catch (error) {
+          if (progress !== undefined && !fs.accessSync(sourcePath)) {
+            throw new Error(CHAPTER_ARCHIVE_INCOMPLETE + chapter.title)
+          }
+          throw error as Error
+        }
+      }
+      progress?.onChapterPrepared(index + 1)
     }
+    checkCanceled()
     const metadataPath = `${staging}/ComicInfo.xml`
     copied.push(metadataPath)
     const metadata = await fs.open(metadataPath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY)
     try {
-      await fs.write(metadata.fd, `<?xml version="1.0" encoding="UTF-8"?><ComicInfo><Title>${xml(chapterTitle)}</Title>` +
-        `<Series>${xml(comicTitle)}</Series><PageCount>${pages.length}</PageCount></ComicInfo>`)
+      await fs.write(metadata.fd, `<?xml version="1.0" encoding="UTF-8"?><ComicInfo><Title>${xml(singleChapterTitle ?? comicTitle)}</Title>` +
+        `<Series>${xml(comicTitle)}</Series><PageCount>${pageCount}</PageCount></ComicInfo>`)
     } finally { await fs.close(metadata) }
     await zlib.compressFile(staging, path + '.zip', { level: zlib.CompressLevel.COMPRESS_LEVEL_NO_COMPRESSION })
+    checkCanceled()
     await fs.rename(path + '.zip', path)
+    ready = true
     // Keep this immutable cache file for the receiving app after the panel closes.
     return { path, uri: fileUri.getUriFromPath(path), fileName }
   } catch (error) {
@@ -95,7 +152,42 @@ export async function prepareChapterArchive(context: common.UIAbilityContext,
   } finally {
     for (const copiedPath of copied) { try { await fs.unlink(copiedPath) } catch (_) {} }
     try { await fs.rmdir(staging) } catch (_) {}
+    if (!ready) { try { await fs.rmdir(directory) } catch (_) {} }
   }
+}
+
+export async function saveChapterArchive(context: common.UIAbilityContext, file: ChapterArchiveFile): Promise<boolean> {
+  let source: fs.File | undefined
+  let target: fs.File | undefined
+  let stage = 'picker'
+  try {
+    const targets = await new picker.DocumentViewPicker(context).save({
+      newFileNames: [file.fileName], fileSuffixChoices: [AppStrings.get('chapter_archive_type') + '|.cbz'],
+    })
+    if (targets.length === 0) return false
+    stage = 'source'
+    source = await fs.open(file.path, fs.OpenMode.READ_ONLY)
+    stage = 'destination'
+    // Use the picker grant to open the document, then copy via descriptors.
+    target = await fs.open(targets[0], fs.OpenMode.READ_WRITE)
+    stage = 'copy'
+    await fs.copyFile(source.fd, target.fd, 0)
+    return true
+  } catch (error) {
+    DiagnosticLogger.warn('downloads', CHAPTER_ARCHIVE_SAVE_FAILED,
+      'stage=' + stage + ' code=' + String((error as BusinessError).code ?? 0))
+    throw new Error(CHAPTER_ARCHIVE_SAVE_FAILED)
+  } finally {
+    if (target !== undefined) { try { await fs.close(target) } catch (_) {} }
+    if (source !== undefined) { try { await fs.close(source) } catch (_) {} }
+  }
+}
+
+export async function discardPreparedArchive(file: ChapterArchiveFile): Promise<void> {
+  try {
+    await fs.unlink(file.path)
+    await fs.rmdir(file.path.substring(0, file.path.lastIndexOf('/')))
+  } catch (_) {}
 }
 
 /** One presentation owner per page; the prepared archive outlives the system panel. */
@@ -121,12 +213,7 @@ export class ChapterArchiveActions {
           previewMode: systemShare.SharePreviewMode.DEFAULT }) }
         catch (error) { dismiss(); throw error as Error }
       } else {
-        const targets = await new picker.DocumentViewPicker(context).save({
-          newFileNames: [file.fileName], fileSuffixChoices: [AppStrings.get('chapter_archive_type') + '|.cbz'],
-        })
-        if (targets.length === 0) return
-        const target = await fs.open(targets[0], fs.OpenMode.WRITE_ONLY)
-        try { await fs.copyFile(file.path, target.fd) } finally { await fs.close(target) }
+        await saveChapterArchive(context, file)
       }
     } finally { this.busy = false }
   }

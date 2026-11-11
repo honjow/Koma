@@ -540,6 +540,8 @@ export struct ChapterListSection {
 
   private downloadStatusLabel(status: MangaChapterDownloadStatus): string {
     if (status === 'waiting_wifi') return s('downloads_status_waiting_wifi')
+    if (status === 'waiting_network') return s('downloads_status_waiting_network')
+    if (status === 'canceling') return s('downloads_status_canceling')
     if (status === 'paused') return s('downloads_status_paused')
     if (status === 'queued') {
       return s('downloads_status_queued')
@@ -563,7 +565,7 @@ export struct ChapterListSection {
     if (status === 'downloaded') {
       return ThemeConstants.STATUS_SUCCESS
     }
-    if (status === 'queued' || status === 'paused' || status === 'waiting_wifi') {
+    if (this.isPendingDownload(status) && status !== 'downloading') {
       return ThemeConstants.STATUS_MUTED
     }
     if (status === 'partial' || status === 'downloading') {
@@ -579,6 +581,8 @@ export struct ChapterListSection {
     switch (status) {
       case 'downloaded': return $r('sys.symbol.checkmark_circle')
       case 'queued':
+      case 'canceling':
+      case 'waiting_network':
       case 'waiting_wifi': return $r('sys.symbol.clock')
       case 'paused': return $r('sys.symbol.pause')
       case 'downloading': return $r('sys.symbol.arrow_down_to_line')
@@ -634,7 +638,8 @@ export struct ChapterListSection {
   }
 
   private isPendingDownload(status: MangaChapterDownloadStatus): boolean {
-    return status === 'queued' || status === 'downloading' || status === 'paused' || status === 'waiting_wifi'
+    return status === 'queued' || status === 'downloading' || status === 'paused' || status === 'waiting_wifi' ||
+      status === 'waiting_network' || status === 'canceling'
   }
 
   @Builder

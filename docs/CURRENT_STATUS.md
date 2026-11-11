@@ -10166,6 +10166,47 @@
       ]
     },
     {
+      "id": "DOWNLOAD_QUEUE_MANAGEMENT",
+      "number": 278,
+      "title": "下载管理的批量控制与队列体验",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-11",
+      "reportedAtSource": "本会话用户反馈无法按作品批量暂停或取消，任务多时只能断网后清理失败任务。原始消息时刻未核实。",
+      "registeredAt": "2026-11-11T18:22:33+08:00",
+      "updatedAt": "2026-11-11T23:12:41+08:00",
+      "status": "197 已核对分组操作、筛选动画、设置入口和 CBZ 回导",
+      "result": "下载管理在设置首页无痕模式下方。标题栏露出当前主要操作，分组菜单按任务能否重试显示操作或原因。197 已核对章节菜单对齐，逐帧确认展开、收起时卡片连续移动，筛选切换无新旧文字重叠。CBZ 选章拖动后保存至系统 Download，已回导并按排序阅读两页。 197 已核对长列表末章避让和点选、隐藏滚动条、设置首页图标配色，以及继续图标居中。目录索引仅在映射变化或重建时落盘，章节进度不再读写索引。本地验证误删后重建与交错增删，197 用已有三章生成可解压的 CBZ。",
+      "remaining": "全队列取消只核对确认范围，未取消原有任务；独立暂停和分组取消已跑逻辑回归。断网、后台传输、大文件导出及其他保存目录仍未全面实机验证。",
+      "relatedItems": [
+        "DOWNLOAD_USER_FLOW",
+        "DOWNLOAD_PUBLIC_READABLE_LAYOUT"
+      ],
+      "evidence": [
+        "entry/src/main/ets/pages/DownloadsPage.ets",
+        "scripts/test_chapter_management.cjs",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T201229990204/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/capture-cbz-20261111T201151494971/selected.cbz",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/restore-20261111T202515132771/run-metadata.json",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T213442637529/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T212654826819/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T213918935494/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T214503767694/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T214752606384/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/restore-20261111T215346074898/run-metadata.json",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T223604961822/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/motion-20261111T223625926997/motion-20261111T223625926997.mp4",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/restore-20261111T223640455339/run-metadata.json",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T225041053377/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T225428677948/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/install-20261111T225850511385/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/capture-cbz-20261111T231228647981/selected.cbz"
+      ]
+    },
+    {
       "id": "DOWNLOAD_PUBLIC_READABLE_LAYOUT",
       "number": 276,
       "title": "同名书源下载目录隔离与可读名称迁移",
@@ -10286,6 +10327,57 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "download-management-group-interactions-20261111",
+      "at": "2026-11-11T22:36:40+08:00",
+      "itemId": "DOWNLOAD_QUEUE_MANAGEMENT",
+      "title": "197 核对标题栏、分组菜单和列表动画",
+      "detail": "可重试分组显示「重试失败」，《虫笼》的旧任务显示找不到作品。章节与分组菜单对齐。录屏核对展开、收起和从全部切到已下载，队列仍为 87 项。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/motion-20261111T223625926997/motion-20261111T223625926997.mp4"
+    },
+    {
+      "id": "download-management-root-and-cbz-roundtrip-20261111",
+      "at": "2026-11-11T21:47:52+08:00",
+      "itemId": "DOWNLOAD_QUEUE_MANAGEMENT",
+      "title": "197 核对下载入口迁移与 CBZ 回导",
+      "detail": "设置首页入口独立成组，旧下载设置仍可打开。按拖动后的顺序保存两章 CBZ 到系统 Download，回导并阅读 1/2 和 2/2。QA 子目录拒绝打开目标，保存失败已有独立提示。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T214752606384/screen.png"
+    },
+    {
+      "id": "download-queue-management-197-verification-20261111",
+      "at": "2026-11-11T20:25:15+08:00",
+      "itemId": "DOWNLOAD_QUEUE_MANAGEMENT",
+      "title": "197 核对下载分组和作品 CBZ",
+      "detail": "同组两章重试成功；实测选章和拖动，设备生成的两章 CBZ 解包通过。未确认取消全部，也未保存到外部或回导。设备恢复 10 秒超时和休眠并释租。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "download-work-cbz-proposal-20261111",
+      "at": "2026-11-11T19:17:09+08:00",
+      "itemId": "DOWNLOAD_QUEUE_MANAGEMENT",
+      "title": "核对作品 CBZ 导出方案",
+      "detail": "已核对单章导出、阅读章序和 CBZ 导入。拟在已下载分组增加选章导出，按阅读顺序写入连续编号的图片。现有导入把一份 CBZ 读为一章。方案待确认，尚未实施。",
+      "kind": "checkpoint",
+      "evidence": "entry/src/main/ets/model/ChapterArchiveExport.ets"
+    },
+    {
+      "id": "download-queue-group-wording-20261111",
+      "at": "2026-11-11T19:12:07+08:00",
+      "itemId": "DOWNLOAD_QUEUE_MANAGEMENT",
+      "title": "调整下载分组菜单文案",
+      "detail": "队列操作使用「本组」，打开详情使用「查看作品」。已更新方案。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "download-queue-management-analysis-20261111",
+      "at": "2026-11-11T18:22:33+08:00",
+      "itemId": "DOWNLOAD_QUEUE_MANAGEMENT",
+      "title": "完成下载管理流程核查",
+      "detail": "核对作品详情、书架、自动入队、下载管理、后台传输和本机阅读。已明确按作品和全队列控制的缺口，以及顺序、失败恢复和完成状态的调整范围。当前为源码核查及方案，尚未实施或真机验收。",
+      "kind": "checkpoint"
+    },
     {
       "id": "modal-settings-card-opacity-50-237-20261111",
       "at": "2026-11-11T22:00:40+08:00",

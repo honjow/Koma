@@ -63,6 +63,7 @@ async function main() {
     const oldQueue = new queues.OfflineDownloadQueueStore(publicRoot)
     oldQueue.addNewEntries([entry('a', '1'), entry('a', '2')])
     oldQueue.move('a', '2', true)
+    oldQueue.setTasksPaused([entry('a', '2')], true)
     oldQueue.pauseAllQueuedWork()
     oldQueue.setWifiOnly(true)
     oldQueue.upsert({ ...entry('b', 'done'), status: 'downloaded' })
@@ -95,13 +96,15 @@ async function main() {
     queue.addNewEntries([entry('a', '1'), entry('a', '2'), entry('b', '3')])
     queue.move('a', '1', true)
     const ordered = () => queue.load().map(e => e.chapterId)
-    assert.deepEqual(ordered(), ['1', '3', '2'])
+    assert.deepEqual(ordered(), ['1', '2', '3'], 'New chapters append in the request order')
     queue.upsert({ ...entry('b', '3'), status: 'downloading' })
-    assert.deepEqual(ordered(), ['1', '3', '2'], 'Progress cannot undo queue order')
+    assert.deepEqual(ordered(), ['1', '2', '3'], 'Progress cannot undo queue order')
     queue.move('a', '1', false, true)
     assert.deepEqual(ordered(), ['3', '1', '2'], 'Whole-series move retains the series internal order')
     assert.deepEqual(new queues.OfflineDownloadQueueStore(dir).load().map(e => e.chapterId), ordered())
-    const execution = load('OfflineDownloadQueueExecution', { './OfflineDownloadStore': downloads })
+    const execution = load('OfflineDownloadQueueExecution', {
+      './OfflineDownloadQueueStore': queues, './OfflineDownloadStore': downloads,
+    })
     const started = []; let finishCurrent
     const current = new Promise(resolve => { finishCurrent = resolve })
     const running = execution.runOrderedDownloadQueueBatch(queue, queue.load(), async e => {
@@ -118,7 +121,42 @@ async function main() {
     queue.move('a', '2', false, true)
     assert.equal(queue.load()[0].comicId, 'b')
     assert.deepEqual(queue.load().slice(1).map(e => e.chapterId), ['done', '2', '1'],
-      'Whole-series ordering keeps completed rows in the visible group without re-executing them')
+      'Only pending chapters moved. The completed row stayed between the preceding work and moved rows.')
+
+    const controlRoot = path.join(dir, 'scoped-controls')
+    const scoped = new queues.OfflineDownloadQueueStore(controlRoot)
+    const a1 = { ...entry('a', '1'), automatic: true }
+    const a2 = { ...entry('a', '2'), automatic: true }
+    const b1 = { ...entry('b', '1'), automatic: true }
+    scoped.addNewEntries([a1, a2, b1])
+    scoped.upsert({ ...entry('a', 'done'), status: 'downloaded' })
+    scoped.setTasksPaused([a1, a2], true)
+    scoped.pauseAllQueuedWork()
+    scoped.resumeAllQueuedWork()
+    const afterResume = new queues.OfflineDownloadQueueStore(controlRoot)
+    assert.deepEqual(afterResume.load().filter(item => item.pausedByUser).map(queues.offlineDownloadTaskKey),
+      [a1, a2].map(queues.offlineDownloadTaskKey), 'Global resume preserves independent pauses across a new store')
+    const dispatched = []
+    await execution.runOrderedDownloadQueueBatch(afterResume, afterResume.load(),
+      async item => { dispatched.push(queues.offlineDownloadTaskKey(item)) }, () => true)
+    assert.deepEqual(dispatched, [queues.offlineDownloadTaskKey(b1)])
+
+    scoped.setTasksPaused([a1, a2], false)
+    let finishTransfer
+    const transfer = new Promise(resolve => { finishTransfer = resolve })
+    const runningTransfer = runtime.OfflineDownloadRuntime.run(controlRoot, a1.comicId, a1.chapterId, () => transfer)
+    const targets = scoped.load().filter(item => item.comicId === 'a')
+    const cancel = scoped.cancelTasks(targets)
+    const committed = new queues.OfflineDownloadQueueStore(controlRoot).load()
+    assert.deepEqual(committed.filter(item => item.canceling).map(queues.offlineDownloadTaskKey),
+      [a1, a2].map(queues.offlineDownloadTaskKey), 'The complete cancel scope is committed before the first transfer stops')
+    assert.equal(runtime.OfflineDownloadRuntime.isPauseRequested(
+      runtime.OfflineDownloadRuntime.key(controlRoot, a1.comicId, a1.chapterId)), true)
+    finishTransfer({})
+    await runningTransfer
+    assert.equal(await cancel, 2)
+    assert.deepEqual(scoped.load().map(queues.offlineDownloadTaskKey),
+      [b1, entry('a', 'done')].map(queues.offlineDownloadTaskKey), 'Cancellation preserves other works and complete files')
 
     const values = new Map(); let fail = false
     const prefs = { getSync: (key, fallback) => values.get(key) ?? fallback,
@@ -253,6 +291,7 @@ async function main() {
       './ReaderPageSourceAdapter': render, '@kit.CoreFileKit': { fileIo: asyncIo, fileUri: { getUriFromPath:p=>'file://'+p } },
       '@kit.ArkTS': { taskpool: { execute: async (fn,...args) => fn(...args) } }, '@kit.BasicServicesKit': { zlib },
       '@kit.ShareKit': {}, '@kit.ArkData': {}, './OfflineDownloadStore': downloads, '../i18n/AppStrings': {},
+      '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn: () => {} } },
       './KomaContentStorage': { ensureKomaContentStorageBase: async () => storageDir },
     })
     const plan = JSON.parse(archive.chapterArchivePagesWorker(storageDir, appFilesDir, 'a', '1'))
@@ -262,6 +301,28 @@ async function main() {
     assert.deepEqual(unzip('00001.png'), fs.readFileSync(manifest.pages[0].localPath))
     assert.deepEqual(unzip('00002.jpg'), fs.readFileSync(derived))
     assert.deepEqual(fs.readFileSync(manifest.pages[1].localPath), Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),Buffer.alloc(32,1)]))
+    let other = disk.createManifest('a', '2', 1, 'downloaded')
+    const otherPath = disk.pageFilePath('a', '2', 'p0', 0, 'img')
+    const otherBytes = Buffer.from('89504e470d0a1a0a1011', 'hex')
+    fs.writeFileSync(otherPath, otherBytes)
+    other = disk.recordPage(other, { pageId: 'p0', pageIndex: 0, localPath: otherPath, size: otherBytes.length,
+      contentHash: downloads.createOfflineDownloadFileContentHash(otherPath), updatedAt: 1 })
+    const chapterOrder = [{ id: '2', title: 'Chapter 2' }, { id: '1', title: 'Chapter 1' }]
+    const progress = []
+    const combined = await archive.prepareWorkArchive({ filesDir: appFilesDir, cacheDir: dir }, 'a', 'Series',
+      chapterOrder, { isCanceled: () => false, onChapterPrepared: count => progress.push(count) })
+    const readCombined = name => require('node:child_process').execFileSync('unzip', ['-p', combined.path, name])
+    assert.equal(combined.fileName, 'Series.cbz')
+    assert.deepEqual(progress, [1, 2])
+    assert.deepEqual(readCombined('00000001.png'), otherBytes)
+    assert.deepEqual(readCombined('00000002.png'), fs.readFileSync(manifest.pages[0].localPath))
+    assert.deepEqual(readCombined('00000003.jpg'), fs.readFileSync(derived))
+    const beforeCancel = fs.readdirSync(dir)
+    let cancelExport = false
+    await assert.rejects(archive.prepareWorkArchive({ filesDir: appFilesDir, cacheDir: dir }, 'a', 'Series',
+      chapterOrder, { isCanceled: () => cancelExport, onChapterPrepared: () => { cancelExport = true } }),
+    /chapter_archive_canceled/)
+    assert.deepEqual(fs.readdirSync(dir), beforeCancel, 'Cancel discards the staging directory and partial archive')
     failOverlay = true
     const beforeDirs = new Set(fs.readdirSync(dir))
     await assert.rejects(archive.prepareChapterArchive({filesDir:appFilesDir,cacheDir:dir},'a','1','Series','Failed'), /overlay render failure/)

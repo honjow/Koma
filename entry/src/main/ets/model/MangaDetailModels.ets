@@ -51,7 +51,8 @@ export interface MangaChapterItem extends ChapterReadSequenceEntry {
   downloadProgress?: string
 }
 
-export type MangaChapterDownloadStatus = 'queued' | 'downloading' | 'downloaded' | 'partial' | 'failed' | 'blocked' | 'paused' | 'waiting_wifi'
+export type MangaChapterDownloadStatus = 'queued' | 'downloading' | 'downloaded' | 'partial' | 'failed' | 'blocked' |
+  'paused' | 'waiting_wifi' | 'waiting_network' | 'canceling'
 
 export enum ChapterSortBasis {
   SOURCE_ORDER = 'source_order',

@@ -184,25 +184,25 @@ function reusableDownloadedPage(pages: OfflineDownloadedPage[], pageId: string, 
   return page
 }
 
-function isDefaultNetworkWifi(): boolean {
+export type OfflineDownloadWaitReason = 'paused' | 'wifi_only' | 'offline'
+
+export function downloadBlockedReason(preferences: OfflineDownloadQueuePreferences): OfflineDownloadWaitReason | undefined {
+  if (preferences.isPaused) return 'paused'
   try {
     const netHandle = connection.getDefaultNetSync()
-    if (netHandle.netId === 0) {
-      return false
+    if (netHandle.netId === 0) return 'offline'
+    if (preferences.wifiOnly) {
+      const capabilities = connection.getNetCapabilitiesSync(netHandle)
+      if (capabilities.bearerTypes.indexOf(connection.NetBearType.BEARER_WIFI) < 0) return 'wifi_only'
     }
-    const capabilities = connection.getNetCapabilitiesSync(netHandle)
-    return capabilities.bearerTypes.indexOf(connection.NetBearType.BEARER_WIFI) >= 0
   } catch (_error) {
-    return false
+    return 'offline'
   }
-}
-
-export function downloadBlockedReason(preferences: OfflineDownloadQueuePreferences): string {
-  return preferences.isPaused ? 'paused' : 'wifi_only'
+  return undefined
 }
 
 export function canRunOfflineDownloadQueueNow(preferences: OfflineDownloadQueuePreferences): boolean {
-  return !preferences.isPaused && (!preferences.wifiOnly || isDefaultNetworkWifi())
+  return downloadBlockedReason(preferences) === undefined
 }
 
 @Concurrent
@@ -226,6 +226,7 @@ export class OfflineDownloadService {
   static ensureQueueInitialized(filesDir: string, runtimeKey: string = filesDir): Promise<void> {
     return OfflineDownloadRuntime.initialize(runtimeKey, async (): Promise<void> => {
       await taskpool.execute(new taskpool.Task(initializeOfflineDownloadQueue, filesDir, runtimeKey))
+      await new OfflineDownloadQueueStore(filesDir, runtimeKey).finishCanceledTasks()
       OfflineDownloadRuntime.publish(runtimeKey)
     })
   }
@@ -234,12 +235,16 @@ export class OfflineDownloadService {
     return this.store.loadSummary(comicId, chapterId)
   }
 
-  async blockChapterDownload(comic: Comic, chapterId: string, reasonCode: string, labels?: OfflineDownloadLabels): Promise<OfflineChapterDownloadManifest> {
+  async blockChapterDownload(comic: Comic, chapterId: string, reasonCode: string, labels?: OfflineDownloadLabels,
+    isRequested: () => boolean = () => true): Promise<OfflineChapterDownloadManifest> {
     const filesDir = this.store.filesRootDir()
     const runtimeKey = this.store.runtimeKey()
     await OfflineDownloadService.ensureQueueInitialized(filesDir, runtimeKey)
     return OfflineDownloadRuntime.run(runtimeKey, comic.id, chapterId,
-      async (): Promise<OfflineChapterDownloadManifest> => this.saveBlockedChapter(comic, chapterId, reasonCode, labels))
+      async (): Promise<OfflineChapterDownloadManifest> => {
+        if (!isRequested()) throw new Error('download_request_removed')
+        return this.saveBlockedChapter(comic, chapterId, reasonCode, labels)
+      })
   }
 
   private saveBlockedChapter(comic: Comic, chapterId: string, reasonCode: string, labels?: OfflineDownloadLabels): OfflineChapterDownloadManifest {
@@ -307,10 +312,8 @@ export class OfflineDownloadService {
       updatedAt: Date.now(),
     })
     const latestPreferences = this.queueStore.loadPreferences()
-    const initialCanDownload = this.canDownloadNow(initialPreferences)
-    const latestCanDownload = this.canDownloadNow(latestPreferences)
-    if (!initialCanDownload || !latestCanDownload) {
-      const blockedReason = downloadBlockedReason(!latestCanDownload ? latestPreferences : initialPreferences)
+    const blockedReason = downloadBlockedReason(latestPreferences) ?? downloadBlockedReason(initialPreferences)
+    if (blockedReason !== undefined) {
       let existingManifest = this.store.loadManifest(comic.id, chapterId)
       if (existingManifest !== undefined) {
         const validation = this.store.validateDownloadedChapter(comic.id, chapterId)
@@ -368,16 +371,21 @@ export class OfflineDownloadService {
     const config = createReaderSessionConfigFromComic(comic, chapterId)
     this.lastManifestProgressPersistedAt = Date.now()
     let pageFetchFailed = false
+    const waitReason = (): OfflineDownloadWaitReason | undefined => {
+      return OfflineDownloadRuntime.isPauseRequested(executionKey) ? 'paused' :
+        downloadBlockedReason(this.queueStore.loadPreferences())
+    }
+    const saveDeferred = (reason: OfflineDownloadWaitReason): OfflineChapterDownloadManifest => {
+      manifest.status = manifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED
+      manifest.failureReasonCode = reason
+      manifest = this.store.saveManifest(manifest)
+      this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+      return manifest
+    }
     try {
       for (let index = 0; index < config.totalPages; index += 1) {
-        const preferences = this.queueStore.loadPreferences()
-        if (OfflineDownloadRuntime.isPauseRequested(executionKey) || !this.canDownloadNow(preferences)) {
-          manifest.status = manifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED
-          manifest.failureReasonCode = OfflineDownloadRuntime.isPauseRequested(executionKey) || preferences.isPaused ? 'paused' : 'wifi_only'
-          manifest = this.store.saveManifest(manifest)
-          this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-          return manifest
-        }
+        const reason = waitReason()
+        if (reason !== undefined) return saveDeferred(reason)
         const page = pageAtIndex(chapter, index)
         const pageId = page?.id ?? `page-${index + 1}`
         const reusablePage = reusableDownloadedPage(reusablePages, pageId, index)
@@ -444,6 +452,8 @@ export class OfflineDownloadService {
             manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
         }
       }
+      const finalWait = waitReason()
+      if (finalWait !== undefined) return saveDeferred(finalWait)
       manifest.status = OfflineDownloadStatus.DOWNLOADED
       manifest = this.store.saveManifest(manifest)
       const finalValidation = this.store.validateDownloadedChapter(comic.id, chapterId, { validateContentHash: false })
@@ -473,10 +483,6 @@ export class OfflineDownloadService {
       this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
       return manifest
     }
-  }
-
-  private canDownloadNow(preferences: OfflineDownloadQueuePreferences): boolean {
-    return canRunOfflineDownloadQueueNow(preferences)
   }
 
   private publishNotification(manifest: OfflineChapterDownloadManifest, labels?: OfflineDownloadLabels): void {

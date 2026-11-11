@@ -23,8 +23,9 @@ export class AutomaticDownloadController {
     })
     const network = connection.createNetConnection()
     this.network = network
-    network.on('netAvailable', () => { this.wake() })
-    network.on('netCapabilitiesChange', () => { this.wake() })
+    network.on('netAvailable', () => { OfflineDownloadRuntime.publish(request.context.filesDir) })
+    network.on('netCapabilitiesChange', () => { OfflineDownloadRuntime.publish(request.context.filesDir) })
+    network.on('netLost', () => { OfflineDownloadRuntime.publish(request.context.filesDir) })
     network.register((error: BusinessError): void => {
       if (error !== undefined && error !== null) DiagnosticLogger.exception('downloads', 'network_observer_failed', error)
     })

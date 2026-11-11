@@ -4,7 +4,7 @@ import { LibraryStore } from './LibraryStore'
 import { LibraryStorePersistenceService } from './LibraryPersistence'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceChapterPageHydrator, SourceChapterPageHydrationResult } from './SourceChapterPageHydrator'
-import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
+import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore, isOfflineDownloadTaskPending } from './OfflineDownloadQueueStore'
 import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from './OfflineDownloadService'
 import { OfflineDownloadStatus, OfflineDownloadStore } from './OfflineDownloadStore'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
@@ -23,7 +23,7 @@ export interface OfflineDownloadBatchRequest {
 
 export function recoverableDownloadEntry(entry: OfflineDownloadQueueEntry): boolean {
   return entry.status !== OfflineDownloadStatus.BLOCKED ||
-    ['pages_missing', 'source_pages_failed', 'source_lookup_failed', 'source_not_installed', 'source_disabled', 'wifi_only', 'paused', 'download_interrupted']
+    ['pages_missing', 'source_pages_failed', 'source_lookup_failed', 'source_not_installed', 'source_disabled', 'wifi_only', 'offline', 'paused', 'download_interrupted']
       .includes(entry.failureReasonCode ?? '')
 }
 
@@ -48,7 +48,7 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
       const isPending = (): boolean => !OfflineDownloadRuntime.isRemovingChapter(runtimeKey,
         entry.comicId, entry.chapterId) && queue.load().some((current: OfflineDownloadQueueEntry): boolean =>
           current.comicId === entry.comicId && current.chapterId === entry.chapterId &&
-          current.status !== OfflineDownloadStatus.DOWNLOADED)
+          current.requestId === entry.requestId && !current.pausedByUser && isOfflineDownloadTaskPending(current))
       if (!recoverableDownloadEntry(entry) || !isPending()) return
       const comic = request.library.getComic(entry.comicId)
       if (comic === undefined) {
@@ -69,7 +69,7 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
         hydration = { hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' }
       }
       const current = request.library.getComic(entry.comicId)
-      if (!isPending()) return
+      if (!isPending() || !canRunOfflineDownloadQueueNow(queue.loadPreferences())) return
       if (current === undefined) {
         entry.status = OfflineDownloadStatus.BLOCKED
         entry.failureReasonCode = 'comic_missing'
@@ -77,12 +77,14 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
         return
       }
       if (!sameComicIdentity(comic, current)) return
-      if (!hydration.hydrated) {
-        await service.blockChapterDownload(current, entry.chapterId, hydration.reasonCode ?? 'pages_missing',
-          { comicTitle: entry.comicTitle ?? current.title, chapterTitle: entry.chapterTitle })
-        return
-      }
       try {
+        if (!hydration.hydrated) {
+          const reason = hydration.sourceFailure?.kind === 'auth' ? 'source_login_required' :
+            hydration.reasonCode ?? 'pages_missing'
+          await service.blockChapterDownload(current, entry.chapterId, reason,
+            { comicTitle: entry.comicTitle ?? current.title, chapterTitle: entry.chapterTitle }, isPending)
+          return
+        }
         const result = await service.downloadChapter(current, entry.chapterId,
           { comicTitle: entry.comicTitle ?? current.title, chapterTitle: entry.chapterTitle }, isPending)
         if (result.status === OfflineDownloadStatus.DOWNLOADED) completed += 1
@@ -110,8 +112,8 @@ export function resumeAutomaticDownloads(request: OfflineDownloadBatchRequest): 
     while (canRunOfflineDownloadQueueNow(queue.loadPreferences())) {
       // New requests resume when eligible. Previously staged records stay staged.
       const targets = queue.load().filter((entry: OfflineDownloadQueueEntry): boolean =>
-        entry.automatic === true && (entry.status === OfflineDownloadStatus.QUEUED ||
-          ['wifi_only', 'paused', 'download_interrupted'].includes(entry.failureReasonCode ?? '')))
+        entry.automatic === true && !entry.pausedByUser && isOfflineDownloadTaskPending(entry) &&
+          entry.status !== OfflineDownloadStatus.DOWNLOADING)
       if (targets.length === 0) return
       if (await runOfflineDownloadBatch(request, targets) === 0) return
     }

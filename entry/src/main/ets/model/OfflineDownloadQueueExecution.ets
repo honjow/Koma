@@ -1,22 +1,27 @@
-import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
+import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore, offlineDownloadTaskKey } from './OfflineDownloadQueueStore'
 import { OfflineDownloadStatus } from './OfflineDownloadStore'
 
 /** All batch callers select the next chapter from the same durable queue. */
 export async function runOrderedDownloadQueueBatch(queue: OfflineDownloadQueueStore,
   targets: OfflineDownloadQueueEntry[], execute: (entry: OfflineDownloadQueueEntry) => Promise<void>,
   canRun: () => boolean): Promise<void> {
-  const keys = new Set<string>(targets.map((entry: OfflineDownloadQueueEntry): string => JSON.stringify([entry.comicId, entry.chapterId])))
+  const requests = new Map<string, string | undefined>()
+  targets.forEach((entry: OfflineDownloadQueueEntry): void => {
+    requests.set(offlineDownloadTaskKey(entry), entry.requestId)
+  })
   const claimed: Set<string> = new Set()
   const worker = async (): Promise<void> => {
     while (canRun()) {
       // Claim synchronously before yielding. Active chapters retain their slots;
       // only the next selection changes when a user reorders the queue.
       const entry = queue.load().find((item: OfflineDownloadQueueEntry): boolean => {
-        const key = JSON.stringify([item.comicId, item.chapterId])
-        return keys.has(key) && !claimed.has(key) && item.status !== OfflineDownloadStatus.DOWNLOADED
+        const key = offlineDownloadTaskKey(item)
+        return requests.has(key) && requests.get(key) === item.requestId && !claimed.has(key) &&
+          !item.pausedByUser && !item.canceling &&
+          item.status !== OfflineDownloadStatus.DOWNLOADED
       })
       if (entry === undefined) return
-      claimed.add(JSON.stringify([entry.comicId, entry.chapterId]))
+      claimed.add(offlineDownloadTaskKey(entry))
       await execute(entry)
     }
   }

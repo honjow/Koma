@@ -187,8 +187,10 @@ export type SettingsPaneKey =
   'enhancement-models' |
   'diagnostics'
 
+type SettingsRootItemKey = SettingsPaneKey | 'download-management'
+
 interface SettingsPaneItem {
-  key: SettingsPaneKey
+  key: SettingsRootItemKey
   titleKey: string
   detailKey: string
   icon: Resource
@@ -301,7 +303,6 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'library-badges', titleKey: 'settings_row_library_badges_title', detailKey: 'settings_row_library_badges_detail' },
         { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
         { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
-        { key: 'downloads', titleKey: 'settings_row_downloads_title', detailKey: 'settings_row_downloads_detail' },
         { key: 'download-notifications', titleKey: 'settings_row_download_notifications_title', detailKey: 'settings_row_download_notifications_detail' },
         { key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title', detailKey: 'settings_row_download_concurrency_detail' },
         { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail' },
@@ -343,6 +344,7 @@ function createSettingsSections(): SettingsSection[] {
 
 // Root symbols describe the destination. Generic settings gears belong to
 // Advanced; translation config is a service, while Reader keeps its live actions.
+// Keep adjacent icon backgrounds distinct across section boundaries.
 function createSettingsRootSections(): SettingsPaneSection[] {
   return [
     {
@@ -355,6 +357,19 @@ function createSettingsRootSections(): SettingsPaneSection[] {
           detailKey: 'settings_row_incognito_detail',
           icon: $r('sys.symbol.eye_slash'),
           color: ThemeConstants.STATUS_MUTED,
+        },
+      ],
+    },
+    {
+      key: 'download-management',
+      titleKey: '',
+      items: [
+        {
+          key: 'download-management',
+          titleKey: 'settings_row_downloads_title',
+          detailKey: 'settings_row_downloads_detail',
+          icon: $r('sys.symbol.arrow_down_to_line'),
+          color: ThemeConstants.STATUS_SUCCESS,
         },
       ],
     },
@@ -904,7 +919,6 @@ export struct SettingsPage {
           key: 'downloads',
           titleKey: 'settings_section_downloads',
           rows: this.rowsByKeys([
-            'downloads',
             'download-notifications',
             'download-concurrency',
             'download-wifi-only',
@@ -995,9 +1009,15 @@ export struct SettingsPage {
     const results: SettingsSearchResult[] = []
     settingsRootSections().forEach((section: SettingsPaneSection) => {
       section.items.forEach((item: SettingsPaneItem) => {
-        if (!this.paneItemTitle(item).toLowerCase().includes(query)) return
-        results.push({ key: `category:${item.key}`, pane: item.key, sectionTitle: '',
-          row: { key: 'settings-category', titleKey: item.titleKey, detailKey: item.detailKey } })
+        if (!this.paneItemTitle(item).toLowerCase().includes(query) &&
+          (item.key !== 'download-management' || !this.paneItemDetail(item).toLowerCase().includes(query))) return
+        if (item.key === 'download-management') {
+          results.push({ key: 'download-management', pane: 'root', sectionTitle: '',
+            row: { key: 'download-management', titleKey: item.titleKey, detailKey: item.detailKey } })
+        } else {
+          results.push({ key: `category:${item.key}`, pane: item.key, sectionTitle: '',
+            row: { key: 'settings-category', titleKey: item.titleKey, detailKey: item.detailKey } })
+        }
       })
     })
     this.searchablePanes().forEach((pane: SettingsPaneKey) => {
@@ -2450,8 +2470,6 @@ export struct SettingsPage {
       this.showImageCacheConfirm()
     } else if (row.key === 'sources') {
       this.showSourcesDialog()
-    } else if (row.key === 'downloads') {
-      this.onOpenDownloads()
     } else if (row.key === 'download-notifications') {
       this.requestDownloadNotifications()
     } else if (row.key === 'library-auto-update') {
@@ -2554,6 +2572,10 @@ export struct SettingsPage {
     // Backup and the two WebDAV destinations share a search return path.
     if (result.pane !== 'backup' && result.row.key !== 'webdav') this.settingsSearchText = ''
     // Search may navigate directly, but must never run a command or change a preference.
+    if (result.row.key === 'download-management') {
+      this.openRootItem('download-management')
+      return
+    }
     if (result.row.key === 'settings-category') {
       this.onOpenSettingsPane(result.pane)
       return
@@ -2563,7 +2585,7 @@ export struct SettingsPage {
       return
     }
     const navigationRows: string[] = ['komga', 'kavita', 'opds', 'webdav', 'sources',
-      'downloads', 'library-update-results', 'translation', 'enhancement-models', 'diagnostics',
+      'library-update-results', 'translation', 'enhancement-models', 'diagnostics',
       'image-plugins']
     if (navigationRows.includes(result.row.key)) {
       this.handleRowClick(result.row)
@@ -2598,11 +2620,20 @@ export struct SettingsPage {
     } else {
       ConciseListRow({
         title: this.rowTitle(result.row),
-        subtitle: result.row.key === 'settings-category' ? this.rowBaseDetail(result.row) : this.searchResultSubtitle(result),
+        subtitle: result.row.key === 'settings-category' || result.row.key === 'download-management'
+          ? this.rowBaseDetail(result.row) : this.searchResultSubtitle(result),
         subtitleMaxLines: 2,
         showChevron: true,
         action: () => { this.openSearchResult(result) },
       })
+    }
+  }
+
+  private openRootItem(key: SettingsRootItemKey): void {
+    if (key === 'download-management') {
+      this.onOpenDownloads()
+    } else {
+      this.onOpenSettingsPane(key)
     }
   }
 
@@ -2630,7 +2661,7 @@ export struct SettingsPage {
         showChevron: true,
         action: () => {
           this.getUIContext().getFocusController().clearFocus()
-          this.onOpenSettingsPane(item.key)
+          this.openRootItem(item.key)
         },
       })
     }

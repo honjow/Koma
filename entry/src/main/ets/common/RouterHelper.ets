@@ -8,6 +8,7 @@ import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { MangaMigrationRouteChromeState } from '../state/MangaMigrationRouteChromeState'
 import { MigrationMatchOptions } from '../model/MangaMigrationPreferencesStore'
 import { LibrarySearchSource } from '../model/LibrarySearchQuery'
+import { DownloadsChrome } from '../state/DownloadsChrome'
 
 export interface MangaDetailRouteParam {
   mangaId: string
@@ -113,6 +114,8 @@ export class RouterHelper {
       param = { settingsSourceId: '', chrome: new SourceCatalogPageChrome() } as SourcePackageManagerRouteParam
     } else if (routeName === RouteName.SOURCE_SUBSCRIPTIONS) {
       param = new SourceCatalogPageChrome()
+    } else if (routeName === RouteName.DOWNLOADS) {
+      param = new DownloadsChrome()
     }
     stack.pushPath({ name: routeName, param })
   }
