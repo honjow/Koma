@@ -7,8 +7,7 @@ import { InMemoryLibraryStore } from './LibraryStore'
 import { LIBRARY_STORE_PERSISTENCE_FILE_NAME, hydrateLibraryStoreFromJson } from './LibraryPersistence'
 import { appReaderSessionStore } from './ReaderSessionStore'
 import { READER_PROGRESS_PERSISTENCE_FILE_NAME } from './ReaderSessionStore'
-import { OFFLINE_DOWNLOAD_ROOT_DIR_NAME } from './OfflineDownloadStore'
-import { OFFLINE_DOWNLOAD_QUEUE_FILE_NAME } from './OfflineDownloadQueueStore'
+import { readableOfflineDownloadQueuePath } from './OfflineDownloadQueueStore'
 import { KOMA_BUNDLE_NAME } from '../common/Constants'
 import { automationEpoch, currentAutomationEpoch } from './AutomationStateEpoch'
 import { protectedSourceChapterIds } from './SourceChapterIdentityGuard'
@@ -72,7 +71,7 @@ export async function executeBackgroundMaintenance(context: common.Context, work
     // after background entry (in-flight updates/downloads) from their atomic persisted documents.
     const libraryPath = `${context.filesDir}/${LIBRARY_STORE_PERSISTENCE_FILE_NAME}`
     const progressPath = `${context.filesDir}/${READER_PROGRESS_PERSISTENCE_FILE_NAME}`
-    const queuePath = `${contentBase}/${OFFLINE_DOWNLOAD_ROOT_DIR_NAME}/${OFFLINE_DOWNLOAD_QUEUE_FILE_NAME}`
+    const queuePath = readableOfflineDownloadQueuePath(contentBase, context.filesDir)
     if (await fs.access(libraryPath)) document['libraryStore'] = await fs.readText(libraryPath)
     if (await fs.access(progressPath)) document['readingProgress'] = await fs.readText(progressPath)
     if (document['downloadQueue'] !== undefined && await fs.access(queuePath)) document['downloadQueue'] = await fs.readText(queuePath)

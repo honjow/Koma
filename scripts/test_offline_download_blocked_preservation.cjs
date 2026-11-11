@@ -8,7 +8,7 @@ const io={accessSync:fs.existsSync,mkdirSync:(p)=>fs.mkdirSync(p,{recursive:true
 const models=run(clean(fs.readFileSync(root+'/model/ComicModels.ets','utf8')),{});
 const storeCode=fs.readFileSync(root+'/model/OfflineDownloadStore.ets','utf8');
 const persistence=run(clean(fs.readFileSync(root+'/model/AppFileTextPersistence.ets','utf8')),{fs:io});
-const directoryIndex=run(clean(fs.readFileSync(root+'/model/DownloadDirectoryIndex.ets','utf8')),{fs:io});
+const directoryIndex=run(clean(fs.readFileSync(root+'/model/DownloadDirectoryIndex.ets','utf8')),{fs:io,...persistence});
 const storeExports=run(clean(storeCode),{fs:io,ComicSourceKind:models.ComicSourceKind,...directoryIndex,...persistence});
 const serviceCode=fs.readFileSync(root+'/model/OfflineDownloadService.ets','utf8');
 const tree=ts.createSourceFile('Service.ts',serviceCode,ts.ScriptTarget.Latest,true);

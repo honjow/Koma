@@ -1104,6 +1104,7 @@ export interface ReaderPageRenderSourceOptions {
 }
 
 let readerOfflineDownloadsDir: string = ''
+let readerOfflineAppFilesDir: string = ''
 export type ReaderImageSize = ReaderImagePixelSize
 export const readerImageSizeCache: Map<string, ReaderImageSize> = new Map()
 
@@ -1140,8 +1141,9 @@ export async function probeReaderImageFileSize(path: string,
   }
 }
 
-export function configureReaderOfflineDownloads(filesDir: string): void {
+export function configureReaderOfflineDownloads(filesDir: string, appFilesDir: string = filesDir): void {
   readerOfflineDownloadsDir = filesDir
+  readerOfflineAppFilesDir = appFilesDir
 }
 
 function resolveOfflineReaderPage(
@@ -1152,7 +1154,7 @@ function resolveOfflineReaderPage(
     return ''
   }
   try {
-    const store = new OfflineDownloadStore(readerOfflineDownloadsDir)
+    const store = new OfflineDownloadStore(readerOfflineDownloadsDir, readerOfflineAppFilesDir)
     const pageId = config.pageIds !== undefined && index < config.pageIds.length
       ? config.pageIds[index]
       : `page-${index + 1}`
@@ -1184,7 +1186,7 @@ function resolveOfflineReaderPages(config: ReaderSessionConfig): OfflineReaderPa
     return paths
   }
   try {
-    const store = new OfflineDownloadStore(readerOfflineDownloadsDir)
+    const store = new OfflineDownloadStore(readerOfflineDownloadsDir, readerOfflineAppFilesDir)
     // The reader does not need to hash all image bytes again before every
     // page is shown.  The manifest, identity, root, page-index, existence and
     // byte-size checks remain enforced for this session snapshot.

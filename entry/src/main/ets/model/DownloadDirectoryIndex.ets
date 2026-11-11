@@ -1,4 +1,5 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
+import { writeAppTextFile } from './AppFileTextPersistence'
 
 export const DOWNLOAD_INDEX_FILE_NAME: string = '.koma-download-index.v1.json'
 export const DOWNLOAD_METADATA_DIR_NAME: string = '.koma'
@@ -28,12 +29,11 @@ export interface DownloadDirectoryIndexFile {
 }
 
 export interface EnsuredDownloadDirectory {
-  comicDir: string
   chapterDir: string
-  index: DownloadDirectoryIndexFile
+  indexChanged: boolean
 }
 
-interface ManifestIdentity {
+export interface DownloadDirectoryIdentity {
   comicId: string
   chapterId: string
   comicTitle: string
@@ -66,19 +66,6 @@ function ensureDirectory(path: string): void {
   } catch (_error) {
     if (!fs.accessSync(path)) throw new Error('download_directory_unavailable')
   }
-}
-
-function writeText(path: string, payload: string): void {
-  const temporary = path + '.tmp'
-  const file = fs.openSync(temporary, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC)
-  try {
-    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
-    fs.fsyncSync(file.fd)
-  } finally {
-    fs.closeSync(file)
-  }
-  if (fs.accessSync(path)) fs.unlinkSync(path)
-  fs.renameSync(temporary, path)
 }
 
 export function sanitizeDownloadSegment(value: string, fallback: string): string {
@@ -120,8 +107,8 @@ export function downloadPageFileName(pageIndex: number, extension: string): stri
   return String(Math.max(0, Math.floor(pageIndex)) + 1).padStart(3, '0') + '.' + normalizedExtension
 }
 
-export function downloadIndexPath(rootDir: string): string {
-  return joinPath(rootDir, DOWNLOAD_INDEX_FILE_NAME)
+export function downloadIndexPath(indexDir: string): string {
+  return joinPath(indexDir, DOWNLOAD_INDEX_FILE_NAME)
 }
 
 export function downloadManifestPath(chapterDir: string): string {
@@ -174,8 +161,8 @@ function normalizeIndex(value: DownloadDirectoryIndexFile | undefined): Download
   return result
 }
 
-export function loadDownloadDirectoryIndex(rootDir: string): DownloadDirectoryIndexFile | undefined {
-  const path = downloadIndexPath(rootDir)
+export function loadDownloadDirectoryIndex(indexDir: string): DownloadDirectoryIndexFile | undefined {
+  const path = downloadIndexPath(indexDir)
   if (!fs.accessSync(path)) return undefined
   try {
     return normalizeIndex(JSON.parse(fs.readTextSync(path, { encoding: 'utf-8' })) as DownloadDirectoryIndexFile)
@@ -184,12 +171,12 @@ export function loadDownloadDirectoryIndex(rootDir: string): DownloadDirectoryIn
   }
 }
 
-export function saveDownloadDirectoryIndex(rootDir: string, index: DownloadDirectoryIndexFile): void {
-  ensureDirectory(rootDir)
-  writeText(downloadIndexPath(rootDir), JSON.stringify(index))
+export function saveDownloadDirectoryIndex(indexDir: string, index: DownloadDirectoryIndexFile): void {
+  ensureDirectory(indexDir)
+  writeAppTextFile(downloadIndexPath(indexDir), JSON.stringify(index))
 }
 
-function readManifestIdentity(path: string): ManifestIdentity | undefined {
+function readManifestIdentity(path: string): DownloadDirectoryIdentity | undefined {
   try {
     const parsed = JSON.parse(fs.readTextSync(path, { encoding: 'utf-8' })) as Record<string, Object>
     const comicId = parsed.comicId
@@ -214,7 +201,7 @@ function readManifestIdentity(path: string): ManifestIdentity | undefined {
 }
 
 /** Build a path index from the manifests already on disk. */
-export function scanDownloadDirectoryIndex(rootDir: string): DownloadDirectoryIndexFile {
+function scanDownloadDirectoryIndex(rootDir: string): DownloadDirectoryIndexFile {
   const index = emptyDownloadDirectoryIndex()
   if (!isDirectory(rootDir)) return index
   let comics: string[] = []
@@ -248,7 +235,6 @@ export function scanDownloadDirectoryIndex(rootDir: string): DownloadDirectoryIn
       index.comics[manifest.comicId] = comic
     }
   }
-  saveDownloadDirectoryIndex(rootDir, index)
   return index
 }
 
@@ -271,14 +257,20 @@ function rootNeedsDirectoryScan(rootDir: string, index: DownloadDirectoryIndexFi
   })
 }
 
-export function loadOrScanDownloadDirectoryIndex(rootDir: string): DownloadDirectoryIndexFile {
-  const loaded = loadDownloadDirectoryIndex(rootDir)
-  if (loaded === undefined) return scanDownloadDirectoryIndex(rootDir)
-  if (!rootNeedsDirectoryScan(rootDir, loaded)) return loaded
+export function loadOrScanDownloadDirectoryIndex(rootDir: string, indexDir: string): DownloadDirectoryIndexFile {
+  const cached = loadDownloadDirectoryIndex(indexDir)
+  const legacyPath = downloadIndexPath(rootDir)
+  const legacyExists = fs.accessSync(legacyPath)
+  const legacyTempExists = fs.accessSync(legacyPath + '.tmp')
+  if (cached !== undefined && !legacyExists && !legacyTempExists && !rootNeedsDirectoryScan(rootDir, cached)) {
+    return cached
+  }
+  const loaded = cached ?? (legacyExists ? loadDownloadDirectoryIndex(rootDir) : undefined)
   const scanned = scanDownloadDirectoryIndex(rootDir)
   const merged = emptyDownloadDirectoryIndex()
-  Object.keys(loaded.comics).forEach((comicId: string) => {
-    const comic = loaded.comics[comicId]
+  const previous: Record<string, DownloadComicIndexEntry> = loaded?.comics ?? {}
+  Object.keys(previous).forEach((comicId: string) => {
+    const comic = previous[comicId]
     const comicDir = joinPath(rootDir, comic.directory)
     if (!isDirectory(comicDir)) return
     const chapters: Record<string, DownloadChapterIndexEntry> = {}
@@ -316,51 +308,62 @@ export function loadOrScanDownloadDirectoryIndex(rootDir: string): DownloadDirec
       }
     })
   })
-  saveDownloadDirectoryIndex(rootDir, merged)
+  // The public file was a cache. Keep it until the replacement in app storage
+  // has been committed, so interruption during upgrade can retry safely.
+  if (cached === undefined || JSON.stringify(cached) !== JSON.stringify(merged)) {
+    saveDownloadDirectoryIndex(indexDir, merged)
+  }
+  for (const path of [legacyPath, legacyPath + '.tmp']) {
+    try {
+      if (fs.accessSync(path)) fs.unlinkSync(path)
+    } catch (_error) {
+      // File manager access may change while the app is running. Retry on reopen.
+    }
+  }
   return merged
 }
 
-function allocateComicDirectory(rootDir: string, index: DownloadDirectoryIndexFile,
-  comicId: string, comicTitle: string, sourceId: string, sourceName: string): string {
-  const existing = index.comics[comicId]
-  if (existing !== undefined && isDirectory(joinPath(rootDir, existing.directory))) {
-    if (existing.title.length === 0 && comicTitle.length > 0) existing.title = comicTitle
-    if ((existing.sourceId ?? '').length === 0 && sourceId.length > 0) existing.sourceId = sourceId
-    if ((existing.sourceName ?? '').length === 0 && sourceName.length > 0) existing.sourceName = sourceName
-    return existing.directory
-  }
-  const requested = downloadComicDirectoryName(comicTitle, sourceName)
-  const directory = uniqueDownloadDirectory(rootDir, requested)
-  index.comics[comicId] = {
-    directory,
-    title: comicTitle,
-    sourceId: sourceId.length > 0 ? sourceId : undefined,
-    sourceName: sourceName.length > 0 ? sourceName : undefined,
-    chapters: existing?.chapters ?? {},
-  }
-  return directory
+function comicNeedsLabels(comic: DownloadComicIndexEntry, identity: DownloadDirectoryIdentity): boolean {
+  return (comic.title.length === 0 && identity.comicTitle.length > 0) ||
+    ((comic.sourceId ?? '').length === 0 && (identity.sourceId ?? '').length > 0) ||
+    ((comic.sourceName ?? '').length === 0 && (identity.sourceName ?? '').length > 0)
 }
 
-function allocateChapterDirectory(comicDir: string, index: DownloadDirectoryIndexFile,
-  comicId: string, chapterId: string, chapterTitle: string): string {
-  const comic = index.comics[comicId]
-  if (comic === undefined) return sanitizeDownloadSegment(chapterTitle, '章节')
-  const existing = comic.chapters[chapterId]
-  if (existing !== undefined && isDirectory(joinPath(comicDir, existing.directory))) return existing.directory
-  const requested = sanitizeDownloadSegment(chapterTitle, '章节')
-  const directory = uniqueDownloadDirectory(comicDir, requested)
-  comic.chapters[chapterId] = { directory, title: chapterTitle }
-  return directory
+export function existingDownloadDirectory(rootDir: string, index: DownloadDirectoryIndexFile,
+  identity: DownloadDirectoryIdentity): string | undefined {
+  const comic = index.comics[identity.comicId]
+  const chapter = comic?.chapters[identity.chapterId]
+  if (comic === undefined || chapter === undefined || comicNeedsLabels(comic, identity)) return undefined
+  const path = joinPath(joinPath(rootDir, comic.directory), chapter.directory)
+  return isDirectory(path) ? path : undefined
 }
 
 export function ensureDownloadDirectory(rootDir: string, index: DownloadDirectoryIndexFile,
-  comicId: string, chapterId: string, comicTitle: string, chapterTitle: string,
-  sourceId: string = '', sourceName: string = ''): EnsuredDownloadDirectory {
-  const comicDirectory = allocateComicDirectory(rootDir, index, comicId, comicTitle, sourceId, sourceName)
-  const comicDir = joinPath(rootDir, comicDirectory)
-  ensureDirectory(comicDir)
-  const chapterDirectory = allocateChapterDirectory(comicDir, index, comicId, chapterId, chapterTitle)
-  const chapterDir = joinPath(comicDir, chapterDirectory)
-  ensureDirectory(chapterDir)
-  return { comicDir, chapterDir, index }
+  identity: DownloadDirectoryIdentity): EnsuredDownloadDirectory {
+  let indexChanged = false
+  let comic = index.comics[identity.comicId]
+  if (comic === undefined || !isDirectory(joinPath(rootDir, comic.directory))) {
+    const requested = downloadComicDirectoryName(identity.comicTitle, identity.sourceName)
+    const directory = uniqueDownloadDirectory(rootDir, requested)
+    ensureDirectory(joinPath(rootDir, directory))
+    comic = { directory, title: identity.comicTitle, sourceId: identity.sourceId, sourceName: identity.sourceName,
+      chapters: {} }
+    index.comics[identity.comicId] = comic
+    indexChanged = true
+  } else if (comicNeedsLabels(comic, identity)) {
+    comic.title = comic.title || identity.comicTitle
+    comic.sourceId = comic.sourceId || identity.sourceId
+    comic.sourceName = comic.sourceName || identity.sourceName
+    indexChanged = true
+  }
+  const comicDir = joinPath(rootDir, comic.directory)
+  let chapter = comic.chapters[identity.chapterId]
+  if (chapter === undefined || !isDirectory(joinPath(comicDir, chapter.directory))) {
+    const requested = sanitizeDownloadSegment(identity.chapterTitle, '章节')
+    chapter = { directory: uniqueDownloadDirectory(comicDir, requested), title: identity.chapterTitle }
+    ensureDirectory(joinPath(comicDir, chapter.directory))
+    comic.chapters[identity.chapterId] = chapter
+    indexChanged = true
+  }
+  return { chapterDir: joinPath(comicDir, chapter.directory), indexChanged }
 }

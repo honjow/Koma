@@ -12,19 +12,33 @@ function load(name, deps = {}) {
   }).outputText)(key => { assert.ok(Object.hasOwn(deps, key), key); return deps[key] }, module, module.exports)
   return module.exports
 }
+const indexIo = { reads: 0, writes: 0 }
 const io = {
   accessSync: fs.existsSync, mkdirSync: p => fs.mkdirSync(p, { recursive: true }),
   OpenMode: { READ_ONLY: 0, WRITE_ONLY: 1, CREATE: 2, TRUNC: 4 },
   openSync: (p, mode) => ({ fd: fs.openSync(p, mode ? 'w' : 'r') }), closeSync: f => fs.closeSync(f.fd),
-  readTextSync: p => fs.readFileSync(p, 'utf8'), writeSync: fs.writeSync, fsyncSync: fs.fsyncSync,
-  renameSync: fs.renameSync, unlinkSync: fs.unlinkSync, statSync: fs.statSync,
+  readTextSync: p => {
+    if (path.basename(p) === '.koma-download-index.v1.json') indexIo.reads++
+    return fs.readFileSync(p, 'utf8')
+  },
+  writeSync: fs.writeSync, fsyncSync: fs.fsyncSync,
+  renameSync: (from, to) => {
+    fs.renameSync(from, to)
+    if (path.basename(to) === '.koma-download-index.v1.json') indexIo.writes++
+  },
+  unlinkSync: fs.unlinkSync, statSync: fs.statSync,
   rmdirSync: fs.rmdirSync,
   listFileSync: p => fs.readdirSync(p),
+  access: async p => fs.existsSync(p),
+  listFile: (p, options) => fs.promises.readdir(p, { recursive: options.recursion }),
+  stat: p => fs.promises.stat(p),
+  unlink: p => fs.promises.unlink(p),
+  rmdir: p => fs.promises.rmdir(p),
   readSync: (fd, data) => fs.readSync(fd, Buffer.from(data), 0, data.byteLength, null),
 }
-const logger = { exception() {} }
-const directoryIndex = load('DownloadDirectoryIndex', { '@kit.CoreFileKit': { fileIo: io } })
+const logger = { exception() {}, info() {} }
 const persistence = load('AppFileTextPersistence', { '@kit.CoreFileKit': { fileIo: io }, '../diagnostics/DiagnosticLogger': { DiagnosticLogger: logger } })
+const directoryIndex = load('DownloadDirectoryIndex', { '@kit.CoreFileKit': { fileIo: io }, './AppFileTextPersistence': persistence })
 const activity = load('BackupRestoreActivity')
 const overlays = load('SourceTextOverlay')
 const comicModels = load('ComicModels', {
@@ -32,9 +46,11 @@ const comicModels = load('ComicModels', {
 })
 const downloads = load('OfflineDownloadStore', { './SourceTextOverlay': overlays, './AppFileTextPersistence': persistence,
   '@kit.CoreFileKit': { fileIo: io }, './DownloadDirectoryIndex': directoryIndex, './ComicModels': comicModels })
+const runtime = load('OfflineDownloadRuntime', { './BackupRestoreActivity': activity })
 const queues = load('OfflineDownloadQueueStore', {
   './BackupRestoreActivity': activity, './AppFileTextPersistence': persistence,
-  '@kit.CoreFileKit': { fileIo: io }, './OfflineDownloadRuntime': { OfflineDownloadRuntime: { publish() {} } },
+  '../diagnostics/DiagnosticLogger': { DiagnosticLogger: logger },
+  '@kit.CoreFileKit': { fileIo: io }, './OfflineDownloadRuntime': runtime,
   './OfflineDownloadStore': downloads,
 })
 async function main() {
@@ -42,6 +58,40 @@ async function main() {
   try {
     const queue = new queues.OfflineDownloadQueueStore(dir)
     const entry = (comicId, chapterId) => ({ comicId, chapterId, status: 'queued', pageCount: 1, downloadedPageCount: 0, updatedAt: 1 })
+    const publicRoot = path.join(dir, 'public-download')
+    const appRoot = path.join(dir, 'app-files')
+    const oldQueue = new queues.OfflineDownloadQueueStore(publicRoot)
+    oldQueue.addNewEntries([entry('a', '1'), entry('a', '2')])
+    oldQueue.move('a', '2', true)
+    oldQueue.pauseAllQueuedWork()
+    oldQueue.setWifiOnly(true)
+    oldQueue.upsert({ ...entry('b', 'done'), status: 'downloaded' })
+    const oldSnapshot = oldQueue.loadSnapshot()
+    const oldPath = queues.offlineDownloadQueuePath(publicRoot, publicRoot)
+    const privatePath = queues.offlineDownloadQueuePath(publicRoot, appRoot)
+    assert.equal(queues.readableOfflineDownloadQueuePath(publicRoot, appRoot), oldPath,
+      'A background backup before the first app launch still sees the old queue')
+    const relocated = new queues.OfflineDownloadQueueStore(publicRoot, appRoot)
+    // Block the atomic write. The complete old queue must remain available for retry.
+    fs.mkdirSync(path.dirname(privatePath), { recursive: true })
+    fs.mkdirSync(privatePath + '.tmp')
+    assert.throws(() => relocated.loadSnapshot())
+    assert.deepEqual(oldQueue.loadSnapshot(), oldSnapshot)
+    assert.equal(fs.existsSync(privatePath), false)
+    fs.rmdirSync(privatePath + '.tmp')
+    assert.deepEqual(relocated.loadSnapshot(), oldSnapshot)
+    assert.equal(fs.existsSync(oldPath), false)
+    assert.equal(queues.readableOfflineDownloadQueuePath(publicRoot, appRoot), privatePath)
+    // A stale copy retained after an interrupted cleanup cannot undo newer private changes.
+    const oldPayload = fs.readFileSync(privatePath, 'utf8')
+    relocated.setWifiOnly(false)
+    fs.writeFileSync(oldPath, oldPayload)
+    const reopened = new queues.OfflineDownloadQueueStore(publicRoot, appRoot)
+    reopened.migratePublicQueue()
+    assert.equal(reopened.loadPreferences().wifiOnly, false)
+    assert.deepEqual(reopened.load(), oldSnapshot.entries)
+    assert.equal(fs.existsSync(oldPath), false)
+
     queue.addNewEntries([entry('a', '1'), entry('a', '2'), entry('b', '3')])
     queue.move('a', '1', true)
     const ordered = () => queue.load().map(e => e.chapterId)
@@ -90,17 +140,22 @@ async function main() {
     await assert.rejects(store.save('a', { ...first, readFilter: 'read' }), /disk full/)
     assert.equal(new preferences.ChapterListPreferencesStore({}).load('a').readFilter, 'all')
 
-    const disk = new downloads.OfflineDownloadStore(dir)
+    const storageDir = path.join(dir, 'public-content')
+    const appFilesDir = path.join(dir, 'app-files')
+    const disk = new downloads.OfflineDownloadStore(storageDir, appFilesDir)
+    const otherWriter = new downloads.OfflineDownloadStore(storageDir, appFilesDir)
     const sameNameA = disk.createManifest('same-name-a', 'chapter', 1, 'queued',
       { sourceKind: comicModels.ComicSourceKind.PRIVATE_LIBRARY, sourceId: 'source-a', seriesId: 'same-name-a' },
       { comicTitle: '同名作品', chapterTitle: '第01话', sourceName: '书源甲' })
-    const sameNameB = disk.createManifest('same-name-b', 'chapter', 1, 'queued',
+    const sameNameB = otherWriter.createManifest('same-name-b', 'chapter', 1, 'queued',
       { sourceKind: comicModels.ComicSourceKind.PRIVATE_LIBRARY, sourceId: 'source-b', seriesId: 'same-name-b' },
       { comicTitle: '同名作品', chapterTitle: '第01话', sourceName: '书源乙' })
     assert.equal(path.basename(disk.comicDir(sameNameA.comicId)), '同名作品 [书源甲]')
-    assert.equal(path.basename(disk.comicDir(sameNameB.comicId)), '同名作品 [书源乙]')
+    assert.equal(path.basename(otherWriter.comicDir(sameNameB.comicId)), '同名作品 [书源乙]')
     assert.equal(disk.loadManifest(sameNameA.comicId, 'chapter').sourceName, '书源甲')
-    assert.equal(disk.loadManifest(sameNameB.comicId, 'chapter').sourceName, '书源乙')
+    assert.equal(otherWriter.loadManifest(sameNameB.comicId, 'chapter').sourceName, '书源乙')
+    assert.equal(otherWriter.loadManifest(sameNameA.comicId, 'chapter').sourceName, '书源甲',
+      'A second store opening a directory preserves existing mappings')
 
     const layoutRoot = path.join(dir, 'layout')
     const writeLegacyLayout = (comicDirectory, chapterDirectory, comicId, sourceId) => {
@@ -124,7 +179,8 @@ async function main() {
       './DownloadDirectoryIndex': directoryIndex,
     })
     const sourceName = sourceId => sourceId === 'source-a' ? '书源甲' : sourceId === 'source-b' ? '书源乙' : '书源丙'
-    layout.normalizeDownloadLayout(layoutRoot, sourceName)
+    const layoutIndexDir = path.join(appFilesDir, 'legacy-layout')
+    layout.normalizeDownloadLayout(layoutRoot, layoutIndexDir, sourceName)
     const legacyManifestA = path.join(layoutRoot, '同名作品 [书源甲]', '第01话', '.koma', 'manifest.json')
     const legacyManifestB = path.join(layoutRoot, '同名作品 [书源乙]', '第01话', '.koma', 'manifest.json')
     assert.equal(JSON.parse(fs.readFileSync(legacyManifestA, 'utf8')).sourceName, '书源甲')
@@ -132,10 +188,11 @@ async function main() {
     assert.equal(fs.existsSync(path.join(layoutRoot, '同名作品 [书源甲]', '第01话', '.koma', 'manifest.v1.json')), false)
     const layoutDirectories = () => fs.readdirSync(layoutRoot).filter(name => !name.startsWith('.')).sort()
     assert.deepEqual(layoutDirectories(), ['同名作品 [书源乙]', '同名作品 [书源甲]', '裸名作品 [书源丙]'])
-    layout.normalizeDownloadLayout(layoutRoot, sourceName)
+    layout.normalizeDownloadLayout(layoutRoot, layoutIndexDir, sourceName)
     assert.deepEqual(layoutDirectories(), ['同名作品 [书源乙]', '同名作品 [书源甲]', '裸名作品 [书源丙]'])
 
     let manifest = disk.createManifest('a', '1', 2, 'downloaded')
+    const beforeProgress = { ...indexIo }
     // Download filenames may use .img; the exported extension must reflect received bytes.
     for (const index of [1, 0]) {
       const imagePath = disk.pageFilePath('a', '1', 'p' + index, index, 'img')
@@ -146,6 +203,36 @@ async function main() {
     }
     const overlay = { version: 1, balloons: [{ text: '对白', x: 1, y: 2, width: 30 }] }
     manifest = disk.recordPage(manifest, { ...manifest.pages[1], sourceTextOverlay: overlay })
+    assert.deepEqual(indexIo, beforeProgress, 'Page checkpoints never read or rewrite the root index')
+    const downloadRoot = path.join(storageDir, downloads.OFFLINE_DOWNLOAD_ROOT_DIR_NAME)
+    const publicIndex = directoryIndex.downloadIndexPath(downloadRoot)
+    const privateIndex = directoryIndex.downloadIndexPath(downloads.offlineDownloadIndexDirectory(storageDir, appFilesDir))
+    assert.equal(fs.existsSync(publicIndex), false)
+    // Recreate the layout of the previous app version, then upgrade.
+    fs.renameSync(privateIndex, publicIndex)
+    fs.writeFileSync(publicIndex + '.tmp', '{')
+    fs.mkdirSync(privateIndex + '.tmp')
+    assert.throws(() => new downloads.OfflineDownloadStore(storageDir, appFilesDir), /EISDIR/)
+    assert.ok(fs.existsSync(publicIndex), 'A failed private write preserves the old index for retry')
+    fs.rmdirSync(privateIndex + '.tmp')
+    const upgradedDisk = new downloads.OfflineDownloadStore(storageDir, appFilesDir)
+    assert.equal(upgradedDisk.resolveDownloadedPage('a', '1', 'p0', 0), manifest.pages[0].localPath)
+    assert.ok(fs.existsSync(privateIndex))
+    assert.equal(fs.existsSync(publicIndex), false)
+    assert.equal(fs.existsSync(publicIndex + '.tmp'), false)
+    fs.unlinkSync(privateIndex)
+    const recoveredDisk = new downloads.OfflineDownloadStore(storageDir, appFilesDir)
+    assert.equal(recoveredDisk.resolveDownloadedPage('a', '1', 'p0', 0), manifest.pages[0].localPath)
+    assert.equal(recoveredDisk.loadManifest(sameNameA.comicId, 'chapter').sourceName, '书源甲')
+    assert.equal(recoveredDisk.loadManifest(sameNameB.comicId, 'chapter').sourceName, '书源乙')
+    const removing = recoveredDisk.deleteChapterDownload(sameNameA.comicId, 'chapter')
+    otherWriter.createManifest('same-name-b', 'other-chapter', 0, 'queued')
+    await removing
+    const afterRemoval = new downloads.OfflineDownloadStore(storageDir, appFilesDir)
+    assert.equal(afterRemoval.loadManifest(sameNameA.comicId, 'chapter'), undefined)
+    assert.ok(afterRemoval.loadManifest(sameNameB.comicId, 'other-chapter'),
+      'Finishing a deletion preserves newly allocated directories from another store')
+    assert.equal(fs.existsSync(publicIndex), false, 'Recovery and later mutations never recreate the public index')
     const derived = path.join(dir, 'derived.jpg')
     fs.writeFileSync(derived, Buffer.from('ffd8ffe000112233', 'hex'))
     let failOverlay = false
@@ -166,24 +253,24 @@ async function main() {
       './ReaderPageSourceAdapter': render, '@kit.CoreFileKit': { fileIo: asyncIo, fileUri: { getUriFromPath:p=>'file://'+p } },
       '@kit.ArkTS': { taskpool: { execute: async (fn,...args) => fn(...args) } }, '@kit.BasicServicesKit': { zlib },
       '@kit.ShareKit': {}, '@kit.ArkData': {}, './OfflineDownloadStore': downloads, '../i18n/AppStrings': {},
-      './KomaContentStorage': { ensureKomaContentStorageBase: async context => context.filesDir },
+      './KomaContentStorage': { ensureKomaContentStorageBase: async () => storageDir },
     })
-    const plan = JSON.parse(archive.chapterArchivePagesWorker(dir, 'a', '1'))
+    const plan = JSON.parse(archive.chapterArchivePagesWorker(storageDir, appFilesDir, 'a', '1'))
     assert.deepEqual(plan.map(p => p.name), ['00001.png', '00002.jpg'])
-    const result = await archive.prepareChapterArchive({filesDir:dir,cacheDir:dir},'a','1','Series','Chapter')
+    const result = await archive.prepareChapterArchive({filesDir:appFilesDir,cacheDir:dir},'a','1','Series','Chapter')
     const unzip = (name) => require('node:child_process').execFileSync('unzip',['-p',result.path,name])
     assert.deepEqual(unzip('00001.png'), fs.readFileSync(manifest.pages[0].localPath))
     assert.deepEqual(unzip('00002.jpg'), fs.readFileSync(derived))
     assert.deepEqual(fs.readFileSync(manifest.pages[1].localPath), Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),Buffer.alloc(32,1)]))
     failOverlay = true
     const beforeDirs = new Set(fs.readdirSync(dir))
-    await assert.rejects(archive.prepareChapterArchive({filesDir:dir,cacheDir:dir},'a','1','Series','Failed'), /overlay render failure/)
+    await assert.rejects(archive.prepareChapterArchive({filesDir:appFilesDir,cacheDir:dir},'a','1','Series','Failed'), /overlay render failure/)
     const created = fs.readdirSync(dir).filter(name => !beforeDirs.has(name))
     for (const name of created) assert.equal(fs.readdirSync(path.join(dir,name)).some(x => /\.(cbz|zip)$/.test(x)), false)
     console.log('CBZ actual archive preserves original pages, includes rendered overlay JPEG and rejects failed rendering')
     assert.equal(path.basename(plan[0].path), '001.img')
     fs.unlinkSync(plan[1].path)
-    assert.throws(() => archive.chapterArchivePagesWorker(dir, 'a', '1'), /download_incomplete/)
+    assert.throws(() => archive.chapterArchivePagesWorker(storageDir, appFilesDir, 'a', '1'), /download_incomplete/)
     console.log('Production queue ordering, per-book preference isolation/rollback and complete ordered CBZ plan passed')
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 }

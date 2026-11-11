@@ -2095,7 +2095,7 @@ export struct ReaderPage {
       this.filesDir = context.filesDir ?? ''
       if (this.filesDir.length > 0) {
         configureReaderRemoteImageCache(context.cacheDir)
-        configureReaderOfflineDownloads(komaContentStorageBase(context))
+        configureReaderOfflineDownloads(komaContentStorageBase(context), context.filesDir)
       }
       this.preferencesStore = new ReaderPreferencesStore(context)
       this.preferences = await this.preferencesStore.loadForComic(this.sessionConfig.comicId,

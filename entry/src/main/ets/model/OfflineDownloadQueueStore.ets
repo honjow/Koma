@@ -1,5 +1,6 @@
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { writeAppTextFile } from './AppFileTextPersistence'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { Chapter, Comic, ComicId } from './ComicModels'
@@ -15,7 +16,8 @@ import {
 } from './OfflineDownloadStore'
 
 export const OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION: number = 1
-export const OFFLINE_DOWNLOAD_QUEUE_FILE_NAME: string = 'queue.v1.json'
+const OFFLINE_DOWNLOAD_QUEUE_FILE_NAME: string = 'queue.v1.json'
+export const PUBLIC_CONTENT_QUEUE_PRIVATE_PATH: string = 'download-queue/queue.v1.json'
 export const OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS: number[] = [1, 2, 3]
 const OFFLINE_DOWNLOAD_QUEUE_PROGRESS_INTERVAL_MS: number = 1000
 export const DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES: OfflineDownloadQueuePreferences = {
@@ -128,6 +130,22 @@ function joinPath(parent: string, child: string): string {
   const left = trimTrailingSlash(parent)
   const right = normalizePath(child).replace(/^\/+/, '').replace(/\/+$/, '')
   return right.length === 0 ? left : `${left}/${right}`
+}
+
+function legacyDownloadQueuePath(contentBase: string): string {
+  return joinPath(joinPath(contentBase, OFFLINE_DOWNLOAD_ROOT_DIR_NAME), OFFLINE_DOWNLOAD_QUEUE_FILE_NAME)
+}
+
+// There is one system-provided public content directory. Its queue is durable
+// app data, separate from the sandbox download fallback and the chapter index.
+export function offlineDownloadQueuePath(contentBase: string, appFilesDir: string): string {
+  return trimTrailingSlash(contentBase) === trimTrailingSlash(appFilesDir) ? legacyDownloadQueuePath(appFilesDir) :
+    joinPath(appFilesDir, PUBLIC_CONTENT_QUEUE_PRIVATE_PATH)
+}
+
+export function readableOfflineDownloadQueuePath(contentBase: string, appFilesDir: string): string {
+  const privatePath = offlineDownloadQueuePath(contentBase, appFilesDir)
+  return fs.accessSync(privatePath) ? privatePath : legacyDownloadQueuePath(contentBase)
 }
 
 
@@ -286,16 +304,16 @@ function entryFromManifestValidation(validation: OfflineDownloadManifestValidati
 export class OfflineDownloadQueueStore {
   private readonly filesDir: string
   private readonly runtimeKeyValue: string
-  private readonly rootDir: string
+  private readonly legacyQueuePath: string
   private readonly queuePath: string
   private lastProgressPersistedAt: number = 0
 
   constructor(filesDir: string, runtimeKey?: string) {
     this.filesDir = trimTrailingSlash(filesDir)
     this.runtimeKeyValue = trimTrailingSlash(runtimeKey ?? filesDir)
-    this.rootDir = joinPath(this.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME)
-    this.queuePath = joinPath(this.rootDir, OFFLINE_DOWNLOAD_QUEUE_FILE_NAME)
-    this.ensureRoot()
+    this.legacyQueuePath = legacyDownloadQueuePath(this.filesDir)
+    this.queuePath = offlineDownloadQueuePath(this.filesDir, this.runtimeKeyValue)
+    assertSafeOfflineDownloadRoot(this.filesDir, this.legacyQueuePath)
   }
 
   runtimeKey(): string {
@@ -332,8 +350,8 @@ export class OfflineDownloadQueueStore {
 
   /** Merge the old sandbox queue without allowing an older legacy row to replace current progress. */
   mergeFromLegacy(legacy: OfflineDownloadQueueStore): void {
-    const currentExists = fs.accessSync(this.queuePath)
     const current = this.loadDocument()
+    const currentExists = fs.accessSync(this.queuePath)
     const previous = legacy.loadDocument()
     const entries = current.entries.slice()
     previous.entries.forEach((entry: OfflineDownloadQueueEntry): void => {
@@ -546,16 +564,41 @@ export class OfflineDownloadQueueStore {
     return this.savePreferences(preferences)
   }
 
-  private loadDocument(): OfflineDownloadQueueDocument {
-    if (!fs.accessSync(this.queuePath)) {
-      return {
-        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
-        preferences: normalizePreferences(),
-        entries: [],
-      }
+  migratePublicQueue(): void {
+    if (this.queuePath === this.legacyQueuePath || !fs.accessSync(this.legacyQueuePath)) return
+    if (fs.accessSync(this.queuePath)) {
+      this.readDocument(this.queuePath)
+    } else {
+      const document = this.readDocument(this.legacyQueuePath)
+      this.persistDocument(document)
     }
     try {
-      const document = JSON.parse(fs.readTextSync(this.queuePath, { encoding: 'utf-8' })) as OfflineDownloadQueueDocument
+      const tempPath = `${this.legacyQueuePath}.tmp`
+      if (fs.accessSync(tempPath)) fs.unlinkSync(tempPath)
+      fs.unlinkSync(this.legacyQueuePath)
+      DiagnosticLogger.info('storage', 'public_download_queue_migrated', '')
+    } catch (error) {
+      DiagnosticLogger.exception('storage', 'public_download_queue_cleanup_failed', error as Error)
+    }
+  }
+
+  private loadDocument(): OfflineDownloadQueueDocument {
+    if (!fs.accessSync(this.queuePath)) {
+      this.migratePublicQueue()
+      if (!fs.accessSync(this.queuePath)) {
+        return {
+          schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+          preferences: normalizePreferences(),
+          entries: [],
+        }
+      }
+    }
+    return this.readDocument(this.queuePath)
+  }
+
+  private readDocument(path: string): OfflineDownloadQueueDocument {
+    try {
+      const document = JSON.parse(fs.readTextSync(path, { encoding: 'utf-8' })) as OfflineDownloadQueueDocument
       if (document.schemaVersion !== OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION || !Array.isArray(document.entries)) {
         throw new Error('offline_download_queue_invalid')
       }
@@ -749,14 +792,17 @@ export class OfflineDownloadQueueStore {
     })
   }
 
-  private saveDocument(document: OfflineDownloadQueueDocument, progressOnly: boolean = false): void {
-    assertSafeOfflineDownloadRoot(this.filesDir, this.queuePath)
-    ensureDirSync(this.rootDir)
+  private persistDocument(document: OfflineDownloadQueueDocument): void {
+    ensureDirSync(this.queuePath.substring(0, this.queuePath.lastIndexOf('/')))
     writeAppTextFile(this.queuePath, JSON.stringify({
       schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
       preferences: document.preferences === undefined ? normalizePreferences() : normalizePreferences(document.preferences),
       entries: document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => normalizeEntry(entry)),
     }))
+  }
+
+  private saveDocument(document: OfflineDownloadQueueDocument, progressOnly: boolean = false): void {
+    this.persistDocument(document)
     if (progressOnly) {
       OfflineDownloadRuntime.publishProgress(this.runtimeKeyValue)
     } else {
@@ -764,15 +810,4 @@ export class OfflineDownloadQueueStore {
     }
   }
 
-  private ensureRoot(): void {
-    assertSafeOfflineDownloadRoot(this.filesDir, this.queuePath)
-    ensureDirSync(this.rootDir)
-    void OfflineDownloadStatus.QUEUED
-    void OfflineDownloadStatus.DOWNLOADING
-    void OfflineDownloadStatus.DOWNLOADED
-    void OfflineDownloadStatus.PARTIAL
-    void OfflineDownloadStatus.FAILED
-    void OfflineDownloadStatus.BLOCKED
-    void OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS
-  }
 }

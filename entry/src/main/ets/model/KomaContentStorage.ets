@@ -10,6 +10,7 @@ import {
   OFFLINE_DOWNLOAD_LEGACY_MANIFEST_NAME,
   OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
   createOfflineDownloadStableHash,
+  offlineDownloadIndexDirectory,
 } from './OfflineDownloadStore'
 import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
 import { normalizeDownloadLayout } from './DownloadLayoutMigration'
@@ -365,7 +366,7 @@ function copyLegacyDownloadTree(legacyBase: string, publicBase: string): LegacyC
 
 function mergeQueueRoots(legacyBase: string, publicBase: string): void {
   const legacyQueue = new OfflineDownloadQueueStore(legacyBase)
-  const publicQueue = new OfflineDownloadQueueStore(publicBase)
+  const publicQueue = new OfflineDownloadQueueStore(publicBase, legacyBase)
   publicQueue.mergeFromLegacy(legacyQueue)
 }
 
@@ -436,7 +437,13 @@ async function prepareInternal(context: common.UIAbilityContext): Promise<void> 
     // the installed localized name keeps old downloads readable even if the
     // package is later unavailable; the resolver falls back to sourceId.
     if (migrated) {
+      try {
+        new OfflineDownloadQueueStore(root.path, context.filesDir).migratePublicQueue()
+      } catch (error) {
+        DiagnosticLogger.exception('storage', 'public_download_queue_migration_failed', error as Error)
+      }
       normalizeDownloadLayout(joinPath(root.path, OFFLINE_DOWNLOAD_ROOT_DIR_NAME),
+        offlineDownloadIndexDirectory(root.path, context.filesDir),
         (sourceId: string): string => sourceDisplayName(sourceId))
     }
   } catch (error) {

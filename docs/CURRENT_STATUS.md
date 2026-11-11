@@ -10169,18 +10169,17 @@
       "id": "DOWNLOAD_PUBLIC_READABLE_LAYOUT",
       "number": 276,
       "title": "同名书源下载目录隔离与可读名称迁移",
-      "kind": "done",
+      "kind": "pending_verification",
       "priority": "用户需求",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-11",
       "reportedAtSource": "用户要求公共 Download 目录里的作品、章节和图片名称可读，并追问两个书源下载同名作品时如何避免共用目录或互相覆盖；原始消息时刻未核实。",
       "registeredAt": "2026-11-11T13:38:00+08:00",
-      "updatedAt": "2026-11-11T14:26:00+08:00",
-      "closedAt": "2026-11-11T14:26:00+08:00",
-      "status": "197 完整验收通过并提交 a96cbf77",
-      "result": "作品目录使用「作品名 [书源名]」，身份仍以 comicId + chapterId 为准；同一显示名下再冲突时追加 (2)。页面文件为 001.jpg、002.jpg，章节元数据规范名为 .koma/manifest.json，同时兼容并迁移上一版 .koma/manifest.v1.json 与更早的章节根 manifest.v1.json；目录扫描优先规范清单，迁移完成后删除旧清单。旧哈希目录迁移时依次取已有名称、已安装书源的本地化显示名、sourceId，并同时修正页面绝对路径；v2 已改成的可读裸作品名也会补书源后缀。197 的 v7 包首次启动迁移 90 个章节、2349 页，随后两次冷启动均为 chapters=0 pages=0；《魔奴嫁》旧离线章节从 7/51 翻到 8/51，冷启动后仍为 8/51。重试《蔚蓝档案四格漫画》第二部第六话得到 1/1 页并从下载管理打开；文件管理器可见 蔚蓝档案四格漫画 [蔚蓝档案官方漫画]/第二部第六话：吃冰粉吗？/001.png。自动备份在应用内目录成功生成，切到 Koma-QA-Folder-20261009 后冷启动保持，再次运行生成 koma-auto-*.json，文件管理器可见 Koma-QA-Folder-20261009/Koma-Backups 下两份文件。",
-      "remaining": "当前 197 资料库没有跨书源同名作品，未制造两份真实网络下载；下载管理测试夹具已覆盖「同名作品 [书源甲]」与「同名作品 [书源乙]」的独立目录、规范清单迁移和旧清单删除。只完成本地提交，未推送、未发版；103 平板未纳入这次目录迁移验证。",
+      "updatedAt": "2026-11-11T23:47:00+08:00",
+      "status": "197 已核对下载索引和队列内移；真实同名书源下载未完成",
+      "result": "目录总索引现保存在应用内部，197 冷启动后从应用读回公开目录已无旧索引，已有下载可打开并生成 CBZ。旧下载队列完整写入应用内部后再清理。197 覆盖安装后仍显示 85 个任务，冷启动前后私有队列哈希一致。本地验证顺序、暂停、偏好、迁移失败重试与恢复回滚。作品目录使用「作品名 [书源名]」，身份仍以 comicId + chapterId 为准；同一显示名下再冲突时追加 (2)。页面文件为 001.jpg、002.jpg，章节元数据规范名为 .koma/manifest.json，同时兼容并迁移上一版 .koma/manifest.v1.json 与更早的章节根 manifest.v1.json；目录扫描优先规范清单，迁移完成后删除旧清单。旧哈希目录迁移时依次取已有名称、已安装书源的本地化显示名、sourceId，并同时修正页面绝对路径；v2 已改成的可读裸作品名也会补书源后缀。197 的 v7 包首次启动迁移 90 个章节、2349 页，随后两次冷启动均为 chapters=0 pages=0；《魔奴嫁》旧离线章节从 7/51 翻到 8/51，冷启动后仍为 8/51。重试《蔚蓝档案四格漫画》第二部第六话得到 1/1 页并从下载管理打开；文件管理器可见 蔚蓝档案四格漫画 [蔚蓝档案官方漫画]/第二部第六话：吃冰粉吗？/001.png。自动备份在应用内目录成功生成，切到 Koma-QA-Folder-20261009 后冷启动保持，再次运行生成 koma-auto-*.json，文件管理器可见 Koma-QA-Folder-20261009/Koma-Backups 下两份文件。 2026-11-11 17:34 复核同名书源场景：文件管理器只出现 `亲密和睦蔚蓝档案 [漫画柜]`，其中 `短篇` 为空；下载管理显示该章「受阻，源未能返回章节页，请检查源后重试」。MangaBz 同名作品详情可打开，章节为 `短篇`、23 页；从详情点下载后出现「下载此作品需要先加入书架」确认框，未完成确认，未生成 `亲密和睦蔚蓝档案 [MangaBz]` 目录，也没有新增下载队列。",
+      "remaining": "真实同名书源下载仍未完成：漫画柜章节未能返回页地址，MangaBz 因未完成「加入书架并下载」确认而没有开始下载；因此不能把同名书源隔离标为设备通过。下载管理测试夹具已覆盖「同名作品 [书源甲]」与「同名作品 [书源乙]」的独立目录、规范清单迁移和旧清单删除；197 当前只留下漫画柜空目录。只完成本地提交，未推送、未发版；103 平板未纳入这次目录迁移验证。",
       "evidence": [
         "a96cbf77",
         "entry/src/main/ets/model/DownloadDirectoryIndex.ets",
@@ -10196,9 +10195,12 @@
         ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/restart-20261111T135251450610/run-metadata.json",
         ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/downloads-open-blue-download-20261111T140336922431/downloads-blue-reader.png",
         ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/file-manager-open-blue-chapter-20261111T140255600351/file-manager-blue-chapter.png",
-        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/file-manager-open-koma-backups-20261111T142307622511/file-manager-koma-backups.png"
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/file-manager-open-koma-backups-20261111T142307622511/file-manager-koma-backups.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/install-20261111T233439518093/run-metadata.json",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T233129206857/screen.png",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/cold-20261111T234654629578/run-metadata.json"
       ],
-      "progressPhase": "completed"
+      "progressPhase": "verification"
     },
     {
       "id": "MODAL_SETTINGS_CARD_MATERIAL",

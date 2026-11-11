@@ -10,12 +10,15 @@ import {
 import {
   DownloadChapterIndexEntry,
   DownloadComicIndexEntry,
+  DownloadDirectoryIdentity,
   DownloadDirectoryIndexFile,
   DOWNLOAD_METADATA_DIR_NAME,
   downloadManifestPath,
   downloadPageFileName,
   ensureDownloadDirectory,
+  existingDownloadDirectory,
   legacyDownloadManifestPath,
+  loadDownloadDirectoryIndex,
   loadOrScanDownloadDirectoryIndex,
   previousDownloadManifestPath,
   saveDownloadDirectoryIndex,
@@ -203,6 +206,12 @@ export function createOfflineDownloadStableHash(value: string): string {
   return `${hashA.toString(16).padStart(8, '0')}${hashB.toString(16).padStart(8, '0')}`
 }
 
+/** Cache paths are scoped to the content root inside the app's files directory. */
+export function offlineDownloadIndexDirectory(filesDir: string, appFilesDir: string): string {
+  return joinOfflineDownloadPath(appFilesDir, '.koma-download-index/' +
+    createOfflineDownloadStableHash(trimTrailingSlash(filesDir)))
+}
+
 export function createOfflineDownloadStableByteHash(bytes: Uint8Array): string {
   let hashA = 2166136261
   let hashB = 2166136261 ^ 0x9e3779b9
@@ -368,14 +377,16 @@ export class OfflineDownloadStore {
   private readonly filesDir: string
   private readonly rootDir: string
   private readonly runtimeKeyValue: string
+  private readonly indexDir: string
   private directoryIndex: DownloadDirectoryIndexFile
 
   constructor(filesDir: string, runtimeKey?: string) {
     this.filesDir = trimTrailingSlash(filesDir)
     this.rootDir = joinOfflineDownloadPath(this.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME)
     this.runtimeKeyValue = trimTrailingSlash(runtimeKey ?? filesDir)
+    this.indexDir = offlineDownloadIndexDirectory(this.filesDir, this.runtimeKeyValue)
     this.ensureRoot()
-    this.directoryIndex = loadOrScanDownloadDirectoryIndex(this.rootDir)
+    this.directoryIndex = loadOrScanDownloadDirectoryIndex(this.rootDir, this.indexDir)
   }
 
   filesRootDir(): string {
@@ -846,13 +857,26 @@ export class OfflineDownloadStore {
     }
   }
 
+  private writableChapterDirectory(manifest: OfflineChapterDownloadManifest): string {
+    const identity: DownloadDirectoryIdentity = {
+      comicId: manifest.comicId, chapterId: manifest.chapterId,
+      comicTitle: manifest.comicTitle ?? '', chapterTitle: manifest.chapterTitle ?? '',
+      sourceId: manifest.sourceId || undefined, sourceName: manifest.sourceName || undefined,
+    }
+    // The per-chapter manifest owns progress. Only a path or index metadata
+    // change needs to merge the latest directory index across store instances.
+    const existing = existingDownloadDirectory(this.rootDir, this.directoryIndex, identity)
+    if (existing !== undefined) return existing
+    const index = loadOrScanDownloadDirectoryIndex(this.rootDir, this.indexDir)
+    const ensured = ensureDownloadDirectory(this.rootDir, index, identity)
+    if (ensured.indexChanged) saveDownloadDirectoryIndex(this.indexDir, index)
+    this.directoryIndex = index
+    return ensured.chapterDir
+  }
+
   saveManifest(manifest: OfflineChapterDownloadManifest): OfflineChapterDownloadManifest {
-    const ensured = ensureDownloadDirectory(this.rootDir, this.directoryIndex, manifest.comicId,
-      manifest.chapterId, manifest.comicTitle ?? '', manifest.chapterTitle ?? '',
-      manifest.sourceId ?? '', manifest.sourceName ?? '')
-    this.directoryIndex = ensured.index
-    saveDownloadDirectoryIndex(this.rootDir, this.directoryIndex)
-    const chapterDir = ensured.chapterDir
+    const chapterDir = this.writableChapterDirectory(manifest)
+    assertSafeOfflineDownloadRoot(this.filesDir, chapterDir)
     const pages = manifest.pages.slice().sort((left: OfflineDownloadedPage, right: OfflineDownloadedPage): number => {
       return left.pageIndex - right.pageIndex
     }).map((page: OfflineDownloadedPage): OfflineDownloadedPage => {
@@ -983,30 +1007,39 @@ export class OfflineDownloadStore {
   }
 
   async deleteChapterDownload(comicId: ComicId, chapterId: string): Promise<void> {
+    this.directoryIndex = this.latestDirectoryIndex()
     const chapterDir = this.chapterDir(comicId, chapterId)
     assertSafeOfflineDownloadRoot(this.filesDir, chapterDir)
     await this.deleteDownloadDir(chapterDir)
+    this.directoryIndex = this.latestDirectoryIndex()
     const comic = this.directoryIndex.comics[comicId]
-    if (comic !== undefined) {
+    if (comic !== undefined && comic.chapters[chapterId] !== undefined && this.chapterDir(comicId, chapterId) === chapterDir) {
       const chapters: Record<string, DownloadChapterIndexEntry> = {}
       Object.keys(comic.chapters).forEach((key: string) => {
         if (key !== chapterId) chapters[key] = comic.chapters[key]
       })
       comic.chapters = chapters
-      saveDownloadDirectoryIndex(this.rootDir, this.directoryIndex)
+      saveDownloadDirectoryIndex(this.indexDir, this.directoryIndex)
     }
   }
 
   async deleteComicDownloads(comicId: ComicId): Promise<void> {
+    this.directoryIndex = this.latestDirectoryIndex()
     const comicDir = this.comicDir(comicId)
     assertSafeOfflineDownloadRoot(this.filesDir, comicDir)
     await this.deleteDownloadDir(comicDir)
+    this.directoryIndex = this.latestDirectoryIndex()
+    if (this.directoryIndex.comics[comicId] === undefined || this.comicDir(comicId) !== comicDir) return
     const comics: Record<string, DownloadComicIndexEntry> = {}
     Object.keys(this.directoryIndex.comics).forEach((key: string) => {
       if (key !== comicId) comics[key] = this.directoryIndex.comics[key]
     })
     this.directoryIndex.comics = comics
-    saveDownloadDirectoryIndex(this.rootDir, this.directoryIndex)
+    saveDownloadDirectoryIndex(this.indexDir, this.directoryIndex)
+  }
+
+  private latestDirectoryIndex(): DownloadDirectoryIndexFile {
+    return loadDownloadDirectoryIndex(this.indexDir) ?? loadOrScanDownloadDirectoryIndex(this.rootDir, this.indexDir)
   }
 
   private async deleteDownloadDir(targetDir: string): Promise<void> {

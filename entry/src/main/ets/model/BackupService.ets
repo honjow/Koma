@@ -76,20 +76,19 @@ import {
   isEncryptedBackupPayload,
   previewEncryptedBackupEnvelope,
 } from './BackupEncryptionService'
-import {
-  OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
-  OfflineDownloadStatus,
-} from './OfflineDownloadStore'
+import { OfflineDownloadStatus } from './OfflineDownloadStore'
 import {
   DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES,
-  OFFLINE_DOWNLOAD_QUEUE_FILE_NAME,
   OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS,
   OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
   OfflineDownloadQueueEntry,
   OfflineDownloadQueuePreferences,
+  OfflineDownloadQueueStore,
   normalizeOfflineDownloadFailureReasonCode,
+  offlineDownloadQueuePath,
+  readableOfflineDownloadQueuePath,
 } from './OfflineDownloadQueueStore'
-import { komaContentStorageBase } from './KomaContentStorage'
+import { ensureKomaContentStorageBase, komaContentStorageBase } from './KomaContentStorage'
 import {
   LocalLibraryMetadataBackupEntry,
   exportLocalLibraryMetadataBackupEntries,
@@ -1354,7 +1353,8 @@ export class BackupService {
         document.trackerSyncPreferences = await this.exportTrackerSyncPreferences()
       }
       if (contentPreferences.includeDownloadQueue) {
-        const downloadQueue = readTextIfExists(this.downloadQueuePath(), '')
+        const downloadQueue = readTextIfExists(readableOfflineDownloadQueuePath(komaContentStorageBase(this.context),
+          this.context.filesDir), '')
         if (downloadQueue.length > 0) {
           document.downloadQueue = normalizeBackupDownloadQueuePayload(downloadQueue)
         }
@@ -1403,6 +1403,11 @@ export class BackupService {
       if (sessionStore.flush() === false) throw new Error('reader_progress_save_failed')
       coverPlan = await prepareRestoredComicCovers(this.context, libraryStoreBackupPayload(document.libraryStore), document.customCovers)
       document.libraryStore = coverPlan.libraryStore
+      if (document.downloadQueue !== undefined || document.applicationSettings?.downloadPreferences !== undefined) {
+        // Move the original queue before the restore records which private files existed.
+        const storageBase = await ensureKomaContentStorageBase(this.context)
+        new OfflineDownloadQueueStore(storageBase, this.context.filesDir).migratePublicQueue()
+      }
       checkpoint = await BackupRestoreCheckpoint.prepare(this.context)
       writeAppTextFile(this.libraryPath(), document.libraryStore)
       writeAppTextFile(this.readerProgressPath(), document.readingProgress)
@@ -1760,11 +1765,6 @@ export class BackupService {
     return joinBackupPath(this.context.filesDir, READER_PROGRESS_PERSISTENCE_FILE_NAME)
   }
 
-  private downloadQueuePath(): string {
-    return joinBackupPath(joinBackupPath(komaContentStorageBase(this.context), OFFLINE_DOWNLOAD_ROOT_DIR_NAME),
-      OFFLINE_DOWNLOAD_QUEUE_FILE_NAME)
-  }
-
   private async exportRemoteServers(): Promise<RemoteServerBackupDocument> {
     const snapshot = await new RemoteServerStore(this.context).exportConfiguration()
     return {
@@ -2015,7 +2015,8 @@ export class BackupService {
       return
     }
     const payload = normalizeBackupDownloadQueuePayload(downloadQueue)
-    ensureDir(joinBackupPath(komaContentStorageBase(this.context), OFFLINE_DOWNLOAD_ROOT_DIR_NAME))
-    writeAppTextFile(this.downloadQueuePath(), payload)
+    const path = offlineDownloadQueuePath(komaContentStorageBase(this.context), this.context.filesDir)
+    ensureDir(path.substring(0, path.lastIndexOf('/')))
+    writeAppTextFile(path, payload)
   }
 }

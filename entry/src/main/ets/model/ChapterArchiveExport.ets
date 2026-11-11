@@ -15,7 +15,7 @@ interface ArchivePage { path: string; name: string; pageId?: string; sourceId?: 
 
 
 @Concurrent
-export function chapterArchivePagesWorker(filesDir: string, comicId: string, chapterId: string): string {
+export function chapterArchivePagesWorker(filesDir: string, appFilesDir: string, comicId: string, chapterId: string): string {
   const imageSuffix = (path: string): string => {
     const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
     const bytes = new ArrayBuffer(32)
@@ -36,7 +36,7 @@ export function chapterArchivePagesWorker(filesDir: string, comicId: string, cha
   }
   // Existing integrity/path checks run off the UI thread. Export only complete
   // received originals, never manifests, source URLs, sessions or credentials.
-  const validation = new OfflineDownloadStore(filesDir).validateDownloadedChapter(comicId, chapterId)
+  const validation = new OfflineDownloadStore(filesDir, appFilesDir).validateDownloadedChapter(comicId, chapterId)
   if (validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED || validation.manifest === undefined) {
     throw new Error('chapter_export_download_incomplete')
   }
@@ -59,7 +59,7 @@ function xml(value: string): string {
 export async function prepareChapterArchive(context: common.UIAbilityContext,
   comicId: string, chapterId: string, comicTitle: string, chapterTitle: string): Promise<ChapterArchiveFile> {
   const storageBase = await ensureKomaContentStorageBase(context)
-  const plan = await taskpool.execute(chapterArchivePagesWorker, storageBase, comicId, chapterId) as string
+  const plan = await taskpool.execute(chapterArchivePagesWorker, storageBase, context.filesDir, comicId, chapterId) as string
   const pages = JSON.parse(plan) as ArchivePage[]
   const directory = await fs.mkdtemp(`${context.cacheDir}/chapter-export-XXXXXX`)
   const staging = `${directory}/pages`

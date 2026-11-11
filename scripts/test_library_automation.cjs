@@ -169,10 +169,13 @@ async function main() {
   const liveLibrary = JSON.stringify({ comics: [comic] })
   const liveProgress = JSON.stringify({ current: 'chapter-3' })
   const liveQueue = JSON.stringify({ schemaVersion: 1, entries: [] })
-  fs.mkdirSync(path.join(directory, 'downloads'))
+  const publicRoot = path.join(directory, 'public')
+  fs.mkdirSync(path.join(publicRoot, 'downloads'), { recursive: true })
+  fs.mkdirSync(path.join(directory, 'download-queue'))
   fs.writeFileSync(path.join(directory, 'library-store.v1.json'), liveLibrary)
   fs.writeFileSync(path.join(directory, 'reader-sessions.v1.json'), liveProgress)
-  fs.writeFileSync(path.join(directory, 'downloads/queue.v1.json'), liveQueue)
+  fs.writeFileSync(path.join(publicRoot, 'downloads/queue.v1.json'), 'old public queue')
+  fs.writeFileSync(path.join(directory, 'download-queue/queue.v1.json'), liveQueue)
   fs.writeFileSync(path.join(directory, contract.BACKUP_SNAPSHOT), JSON.stringify({
     libraryStore: JSON.stringify({ comics: [] }), readingProgress: 'old', downloadQueue: 'old', settings: { retained: true },
   }))
@@ -181,6 +184,11 @@ async function main() {
   }))
   let produced
   const packages = [{ sourceId: 'source', version: '1' }]
+  const queuePaths = load('OfflineDownloadQueueStore', {
+    './BackupRestoreActivity': activity, './AppFileTextPersistence': {}, '../diagnostics/DiagnosticLogger': {},
+    '@kit.CoreFileKit': { fileIo: { accessSync: fs.existsSync } }, './OfflineDownloadRuntime': {},
+    './OfflineDownloadStore': { OFFLINE_DOWNLOAD_ROOT_DIR_NAME: 'downloads' },
+  })
   const worker = load('BackgroundMaintenanceWorker', {
     './ComicPersonalization': { exportComicCovers: async () => [] },
     '@kit.AbilityKit': { appManager: { getRunningProcessInformation: async () => [] } },
@@ -190,8 +198,8 @@ async function main() {
     './LibraryStore': { InMemoryLibraryStore: class {} },
     './LibraryPersistence': { LIBRARY_STORE_PERSISTENCE_FILE_NAME: 'library-store.v1.json' },
     './ReaderSessionStore': { READER_PROGRESS_PERSISTENCE_FILE_NAME: 'reader-sessions.v1.json' },
-    './OfflineDownloadStore': { OFFLINE_DOWNLOAD_ROOT_DIR_NAME: 'downloads' },
-    './OfflineDownloadQueueStore': { OFFLINE_DOWNLOAD_QUEUE_FILE_NAME: 'queue.v1.json' },
+    './OfflineDownloadQueueStore': queuePaths,
+    './KomaContentStorage': { ensureKomaBackgroundContentStorageBase: async () => publicRoot },
     '../common/Constants': { KOMA_BUNDLE_NAME: 'com.honjow.koma' },
     './AutomationStateEpoch': epoch,
     './SourceChapterIdentityGuard': {}, './LibraryAutomationPolicy': policy,

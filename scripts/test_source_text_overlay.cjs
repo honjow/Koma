@@ -37,9 +37,9 @@ const io = { accessSync: fs.existsSync, mkdirSync: p => fs.mkdirSync(p, { recurs
   readTextSync: p => fs.readFileSync(p,'utf8'), fsyncSync: fs.fsyncSync, renameSync: fs.renameSync,
   unlinkSync: fs.unlinkSync, statSync: p => typeof p === 'number' ? fs.fstatSync(p) : fs.statSync(p),
   listFileSync: p => fs.readdirSync(p), readSync: (fd,b) => fs.readSync(fd,Buffer.from(b),0,b.byteLength,null) }
-const directoryIndex = load(fs.readFileSync(base+'DownloadDirectoryIndex.ets','utf8'), { fs: io })
 const models = load(fs.readFileSync(base+'ComicModels.ets','utf8'), {})
 const persistence = load(fs.readFileSync(base+'AppFileTextPersistence.ets','utf8'), { fs: io })
+const directoryIndex = load(fs.readFileSync(base+'DownloadDirectoryIndex.ets','utf8'), { fs: io, ...persistence })
 const offline = load(fs.readFileSync(base+'OfflineDownloadStore.ets','utf8'),
   { fs: io, ComicSourceKind: models.ComicSourceKind, sourceTextOverlay: actual.sourceTextOverlay,
     ...directoryIndex, ...persistence })

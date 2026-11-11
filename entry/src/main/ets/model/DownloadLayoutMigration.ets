@@ -2,6 +2,7 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   DownloadDirectoryIndexFile,
+  downloadIndexPath,
   DownloadComicIndexEntry,
   downloadComicDirectoryName,
   downloadManifestPath,
@@ -144,11 +145,11 @@ function sourceNameForDirectory(comic: DownloadComicIndexEntry,
  * Rename legacy hash folders to readable work/chapter names and rewrite page paths.
  * User-visible Download layout is data: keep this conservative and idempotent.
  */
-export function normalizeDownloadLayout(rootDir: string,
+export function normalizeDownloadLayout(rootDir: string, indexDir: string,
   sourceNameResolver?: DownloadSourceNameResolver): void {
   let index: DownloadDirectoryIndexFile
   try {
-    index = loadOrScanDownloadDirectoryIndex(rootDir)
+    index = loadOrScanDownloadDirectoryIndex(rootDir, indexDir)
   } catch (error) {
     DiagnosticLogger.exception('storage', 'download_layout_scan_failed', error as Error)
     return
@@ -228,9 +229,12 @@ export function normalizeDownloadLayout(rootDir: string,
     if (currentComicDir !== targetComicDir) removeEmptyDirectory(currentComicDir)
   }
   try {
-    if (indexChanged) saveDownloadDirectoryIndex(rootDir, index)
+    if (indexChanged) saveDownloadDirectoryIndex(indexDir, index)
+    const legacyPath = downloadIndexPath(rootDir)
+    const publicIndexPresent = fs.accessSync(legacyPath) || fs.accessSync(legacyPath + '.tmp')
     DiagnosticLogger.info('storage', 'download_layout_ready',
-      'chapters=' + migratedChapters + ' pages=' + migratedPages)
+      'chapters=' + migratedChapters + ' pages=' + migratedPages + ' public_index=' +
+      (publicIndexPresent ? 'present' : 'absent'))
   } catch (error) {
     DiagnosticLogger.exception('storage', 'download_layout_index_failed', error as Error)
   }

@@ -194,8 +194,14 @@ async function verifyRoundTrip() {
       }
     } } },
     './BackupRestoreActivity': { BackupRestoreActivity: { isRestoring: () => restoring } },
+    './KomaContentStorage': {
+      ensureKomaContentStorageBase: async context => context.filesDir,
+      komaContentStorageBase: context => context.filesDir,
+      komaRuntimeStorageKey: context => context.filesDir,
+    },
     './OfflineDownloadQueueStore': { OfflineDownloadQueueStore: class {
       loadPreferences() { return { ...download } }
+      migratePublicQueue() {}
       savePreferencesForBackupRestore(value) { mutations += 1; download = value }
     } },
   }
@@ -331,6 +337,7 @@ async function verifyCheckpoint(ports, applicationSettings, stores) {
     } },
     './BackupRestoreActivity': activity,
     './ApplicationSettingsBackup': applicationSettings,
+    './OfflineDownloadQueueStore': { PUBLIC_CONTENT_QUEUE_PRIVATE_PATH: 'download-queue/queue.v1.json' },
     './LibraryPersistence': { AppFilesLibraryStorePersistenceAdapter: FilesAdapter },
   }).BackupRestoreCheckpoint
   // Add the platform clear operation used by the real checkpoint rollback.
@@ -350,9 +357,12 @@ async function verifyCheckpoint(ports, applicationSettings, stores) {
   }
   let failOnce = false
   try {
+    const privateQueue = path.join(directory, 'download-queue/queue.v1.json')
+    fs.mkdirSync(path.dirname(privateQueue), { recursive: true })
+    fs.writeFileSync(privateQueue, 'original queue')
     activity.BackupRestoreActivity.beginRestore()
     const pending = await checkpoint.prepare(context)
-    assert.equal(JSON.parse(fs.readFileSync(checkpointPath, 'utf8')).schemaVersion, 5)
+    fs.writeFileSync(privateQueue, 'restored queue')
     failOnce = true
     await assert.rejects(applicationSettings.importApplicationSettings(context, { schemaVersion: 2, preferences: [
       { name: 'koma_manga_migration_v1', values: { 'migration.selectedSources': '["changed"]' }, clearedKeys: ['migration.matchOptions'] },
@@ -363,6 +373,7 @@ async function verifyCheckpoint(ports, applicationSettings, stores) {
     await pending.rollback()
     pending.completeRollback()
     activity.BackupRestoreActivity.finishRestore()
+    assert.equal(fs.readFileSync(privateQueue, 'utf8'), 'original queue')
     for (const [name, values] of original) assert.deepEqual(stores.get(name), values)
     assert(!fs.existsSync(checkpointPath))
 
@@ -375,8 +386,10 @@ async function verifyCheckpoint(ports, applicationSettings, stores) {
       'source-runtime/source-filter-preferences.json', 'downloads/queue.v1.json', 'source-runtime/source-runtime-registry.json']
     const domains = [[], ['koma_library_automation_v1'], ['koma_chapter_list_preferences_v1', 'koma_library_automation_v1'],
       ['koma_source_catalog_filters_v1', 'koma_chapter_list_preferences_v1', 'koma_library_automation_v1']]
+    const v4Stores = first.concat(domains[3], base)
+    const v5Stores = v4Stores.concat(applicationSettings.APPLICATION_SETTINGS_BACKUP_STORES.filter(name => !v4Stores.includes(name)))
     const versions = [[1, first], [2, first.concat(base)], ...domains.map(extra => [3, first.concat(extra, base)]),
-      [4, first.concat(domains[3], base)]]
+      [4, v4Stores], [5, v5Stores]]
     for (const [version, names] of versions) {
       const recoveryFiles = files.concat(version >= 3 ? ['source-runtime/source-setting-observations.json'] : [],
         version >= 4 ? ['image-rules.v1.json'] : [])
@@ -385,8 +398,11 @@ async function verifyCheckpoint(ports, applicationSettings, stores) {
         preferences: names.map(name => ({ name, values: { 'historical.fixture': version } })),
       }))
       await checkpoint.recoverBeforeStartup(context)
+      assert.equal(fs.readFileSync(privateQueue, 'utf8'), 'original queue')
       for (const name of names) assert.deepEqual(stores.get(name), { 'historical.fixture': version })
-      for (const name of ['koma_manga_migration_v1', 'koma_search_history_v1']) assert.deepEqual(stores.get(name), original.get(name))
+      for (const name of ['koma_manga_migration_v1', 'koma_search_history_v1']) {
+        if (!names.includes(name)) assert.deepEqual(stores.get(name), original.get(name))
+      }
     }
   } finally {
     ports['@kit.ArkData'].preferences.getPreferences = getPreferences
