@@ -16,13 +16,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "Koma 1.4.2 已发布；哔哩漫画 0.1.5 已发布并在 237 验证；阅读失败态叠加加载反馈的修复待真机确认",
+  "state": "Koma 1.4.2 已发布；公开下载目录的同名书源隔离与可读名称迁移已在 197 验证并本地提交 8b8b01e4；禁漫天堂短图与下载修复待发布边界",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-11T12:20:00+08:00",
+  "updatedAt": "2026-11-11T13:43:30+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "CONTINUOUS_PERFORMANCE",
-  "activity": "共享阅读器失败态不再显示加载反馈（reader-kit 68f4018），待 237 失败页复验",
-  "nextAction": "真实网络失败时复验失败页只显示失败面板",
+  "activeId": "JMCOMIC_SHORT_IMAGE_DOWNLOAD",
+  "activity": "公开下载目录已迁移为「作品名 [书源名]/章节/001.ext」，两个同名书源按源隔离；197 已验旧章节翻页与冷启动续读",
+  "nextAction": "下载目录重构不推送、不发版；继续按用户决定处理禁漫天堂短图与下载修复的发布边界",
   "proof": [
     {
       "label": "正式主仓",
@@ -10131,6 +10131,63 @@
         "https://github.com/erosTeam/reader-kit/commit/21e9b4c",
         "https://github.com/erosTeam/reader-kit/commit/68f4018"
       ]
+    },
+    {
+      "id": "JMCOMIC_SHORT_IMAGE_DOWNLOAD",
+      "number": 275,
+      "title": "禁漫天堂第26图加载失败与下载链",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户反馈",
+      "owner": "Root：Koma 源图片解码与下载",
+      "reportedAt": null,
+      "reportedDate": "2026-11-11",
+      "reportedAtSource": "用户在本会话报告禁漫天堂《秘密教学》264话第26图稳定加载失败，WebView 正常，并要求在 237 定位、修复、抽样下载和检查下载自动重试；原始消息时刻未核实。",
+      "registeredAt": "2026-11-11T13:35:00+08:00",
+      "updatedAt": "2026-11-11T13:35:00+08:00",
+      "status": "短图解码、下载重试与继续队列已修；237 阅读和 5 章下载已验，源版本与发布待收口",
+      "stage": "待收口：源仓无代码改动，App 修复未推送或发布",
+      "result": "237 复现《秘密教学》264 话第 26 图：缓存清单确认 00026.webp 为 82 字节、720x1，宿主必解扰在 height<rows 时抛 source_required_decode_dimensions，页面被判不可用；重试仍失败。改为短图按无操作条带还原并重新编码 JPEG 后，237 阅读第 26 图不再出现 page_unavailable，缓存生成 825 字节 source-required.jpg。下载侧补 300/800/1500ms 自动重试，仅对网络类和 HTTP 408/429/5xx 生效；继续队列原先只改偏好不唤醒执行器，已在提交队列变更后发布 change 信号。237 抽样下载《秘密教学》5 章，最终显示 125/125、89/89、94/94、30/30、105/105；中途曾出现 112/125，自动重验后恢复。",
+      "remaining": "源 0.1.5 的 get_pages/get_image_request 已正确返回 jm_stripes_v1 与 00026.webp，缺失处理在 Koma 宿主，源仓没有需要提交的代码改动，因此未生成新书源版本。App 修复尚未推送或发布，禁漫天堂 minAppVersion 仍为 1.4.1。237 的下载抽样只覆盖一部作品的 5 章，未完成多作品全量下载；112/125 的失败瞬间日志尚未取得。",
+      "evidence": [
+        "entry/src/main/ets/model/SourceRequiredImageDecodeWorker.ets",
+        "entry/src/main/ets/model/SourceRequiredImageDecodePrimitives.ets",
+        "entry/src/main/ets/model/ReaderPageSourceAdapter.ets",
+        "entry/src/main/ets/pages/DownloadsPage.ets",
+        "docs/device-protocols/jinmantiantang-image-237.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/retry-011",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/verify-final-016",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/cleanup-049"
+      ]
+    },
+    {
+      "id": "DOWNLOAD_PUBLIC_READABLE_LAYOUT",
+      "number": 276,
+      "title": "同名书源下载目录隔离与可读名称迁移",
+      "kind": "done",
+      "priority": "用户需求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-11",
+      "reportedAtSource": "用户要求公共 Download 目录里的作品、章节和图片名称可读，并追问两个书源下载同名作品时如何避免共用目录或互相覆盖；原始消息时刻未核实。",
+      "registeredAt": "2026-11-11T13:38:00+08:00",
+      "updatedAt": "2026-11-11T13:43:30+08:00",
+      "closedAt": "2026-11-11T13:43:30+08:00",
+      "status": "已在 197 验证并提交 8b8b01e4",
+      "result": "作品目录使用「作品名 [书源名]」，身份仍以 comicId + chapterId 为准；同一显示名下再冲突时追加 (2)。页面文件改为 001.jpg、002.jpg，清单移动到 .koma/manifest.v1.json。旧哈希目录迁移时依次取已有名称、已安装书源的本地化显示名、sourceId，并同时修正页面绝对路径；v2 已改成的可读裸作品名也会补书源后缀。197 首次迁移 90 个章节、2349 页，文件管理器可见 Love Bullet [MangaDex（简体中文）] / 爱上恋爱 / 033.png 等名称；迁移前已有的《魔奴嫁》01話 51/51 可从下载管理打开，翻到 7/51 后冷启动仍续读 7/51。最终包再次冷启动日志为 chapters=0 pages=0，未重复改名。",
+      "remaining": "设备实测覆盖 197 现有 90 个章节；两个书源显示名完全相同而生成 (2) 后缀的物理下载样本未单独造出，当前由唯一目录分配逻辑覆盖。只完成本地提交，未推送、未发版；103 平板未纳入这次目录迁移验证。",
+      "evidence": [
+        "entry/src/main/ets/model/DownloadDirectoryIndex.ets",
+        "entry/src/main/ets/model/DownloadLayoutMigration.ets",
+        "entry/src/main/ets/model/KomaContentStorage.ets",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/file-manager-open-20261111T133127904259/file-manager.png",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/file-manager-open-chapter-20261111T133354458694/file-manager-chapter.png",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/downloads-open-first-downloaded-20261111T133615584516/downloads-reader.png",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/downloads-open-first-downloaded-20261111T134134929892/downloads-reader-layout.json",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/install-20261111T134058735018/run-metadata.json",
+        ".hvigor/outputs/content-storage-public-root-20261111/qa/entry-default-signed-read-dirs-v6.hap"
+      ],
+      "progressPhase": "completed"
     }
   ],
   "source": {
@@ -22794,6 +22851,29 @@
       "detail": "237 阅读偏好读回 wideImageMode=split_wide_pages；分页格内占位是失败面板的兄弟节点，拆分拓扑未就绪时 failed 仍被算成 loading。ReaderImagePresentation 改为 failed/suppressed 终态优先，reader-kit 21e9b4c 已推送、68f4018 补断言且 6/6 通过，Koma assembleHap 通过。设备临时代理只影响系统检查、不作用于图片请求，已恢复为无代理并清理临时文件，超时 10000ms 读回后休眠释租；失败瞬间的界面仍待真机确认。",
       "kind": "checkpoint",
       "evidence": "third_party/reader-kit/reader-ui/src/main/ets/ReaderImagePlaceholder.ets；third_party/reader-kit/tests/reader-continuous-loading.test.cjs；.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-terminal-feedback-20261111"
+    },
+    {
+      "id": "jmcomic-short-image-275-20261111",
+      "at": "2026-11-11T13:35:00+08:00",
+      "itemId": "JMCOMIC_SHORT_IMAGE_DOWNLOAD",
+      "title": "#275 禁漫天堂第26图与下载链修复",
+      "detail": "237 复现 P26：00026.webp 为 720x1/82B，宿主必解扰拒绝 height<rows，重试仍报 source_required_decode_dimensions。短图改为无操作还原并重新编码 JPEG 后，P26 无 page_unavailable，缓存生成 825B source-required.jpg。下载补 300/800/1500ms 网络重试，并修复继续队列不唤醒执行器。5 章最终 125/125、89/89、94/94、30/30、105/105；中途 112/125 未抓到失败瞬间。源 0.1.5 无需改动。",
+      "kind": "checkpoint",
+      "evidence": "entry/src/main/ets/model/SourceRequiredImageDecodeWorker.ets；entry/src/main/ets/model/ReaderPageSourceAdapter.ets；entry/src/main/ets/pages/DownloadsPage.ets；.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111"
+    },
+    {
+      "id": "download-public-readable-layout-20261111",
+      "at": "2026-11-11T13:43:30+08:00",
+      "itemId": "DOWNLOAD_PUBLIC_READABLE_LAYOUT",
+      "title": "#276 公开下载目录同名书源隔离与可读名称迁移通过",
+      "detail": "197 首次迁移 90 章节/2349 页为可读作品名 [书源名]/章节目录/001.ext；《魔奴嫁》01話 51/51 翻页后冷启动续读 7/51。最终包二次冷启动 chapters=0 pages=0，没有重复改名。源码本地提交 8b8b01e4，未推送或发版。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/file-manager-open-20261111T133127904259/file-manager.png",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/file-manager-open-chapter-20261111T133354458694/file-manager-chapter.png",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/downloads-open-first-downloaded-20261111T133615584516/downloads-reader.png",
+        ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/install-20261111T134058735018/run-metadata.json"
+      ]
     }
   ],
   "reportAgeAudit": {
