@@ -8,6 +8,7 @@ import {
   downloadPageFileName,
   legacyDownloadManifestPath,
   loadOrScanDownloadDirectoryIndex,
+  previousDownloadManifestPath,
   sanitizeDownloadSegment,
   saveDownloadDirectoryIndex,
   uniqueDownloadDirectory,
@@ -63,7 +64,8 @@ function fileExtension(name: string): string {
 }
 
 function readManifest(chapterDir: string): LayoutManifest | undefined {
-  const paths: string[] = [downloadManifestPath(chapterDir), legacyDownloadManifestPath(chapterDir)]
+  const paths: string[] = [downloadManifestPath(chapterDir), previousDownloadManifestPath(chapterDir),
+    legacyDownloadManifestPath(chapterDir)]
   for (const path of paths) {
     if (!fs.accessSync(path)) continue
     try {
@@ -88,6 +90,8 @@ function writeManifest(chapterDir: string, manifest: LayoutManifest): void {
   }
   if (fs.accessSync(path)) fs.unlinkSync(path)
   fs.renameSync(temporary, path)
+  const previousPath = previousDownloadManifestPath(chapterDir)
+  try { if (fs.accessSync(previousPath)) fs.unlinkSync(previousPath) } catch (_error) {}
   const legacyPath = legacyDownloadManifestPath(chapterDir)
   try { if (fs.accessSync(legacyPath)) fs.unlinkSync(legacyPath) } catch (_error) {}
 }

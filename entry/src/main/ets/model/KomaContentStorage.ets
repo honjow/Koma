@@ -7,6 +7,7 @@ import {
   OfflineChapterDownloadManifest,
   OfflineDownloadedPage,
   OFFLINE_DOWNLOAD_MANIFEST_NAME,
+  OFFLINE_DOWNLOAD_LEGACY_MANIFEST_NAME,
   OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
   createOfflineDownloadStableHash,
 } from './OfflineDownloadStore'
@@ -300,7 +301,9 @@ function copyLegacyDownloadTree(legacyBase: string, publicBase: string): LegacyC
         status: manifest.status, updatedAt: manifest.updatedAt, pages: migratedPages,
         integrityHash: manifest.integrityHash, failureReasonCode: manifest.failureReasonCode,
       }
-      writeManifest(join(tempDir, OFFLINE_DOWNLOAD_MANIFEST_NAME), JSON.stringify(migratedManifest))
+      const metadataDir = join(tempDir, '.koma')
+      ensureDir(metadataDir)
+      writeManifest(join(metadataDir, OFFLINE_DOWNLOAD_MANIFEST_NAME), JSON.stringify(migratedManifest))
       const replacedDir = join(targetOwnerDir, `.${chapterName}.replaced-${tempSuffix}`)
       if (fs.accessSync(replacedDir)) removeDir(replacedDir)
       if (fs.accessSync(targetChapterDir)) {
@@ -338,8 +341,11 @@ function copyLegacyDownloadTree(legacyBase: string, publicBase: string): LegacyC
       if (chapters[chapterIndex].startsWith('.')) continue
       const chapterPath = join(ownerPath, chapters[chapterIndex])
       if (!fs.statSync(chapterPath).isDirectory()) continue
-      const manifestPath = join(chapterPath, OFFLINE_DOWNLOAD_MANIFEST_NAME)
-      if (!fs.accessSync(manifestPath)) {
+      const candidates = [join(chapterPath, OFFLINE_DOWNLOAD_LEGACY_MANIFEST_NAME),
+        join(join(chapterPath, '.koma'), OFFLINE_DOWNLOAD_LEGACY_MANIFEST_NAME),
+        join(join(chapterPath, '.koma'), OFFLINE_DOWNLOAD_MANIFEST_NAME)]
+      const manifestPath = candidates.find((candidate: string): boolean => fs.accessSync(candidate))
+      if (manifestPath === undefined) {
         summary.failedChapters += 1
         continue
       }

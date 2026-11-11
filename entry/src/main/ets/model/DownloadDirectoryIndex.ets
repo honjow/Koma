@@ -2,7 +2,8 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 
 export const DOWNLOAD_INDEX_FILE_NAME: string = '.koma-download-index.v1.json'
 export const DOWNLOAD_METADATA_DIR_NAME: string = '.koma'
-export const DOWNLOAD_MANIFEST_FILE_NAME: string = 'manifest.v1.json'
+export const DOWNLOAD_MANIFEST_FILE_NAME: string = 'manifest.json'
+export const DOWNLOAD_PREVIOUS_MANIFEST_FILE_NAME: string = 'manifest.v1.json'
 export const DOWNLOAD_LEGACY_MANIFEST_FILE_NAME: string = 'manifest.v1.json'
 
 const DOWNLOAD_INDEX_SCHEMA_VERSION: number = 1
@@ -127,6 +128,10 @@ export function downloadManifestPath(chapterDir: string): string {
   return joinPath(joinPath(chapterDir, DOWNLOAD_METADATA_DIR_NAME), DOWNLOAD_MANIFEST_FILE_NAME)
 }
 
+export function previousDownloadManifestPath(chapterDir: string): string {
+  return joinPath(joinPath(chapterDir, DOWNLOAD_METADATA_DIR_NAME), DOWNLOAD_PREVIOUS_MANIFEST_FILE_NAME)
+}
+
 export function legacyDownloadManifestPath(chapterDir: string): string {
   return joinPath(chapterDir, DOWNLOAD_LEGACY_MANIFEST_FILE_NAME)
 }
@@ -225,6 +230,7 @@ export function scanDownloadDirectoryIndex(rootDir: string): DownloadDirectoryIn
       const chapterDir = joinPath(comicDir, chapterName)
       if (!isDirectory(chapterDir)) continue
       const manifest = readManifestIdentity(downloadManifestPath(chapterDir)) ??
+        readManifestIdentity(previousDownloadManifestPath(chapterDir)) ??
         readManifestIdentity(legacyDownloadManifestPath(chapterDir))
       if (manifest === undefined) continue
       const comic = index.comics[manifest.comicId] ?? {

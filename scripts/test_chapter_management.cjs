@@ -125,10 +125,11 @@ async function main() {
     })
     const sourceName = sourceId => sourceId === 'source-a' ? '书源甲' : sourceId === 'source-b' ? '书源乙' : '书源丙'
     layout.normalizeDownloadLayout(layoutRoot, sourceName)
-    const legacyManifestA = path.join(layoutRoot, '同名作品 [书源甲]', '第01话', '.koma', 'manifest.v1.json')
-    const legacyManifestB = path.join(layoutRoot, '同名作品 [书源乙]', '第01话', '.koma', 'manifest.v1.json')
+    const legacyManifestA = path.join(layoutRoot, '同名作品 [书源甲]', '第01话', '.koma', 'manifest.json')
+    const legacyManifestB = path.join(layoutRoot, '同名作品 [书源乙]', '第01话', '.koma', 'manifest.json')
     assert.equal(JSON.parse(fs.readFileSync(legacyManifestA, 'utf8')).sourceName, '书源甲')
     assert.equal(JSON.parse(fs.readFileSync(legacyManifestB, 'utf8')).sourceName, '书源乙')
+    assert.equal(fs.existsSync(path.join(layoutRoot, '同名作品 [书源甲]', '第01话', '.koma', 'manifest.v1.json')), false)
     const layoutDirectories = () => fs.readdirSync(layoutRoot).filter(name => !name.startsWith('.')).sort()
     assert.deepEqual(layoutDirectories(), ['同名作品 [书源乙]', '同名作品 [书源甲]', '裸名作品 [书源丙]'])
     layout.normalizeDownloadLayout(layoutRoot, sourceName)

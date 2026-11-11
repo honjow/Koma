@@ -17,12 +17,14 @@ import {
   ensureDownloadDirectory,
   legacyDownloadManifestPath,
   loadOrScanDownloadDirectoryIndex,
+  previousDownloadManifestPath,
   saveDownloadDirectoryIndex,
 } from './DownloadDirectoryIndex'
 
 export const OFFLINE_DOWNLOAD_SCHEMA_VERSION: number = 1
 export const OFFLINE_DOWNLOAD_ROOT_DIR_NAME: string = 'downloads'
-export const OFFLINE_DOWNLOAD_MANIFEST_NAME: string = 'manifest.v1.json'
+export const OFFLINE_DOWNLOAD_MANIFEST_NAME: string = 'manifest.json'
+export const OFFLINE_DOWNLOAD_LEGACY_MANIFEST_NAME: string = 'manifest.v1.json'
 
 export enum OfflineDownloadStatus {
   QUEUED = 'queued',
@@ -354,6 +356,14 @@ function matchesDownloadedPage(page: OfflineDownloadedPage, pageId: string, page
   return page.pageIndex === pageIndex
 }
 
+function downloadManifestEntryRank(entry: string): number {
+  const name = pathBaseName(entry)
+  if (name === OFFLINE_DOWNLOAD_MANIFEST_NAME) return 0
+  if (name !== OFFLINE_DOWNLOAD_LEGACY_MANIFEST_NAME) return -1
+  const slash = entry.lastIndexOf('/')
+  return slash >= 0 && pathBaseName(entry.substring(0, slash)) === '.koma' ? 1 : 2
+}
+
 export class OfflineDownloadStore {
   private readonly filesDir: string
   private readonly rootDir: string
@@ -398,6 +408,13 @@ export class OfflineDownloadStore {
     return downloadManifestPath(this.chapterDir(comicId, chapterId))
   }
 
+  private manifestReadPath(comicId: ComicId, chapterId: string): string | undefined {
+    const chapterDir = this.chapterDir(comicId, chapterId)
+    const candidates: string[] = [downloadManifestPath(chapterDir), previousDownloadManifestPath(chapterDir),
+      legacyDownloadManifestPath(chapterDir)]
+    return candidates.find((path: string): boolean => fs.accessSync(path))
+  }
+
   pageFilePath(comicId: ComicId, chapterId: string, pageId: string, pageIndex: number, extension: string): string {
     const fileName = downloadPageFileName(pageIndex, normalizeExtension(extension))
     const path = joinOfflineDownloadPath(this.chapterDir(comicId, chapterId), fileName)
@@ -406,12 +423,8 @@ export class OfflineDownloadStore {
   }
 
   loadManifest(comicId: ComicId, chapterId: string): OfflineChapterDownloadManifest | undefined {
-    let path = this.manifestPath(comicId, chapterId)
-    if (!fs.accessSync(path)) {
-      const legacyPath = legacyDownloadManifestPath(this.chapterDir(comicId, chapterId))
-      if (!fs.accessSync(legacyPath)) return undefined
-      path = legacyPath
-    }
+    const path = this.manifestReadPath(comicId, chapterId)
+    if (path === undefined) return undefined
     try {
       return safeParseManifest(fs.readTextSync(path, { encoding: 'utf-8' }))
     } catch (_err) {
@@ -424,8 +437,8 @@ export class OfflineDownloadStore {
     chapterId: string,
     options?: OfflineDownloadValidationOptions
   ): OfflineDownloadManifestValidation {
-    const path = this.manifestPath(comicId, chapterId)
-    if (!fs.accessSync(path)) {
+    const path = this.manifestReadPath(comicId, chapterId)
+    if (path === undefined) {
       return {
         comicId,
         chapterId,
@@ -767,9 +780,10 @@ export class OfflineDownloadStore {
           const chapterPath = joinOfflineDownloadPath(ownerPath, chapter)
           assertSafeOfflineDownloadRoot(this.filesDir, chapterPath)
           if (!fs.statSync(chapterPath).isDirectory()) continue
-          let path = downloadManifestPath(chapterPath)
-          if (!fs.accessSync(path)) path = legacyDownloadManifestPath(chapterPath)
-          if (!fs.accessSync(path)) continue
+          const candidates: string[] = [downloadManifestPath(chapterPath), previousDownloadManifestPath(chapterPath),
+            legacyDownloadManifestPath(chapterPath)]
+          const path = candidates.find((candidate: string): boolean => fs.accessSync(candidate))
+          if (path === undefined) continue
           const manifest = safeParseManifest(fs.readTextSync(path, { encoding: 'utf-8' }))
           if (manifest.comicId === comicId) ids.push(manifest.chapterId)
         }
@@ -796,10 +810,12 @@ export class OfflineDownloadStore {
     const seenKeys: string[] = []
     let scannedManifestCount = 0
     let skippedManifestCount = 0
-    const entries = await fs.listFile(this.rootDir, options)
+    const entries = (await fs.listFile(this.rootDir, options)).slice().sort((left: string, right: string): number => {
+      return downloadManifestEntryRank(left) - downloadManifestEntryRank(right)
+    })
     for (let index = 0; index < entries.length; index += 1) {
       const entry = normalizeDownloadPath(entries[index]).replace(/^\/+/, '').replace(/\/+$/, '')
-      if (entry.length === 0 || entry.indexOf('..') >= 0 || pathBaseName(entry) !== OFFLINE_DOWNLOAD_MANIFEST_NAME) {
+      if (entry.length === 0 || entry.indexOf('..') >= 0 || downloadManifestEntryRank(entry) < 0) {
         continue
       }
       scannedManifestCount += 1
