@@ -52,6 +52,12 @@ jobs:
 
       - name: Install native build dependencies
         run: |
+          # The build container uses Ubuntu's direct sources rather than the
+          # host runner's mirror list. Keep apt usable during ubuntu.com DNS outages.
+          for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            [ -f "$source" ] || continue
+            sed -i -E 's@https?://(archive|security)\.ubuntu\.com/ubuntu/?@http://mirrors.aliyun.com/ubuntu/@g' "$source"
+          done
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential xxd pkg-config curl ca-certificates patch perl python3 zstd
 
