@@ -14,6 +14,7 @@ export class ThemeConstants {
   static readonly BG_PRIMARY: ResourceColor = $r('app.color.koma_background')
   static readonly BG_SUB: ResourceColor = $r('sys.color.ohos_id_color_sub_background')
   static readonly CARD: ResourceColor = $r('app.color.koma_card')
+  static readonly MODAL_CARD: ResourceColor = $r('app.color.koma_modal_card')
   static readonly DIVIDER: ResourceColor = $r('sys.color.ohos_id_color_list_separator')
   static readonly DANGER: ResourceColor = $r('app.color.koma_danger')
   static readonly COVER_PLACEHOLDER: ResourceColor = $r('app.color.koma_cover_placeholder')

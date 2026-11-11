@@ -453,7 +453,7 @@ export struct KomaTranslationSettingsContent {
   @Builder
   private SettingsForm() {
       Column({ space: ThemeConstants.SPACE_LG }) {
-        GroupedListSection({ title: t('comic_translation_group_language') }) {
+        GroupedListSection({ inModal: this.sheetPresentation, title: t('comic_translation_group_language') }) {
           ConciseListRow({ title: t('comic_visual_route'), trailingText: this.routeLabel(),
             trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.ready && !this.saving,
             dropdownMenuBuilder: (select: (action: () => void) => void) => { this.RouteMenu(select) } })
@@ -467,7 +467,7 @@ export struct KomaTranslationSettingsContent {
             dropdownMenuBuilder: (select: (action: () => void) => void) => { this.LanguageMenu(false, select) } })
         }
         if (this.draft.route === 'local') {
-          GroupedListSection({ title: t('comic_local_detector_model') }) {
+          GroupedListSection({ inModal: this.sheetPresentation, title: t('comic_local_detector_model') }) {
             ConciseListRow({ title: t('comic_local_detector_model'),
               subtitle: t('comic_local_detector_notice'),
               trailingText: this.modelDownloading ? t('comic_local_detector_downloading') :
@@ -478,7 +478,7 @@ export struct KomaTranslationSettingsContent {
           }
         }
         if (this.draft.route !== 'torii_whole_page') {
-          GroupedListSection() {
+          GroupedListSection({ inModal: this.sheetPresentation }) {
             ConciseListRow({ title: t('llm_binding_select_source'),
               trailingText: this.draft.textSource()?.profile.displayName ?? t('llm_binding_not_configured'),
               trailingDropdown: this.compatibleSources().length > 0, dropdownMenuEnabled: this.compatibleSources().length > 0,
@@ -525,7 +525,7 @@ export struct KomaTranslationSettingsContent {
           }
         }
         if (this.draft.route === 'self_hosted') {
-          GroupedListSection({ title: t('comic_render_service_title') }) {
+          GroupedListSection({ inModal: this.sheetPresentation, title: t('comic_render_service_title') }) {
             Column({ space: ThemeConstants.SPACE_MD }) {
               KomaFormTextField({ label: t('comic_render_service_url'), value: this.draft.sidecarUrl,
                 isEnabled: this.ready && !this.saving, change: (value: string) => { this.edit('sidecar-url', value) } })
@@ -552,7 +552,7 @@ export struct KomaTranslationSettingsContent {
           }
         }
         if (this.draft.route === 'torii_whole_page') {
-          GroupedListSection({ title: t('comic_visual_route_torii') }) {
+          GroupedListSection({ inModal: this.sheetPresentation, title: t('comic_visual_route_torii') }) {
             KomaFormTextField({ label: t('comic_torii_api_key'), value: this.draft.toriiApiKey, isPassword: true,
               isEnabled: this.ready && !this.saving, change: (value: string) => { this.edit('torii-key', value) } })
               .padding(ThemeConstants.SPACE_MD)
@@ -573,7 +573,7 @@ export struct KomaTranslationSettingsContent {
           }
         }
         if (this.draft.route !== 'self_hosted') {
-          GroupedListSection() {
+          GroupedListSection({ inModal: this.sheetPresentation }) {
             ConciseListRow({ title: t('comic_translation_live_evaluation_title'), subtitle: this.evaluationSubtitle(), subtitleMaxLines: 3,
               trailingText: this.draft.route === 'torii_whole_page' ?
                 t(this.toriiEvaluationReport.passed() ? 'comic_torii_live_evaluation_view' : 'comic_torii_live_evaluation_pages') : '',

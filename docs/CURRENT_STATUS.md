@@ -10199,6 +10199,37 @@
         ".hvigor/outputs/content-storage-public-root-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/content-storage/file-manager-open-koma-backups-20261111T142307622511/file-manager-koma-backups.png"
       ],
       "progressPhase": "completed"
+    },
+    {
+      "id": "MODAL_SETTINGS_CARD_MATERIAL",
+      "number": 279,
+      "title": "半模态设置卡片透出系统材质",
+      "kind": "done",
+      "progressPhase": "completed",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-11",
+      "reportedAtSource": "本会话用户要求在 237 深色模式验证半模态设置卡片背景；原始消息时间未核实。",
+      "registeredAt": "2026-11-11T20:44:10+08:00",
+      "updatedAt": "2026-11-11T22:00:40+08:00",
+      "closedAt": "2026-11-11T22:00:40+08:00",
+      "status": "50% 透明已确认；237 深浅色同页对照通过",
+      "result": "用户确认使用 50% 透明，深浅色共用同一比例。237 书架筛选的深浅两套画面均可透出模糊底图，文字和分隔线仍清楚。已恢复跟随系统、10 秒超时与休眠并释租。",
+      "remaining": "本轮对照覆盖 237 的深浅色书架筛选；未逐页复测阅读器、书源设置或旧系统。普通设置及旧系统沿用原卡片底色。",
+      "relatedItems": [
+        "APP_POPUP_SYSTEM_MATERIAL",
+        "DOWNLOAD_QUEUE_MANAGEMENT"
+      ],
+      "evidence": [
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T203610995632/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T204157083950/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T204300550978/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/restore-20261111T204410175091/run-metadata.json",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T215937605860/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T220009461157/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/restore-20261111T220040377134/run-metadata.json"
+      ]
     }
   ],
   "source": {
@@ -10253,6 +10284,24 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "modal-settings-card-opacity-50-237-20261111",
+      "at": "2026-11-11T22:00:40+08:00",
+      "itemId": "MODAL_SETTINGS_CARD_MATERIAL",
+      "title": "237 对照半模态卡片 50% 透明的深浅色效果",
+      "detail": "同一书架筛选在深、浅两色下实机截全图。仅调整卡片底色 Alpha，已恢复原主题和电源状态。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T220009461157/screen.png"
+    },
+    {
+      "id": "modal-settings-card-dark-237-20261111",
+      "at": "2026-11-11T20:44:10+08:00",
+      "itemId": "MODAL_SETTINGS_CARD_MATERIAL",
+      "title": "237 深色核对半模态卡片透底",
+      "detail": "同设备同页面比较，书架筛选卡片透出模糊底图且保留文字对比；普通外观页底色未变。恢复原主题、电源和超时并释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T204157083950/screen.png"
+    },
     {
       "id": "download-readable-manifest-v7-20261111",
       "at": "2026-11-11T14:26:00+08:00",

@@ -302,7 +302,7 @@ export struct SourceSubscriptionsPage {
     }, bottomPadding: ThemeConstants.SPACE_XL }) {
       if (this.repositories.length > 0) {
         ListItem() {
-          GroupedListSection({ title: AppStrings.get('subscription_sources') }) {
+          GroupedListSection({ inModal: this.embedded, title: AppStrings.get('subscription_sources') }) {
             ForEach(this.repositories, (repository: SourceIndexRepository, index: number) => {
               ConciseListRow({ title: sourceRepositoryDisplayName(repository), wrapTitle: true, showChevron: false,
                 subtitle: [sourceRepositoryDisplayName(repository) === repository.url ? '' : repository.url,
@@ -321,7 +321,7 @@ export struct SourceSubscriptionsPage {
       }
       if (this.ruleSubscriptions.length > 0) {
         ListItem() {
-          GroupedListSection({ title: AppStrings.get('subscription_image_rules') }) {
+          GroupedListSection({ inModal: this.embedded, title: AppStrings.get('subscription_image_rules') }) {
             ForEach(this.ruleSubscriptions, (rule: ImageRuleSubscription, index: number) => {
               ConciseListRow({ title: imageRuleSubscriptionName(rule), wrapTitle: true,
                 subtitle: rule.url + (!rule.disabled && rule.lastError ? '\n' + AppStrings.get('image_rules_update_failed') : ''), subtitleMaxLines: 3,

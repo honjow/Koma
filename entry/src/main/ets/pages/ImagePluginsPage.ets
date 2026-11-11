@@ -109,7 +109,7 @@ export struct ImagePluginsPage {
       pinnedOverlayHeight: this.pinnedOverlayHeight }) {
       if (this.preferencesReady) {
       ListItem() {
-        GroupedListSection() {
+        GroupedListSection({ inModal: this.embedded }) {
           if (this.request?.bookOptions) {
             ConciseListRow({ title: AppStrings.get('image_plugins_use_global'), hasSwitch: true, showChevron: false,
               subtitle: AppStrings.get('image_plugins_book_hint'), checked: this.usesGlobal(),
@@ -127,7 +127,7 @@ export struct ImagePluginsPage {
         ListItem() { Text(AppStrings.get('image_plugins_global_management')).fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY).width('100%').padding(ThemeConstants.SPACE_MD) }
       }
-      ListItem() { ImagePluginsListContent({ subscriptions: this.subscriptions, installations: this.installations }) }
+      ListItem() { ImagePluginsListContent({ inModal: this.embedded, subscriptions: this.subscriptions, installations: this.installations }) }
       if (this.subscriptions.length === 0 && this.installations.length === 0 && !this.state.readFailed) {
         ListItem() { Text(AppStrings.get('image_plugins_empty')).fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontColor(ThemeConstants.TEXT_SECONDARY).padding(ThemeConstants.SPACE_LG).width('100%') }

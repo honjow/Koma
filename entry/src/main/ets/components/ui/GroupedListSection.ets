@@ -1,3 +1,4 @@
+import { komaModalCardSurface } from '../../theme/KomaPopupOptions'
 import { ThemeConstants } from '../../theme/ThemeConstants'
 
 @ComponentV2
@@ -57,7 +58,9 @@ export struct GroupedListSection {
   @Event action: () => void = () => {}
   @Param inset: number = ThemeConstants.LIST_SECTION_INSET
   @Param radius: number = ThemeConstants.RADIUS_CARD
-  @Param surfaceColor: ResourceColor = ThemeConstants.CARD
+  @Param surfaceColor?: ResourceColor = undefined
+  // The presentation is explicit across ArkUI's sheet and builder boundaries.
+  @Param inModal: boolean = false
   @Provider('koma.groupedList.surfaceRadius') private surfaceRadius: number =
     ThemeConstants.GROUPED_LIST_INNER_RADIUS
 
@@ -93,7 +96,7 @@ export struct GroupedListSection {
     .borderRadius(this.radius)
     .clip(true)
     .padding(this.inset)
-    .backgroundColor(this.surfaceColor)
+    .backgroundColor(this.surfaceColor ?? (this.inModal ? komaModalCardSurface() : ThemeConstants.CARD))
   }
 
   build() {

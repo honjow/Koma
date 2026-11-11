@@ -319,7 +319,7 @@ export struct KomaTranslationSourcesContent {
       confirmLabel: t('common_save'), confirmEnabled: !this.busy && !this.codexLoginBusy,
       onConfirm: (): void => { void this.saveSource() }, onClose: () => { this.closeEditor() } }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-        GroupedListSection() {
+        GroupedListSection({ inModal: true }) {
           ConciseListRow({ title: t('llm_source_type'), showChevron: false,
             leadingIcon: this.isCodexSource() ? $r('sys.symbol.person') : $r('sys.symbol.cloud'),
             trailingText: t(this.isCodexSource() ? 'llm_source_type_codex' : 'llm_source_type_api') })
@@ -336,7 +336,7 @@ export struct KomaTranslationSourcesContent {
           }.padding(ThemeConstants.SPACE_MD)
         }
         if (this.isCodexSource()) {
-          GroupedListSection() {
+          GroupedListSection({ inModal: true }) {
             ConciseListRow({ title: t(this.codexConnected ? 'llm_source_codex_account' : 'comic_translation_codex_login'),
               subtitle: this.codexStatusSubtitle(), wrapTitle: true, subtitleMaxLines: 2147483647,
               leadingIcon: $r('sys.symbol.person'), showChevron: false,
@@ -355,7 +355,7 @@ export struct KomaTranslationSourcesContent {
             .fontColor(ThemeConstants.TEXT_SECONDARY)
             .width('100%')
         } else {
-          GroupedListSection({ title: t('llm_sources_title') }) {
+          GroupedListSection({ inModal: true, title: t('llm_sources_title') }) {
             ConciseListRow({ title: t('llm_source_support_manga'), hasSwitch: true, showChevron: false,
               isEnabled: !this.busy, checked: this.editing.profile.capabilities.responses,
               switchAction: (value: boolean) => { this.capability('responses', value) } })

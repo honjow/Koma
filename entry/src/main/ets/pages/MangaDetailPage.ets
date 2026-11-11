@@ -3044,7 +3044,7 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
                   action: () => { this.trackingSheetShown = false; RouterHelper.pushTrackerSettings() },
                 })
               } else {
-                GroupedListSection() {
+                GroupedListSection({ inModal: true }) {
                   ForEach(this.trackingVisibleProviders, (provider: TrackerProviderConfig, index: number) => {
                     this.TrackingProviderRow(provider)
                     if (index < this.trackingVisibleProviders.length - 1) ListDivider()

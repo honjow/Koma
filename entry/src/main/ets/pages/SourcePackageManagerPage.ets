@@ -2244,7 +2244,7 @@ export struct SourcePackageManagerPage {
   @Builder
   private SourceDetailsContent(params: SourceDetailsContentParams) {
     Column({ space: ThemeConstants.SPACE_LG }) {
-      GroupedListSection() {
+      GroupedListSection({ inModal: true }) {
         ConciseListRow({
           title: t('tab_browse'),
           subtitle: params.source.enabled ? '' : t('source_pkg_disabled'),
@@ -2304,7 +2304,7 @@ export struct SourcePackageManagerPage {
       }
 
       if (this.hasSourcePackageMetadata(params.source)) {
-        GroupedListSection({ title: t('source_pkg_information_section') }) {
+        GroupedListSection({ inModal: true, title: t('source_pkg_information_section') }) {
           if (params.source.description.length > 0) {
             ConciseListRow({
               title: t('common_description'),
@@ -2346,7 +2346,7 @@ export struct SourcePackageManagerPage {
         }
       }
 
-      GroupedListSection({ title: t('source_pkg_management_section') }) {
+      GroupedListSection({ inModal: true, title: t('source_pkg_management_section') }) {
         if (canShareInstalledSourcePackage(params.source.id)) {
           ConciseListRow({
             title: t('source_pkg_share'),

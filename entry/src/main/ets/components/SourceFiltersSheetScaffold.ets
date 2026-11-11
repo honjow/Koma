@@ -43,7 +43,7 @@ export struct SourceFiltersSheetScaffold {
       },
     }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-        GroupedListSection() {
+        GroupedListSection({ inModal: true }) {
           SourceFilterControls({
             filters: this.filters,
             values: this.values,

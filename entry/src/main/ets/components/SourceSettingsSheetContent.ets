@@ -246,7 +246,7 @@ export struct SourceSettingsSheetContent {
     }) {
       Column({ space: ThemeConstants.SPACE_MD }) {
       if (this.authenticationAvailable) {
-        GroupedListSection({ inset: ThemeConstants.SPACE_SM }) {
+        GroupedListSection({ inModal: true, inset: ThemeConstants.SPACE_SM }) {
           ConciseListRow({ title: t('source_account_settings'), leadingIcon: $r('sys.symbol.person'),
             action: () => { this.openAuthentication() } })
         }
@@ -257,7 +257,7 @@ export struct SourceSettingsSheetContent {
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       } else if (this.visibleDescriptors.length > 0) {
-        GroupedListSection({ inset: ThemeConstants.SPACE_SM }) {
+        GroupedListSection({ inModal: true, inset: ThemeConstants.SPACE_SM }) {
           ForEach(this.visibleDescriptors, (descriptor: SourceSettingDescriptor, index: number) => {
             SettingsFieldRow({ descriptor, value: this.settingDraft[descriptor.id],
               errorMessage: this.settingValidationError(descriptor),

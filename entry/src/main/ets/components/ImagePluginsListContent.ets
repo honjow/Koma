@@ -26,6 +26,7 @@ interface ImagePluginGroupRows {
 
 @ComponentV2
 export struct ImagePluginsListContent {
+  @Param inModal: boolean = false
   @Param subscriptions: ImageRuleSubscription[] = []
   @Param installations: ImagePluginCollection[] = []
   @Local private processingState: ImageRuleState = connectImageRuleState()
@@ -204,7 +205,7 @@ export struct ImagePluginsListContent {
         }
         if (this.editing.plugin !== undefined || this.editing.pack !== undefined) {
           ListItem() {
-            GroupedListSection() {
+            GroupedListSection({ inModal: true }) {
               ConciseListRow({ title: AppStrings.get('image_plugins_enable'), hasSwitch: true, showChevron: false,
                 checked: this.isPluginEnabled(this.editing), isEnabled: !this.busyKeys.includes(this.editing.key()),
                 switchAction: (enabled: boolean): void => { void this.togglePlugin(this.editing!, enabled) } })
@@ -215,7 +216,7 @@ export struct ImagePluginsListContent {
           }
           if ((this.editing.plugin?.settings?.length ?? 0) > 0) {
             ListItem() {
-              GroupedListSection({ title: AppStrings.get('image_plugins_settings') }) {
+              GroupedListSection({ inModal: true, title: AppStrings.get('image_plugins_settings') }) {
                 ForEach(this.editing.plugin?.settings ?? [], (field: SettingsFieldDescriptor, index: number) => {
                   SettingsFieldRow({ descriptor: field, value: this.draft[field.id],
                     onChange: (value: SettingsFieldValue): void => { this.updateDraft(field.id, value) } })
@@ -238,7 +239,7 @@ export struct ImagePluginsListContent {
   build() {
     Column({ space: ThemeConstants.SPACE_LG }) {
       ForEach(this.pluginGroups, (group: ImagePluginGroupRows) => {
-        GroupedListSection({ title: AppStrings.get('image_plugins_' + group.key) }) {
+        GroupedListSection({ inModal: this.inModal, title: AppStrings.get('image_plugins_' + group.key) }) {
           ForEach(group.rows, (row: ImagePluginRow, index: number) => {
             this.PluginRow(row)
             if (index + 1 < group.rows.length) { ListDivider() }

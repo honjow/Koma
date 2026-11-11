@@ -51,14 +51,14 @@ export struct ReaderDisplaySettingsContent {
   @Builder
   private Controls() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      GroupedListSection() {
+      GroupedListSection({ inModal: true }) {
         ConciseListRow({ title: AppStrings.get('reader_display_brightness_enabled'), hasSwitch: true,
           checked: this.draft.brightnessEnabled, showChevron: false,
           switchAction: (value: boolean): void => { this.change((next): void => { next.brightnessEnabled = value }) } })
         if (this.draft.brightnessEnabled) ReaderDisplayValueSlider({ field: 'brightness', value: this.draft.brightness, min: -75, max: 100,
             onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('brightness', value, mode) } })
       }
-      GroupedListSection() {
+      GroupedListSection({ inModal: true }) {
         ConciseListRow({ title: AppStrings.get('reader_display_filter_enabled'), hasSwitch: true,
           checked: this.draft.filterEnabled, showChevron: false,
           switchAction: (value: boolean): void => { this.change((next): void => { next.filterEnabled = value }) } })
@@ -77,7 +77,7 @@ export struct ReaderDisplaySettingsContent {
             dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BlendMenu(select) } })
         }
       }
-      GroupedListSection() {
+      GroupedListSection({ inModal: true }) {
         ConciseListRow({ title: AppStrings.get('reader_display_grayscale'), hasSwitch: true,
           checked: this.draft.grayscale, showChevron: false,
           switchAction: (value: boolean): void => { this.change((next): void => { next.grayscale = value }) } })

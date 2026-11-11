@@ -149,11 +149,11 @@ export struct LibrarySmartCategorySection {
       onConfirm: (): void => { this.saveDraft() }, onClose: (): void => { this.editorShown = false } }) {
       ListItem() {
         Column({ space: ThemeConstants.SPACE_MD }) {
-          GroupedListSection({ inset: ThemeConstants.SPACE_MD }) {
+          GroupedListSection({ inModal: true, inset: ThemeConstants.SPACE_MD }) {
             KomaFormTextField({ label: s('library_category_name_label'), value: this.draftName,
               change: (name: string): void => { this.draftName = name } })
           }
-          GroupedListSection({ title: s('library_smart_rules'), actionLabel: s('common_reset'),
+          GroupedListSection({ inModal: true, title: s('library_smart_rules'), actionLabel: s('common_reset'),
             action: (): void => { this.draftFilters = [] } }) {
             ForEach(LIBRARY_SMART_FILTER_METHODS.slice(0, 5), (method: LibrarySmartFilterMethod, index: number) => {
               if (index > 0) { ListDivider() }
@@ -161,7 +161,7 @@ export struct LibrarySmartCategorySection {
             })
           }
           ForEach(LIBRARY_SMART_FILTER_METHODS.slice(5), (method: LibrarySmartFilterMethod) => {
-            GroupedListSection() {
+            GroupedListSection({ inModal: true }) {
               ConciseListRow({ title: s(`library_smart_rule_${method}`),
                 trailingText: AppStrings.format('library_smart_rules_count',
                   this.draftFilters.filter((filter: LibrarySmartFilter): boolean => filter.method === method).length),

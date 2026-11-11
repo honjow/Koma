@@ -240,7 +240,7 @@ export struct ReaderChrome {
       },
     }) {
       Column({ space: ThemeConstants.SPACE_MD }) {
-        GroupedListSection() {
+        GroupedListSection({ inModal: true }) {
           ConciseListRow({ title: s('reader_image_info_page'), trailingText: this.pageText(), showChevron: false })
           ListDivider()
           ConciseListRow({ title: s('reader_image_info_dimensions'), trailingText: this.imageDimensionsText(), showChevron: false })

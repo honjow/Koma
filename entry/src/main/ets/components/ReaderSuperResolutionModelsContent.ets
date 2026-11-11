@@ -27,6 +27,7 @@ class ReaderSuperResolutionModelFileState {
 /** Local model-file management. Active-model selection remains in ReaderSettingsPage. */
 @ComponentV2
 export struct ReaderSuperResolutionModelsContent {
+  @Param inModal: boolean = false
   @Param preferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
   @Event onPreferencesChange: (next: ReaderPreferences) => void = (_next: ReaderPreferences) => {}
   @Event modelsChanged: () => void = () => {}
@@ -290,7 +291,7 @@ export struct ReaderSuperResolutionModelsContent {
   @Builder
   private ModelFileList() {
       Column({ space: ThemeConstants.SPACE_SM }) {
-        GroupedListSection() {
+        GroupedListSection({ inModal: this.inModal }) {
           ForEach(
             this.modelStates,
             (state: ReaderSuperResolutionModelFileState, index: number) => {

@@ -1452,7 +1452,7 @@ export struct LibraryPage {
       onClose: (): void => { this.categoryEditorShown = false },
     }) {
       ListItem() {
-        GroupedListSection() {
+        GroupedListSection({ inModal: true }) {
           if (this.categoryChoices.length === 0) {
             ConciseListRow({ title: s('settings_row_library_categories_title'), leadingIcon: $r('sys.symbol.plus'),
               action: (): void => {
@@ -1909,7 +1909,7 @@ export struct LibraryPage {
       },
     }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-          GroupedListSection() {
+          GroupedListSection({ inModal: true }) {
             ConciseListRow({
               title: s('library_filter_source_title'),
               trailingText: this.sourceLabel(),

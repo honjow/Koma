@@ -49,12 +49,12 @@ export struct SourceCatalogFiltersContent {
     KomaModalScaffold({ title: AppStrings.get('common_filter'), onClose: this.onClose,
       contentHorizontalPadding: ThemeConstants.SPACE_MD }) {
       Column({ space: ThemeConstants.SPACE_MD }) {
-        GroupedListSection() {
+        GroupedListSection({ inModal: true }) {
           ConciseListRow({ title: AppStrings.get('source_pkg_content_rating'),
             trailingText: sourceCatalogRatingLabel(this.filters.rating), trailingDropdown: true, dropdownMenuEnabled: true,
             dropdownMenuBuilder: (select: (action: () => void) => void) => { this.RatingMenu(select) } })
         }
-        GroupedListSection({ title: AppStrings.get('source_catalog_languages') }) {
+        GroupedListSection({ inModal: true, title: AppStrings.get('source_catalog_languages') }) {
           ForEach(this.languages, (language: string, index: number) => {
             if (index > 0) { ListDivider() }
             ConciseListRow({ title: sourceLanguageName(language) || AppStrings.get('source_catalog_language_unknown'),
