@@ -3,7 +3,7 @@ import { zlib } from '@kit.BasicServicesKit'
 
 /** Copy full packed RGBA scanlines using the fixed upstream reverse-stripe contract. */
 export function restoreJmStripePixels(pixels: ArrayBuffer, width: number, height: number, rows: number): ArrayBuffer {
-  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < rows ||
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 ||
     !Number.isInteger(rows) || rows < 2 || rows > 20 || rows % 2 !== 0 ||
     width * height * 4 > 256 * 1024 * 1024 || pixels.byteLength !== width * height * 4) {
     throw new Error('source_required_decode_dimensions')

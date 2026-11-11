@@ -440,6 +440,7 @@ async function downloadDnsOverrideImage(fullUrl: string, extraHeaders: RemoteIma
 
 const READER_IMAGE_READ_TIMEOUT_MS: number = 60000
 const LARGE_READER_IMAGE_READ_TIMEOUT_MS: number = 90000
+const DOWNLOAD_IMAGE_RETRY_DELAY_MS: number[] = [300, 800, 1500]
 const COVER_IMAGE_READ_TIMEOUT_MS: number = 15000
 const COVER_IMAGE_CONNECT_TIMEOUT_MS: number = 10000
 const NETWORKKIT_DEFAULT_BUFFER_BYTES: number = 50 * 1024 * 1024
@@ -473,6 +474,34 @@ function sourceImageResponseError(status: number, rules?: SourceImageResponseErr
     return new SourceRuntimeError(response)
   }
   return new Error(`reader_remote_image_http_${status}`)
+}
+
+function recoverableDownloadImageFailure(error: Error): boolean {
+  // Keep this policy aligned with the foreground reader's automatic page retry:
+  // transport/HTTP congestion retries, while auth, TLS, decode and 4xx stay final.
+  return [2300006, 2300007, 2300018, 2300028, 2300052, 2300055, 2300056, 2300999]
+    .some((code: number): boolean => error.message === `reader_remote_image_fetch_failed_${code}`) ||
+    [408, 429, 500, 502, 503, 504]
+      .some((status: number): boolean => error.message === `reader_remote_image_http_${status}`)
+}
+
+async function downloadReaderRemoteBytesWithRetry(url: string, headers?: RemoteImageCacheHeaders, sourceId: string = '',
+  dnsOverride?: SourceDnsOverride, responseErrors?: SourceImageResponseErrors): Promise<ArrayBuffer> {
+  let attempt = 0
+  while (true) {
+    try {
+      return await downloadReaderRemoteBytes(url, headers, sourceId, dnsOverride, true, responseErrors)
+    } catch (error) {
+      if (attempt >= DOWNLOAD_IMAGE_RETRY_DELAY_MS.length || !recoverableDownloadImageFailure(error as Error)) {
+        throw error as Error
+      }
+      const delayMs = DOWNLOAD_IMAGE_RETRY_DELAY_MS[attempt]
+      attempt += 1
+      DiagnosticLogger.info('reader_image', 'download_retry',
+        `attempt=${attempt}/${DOWNLOAD_IMAGE_RETRY_DELAY_MS.length} delay=${delayMs} reason=${(error as Error).message}`)
+      await new Promise<void>((resolve: () => void): void => { setTimeout((): void => { resolve() }, delayMs) })
+    }
+  }
 }
 
 async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders, sourceId: string = '',
@@ -1476,12 +1505,12 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
         source.imageProcessing = imageRequest.imageProcessing
         source.imageProcessingResolved = true
         source.imageProcessingFingerprint = sourceImageProcessingFingerprint(source.sourceRuntimeId)
-        return downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers, source.sourceRuntimeId,
-          imageRequest.dnsOverride, true, imageRequest.responseErrors)
+        return downloadReaderRemoteBytesWithRetry(imageRequest.url, imageRequest.headers, source.sourceRuntimeId,
+          imageRequest.dnsOverride, imageRequest.responseErrors)
       }
     }
     const request = await resolveReaderRemoteRequest(source.imageUri, source, context)
-    return downloadReaderRemoteBytes(request.requestUrl, request.headers, source.sourceRuntimeId ?? '', undefined, true)
+    return downloadReaderRemoteBytesWithRetry(request.requestUrl, request.headers, source.sourceRuntimeId ?? '')
   }
   throw new Error('reader_page_source_unavailable')
 }

@@ -50,7 +50,10 @@ test('stripe scanlines match the fixed reference with nonzero remainder', () => 
   for(let y=0;y<11;y++) input.set([y,y,y,255],y*4)
   const actual=new Uint8Array(m.restoreJmStripePixels(input.buffer,1,11,4))
   assert.deepEqual(Array.from({length:11},(_,y)=>actual[y*4]),[6,7,8,9,10,4,5,2,3,0,1])
-  assert.throws(()=>m.restoreJmStripePixels(new ArrayBuffer(16),2,2,10),/dimensions/)
+  // The source serves a 720×1 spacer that must survive the stripe transform unchanged.
+  const spacer = Uint8Array.from({ length: 720 * 4 }, (_, index) => index % 256)
+  assert.deepEqual(new Uint8Array(m.restoreJmStripePixels(spacer.buffer,720,1,10)), spacer)
+  assert.throws(()=>m.restoreJmStripePixels(new ArrayBuffer(0),2,0,10),/dimensions/)
 })
 
 test('non-GIF image path restores pixels, packs JPEG and propagates failures', async () => {

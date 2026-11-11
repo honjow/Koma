@@ -24,7 +24,9 @@ export async function requiredDecodeTask(original: ArrayBuffer, rows: number): P
   try {
     const info = await source.getImageInfo()
     const width = info.size.width, height = info.size.height
-    if (width < 1 || height < rows || width * height * 4 > 256 * 1024 * 1024) throw new Error('source_required_decode_dimensions')
+    if (width < 1 || height < 1 || width * height * 4 > 256 * 1024 * 1024) throw new Error('source_required_decode_dimensions')
+    // JM can serve a 1-pixel spacer below the stripe count. The restore loop
+    // treats such an image as a no-op instead of rejecting the whole page.
     decoded = await source.createPixelMap({ editable: false, desiredPixelFormat: image.PixelMapFormat.RGBA_8888 })
     const decodedInfo = await decoded.getImageInfo()
     if (decodedInfo.size.width !== width || decodedInfo.size.height !== height) throw new Error('source_required_decode_dimensions')
