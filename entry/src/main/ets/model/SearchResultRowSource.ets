@@ -38,7 +38,10 @@ export class SearchResultRowSource implements IDataSource {
     for (const section of sections) {
       if (section.diagnosticCode === 'configuration_loading') continue
       if (section.state === 'unsupported' && section.diagnosticCode === 'not_configured') continue
-      if (resultsOnly && (section.state !== 'ready' || section.items.length === 0)) continue
+      // A failure is not an empty result: keep the existing status row visible
+      // even in results-only mode so an unsuccessful search is not reported as no matches.
+      if (resultsOnly && section.state !== 'failed' && section.state !== 'timeout' &&
+        (section.state !== 'ready' || section.items.length === 0)) continue
       if (section.state === 'ready' && section.items.length > 0) {
         next.push(new SearchResultRow(`${section.id}:header`, 'header', section))
         if (migration) next.push(new SearchResultRow(`${section.id}:migration`, 'migration', section))

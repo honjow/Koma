@@ -115,10 +115,10 @@
       "reportedDate": "2026-11-12",
       "reportedAtSource": "用户转述 CBZ 打不开并要求使用现成文件测试；原反馈发生时间未知。",
       "registeredAt": "2026-11-12T09:55:57+08:00",
-      "updatedAt": "2026-11-12T13:12:00+08:00",
-      "status": "文件夹内多章归档与多种格式已实测",
-      "result": "197 公开 CBZ、CB7、RAR5 CBR、CBT 和漫画 ZIP 已核首页。用户 ZIP 含封面及 3 个 CBZ，直接导入后分别打开 68、55、43 页，重导保留进度和作者；从文件夹导入同一原始 ZIP，内部三章显示为阅读器目录，第二章 69/166 的实际图片及冷启动续读已核。文件夹内现成 CB7 和 CBR 均显示正文。W3C Haruko 定版漫画 EPUB 已核第 1、12 页画面。公开参考 CBZ 书签可跳页；用户漫画原图派生的图片章节文件夹 CBZ 可跳至第二章。公开 EPUB 的旧页序 175 页：第 175 页升级到同图第 88/88 页，无法映射的第 90 页保留第 90/175 页，详情返回后页数正确。",
-      "remaining": "图片章节文件夹尚无未经改造的真实压缩包验证；复杂编码、加密和损坏文件未覆盖，不能代表用户此前所有 CBZ 故障。测试中书架搜索一次对已导入的 EPUB 无结果，重复搜索找到，原因未确认。197 本轮测试书架项和文件副本已从原位置移除，电源已恢复并释租。",
+      "updatedAt": "2026-11-12T16:26:00+08:00",
+      "status": "搜索超时已修复；混排 EPUB 漏正文待讨论",
+      "result": "197 公开 CBZ、CB7、RAR5 CBR、CBT 和漫画 ZIP 已核首页。用户 ZIP 含封面及 3 个 CBZ，直接导入后分别打开 68、55、43 页，重导保留进度和作者；从文件夹导入同一原始 ZIP，内部三章显示为阅读器目录，第二章 69/166 的实际图片及冷启动续读已核。文件夹内现成 CB7 和 CBR 均显示正文。W3C Haruko 定版漫画 EPUB 已核第 1、12 页画面。公开参考 CBZ 书签可跳页；用户漫画原图派生的图片章节文件夹 CBZ 可跳至第二章。公开 EPUB 的旧页序 175 页：第 175 页升级到同图第 88/88 页，无法映射的第 90 页保留第 90/175 页，详情返回后页数正确。 197 搜索首轮 5.55 秒仍返回导入书，确认原 5 秒网络超时丢弃结果并修复；新增 W3C 图片直列 spine EPUB 共 9 页，已实际打开。",
+      "remaining": "W3C Sous le vent 混排 EPUB 含文字和 SVG，197 仅导入两张插图而漏正文；完整文字排版阅读需讨论。图片章节文件夹尚无未经改造的真实压缩包验证；复杂编码、加密和损坏文件未覆盖。197 一次选择 EPUB 后进程退出，重试同文件成功，退出原因未明；测试书架项与副本已清理，电源已恢复并释租。",
       "relatedItems": [
         "LOCAL_ARCHIVE"
       ],
@@ -142,7 +142,11 @@
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T130914088518",
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T130320147219",
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T130333438053",
-        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T130814238660"
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T130814238660",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T161542927214",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T162030261145",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T162309081267",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/search-probe-20261112T161641474962"
       ]
     },
     {

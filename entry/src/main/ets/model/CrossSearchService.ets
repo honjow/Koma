@@ -172,7 +172,11 @@ export class CrossSearchService {
     }
     const tasks: Promise<SourceSearchOutcome>[] = []
     if (this.sourceMatchesFilter('local', sourceFilter)) {
-      tasks.push(this.withTimeout(this.searchLocal(normalizedQuery), this.emptySection('local', AppStrings.get('tab_library'), 'local')))
+      // Local matching runs in the worker pool and can wait behind other work.
+      // A network deadline must not discard its eventual, valid library result.
+      tasks.push(this.searchLocal(normalizedQuery).catch((error: Error): SourceSearchOutcome => {
+        return { section: this.errorSection('local', AppStrings.get('tab_library'), 'local', safeSearchDiagnostic(error)) }
+      }))
     }
     if (this.sourceMatchesFilter('komga', sourceFilter)) {
       const run: PagedSearchRun = { cancelled: false }

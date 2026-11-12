@@ -181,8 +181,15 @@ export function matchesLibrarySearch(document: LibrarySearchFields, query: Libra
   if (query.kind === 'and') return query.children.every((child: LibrarySearchNode): boolean => matchesLibrarySearch(document, child))
   if (query.kind === 'or') return query.children.some((child: LibrarySearchNode): boolean => matchesLibrarySearch(document, child))
   if (query.kind === 'not') return !matchesLibrarySearch(document, query.children[0])
-  if (query.kind === 'text') return [document.title, document.subtitle, document.author, ...document.chapterTitles]
-    .some((text: string | undefined): boolean => matchesText(text, query.value))
+  if (query.kind === 'text') {
+    const text = normalizeSearchText(query.value)
+    if (text.length === 0) return false
+    const compact = text.replace(/ /g, '')
+    return searchTextMatchesQuery(document.title, text, compact) ||
+      searchTextMatchesQuery(document.subtitle, text, compact) ||
+      searchTextMatchesQuery(document.author, text, compact) ||
+      document.chapterTitles.some((title: string): boolean => searchTextMatchesQuery(title, text, compact))
+  }
   if (query.kind === 'field') {
     if (query.field === 'source') return (document.sourceNames ?? []).some((name: string): boolean => matchesText(name, query.value))
     if (query.field === 'tag') return (document.tags ?? []).some((tag: string): boolean => matchesText(tag, query.value))

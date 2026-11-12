@@ -14,9 +14,11 @@ function load(name) {
   const code = ts.transpileModule(source, { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020,
   } }).outputText
-  vm.runInNewContext(code, { exports, ObservedV2: value => value, Trace() {}, require: name => {
-    if (name === '@kit.ArkData') return { preferences: { getPreferences: async () => prefs } }
-    return load(name.replace('./', ''))
+  vm.runInNewContext(code, { exports, ObservedV2: value => value, Trace() {}, require: dependency => {
+    if (dependency === '@kit.ArkData') return { preferences: { getPreferences: async () => prefs } }
+    if (dependency === '../deviceSync/DeviceSyncSignals') return { signalDeviceSyncChange() {}, signalDeviceSyncSearchRemoved() {} }
+    if (dependency === '../deviceSync/DeviceSyncData') return { syncSearchIdentity: value => value }
+    return load(path.posix.normalize(path.posix.join(path.posix.dirname(name), dependency)))
   } })
   modules.set(name, exports)
   return exports
@@ -84,6 +86,8 @@ assert.equal(source.getData(3), statusRow)
 assert.equal(statusRow.section.state, 'failed')
 source.update([ready, empty], false, true)
 assert.deepEqual(visible, ['a:header', 'a:one', 'a:two'])
+source.update([section('local', 'failed'), section('remote', 'timeout'), empty], false, true)
+assert.deepEqual(visible, ['local:status', 'remote:status'])
 source.update([empty, ready], true)
 assert.deepEqual(visible, ['b:status', 'a:header', 'a:migration'])
 source.update([], false)
@@ -150,6 +154,18 @@ async function historyScope() {
   calls.length = 0
   await subject.search('title:ordinary-migration-name', 'source', undefined, undefined, ['a'])
   assert.deepEqual(calls, [['online', 'title:ordinary-migration-name', 'a']])
+  subject.sourceMatchesFilter = kind => kind === 'local'
+  subject.withTimeout = () => { throw Error('local results must not use the network deadline') }
+  let finishLocal
+  subject.searchLocal = () => new Promise(resolve => { finishLocal = resolve })
+  const received = []
+  const pending = subject.search('imported', 'local', section => received.push(section))
+  await Promise.resolve()
+  assert.equal(received.length, 0)
+  finishLocal({ section: { id: 'local', resultCount: 1, items: [{ title: 'imported' }] } })
+  const sections = await pending
+  assert.equal(received[0].items[0].title, 'imported')
+  assert.equal(sections[0].resultCount, 1)
   console.log('PASS: library predicates never reach providers; migration keeps provider-only routing')
 }
 historyScope().catch(error => { console.error(error); process.exitCode = 1 })
