@@ -59,8 +59,10 @@ export struct GroupedListSection {
   @Param inset: number = ThemeConstants.LIST_SECTION_INSET
   @Param radius: number = ThemeConstants.RADIUS_CARD
   @Param surfaceColor?: ResourceColor = undefined
-  // The presentation is explicit across ArkUI's sheet and builder boundaries.
+  // Builders may belong to the calling page instead of the sheet component.
+  // Sheet-owned content can provide the context once; inline builders must opt in.
   @Param inModal: boolean = false
+  @Consumer('koma.modal.groupedCards') private modalGroupedCards: boolean = false
   @Provider('koma.groupedList.surfaceRadius') private surfaceRadius: number =
     ThemeConstants.GROUPED_LIST_INNER_RADIUS
 
@@ -96,7 +98,8 @@ export struct GroupedListSection {
     .borderRadius(this.radius)
     .clip(true)
     .padding(this.inset)
-    .backgroundColor(this.surfaceColor ?? (this.inModal ? komaModalCardSurface() : ThemeConstants.CARD))
+    .backgroundColor(this.surfaceColor ?? (this.inModal || this.modalGroupedCards ?
+      komaModalCardSurface() : ThemeConstants.CARD))
   }
 
   build() {

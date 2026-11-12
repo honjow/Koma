@@ -50,6 +50,8 @@ function s(key: string): string {
 /** Host-owned reader settings UI. */
 @ComponentV2
 export struct ReaderSettingsContent {
+  // The tab bodies are declared here, outside the scaffold's builder scope.
+  @Provider('koma.modal.groupedCards') private modalGroupedCards: boolean = true
   @Param readerMode: ReaderMode = ReaderMode.SINGLE_PAGE
   @Param preferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
   @Event onPreferencesChange: (preferences: ReaderPreferences) => void = (_preferences: ReaderPreferences) => {}
@@ -448,7 +450,7 @@ export struct ReaderSettingsContent {
       ListItem() {
         Column({ space: ThemeConstants.SPACE_SM }) {
           if (index === 0) {
-            GroupedListSection({ inModal: true, title: s('settings_reader_group_layout'), headerSpacing: ThemeConstants.SPACE_SM }) {
+            GroupedListSection({ title: s('settings_reader_group_layout'), headerSpacing: ThemeConstants.SPACE_SM }) {
               ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderModeLabel(this.readerMode === ReaderMode.DUAL_PAGE ? ReaderMode.DUAL_PAGE : ReaderMode.SINGLE_PAGE), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
               ListDivider()
               ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: this.effectiveDirectionLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
@@ -461,7 +463,7 @@ export struct ReaderSettingsContent {
               ListDivider()
               ConciseListRow({ title: s('reader_series_override_reset'), subtitle: s(this.seriesOverrideActive ? 'reader_series_override_different' : 'reader_series_override_inherited'), showChevron: false, isEnabled: this.seriesOverrideActive, action: () => { this.onResetSeriesOverride() } })
             }
-            GroupedListSection({ inModal: true, title: s('settings_reader_group_tap_zones'), headerSpacing: ThemeConstants.SPACE_SM }) {
+            GroupedListSection({ title: s('settings_reader_group_tap_zones'), headerSpacing: ThemeConstants.SPACE_SM }) {
               ConciseListRow({ title: s('settings_row_reader_tap_zone_preset_title'), trailingText: getReaderTapZonePresetLabel(this.preferences.tapZonePreset), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapZoneMenu(select) } })
               ListDivider()
               ConciseListRow({ title: s('settings_row_reader_tap_zone_invert_title'), trailingText: getReaderTapZoneInvertLabel(this.preferences.tapZoneInvert), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapInvertMenu(select) } })
@@ -470,7 +472,7 @@ export struct ReaderSettingsContent {
               ListDivider()
               ConciseListRow({ title: s('reader_double_tap_interval_title'), trailingText: `${this.preferences.doubleTapIntervalMs} ms`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DoubleTapIntervalMenu(select) } })
             }
-            GroupedListSection({ inModal: true, title: s('settings_row_reader_page_gap_title'), headerSpacing: ThemeConstants.SPACE_SM }) {
+            GroupedListSection({ title: s('settings_row_reader_page_gap_title'), headerSpacing: ThemeConstants.SPACE_SM }) {
               ConciseListRow({ title: s('settings_row_reader_page_gap_title'), trailingText: getReaderPageGapModeLabel(this.preferences.pageGapMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.GapMenu(select) } })
               ListDivider()
               ConciseListRow({ title: s('settings_row_reader_wide_image_mode_title'), trailingText: getReaderWideImageModeLabel(this.preferences.wideImageMode), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.WideMenu(select) } })
@@ -479,7 +481,7 @@ export struct ReaderSettingsContent {
               cropControlsAvailable: this.cropControlsAvailable, enhancementControlsAvailable: false,
               onPreferencesChange: (next: ReaderPreferences) => { this.update(next) } })
           } else if (index === 1) {
-            GroupedListSection({ inModal: true, title: s('settings_reader_group_display'), headerSpacing: ThemeConstants.SPACE_SM }) {
+            GroupedListSection({ title: s('settings_reader_group_display'), headerSpacing: ThemeConstants.SPACE_SM }) {
               ConciseListRow({ title: s('settings_row_reader_background_title'), trailingText: getReaderBackgroundModeLabel(this.preferences.backgroundMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BackgroundMenu(select) } })
               ListDivider()
               ConciseListRow({ title: s('reader_image_scaling_quality_title'), trailingText: this.scalingQualityLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ScalingQualityMenu(select) } })
@@ -490,7 +492,7 @@ export struct ReaderSettingsContent {
               ListDivider()
               ConciseListRow({ title: s('settings_row_reader_keep_screen_awake_title'), hasSwitch: true, checked: this.preferences.keepScreenAwake, showChevron: false, switchAction: (value: boolean) => { this.setToggle('awake', value) } })
             }
-            GroupedListSection({ inModal: true, title: s('settings_reader_group_navigation'), headerSpacing: ThemeConstants.SPACE_SM }) {
+            GroupedListSection({ title: s('settings_reader_group_navigation'), headerSpacing: ThemeConstants.SPACE_SM }) {
               ConciseListRow({ title: s('reader_auto_page_title'), trailingText: `${this.preferences.autoPageSeconds}s`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutoPageMenu(select) } })
               ListDivider()
               ConciseListRow({ title: s('reader_preload_pages_title'), trailingText: `${this.preferences.preloadPages}`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PreloadMenu(select) } })

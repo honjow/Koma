@@ -84,6 +84,39 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "MODAL_SETTINGS_CARD_MATERIAL",
+      "number": 279,
+      "title": "半模态设置卡片透出系统材质",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-11",
+      "reportedAtSource": "本会话用户要求在 237 深色模式验证半模态设置卡片背景；原始消息时间未核实。",
+      "registeredAt": "2026-11-11T20:44:10+08:00",
+      "updatedAt": "2026-11-12T21:19:47+08:00",
+      "status": "阅读器内分组已统一，页面内联弹层仍需显式标记",
+      "result": "阅读器入口统一提供半模态分组场景，裁边、图像增强和阅读设置分组复用同一 50% 色值；237 深浅色核对、模型管理嵌套弹层和普通阅读设置实色对照通过。主题、原阅读页码 23、设备超时和休眠已恢复并释租。",
+      "remaining": "237 实测显示页面内联 builder 不能可靠继承公共容器的场景标记；现有内联弹层保留显式标记，未来新增此类弹层仍须标记，不能声称全部半模态已自动覆盖。",
+      "relatedItems": [
+        "APP_POPUP_SYSTEM_MATERIAL",
+        "DOWNLOAD_QUEUE_MANAGEMENT"
+      ],
+      "evidence": [
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T203610995632/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T204157083950/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T204300550978/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/restore-20261111T204410175091/run-metadata.json",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T215937605860/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T220009461157/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261112T205858602728/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261112T211415213815/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261112T211849310357/screen.png",
+        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/restore-20261111T220040377134/run-metadata.json"
+      ]
+    },
+    {
       "id": "LOCAL_BACKUP_PUBLIC_DIRECTORY_20261112",
       "number": 288,
       "title": "应用内备份迁入公共下载目录",
@@ -10401,37 +10434,6 @@
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T225428677948/screen.png",
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/install-20261111T225850511385/screen.png",
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/capture-cbz-20261111T231228647981/selected.cbz"
-      ]
-    },
-    {
-      "id": "MODAL_SETTINGS_CARD_MATERIAL",
-      "number": 279,
-      "title": "半模态设置卡片透出系统材质",
-      "kind": "done",
-      "progressPhase": "completed",
-      "priority": "用户直接反馈",
-      "owner": "Root",
-      "reportedAt": null,
-      "reportedDate": "2026-11-11",
-      "reportedAtSource": "本会话用户要求在 237 深色模式验证半模态设置卡片背景；原始消息时间未核实。",
-      "registeredAt": "2026-11-11T20:44:10+08:00",
-      "updatedAt": "2026-11-11T22:00:40+08:00",
-      "closedAt": "2026-11-11T22:00:40+08:00",
-      "status": "50% 透明已确认；237 深浅色同页对照通过",
-      "result": "用户确认使用 50% 透明，深浅色共用同一比例。237 书架筛选的深浅两套画面均可透出模糊底图，文字和分隔线仍清楚。已恢复跟随系统、10 秒超时与休眠并释租。",
-      "remaining": "本轮对照覆盖 237 的深浅色书架筛选；未逐页复测阅读器、书源设置或旧系统。普通设置及旧系统沿用原卡片底色。",
-      "relatedItems": [
-        "APP_POPUP_SYSTEM_MATERIAL",
-        "DOWNLOAD_QUEUE_MANAGEMENT"
-      ],
-      "evidence": [
-        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T203610995632/screen.png",
-        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T204157083950/screen.png",
-        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T204300550978/screen.png",
-        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/restore-20261111T204410175091/run-metadata.json",
-        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T215937605860/screen.png",
-        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/actions-20261111T220009461157/screen.png",
-        ".hvigor/outputs/modal-card-237/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-card/restore-20261111T220040377134/run-metadata.json"
       ]
     }
   ],
