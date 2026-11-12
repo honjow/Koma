@@ -10485,6 +10485,50 @@
       "evidence": ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T170755663613"
     },
     {
+      "id": "local-reading-real-zip-and-legacy-upgrade-20261112",
+      "at": "2026-11-12T12:22:00+08:00",
+      "itemId": "LOCAL_READING_REAL_CBZ_20261112",
+      "title": "#285 真实多层 ZIP 与旧 EPUB 续读",
+      "detail": "197 使用用户提供的多层 ZIP 验证 3 章和再次导入保留进度；公开参考 CBZ 的书签可跳页。旧 EPUB 可对应页转换成功，不可对应页原样保留；详情返回后的页数刷新已复验。测试副本及设备状态尚待清理恢复。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T122208644043"
+    },
+    {
+      "id": "local-reading-legacy-epub-mapping-20261112",
+      "at": "2026-11-12T11:33:00+08:00",
+      "itemId": "LOCAL_READING_REAL_CBZ_20261112",
+      "title": "#285 核对旧 EPUB 页位置",
+      "detail": "对照同一公开 EPUB 的旧、新阅读顺序：旧 175 页、新 88 页，旧列表有一张图片不在新列表中。旧进度无法一律按页号转换；现有重新导入可能更换章节标识，安全升级尚未实施。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "local-reading-fixes-device-20261112",
+      "at": "2026-11-12T11:30:00+08:00",
+      "itemId": "LOCAL_READING_REAL_CBZ_20261112",
+      "title": "#285 本地归档阅读及 EPUB 修复验证",
+      "detail": "197 验证文件夹内 ZIP、CBZ 阅读及 ZIP 续读；新导入 EPUB 去除辅助页重复。已导入 EPUB 不会自动修复，重新导入可能影响进度，仍需安全升级。最终包复验 ZIP 续读并清理测试文件，设备已恢复。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T112348687768"
+    },
+    {
+      "id": "detail-creator-wrap-device-20261112",
+      "at": "2026-11-12T11:30:00+08:00",
+      "itemId": "DETAIL_CREATOR_WRAP_20261112",
+      "title": "#286 作者换行验证",
+      "detail": "197 使用《装备我最强》核对：按用户确认在作者之间换行，保持两行和原始数据；候选截图及本地提交已记录。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T111430762145"
+    },
+    {
+      "id": "local-reading-public-cbz-20261112",
+      "at": "2026-11-12T09:55:57+08:00",
+      "itemId": "LOCAL_READING_REAL_CBZ_20261112",
+      "title": "#285 现成公开CBZ初测",
+      "detail": "197 两份公版漫画根目录和子目录CBZ均导入为1章4页并显示首页；用户原文件未取得，不能认定其故障原因。测试文件及书架条目移除，电源恢复并释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T094907463400"
+    },
+    {
       "id": "modal-settings-card-opacity-50-237-20261111",
       "at": "2026-11-11T22:00:40+08:00",
       "itemId": "MODAL_SETTINGS_CARD_MATERIAL",
