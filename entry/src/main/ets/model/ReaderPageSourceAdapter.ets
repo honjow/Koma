@@ -60,6 +60,7 @@ import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import { executeSourceRequestInWorker as executeReaderSourceImageRequestOperation, executeSourceCoverRequestInWorker,
   SourceWorkerPriority } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { runSourceOperationFromValidatedBytesAsync } from '../sourceRuntime/SourceRuntimeService'
+import { parsePdfPageUri, renderPdfPage } from '../import/PdfPageService'
 
 export interface ReaderRemoteImageCachePreferences {
   maxBytes: number
@@ -1453,6 +1454,16 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
     return fetchAndCacheSourceRuntimeTextPage(source, forceReload)
   }
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
+    const pdf = parsePdfPageUri(source.uri)
+    if (pdf !== undefined) {
+      if (readerImageCacheStore === null) throw new Error('reader_remote_image_cache_unconfigured')
+      const key = `pdf-page-v2:${source.uri}`
+      const rendered = await readerImageCacheStore.getOrFetch('pdf-page.jpg', undefined,
+        () => renderPdfPage(pdf.path, pdf.index), key, forceReload)
+      await maintainReaderImageCacheAfterWrite(rendered)
+      if (onSize !== undefined) void probeReaderImageFileSize(rendered, onSize)
+      return rendered
+    }
     if (source.sourceText !== undefined) return cacheSourceTextPageImage(source.sourceText, forceReload)
     return prepareSourcePagePresentation(source, source.imageUri, context, presentation)
   }

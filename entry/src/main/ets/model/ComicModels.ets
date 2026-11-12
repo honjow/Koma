@@ -84,7 +84,7 @@ export interface Chapter {
 /** Folder scans identify archive chapters before indexing their pages. Keep this
  * extension set aligned with the formats accepted by ImageSortUtils. */
 export function isDeferredFolderArchiveChapter(chapter: Chapter): boolean {
-  return chapter.pageCount === 0 && /\.(?:cbz|zip|rar|cbr|7z|cb7|tar|cbt|epub)$/i.test(chapter.sourcePath)
+  return chapter.pageCount === 0 && /\.(?:cbz|zip|rar|cbr|7z|cb7|tar|cbt|epub|pdf)$/i.test(chapter.sourcePath)
 }
 
 export interface LocalImportOrigin {

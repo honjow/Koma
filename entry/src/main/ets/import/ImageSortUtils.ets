@@ -1,4 +1,4 @@
-export const SUPPORTED_ARCHIVE_EXTENSIONS: string[] = ['.cbz', '.zip', '.rar', '.cbr', '.7z', '.cb7', '.tar', '.cbt', '.epub']
+export const SUPPORTED_ARCHIVE_EXTENSIONS: string[] = ['.cbz', '.zip', '.rar', '.cbr', '.7z', '.cb7', '.tar', '.cbt', '.epub', '.pdf']
 // HEIC can be produced by download export; allow it back through local import.
 // Actual HEIF decoding remains dependent on the device's image capabilities.
 export const SUPPORTED_IMAGE_EXTENSIONS: string[] = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.avif', '.heic', '.heif']

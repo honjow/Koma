@@ -84,6 +84,31 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "LOCAL_PDF_READING_20261112",
+      "number": 287,
+      "title": "本地 PDF 漫画导入与阅读",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "owner": "Root：本地阅读",
+      "reportedAt": null,
+      "reportedDate": "2026-11-12",
+      "reportedAtSource": "用户要求支持 PDF 漫画，重点解析目录章节；原始消息时刻未核实。",
+      "registeredAt": "2026-11-12T17:50:04+08:00",
+      "updatedAt": "2026-11-12T17:50:04+08:00",
+      "status": "PDF 导入、目录、翻页和缩放已在 197 核对",
+      "result": "197 已核真实漫画 PDF 封面、正文、目录跳页、重导续读；有嵌套书签及无书签文件均可阅读。左右翻页和双指放大、缩小实测通过。加密 PDF 提示先解锁。",
+      "remaining": "文件夹内 PDF 及其他设备尚未真机验证；PDF 多级书签按原顺序平铺显示。",
+      "relatedItems": [
+        "LOCAL_READING_REAL_CBZ_20261112"
+      ],
+      "evidence": [
+        "entry/src/main/ets/import/PdfPageService.ets",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T174655769407",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/pdf-multitouch-20261112T174725771233",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T174813733698"
+      ]
+    },
+    {
       "id": "DETAIL_CREATOR_WRAP_20261112",
       "number": 286,
       "title": "作品详情作者列表换行不自然",
@@ -10441,6 +10466,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "local-pdf-reading-197-20261112",
+      "at": "2026-11-12T17:50:04+08:00",
+      "itemId": "LOCAL_PDF_READING_20261112",
+      "title": "#287 PDF 目录及阅读交互",
+      "detail": "197 验证真实漫画 PDF 正文、封面、目录跳转、续读，左右翻页与双指缩放；有多级和无书签 PDF 已核，书签按原顺序平铺。加密文件提示先解锁，文件夹 PDF 及其他设备未验。测试书及所用临时 PDF 已清理，原电源设置恢复并释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T174655769407"
+    },
     {
       "id": "local-archive-export-metadata-heic-20261112",
       "at": "2026-11-12T17:10:00+08:00",

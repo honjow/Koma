@@ -1305,6 +1305,7 @@
     { "name": "import_feedback_failed_files", "value": "无法导入文件。失败 %s 个。" },
     { "name": "import_feedback_partial", "value": "已导入 %s 本，失败 %s 个。" },
     { "name": "import_feedback_failed_file", "value": "无法导入文件。" },
+    { "name": "import_pdf_password_required", "value": "PDF 已加密，请先解锁后再导入。" },
     { "name": "import_feedback_failed_images", "value": "无法导入图片。" },
     { "name": "import_feedback_folder_empty", "value": "文件夹里没有找到可导入的漫画。" },
     { "name": "import_feedback_folder_rescan_done", "value": "本地书架已刷新：新增 %s 本、变更 %s 本、元数据更新 %s 本、缺失 %s 本、跳过 %s 项。" },

@@ -129,13 +129,14 @@ export interface LocalFolderRuntimeRescanResult {
   error?: string
 }
 
-export const ARCHIVE_FILE_SUFFIX_FILTER = 'Comic archives|.zip,.cbz,.rar,.cbr,.7z,.cb7,.tar,.cbt,.epub'
+export const ARCHIVE_FILE_SUFFIX_FILTER = 'Comic archives|.zip,.cbz,.rar,.cbr,.7z,.cb7,.tar,.cbt,.epub,.pdf'
 export const IMAGE_FILE_SUFFIX_FILTER = 'Images(.jpg, .jpeg, .png, .webp, .gif, .bmp, .avif)|.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif'
 
 const LOCAL_IMPORT_ERROR_COPY_FAILED = 'copy_failed'
 const LOCAL_IMPORT_ERROR_EXTRACTION_FAILED = 'extraction_failed'
 const LOCAL_IMPORT_ERROR_IMPORT_FAILED = 'import_failed'
 const LOCAL_IMPORT_ERROR_ARCHIVE_IMPORT_FAILED = 'archive_import_failed'
+export const LOCAL_IMPORT_PDF_PASSWORD_REQUIRED = 'pdf_password_required'
 const LOCAL_IMPORT_ERROR_IMAGE_IMPORT_FAILED = 'image_import_failed'
 const LOCAL_IMPORT_ERROR_FOLDER_PICKER_FAILED = 'folder_picker_failed'
 const LOCAL_IMPORT_ERROR_FOLDER_ACCESS_FAILED = 'folder_access_failed'
@@ -381,12 +382,12 @@ export async function copyPickedImageUriToSandbox(sourceUri: string, sandboxPath
   }
 }
 
-function createManagedImportPaths(filesDir: string): ArchiveExtractionCachePaths {
+function createManagedImportPaths(filesDir: string, sourceUri?: string): ArchiveExtractionCachePaths {
   const rootDir = joinImportCachePath(joinImportCachePath(filesDir, 'import'), `v1-${util.generateRandomUUID()}`)
   assertSafeComputedArchiveImportCacheRoot(filesDir, rootDir)
   return {
     rootDir,
-    archiveZipPath: joinImportCachePath(rootDir, 'archive.zip'),
+    archiveZipPath: joinImportCachePath(rootDir, /\.pdf$/i.test(sourceUri ?? '') ? 'document.pdf' : 'archive.zip'),
     extractionDir: joinImportCachePath(rootDir, 'extract'),
     manifestPath: joinImportCachePath(rootDir, 'manifest.json'),
   }
@@ -430,7 +431,7 @@ export class LocalImportCoordinator {
   async preparePickedArchive(request: LocalArchiveImportRequest): Promise<LocalArchiveImportSelection> {
     assertSupportedPickedArchive(request.sourceUri)
     const storageBase = request.storageBase ?? request.context.filesDir
-    const paths = createManagedImportPaths(storageBase)
+    const paths = createManagedImportPaths(storageBase, request.sourceUri)
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_CACHE_PATHS,
       sourceUri: request.sourceUri,
@@ -503,6 +504,9 @@ export class LocalImportCoordinator {
           extractionDir: selection.extractionDir,
           error: LOCAL_IMPORT_ERROR_EXTRACTION_FAILED,
         })
+        if (String((error as Error).message ?? '').includes('pdf_open_failed_3')) {
+          throw new Error(LOCAL_IMPORT_PDF_PASSWORD_REQUIRED)
+        }
         throw new Error(LOCAL_IMPORT_ERROR_EXTRACTION_FAILED)
       }
 
@@ -532,6 +536,7 @@ export class LocalImportCoordinator {
         sourceUri: request.sourceUri,
         error: LOCAL_IMPORT_ERROR_IMPORT_FAILED,
       })
+      if (String((error as Error).message ?? '') === LOCAL_IMPORT_PDF_PASSWORD_REQUIRED) throw error as Error
       throw new Error(LOCAL_IMPORT_ERROR_IMPORT_FAILED)
     }
   }
@@ -562,7 +567,8 @@ export class LocalImportCoordinator {
         results.push({
           status: 'failed',
           sourceUri: uri,
-          error: LOCAL_IMPORT_ERROR_ARCHIVE_IMPORT_FAILED,
+          error: String((error as Error).message ?? '') === LOCAL_IMPORT_PDF_PASSWORD_REQUIRED ?
+            LOCAL_IMPORT_PDF_PASSWORD_REQUIRED : LOCAL_IMPORT_ERROR_ARCHIVE_IMPORT_FAILED,
         })
       }
     }

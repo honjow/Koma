@@ -3,6 +3,7 @@ import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
 import { Chapter, Page, ReadingDirection, normalizeSortKey } from '../model/ComicModels'
 import { extractNativeComicArchive } from './NativeArchiveExtraction'
 import { readOrderedEpubImages } from './EpubArchiveReader'
+import { inspectPdf, pdfPageUri, renderPdfPage } from './PdfPageService'
 import { ArchiveImageChapter, archiveImageChapters } from './ArchiveImageChapters'
 import { parseLocalLibrarySidecarMetadata } from '../model/LocalLibraryMetadataService'
 import {
@@ -163,7 +164,8 @@ export class ArchiveExtractionService {
     if (!isSupportedArchivePath(request.archivePath)) {
       throw new Error(`Unsupported archive path: ${request.archivePath}`)
     }
-    assertZipSandboxPath(request.sandboxZipPath)
+    if (/\.pdf$/i.test(request.archivePath)) assertNoTraversalPath(request.sandboxZipPath, 'sandboxPdfPath')
+    else assertZipSandboxPath(request.sandboxZipPath)
     assertNoTraversalPath(request.extractionDir, 'extractionDir')
     assertNotCancelled(request.cancelToken)
 
@@ -173,6 +175,26 @@ export class ArchiveExtractionService {
     await fs.mkdir(request.extractionDir, true)
 
     assertNotCancelled(request.cancelToken)
+    if (/\.pdf$/i.test(request.archivePath)) {
+      const count = await inspectPdf(request.sandboxZipPath)
+      assertNotCancelled(request.cancelToken)
+      const entries: ArchiveEntryCandidate[] = []
+      for (let index = 0; index < count; index += 1) entries.push({ path: `${String(index + 1).padStart(8, '0')}.jpg` })
+      const importResult = buildComicFromArchive({ archivePath: request.archivePath, entries,
+        comicId: request.comicId, title: request.title, importedAt: request.importedAt,
+        readingDirection: request.readingDirection, extractionDir: request.extractionDir })
+      importResult.comic.chapters[0].pages.forEach((page: Page, index: number): void => {
+        page.uri = pdfPageUri(request.sandboxZipPath, index)
+      })
+      const coverPath = `${request.extractionDir}/cover.jpg`
+      const bytes = await renderPdfPage(request.sandboxZipPath, 0)
+      assertNotCancelled(request.cancelToken)
+      const cover = await fs.open(coverPath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC)
+      try { await fs.write(cover.fd, bytes) } finally { await fs.close(cover) }
+      importResult.comic.coverUri = `file://${coverPath}`
+      return { archivePath: request.archivePath, sandboxZipPath: request.sandboxZipPath,
+        extractionDir: request.extractionDir, entries, importResult }
+    }
     // Preserve the accepted ZIP/CBZ route. New formats decode on native async workers.
     if (/\.(?:zip|cbz)$/i.test(request.archivePath)) {
       await zlib.decompressFile(request.sandboxZipPath, request.extractionDir)
@@ -247,6 +269,9 @@ export class ArchiveExtractionService {
           importedAt: request.importedAt, readingDirection: request.readingDirection,
           cleanOutputDir: false, cancelToken: request.cancelToken,
         })
+        if (comic.coverUri === undefined && child.importResult.comic.coverUri !== undefined) {
+          comic.coverUri = child.importResult.comic.coverUri
+        }
         const childAuthor = child.importResult.comic.author
         if (childAuthor !== undefined && childAuthor.length > 0) {
           const existing = comic.author?.split('、') ?? []

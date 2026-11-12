@@ -77,7 +77,7 @@ import { FormTitleActionState } from '../state/FormTitleActionState'
 import { MODEL_SOURCE_ADD_BUTTON_ID, ModelSourcesTitleAction } from '../components/KomaTranslationSourcesContent'
 import { KomaMenuController, KomaMenuAction, KomaMenuGroup, komaTitleMoreIcon } from '../components/ui/KomaMenuController'
 import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
-import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
+import { LocalImportCoordinator, LOCAL_IMPORT_PDF_PASSWORD_REQUIRED } from '../import/LocalImportCoordinator'
 import { LocalImportCommitService } from '../import/LocalImportCommitService'
 import { MangaDetailPage } from './MangaDetailPage'
 import { MangaWebPage } from './MangaWebPage'
@@ -2167,7 +2167,10 @@ struct Index {
       if (failedCount === 0) {
         this.showToast(AppStrings.format('import_feedback_success', succeededCount))
       } else if (succeededCount === 0) {
-        this.showToast(AppStrings.format('import_feedback_failed_files', failedCount))
+        const passwordRequired = results.length === 1 && results[0].status === 'failed' &&
+          results[0].error === LOCAL_IMPORT_PDF_PASSWORD_REQUIRED
+        this.showToast(passwordRequired ? AppStrings.get('import_pdf_password_required') :
+          AppStrings.format('import_feedback_failed_files', failedCount))
       } else {
         this.showToast(AppStrings.format('import_feedback_partial', succeededCount, failedCount))
       }

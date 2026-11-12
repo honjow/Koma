@@ -25,6 +25,7 @@ import { activateLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAcc
 import { openLocalFolderArchive, removeLocalFolderArchive } from '../import/LocalFolderArchiveReader'
 import { ComicArchiveBookmark } from '../import/ComicArchiveBookmarkParser'
 import { comicArchiveExtractionRoot, readComicArchiveBookmarks } from '../import/ComicArchiveBookmarks'
+import { parsePdfPageUri, readPdfBookmarks } from '../import/PdfPageService'
 import { AppFilesLibraryStorePersistenceAdapter, hydrateLibraryStoreFromJson } from '../model/LibraryPersistence'
 import { ReaderSessionConfig, cloneReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { OfflineDownloadStore } from '../model/OfflineDownloadStore'
@@ -312,6 +313,13 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     cancellation: ReaderCancellation): Promise<void> {
     if (config.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE && config.deferredLocalArchive !== true) return
     if (this.archiveBookmarks.has(this.unitId(key))) return
+    const pdf = parsePdfPageUri(config.pageUris[0] ?? '')
+    if (pdf !== undefined) {
+      const bookmarks = await readPdfBookmarks(pdf.path)
+      cancellation.check()
+      if (!this.closed && bookmarks.length > 0) this.archiveBookmarks.set(this.unitId(key), bookmarks)
+      return
+    }
     const root = comicArchiveExtractionRoot(config.pageUris[0] ?? '')
     if (root === undefined) return
     const bookmarks = await readComicArchiveBookmarks(root, config.totalPages, config.pageUris)

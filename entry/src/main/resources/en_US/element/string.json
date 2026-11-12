@@ -1303,6 +1303,7 @@
     { "name": "import_feedback_failed_files", "value": "Could not import files. %s failed." },
     { "name": "import_feedback_partial", "value": "Imported %s books, %s failed." },
     { "name": "import_feedback_failed_file", "value": "Could not import files." },
+    { "name": "import_pdf_password_required", "value": "This PDF is password protected. Unlock it before importing." },
     { "name": "import_feedback_failed_images", "value": "Could not import images." },
     { "name": "import_feedback_folder_empty", "value": "No supported manga found in this folder." },
     { "name": "import_feedback_folder_rescan_done", "value": "Local library refreshed: %s added, %s changed, %s metadata updates, %s missing, %s skipped." },

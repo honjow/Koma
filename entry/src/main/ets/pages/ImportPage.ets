@@ -1,7 +1,7 @@
 import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
-import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
+import { LocalImportCoordinator, LOCAL_IMPORT_PDF_PASSWORD_REQUIRED } from '../import/LocalImportCoordinator'
 import {
   LocalArchiveImportDebugEvent,
 } from '../import/LocalImportDebugModels'
@@ -149,7 +149,9 @@ export struct ImportPage {
         this.feedbackText = tf('import_feedback_success', succeededCount)
         this.showToast(this.feedbackText)
       } else if (succeededCount === 0) {
-        this.feedbackText = tf('import_feedback_failed_files', failedCount)
+        this.feedbackText = results.length === 1 && results[0].status === 'failed' &&
+          results[0].error === LOCAL_IMPORT_PDF_PASSWORD_REQUIRED ? t('import_pdf_password_required') :
+          tf('import_feedback_failed_files', failedCount)
       } else {
         this.feedbackText = tf('import_feedback_partial', succeededCount, failedCount)
         this.showToast(this.feedbackText)

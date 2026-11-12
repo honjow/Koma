@@ -4,6 +4,7 @@ import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { Comic, ComicSourceKind, Page, copyLocalImportOrigin } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService, upsertComicAndPersistLibraryStore } from '../model/LibraryPersistence'
+import { parsePdfPageUri } from './PdfPageService'
 
 function sameSourceUris(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((uri: string, index: number): boolean => uri === right[index])
@@ -33,11 +34,25 @@ function localPagePath(page: Page): string {
 
 export async function sameOrderedLocalImportPages(previous: Comic, fresh: Comic): Promise<boolean> {
   if (previous.chapters.length !== fresh.chapters.length) return false
+  const hashes = new Map<string, string>()
   for (let chapterIndex = 0; chapterIndex < fresh.chapters.length; chapterIndex += 1) {
     const oldPages = previous.chapters[chapterIndex].pages
     const newPages = fresh.chapters[chapterIndex].pages
     if (oldPages.length !== newPages.length) return false
     for (let index = 0; index < newPages.length; index += 1) {
+      const newPdf = parsePdfPageUri(newPages[index].uri)
+      const oldPdf = parsePdfPageUri(oldPages[index].uri)
+      if (newPdf !== undefined || oldPdf !== undefined) {
+        if (newPdf === undefined || oldPdf === undefined || newPdf.index !== oldPdf.index) return false
+        let newHash = hashes.get(newPdf.path)
+        if (newHash === undefined) { newHash = await hash.hash(newPdf.path, 'sha256'); hashes.set(newPdf.path, newHash) }
+        let oldHash = hashes.get(oldPdf.path)
+        try {
+          if (oldHash === undefined) { oldHash = await hash.hash(oldPdf.path, 'sha256'); hashes.set(oldPdf.path, oldHash) }
+        } catch (_error) { return false }
+        if (oldHash !== newHash) return false
+        continue
+      }
       // New content must be readable. Missing old content can only invalidate
       // resume; it is never a reason to discard a valid newly selected copy.
       const newHash = await hash.hash(localPagePath(newPages[index]), 'sha256')
@@ -86,13 +101,17 @@ export function mergeLocalImport(previous: Comic | undefined, fresh: Comic, same
   fresh.preferredDirection = previous.preferredDirection
 
   if (previous.coverUri !== undefined) {
+    const firstPdf = parsePdfPageUri(previous.chapters[0]?.pages[0]?.uri ?? '')
+    const pdfDir = firstPdf?.path.substring(0, firstPdf.path.lastIndexOf('/'))
+    const generatedPdfCover = pdfDir !== undefined && previous.coverUri === `file://${pdfDir}/extract/cover.jpg` &&
+      previous.customCoverUri === undefined
     const oldCoverChapter = previous.chapters.findIndex((chapter): boolean =>
       chapter.pages.some((page: Page): boolean => page.uri === previous.coverUri))
     const oldCoverIndex = oldCoverChapter < 0 ? -1 : previous.chapters[oldCoverChapter].pages.findIndex(
       (page: Page): boolean => page.uri === previous.coverUri)
     if (samePages && oldCoverChapter >= 0 && oldCoverIndex >= 0) {
       fresh.coverUri = fresh.chapters[oldCoverChapter].pages[oldCoverIndex].uri
-    } else if (oldCoverChapter !== 0 || oldCoverIndex !== 0) {
+    } else if (!generatedPdfCover && (oldCoverChapter !== 0 || oldCoverIndex !== 0)) {
       // Explicit cover remains reachable in the retained previous generation.
       fresh.coverUri = previous.coverUri
     }

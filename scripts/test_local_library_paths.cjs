@@ -71,7 +71,7 @@ test('unopened folder archives retain reading progress while their page catalog 
 })
 
 test('folder discovery recognizes the same archive formats the reader opens', () => {
-  const formats = ['cbz', 'zip', 'cbr', 'rar', 'cb7', '7z', 'cbt', 'tar', 'epub']
+  const formats = ['cbz', 'zip', 'cbr', 'rar', 'cb7', '7z', 'cbt', 'tar', 'epub', 'pdf']
   const scan = folder.scanLocalLibraryFolderEntries(formats.map((ext, i) => ({
     relativePath: `Series/Chapter ${i + 1}.${ext}`, kind: 'file',
   })))
