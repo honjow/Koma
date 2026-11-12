@@ -715,7 +715,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     this.automaticPageRetries.delete(retryId)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
-    const displayPath = await prepareReaderDisplayImage(filePath)
+    const displayPath = await prepareReaderDisplayImage(filePath, forceReload)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     if (kind === 'thumbnail') return this.thumbnails.load(displayPath, cancellation)

@@ -53,12 +53,23 @@ if(NOT KOMA_AVIF_RESULT EQUAL 0)
     message(FATAL_ERROR "Reader AVIF preparation failed: ${KOMA_AVIF_ERROR}")
 endif()
 string(STRIP "${KOMA_AVIF_ROOT}" KOMA_AVIF_ROOT)
+include(FetchContent)
+set(LCMS2_BUILD_SHARED OFF)
+set(LCMS2_BUILD_STATIC ON)
+set(LCMS2_BUILD_TOOLS OFF)
+set(LCMS2_BUILD_TESTS OFF)
+FetchContent_Declare(koma_lcms
+    URL https://codeload.github.com/mm2/Little-CMS/tar.gz/refs/tags/lcms2.20
+    URL_HASH SHA256=49908a4492fe7fc886517d636474bd953ebe698d38ecd3ee5862dfa308dd43ae
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+FetchContent_MakeAvailable(koma_lcms)
+set_target_properties(lcms2 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(koma_reader_avif SHARED reader_avif_module.cpp reader_avif_decode.cpp)
 target_compile_features(koma_reader_avif PRIVATE cxx_std_17)
 target_include_directories(koma_reader_avif PRIVATE "${KOMA_AVIF_ROOT}/include")
 target_link_options(koma_reader_avif PRIVATE "-Wl,--exclude-libs,ALL")
 target_link_libraries(koma_reader_avif PRIVATE libace_napi.z.so libimage_packer.so libpixelmap.so
-    "${KOMA_AVIF_ROOT}/lib/libavif.a" "${KOMA_AVIF_ROOT}/lib/libaom.a" m)
+    "${KOMA_AVIF_ROOT}/lib/libavif.a" "${KOMA_AVIF_ROOT}/lib/libaom.a" lcms2 m)
 
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${KOMA_PROJECT_ROOT}/scripts/prepare-comic-archive.sh")

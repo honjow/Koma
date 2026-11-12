@@ -1,5 +1,7 @@
 #include "reader_avif_decode.h"
 #include <avif/avif.h>
+#include <lcms2.h>
+#include <array>
 #include <cstring>
 #include <memory>
 #include <stdexcept>
@@ -19,9 +21,46 @@ void RequireDisplayProfile(const avifImage &image)
         image.colorPrimaries == AVIF_COLOR_PRIMARIES_UNSPECIFIED;
     const bool srgbTransfer = image.transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_SRGB ||
         image.transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_UNSPECIFIED;
-    if (image.depth != 8 || !srgbPrimaries || !srgbTransfer || image.icc.size != 0 || image.gainMap != nullptr ||
+    if (image.depth != 8 || (image.icc.size == 0 && (!srgbPrimaries || !srgbTransfer)) || image.gainMap != nullptr ||
         ((image.transformFlags & AVIF_TRANSFORM_PASP) && image.pasp.hSpacing != image.pasp.vSpacing)) {
         throw std::runtime_error("reader_avif_profile_unsupported");
+    }
+}
+
+void ConvertEmbeddedIccToSrgb(AvifPixels &pixels, const avifImage &image)
+{
+    constexpr size_t kMaxIccBytes = 4 * 1024 * 1024;
+    if (image.icc.size > kMaxIccBytes) throw std::runtime_error("reader_avif_profile_unsupported");
+
+    using Profile = std::unique_ptr<void, decltype(&cmsCloseProfile)>;
+    using Transform = std::unique_ptr<void, decltype(&cmsDeleteTransform)>;
+    Profile input(cmsOpenProfileFromMem(image.icc.data, image.icc.size), cmsCloseProfile);
+    Profile srgb(cmsCreate_sRGBProfile(), cmsCloseProfile);
+    if (!input || !srgb || cmsGetDeviceClass(input.get()) == cmsSigLinkClass) {
+        throw std::runtime_error("reader_avif_profile_unsupported");
+    }
+    const auto space = cmsGetColorSpace(input.get());
+    const bool gray = space == cmsSigGrayData && image.yuvFormat == AVIF_PIXEL_FORMAT_YUV400;
+    if (!gray && space != cmsSigRgbData) throw std::runtime_error("reader_avif_profile_unsupported");
+
+    // AVIF's ICC profile describes the decoded samples. Convert them before
+    // ImageKit packs the display-only sRGB PNG, preserving the alpha channel.
+    Transform transform(cmsCreateTransform(input.get(), gray ? TYPE_GRAY_8 : TYPE_RGBA_8,
+        srgb.get(), gray ? TYPE_RGB_8 : TYPE_RGBA_8, INTENT_RELATIVE_COLORIMETRIC,
+        gray ? 0 : cmsFLAGS_COPY_ALPHA), cmsDeleteTransform);
+    if (!transform) throw std::runtime_error("reader_avif_profile_unsupported");
+    if (!gray) {
+        cmsDoTransform(transform.get(), pixels.rgba.data(), pixels.rgba.data(), pixels.rgba.size() / 4);
+        return;
+    }
+
+    std::array<uint8_t, 256> levels{};
+    std::array<std::array<uint8_t, 3>, 256> rgb{};
+    for (size_t i = 0; i < levels.size(); ++i) levels[i] = static_cast<uint8_t>(i);
+    cmsDoTransform(transform.get(), levels.data(), rgb.data(), levels.size());
+    for (size_t i = 0; i < pixels.rgba.size(); i += 4) {
+        const auto &color = rgb[pixels.rgba[i]];
+        std::memcpy(pixels.rgba.data() + i, color.data(), color.size());
     }
 }
 
@@ -91,6 +130,7 @@ AvifPixels DecodeAvifDisplayPixels(const uint8_t *data, size_t size)
     rgb.pixels = decoded.rgba.data();
     rgb.rowBytes = image.width * 4;
     if (avifImageYUVToRGB(&image, &rgb) != AVIF_RESULT_OK) throw std::runtime_error("reader_avif_decode_failed");
+    if (image.icc.size != 0) ConvertEmbeddedIccToSrgb(decoded, image);
     return ApplyDisplayTransforms(std::move(decoded), image);
 }
 }

@@ -35,6 +35,10 @@ export class KomaReaderFailure {
       return new ReaderAssetFailure('pageUnavailable', AppStrings.get('source_failure_image_quota_exhausted'),
         AppStrings.get('source_failure_image_quota_hint'))
     }
+    if (error.message === 'reader_decode_failed') {
+      return new ReaderAssetFailure('reader_decode_failed', AppStrings.get('reader_image_display_failed'),
+        AppStrings.get('reader_image_display_failed_hint'))
+    }
     return new ReaderAssetFailure('pageUnavailable',
       KomaReaderFailure.catalogMessage(error) || AppStrings.get('reader_page_load_failed'))
   }

@@ -230,10 +230,10 @@ async function maintainReaderImageCacheAfterWrite(path: string, original?: strin
 }
 
 /** Display compatibility is separate from the source, export and offline paths. */
-export async function prepareReaderDisplayImage(path: string): Promise<string> {
+export async function prepareReaderDisplayImage(path: string, forceReload: boolean): Promise<string> {
   if (readerImageCacheStore === null) return path
   return ReaderAvifDisplayService.prepare(path, readerImageCacheStore,
-    (displayPath: string): Promise<void> => maintainReaderImageCacheAfterWrite(displayPath, path))
+    (displayPath: string): Promise<void> => maintainReaderImageCacheAfterWrite(displayPath, path), forceReload)
 }
 
 export function getReaderRemoteImageCacheStats(): Promise<ReaderRemoteImageCacheStats> {

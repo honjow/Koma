@@ -1280,6 +1280,8 @@
     { "name": "reader_title_default", "value": "Reader" },
     { "name": "reader_page_unavailable", "value": "Page file unavailable" },
     { "name": "reader_page_load_failed", "value": "Unable to load page" },
+    { "name": "reader_image_display_failed", "value": "Unable to display image" },
+    { "name": "reader_image_display_failed_hint", "value": "If retrying fails, you can skip this page." },
     {"name": "reader_source_chapter_unsupported", "value": "This source does not support reading this chapter."},
     { "name": "reader_page_number", "value": "Page %s" },
     { "name": "reader_local_page_unavailable", "value": "Local page unavailable" },

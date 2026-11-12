@@ -25,20 +25,22 @@ export class ReaderAvifDisplayService {
   private static nativeDecodable: Set<string> = new Set()
   private static tail: Promise<void> = Promise.resolve()
 
-  static prepare(original: string, cache: RemoteImageCacheStore, afterWrite: (path: string) => Promise<void>): Promise<string> {
-    const pending = ReaderAvifDisplayService.inFlight.get(original)
+  static prepare(original: string, cache: RemoteImageCacheStore, afterWrite: (path: string) => Promise<void>,
+    forceReload: boolean): Promise<string> {
+    const requestKey = JSON.stringify([original, forceReload])
+    const pending = ReaderAvifDisplayService.inFlight.get(requestKey)
     if (pending !== undefined) return pending
-    const request = ReaderAvifDisplayService.process(original, cache, afterWrite)
-    ReaderAvifDisplayService.inFlight.set(original, request)
+    const request = ReaderAvifDisplayService.process(original, cache, afterWrite, forceReload)
+    ReaderAvifDisplayService.inFlight.set(requestKey, request)
     const retire = (): void => {
-      if (ReaderAvifDisplayService.inFlight.get(original) === request) ReaderAvifDisplayService.inFlight.delete(original)
+      if (ReaderAvifDisplayService.inFlight.get(requestKey) === request) ReaderAvifDisplayService.inFlight.delete(requestKey)
     }
     void request.then(retire, retire)
     return request
   }
 
   private static async process(original: string, cache: RemoteImageCacheStore,
-    afterWrite: (path: string) => Promise<void>): Promise<string> {
+    afterWrite: (path: string) => Promise<void>, forceReload: boolean): Promise<string> {
     let avif = false
     try {
       const path = original.startsWith('file://') ? new fileUri.FileUri(original).path : original
@@ -47,10 +49,14 @@ export class ReaderAvifDisplayService {
       avif = await boundedAvifFile(path)
       if (!avif) return original
       const hash = await taskpool.execute<[string], string>(imageFileContentHash, path)
-      if (ReaderAvifDisplayService.nativeDecodable.has(hash)) return original
       const key = JSON.stringify(['reader-avif-display-v1', hash])
-      const cached = await cache.get(AVIF_DISPLAY_NAME, undefined, key)
-      if (cached !== undefined) return cached
+      // An explicit retry must regenerate the display file even if the server
+      // returns identical original bytes. The cached PNG may be what failed.
+      if (!forceReload) {
+        if (ReaderAvifDisplayService.nativeDecodable.has(hash)) return original
+        const cached = await cache.get(AVIF_DISPLAY_NAME, undefined, key)
+        if (cached !== undefined) return cached
+      }
 
       // Preloading stays on the raw path. Limit the memory used by concurrent display requests.
       const prior = ReaderAvifDisplayService.tail
@@ -70,8 +76,12 @@ export class ReaderAvifDisplayService {
         DiagnosticLogger.info('reader', 'avif_display_compatible', 'format=png')
         return result
       } finally { release() }
-    } catch (_error) {
-      if (avif) DiagnosticLogger.warn('reader', 'avif_display_unavailable', 'stage=compatibility')
+    } catch (error) {
+      if (avif) {
+        const message = (error as Error).message ?? ''
+        const reason = /\breader_avif_[a-z_]+\b/.exec(message)?.[0] ?? 'compatibility_failed'
+        DiagnosticLogger.warn('reader', 'avif_display_unavailable', `reason=${reason}`)
+      }
       // A corrupt, animated or unrepresentable file keeps the existing native error/retry route.
       return original
     }

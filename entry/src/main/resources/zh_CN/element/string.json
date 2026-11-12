@@ -1283,6 +1283,8 @@
     { "name": "reader_page_unavailable", "value": "页面文件不可用" },
     { "name": "reader_source_chapter_unsupported", "value": "当前书源不支持读取此章节。" },
     { "name": "reader_page_load_failed", "value": "无法加载页面" },
+    { "name": "reader_image_display_failed", "value": "图片无法显示" },
+    { "name": "reader_image_display_failed_hint", "value": "如果重试仍失败，可先跳过这一页。" },
     { "name": "reader_page_number", "value": "第 %s 页" },
     { "name": "reader_local_page_unavailable", "value": "本地页面不可用" },
     { "name": "reader_remote_page_unavailable", "value": "离线或网络不可用" },

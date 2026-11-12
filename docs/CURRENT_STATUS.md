@@ -10,6 +10,8 @@
 
 事项使用固定编号，重新打开问题沿用原号。进度页默认按「最近活动」排列，可切到「最近提出」或在「全部」里按编号查找。
 
+哔哩漫画部分章节的图片显示已在 237 复测通过。修复随应用发布，书源无需更新。
+
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
 <!-- koma-progress-snapshot
@@ -18,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-11T22:00:40+08:00",
+  "updatedAt": "2026-11-12T23:30:11+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -83,6 +85,34 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "BILIMANGA_CHAPTER_AVIF_ICC_20261112",
+      "number": 290,
+      "title": "哔哩漫画部分话数无法显示大图",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-12",
+      "reportedAtSource": "本会话用户报告《碧蓝之海》73–77 话和《葬送的芙莉蓮》121–127 话加载失败，碧蓝之海 78 话正常。原始消息时刻未核实。",
+      "registeredAt": "2026-11-12T22:57:22+08:00",
+      "updatedAt": "2026-11-12T23:30:11+08:00",
+      "status": "237 已复测故障章节和手动重载，待应用发布",
+      "result": "哔哩漫画 0.1.5 WASM 与 Keiyoushi 的取图在 14 话 428 个位置一致，4 张对照图加 night=1 后字节相同。旧备用解码拒绝含 ICC 的 20 张故障样本。应用补齐灰阶和 RGB ICC 转换后，26 张原图及额外 8 部作品 24 话的 72 张 AVIF 都可解码。237 旧包复现《碧蓝之海》77 话首图失败，新包实显 73–78 话首图、77 话第 19 页和《葬送的芙莉蓮》121–127 话首图，并抽查《護城花巫女》和《齊木楠雄的災難》。74 话手动重载后重建展示缓存并回到原页。显示失败与取图失败的文案已在本地执行核对。237 返回碧蓝之海第 78 话原续读位置，恢复休眠及原超时后释租，保留同签调试包。",
+      "remaining": "应用尚未发布。新报错文案在修复包上没有实际故障截图。抽样覆盖静态 8 位图片，不能扩展到其他 AVIF 类型。",
+      "evidence": [
+        ".hvigor/outputs/bilimanga-icc-20261112/summary.json",
+        ".hvigor/outputs/bilimanga-icc-20261112/final-decoder.log",
+        ".hvigor/outputs/bilimanga-icc-20261112/harmony-native-build.log",
+        "entry/src/main/cpp/reader_avif_decode.cpp",
+        ".hvigor/outputs/bilimanga-icc-20261112/resample/samples.json",
+        ".hvigor/outputs/bilimanga-icc-20261112/device237/03-old-gb77",
+        ".hvigor/outputs/bilimanga-icc-20261112/device237/11-gb77-fixed",
+        ".hvigor/outputs/bilimanga-icc-20261112/device237/25-final-reload-74",
+        ".hvigor/outputs/bilimanga-icc-20261112/device237/32-restore-237"
+      ]
+    },
     {
       "id": "MODAL_SETTINGS_CARD_MATERIAL",
       "number": 279,
@@ -10489,6 +10519,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "bilimanga-avif-icc-retest-237-20261112",
+      "at": "2026-11-12T23:30:11+08:00",
+      "itemId": "BILIMANGA_CHAPTER_AVIF_ICC_20261112",
+      "title": "#290 哔哩漫画 AVIF 修复及 237 复测",
+      "detail": "原故障话首图均已实显，正常对照和跨作品抽样通过。手动重载已实测重建展示图并保留页码，显示失败使用单独提示。237 恢复原超时及休眠并释租，应用待发布。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/bilimanga-icc-20261112/summary.json"
+    },
     {
       "id": "local-backup-public-directory-288-20261112",
       "at": "2026-11-12T19:52:00+08:00",
