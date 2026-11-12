@@ -200,6 +200,7 @@ async function main() {
     './ReaderSessionStore': { READER_PROGRESS_PERSISTENCE_FILE_NAME: 'reader-sessions.v1.json' },
     './OfflineDownloadQueueStore': queuePaths,
     './KomaContentStorage': { ensureKomaBackgroundContentStorageBase: async () => publicRoot },
+    './BackupLocalStorage': { migrateLocalBackups: async (_privateRoot, publicBase) => path.join(publicBase, 'backups') },
     '../common/Constants': { KOMA_BUNDLE_NAME: 'com.honjow.koma' },
     './AutomationStateEpoch': epoch,
     './SourceChapterIdentityGuard': {}, './LibraryAutomationPolicy': policy,

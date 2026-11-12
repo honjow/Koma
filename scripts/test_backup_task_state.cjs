@@ -173,6 +173,7 @@ async function testLocalListSnapshot() {
   let listing
   const { ListService } = evaluate(state + 'export class ListService { ' + list + ' }', {
     ensureDir() {},
+    ensureLocalBackupDirectory: async context => context.filesDir,
     isLocalBackupFileName: name => name.endsWith('.json'),
     DiagnosticLogger: { error() {} },
     fs: {
@@ -183,6 +184,7 @@ async function testLocalListSnapshot() {
   })
   const open = (directory = 'backups') => {
     const service = new ListService()
+    service.context = { filesDir: directory }
     service.localBackupsDir = () => directory
     service.localBackupPath = fileName => fileName
     service.localBackupFilePreview = JSON.parse
@@ -220,6 +222,7 @@ async function testLocalListSnapshot() {
   let finishOldScan
   listing = () => new Promise(resolve => { finishOldScan = resolve })
   const olderScan = first.refreshLocalBackupList()
+  await drain() // Wait for directory preparation and the deliberately suspended older scan.
   listing = undefined
   files.delete('newer.json')
   files.set('older.json', fixtureFile(3n, 3))
@@ -228,6 +231,15 @@ async function testLocalListSnapshot() {
   await olderScan
   assert.deepEqual(snapshot.records.map(record => record.preview.exportedAt), [3])
   assert.deepEqual(reads, ['older.json', 'newer.json', 'older.json'])
+  assert.equal(snapshot.failed, false)
+
+  files.set('damaged.json', { ...fixtureFile(4n, 4), payload: '{' })
+  await reopened.refreshLocalBackupList()
+  assert.deepEqual(snapshot.records.map(record => record.preview.exportedAt), [3],
+    'An unreadable file must not hide other backups in the public directory')
+  assert.equal(snapshot.failed, true)
+  files.delete('damaged.json')
+  await reopened.refreshLocalBackupList()
   assert.equal(snapshot.failed, false)
 }
 

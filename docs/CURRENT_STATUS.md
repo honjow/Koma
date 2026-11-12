@@ -84,6 +84,27 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "LOCAL_BACKUP_PUBLIC_DIRECTORY_20261112",
+      "number": 288,
+      "title": "应用内备份迁入公共下载目录",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "owner": "Root：备份",
+      "reportedAt": null,
+      "reportedDate": "2026-11-12",
+      "reportedAtSource": "用户要求完成应用内备份的公共下载目录接入和验证。",
+      "registeredAt": "2026-11-12T19:52:00+08:00",
+      "updatedAt": "2026-11-12T19:52:00+08:00",
+      "status": "197 已验证迁移与前台备份，后台定时待真机核验",
+      "result": "旧私有备份迁至系统提供的 Koma 下载目录，保留重名内容并校验后删除旧文件；197 核对旧备份预览、运行一次和创建备份，文件管理器可见；损坏文件不会隐藏其他备份。",
+      "remaining": "系统后台定时自然触发尚未在真机验证；后台执行函数已做文件系统测试。",
+      "evidence": [
+        "entry/src/main/ets/model/BackupLocalStorage.ets",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T194935569323",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T195124710525"
+      ]
+    },
+    {
       "id": "LOCAL_PDF_READING_20261112",
       "number": 287,
       "title": "本地 PDF 漫画导入与阅读",
@@ -10466,6 +10487,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "local-backup-public-directory-288-20261112",
+      "at": "2026-11-12T19:52:00+08:00",
+      "itemId": "LOCAL_BACKUP_PUBLIC_DIRECTORY_20261112",
+      "title": "#288 备份公共目录迁移及 197 复核",
+      "detail": "旧备份、运行一次和手动创建已检查；损坏文件旁正常备份仍可见，测试文件已移除。后台自然调度待真机验证。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T195124710525"
+    },
     {
       "id": "local-pdf-reading-197-20261112",
       "at": "2026-11-12T17:50:04+08:00",

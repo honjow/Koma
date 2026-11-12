@@ -493,6 +493,12 @@ export function komaContentStorageBase(context: common.Context): string {
   return context.filesDir
 }
 
+/** A previously activated public root remains the owner even if it is temporarily unavailable. */
+export function hasKomaPublicContentStorage(context: common.Context): boolean {
+  const state = readState(context)
+  return state !== undefined && state.migrationComplete && state.rootPath !== context.filesDir
+}
+
 /** Background entry points activate the persisted public grant before reading the completed root. */
 export async function ensureKomaBackgroundContentStorageBase(context: common.Context): Promise<string> {
   const state = readState(context)

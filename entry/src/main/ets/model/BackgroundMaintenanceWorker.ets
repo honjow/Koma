@@ -17,7 +17,8 @@ import { LibraryUpdateService, summarizeResults } from './LibraryUpdateService'
 import { publishLibraryUpdateNotification } from './LibraryUpdateResultStore'
 import { writeAutomaticBackupToDirectory } from './BackupAutomaticDirectory'
 import { writeAppTextFile } from './AppFileTextPersistence'
-import { ensureKomaBackgroundContentStorageBase } from './KomaContentStorage'
+import { ensureKomaBackgroundContentStorageBase, hasKomaPublicContentStorage } from './KomaContentStorage'
+import { migrateLocalBackups } from './BackupLocalStorage'
 import { RemoteServerStore, KomgaServerRecord, KavitaServerRecord, WebDavServerRecord, OpdsServerRecord } from './RemoteServerStore'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { exportInstalledSourcePackages } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -86,7 +87,10 @@ export async function executeBackgroundMaintenance(context: common.Context, work
     if (config.backup.directoryUri) {
       await writeAutomaticBackupToDirectory(config.backup.directoryUri, payload, config.backup.retentionCount)
     } else {
-      const directory = `${context.filesDir}/backups`
+      if (contentBase === context.filesDir && hasKomaPublicContentStorage(context)) {
+        throw new Error('backup_public_storage_unavailable')
+      }
+      const directory = await migrateLocalBackups(context.filesDir, contentBase)
       if (!await fs.access(directory)) await fs.mkdir(directory)
       writeAppTextFile(`${directory}/koma-backup-${Date.now()}.json`, payload)
       const names = (await fs.listFile(directory)).filter((name: string): boolean => /^koma-backup-\d+\.json$/.test(name)).sort().reverse()

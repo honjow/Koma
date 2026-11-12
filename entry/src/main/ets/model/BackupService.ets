@@ -89,6 +89,7 @@ import {
   readableOfflineDownloadQueuePath,
 } from './OfflineDownloadQueueStore'
 import { ensureKomaContentStorageBase, komaContentStorageBase } from './KomaContentStorage'
+import { ensureLocalBackupDirectory, resolvedLocalBackupDirectory } from './BackupLocalStorage'
 import {
   LocalLibraryMetadataBackupEntry,
   exportLocalLibraryMetadataBackupEntries,
@@ -957,6 +958,7 @@ export class BackupService {
   }
 
   async exportLocal(content?: BackupContentPreferences): Promise<BackupLocalFileRecord> {
+    await ensureLocalBackupDirectory(this.context)
     const payload = await this.export(content)
     const fileName = `koma-backup-${Date.now()}.json`
     const record = this.writeLocalBackup(fileName, payload)
@@ -965,6 +967,7 @@ export class BackupService {
   }
 
   async exportEncryptedLocal(passphrase: string, content?: BackupContentPreferences): Promise<BackupLocalFileRecord> {
+    await ensureLocalBackupDirectory(this.context)
     const payload = await this.exportEncrypted(passphrase, content)
     const fileName = `koma-backup-${Date.now()}.koma-backup`
     const record = this.writeLocalBackup(fileName, payload)
@@ -1199,7 +1202,8 @@ export class BackupService {
   }
 
   managementState(): BackupManagementState {
-    const directory = this.localBackupsDir()
+    // The public root resolves asynchronously; the page keeps the same state owner across that transition.
+    const directory = this.context.filesDir
     let state = backupManagementStates.get(directory)
     if (state === undefined) {
       state = new BackupManagementState()
@@ -1212,11 +1216,20 @@ export class BackupService {
     const state = this.managementState()
     const sequence = ++state.refreshSequence
     try {
+      await ensureLocalBackupDirectory(this.context)
       const files = new Map<string, CachedLocalBackupFile>()
+      let unreadable = false
       for (const fileName of await this.localBackupFileNames()) {
         if (sequence !== state.refreshSequence) return
-        const file = await this.scanLocalBackupFile(fileName, state.files.get(fileName))
-        if (file !== undefined) files.set(fileName, file)
+        try {
+          const file = await this.scanLocalBackupFile(fileName, state.files.get(fileName))
+          if (file !== undefined) files.set(fileName, file)
+        } catch (_error) {
+          // Public storage may contain a damaged or unrelated JSON file. Keep other backups usable.
+          unreadable = true
+          const cached = state.files.get(fileName)
+          if (cached !== undefined) files.set(fileName, cached)
+        }
       }
       if (sequence !== state.refreshSequence) return
       const records = this.sortLocalBackupRecords(Array.from(files.values()).map(
@@ -1227,7 +1240,7 @@ export class BackupService {
         records.some((record: BackupLocalFileRecord, index: number): boolean => record !== previous[index])) {
         state.records = records
       }
-      state.failed = false
+      state.failed = unreadable
     } catch (_error) {
       if (sequence !== state.refreshSequence) return
       // A failed scan must leave the last readable rows available for retry.
@@ -1260,6 +1273,7 @@ export class BackupService {
   }
 
   async listLocalBackups(): Promise<BackupLocalFileRecord[]> {
+    await ensureLocalBackupDirectory(this.context)
     const fileNames = await this.localBackupFileNames()
     const records: BackupLocalFileRecord[] = []
     for (let index = 0; index < fileNames.length; index += 1) {
@@ -1280,6 +1294,7 @@ export class BackupService {
   }
 
   async renameLocalBackup(fileName: string, displayName: string): Promise<BackupLocalFileRecord> {
+    await ensureLocalBackupDirectory(this.context)
     const sourceName = this.requireLocalBackupFileName(fileName)
     const extension = backupFileExtension(sourceName)
     const targetName = this.uniqueLocalBackupFileName(normalizeLocalBackupFileName(displayName, sourceName, extension), sourceName)
@@ -1297,6 +1312,7 @@ export class BackupService {
   }
 
   async deleteLocalBackup(fileName: string): Promise<void> {
+    await ensureLocalBackupDirectory(this.context)
     const safeName = this.requireLocalBackupFileName(fileName)
     const path = this.localBackupPath(safeName)
     if (fs.accessSync(path)) {
@@ -1306,6 +1322,7 @@ export class BackupService {
   }
 
   async selectLocalBackup(fileName: string): Promise<BackupImportSelectionPreview> {
+    await ensureLocalBackupDirectory(this.context)
     const safeName = this.requireLocalBackupFileName(fileName)
     const payload = await fs.readText(this.localBackupPath(safeName), { encoding: 'utf-8' })
     const preview = this.preview(payload)
@@ -1754,7 +1771,7 @@ export class BackupService {
   }
 
   private localBackupsDir(): string {
-    return joinBackupPath(this.context.filesDir, BACKUP_LOCAL_DIR_NAME)
+    return resolvedLocalBackupDirectory(this.context)
   }
 
   private localBackupPath(fileName: string): string {
