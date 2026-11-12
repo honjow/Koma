@@ -202,6 +202,11 @@ export class ArchiveExtractionService {
       if (metadata.status === 'ok' && (metadata.metadata?.authors?.length ?? 0) > 0) {
         importResult.comic.author = metadata.metadata?.authors?.join('、')
       }
+      if (metadata.status === 'ok') {
+        importResult.comic.subtitle = metadata.metadata?.description
+        const tags = metadata.metadata?.tags
+        if (tags !== undefined && tags.length > 0) importResult.comic.sourceMetadata = { tags: tags.slice() }
+      }
     } catch (_error) {
       // Optional metadata is not required to read the archive.
     }
@@ -249,6 +254,13 @@ export class ArchiveExtractionService {
             if (!existing.includes(author)) existing.push(author)
           })
           comic.author = existing.join('、')
+        }
+        // Nested chapter archives often repeat the series metadata. Use the
+        // first available series description and tags without replacing a parent value.
+        if (comic.subtitle === undefined) comic.subtitle = child.importResult.comic.subtitle
+        if (comic.sourceMetadata?.tags === undefined && child.importResult.comic.sourceMetadata?.tags !== undefined) {
+          if (comic.sourceMetadata === undefined) comic.sourceMetadata = {}
+          comic.sourceMetadata.tags = child.importResult.comic.sourceMetadata?.tags?.slice()
         }
         child.importResult.comic.chapters.forEach((chapter: Chapter): void => { chapters.push(chapter) })
       }

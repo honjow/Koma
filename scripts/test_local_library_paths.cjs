@@ -46,6 +46,22 @@ test('ordinary colon filenames scan and resolve to encoded local folder paths', 
   }
 })
 
+test('HEIC and HEIF pages remain available in archives and local folders', () => {
+  const pages = ['Series/Chapter/002.HEIF', 'Series/Chapter/001.heic']
+  assert.deepEqual(sort.sortImageEntryPaths(pages), [pages[1], pages[0]])
+  const scan = folder.scanLocalLibraryFolderEntries(pages.map(relativePath => ({ relativePath, kind: 'file' })))
+  assert.deepEqual(scan.series[0].chapters[0].pages.map(page => page.relativePath), [pages[1], pages[0]])
+})
+
+test('ComicInfo retains the series description and tags along with the author', () => {
+  const result = metadata.parseLocalLibrarySidecarMetadata('<ComicInfo><Writer>Alice</Writer>' +
+    '<Summary>A &amp; B</Summary><Tags>Comedy, 中文，Adventure</Tags></ComicInfo>')
+  assert.equal(result.status, 'ok')
+  assert.deepEqual(result.metadata.authors, ['Alice'])
+  assert.equal(result.metadata.description, 'A & B')
+  assert.deepEqual(result.metadata.tags, ['Comedy', '中文', 'Adventure'])
+})
+
 test('unopened folder archives retain reading progress while their page catalog is deferred', () => {
   const scan = folder.scanLocalLibraryFolderEntries([{ relativePath: 'Series/Chapter 1.cbz', kind: 'file' }])
   const comic = folder.buildComicFromLocalLibraryFolderSeries(scan.series[0], { rootUri: 'file://picked/root' })

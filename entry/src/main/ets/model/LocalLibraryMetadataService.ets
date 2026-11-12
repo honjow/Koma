@@ -26,6 +26,8 @@ export interface LocalLibrarySidecarMetadata {
   authors?: string[]
   status?: LocalLibraryMetadataStatus
   coverPath?: string
+  description?: string
+  tags?: string[]
 }
 
 export interface LocalLibraryMetadataValidationFailure {
@@ -324,6 +326,13 @@ function parseComicInfoXmlSidecarMetadata(payload: string): LocalLibrarySidecarP
   }
   if (coverPath !== undefined) {
     metadata.coverPath = coverPath
+  }
+  const description = firstXmlTagText(payload, ['Summary'])
+  if (description !== undefined) metadata.description = description
+  const tags = firstXmlTagText(payload, ['Tags'])
+  if (tags !== undefined) {
+    metadata.tags = tags.split(/[,，、;]/).map((tag: string): string => tag.trim())
+      .filter((tag: string): boolean => tag.length > 0)
   }
   return { status: 'ok', metadata, failures: [] }
 }

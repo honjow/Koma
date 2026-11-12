@@ -95,6 +95,7 @@ async function prepareArchive(context: common.UIAbilityContext, comicId: string,
   const path = `${directory}/${fileName}`
   await fs.mkdir(staging)
   const copied: string[] = []
+  const chapterBookmarks: string[] = []
   let pageCount = 0
   let ready = false
   try {
@@ -109,6 +110,11 @@ async function prepareArchive(context: common.UIAbilityContext, comicId: string,
         throw error as Error
       }
       const pages = JSON.parse(plan) as ArchivePage[]
+      // ComicInfo indexes the sorted image list from zero. Preserve the user's
+      // chosen chapter order so a reimported work can navigate to each chapter.
+      if (progress !== undefined && pages.length > 0) {
+        chapterBookmarks.push(`<Page Image="${pageCount}" Bookmark="${xml(chapter.title)}"/>`)
+      }
       for (const page of pages) {
         checkCanceled()
         // A CBZ cannot carry the local overlay descriptor. Export the Reader
@@ -138,7 +144,8 @@ async function prepareArchive(context: common.UIAbilityContext, comicId: string,
     const metadata = await fs.open(metadataPath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY)
     try {
       await fs.write(metadata.fd, `<?xml version="1.0" encoding="UTF-8"?><ComicInfo><Title>${xml(singleChapterTitle ?? comicTitle)}</Title>` +
-        `<Series>${xml(comicTitle)}</Series><PageCount>${pageCount}</PageCount></ComicInfo>`)
+        `<Series>${xml(comicTitle)}</Series><PageCount>${pageCount}</PageCount>` +
+        `${chapterBookmarks.length > 0 ? `<Pages>${chapterBookmarks.join('')}</Pages>` : ''}</ComicInfo>`)
     } finally { await fs.close(metadata) }
     await zlib.compressFile(staging, path + '.zip', { level: zlib.CompressLevel.COMPRESS_LEVEL_NO_COMPRESSION })
     checkCanceled()

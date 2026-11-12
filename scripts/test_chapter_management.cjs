@@ -307,7 +307,7 @@ async function main() {
     fs.writeFileSync(otherPath, otherBytes)
     other = disk.recordPage(other, { pageId: 'p0', pageIndex: 0, localPath: otherPath, size: otherBytes.length,
       contentHash: downloads.createOfflineDownloadFileContentHash(otherPath), updatedAt: 1 })
-    const chapterOrder = [{ id: '2', title: 'Chapter 2' }, { id: '1', title: 'Chapter 1' }]
+    const chapterOrder = [{ id: '2', title: 'Chapter 2 & "special"' }, { id: '1', title: 'Chapter 1' }]
     const progress = []
     const combined = await archive.prepareWorkArchive({ filesDir: appFilesDir, cacheDir: dir }, 'a', 'Series',
       chapterOrder, { isCanceled: () => false, onChapterPrepared: count => progress.push(count) })
@@ -317,6 +317,14 @@ async function main() {
     assert.deepEqual(readCombined('00000001.png'), otherBytes)
     assert.deepEqual(readCombined('00000002.png'), fs.readFileSync(manifest.pages[0].localPath))
     assert.deepEqual(readCombined('00000003.jpg'), fs.readFileSync(derived))
+    const xmlPages = require('node:child_process').execFileSync('python3', ['-c',
+      'import json,sys,xml.etree.ElementTree as E; r=E.fromstring(sys.stdin.buffer.read()); print(json.dumps([p.attrib for p in r.findall("./Pages/Page")]))'],
+      { input: readCombined('ComicInfo.xml') })
+    const nodes = JSON.parse(xmlPages).map(attributes => ({ _name: 'Page', _attributes: attributes }))
+    const bookmarkParser = load('../import/ComicArchiveBookmarkParser')
+    assert.deepEqual(bookmarkParser.comicArchiveBookmarks({ _elements: nodes }, 3), [
+      { title: 'Chapter 2 & "special"', pageIndex: 0 }, { title: 'Chapter 1', pageIndex: 1 },
+    ], 'The exported chapter bookmarks round-trip through the import parser at the selected page boundaries')
     const beforeCancel = fs.readdirSync(dir)
     let cancelExport = false
     await assert.rejects(archive.prepareWorkArchive({ filesDir: appFilesDir, cacheDir: dir }, 'a', 'Series',

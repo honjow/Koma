@@ -45,6 +45,14 @@ test('reimport does not replace a user-edited author', () => {
   old.author = 'Custom'; fresh.author = 'Archive author'
   assert.equal(api.mergeLocalImport(old,fresh,true).author,'Custom')
 })
+test('reimport fills a missing description but preserves an existing one', () => {
+  const old = comic('old','/old'), fresh = comic('fresh','/new')
+  fresh.subtitle = 'Archive description'
+  assert.equal(api.mergeLocalImport(old,fresh,true).subtitle,'Archive description')
+  const oldWithDescription = comic('old','/old'), newer = comic('fresh','/new')
+  oldWithDescription.subtitle = 'Previously saved'; newer.subtitle = 'Archive description'
+  assert.equal(api.mergeLocalImport(oldWithDescription,newer,true).subtitle,'Previously saved')
+})
 test('a changed chapter is not mistaken for the same archive contents', async () => {
   const old = comic('old','/old'), fresh = comic('fresh','/new')
   fresh.chapters[1].pages[0].uri = 'file:///new/changed.jpg'

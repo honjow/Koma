@@ -79,7 +79,8 @@ export function mergeLocalImport(previous: Comic | undefined, fresh: Comic, same
   fresh.title = previous.title
   fresh.sortTitle = previous.sortTitle
   fresh.author = previous.author ?? fresh.author
-  fresh.subtitle = previous.subtitle
+  // A previously known description wins; fill a missing one from newly read archive metadata.
+  fresh.subtitle = previous.subtitle ?? fresh.subtitle
   fresh.categoryIds = previous.categoryIds?.slice()
   fresh.localMetadata = previous.localMetadata
   fresh.preferredDirection = previous.preferredDirection
