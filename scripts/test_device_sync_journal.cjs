@@ -8,9 +8,9 @@ const { randomUUID } = require('node:crypto')
 // Only NetworkKit, native credentials and owner persistence are host substitutes.
 const support = new Function('require', '__dirname',
   fs.readFileSync(path.join(__dirname, 'test_device_sync.cjs'), 'utf8') +
-  '\nreturn { compile, wire, facts, data, journal, engineFixture, runtimeFixture, A, B, C, dot, edit };')(
+  '\nreturn { compile, wire, facts, data, journal, metrics, engineFixture, runtimeFixture, A, B, C, dot, edit };')(
   name => name === 'node:test' ? () => {} : require(name), __dirname)
-const { compile, wire, facts, data, journal, engineFixture, runtimeFixture, A, B, C, dot, edit } = support
+const { compile, wire, facts, data, journal, metrics, engineFixture, runtimeFixture, A, B, C, dot, edit } = support
 const models = compile('../remote/WebDavModels')
 const xml = compile('../remote/WebDavClient', { './WebDavModels': models })
 
@@ -68,6 +68,24 @@ test('a staged sync state cannot overwrite a newer local write or publish after 
   await assert.rejects(cancelled, /sync_connection_changed/)
   assert.equal(JSON.parse(files.get(path)).counter, 6)
   assert.deepEqual([...files.keys()], [path])
+
+  storage.update(state => { state.archivePending = [{ endpointIdentity: 'endpoint', space: A,
+    path: 'attempt', startedAt: 1, checks: 1, awaitingListing: true }] })
+  const original = storage.load()
+  const thirdStage = pauseNext()
+  const updating = storage.updateInBackground(state => {
+    state.archivePending[0].checks = 2
+    state.archivePending[0].awaitingListing = false
+    return true
+  }, () => { if (storage.load() !== original) throw new Error('sync_local_changed') })
+  await thirdStage
+  assert.equal(original.archivePending[0].checks, 1)
+  assert.equal(original.archivePending[0].awaitingListing, true)
+  storage.update(state => { state.counter = 7 })
+  resume()
+  await assert.rejects(updating, /sync_local_changed/)
+  assert.equal(storage.load().archivePending[0].checks, 1)
+  assert.equal(JSON.parse(files.get(path)).archivePending[0].awaitingListing, true)
 })
 const noop = () => {}
 const clone = value => structuredClone(value)
@@ -78,39 +96,78 @@ function transportFixture(directoryUrl = 'https://local-fixture.invalid') {
   const draft = { directory: directoryUrl, username: '', password: '' }
   const directory = draft.directory + '/'
   const root = directory + 'koma-device-sync-v2/'
+  const sharedRoot = directory + 'koma-device-sync-v5/'
   const writerRoot = directory + 'koma-device-sync-v3/'
+  const writerRootV4 = directory + 'koma-device-sync-v4/'
   const legacy = directory + 'koma-device-sync-v1/'
   const files = new Map()
   const directories = new Set([directory, root])
   const trace = []
   const faults = []
+  const archivePending = new Map()
+  const pendingPort = {
+    async loadPending() { return [...archivePending.values()].map(value => ({ ...value })) },
+    async recordPending(value) { archivePending.set(value.path, { ...value }) },
+    async forgetPending(path) { archivePending.delete(path) },
+    async deferPending(path, startedAt, nextCheckAt, checks, awaitingListing) {
+      const old = archivePending.get(path)
+      if (old?.startedAt === startedAt) archivePending.set(path, { ...old, nextCheckAt, checks, awaitingListing })
+    },
+    async recordSeen() {},
+  }
   let filterListing = names => names
+  let rewriteListing = (_address, body) => body
   let beforeCommit = async () => {}
   let beforeRequest = async () => {}
+  let onDestroy = () => {}
+  let overrideStatus = () => undefined
+  let afterTask = async () => {}
   const resource = (address, collection) => '<d:response><d:href>' + new URL(address).pathname +
     '</d:href><d:propstat><d:prop><d:resourcetype>' + (collection ? '<d:collection/>' : '') +
     '</d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>'
-  const http = { HttpDataType: { ARRAY_BUFFER: 2 }, createHttp: () => ({
+  const http = { HttpDataType: { ARRAY_BUFFER: 2 }, createHttp: () => {
+    const listeners = new Map()
+    const request = {
+    on(name, listener) { listeners.set(name, listener) },
+    off(name, listener) { if (listeners.get(name) === listener) listeners.delete(name) },
+    async requestInStream(address, options) {
+      const result = await this.request(address, options)
+      listeners.get('headersReceive')?.(result.header)
+      if (result.result.byteLength > 0) listeners.get('dataReceive')?.(result.result)
+      listeners.get('dataEnd')?.()
+      return result.responseCode
+    },
     async request(address, options) {
       const method = options.customMethod
       trace.push({ method, address, body: options.extraData, headers: clone(options.header) })
       await beforeRequest(method, address)
       assert.equal(options.usingCache, false)
       assert.equal(options.maxRedirects, 0)
+      const forced = overrideStatus(method, address)
+      if (forced !== undefined) return response(forced)
       if (method === 'PROPFIND') {
         if (!directories.has(address)) return response(404)
         const names = options.header.Depth === '0' ? [] : filterListing([...files.keys(), ...directories]
           .filter(name => name.startsWith(address) && name !== address &&
             !name.slice(address.length).replace(/\/$/, '').includes('/')).map(name => name.slice(address.length)))
-        return response(207, '<d:multistatus xmlns:d="DAV:">' + resource(address, true) +
+        const body = rewriteListing(address, '<d:multistatus xmlns:d="DAV:">' + resource(address, true) +
           names.map(name => resource(address + name, directories.has(address + name))).join('') + '</d:multistatus>')
+        if (Buffer.byteLength(body) > options.maxLimit) throw Object.assign(new Error('response too large'), { code: 2300023 })
+        return response(207, body)
       }
       if (method === 'MKCOL') { directories.add(address); return response(201) }
       if (method === 'GET') return files.has(address) ? response(200, files.get(address)) : response(404)
-      if (method === 'DELETE') { files.delete(address); return response(204) }
+      if (method === 'DELETE') {
+        if (directories.has(address)) {
+          for (const name of [...files.keys()]) if (name.startsWith(address)) files.delete(name)
+          for (const name of [...directories]) if (name.startsWith(address)) directories.delete(name)
+        } else files.delete(address)
+        return response(204)
+      }
       if (method === 'PUT') {
         const isCommit = journal.SYNC_COMMIT_NAME.test(address.slice(root.length)) ||
-          (address.startsWith(writerRoot) && /\/[0-9]{16}-[0-9a-f]{64}\.json$/.test(address))
+          ((address.startsWith(writerRoot) || address.startsWith(writerRootV4)) &&
+            /\/[0-9]{16}-[0-9a-f]{64}(?:-[0-9a-f-]{36})?\.json$/.test(address))
         if (isCommit) await beforeCommit(address, options.extraData)
         const failure = isCommit ? faults.shift() : undefined
         if (failure === 'before-accept') throw Object.assign(new Error('offline'), { code: 2300007 })
@@ -121,17 +178,51 @@ function transportFixture(directoryUrl = 'https://local-fixture.invalid') {
       }
       throw new Error('Unexpected method ' + method)
     },
-    destroy() {},
-  }) }
+    destroy() { onDestroy() },
+    }
+    return request
+  } }
+  const arkts = { taskpool: { execute: async (fn, ...args) => {
+    const result = fn(...args)
+    await afterTask()
+    return result
+  } },
+    url: { URL: { parseURL: text => new URL(text) } }, util: {
+      generateRandomUUID: randomUUID,
+      Base64Helper: class { encodeToStringSync(bytes) { return Buffer.from(bytes).toString('base64') } },
+      TextDecoder: { create: (encoding = 'utf-8', options = { fatal: true }) => {
+        const decoder = new TextDecoder(encoding, options)
+        return { decodeToString: (bytes, opts) => decoder.decode(bytes, opts) }
+      } },
+    } }
+  const stream = compile('DeviceSyncHttpStream', { '@kit.NetworkKit': { http }, '@kit.ArkTS': arkts })
+  const packs = compile('DeviceSyncObjectPack', { '@kit.ArkTS': arkts,
+    './DeviceSyncFacts': facts, './DeviceSyncWire': wire })
+  const codec = compile('DeviceSyncLegacyArchiveCodec', { './DeviceSyncFacts': facts, './DeviceSyncWire': wire })
+  const legacyArchive = compile('DeviceSyncLegacyArchive', { '@kit.ArkTS': arkts, './DeviceSyncFacts': facts,
+    './DeviceSyncWire': wire, './DeviceSyncLegacyArchiveCodec': codec })
+  const legacyAdapter = compile('DeviceSyncLegacyArchiveAdapter', { '@kit.ArkTS': arkts, './DeviceSyncFacts': facts,
+    './DeviceSyncLegacyArchive': legacyArchive, './DeviceSyncLegacyArchiveCodec': codec })
+  const publicationCodec = compile('DeviceSyncPublicationPackCodec', { './DeviceSyncFacts': facts, './DeviceSyncWire': wire })
+  const publicationPack = compile('DeviceSyncPublicationPack', { '@kit.ArkTS': arkts, './DeviceSyncWire': wire,
+    './DeviceSyncPublicationPackCodec': publicationCodec })
+  const compaction = compile('DeviceSyncPackCompaction', { '@kit.ArkTS': arkts, './DeviceSyncWire': wire,
+    './DeviceSyncFacts': facts, './DeviceSyncObjectPack': packs, './DeviceSyncPublicationPackCodec': publicationCodec })
+  const genericCompaction = compile('DeviceSyncGenericPackCompaction', { '@kit.ArkTS': arkts, './DeviceSyncWire': wire,
+    './DeviceSyncFacts': facts, './DeviceSyncObjectPack': packs, './DeviceSyncPublicationPackCodec': publicationCodec,
+    './DeviceSyncPackCompaction': compaction })
   const { DeviceSyncWebDav, canonicalSyncDirectory } = compile('DeviceSyncWebDav', {
     './DeviceSyncWire': wire, './DeviceSyncJournal': journal, '../remote/WebDavClient': xml,
+    './DeviceSyncData': data, './DeviceSyncFacts': facts,
+    './DeviceSyncHttpStream': stream, './DeviceSyncObjectPack': packs,
+    './DeviceSyncLegacyArchive': legacyArchive, './DeviceSyncLegacyArchiveAdapter': legacyAdapter,
+    './DeviceSyncMetrics': metrics,
+    './DeviceSyncPublicationPack': publicationPack, './DeviceSyncPublicationPackCodec': publicationCodec,
+    './DeviceSyncPackCompaction': compaction,
+    './DeviceSyncGenericPackCompaction': genericCompaction,
     '@kit.NetworkKit': { http },
-    '@kit.ArkTS': { taskpool: { execute: async (fn, ...args) => fn(...args) },
-      url: { URL: { parseURL: text => new URL(text) } }, util: {
-      Base64Helper: class { encodeToStringSync(bytes) { return Buffer.from(bytes).toString('base64') } },
-      TextDecoder: { create: () => ({ decodeToString: bytes => new TextDecoder('utf-8', { fatal: true }).decode(bytes) }) },
-    } },
-  })
+    '@kit.ArkTS': arkts,
+  }, { setTimeout: (fn, ms) => setTimeout(fn, ms === 30000 ? 1 : ms) })
   function seedObject(object, base = root) { files.set(base + wire.syncShardPath(object.ref), object.body) }
   function seedCommit(manifest, parents = []) {
     const body = journal.syncCommitBody(manifest, parents)
@@ -139,19 +230,45 @@ function transportFixture(directoryUrl = 'https://local-fixture.invalid') {
     files.set(root + name, body)
     return name
   }
-  class V2WebDav extends DeviceSyncWebDav {
+  // Keep the older publication fixtures exercising their protocol. The
+  // shared migration test below enters through the production transport.
+  class LegacyWriterWebDav extends DeviceSyncWebDav {
+    async readSyncState(guard, requiredTag = '') { return this.readManifest(guard, requiredTag) }
+  }
+  class V2WebDav extends LegacyWriterWebDav {
     constructor(draft, witnesses, space) { super(draft, witnesses, space) }
   }
-  return { draft, root, writerRoot, legacy, files, directories, trace, faults,
-    DeviceSyncWebDav: V2WebDav, WriterWebDav: DeviceSyncWebDav, canonicalSyncDirectory, seedObject, seedCommit,
+  return { draft, root, sharedRoot, writerRoot, writerRootV4, legacy, files, directories, trace, faults, pendingPort,
+    writerObject: (writer, ref) => {
+      const prefix = writerRootV4 + writer + '/objects/' + wire.syncShardPath(ref).slice(0, -5)
+      return [...files.keys()].find(name => name.startsWith(prefix + '-')) ?? prefix + '.json'
+    },
+    DeviceSyncWebDav: V2WebDav, WriterWebDav: LegacyWriterWebDav, SharedWebDav: DeviceSyncWebDav,
+    canonicalSyncDirectory, seedObject, seedCommit,
     provider: witnesses => new DeviceSyncWebDav(draft, witnesses),
-    listing: filter => { filterListing = filter }, onCommit: hook => { beforeCommit = hook },
-    onRequest: hook => { beforeRequest = hook } }
+    listing: filter => { filterListing = filter }, listingBody: filter => { rewriteListing = filter },
+    onTask: hook => { afterTask = hook },
+    onCommit: hook => { beforeCommit = hook },
+    onRequest: hook => { beforeRequest = hook }, onDestroy: hook => { onDestroy = hook },
+    responseStatus: hook => { overrideStatus = hook } }
 }
 
 test('a percent-encoded dot in a user-selected WebDAV folder remains usable', () => {
   const { canonicalSyncDirectory } = transportFixture()
   assert.equal(canonicalSyncDirectory('http://example.test/books%2Earchive/'), 'http://example.test/books%2Earchive')
+})
+
+test('a sync directory listing larger than one shard can still discover writer data', async () => {
+  const f = transportFixture()
+  const writer = new f.WriterWebDav(f.draft, [], undefined, A)
+  const value = dataset('reader-settings-records', pageNumber, A, 'true')
+  for (const object of value.objects) await writer.storeObject(object, noop)
+  await writer.publish(manifest(writer.spaceId(), [value.ref]), '', noop, noop, ['reader-settings-records'])
+  for (let i = 0; i < 5000; i++) {
+    f.files.set(f.writerRoot + 'object-1-' + i.toString(16).padStart(64, '0') + '.json', '{}')
+  }
+  const result = await new f.WriterWebDav(f.draft, [], undefined, B).readManifest(noop)
+  assert.equal(result.manifest.datasets[0].id, 'reader-settings-records')
 })
 
 function dataset(group, key, replica, value) {
@@ -163,6 +280,122 @@ function manifest(space, datasets, revision = 1) {
 }
 const pageNumber = data.syncKey(['global', 'page-number'])
 const animation = data.syncKey(['global', 'animation'])
+
+function multipleReaderShards() {
+  const rows = Array.from({ length: 40 }, (_, i) => {
+    const key = data.syncKey(['book-mode', 'org.example.source', 'work-' + i])
+    return edit(facts.emptySyncFact(key), dot(A, i + 1), 'set',
+      JSON.stringify({ direction: 'right_to_left', mode: 'single_page' }))
+  })
+  const dataset = wire.buildSyncDataset('reader-settings-records', rows, 1, undefined, data.syncBucketKey)
+  assert.ok(dataset.objects.length >= 8)
+  return { rows, dataset, bodies: new Map(dataset.objects.map(object => [wire.syncShardPath(object.ref), object.body])) }
+}
+
+test('immutable shards load concurrently within a fixed bound and retain all facts', async () => {
+  const { rows, dataset, bodies } = multipleReaderShards()
+  const engine = engineFixture().replica(B).engine
+  let active = 0, maximum = 0
+  const provider = { cacheScope: () => 'scope', async prefetchPublicationObjects() { return new Map() }, async prefetchLegacyObjects() { return new Map() }, async readObject(ref, guard) {
+    guard()
+    active++
+    maximum = Math.max(maximum, active)
+    await new Promise(resolve => setTimeout(resolve, 5))
+    active--
+    guard()
+    return bodies.get(wire.syncShardPath(ref))
+  } }
+  const loaded = await engine.loadDataset(provider, dataset.ref, noop, 'reader-settings')
+  assert.ok(maximum > 1 && maximum <= 4)
+  assert.deepEqual(loaded.map(row => row.key).sort(), rows.map(row => row.key).sort())
+  assert.equal(active, 0)
+})
+
+test('a failed or cancelled shard waits for the active batch before returning', async () => {
+  const { dataset, bodies } = multipleReaderShards()
+  for (const cancel of [false, true]) {
+    const engine = engineFixture().replica(B).engine
+    let release, entered
+    const resumed = new Promise(resolve => { release = resolve })
+    const started = new Promise(resolve => { entered = resolve })
+    let count = 0, active = 0, returned = false, allowed = true
+    const guard = () => { if (!allowed) throw new Error('sync_connection_changed') }
+    const provider = { cacheScope: () => 'scope', async prefetchPublicationObjects() { return new Map() }, async prefetchLegacyObjects() { return new Map() }, async readObject(ref, check) {
+      check()
+      const index = count++
+      active++
+      if (count === 4) entered()
+      try {
+        if (!cancel && index === 0) throw new Error('sync_shard_damaged')
+        await resumed
+        check()
+        return bodies.get(wire.syncShardPath(ref))
+      } finally { active-- }
+    } }
+    const operation = engine.loadDataset(provider, dataset.ref, guard, 'reader-settings')
+      .finally(() => { returned = true })
+    const rejected = assert.rejects(operation, cancel ? /sync_connection_changed/ : /sync_shard_damaged/)
+    await started
+    await new Promise(resolve => setTimeout(resolve, 0))
+    assert.equal(returned, false)
+    if (cancel) allowed = false
+    release()
+    await rejected
+    assert.equal(active, 0)
+    assert.equal(count, 4)
+  }
+})
+
+test('duplicate facts across loaded shards remain an error', async () => {
+  const { dataset, bodies } = multipleReaderShards()
+  const ref = dataset.ref.shards[0]
+  const first = JSON.parse(bodies.get(wire.syncShardPath(ref)))
+  const key = first.facts[0].key
+  const body = JSON.stringify({ dataset: first.dataset, schema: first.schema, facts: [first.facts[0]] })
+  const overlap = { ...ref, bucket: ref.bucket + '-' + wire.syncDigest(key).charAt(0),
+    hash: wire.syncDigest(body), bytes: Buffer.byteLength(body) }
+  bodies.set(wire.syncShardPath(overlap), body)
+  const duplicate = { ...dataset.ref, shards: dataset.ref.shards.concat(overlap) }
+  wire.checkedSyncDatasets([duplicate], 1)
+  const engine = engineFixture().replica(B).engine
+  const provider = { cacheScope: () => 'scope', async prefetchPublicationObjects() { return new Map() }, async prefetchLegacyObjects() { return new Map() }, async readObject(item) { return bodies.get(wire.syncShardPath(item)) } }
+  await assert.rejects(engine.loadDataset(provider, duplicate, noop, 'reader-settings'), /sync_duplicate_fact/)
+})
+
+test('a failed shard can be retried, then a repeat uses the verified cache', async () => {
+  const { rows, dataset, bodies } = multipleReaderShards()
+  const engine = engineFixture().replica(B).engine
+  const failedPath = wire.syncShardPath(dataset.ref.shards[1])
+  let fail = true, reads = 0, active = 0
+  const provider = { cacheScope: () => 'scope', async prefetchPublicationObjects() { return new Map() }, async prefetchLegacyObjects() { return new Map() }, async readObject(ref) {
+    reads++
+    active++
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1))
+      if (fail && wire.syncShardPath(ref) === failedPath) throw new Error('sync_shard_damaged')
+      return bodies.get(wire.syncShardPath(ref))
+    } finally { active-- }
+  } }
+  await assert.rejects(engine.loadDataset(provider, dataset.ref, noop, 'reader-settings'), /sync_shard_damaged/)
+  assert.equal(active, 0)
+  fail = false
+  const loaded = await engine.loadDataset(provider, dataset.ref, noop, 'reader-settings')
+  assert.deepEqual(loaded.map(row => row.key).sort(), rows.map(row => row.key).sort())
+  const afterRecovery = reads
+  const repeated = await engine.loadDataset(provider, dataset.ref, noop, 'reader-settings')
+  assert.deepEqual(repeated, loaded)
+  assert.equal(reads, afterRecovery)
+})
+
+test('a v4 receipt advances only its writer while retaining old and other writer witnesses', () => {
+  const engine = engineFixture().replica(A).engine
+  const one = `${A}/00000000000000/0000000000000001-${'1'.repeat(64)}.json`
+  const other = `v4/${B}/00000000000000/0000000000000001-${'2'.repeat(64)}.json`
+  const before = `v4/${A}/00000000000000/0000000000000001-${'3'.repeat(64)}.json`
+  const after = `v4/${A}/00000000000000/0000000000000002-${'4'.repeat(64)}.json`
+  assert.deepEqual(engine.receiptFrontier([one, other, before], { writer: true, frontier: [after] }),
+    [one, other, after].sort())
+})
 
 function readingDevice(fixture, id, installed, withShelf = false) {
   const filesDir = '/' + id
@@ -329,16 +562,18 @@ test('a missing settings shard keeps that group pending while the received books
   await a.engine.saveConfiguration(f.draft)
   a.engine.setEnabled(true)
   await a.engine.syncNow()
-  const published = [...f.files.entries()].find(([address]) => address.startsWith(f.writerRoot) &&
-    /\/[0-9]{16}-[0-9a-f]{64}\.json$/.test(address))
+  const published = [...f.files.entries()].find(([address]) => address.startsWith(f.writerRootV4) &&
+    /\/[0-9]{16}-[0-9a-f]{64}(?:-[0-9a-f-]{36})?\.json$/.test(address))
   const settings = JSON.parse(published[1]).manifest.datasets.find(row => row.id === 'reader-settings-records')
-  const path = f.writerRoot + wire.syncShardPath(settings.shards[0])
+  const path = f.writerObject(A, settings.shards[0])
   const body = f.files.get(path)
   assert.ok(f.files.delete(path))
   b.engine.setSelection(groups)
   await b.engine.saveConfiguration(f.draft)
   b.engine.setEnabled(true)
-  await assert.rejects(b.engine.syncNow(), /sync_partial:sync_shard_missing/)
+  // A published shard may have moved to a temporarily invisible pack; keep
+  // it pending while independent shelf data still lands.
+  await assert.rejects(b.engine.syncNow(), /sync_partial:sync_pack_not_found/)
   assert.equal(b.values.get('shelf').get(book), label)
   assert.equal(b.values.get('reader-settings')?.get(pageNumber), undefined)
   f.files.set(path, body)
@@ -376,34 +611,34 @@ test('a damaged current group falls back across writer segments for a new device
   await warm.engine.syncNow()
   assert.equal(warm.values.get('reader-settings').get(pageNumber), 'false')
   const shard = latest.objects[0]
-  f.files.set(f.writerRoot + wire.syncShardPath(shard.ref), 'broken')
+  f.files.set(f.writerObject(A, shard.ref), 'broken')
   const cold = fixture.replica(B)
   await connect(cold)
-  const firstWrites = f.trace.filter(row => row.method === 'PUT' && row.address.startsWith(f.writerRoot)).length
-  await assert.rejects(cold.engine.syncNow(), /sync_partial:sync_shard_damaged/)
+  const firstWrites = f.trace.filter(row => row.method === 'PUT' && row.address.startsWith(f.writerRootV4)).length
+  await assert.rejects(cold.engine.syncNow(), /sync_partial:sync_pack_not_found/)
   assert.deepEqual([...cold.values.get('reader-settings')].sort(), [[pageNumber, 'true'], [animation, 'false']].sort())
   assert.equal(cold.values.get('shelf').get(book), label)
   assert.equal(cold.engine.active().frontier.some(path => path.includes('/0000000000000129-')), true)
-  assert.equal(f.trace.filter(row => row.method === 'PUT' && row.address.startsWith(f.writerRoot)).length, firstWrites)
-  await assert.rejects(warm.restart().syncNow(), /sync_partial:sync_shard_damaged/)
+  assert.equal(f.trace.filter(row => row.method === 'PUT' && row.address.startsWith(f.writerRootV4)).length, firstWrites)
+  await assert.rejects(warm.restart().syncNow(), /sync_partial:sync_pack_not_found/)
   assert.equal(warm.values.get('reader-settings').get(pageNumber), 'false')
   const explicit = fixture.replica(randomUUID(), [['reader-settings', new Map([[animation, 'true']])]])
   explicit.snapshotExtras.set('reader-settings', { defaultKeys: [animation], unsetKeys: [] })
   await connect(explicit)
-  await assert.rejects(explicit.engine.syncNow(), /sync_partial:sync_shard_damaged/)
+  await assert.rejects(explicit.engine.syncNow(), /sync_partial:sync_pack_not_found/)
   assert.equal(explicit.values.get('reader-settings').get(animation), 'true',
     'an explicitly stored default is not an unset setting eligible for fallback')
   warm.values.get('reader-settings').set(animation, 'false')
   warm.engine.recordEdits('reader-settings', [{ key: animation, kind: 'set', value: 'false' }])
   const pending = structuredClone(warm.engine.active().groups.find(group => group.id === 'reader-settings').pending)
   assert.ok(pending.length > 0)
-  await assert.rejects(warm.restart().syncNow(), /sync_partial:sync_shard_damaged/)
+  await assert.rejects(warm.restart().syncNow(), /sync_partial:sync_pack_not_found/)
   assert.deepEqual(warm.engine.active().groups.find(group => group.id === 'reader-settings').pending, pending)
-  f.files.set(f.writerRoot + wire.syncShardPath(shard.ref), shard.body)
+  f.files.set(f.writerObject(A, shard.ref), shard.body)
   await cold.restart().syncNow()
   assert.equal(cold.values.get('reader-settings').get(pageNumber), 'false')
   assert.equal(cold.values.get('reader-settings').get(animation), 'true')
-  assert.equal(f.trace.filter(row => row.method === 'PUT' && row.address.startsWith(f.writerRoot)).length, firstWrites)
+  assert.equal(f.trace.filter(row => row.method === 'PUT' && row.address.startsWith(f.writerRootV4)).length, firstWrites)
   await warm.restart().syncNow()
   assert.equal(warm.engine.active().groups.find(group => group.id === 'reader-settings').pending.length, 0)
   await cold.restart().syncNow()
@@ -422,7 +657,7 @@ test('the writer can retry a healthy group publication without revalidating an u
   await writer.engine.syncNow()
   const prior = (await new f.WriterWebDav(f.draft, [], undefined, A).readManifest(noop)).own
   const broken = prior.datasets.find(ref => ref.id === 'reader-settings-records')
-  const shardPath = f.writerRoot + wire.syncShardPath(broken.shards[0])
+  const shardPath = f.writerObject(A, broken.shards[0])
   const body = f.files.get(shardPath)
   f.files.delete(shardPath)
   writer.values.set('shelf', new Map([[book, label]]))
@@ -430,7 +665,7 @@ test('the writer can retry a healthy group publication without revalidating an u
   const reopened = writer.restart()
   await assert.rejects(reopened.syncNow(), /sync_remote_result_unknown/)
   assert.deepEqual(writer.store.load().intent.writtenDatasets, [data.SYNC_SHELF_CATALOG_DATASET])
-  await assert.rejects(writer.restart().syncNow(), /sync_partial:sync_shard_missing/)
+  await assert.rejects(writer.restart().syncNow(), /sync_partial:sync_pack_not_found/)
   const current = (await new f.WriterWebDav(f.draft, [], undefined, A).readManifest(noop)).own
   assert.deepEqual(current.datasets.find(ref => ref.id === broken.id), broken)
   const receiver = fixture.replica(B)
@@ -637,12 +872,14 @@ test('saved history and live page turns from other sources reach a fresh reader 
   let cold = b.coldReader()
   assert.equal(cold.getSourceHistory(publicComic).mangaUrl, publicUrl)
   assert.equal(cold.getSourceHistory(publicComic).coverUri, publicCover)
-  const head = (await new f.WriterWebDav(f.draft, [], undefined, A).readManifest(noop)).own
+  const publishedReader = new f.WriterWebDav(f.draft, [], undefined, A)
+  const head = (await publishedReader.readManifest(noop)).own
   const coverRef = head.datasets.find(row => row.id === 'reading-cover-records')
   const readingRef = head.datasets.find(row => row.id === data.SYNC_READING_DATASET)
   assert.ok(coverRef && readingRef)
   for (const ref of readingRef.shards) {
-    assert.equal(f.files.get(f.writerRoot + wire.syncShardPath(ref)).includes(publicCover), false)
+    const body = await publishedReader.readObject(ref, noop)
+    assert.equal(body.includes(publicCover), false)
   }
   assert.equal(cold.getProgress(publicComic).updatedAt, a.reader.getProgress(publicComic).updatedAt)
   assert.equal(cold.getProgress(publicComic).pageIndex, 5)
@@ -738,6 +975,73 @@ test('a local position missed by the old client survives an independent remote p
   assert.equal(a.values.get('reading').get(key), remote)
 })
 
+test('shared sync migrates live legacy data, removes obsolete files, and updates one bucket', async () => {
+  const f = transportFixture()
+  const cached = new Map()
+  const device = engineFixture(f.SharedWebDav, {
+    async read(_scope, _group, id, ref) { return cached.get(id + ':' + ref.hash) },
+    async write(_scope, _group, id, ref, body) { cached.set(id + ':' + ref.hash, body) },
+  }).replica(A)
+  const other = engineFixture(f.SharedWebDav).replica(B)
+  const old = await new f.WriterWebDav(f.draft, [], undefined, A).readManifest(noop)
+  const space = old.manifest?.space ?? new f.WriterWebDav(f.draft, [], undefined, A).spaceId()
+  const legacy = wire.buildSyncDataset(data.SYNC_READER_SETTINGS_DATASET, [
+    facts.applySyncEdit(facts.emptySyncFact(pageNumber), { version: { replica: B, sequence: 1 }, observed: [], kind: 'set', value: 'false' }),
+  ], 1, undefined, data.syncBucketKey)
+  const position = data.syncKey(['position', 'test.sync.source', 'work', 'chapter'])
+  const oldPage = JSON.stringify({ page: 5, total: 9, pageTable: 'a'.repeat(64) })
+  const reading = dataset(data.SYNC_READING_DATASET, position, C, oldPage)
+  for (const object of legacy.objects.concat(reading.objects)) f.seedObject(object)
+  f.seedCommit({ ...wire.newSyncManifest(space), revision: 1, datasets: [legacy.ref, reading.ref] })
+  for (let i = 0; i < 1000; i++) f.files.set(f.root + 'object-1-' + i.toString(16).padStart(64, '0') + '.json', '{}')
+  f.files.set(f.draft.directory + '/unrelated.json', 'untouched')
+  const connect = async (row, contents) => {
+    await row.engine.testConnection(f.draft)
+    const preview = await row.engine.prepare(f.draft, contents)
+    await row.engine.confirm(preview.token, [])
+  }
+  await connect(device, ['reader-settings'])
+  const shared = f.sharedRoot
+  for (let attempt = 0; attempt < 100 && (f.directories.has(f.root) ||
+    JSON.parse(f.files.get(shared + 'manifest.json')).legacyMigration); attempt++) await new Promise(setImmediate)
+  assert.equal(device.values.get('reader-settings').get(pageNumber), 'false')
+  assert.equal(device.values.has('reading'), false)
+  assert.equal([...f.files.keys()].filter(name => name.startsWith(f.root)).length, 0)
+  assert.equal(f.files.get(f.draft.directory + '/unrelated.json'), 'untouched')
+  await connect(other, ['reader-settings', 'reading'])
+  assert.equal(other.values.get('reader-settings').get(pageNumber), 'false')
+  assert.equal(other.values.get('reading').get(position), oldPage)
+  for (const value of ['true', 'false', 'true']) {
+    f.trace.length = 0
+    device.values.get('reader-settings').set(pageNumber, value)
+    await device.engine.syncNow()
+    assert.equal(f.trace.filter(row => row.method === 'PUT').length, 2)
+    assert.ok(f.trace.every(row => row.address.startsWith(shared)))
+    assert.ok([...f.files.keys()].filter(name => name.startsWith(shared)).length <= 4)
+  }
+  await other.engine.syncNow()
+  assert.equal(other.values.get('reader-settings').get(pageNumber), 'true')
+  // Simulate a competing write reaching the prepared slot just as the
+  // manifest is committed. A restart must complete the same local edit.
+  const manifestPath = shared + 'manifest.json'
+  const active = JSON.parse(f.files.get(manifestPath)).datasets.find(row => row.id === data.SYNC_READER_SETTINGS_DATASET)
+  const ref = active.shards[0]
+  const slot = ref.slot === 'a' ? 'b' : 'a'
+  const activePath = shared + active.id + '-' + ref.bucket + '-' + ref.slot + '.json'
+  const stagedPath = shared + active.id + '-' + ref.bucket + '-' + slot + '.json'
+  f.onRequest(async (method, address) => {
+    if (method === 'PUT' && address === manifestPath) f.files.set(stagedPath, f.files.get(activePath))
+  })
+  device.values.get('reader-settings').set(pageNumber, 'false')
+  await assert.rejects(device.engine.syncNow(), /sync_shard_damaged/)
+  f.onRequest(async () => {})
+  await device.restart().syncNow()
+  await other.engine.syncNow()
+  assert.equal(other.values.get('reader-settings').get(pageNumber), 'false')
+  assert.equal(other.values.get('reading').get(position), oldPage)
+  assert.equal([...f.files.keys()].filter(name => name.startsWith(shared)).length, 4)
+})
+
 test('independent writer publications receive chapter and page without shared conditional writes', async () => {
   const f = transportFixture()
   const fixture = engineFixture(f.WriterWebDav)
@@ -776,7 +1080,7 @@ test('independent writer publications receive chapter and page without shared co
   assert.equal(f.trace.some(row => row.method === 'PUT' && journal.SYNC_COMMIT_NAME.test(row.address.slice(f.root.length))), false)
 })
 
-test('reading publications retain the old dataset and verify new shards before recovering a missing publication', async () => {
+test('a missing submitted shard is replanned automatically without losing reading progress', async () => {
   const f = transportFixture()
   const oldWriter = new f.WriterWebDav(f.draft, [], undefined, C)
   const legacy = dataset('reading', data.syncKey(['position', 'com.xkcd.zh.koma', 'xkcd:zh', 'xkcdch:zh:1']),
@@ -795,18 +1099,24 @@ test('reading publications retain the old dataset and verify new shards before r
   const intent = writer.store.load().intent
   assert.ok(intent?.sent)
   const shard = JSON.parse(intent.commitBody).manifest.datasets.find(row => row.id === data.SYNC_READING_DATASET).shards[0]
-  const address = [...f.files.keys()].find(name => name.endsWith('/' + wire.syncShardPath(shard)))
+  const address = f.writerObject(A, shard)
   const bytes = f.files.get(address)
   assert.ok(bytes)
   f.files.delete(address)
-  await assert.rejects(writer.restart().syncNow())
-  assert.ok(writer.store.load().active.groups[0].pending.some(row => row.version.sequence === version.sequence))
-  f.files.set(address, bytes)
   await writer.restart().syncNow()
   assert.equal(writer.store.load().active.groups[0].pending.length, 0)
-  const remote = (await new f.WriterWebDav(f.draft, [], undefined, B).readManifest(noop)).manifest
+  // The timed-out original request can still arrive after the replacement.
+  // Its older revision must not roll the recovered reading position back.
+  f.files.set(f.draft.directory + '/koma-device-sync-v4/' + intent.commit.substring(3), intent.commitBody)
+  const reader = new f.WriterWebDav(f.draft, [], undefined, B)
+  const remote = (await reader.readManifest(noop)).manifest
   assert.equal(wire.syncDatasetBranches(remote, 'reading').length, 1)
   assert.equal(wire.syncDatasetBranches(remote, data.SYNC_READING_DATASET).length, 1)
+  const newRef = wire.syncDatasetBranches(remote, data.SYNC_READING_DATASET)[0].shards[0]
+  const received = await reader.readObject(newRef, noop)
+  assert.ok(received.includes('org.example.login-required'))
+  assert.ok(received.includes('\\"page\\":5'))
+  assert.ok(writer.store.load().counter >= version.sequence)
 })
 
 test('an empty next segment preserves the last complete publication on a fresh client', async () => {
@@ -816,7 +1126,7 @@ test('an empty next segment preserves the last complete publication on a fresh c
   for (const object of ref.objects) await writer.storeObject(object, noop)
   const last = manifest(writer.spaceId(), [ref.ref], 128)
   await writer.publish(last, '', noop, noop, ['reader-settings'])
-  f.directories.add(f.writerRoot + A + '/00000000000001/')
+  f.directories.add(f.writerRootV4 + A + '/00000000000001/')
   const reader = new f.WriterWebDav(f.draft, [], undefined, B)
   assert.equal((await reader.readManifest(noop)).manifest.revision, 128)
 })
@@ -840,7 +1150,7 @@ test('a broken cover shard does not stop reading or get replaced by a retry', as
   }
   const writer = new f.WriterWebDav(f.draft, [], undefined, A)
   const coverRef = (await writer.readManifest(noop)).own.datasets.find(row => row.id === 'reading-cover-records')
-  const address = f.writerRoot + wire.syncShardPath(coverRef.shards[0])
+  const address = f.writerObject(A, coverRef.shards[0])
   const bytes = f.files.get(address)
   assert.ok(bytes)
   f.files.delete(address)
@@ -894,8 +1204,8 @@ test('connection creates the selected directory and cleans its probe without ETa
   const id = '11111111-1111-1111-1111-111111111111'
   await f.provider().probe(id, noop)
   assert.deepEqual(f.trace.filter(row => row.method === 'MKCOL').map(row => row.address),
-    [f.draft.directory + '/', f.root])
-  assert.equal(f.files.has(f.root + 'probe-' + id + '.json'), false)
+    [f.draft.directory + '/', f.sharedRoot])
+  assert.equal(f.files.has(f.sharedRoot + 'probe-' + id + '.json'), false)
   assert.equal(f.trace.some(row => row.method === 'LOCK'), false)
 })
 
@@ -905,9 +1215,9 @@ test('a LAN HTTP WebDAV directory completes connection and probe cleanup', async
   const id = '11111111-1111-1111-1111-111111111111'
   await f.provider().probe(id, noop)
   assert.deepEqual(f.trace.filter(row => row.method === 'MKCOL').map(row => row.address),
-    [f.draft.directory + '/', f.root])
+    [f.draft.directory + '/', f.sharedRoot])
   assert.ok(f.trace.some(row => row.method === 'PUT' && row.address.startsWith('http://')))
-  assert.equal(f.files.has(f.root + 'probe-' + id + '.json'), false)
+  assert.equal(f.files.has(f.sharedRoot + 'probe-' + id + '.json'), false)
 })
 
 test('parallel immutable publications retain both heads and merge their selected facts', async () => {

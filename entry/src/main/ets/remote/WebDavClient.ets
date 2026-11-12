@@ -297,7 +297,8 @@ function readSuccessfulPropstat(responseXml: string): string | undefined {
 }
 
 function readXmlBlocks(xml: string, tagName: string): string[] {
-  const pattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${tagName}\\b[^>]*>([\\s\\S]*?)<\\/(?:[A-Za-z0-9_-]+:)?${tagName}>`, 'gi')
+  // XML permits dots in namespace prefixes and whitespace before the closing `>`.
+  const pattern = new RegExp(`<(?:[A-Za-z0-9_.-]+:)?${tagName}\\b[^>]*>([\\s\\S]*?)<\\/(?:[A-Za-z0-9_.-]+:)?${tagName}\\s*>`, 'gi')
   return Array.from(xml.matchAll(pattern)).map((match: RegExpMatchArray): string => match[1])
 }
 
@@ -316,7 +317,7 @@ function readFirstXmlText(xml: string, tagName: string): string | undefined {
 }
 
 function hasXmlTag(xml: string, tagName: string): boolean {
-  const pattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${tagName}\\b(?:[^>]*)\\/?>`, 'i')
+  const pattern = new RegExp(`<(?:[A-Za-z0-9_.-]+:)?${tagName}\\b(?:[^>]*)\\/?>`, 'i')
   return pattern.test(xml)
 }
 

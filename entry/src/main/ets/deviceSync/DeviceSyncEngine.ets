@@ -6,15 +6,17 @@ import {
 import { checkSyncGroupFact, SyncReadingWorkProgress, syncReadingWorkProgress, SyncRecentValue, SyncWorkLabel,
   syncBucketKey, syncBusinessKey, syncGroupVisibleValue, syncKey, syncKeyParts, SYNC_SHELF_DATASET, syncShelfMove } from './DeviceSyncData'
 import {
-  decodeSyncShard, syncDatasetBytes, syncDigest, syncRootBucket, syncShardPath, syncDatasetBranches,
-  SyncDatasetRef, SyncManifest, SyncShardRef, SYNC_MAX_ROUND_BYTES,
+  copySyncManifest, decodeSyncShard, sharedSyncRootBucket, syncDatasetBytes, syncDigest, syncRootBucket, syncShardPath, syncDatasetBranches,
+  SyncDatasetRef, SyncManifest, SyncObject, SyncShardRef, SYNC_MAX_ROUND_BYTES,
 } from './DeviceSyncWire'
 import {
-  DeviceSyncStorage, SyncCommitIntent, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision,
-  SyncPendingEdit, SyncProbeRecord, SyncReadingReceipt, SyncRestoreEdit, SyncSavedConfiguration, SyncSavedConnection, checkedSyncDraft, copySyncConnection,
+  DeviceSyncStorage, SyncArchivePending, SyncArchiveSeen, SyncCommitIntent, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision,
+  SyncPendingEdit, SyncProbeRecord, SyncReadingReceipt, SyncRestoreEdit, SyncSavedConfiguration, SyncSavedConnection, SyncStagedRecovery, checkedSyncDraft, copySyncConnection,
   readSyncCredential, writeSyncCredential, clearSyncCredential,
 } from './DeviceSyncStorage'
 import { DeviceSyncWebDav, SyncConnectionDraft, SyncRemoteManifest, SyncRequestGuard } from './DeviceSyncWebDav'
+import { DeviceSyncMetrics, SyncRoundMetrics, syncMetricUptime } from './DeviceSyncMetrics'
+import { SyncShardCachePort } from './DeviceSyncShardCache'
 import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncOwner'
 import {
   byLocalValue, bySyncFact, coverDatasetId, dependsOnConflict, hasLegacyRetainedDeletion,
@@ -24,6 +26,15 @@ import {
 } from './DeviceSyncPlanner'
 
 export { SyncMergeChoice } from './DeviceSyncPlanner'
+
+interface SyncReplanPublication {
+  manifest?: SyncManifest
+}
+
+interface SyncRoundLog {
+  mode: string
+  metrics: SyncRoundMetrics
+}
 
 export interface DeviceSyncLocalEdit {
   key: string
@@ -122,12 +133,18 @@ interface PreparedSync {
   reviewGeneration: number
   activate: boolean
   credential?: string
+  writer: string
 }
 
 interface DatasetCache {
   path: string
   data: SyncFact[]
   bytes: number
+}
+
+interface DatasetShardResult {
+  cache?: DatasetCache
+  error?: Error
 }
 
 interface CheckedPlan {
@@ -155,6 +172,7 @@ interface FocusManifestCache {
   space: string
   at: number
   remote: SyncRemoteManifest
+  provider: DeviceSyncWebDav
 }
 
 const DEFAULT_GROUPS: SyncGroup[] = ['shelf', 'reading']
@@ -205,6 +223,28 @@ function businessGroup(row: SyncGroupState | undefined): SyncGroupState | undefi
     deferredRoots: row.deferredRoots?.map((key: string): string => syncBusinessKey(row.id, key)) }
 }
 
+function mergeStagedGroup(previous: SyncGroupState | undefined, staged: SyncGroupState): SyncGroupState {
+  if (previous === undefined) return staged
+  const pending = previous.pending.slice()
+  staged.pending.forEach((item: SyncPendingEdit): void => {
+    if (!pending.some((entry: SyncPendingEdit): boolean => entry.key === item.key &&
+      entry.version.replica === item.version.replica && entry.version.sequence === item.version.sequence)) pending.push(item)
+  })
+  // Preserve the confirmed receipt itself, but use the staged observation for
+  // planning its pending keys so the same local change does not get a new dot.
+  let baseline = previous.baseline.slice()
+  staged.pending.forEach((item: SyncPendingEdit): void => {
+    const newer = previous.pending.some((entry: SyncPendingEdit): boolean => entry.key === item.key &&
+      entry.version.replica === item.version.replica && entry.version.sequence > item.version.sequence)
+    if (newer) return
+    baseline = baseline.filter((entry: SyncLocalValue): boolean => entry.key !== item.key)
+    const value = staged.baseline.find((entry: SyncLocalValue): boolean => entry.key === item.key)
+    if (value !== undefined) baseline.push(value)
+  })
+  return { id: previous.id, facts: mergeSyncFacts(previous.facts, staged.facts), baseline,
+    pending, deferred: previous.deferred, deferredRoots: previous.deferredRoots }
+}
+
 function selectedGroups(groups: SyncGroup[]): SyncGroup[] {
   return SYNC_GROUPS.filter((group: SyncGroup): boolean => groups.includes(group))
 }
@@ -248,20 +288,69 @@ function sameConnection(a: SyncConnectionDraft, b: SyncConnectionDraft): boolean
   return a.directory === b.directory && a.username === b.username
 }
 
+function preserveStaged(state: SyncLocalDocument, intent: SyncCommitIntent): void {
+  const records = state.stagedRecovery?.slice() ?? []
+  const index = records.findIndex((entry: SyncStagedRecovery): boolean => entry.endpointIdentity === intent.connection.endpointIdentity &&
+    entry.space === intent.connection.space)
+  const groups = index < 0 ? [] : records[index].groups.slice()
+  let staged = intent.staged
+  if (staged === undefined && intent.sent) {
+    // An early v4 prototype persisted only the proposed groups. Recover just
+    // facts carrying local pending dots; never promote its whole remote merge
+    // to an applied local receipt.
+    staged = intent.connection.groups.filter((group: SyncGroupState): boolean => group.pending.length > 0)
+      .map((group: SyncGroupState): SyncGroupState => {
+        const pendingKeys = new Set<string>()
+        group.pending.forEach((item: SyncPendingEdit): void => {
+          const fact = group.facts.find((entry: SyncFact): boolean => entry.key === item.key)
+          if (fact === undefined || !syncObserves(fact.seen, item.version)) throw new Error('sync_recovery_required')
+          pendingKeys.add(item.key)
+        })
+        return { id: group.id, facts: group.facts.filter((fact: SyncFact): boolean => pendingKeys.has(fact.key)),
+          baseline: group.baseline.filter((item: SyncLocalValue): boolean => pendingKeys.has(item.key)),
+          pending: group.pending.slice() }
+      })
+  }
+  staged?.forEach((group: SyncGroupState): void => {
+    const position = groups.findIndex((entry: SyncGroupState): boolean => entry.id === group.id)
+    const merged = mergeStagedGroup(position < 0 ? undefined : groups[position], group)
+    if (position < 0) groups.push(merged)
+    else groups[position] = merged
+  })
+  if (groups.length > 0) {
+    const record: SyncStagedRecovery = { endpointIdentity: intent.connection.endpointIdentity, space: intent.connection.space, groups }
+    if (index < 0) records.push(record)
+    else records[index] = record
+  }
+  state.stagedRecovery = records
+}
+
 function detachedIntent(intent: SyncCommitIntent, state: SyncLocalDocument): SyncCommitIntent {
-  if (intent.sent && intent.commit?.startsWith((state.publicationWriter ?? state.replica) + '/')) {
+  if (!intent.sent || intent.shared === true) preserveStaged(state, intent)
+  const writer = state.publicationWriter ?? state.replica
+  const waitingFence = state.replanIntents?.some((entry: SyncCommitIntent): boolean =>
+    entry.commit?.startsWith('v4/' + writer + '/') === true) === true
+  if (waitingFence && intent.sent && intent.commitBody !== undefined &&
+    intent.commit?.startsWith('v4/' + writer + '/') === true) {
+    // A writer with an outstanding exclusion must supersede every potentially
+    // late attempt before it can be rotated safely.
+    preserveStaged(state, intent)
+    state.replanIntents = (state.replanIntents ?? []).filter((entry: SyncCommitIntent): boolean =>
+      entry.commit !== intent.commit || entry.commitBody !== intent.commitBody).concat(intent)
+  } else if (intent.sent && (intent.commit?.startsWith(writer + '/') || intent.commit?.startsWith('v4/' + writer + '/'))) {
     // A revoked scope seals an in-flight writer. The old PUT may still arrive.
     // A new writer keeps it independently visible and never reuses its sequence.
     state.publicationWriter = util.generateRandomUUID()
   }
-  return { connection: intent.connection, expected: intent.expected, sent: intent.sent, detached: true,
+  return { connection: intent.connection, expected: intent.expected, sent: intent.sent, detached: true, shared: intent.shared,
     groupRevisions: intent.groupRevisions, applies: intent.applies, commit: intent.commit, commitBody: intent.commitBody,
-    writtenDatasets: intent.writtenDatasets }
+    writtenDatasets: intent.writtenDatasets, staged: intent.staged }
 }
 
 export class DeviceSyncEngine {
   private readonly storage: DeviceSyncStorage
   private readonly owner: DeviceSyncOwner
+  private readonly shardCache?: SyncShardCachePort
   private generation: number = 0
   private reviewGeneration: number = 0
   private probeGeneration: number = 0
@@ -274,15 +363,18 @@ export class DeviceSyncEngine {
   private cache: DatasetCache[] = []
   private cacheSize: number = 0
   private restoreInProgress: boolean = false
+  private retiringLegacy: boolean = false
+  private roundMetrics?: DeviceSyncMetrics
   private tested?: SyncConnectionDraft
   private restoreBefore?: SyncSavedConnection
   private restoreBeforeIntent?: SyncCommitIntent
   private restoreBeforeConfiguration?: SyncSavedConfiguration
   private readonly groupEpochs: Map<SyncGroup, number> = new Map()
 
-  constructor(storage: DeviceSyncStorage, owner: DeviceSyncOwner) {
+  constructor(storage: DeviceSyncStorage, owner: DeviceSyncOwner, shardCache?: SyncShardCachePort) {
     this.storage = storage
     this.owner = owner
+    this.shardCache = shardCache
   }
 
   active(): SyncSavedConnection | undefined {
@@ -377,13 +469,15 @@ export class DeviceSyncEngine {
     }
     const credential = util.generateRandomUUID()
     const id = util.generateRandomUUID()
-    this.storage.update((state: SyncLocalDocument): void => { state.probes.push({ credential, id, collection: 2 }) })
+    this.storage.update((state: SyncLocalDocument): void => { state.probes.push({ credential, id, collection: 5 }) })
     await writeSyncCredential(credential, draft)
     guard()
     const provider = new DeviceSyncWebDav(draft)
     try {
-      await provider.probe(id, guard)
-      await this.retireProbe(credential)
+      const cleaned = await provider.probe(id, guard)
+      if (cleaned) {
+        try { await this.retireProbe(credential) } catch (_error) {}
+      }
       this.tested = draft
     } catch (error) {
       // The old endpoint and exact probe path remain in private storage until cleanup succeeds.
@@ -462,7 +556,6 @@ export class DeviceSyncEngine {
   }
 
   async prepareSaved(input: SyncGroup[], permit: SyncReviewPermit = this.beginReview()): Promise<SyncPreview> {
-    if (this.hasUnresolvedCommit()) throw new Error('sync_remote_result_unknown')
     // Bind cancellation before AssetStore can yield. A Back during this read
     // must not let the late continuation manufacture a new review permission.
     const guard = this.reviewRequestGuard(permit)
@@ -494,7 +587,7 @@ export class DeviceSyncEngine {
     for (const row of this.storage.load().probes) {
       try {
         const provider = new DeviceSyncWebDav(await readSyncCredential(row.credential))
-        await provider.cleanProbe(row.id, guard, row.collection !== 2)
+        await provider.cleanProbe(row.id, guard, row.collection !== 2 && row.collection !== 5, row.collection)
         await this.retireProbe(row.credential)
       } catch (_error) {
       }
@@ -512,6 +605,15 @@ export class DeviceSyncEngine {
     if (reviewPermit !== undefined && reviewPermit !== this.reviewGeneration) throw new Error('sync_preview_changed')
     this.prepared = undefined
     const draft = checkedSyncDraft(raw)
+    const review = reviewPermit ?? ++this.reviewGeneration
+    const outstanding = this.storage.load().intent
+    if (savedReview && this.isEnabled() && outstanding !== undefined && !outstanding.detached &&
+      outstanding.connection.endpointIdentity === endpointIdentity(draft)) {
+      // A review must not overwrite a sent attempt which may still arrive.
+      // A paused service stays read-only until the user confirms activation.
+      await this.recoverIntent(savedReview, this.reviewGuard(this.generation, review, true))
+      if (reviewPermit !== undefined && reviewPermit !== this.reviewGeneration) throw new Error('sync_preview_changed')
+    }
     const configuration = this.configuration()
     const activate = savedReview && configuration?.endpointIdentity === endpointIdentity(draft) &&
       (this.storage.load().pendingConfiguration !== undefined || syncRequiresExplicitReview(this.active()))
@@ -520,7 +622,6 @@ export class DeviceSyncEngine {
     if (selected.length === 0) throw new Error('sync_select_contents')
     const generation = this.generation
     const counter = this.storage.load().counter
-    const review = reviewPermit ?? ++this.reviewGeneration
     const guard = this.reviewGuard(generation, review, activate)
     const connection = this.active()
     const saved = connection === undefined ? undefined : await this.connectionDraft()
@@ -530,11 +631,31 @@ export class DeviceSyncEngine {
     if (!(savedReview && configuration?.endpointIdentity === endpointIdentity(draft)) &&
       (existing === undefined || existing.credential === '') && (this.tested === undefined || !sameConnection(draft, this.tested) ||
       draft.password !== this.tested.password)) throw new Error('sync_test_required')
-    const provider = new DeviceSyncWebDav(draft, existing?.frontier, existing?.space, this.publicationWriter())
-    const remote = await provider.readManifest(guard)
-    this.checkHighWater(existing, remote)
-    if (remote.manifest?.maintenance === true) throw new Error('sync_maintenance_running')
-    const groups = await this.prepareGroups(provider, selected, existing, remote.manifest, guard, true, remote)
+    const writer = (!savedReview || !this.isEnabled()) && outstanding?.sent === true && !outstanding.detached &&
+      outstanding.commit?.startsWith('v4/' + this.publicationWriter() + '/') === true ?
+      util.generateRandomUUID() : this.publicationWriter()
+    if (writer !== this.publicationWriter() && (this.storage.load().replanIntents ?? []).some((entry: SyncCommitIntent): boolean =>
+      entry.commit?.startsWith('v4/' + this.publicationWriter() + '/') === true)) throw new Error('sync_remote_result_unknown')
+    const provider = new DeviceSyncWebDav(draft, existing?.frontier, existing?.space, writer)
+    this.configureReplans(provider, endpointIdentity(draft))
+    let remote: SyncRemoteManifest | undefined
+    let groups: PreparedGroup[] = []
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const candidate = await provider.readSyncState(guard)
+        this.checkHighWater(existing, candidate)
+        if (candidate.manifest?.maintenance === true) throw new Error('sync_maintenance_running')
+        const loaded = await this.prepareGroups(provider, selected, existing, candidate.manifest, guard, true, candidate,
+          false, undefined, endpointIdentity(draft))
+        remote = candidate
+        groups = loaded
+        break
+      } catch (error) {
+        guard()
+        if ((error as Error).message !== 'sync_remote_changed') throw error as Error
+      }
+    }
+    if (remote === undefined) throw new Error('sync_remote_changed')
     const preview = this.summarize(groups, existing === undefined)
     preview.destination = draft.directory + (draft.username ? '\n' + draft.username : '')
     preview.migration = remote.legacyHash !== undefined || (existing !== undefined && existing.frontier === undefined)
@@ -545,7 +666,7 @@ export class DeviceSyncEngine {
     guard()
     if (this.storage.load().counter !== counter) throw new Error('sync_preview_changed')
     const prepared: PreparedSync = { preview, generation, counter, draft, connection: existing, remote, selected, groups,
-      reviewGeneration: review, activate,
+      reviewGeneration: review, activate, writer,
       credential: savedReview && configuration?.endpointIdentity === endpointIdentity(draft) ? configuration.credential : undefined }
     prepared.preview = this.projectPreview(prepared, [])
     this.prepared = prepared
@@ -642,8 +763,9 @@ export class DeviceSyncEngine {
   private async confirmPrepared(prepared: PreparedSync, choices: SyncMergeChoice[]): Promise<void> {
     if (!prepared.activate) this.requireEnabled()
     const guard = this.reviewGuard(prepared.generation, prepared.reviewGeneration, prepared.activate)
-    const provider = new DeviceSyncWebDav(prepared.draft, prepared.connection?.frontier, prepared.connection?.space, this.publicationWriter())
-    const current = await provider.readManifest(guard, prepared.remote.etag)
+    const provider = new DeviceSyncWebDav(prepared.draft, prepared.connection?.frontier, prepared.connection?.space, prepared.writer)
+    this.configureReplans(provider, endpointIdentity(prepared.draft))
+    const current = await provider.readSyncState(guard, prepared.remote.etag)
     if (current.etag !== prepared.remote.etag || current.hash !== prepared.remote.hash) {
       throw new Error('sync_preview_changed')
     }
@@ -657,13 +779,25 @@ export class DeviceSyncEngine {
     try {
       guard()
       if (this.storage.load().counter !== prepared.counter) throw new Error('sync_preview_changed')
-      const proposal = await this.preparePlan(prepared.groups, current, choices, provider.spaceId(), guard)
+      if (prepared.writer !== this.publicationWriter()) {
+        this.storage.update((state: SyncLocalDocument): void => {
+          if (state.intent === undefined || !state.intent.sent || state.intent.detached ||
+            !state.intent.commit?.startsWith('v4/' + (state.publicationWriter ?? state.replica) + '/')) {
+            throw new Error('sync_preview_changed')
+          }
+          state.intent = detachedIntent(state.intent, state)
+          state.publicationWriter = prepared.writer
+        })
+      }
+      const proposal = await this.preparePlan(prepared.groups, current, choices, provider.spaceId(), guard,
+        endpointIdentity(prepared.draft))
       if (!current.writer && current.legacyHash !== undefined && !proposal.publish) {
         proposal.publish = true
         proposal.manifest.revision++
       }
       await this.execute(provider, prepared.connection, credential, prepared.selected, current, proposal, guard, true,
         endpointIdentity(prepared.draft), prepared.groups, prepared.activate)
+      this.retireLegacy(prepared.draft, proposal.manifest, guard)
     } catch (error) {
       await this.removeUnusedCredential(credential)
       throw error as Error
@@ -683,6 +817,18 @@ export class DeviceSyncEngine {
   }
 
   private async runActive(probeOnly: boolean): Promise<void> {
+    const metrics = new DeviceSyncMetrics(syncMetricUptime())
+    this.roundMetrics = metrics
+    try { await this.runActiveCore(probeOnly) } finally {
+      this.roundMetrics = undefined
+      try {
+        const report: SyncRoundLog = { mode: probeOnly ? 'probe' : 'full', metrics: metrics.snapshot(syncMetricUptime()) }
+        console.info('[KomaSyncRound] ' + JSON.stringify(report))
+      } catch (_error) {}
+    }
+  }
+
+  private async runActiveCore(probeOnly: boolean): Promise<void> {
     this.lastReadingRound = undefined
     this.requireEnabled()
     await this.recoverIntent()
@@ -696,15 +842,29 @@ export class DeviceSyncEngine {
     const draft = await readSyncCredential(configured.credential)
     guard()
     const provider = new DeviceSyncWebDav(draft, connection?.frontier, connection?.space, this.publicationWriter())
+    this.configureReplans(provider, configured.endpointIdentity)
     try {
       for (let attempt = 0; attempt < 3; attempt++) {
-        if (attempt > 0) await this.recoverIntent()
-        let remote = await provider.readManifest(guard, '', probeOnly && attempt === 0)
+        if (attempt > 0) {
+          await this.recoverIntent()
+          this.configureReplans(provider, configured.endpointIdentity)
+        }
+        let remote: SyncRemoteManifest
+        try {
+          remote = await provider.readSyncState(guard)
+        } catch (error) {
+          guard()
+          if ((error as Error).message === 'sync_remote_changed') continue
+          throw error as Error
+        }
         if (attempt === 0) this.focusManifest = { generation: this.generation, space: provider.spaceId(),
-          at: Date.now(), remote }
+          at: Date.now(), remote, provider }
         const appliedTag = JSON.stringify([configured.endpointIdentity, configured.selected, remote.etag, remote.hash])
         if (probeOnly && active !== undefined && !remote.warning && appliedTag === this.appliedRemoteTag &&
-          !active.groups.some((group: SyncGroupState): boolean => configured.selected.includes(group.id) && group.pending.length > 0)) return
+          !active.groups.some((group: SyncGroupState): boolean => configured.selected.includes(group.id) && group.pending.length > 0)) {
+          if (remote.manifest !== undefined) this.retireLegacy(draft, remote.manifest, guard)
+          return
+        }
         this.checkHighWater(this.active(), remote)
         if (remote.manifest?.maintenance === true) {
           this.focusManifest = undefined
@@ -715,10 +875,17 @@ export class DeviceSyncEngine {
         if (remote.manifest?.maintenance === true) throw new Error('sync_maintenance_running')
         const counter = this.storage.load().counter
         const groupErrors: string[] = []
-        let groups = await this.prepareGroups(provider, configured.selected, this.active() ?? connection,
-          remote.manifest, guard, true, remote, true, groupErrors)
+        let groups: PreparedGroup[]
+        try {
+          groups = await this.prepareGroups(provider, configured.selected, this.active() ?? connection,
+            remote.manifest, guard, true, remote, true, groupErrors, configured.endpointIdentity)
+        } catch (error) {
+          guard()
+          if ((error as Error).message === 'sync_remote_changed') continue
+          throw error as Error
+        }
         if (counter !== this.storage.load().counter) continue
-        let proposal = await this.preparePlan(groups, remote, [], provider.spaceId(), guard)
+        let proposal = await this.preparePlan(groups, remote, [], provider.spaceId(), guard, configured.endpointIdentity)
         if (counter !== this.storage.load().counter) continue
         const rejected = new Set<SyncGroup>()
         for (const apply of proposal.applies) {
@@ -730,7 +897,7 @@ export class DeviceSyncEngine {
         }
         if (rejected.size > 0) {
           groups = groups.filter((row: PreparedGroup): boolean => !rejected.has(row.id))
-          proposal = await this.preparePlan(groups, remote, [], provider.spaceId(), guard)
+          proposal = await this.preparePlan(groups, remote, [], provider.spaceId(), guard, configured.endpointIdentity)
           if (counter !== this.storage.load().counter) continue
         }
         if (groups.length === 0 && groupErrors.length > 0) throw new Error(groupErrors[0])
@@ -738,11 +905,11 @@ export class DeviceSyncEngine {
           await this.execute(provider, this.active() ?? connection, configured.credential, configured.selected, remote,
             proposal, guard, false, configured.endpointIdentity, [], active === undefined)
           if (proposal.publish) this.focusManifest = undefined
-          await this.maybeMaintain(provider, guard).catch((): void => {})
           if (remote.warning) throw new Error(remote.warning)
           if (groupErrors.length > 0) throw new Error('sync_partial:' + groupErrors[0])
           this.appliedRemoteTag = proposal.publish || groups.some((group: PreparedGroup): boolean =>
             group.coverUnavailable === true) ? '' : appliedTag
+          this.retireLegacy(draft, proposal.manifest, guard)
           return
         } catch (error) {
           if ((error as Error).message !== 'sync_remote_changed') throw error as Error
@@ -764,7 +931,7 @@ export class DeviceSyncEngine {
     }
   }
 
-  /** Read only the bucket that contains one work's reading records. */
+
   async syncReadingWork(source: string, work: string): Promise<SyncReadingWorkResult> {
     if (this.running !== undefined || this.focusRunning !== undefined) throw new Error('sync_already_running')
     this.requireEnabled()
@@ -779,7 +946,18 @@ export class DeviceSyncEngine {
   }
 
   private async runReadingWork(source: string, work: string, guard: SyncRequestGuard): Promise<SyncReadingWorkResult> {
-    const remoteFacts = await this.readReadingWorkFocus(source, work, guard)
+    let remoteFacts: SyncFact[] | undefined
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        remoteFacts = await this.readReadingWorkFocus(source, work, guard)
+        break
+      } catch (error) {
+        guard()
+        if ((error as Error).message !== 'sync_remote_changed') throw error as Error
+        this.focusManifest = undefined
+      }
+    }
+    if (remoteFacts === undefined) throw new Error('sync_remote_changed')
     if (remoteFacts.length === 0) return { applied: false }
     const current = this.active()?.groups.find((group: SyncGroupState): boolean => group.id === 'reading')
     const localFacts = current?.facts ?? []
@@ -826,20 +1004,27 @@ export class DeviceSyncEngine {
   private async readReadingWorkFocus(source: string, work: string, guard: SyncRequestGuard): Promise<SyncFact[]> {
     const active = this.active()
     if (active === undefined) return []
-    const provider = new DeviceSyncWebDav(await readSyncCredential(active.credential), active.frontier, active.space,
-      this.publicationWriter())
     const cached = this.focusManifest
-    const remote = cached !== undefined && cached.generation === this.generation && cached.space === active.space &&
-      Date.now() - cached.at < 5000 ? cached.remote : await provider.readManifest(guard)
+    const reusable = cached !== undefined && cached.generation === this.generation && cached.space === active.space &&
+      Date.now() - cached.at < 5000
+    const provider = reusable && cached !== undefined ? cached.provider :
+      new DeviceSyncWebDav(await readSyncCredential(active.credential), active.frontier, active.space, this.publicationWriter())
+    if (!reusable) this.configureReplans(provider, active.endpointIdentity)
+    const remote = reusable && cached !== undefined ? cached.remote : await provider.readSyncState(guard)
+    provider.beginShardReadRound()
     if (remote !== cached?.remote) {
-      this.focusManifest = { generation: this.generation, space: active.space, at: Date.now(), remote }
+      this.focusManifest = { generation: this.generation, space: active.space, at: Date.now(), remote, provider }
     }
     if (remote.manifest === undefined) return []
     if (remote.manifest.maintenance === true) return []
     const root = syncRootBucket(syncKey([source, work]))
     let facts: SyncFact[] = []
     for (const ref of groupDatasets(remote.manifest, 'reading')) {
-      const shards = ref.shards.filter((shard: SyncShardRef): boolean => shard.bucket === root || shard.bucket.startsWith(root + '-'))
+      const sharedRoot = sharedSyncRootBucket(ref.id, syncKey([source, work]))
+      const shards = ref.shards.filter((shard: SyncShardRef): boolean => {
+        const bucket = shard.slot === undefined ? root : sharedRoot
+        return shard.bucket === bucket || shard.bucket.startsWith(bucket + '-')
+      })
       if (shards.length === 0) continue
       const focused: SyncDatasetRef = { id: ref.id, schema: ref.schema, shards }
       facts = mergeSyncFacts(facts, await this.loadDataset(provider, focused, guard, 'reading'))
@@ -910,6 +1095,7 @@ export class DeviceSyncEngine {
 
   private checkHighWater(connection: SyncSavedConnection | undefined, remote: SyncRemoteManifest): void {
     if (connection === undefined || connection.revision === 0) return
+    if (remote.sharedHash !== undefined && remote.manifest?.space === connection.space) return
     if (remote.journal) {
       // The provider directly GETs durable frontier witnesses. Concurrent DAG heads
       // may have equal/decreasing scalar revisions; those are not rollback evidence.
@@ -933,35 +1119,124 @@ export class DeviceSyncEngine {
     if (dataset.schema !== 1) throw new Error('sync_update_required')
     const rows: SyncFact[] = []
     const keys = new Set<string>()
-    for (const ref of dataset.shards) {
-      const path = id + ':' + dataset.id + ':' + ref.bucket + ':' + ref.bytes + ':' + syncShardPath(ref)
-      let cache = this.cache.find((item: DatasetCache): boolean => item.path === path)
-      if (cache === undefined) {
-        const body = await provider.readObject(ref, guard)
-        const checked = await taskpool.execute(validateSyncShard, id, dataset.id, ref, body,
-          dataset.id === coverDatasetId(id)) as CheckedShard
-        guard()
-        if (checked.data === undefined) throw new Error(checked.error ?? 'sync_shard_damaged')
-        // The ref is content-addressed. Cached facts already passed wire,
-        // group and cover checks; still check duplicates across current shards.
-        cache = { path, data: checked.data, bytes: ref.bytes }
-        this.cache.push(cache)
-        this.cacheSize += ref.bytes
-        while (this.cacheSize > 8 * 1024 * 1024 && this.cache.length > 1) {
-          this.cacheSize -= this.cache.shift()?.bytes ?? 0
+    const missing: SyncShardRef[] = []
+    // The objects are immutable; bounded parallel reads reduce network waits.
+    // Drain each batch before returning an error so recovery cannot race reads
+    // from the failed attempt. Merge in manifest order, including duplicate checks.
+    const parallelReads = 4
+    for (let start = 0; start < dataset.shards.length; start += parallelReads) {
+      const pending: Promise<DatasetShardResult>[] = []
+      const batch = dataset.shards.slice(start, start + parallelReads)
+      for (const ref of batch) pending.push(this.loadCachedDatasetShard(provider, dataset.id, ref, guard, id))
+      const results = await Promise.all(pending)
+      guard()
+      for (const result of results) {
+        if (result.error !== undefined) throw result.error
+        const loaded = result.cache
+        if (loaded === undefined) { missing.push(batch[results.indexOf(result)]); continue }
+        // Another guarded read may have populated the same immutable shard.
+        let cache = this.cache.find((item: DatasetCache): boolean => item.path === loaded.path)
+        if (cache === undefined) {
+          cache = loaded
+          this.cache.push(cache)
+          this.cacheSize += cache.bytes
+          while (this.cacheSize > 8 * 1024 * 1024 && this.cache.length > 1) {
+            this.cacheSize -= this.cache.shift()?.bytes ?? 0
+          }
+        }
+        for (const fact of cache.data) {
+          if (keys.has(fact.key)) throw new Error('sync_duplicate_fact')
+          keys.add(fact.key)
+          rows.push(businessFact(id, fact))
         }
       }
-      for (const fact of cache.data) {
-        if (keys.has(fact.key)) throw new Error('sync_duplicate_fact')
-        keys.add(fact.key)
-        rows.push(businessFact(id, fact))
+    }
+    if (missing.length > 0) {
+      const prefetched = await provider.prefetchPublicationObjects(missing, guard)
+      const remaining = missing.filter((ref: SyncShardRef): boolean => !prefetched.has(syncShardPath(ref)))
+      const legacy = await provider.prefetchLegacyObjects(remaining, guard)
+      legacy.forEach((body: string, path: string): void => { prefetched.set(path, body) })
+      guard()
+      for (let start = 0; start < missing.length; start += parallelReads) {
+        const pending: Promise<DatasetShardResult>[] = []
+        for (const ref of missing.slice(start, start + parallelReads)) {
+          pending.push(this.loadRemoteDatasetShard(provider, dataset.id, ref, guard, id, prefetched))
+        }
+        const results = await Promise.all(pending)
+        guard()
+        for (const result of results) {
+          if (result.error !== undefined) throw result.error
+          const loaded = result.cache
+          if (loaded === undefined) throw new Error('sync_shard_damaged')
+          let cache = this.cache.find((item: DatasetCache): boolean => item.path === loaded.path)
+          if (cache === undefined) {
+            cache = loaded
+            this.cache.push(cache)
+            this.cacheSize += cache.bytes
+            while (this.cacheSize > 8 * 1024 * 1024 && this.cache.length > 1) this.cacheSize -= this.cache.shift()?.bytes ?? 0
+          }
+          for (const fact of cache.data) {
+            if (keys.has(fact.key)) throw new Error('sync_duplicate_fact')
+            keys.add(fact.key)
+            rows.push(businessFact(id, fact))
+          }
+        }
       }
     }
     return mergeSyncFacts([], rows)
   }
 
+  private async loadCachedDatasetShard(provider: DeviceSyncWebDav, datasetId: string, ref: SyncShardRef,
+    guard: SyncRequestGuard, id: SyncGroup): Promise<DatasetShardResult> {
+    try {
+      guard()
+      const scope = provider.cacheScope()
+      const path = scope + ':' + id + ':' + datasetId + ':' + ref.bucket + ':' + ref.bytes + ':' + syncShardPath(ref)
+      const cache = this.cache.find((item: DatasetCache): boolean => item.path === path)
+      if (cache !== undefined) return { cache }
+      if (this.shardCache !== undefined) {
+        let stored: string | undefined
+        try { stored = await this.shardCache.read(scope, id, datasetId, ref) } catch (_error) {}
+        guard()
+        if (stored !== undefined) {
+          const checked = await taskpool.execute(validateSyncShard, id, datasetId, ref, stored,
+            datasetId === coverDatasetId(id)) as CheckedShard
+          guard()
+          if (checked.data !== undefined) return { cache: { path, data: checked.data, bytes: ref.bytes } }
+        }
+      }
+      return {}
+    } catch (error) { return { error: error as Error } }
+  }
+
+  private async loadRemoteDatasetShard(provider: DeviceSyncWebDav, datasetId: string, ref: SyncShardRef,
+    guard: SyncRequestGuard, id: SyncGroup, prefetched: Map<string, string>): Promise<DatasetShardResult> {
+    try {
+      guard()
+      const scope = provider.cacheScope()
+      const path = scope + ':' + id + ':' + datasetId + ':' + ref.bucket + ':' + ref.bytes + ':' + syncShardPath(ref)
+      const prefetchedBody = prefetched.get(syncShardPath(ref))
+      const body = prefetchedBody ?? await (ref.slot === undefined ? provider.readObject(ref, guard) :
+        provider.readSharedObject(datasetId, ref, guard))
+      const checked = await taskpool.execute(validateSyncShard, id, datasetId, ref, body,
+        datasetId === coverDatasetId(id)) as CheckedShard
+      guard()
+      if (checked.data === undefined) throw new Error(checked.error ?? 'sync_shard_damaged')
+      if (prefetchedBody !== undefined) provider.confirmPrefetchedObject(ref)
+      if (this.shardCache !== undefined) {
+        try { await this.shardCache.write(scope, id, datasetId, ref, body) } catch (_error) {}
+        guard()
+      }
+      return { cache: { path, data: checked.data, bytes: ref.bytes } }
+    } catch (error) {
+      return { error: error as Error }
+    }
+  }
+
   private damagedGroup(error: Error): boolean {
-    return error.message === 'sync_shard_missing' || error.message === 'sync_shard_damaged'
+    return error.message === 'sync_shard_missing' || error.message === 'sync_shard_damaged' ||
+      error.message === 'sync_pack_not_found' || error.message === 'sync_pack_incomplete' ||
+      error.message === 'sync_legacy_archive_unavailable' || error.message === 'sync_legacy_archive_incomplete'
   }
 
   private async loadGroup(provider: DeviceSyncWebDav, refs: SyncDatasetRef[], id: SyncGroup,
@@ -973,7 +1248,8 @@ export class DeviceSyncEngine {
 
   private async prepareGroups(provider: DeviceSyncWebDav, selected: SyncGroup[], connection: SyncSavedConnection | undefined,
     manifest: SyncManifest | undefined, guard: SyncRequestGuard, verifyPublic: boolean, transport?: SyncRemoteManifest,
-    automatic: boolean = false, groupErrors?: string[]): Promise<PreparedGroup[]> {
+    automatic: boolean = false, groupErrors?: string[], endpoint: string = ''): Promise<PreparedGroup[]> {
+    provider.beginShardReadRound()
     let budget = SYNC_MAX_ROUND_BYTES
     const groups: PreparedGroup[] = []
     for (const id of selected) {
@@ -986,7 +1262,16 @@ export class DeviceSyncEngine {
       try {
         const refs = groupDatasets(manifest, id)
         const local = await this.owner.snapshot(id, verifyPublic, guard, manifest?.space ?? connection?.space ?? '', !automatic)
-        const previous = businessGroup(connection?.groups.find((row: SyncGroupState): boolean => row.id === id))
+        let previous = businessGroup(connection?.groups.find((row: SyncGroupState): boolean => row.id === id))
+        const staged = this.storage.load().stagedRecovery?.find((row: SyncStagedRecovery): boolean =>
+          row.endpointIdentity === endpoint && row.space === provider.spaceId())?.groups.find((row: SyncGroupState): boolean => row.id === id)
+        if (staged !== undefined) previous = mergeStagedGroup(previous, businessGroup(staged) as SyncGroupState)
+        const intent = this.storage.load().intent
+        if (intent !== undefined && !intent.sent && !intent.detached && intent.connection.endpointIdentity === endpoint &&
+          intent.connection.space === provider.spaceId()) {
+          const pending = intent.staged?.find((row: SyncGroupState): boolean => row.id === id)
+          if (pending !== undefined) previous = mergeStagedGroup(previous, businessGroup(pending) as SyncGroupState)
+        }
         let remote: SyncFact[]
         try { remote = await load(refs) } catch (error) {
           const failure = error as Error
@@ -1061,6 +1346,9 @@ export class DeviceSyncEngine {
           removed, published, migrating, coverUnavailable })
       } catch (error) {
         guard()
+        // A reader racing retired remote snapshots must restart the whole
+        // round against freshly discovered heads, not apply a partial group.
+        if ((error as Error).message === 'sync_remote_changed') throw error as Error
         if (groupErrors === undefined) throw error as Error
         groupErrors.push((error as Error).message)
       }
@@ -1166,14 +1454,71 @@ export class DeviceSyncEngine {
   }
 
   private async preparePlan(groups: PreparedGroup[], remote: SyncRemoteManifest, choices: SyncMergeChoice[],
-    space: string, guard: SyncRequestGuard): Promise<ProposedSync> {
+    space: string, guard: SyncRequestGuard, endpoint: string): Promise<ProposedSync> {
     const state = this.storage.load()
-    const transport: SyncPlanTransport = { writer: remote.writer, ownWritable: remote.ownWritable, own: remote.own }
+    const replans = (remote.sharedHash === undefined ? state.replanIntents ?? [] : []).filter((intent: SyncCommitIntent): boolean =>
+      intent.connection.endpointIdentity === endpoint && intent.connection.space === space)
+    let own = remote.own
+    if (replans.length > 0) {
+      // Keep unselected and unknown datasets opaque, even when the failed
+      // publication has to be superseded by a later same-writer revision.
+      const newest = replans.reduce((a: SyncCommitIntent, b: SyncCommitIntent): SyncCommitIntent =>
+        a.connection.revision >= b.connection.revision ? a : b)
+      const original = (JSON.parse(newest.commitBody ?? '{}') as SyncReplanPublication).manifest
+      if (original === undefined) throw new Error('sync_remote_result_unknown')
+      if (own === undefined || own.revision <= original.revision) {
+        const base = copySyncManifest(own ?? original)
+        const selected = selectedDatasetIds(groups.map((group: PreparedGroup): SyncGroup => group.id))
+        const overlay = (current: SyncDatasetRef[], saved: SyncDatasetRef[]): SyncDatasetRef[] =>
+          current.filter((ref: SyncDatasetRef): boolean => selected.includes(ref.id) ||
+            !saved.some((entry: SyncDatasetRef): boolean => entry.id === ref.id))
+            .concat(saved.filter((ref: SyncDatasetRef): boolean => !selected.includes(ref.id)))
+        base.datasets = overlay(own?.datasets ?? [], original.datasets)
+        base.alternatives = overlay(own?.alternatives ?? [], original.alternatives ?? [])
+        own = base
+      }
+    }
+    const transport: SyncPlanTransport = { writer: remote.writer, shared: remote.sharedHash !== undefined,
+      ownWritable: remote.sharedHash === undefined ? remote.ownWritable : undefined, own }
     const checked = await taskpool.execute(prepareSyncPlan, groups, remote.manifest, choices,
       space, state.replica, state.counter, transport) as CheckedPlan
     guard()
     if (checked.plan === undefined) throw new Error(checked.error ?? 'sync_invalid_plan')
+    if (replans.length > 0) {
+      if (!remote.writer || remote.ownWritable === false) throw new Error('sync_remote_result_unknown')
+      const floor = replans.reduce((value: number, intent: SyncCommitIntent): number =>
+        Math.max(value, intent.connection.revision), 0)
+      checked.plan.manifest = copySyncManifest(checked.plan.manifest)
+      checked.plan.manifest.revision = Math.max(checked.plan.manifest.revision, floor + 1)
+      checked.plan.publish = true
+    }
     return checked.plan
+  }
+
+  private configureReplans(provider: DeviceSyncWebDav, endpoint: string): void {
+    this.configureArchiveWitness(provider, endpoint)
+    for (const intent of this.storage.load().replanIntents ?? []) {
+      if (intent.connection.endpointIdentity !== endpoint || intent.connection.space !== provider.spaceId()) continue
+      if (intent.commit === undefined || intent.commitBody === undefined) throw new Error('sync_remote_result_unknown')
+      provider.excludeV4Publication(intent.commit, intent.commitBody)
+    }
+  }
+
+  private configureArchiveWitness(provider: DeviceSyncWebDav, endpoint: string): void {
+    provider.setRoundMetrics(this.roundMetrics)
+    const space = provider.spaceId()
+    provider.configureArchiveWitness(
+      (kind: string): boolean => (this.storage.load().archiveSeen ?? []).some((row: SyncArchiveSeen): boolean =>
+        row.endpointIdentity === endpoint && row.space === space && row.kind === kind),
+      async (kind: string, guard: SyncRequestGuard): Promise<void> => {
+        await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
+          const rows = state.archiveSeen ?? []
+          if (rows.some((row: SyncArchiveSeen): boolean =>
+            row.endpointIdentity === endpoint && row.space === space && row.kind === kind)) return false
+          state.archiveSeen = rows.concat({ endpointIdentity: endpoint, space, kind })
+          return true
+        }, guard)
+      })
   }
 
   private async assertRevisions(revisions: SyncOwnerRevision[]): Promise<SyncLocalSnapshot[]> {
@@ -1189,6 +1534,19 @@ export class DeviceSyncEngine {
   private async execute(provider: DeviceSyncWebDav, prior: SyncSavedConnection | undefined, credential: string,
     selected: SyncGroup[], remote: SyncRemoteManifest, proposal: ProposedSync, guard: SyncRequestGuard,
     manualPreview: boolean, endpoint: string, reviewedGroups: PreparedGroup[] = [], activate: boolean = false): Promise<void> {
+    const shared = remote.sharedHash !== undefined
+    if (remote.sharedHash === '') {
+      // A partial legacy view must not become the authoritative index:
+      // subsequent rounds would stop discovering the omitted old heads.
+      if (remote.warning) throw new Error(remote.warning)
+      proposal.manifest = copySyncManifest(proposal.manifest)
+      if (!proposal.publish) proposal.manifest.revision++
+      await provider.prepareSharedMigration(proposal.manifest, proposal.objects, guard)
+      if (remote.manifest !== undefined) {
+        proposal.manifest.legacyMigration = { frontier: remote.frontier ?? [], legacyHash: remote.legacyHash }
+      }
+      proposal.publish = true
+    }
     let groups = prior?.groups.slice() ?? []
     proposal.groups.forEach((row: SyncGroupState): void => { groups = replaceGroup(groups, row) })
     const connection: SyncSavedConnection = {
@@ -1201,6 +1559,53 @@ export class DeviceSyncEngine {
       enabled: activate ? true : prior?.enabled ?? true,
     }
     guard()
+    // Freeze exact v4 object locations before persisting the publication intent;
+    // preparation only reads existing objects and performs no remote writes.
+    if (!shared && proposal.publish && remote.journal && remote.writer) {
+      const repairs = await provider.preparePublication(proposal.manifest, proposal.objects,
+        proposal.writtenDatasets ?? selectedDatasetIds(selected), guard,
+        async (datasetId: string, ref: SyncShardRef): Promise<string | undefined> => {
+          if (this.shardCache === undefined) return undefined
+          for (const group of selected) {
+            if (!groupDatasets(proposal.manifest, group).some((dataset: SyncDatasetRef): boolean => dataset.id === datasetId)) continue
+            let body: string | undefined
+            try { body = await this.shardCache.read(provider.cacheScope(), group, datasetId, ref) } catch (_error) {}
+            guard()
+            if (body === undefined) continue
+            const checked = await taskpool.execute(validateSyncShard, group, datasetId, ref, body,
+              datasetId === coverDatasetId(group)) as CheckedShard
+            guard()
+            if (checked.data !== undefined) return body
+          }
+          return undefined
+        })
+      proposal.objects.push(...repairs)
+      guard()
+    }
+    // Locally produced shards are just as useful for later repair as shards
+    // received from another device. Cache only after the same full validation;
+    // this cache never serves as proof that a remote object still exists.
+    if (this.shardCache !== undefined) {
+      for (const object of proposal.objects) {
+        for (const group of shared ? SYNC_GROUPS : selected) {
+          const dataset = groupDatasets(proposal.manifest, group)
+            .concat(syncDatasetBranches(proposal.manifest, coverDatasetId(group)))
+            .find((entry: SyncDatasetRef): boolean => (object.dataset === undefined || entry.id === object.dataset) &&
+              entry.shards.some((ref: SyncShardRef): boolean => syncShardPath(ref) === syncShardPath(object.ref)))
+          if (dataset === undefined) continue
+          const checked = await taskpool.execute(validateSyncShard, group, dataset.id, object.ref, object.body,
+            dataset.id === coverDatasetId(group)) as CheckedShard
+          guard()
+          if (checked.data === undefined) throw new Error('sync_shard_damaged')
+          try { await this.shardCache.write(provider.cacheScope(), group, dataset.id, object.ref, object.body) } catch (_error) {}
+          guard()
+          break
+        }
+      }
+    }
+    const writtenDatasets = shared ?
+      Array.from(new Set<string>(proposal.objects.map((object: SyncObject): string => object.dataset ?? ''))) :
+      proposal.writtenDatasets
     await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
       if (state.counter !== proposal.initialCounter) throw new Error('sync_preview_changed')
       state.counter = proposal.counter
@@ -1213,11 +1618,12 @@ export class DeviceSyncEngine {
         })
       }
       const detached = state.intent
+      if (detached !== undefined && !detached.sent) preserveStaged(state, detached)
       if (detached !== undefined && (detached.sent || detached.detached || detached.connection.endpointIdentity !== endpoint)) {
         const archived: SyncCommitIntent = { connection: copySyncConnection(detached.connection),
           expected: detached.expected, sent: detached.sent, detached: true,
           groupRevisions: detached.groupRevisions, applies: detached.applies, commit: detached.commit, commitBody: detached.commitBody,
-          writtenDatasets: detached.writtenDatasets }
+          writtenDatasets: detached.writtenDatasets, staged: detached.staged, shared: detached.shared }
         archived.connection.credential = ''
         state.archivedIntents = (state.archivedIntents ?? []).filter((item: SyncCommitIntent): boolean =>
           item.connection.endpointIdentity !== detached.connection.endpointIdentity ||
@@ -1228,10 +1634,11 @@ export class DeviceSyncEngine {
         const ref = detached.connection.credential
         if (ref && !state.retiredCredentials?.includes(ref)) state.retiredCredentials = (state.retiredCredentials ?? []).concat(ref)
       }
-      const commit = proposal.publish && remote.journal ? provider.commitName(proposal.manifest, remote.frontier ?? []) : undefined
-      const commitBody = commit === undefined ? undefined : provider.commitBody(proposal.manifest, remote.frontier ?? [])
-      state.intent = { connection, expected: remote.etag, sent: false, groupRevisions: proposal.revisions,
-        applies: proposal.applies, commit, commitBody, writtenDatasets: proposal.writtenDatasets }
+      const commit = !shared && proposal.publish && remote.journal ?
+        provider.commitName(proposal.manifest, remote.frontier ?? [], proposal.objects) : undefined
+      const commitBody = commit === undefined ? undefined : provider.commitBody(proposal.manifest, remote.frontier ?? [], proposal.objects)
+      state.intent = { connection, expected: remote.etag, sent: false, shared, groupRevisions: proposal.revisions,
+        applies: proposal.applies, commit, commitBody, writtenDatasets, staged: proposal.staged }
       if (activate) {
         if (state.pendingConfiguration?.endpointIdentity === endpoint) state.pendingConfiguration.enabled = true
         if (state.active?.endpointIdentity === endpoint) state.active.enabled = true
@@ -1239,7 +1646,36 @@ export class DeviceSyncEngine {
       state.retiredCredentials = state.retiredCredentials?.filter((ref: string): boolean => ref !== credential)
       return true
     }, guard)
-    for (const object of proposal.objects) await provider.storeObject(object, guard)
+    let singles = proposal.objects
+    if (!shared && proposal.publish && remote.journal && remote.writer) {
+      const expectedCommit = this.storage.load().intent?.commit
+      const checkIntent = (state: SyncLocalDocument): void => {
+        if (state.intent === undefined || state.intent.sent || state.intent.commit !== expectedCommit ||
+          state.intent.connection.endpointIdentity !== endpoint || state.intent.connection.space !== connection.space) {
+          throw new Error('sync_local_changed')
+        }
+      }
+      singles = await provider.writePlannedPacks(guard, async (path: string): Promise<void> => {
+        await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
+          checkIntent(state)
+          const rows = state.archivePending ?? []
+          if (rows.some((row: SyncArchivePending): boolean => row.endpointIdentity === endpoint &&
+            row.space === connection.space && row.path === path)) throw new Error('sync_replan_required')
+          state.archivePending = rows.concat({ endpointIdentity: endpoint, space: connection.space, path, startedAt: Date.now() })
+          return true
+        }, guard)
+      }, async (path: string): Promise<void> => {
+        await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
+          checkIntent(state)
+          const rows = state.archivePending ?? []
+          state.archivePending = rows.filter((row: SyncArchivePending): boolean => row.endpointIdentity !== endpoint ||
+            row.space !== connection.space || row.path !== path)
+          return state.archivePending.length !== rows.length
+        }, guard)
+      })
+      guard()
+    }
+    if (!shared) for (const object of singles) await provider.storeObject(object, guard)
     if (manualPreview) await this.assertRevisions(proposal.revisions)
     let sent = false
     const beforeSend = async (): Promise<void> => {
@@ -1247,8 +1683,8 @@ export class DeviceSyncEngine {
         const intent = state.intent
         if (intent === undefined) throw new Error('sync_connection_changed')
         state.intent = { connection: intent.connection, expected: intent.expected, sent: true,
-          detached: intent.detached, groupRevisions: intent.groupRevisions, applies: intent.applies,
-          commit: intent.commit, commitBody: intent.commitBody, writtenDatasets: intent.writtenDatasets }
+          detached: intent.detached, shared: intent.shared, groupRevisions: intent.groupRevisions, applies: intent.applies,
+          commit: intent.commit, commitBody: intent.commitBody, writtenDatasets: intent.writtenDatasets, staged: intent.staged }
         return true
       }, guard)
       guard()
@@ -1256,15 +1692,23 @@ export class DeviceSyncEngine {
     }
     let receipt: SyncRemoteManifest
     try {
-      if (proposal.publish && !(await provider.publish(proposal.manifest, remote.etag, guard, beforeSend,
-        proposal.writtenDatasets ?? selectedDatasetIds(selected)))) {
-        this.storage.update((state: SyncLocalDocument): void => { state.intent = undefined })
-        throw new Error(manualPreview ? 'sync_preview_changed' : 'sync_remote_changed')
+      if (shared) {
+        receipt = proposal.publish ? await provider.publishShared(proposal.manifest, proposal.objects, remote.sharedHash ?? '',
+          guard, beforeSend) : manualPreview ? await provider.readSyncState(guard, remote.etag) : remote
+      } else {
+        if (proposal.publish && !(await provider.publish(proposal.manifest, remote.etag, guard, beforeSend,
+          proposal.writtenDatasets ?? selectedDatasetIds(selected)))) {
+          this.storage.update((state: SyncLocalDocument): void => {
+            if (state.intent !== undefined && !state.intent.sent) preserveStaged(state, state.intent)
+            state.intent = undefined
+          })
+          throw new Error(manualPreview ? 'sync_preview_changed' : 'sync_remote_changed')
+        }
+        const commit = this.storage.load().intent?.commit
+        receipt = proposal.publish && commit !== undefined ?
+          (await provider.readCommit(commit, guard)) ?? { etag: '', hash: '' } :
+          remote.writer && !manualPreview ? remote : await provider.readManifest(guard, proposal.publish ? '' : remote.etag)
       }
-      const commit = this.storage.load().intent?.commit
-      receipt = proposal.publish && commit !== undefined ?
-        (await provider.readCommit(commit, guard)) ?? { etag: '', hash: '' } :
-        remote.writer && !manualPreview ? remote : await provider.readManifest(guard, proposal.publish ? '' : remote.etag)
     } catch (error) {
       const code = (error as Error).message
       // The durable intent has crossed the PUT boundary. An interrupted
@@ -1292,7 +1736,8 @@ export class DeviceSyncEngine {
       if (this.storage.load().counter !== proposal.counter) throw new Error('sync_local_changed')
       const committed = applyReceiptBaselines(proposal.remaining, proposal.applies)
       this.storage.update((state: SyncLocalDocument): void => {
-        this.finishLocalReceipt(state, connection, committed, localReceipt)
+        this.finishLocalReceipt(state, connection, committed, localReceipt,
+          proposal.publish && state.intent?.commit?.startsWith('v4/' + this.publicationWriter() + '/') === true)
         // Only the exact remote dots of the old, same-space plan prove that
         // it was accepted or superseded. A new merge does not stand in for it.
         state.archivedIntents = state.archivedIntents?.filter((entry: SyncCommitIntent): boolean => {
@@ -1331,10 +1776,20 @@ export class DeviceSyncEngine {
   }
 
   private finishLocalReceipt(state: SyncLocalDocument, connection: SyncSavedConnection,
-    committed: SyncGroupState[], localReceipt: string): void {
+    committed: SyncGroupState[], localReceipt: string, fencedReplans: boolean = false): void {
     const replaced = state.active
     const pending = state.pendingConfiguration
     state.intent = undefined
+    if (fencedReplans) {
+      state.replanIntents = state.replanIntents?.filter((intent: SyncCommitIntent): boolean =>
+        intent.connection.endpointIdentity !== connection.endpointIdentity || intent.connection.space !== connection.space ||
+        intent.connection.revision >= connection.revision)
+    }
+    state.stagedRecovery = state.stagedRecovery?.map((entry: SyncStagedRecovery): SyncStagedRecovery => {
+      if (entry.endpointIdentity !== connection.endpointIdentity || entry.space !== connection.space) return entry
+      return { endpointIdentity: entry.endpointIdentity, space: entry.space,
+        groups: entry.groups.filter((group: SyncGroupState): boolean => !committed.some((item: SyncGroupState): boolean => item.id === group.id)) }
+    }).filter((entry: SyncStagedRecovery): boolean => entry.groups.length > 0)
     state.localReceipt = localReceipt
     if (replaced !== undefined && replaced.endpointIdentity !== connection.endpointIdentity) {
       const archived = copySyncConnection(replaced)
@@ -1375,7 +1830,8 @@ export class DeviceSyncEngine {
   private receiptFrontier(previous: string[] | undefined, receipt: SyncRemoteManifest): string[] | undefined {
     const paths = receipt.frontier?.slice()
     if (receipt.writer !== true || paths?.length !== 1 || !paths[0].includes('/')) return paths
-    const prefix = paths[0].split('/')[0] + '/'
+    const parts = paths[0].split('/')
+    const prefix = parts[0] === 'v4' ? parts.slice(0, 2).join('/') + '/' : parts[0] + '/'
     return (previous ?? []).filter((path: string): boolean => !path.startsWith(prefix)).concat(paths).sort()
   }
 
@@ -1424,7 +1880,7 @@ export class DeviceSyncEngine {
       confirmed.groups = groups
       state.intent = { connection: confirmed, expected: state.intent.expected, sent: state.intent.sent, detached: state.intent.detached,
         groupRevisions: state.intent.groupRevisions, applies: state.intent.applies, commit: state.intent.commit, commitBody: state.intent.commitBody,
-        writtenDatasets: state.intent.writtenDatasets }
+        writtenDatasets: state.intent.writtenDatasets, staged: state.intent.staged, shared: state.intent.shared }
     })
   }
 
@@ -1443,8 +1899,13 @@ export class DeviceSyncEngine {
     return provider.readManifest(guard)
   }
 
-  private async maybeMaintain(provider: DeviceSyncWebDav, guard: SyncRequestGuard): Promise<void> {
-    return // V2 keeps immutable ancestry; the v1 epoch collector cannot protect late writers.
+  private retireLegacy(draft: SyncConnectionDraft, manifest: SyncManifest, guard: SyncRequestGuard): void {
+    if (manifest.legacyMigration === undefined || this.retiringLegacy) return
+    const provider = new DeviceSyncWebDav(draft, [], manifest.space, this.publicationWriter())
+    this.retiringLegacy = true
+    void provider.retireMigratedLegacy(guard).catch((error: Error): void => {
+      console.warn('[KomaSync] Legacy cleanup remains pending: ' + error.message)
+    }).finally((): void => { this.retiringLegacy = false })
   }
 
   private rememberRetired(ref: string): void {
@@ -1526,7 +1987,7 @@ export class DeviceSyncEngine {
       connection.selected = selected.slice()
       state.intent = { connection, expected: intent.expected, sent: intent.sent, detached: intent.detached,
         commit: intent.commit, commitBody: intent.commitBody, applies: intent.applies, groupRevisions: intent.groupRevisions,
-        writtenDatasets: intent.writtenDatasets }
+        writtenDatasets: intent.writtenDatasets, staged: intent.staged, shared: intent.shared }
     }
   }
 
@@ -1684,13 +2145,22 @@ export class DeviceSyncEngine {
     }, guard)
   }
 
-  private async recoverIntent(): Promise<void> {
-    if (!this.isEnabled()) return
+  private async recoverIntent(allowDisabled: boolean = false, requestGuard?: SyncRequestGuard): Promise<void> {
+    if (!this.isEnabled() && !allowDisabled) return
     const starting = this.storage.load()
     const intent = starting.intent
     if (intent === undefined || intent.detached || this.restoreInProgress) return
     if (!intent.sent) {
-      this.storage.update((state: SyncLocalDocument): void => { state.intent = undefined })
+      // Old clients did not save staged observations. Since this intent never
+      // crossed the send boundary, re-snapshot the owner on the next plan;
+      // do not adopt its proposed remote merge or rewind the local counter.
+      this.storage.update((state: SyncLocalDocument): void => {
+        if (state.intent === undefined || state.intent.sent || state.intent.commit !== intent.commit ||
+          state.intent.expected !== intent.expected || state.intent.connection.space !== intent.connection.space ||
+          state.intent.connection.endpointIdentity !== intent.connection.endpointIdentity) throw new Error('sync_local_changed')
+        preserveStaged(state, intent)
+        state.intent = undefined
+      })
       this.rememberRetired(intent.connection.credential)
       return
     }
@@ -1698,24 +2168,78 @@ export class DeviceSyncEngine {
     const connection = intent.connection
     // An explicit disable seals its intent when changing selection. An old
     // active selection alone can also mean that enabling a group was interrupted.
-    const guard = this.transferGuard(this.generation)
+    const generationGuard = allowDisabled ? this.guard(this.generation) : this.transferGuard(this.generation)
+    const guard = (): void => { generationGuard(); requestGuard?.() }
     const configured = this.configuration()
     const credential = configured?.endpointIdentity === connection.endpointIdentity ? configured.credential : connection.credential
     const provider = new DeviceSyncWebDav(await readSyncCredential(credential), connection.frontier, connection.space, this.publicationWriter())
-    let receipt = intent.commit !== undefined ? await provider.readCommit(intent.commit, guard) :
-      connection.frontier !== undefined ? await provider.readManifest(guard) : await provider.readLegacyManifest(guard)
-    if (receipt === undefined && intent.commitBody !== undefined) {
+    this.configureArchiveWitness(provider, connection.endpointIdentity)
+    let receipt: SyncRemoteManifest | undefined
+    try {
+      if (intent.shared !== true && (await provider.readSharedHead(guard)).manifest !== undefined) {
+        // Older pending edits are merged into the shared snapshot on this
+        // device. Replaying their old publication would recreate the old tree.
+        guard()
+        this.storage.update((state: SyncLocalDocument): void => {
+          if (state.intent !== intent) throw new Error('sync_local_changed')
+          preserveStaged(state, intent)
+          state.intent = undefined
+        })
+        return
+      }
+      receipt = intent.shared === true ? await provider.readSyncState(guard) :
+        intent.commit !== undefined ? await provider.readCommit(intent.commit, guard) :
+        connection.frontier !== undefined ? await provider.readManifest(guard) : await provider.readLegacyManifest(guard)
+      if (receipt !== undefined && intent.commit?.startsWith('v4/') === true && intent.commitBody !== undefined) {
+        await provider.verifyV4Publication(intent.commit, intent.commitBody,
+          intent.writtenDatasets ?? selectedDatasetIds(connection.selected), guard)
+      }
+      if (receipt === undefined && intent.commitBody !== undefined) {
       // An absent reply may mean the original PUT never arrived. Replaying the
       // exact immutable bytes is safe even if that original request arrives late.
-      receipt = await provider.retryCommit(intent.commitBody, guard,
-        intent.writtenDatasets ?? selectedDatasetIds(connection.selected), intent.commit)
+        receipt = await provider.retryCommit(intent.commitBody, guard,
+          intent.writtenDatasets ?? selectedDatasetIds(connection.selected), intent.commit)
+      }
+    } catch (error) {
+        if ((error as Error).message !== 'sync_replan_required' ||
+          intent.commit === undefined || intent.commitBody === undefined ||
+          !intent.commit.startsWith('v4/' + this.publicationWriter() + '/')) throw error as Error
+        guard()
+        // Keep the exact old publication as an exclusion fence until a newer
+        // same-writer head is confirmed, including across another restart.
+        provider.excludeV4Publication(intent.commit, intent.commitBody)
+        this.storage.update((state: SyncLocalDocument): void => {
+          if (state.intent?.commit !== intent.commit || state.intent?.commitBody !== intent.commitBody) {
+            throw new Error('sync_local_changed')
+          }
+          preserveStaged(state, intent)
+          const remaining = (state.replanIntents ?? []).filter((entry: SyncCommitIntent): boolean =>
+            entry.commit !== intent.commit || entry.commitBody !== intent.commitBody)
+          state.replanIntents = remaining.concat(intent)
+          state.intent = undefined
+        })
+        return
     }
     if (receipt === undefined) throw new Error('sync_remote_result_unknown')
+    if (intent.shared === true && receipt.hash !== connection.manifestHash) {
+      // The previous shared index is still readable after a partial write.
+      // Replan from current remote data and the original local edits.
+      guard()
+      this.storage.update((state: SyncLocalDocument): void => {
+        if (state.intent !== intent) throw new Error('sync_local_changed')
+        preserveStaged(state, intent)
+        state.intent = undefined
+      })
+      return
+    }
     if (active?.space === connection.space && intent.commit === undefined) this.checkHighWater(active, receipt)
     if (receipt.hash !== connection.manifestHash && receipt.etag === intent.expected) {
       // A process can stop between persisting the sending intent and issuing
       // its conditional request. The original head still admits a fresh plan.
-      this.storage.update((state: SyncLocalDocument): void => { state.intent = undefined })
+      this.storage.update((state: SyncLocalDocument): void => {
+        if (state.intent !== undefined) preserveStaged(state, state.intent)
+        state.intent = undefined
+      })
       await this.removeUnusedCredential(connection.credential)
       return
     }
@@ -1748,12 +2272,23 @@ export class DeviceSyncEngine {
       })
       return
     }
+    if (intent.shared === true && (intent.writtenDatasets?.length ?? 0) > 0) {
+      const manifest = receipt.manifest
+      await provider.verifySharedWrite(receipt, intent.writtenDatasets ?? [], guard,
+        async (id: string, ref: SyncShardRef): Promise<string | undefined> => {
+          const group = SYNC_GROUPS.find((entry: SyncGroup): boolean =>
+            groupDatasets(manifest, entry).some((dataset: SyncDatasetRef): boolean => dataset.id === id) ||
+              coverDatasetId(entry) === id)
+          if (group === undefined || this.shardCache === undefined) return undefined
+          return this.shardCache.read(provider.cacheScope(), group, id, ref)
+        })
+    }
     let snapshots: SyncLocalSnapshot[] = []
     try {
       snapshots = await this.assertRevisions(intent.groupRevisions)
     } catch (_error) {
       guard()
-      if (receipt.writer && active?.space === connection.space && !syncRequiresExplicitReview(active)) {
+      if ((receipt.writer || intent.shared === true) && active?.space === connection.space && !syncRequiresExplicitReview(active)) {
         // A new reading save can race the old local apply. The exact remote
         // publication is already durable. The next plan reads it and applies
         // against the latest owner snapshots, keeping any later local dots.
@@ -1789,7 +2324,8 @@ export class DeviceSyncEngine {
       guard()
       if (this.storage.load().counter !== starting.counter) throw new Error('sync_local_changed')
       this.storage.update((state: SyncLocalDocument): void => {
-        this.finishLocalReceipt(state, connection, committed, localReceipt)
+        this.finishLocalReceipt(state, connection, committed, localReceipt,
+          intent.commit?.startsWith('v4/' + this.publicationWriter() + '/') === true)
       })
     })
   }

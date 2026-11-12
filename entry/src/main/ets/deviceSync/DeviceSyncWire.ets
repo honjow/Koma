@@ -12,12 +12,18 @@ export interface SyncShardRef {
   epoch: number
   hash: string
   bytes: number
+  slot?: string
 }
 
 export interface SyncDatasetRef {
   id: string
   schema: number
   shards: SyncShardRef[]
+}
+
+export interface SyncLegacyMigration {
+  frontier: string[]
+  legacyHash?: string
 }
 
 export interface SyncManifest {
@@ -32,17 +38,19 @@ export interface SyncManifest {
   previous: SyncDatasetRef[]
   // Unselected/unknown groups retain every concurrent branch without reading their data.
   alternatives?: SyncDatasetRef[]
+  legacyMigration?: SyncLegacyMigration
 }
 
 export interface SyncObject {
   ref: SyncShardRef
   body: string
+  dataset?: string
 }
 
 export function copySyncManifest(value: SyncManifest, space: string = value.space): SyncManifest {
   return { format: value.format, schema: value.schema, minWriter: value.minWriter, space,
     revision: value.revision, epoch: value.epoch, maintenance: value.maintenance, datasets: value.datasets,
-    previous: value.previous, alternatives: value.alternatives }
+    previous: value.previous, alternatives: value.alternatives, legacyMigration: value.legacyMigration }
 }
 
 export interface SyncDataset {
@@ -96,9 +104,10 @@ export function checkedSyncDatasets(datasets: SyncDatasetRef[], epoch: number): 
     ids.add(dataset.id)
     const buckets = new Set<string>()
     dataset.shards.forEach((ref: SyncShardRef): void => {
-      if (!ref || typeof ref.bucket !== 'string' || !/^(0[0-9a-f]|[1-3][0-9a-f])(-[0-9a-f]{1,64})?$/.test(ref.bucket) ||
+      if (!ref || typeof ref.bucket !== 'string' || !/^(?:0[0-9a-f]|[1-3][0-9a-f]|g-[0-7])(?:-[0-9a-f]{1,64})?$/.test(ref.bucket) ||
         !validNumber(ref.epoch, 1, epoch) || !isSyncDigest(ref.hash) ||
-        !validNumber(ref.bytes, 1, SYNC_MAX_OBJECT_BYTES) || buckets.has(ref.bucket)) {
+        !validNumber(ref.bytes, 1, SYNC_MAX_OBJECT_BYTES) || buckets.has(ref.bucket) ||
+        (ref.bucket.startsWith('g-') ? ref.slot !== 'a' && ref.slot !== 'b' : ref.slot !== undefined)) {
         throw new Error('sync_invalid_shard_reference')
       }
       buckets.add(ref.bucket)
@@ -128,6 +137,10 @@ export function decodeSyncManifest(body: string): SyncManifest {
     }
     manifest.alternatives.forEach((ref: SyncDatasetRef): void => { checkedSyncDatasets([ref], manifest.epoch) })
   }
+  const migration = manifest.legacyMigration
+  if (migration !== undefined && (!migration || !Array.isArray(migration.frontier) ||
+    migration.frontier.some((path: string): boolean => typeof path !== 'string' || path.length > 240) ||
+    (migration.legacyHash !== undefined && !isSyncDigest(migration.legacyHash)))) throw new Error('sync_invalid_manifest')
   return manifest
 }
 
@@ -149,6 +162,12 @@ export function syncRootBucket(key: string): string {
   return (parseInt(syncDigest(key).substring(0, 2), 16) & 63).toString(16).padStart(2, '0')
 }
 
+/** Keep small datasets together. Reading and catalog data are larger and change independently. */
+export function sharedSyncRootBucket(dataset: string, key: string): string {
+  const count = dataset === 'shelf-catalog-records' ? 8 : dataset === 'reading-records' ? 4 : 1
+  return 'g-' + (count === 1 ? '0' : (parseInt(syncDigest(key).charAt(0), 16) % count).toString(16))
+}
+
 function shardBody(id: string, facts: SyncFact[]): string {
   return JSON.stringify({ dataset: id, schema: 1, facts })
 }
@@ -163,20 +182,24 @@ function splitBucket(id: string, root: string, prefix: string, facts: SyncFact[]
   old: Map<string, SyncShardRef>, result: SyncDataset): void {
   const body = shardBody(id, facts)
   const bytes = syncUtf8(body).byteLength
-  if (bytes <= SYNC_MAX_OBJECT_BYTES) {
-    const bucket = prefix.length === 0 ? root : `${root}-${prefix}`
+  const bucket = prefix.length === 0 ? root : `${root}-${prefix}`
+  const shared = root.startsWith('g-')
+  const hasChildren = shared && Array.from(old.keys()).some((key: string): boolean =>
+    key.startsWith(prefix.length === 0 ? root + '-' : bucket) && key !== bucket)
+  if (bytes <= SYNC_MAX_OBJECT_BYTES && !hasChildren) {
     const hash = syncDigest(body)
     const cached = old.get(bucket)
     if (cached !== undefined && cached.hash === hash && cached.bytes === bytes) {
       result.ref.shards.push(cached)
     } else {
       const ref: SyncShardRef = { bucket, epoch, hash, bytes }
+      if (shared) ref.slot = cached?.slot === 'a' ? 'b' : 'a'
       result.ref.shards.push(ref)
-      result.objects.push({ ref, body })
+      result.objects.push(shared ? { ref, body, dataset: id } : { ref, body })
     }
     return
   }
-  if (facts.length === 1 || prefix.length >= 64) throw new Error('sync_record_too_large')
+  if (prefix.length >= 64 || (facts.length === 1 && bytes > SYNC_MAX_OBJECT_BYTES)) throw new Error('sync_record_too_large')
   const children = new Map<string, SyncFact[]>()
   facts.forEach((fact: SyncFact): void => {
     const next = syncDigest(fact.key).charAt(prefix.length)
@@ -190,12 +213,12 @@ function splitBucket(id: string, root: string, prefix: string, facts: SyncFact[]
 }
 
 export function buildSyncDataset(id: string, facts: SyncFact[], epoch: number, previous: SyncDatasetRef | undefined,
-  bucketKey: (key: string) => string): SyncDataset {
+  bucketKey: (key: string) => string, shared: boolean = false): SyncDataset {
   const roots = new Map<string, SyncFact[]>()
   const old = new Map<string, SyncShardRef>()
   previous?.shards.forEach((shard: SyncShardRef): void => { old.set(shard.bucket, shard) })
   facts.map(checkedSyncFact).sort(compareKey).forEach((fact: SyncFact): void => {
-    const key = syncRootBucket(bucketKey(fact.key))
+    const key = shared ? sharedSyncRootBucket(id, bucketKey(fact.key)) : syncRootBucket(bucketKey(fact.key))
     const rows = roots.get(key)
     if (rows === undefined) roots.set(key, [fact])
     else rows.push(fact)
@@ -219,8 +242,11 @@ export function decodeSyncShard(id: string, ref: SyncShardRef, body: string,
   const ids = new Set<string>()
   return shard.facts.map((raw: SyncFact): SyncFact => {
     const fact = checkedSyncFact(raw)
-    if (ids.has(fact.key) || syncRootBucket(bucketKey(fact.key)) !== parts[0] ||
-      (parts.length > 1 && !syncDigest(fact.key).startsWith(parts[1]))) throw new Error('sync_invalid_bucket')
+    const matches = parts[0] === 'g' ? sharedSyncRootBucket(id, bucketKey(fact.key)) === parts.slice(0, 2).join('-') &&
+      (parts.length === 2 || syncDigest(fact.key).startsWith(parts[2])) :
+      syncRootBucket(bucketKey(fact.key)) === parts[0] &&
+        (parts.length === 1 || syncDigest(fact.key).startsWith(parts[1]))
+    if (ids.has(fact.key) || !matches) throw new Error('sync_invalid_bucket')
     ids.add(fact.key)
     return fact
   })

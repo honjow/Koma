@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-12T23:30:11+08:00",
+  "updatedAt": "2026-11-13T02:37:46+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -85,6 +85,37 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "WEBDAV_DIRECTORY_GROWTH_20261112",
+      "number": 289,
+      "title": "WebDAV 连接失败与同步文件膨胀",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-12",
+      "reportedAtSource": "用户报告 197 持续提示无法连接及服务器文件数量膨胀。",
+      "registeredAt": "2026-11-12T22:24:00+08:00",
+      "updatedAt": "2026-11-13T02:37:46+08:00",
+      "status": "原路径已迁移并自动回收旧目录，双设备续读已验证",
+      "result": "旧版超大目录响应会导致 WebDAV 报错。197 用候选包迁移原路径，服务端确认旧协议目录已回收。随后立即同步成功。197 和 103 从历史续读打开了同一章同一页。",
+      "remaining": "候选已装测试机，待随版本交付。",
+      "relatedItems": [
+        "WEBDAV_AUTO_PROGRESS_STALE"
+      ],
+      "evidence": [
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T221358176274",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/webdav-probe-20261112T221640652308",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T223159602277",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T224450357363",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T224623142289",
+        "entry/src/main/ets/deviceSync/DeviceSyncWebDav.ets",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/navigate-20261113T023335769251",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/navigate-20261113T023713061182",
+        ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/device-sync-live-account/navigate-20261113T023714621007"
+      ]
+    },
     {
       "id": "BILIMANGA_CHAPTER_AVIF_ICC_20261112",
       "number": 290,
@@ -10519,6 +10550,65 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "webdav-directory-growth-289-live-retirement-20261113",
+      "at": "2026-11-13T02:37:46+08:00",
+      "itemId": "WEBDAV_DIRECTORY_GROWTH_20261112",
+      "title": "#289 原路径迁移、旧目录回收及双机续读",
+      "detail": "197 以候选完成原路径迁移，首次同步 131.4 秒。共享索引为 19 个分片，v1–v4 目录回查均为 404，回收标记已清除。197 的后续立即同步 2.2 秒，仅 1 次 v5 GET，无目录查询。实际续读产生变化时，两台各记录一轮 6 次 GET、2 次 PUT。197 和 103 在普通历史入口进入《護城花巫女》第一輪「神代雛」62 / 69 页，阅读器顶栏一致。两台测试后恢复休眠和 10 秒超时并释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/navigate-20261113T023335769251"
+    },
+    {
+      "id": "webdav-directory-growth-289-shared-roundtrip-20261113",
+      "at": "2026-11-13T02:22:33+08:00",
+      "itemId": "WEBDAV_DIRECTORY_GROWTH_20261112",
+      "title": "#289 真实数据以共享分片上传和读回",
+      "detail": "197 原始 PROPFIND 响应 1065482 字节触发 2300023。生产数据的一次性迁移读取用 916 个请求，将旧清单的 870 个分片引用合并为 19 个分片、2281 条事实；同一 AList 的测试目录上传成功，独立客户端共 20 次 GET 完整读回，测试目录删除后查得 404。本地集成验证了旧数据与未选阅读组的章页保留、1000 个废弃文件回收、单分片修改只写分片和索引、并发覆盖后的本机恢复。签名调试包构建成功，真实原目录未回收，最终包未做双真机续读。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "webdav-directory-growth-289-real-archive-20261113",
+      "at": "2026-11-13T00:53:07+08:00",
+      "itemId": "WEBDAV_DIRECTORY_GROWTH_20261112",
+      "title": "#289 真实归档启动并发现逐片请求",
+      "detail": "197 真实完整同步耗时 138 秒；统计显示 v3 GET 654 次、v4 GET 508 次，后者 94 次成功。真实 v3 提交从 1062 条降到 1022 条、生成 2 个归档，1833 个对象尚未整理。冷启动读取、发布复查和整理顺序正在修复。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261113T004438130029"
+    },
+    {
+      "id": "webdav-directory-growth-289-legacy-probe-20261113",
+      "at": "2026-11-13T00:28:38+08:00",
+      "itemId": "WEBDAV_DIRECTORY_GROWTH_20261112",
+      "title": "#289 真实旧目录内容副本归档验证",
+      "detail": "在真实 AList 中复制 4 条 v3 分片及 5 条提交；归档其中 7 条后逐字节读回，最新两条提交保留原路径，测试目录已删除。真实旧目录未整理，生产接线与设备验证仍未完成。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "webdav-directory-growth-289-pack-probe-20261113",
+      "at": "2026-11-13T00:14:19+08:00",
+      "itemId": "WEBDAV_DIRECTORY_GROWTH_20261112",
+      "title": "#289 真实旧分片副本归档验证",
+      "detail": "在真实 AList 中复制 4 条已校验的 v3 分片，生成两份新版归档并逐字节读回，专用测试目录已删除。真实旧目录未整理；v3 归档接线、设备验收和完整多端一致性仍需完成。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "webdav-directory-growth-289-real-devices-20261113",
+      "at": "2026-11-13T00:00:53+08:00",
+      "itemId": "WEBDAV_DIRECTORY_GROWTH_20261112",
+      "title": "#289 两台设备连接真实 WebDAV",
+      "detail": "197 同步显示下载 32 项，103 同步显示下载 13 项；两台均已恢复电源并释放租约。指定作品的章节页数读取未取得有效记录，不能据此确认多设备数据一致。旧文件归档尚未接入或清理。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/device-sync-live-account/navigate-20261112T235812463704"
+    },
+    {
+      "id": "webdav-directory-growth-289-recovery-20261112",
+      "at": "2026-11-12T23:41:54+08:00",
+      "itemId": "WEBDAV_DIRECTORY_GROWTH_20261112",
+      "title": "#289 核对已有新版记录及中断恢复",
+      "detail": "真实 WebDAV 的新版目录已有记录；连续三次目录请求成功，另一次网络请求失败。候选复用未变化分片并检查中断恢复，旧文件清理与最终真机验证仍在进行。",
+      "kind": "checkpoint"
+    },
     {
       "id": "bilimanga-avif-icc-retest-237-20261112",
       "at": "2026-11-12T23:30:11+08:00",

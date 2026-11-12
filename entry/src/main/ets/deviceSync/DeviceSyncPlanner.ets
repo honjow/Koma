@@ -51,6 +51,7 @@ export interface ProposedSync {
 
 export interface SyncPlanTransport {
   writer?: boolean
+  shared?: boolean
   ownWritable?: boolean
   own?: SyncManifest
 }
@@ -433,7 +434,7 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
         const covers = datasetId === coverDatasetId(row.id)
         if (covers && row.coverUnavailable === true) continue
         const records = outgoing.filter((fact: SyncFact): boolean => isCoverKey(fact.key) === covers)
-        const built = buildSyncDataset(datasetId, records, base.epoch, ref, syncBucketKey)
+        const built = buildSyncDataset(datasetId, records, base.epoch, ref, syncBucketKey, transport?.shared === true)
         alternatives = alternatives.filter((entry: SyncDatasetRef): boolean => entry.id !== datasetId)
         if (built.ref.shards.length > 0 || ref !== undefined) {
           datasets = datasets.filter((dataset: SyncDatasetRef): boolean => dataset.id !== datasetId).concat(built.ref)
@@ -463,7 +464,8 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
   }
   const manifest: SyncManifest = publish ? { format: base.format, schema: base.schema, minWriter: base.minWriter,
     space: base.space, revision: base.revision + 1, epoch: base.epoch, maintenance: base.maintenance,
-    datasets, previous: writer ? [] : base.datasets, alternatives } : writer ? existing ?? base : base
+    datasets, previous: writer || transport?.shared === true ? [] : base.datasets, alternatives,
+    legacyMigration: base.legacyMigration } : writer ? existing ?? base : base
   // V3 republishes the writer's unchanged refs verbatim. Verify new refs
   // here, so known damage in an unrelated old group cannot block a repair.
   const writtenDatasets = writer ? datasets.filter((ref: SyncDatasetRef): boolean =>

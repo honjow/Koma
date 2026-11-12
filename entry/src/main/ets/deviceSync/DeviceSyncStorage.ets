@@ -106,6 +106,7 @@ export interface SyncStoredApplyGroup {
 export interface SyncCommitIntent {
   connection: SyncSavedConnection
   expected: string
+  shared?: boolean
   sent: boolean
   detached?: boolean
   groupRevisions: SyncOwnerRevision[]
@@ -113,6 +114,9 @@ export interface SyncCommitIntent {
   commit?: string
   commitBody?: string
   writtenDatasets?: string[]
+  // Local observations before remote merge, for safe re-planning after an
+  // interrupted publication. Older persisted intents may not have this field.
+  staged?: SyncGroupState[]
 }
 
 export interface SyncOwnerRevision {
@@ -126,6 +130,14 @@ export interface SyncProbeRecord {
   collection?: number
 }
 
+// Local observations from a publication that never reached its send boundary.
+// They are not a remote receipt and must not activate a connection.
+export interface SyncStagedRecovery {
+  endpointIdentity: string
+  space: string
+  groups: SyncGroupState[]
+}
+
 export interface SyncLocalDocument {
   schema: number
   replica: string
@@ -137,6 +149,12 @@ export interface SyncLocalDocument {
   active?: SyncSavedConnection
   pendingConfiguration?: SyncSavedConfiguration
   intent?: SyncCommitIntent
+  stagedRecovery?: SyncStagedRecovery[]
+  // Sent v4 attempts being replaced; their identity must survive restart until
+  // a later head from the same writer is durable.
+  replanIntents?: SyncCommitIntent[]
+  archivePending?: SyncArchivePending[]
+  archiveSeen?: SyncArchiveSeen[]
   localReceipt?: string
   probes: SyncProbeRecord[]
   archives?: SyncSavedConnection[]
@@ -145,6 +163,22 @@ export interface SyncLocalDocument {
   readingReceipts?: SyncReadingReceipt[]
   readingRestoreCandidates?: SyncReadingRestoreCandidate[]
   blockedReadings?: SyncBlockedReading[]
+}
+
+export interface SyncArchivePending {
+  endpointIdentity: string
+  space: string
+  path: string
+  startedAt: number
+  checks?: number
+  nextCheckAt?: number
+  awaitingListing?: boolean
+}
+
+export interface SyncArchiveSeen {
+  endpointIdentity: string
+  space: string
+  kind: string
 }
 
 export function copySyncConnection(value: SyncSavedConnection): SyncSavedConnection {
@@ -238,7 +272,13 @@ export class DeviceSyncStorage {
         credential: current.pendingConfiguration.credential, endpointIdentity: current.pendingConfiguration.endpointIdentity,
         selected: current.pendingConfiguration.selected.slice(), automatic: current.pendingConfiguration.automatic,
         enabled: current.pendingConfiguration.enabled },
-      intent: current.intent, probes: current.probes.slice(), localReceipt: current.localReceipt,
+      intent: current.intent, stagedRecovery: current.stagedRecovery?.slice(), replanIntents: current.replanIntents?.slice(),
+      archivePending: current.archivePending?.map((row: SyncArchivePending): SyncArchivePending => ({
+        endpointIdentity: row.endpointIdentity, space: row.space, path: row.path, startedAt: row.startedAt,
+        checks: row.checks, nextCheckAt: row.nextCheckAt, awaitingListing: row.awaitingListing })),
+      archiveSeen: current.archiveSeen?.map((row: SyncArchiveSeen): SyncArchiveSeen => ({
+        endpointIdentity: row.endpointIdentity, space: row.space, kind: row.kind })),
+      probes: current.probes.slice(), localReceipt: current.localReceipt,
       archives: current.archives?.slice(), archivedIntents: current.archivedIntents?.slice(),
       retiredCredentials: current.retiredCredentials?.slice(), readingReceipts: current.readingReceipts?.slice(),
       readingRestoreCandidates: current.readingRestoreCandidates?.slice(), blockedReadings: current.blockedReadings?.slice() }

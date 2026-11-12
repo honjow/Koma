@@ -21,6 +21,9 @@ function compile(file, ports = {}, globals = {}) {
 }
 
 const facts = compile('DeviceSyncFacts')
+const metrics = compile('DeviceSyncMetrics', { '@kit.BasicServicesKit': {
+  systemDateTime: { TimeType: { STARTUP: 0 }, getUptime: () => performance.now() },
+} })
 const wire = compile('DeviceSyncWire', {
   './DeviceSyncFacts': facts,
   '@kit.ArkTS': { util: { TextEncoder: class { encodeInto(text) { return Buffer.from(text) } } } },
@@ -127,6 +130,7 @@ function runtimeFixture(extra = {}, globals = {}) {
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceRuntimeAppRegistry': {},
     './DeviceSyncEngine': { syncRequiresExplicitReview: () => false },
     './DeviceSyncFacts': facts, './DeviceSyncOwners': {}, './DeviceSyncStorage': {},
+    './DeviceSyncShardCache': { DeviceSyncShardCache: class {} },
     './DeviceSyncData': data, './DeviceSyncSignals': {},
     '../sourceRuntime/SourceIndexMetadata': {},
     ...extra,
@@ -236,7 +240,7 @@ test('received reading opens through any enabled source and identifies a missing
   assert.equal(await runtime.openReading(request), 'ready')
 })
 
-function engineFixture(providerOverride) {
+function engineFixture(providerOverride, shardCache) {
   const assets = new Map()
   const servers = new Map()
   const clone = value => value === undefined ? undefined : structuredClone(value)
@@ -250,13 +254,22 @@ function engineFixture(providerOverride) {
       const identity = wire.syncDigest(JSON.stringify([draft.directory.replace(/\/+$/, ''), draft.username.trim()]))
       this.space = space || [identity.slice(0, 8), identity.slice(8, 12), identity.slice(12, 16),
         identity.slice(16, 20), identity.slice(20, 32)].join('-')
+      this.scope = identity + ':' + this.space
     }
     spaceId() { return this.space }
+    cacheScope() { return this.scope }
+    async prefetchLegacyObjects() { return new Map() }
+    async prefetchPublicationObjects() { return new Map() }
+    async writePlannedPacks(_guard, _begin, _complete) { return this.plannedObjects ?? [] }
+    beginShardReadRound() {}
     async probe(_id, guard) {
       guard()
       if (this.server.probeError) throw new Error(this.server.probeError)
+      return true
     }
     async cleanProbe(_id, guard) { guard() }
+    async readSyncState(guard, expected = '') { return this.readManifest(guard, expected) }
+    async readSharedHead(guard) { guard(); return { etag: '', hash: '' } }
     async readManifest(guard, expected = '') {
       guard()
       this.server.reads = (this.server.reads ?? 0) + 1
@@ -324,6 +337,12 @@ function engineFixture(providerOverride) {
       return true
     }
     async sweepable() { return [] }
+    async compactWriterObjects() {}
+    async compactLegacyObjects() {}
+    async reconcileArchiveAttempts() {}
+    configureArchiveWitness() {}
+    setRoundMetrics() {}
+    setGuardMetrics() {}
   }
   const storagePort = {
     checkedSyncDraft: draft => draft,
@@ -341,11 +360,12 @@ function engineFixture(providerOverride) {
       './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncWire': wire,
     }),
     './DeviceSyncStorage': storagePort, './DeviceSyncWebDav': { DeviceSyncWebDav: providerOverride ?? Provider },
+    './DeviceSyncMetrics': metrics,
     '@kit.ArkTS': {
       util: { generateRandomUUID: randomUUID },
       taskpool: { execute: async (fn, ...args) => fn(...args) },
     },
-  })
+  }, { setTimeout: (fn, ms) => setTimeout(fn, ms === 15000 ? 1 : ms) })
   const draft = { directory: 'https://local-fixture.invalid', username: '', password: '' }
   function replica(id, initial = [], ownerFactory) {
     let document = { schema: 1, replica: id, counter: 0, probes: [] }
@@ -380,8 +400,8 @@ function engineFixture(providerOverride) {
         save(randomUUID())
       },
     }
-    return { engine: new DeviceSyncEngine(store, owner), values, store, snapshotExtras,
-      restart: () => new DeviceSyncEngine(store, owner) }
+    return { engine: new DeviceSyncEngine(store, owner, shardCache), values, store, snapshotExtras,
+      restart: () => new DeviceSyncEngine(store, owner, shardCache) }
   }
   return { replica, draft, servers, assets }
 }

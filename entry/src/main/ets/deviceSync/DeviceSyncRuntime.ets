@@ -9,6 +9,7 @@ import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import { getInstalledSourcePackage } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingRound,
   SyncReadingWorkConflict, SyncReadingWorkResult, syncRequiresExplicitReview } from './DeviceSyncEngine'
+import { DeviceSyncShardCache } from './DeviceSyncShardCache'
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { KomaDeviceSyncOwners, SyncShelfRemoval } from './DeviceSyncOwners'
 import {
@@ -116,7 +117,7 @@ class DeviceSyncRuntime {
     await owners.restoreKeptShelfDetails().catch((): void => {})
     this.owners = owners
     this.storage = storage
-    this.engine = new DeviceSyncEngine(storage, owners)
+    this.engine = new DeviceSyncEngine(storage, owners, new DeviceSyncShardCache(context.cacheDir))
     try {
       this.refresh()
       this.view.ready = true
