@@ -13,6 +13,7 @@ export interface SyncShardRef {
   hash: string
   bytes: number
   slot?: string
+  immutable?: string
 }
 
 export interface SyncDatasetRef {
@@ -107,7 +108,8 @@ export function checkedSyncDatasets(datasets: SyncDatasetRef[], epoch: number): 
       if (!ref || typeof ref.bucket !== 'string' || !/^(?:0[0-9a-f]|[1-3][0-9a-f]|g-[0-7])(?:-[0-9a-f]{1,64})?$/.test(ref.bucket) ||
         !validNumber(ref.epoch, 1, epoch) || !isSyncDigest(ref.hash) ||
         !validNumber(ref.bytes, 1, SYNC_MAX_OBJECT_BYTES) || buckets.has(ref.bucket) ||
-        (ref.bucket.startsWith('g-') ? ref.slot !== 'a' && ref.slot !== 'b' : ref.slot !== undefined)) {
+        (ref.bucket.startsWith('g-') ? ref.slot !== 'a' && ref.slot !== 'b' : ref.slot !== undefined) ||
+        (ref.immutable !== undefined && (!isSyncReplica(ref.immutable) || ref.slot === undefined))) {
         throw new Error('sync_invalid_shard_reference')
       }
       buckets.add(ref.bucket)
@@ -189,11 +191,17 @@ function splitBucket(id: string, root: string, prefix: string, facts: SyncFact[]
   if (bytes <= SYNC_MAX_OBJECT_BYTES && !hasChildren) {
     const hash = syncDigest(body)
     const cached = old.get(bucket)
-    if (cached !== undefined && cached.hash === hash && cached.bytes === bytes) {
+    if (cached !== undefined && cached.hash === hash && cached.bytes === bytes &&
+      (!shared || cached.immutable !== undefined)) {
       result.ref.shards.push(cached)
     } else {
       const ref: SyncShardRef = { bucket, epoch, hash, bytes }
-      if (shared) ref.slot = cached?.slot === 'a' ? 'b' : 'a'
+      if (shared) {
+        ref.slot = 'a'
+        // A retried write gets a new object path, even if an earlier attempt
+        // uploaded identical bytes that have already entered collection.
+        ref.immutable = util.generateRandomUUID()
+      }
       result.ref.shards.push(ref)
       result.objects.push(shared ? { ref, body, dataset: id } : { ref, body })
     }

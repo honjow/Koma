@@ -1002,8 +1002,11 @@ test('shared sync migrates live legacy data, removes obsolete files, and updates
   }
   await connect(device, ['reader-settings'])
   const shared = f.sharedRoot
+  const headPath = shared + 'heads/'
+  const headFiles = () => [...f.files.keys()].filter(name => name.startsWith(headPath))
+  const reader = new f.SharedWebDav(f.draft)
   for (let attempt = 0; attempt < 100 && (f.directories.has(f.root) ||
-    JSON.parse(f.files.get(shared + 'manifest.json')).legacyMigration); attempt++) await new Promise(setImmediate)
+    (await reader.readSharedHead(noop)).manifest?.legacyMigration); attempt++) await new Promise(setImmediate)
   assert.equal(device.values.get('reader-settings').get(pageNumber), 'false')
   assert.equal(device.values.has('reading'), false)
   assert.equal([...f.files.keys()].filter(name => name.startsWith(f.root)).length, 0)
@@ -1017,29 +1020,55 @@ test('shared sync migrates live legacy data, removes obsolete files, and updates
     await device.engine.syncNow()
     assert.equal(f.trace.filter(row => row.method === 'PUT').length, 2)
     assert.ok(f.trace.every(row => row.address.startsWith(shared)))
-    assert.ok([...f.files.keys()].filter(name => name.startsWith(shared)).length <= 4)
+    assert.equal(headFiles().length, 1)
   }
   await other.engine.syncNow()
   assert.equal(other.values.get('reader-settings').get(pageNumber), 'true')
-  // Simulate a competing write reaching the prepared slot just as the
-  // manifest is committed. A restart must complete the same local edit.
-  const manifestPath = shared + 'manifest.json'
-  const active = JSON.parse(f.files.get(manifestPath)).datasets.find(row => row.id === data.SYNC_READER_SETTINGS_DATASET)
-  const ref = active.shards[0]
-  const slot = ref.slot === 'a' ? 'b' : 'a'
-  const activePath = shared + active.id + '-' + ref.bucket + '-' + ref.slot + '.json'
-  const stagedPath = shared + active.id + '-' + ref.bucket + '-' + slot + '.json'
+  // Delay the first writer after its final base check. The second writer
+  // commits against the same base and succeeds before the first PUT arrives.
+  let waiting
+  let release
+  const firstSent = new Promise(resolve => { waiting = resolve })
+  const gate = new Promise(resolve => { release = resolve })
+  let blocked = false
   f.onRequest(async (method, address) => {
-    if (method === 'PUT' && address === manifestPath) f.files.set(stagedPath, f.files.get(activePath))
+    if (method !== 'PUT' || !address.startsWith(headPath) || blocked) return
+    blocked = true
+    waiting()
+    await gate
   })
   device.values.get('reader-settings').set(pageNumber, 'false')
-  await assert.rejects(device.engine.syncNow(), /sync_shard_damaged/)
+  other.values.get('reader-settings').set(animation, 'false')
+  const first = device.engine.syncNow()
+  await firstSent
+  try { await other.engine.syncNow() } finally { release() }
+  await first
   f.onRequest(async () => {})
+  assert.equal(headFiles().length, 2)
+  const concurrent = await reader.readSharedHead(noop)
+  for (const dataset of concurrent.manifest.datasets.concat(concurrent.manifest.alternatives ?? [])) {
+    for (const shard of dataset.shards) await reader.readSharedObject(dataset.id, shard, noop)
+  }
   await device.restart().syncNow()
   await other.engine.syncNow()
   assert.equal(other.values.get('reader-settings').get(pageNumber), 'false')
+  assert.equal(device.values.get('reader-settings').get(animation), 'false')
   assert.equal(other.values.get('reading').get(position), oldPage)
-  assert.equal([...f.files.keys()].filter(name => name.startsWith(shared)).length, 4)
+  assert.equal(headFiles().length, 1)
+
+  const blobs = () => [...f.files.keys()].filter(name => name.startsWith(shared) && !name.startsWith(headPath))
+  assert.ok(blobs().length > 2)
+  const clock = global.performance
+  try {
+    global.performance = { now: () => clock.now() + 121000 }
+    reader.scheduleSharedCollection(noop)
+    for (let attempt = 0; attempt < 20; attempt++) await new Promise(setImmediate)
+    assert.ok(blobs().length > 2)
+    global.performance = { now: () => clock.now() + 242000 }
+    reader.scheduleSharedCollection(noop)
+    for (let attempt = 0; attempt < 100 && blobs().length > 2; attempt++) await new Promise(setImmediate)
+    assert.equal(blobs().length, 2)
+  } finally { global.performance = clock }
 })
 
 test('independent writer publications receive chapter and page without shared conditional writes', async () => {

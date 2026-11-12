@@ -630,8 +630,12 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
           row(values, ['position'].concat(suffix), position)
         }
       }
-      if (chapter.isRead) row(values, ['read'].concat(suffix), true)
-      if (chapter.bookmarked === true) row(values, ['bookmark'].concat(suffix), true)
+      if (chapter.isRead || knownValues.get(syncKey(['read'].concat(suffix))) === 'false') {
+        row(values, ['read'].concat(suffix), chapter.isRead)
+      }
+      if (chapter.bookmarked === true || knownValues.get(syncKey(['bookmark'].concat(suffix))) === 'false') {
+        row(values, ['bookmark'].concat(suffix), chapter.bookmarked === true)
+      }
     }
     const space = this.storage.load().active?.space
     const pending = (reading.syncPositions ?? []).filter((capture: SyncReadingCapture): boolean =>

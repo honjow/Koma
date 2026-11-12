@@ -26,7 +26,7 @@ const metrics = compile('DeviceSyncMetrics', { '@kit.BasicServicesKit': {
 } })
 const wire = compile('DeviceSyncWire', {
   './DeviceSyncFacts': facts,
-  '@kit.ArkTS': { util: { TextEncoder: class { encodeInto(text) { return Buffer.from(text) } } } },
+  '@kit.ArkTS': { util: { generateRandomUUID: randomUUID, TextEncoder: class { encodeInto(text) { return Buffer.from(text) } } } },
   '@kit.CryptoArchitectureKit': {
     cryptoFramework: { createMd: () => {
       const digest = createHash('sha256')

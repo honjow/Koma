@@ -43,6 +43,8 @@ export interface SyncRemoteManifest {
   etag: string
   hash: string
   sharedHash?: string
+  sharedHeads?: string[]
+  sharedSuperseded?: string[]
   frontier?: string[]
   journal?: boolean
   legacyHash?: string
@@ -236,6 +238,16 @@ const WRITER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const WRITER_NAME = new RegExp('^' + WRITER + '$')
 const WRITER_PUBLICATION = new RegExp('^(' + WRITER + ')/([0-9]{14})/([0-9]{16})-([0-9a-f]{64})(?:-(' + WRITER + '))?\\.json$')
 const V4_PREFIX = 'v4/'
+const SHARED_OBJECT_NAME = new RegExp('^[a-z0-9-]{1,64}-g-[0-7](?:-[0-9a-f]{1,64})?-[0-9a-f]{64}-' + WRITER + '\\.json$')
+const SHARED_OLD_SLOT_NAME = /^[a-z0-9-]{1,64}-g-[0-7](?:-[0-9a-f]{1,64})?-[ab]\.json$/
+const SHARED_GC_DELAY_MS = 120000
+interface SharedCollectionSweep {
+  next: number
+  running: boolean
+  needsScan: boolean
+  unreferenced: Map<string, number>
+}
+const SHARED_SWEEPS = new Map<string, SharedCollectionSweep>()
 const SEGMENT_SIZE = 128
 const LEGACY_DISCOVERY_MS = 5 * 60 * 1000
 const PACK_READERS: Map<string, SyncPackReader> = new Map<string, SyncPackReader>()
@@ -1180,18 +1192,81 @@ export class DeviceSyncWebDav {
   }
 
   async readSharedHead(guard: SyncRequestGuard): Promise<SyncRemoteManifest> {
+    const address = this.sharedRoot + 'heads/'
+    const names = (await this.listWriterPath('', guard, address))
+      .filter((item: DavResource): boolean => !item.isCollection)
+      .map((item: DavResource): string => normalizedDavHref(item.href).substring(normalizedDavHref(address).length))
+      .filter((name: string): boolean => SYNC_COMMIT_NAME.test(name)).sort()
+    if (names.length > 0) {
+      const commits = new Map<string, SyncJournalCommit>()
+      for (let start = 0; start < names.length; start += 4) {
+        const batch = names.slice(start, start + 4)
+        const rows = await Promise.all(batch.map((name: string): Promise<SyncJournalCommit> =>
+          this.readSharedCommit(name, guard)))
+        rows.forEach((row: SyncJournalCommit, index: number): void => { commits.set(batch[index], row) })
+      }
+      const parents = new Set<string>()
+      commits.forEach((commit: SyncJournalCommit): void => { commit.parents.forEach((name: string): void => { parents.add(name) }) })
+      const heads = names.filter((name: string): boolean => !parents.has(name))
+      const rows = heads.map((name: string): SyncJournalCommit => commits.get(name)!)
+      if (rows.length === 0) throw new Error('sync_invalid_commit')
+      const space = rows[0].manifest.space
+      if (rows.some((commit: SyncJournalCommit): boolean => commit.manifest.space !== space)) throw new Error('sync_space_changed')
+      const manifest = rows.length === 1 ? rows[0].manifest : mergeSyncJournal(rows, space)
+      if (rows.length > 1) {
+        const frontier = new Set<string>()
+        const hashes = new Set<string>()
+        let migrating = false
+        rows.forEach((commit: SyncJournalCommit): void => {
+          const legacy = commit.manifest.legacyMigration
+          if (legacy === undefined) return
+          migrating = true
+          legacy.frontier.forEach((name: string): void => { frontier.add(name) })
+          if (legacy.legacyHash !== undefined) hashes.add(legacy.legacyHash)
+        })
+        if (migrating) manifest.legacyMigration = { frontier: Array.from(frontier).sort(),
+          legacyHash: hashes.size === 1 ? Array.from(hashes)[0] : undefined }
+      }
+      this.checkSharedManifest(manifest)
+      const etag = syncDigest(heads.join('\n'))
+      return { manifest, etag, hash: syncDigest(JSON.stringify(manifest)), sharedHash: etag, sharedHeads: heads,
+        sharedSuperseded: names.filter((name: string): boolean => parents.has(name)) }
+    }
     const response = await this.requestAt('GET', this.sharedRoot + MANIFEST, guard)
     if (response.status === 404) return { etag: '', hash: '', sharedHash: '' }
     requireSuccess(response.status)
     const manifest = decodeSyncManifest(response.body)
+    this.checkSharedManifest(manifest)
+    const hash = syncDigest(response.body)
+    return { manifest, etag: hash, hash, sharedHash: hash }
+  }
+
+  private checkSharedManifest(manifest: SyncManifest): void {
     if ((this.boundSpace && manifest.space !== this.space) || manifest.maintenance || manifest.previous.length > 0 ||
-      (manifest.alternatives?.length ?? 0) > 0 || manifest.datasets.some((dataset: SyncDatasetRef): boolean =>
+      manifest.datasets.concat(manifest.alternatives ?? []).some((dataset: SyncDatasetRef): boolean =>
         dataset.shards.some((ref: SyncShardRef): boolean => ref.slot === undefined))) {
       throw new Error('sync_invalid_manifest')
     }
     this.space = manifest.space
-    const hash = syncDigest(response.body)
-    return { manifest, etag: hash, hash, sharedHash: hash }
+  }
+
+  private async readSharedCommit(name: string, guard: SyncRequestGuard): Promise<SyncJournalCommit> {
+    const address = this.sharedRoot + 'heads/' + name
+    const key = this.account + '\n' + address
+    const cached = journalCache.find((entry: CachedJournalCommit): boolean => entry.address === key)
+    if (cached !== undefined) return cached.commit
+    const response = await this.requestAt('GET', address, guard)
+    if (response.status === 404) throw new Error('sync_remote_changed')
+    requireSuccess(response.status)
+    const commit = decodeSyncCommit(name, response.body)
+    this.checkSharedManifest(commit.manifest)
+    const bytes = syncUtf8(response.body).byteLength
+    journalCache.push({ address: key, commit, bytes })
+    journalCacheBytes += bytes
+    while (journalCacheBytes > 8 * SYNC_MAX_OBJECT_BYTES || journalCache.length > 4096) {
+      journalCacheBytes -= journalCache.shift()?.bytes ?? 0
+    }
+    return commit
   }
 
   async readSyncState(guard: SyncRequestGuard, requiredTag: string = ''): Promise<SyncRemoteManifest> {
@@ -1208,7 +1283,9 @@ export class DeviceSyncWebDav {
   private sharedObjectPath(dataset: string, ref: SyncShardRef): string {
     if (!/^[a-z0-9-]{1,64}$/.test(dataset) || !/^g-[0-7](?:-[0-9a-f]{1,64})?$/.test(ref.bucket) ||
       (ref.slot !== 'a' && ref.slot !== 'b')) throw new Error('sync_invalid_path')
-    return this.sharedRoot + dataset + '-' + ref.bucket + '-' + ref.slot + '.json'
+    if (ref.immutable !== undefined && !WRITER_NAME.test(ref.immutable)) throw new Error('sync_invalid_path')
+    return this.sharedRoot + dataset + '-' + ref.bucket + '-' +
+      (ref.immutable === undefined ? ref.slot : ref.hash + '-' + ref.immutable) + '.json'
   }
 
   async readSharedObject(dataset: string, ref: SyncShardRef, guard: SyncRequestGuard): Promise<string> {
@@ -1219,7 +1296,7 @@ export class DeviceSyncWebDav {
       // A reader can hold a manifest while another device advances its slots.
       // Refresh the index before applying data from a different revision.
       const current = await this.readSharedHead(guard)
-      if (current.manifest?.datasets.some((row: SyncDatasetRef): boolean => row.id === dataset &&
+      if (current.manifest?.datasets.concat(current.manifest.alternatives ?? []).some((row: SyncDatasetRef): boolean => row.id === dataset &&
         row.shards.some((active: SyncShardRef): boolean => active.bucket === ref.bucket && active.slot === ref.slot &&
           active.hash === ref.hash))) throw new Error('sync_shard_damaged')
       throw new Error('sync_remote_changed')
@@ -1236,7 +1313,7 @@ export class DeviceSyncWebDav {
     }
     for (const id of Array.from(branches.keys()).sort()) {
       const rows = branches.get(id) ?? []
-      if (rows.length === 1 && rows[0].shards.every((ref: SyncShardRef): boolean => ref.slot !== undefined)) {
+      if (rows.length === 1 && rows[0].shards.every((ref: SyncShardRef): boolean => ref.immutable !== undefined)) {
         datasets.push(rows[0])
         continue
       }
@@ -1262,7 +1339,8 @@ export class DeviceSyncWebDav {
       for (let i = objects.length - 1; i >= 0; i--) {
         const object = objects[i]
         if (object.dataset === id && !built.ref.shards.some((ref: SyncShardRef): boolean =>
-          ref.bucket === object.ref.bucket && ref.slot === object.ref.slot && ref.hash === object.ref.hash)) objects.splice(i, 1)
+          ref.bucket === object.ref.bucket && ref.slot === object.ref.slot && ref.hash === object.ref.hash &&
+          ref.immutable === object.ref.immutable)) objects.splice(i, 1)
       }
       objects.push(...built.objects)
     }
@@ -1275,26 +1353,81 @@ export class DeviceSyncWebDav {
     beforeSend: () => Promise<void>): Promise<SyncRemoteManifest> {
     if (expected === '') await this.ensureCollection(this.sharedRoot, guard)
     const current = await this.readSharedHead(guard)
-    if (current.hash !== expected) throw new Error('sync_remote_changed')
-    const body = JSON.stringify(manifest)
-    if (syncUtf8(body).byteLength > SYNC_MAX_OBJECT_BYTES) throw new Error('sync_manifest_too_large')
-    decodeSyncManifest(body)
+    if (current.sharedHash !== expected) throw new Error('sync_remote_changed')
+    const headRoot = this.sharedRoot + 'heads/'
+    if (current.sharedHeads === undefined) await this.ensureCollection(headRoot, guard)
+    const parents = current.sharedHeads ?? []
+    const body = syncCommitBody(manifest, parents)
+    const name = syncCommitName(body)
     await beforeSend()
-    // Write the other slot first so interruption leaves the previous index readable.
+    // Both payloads and publications have immutable names. A late writer
+    // can create a concurrent head, but it cannot overwrite either payload.
     for (const object of objects) {
       const dataset = object.dataset ?? ''
       const path = this.sharedObjectPath(dataset, object.ref)
       requireSuccess((await this.requestAt('PUT', path, guard, object.body)).status)
       await this.readSharedObject(dataset, object.ref, guard)
     }
-    if ((await this.readSharedHead(guard)).hash !== expected) throw new Error('sync_remote_changed')
-    requireSuccess((await this.requestAt('PUT', this.sharedRoot + MANIFEST, guard, body)).status)
-    const receipt = await this.readSharedHead(guard)
-    if (receipt.hash !== syncDigest(body)) throw new Error('sync_remote_changed')
-    // Another unconditional PUT may have reached the same slot before the
-    // index was published. Keep the local intent until the payload agrees.
-    for (const object of objects) await this.readSharedObject(object.dataset ?? '', object.ref, guard)
-    return receipt
+    if ((await this.readSharedHead(guard)).sharedHash !== expected) throw new Error('sync_remote_changed')
+    requireSuccess((await this.requestAt('PUT', headRoot + name, guard, body)).status)
+    const receipt = await this.readSharedCommit(name, guard)
+    for (const parent of parents.concat(current.sharedSuperseded ?? [])) {
+      // The verified child retains every selected or opaque dataset. An
+      // unobserved concurrent commit has a different name and is never removed.
+      try { await this.requestAt('DELETE', headRoot + parent, guard) } catch (_error) {}
+    }
+    this.scheduleSharedCollection(guard, true)
+    const tag = syncDigest(name)
+    return { manifest: receipt.manifest, hash: syncDigest(JSON.stringify(receipt.manifest)),
+      etag: tag, sharedHash: tag, sharedHeads: [name] }
+  }
+
+  scheduleSharedCollection(guard: SyncRequestGuard, published: boolean = false): void {
+    let sweep = SHARED_SWEEPS.get(this.account)
+    if (sweep === undefined) {
+      if (SHARED_SWEEPS.size >= 8) SHARED_SWEEPS.delete(SHARED_SWEEPS.keys().next().value as string)
+      sweep = { next: 0, running: false, needsScan: true, unreferenced: new Map<string, number>() }
+      SHARED_SWEEPS.set(this.account, sweep)
+    }
+    if (published) sweep.needsScan = true
+    const now = syncMetricUptime()
+    if (sweep.running || now < sweep.next || (!sweep.needsScan && sweep.unreferenced.size === 0)) return
+    const state = sweep
+    state.running = true
+    state.needsScan = false
+    state.next = now + SHARED_GC_DELAY_MS
+    void this.collectSharedObjects(state, guard).catch((): void => { state.needsScan = true })
+      .finally((): void => { state.running = false })
+  }
+
+  private async collectSharedObjects(state: SharedCollectionSweep, guard: SyncRequestGuard): Promise<void> {
+    const remote = await this.readSharedHead(guard)
+    const manifest = remote.manifest
+    if (manifest === undefined || remote.sharedHeads === undefined) return
+    const referenced = new Set<string>()
+    for (const dataset of manifest.datasets.concat(manifest.alternatives ?? [])) {
+      for (const ref of dataset.shards) referenced.add(this.sharedObjectPath(dataset.id, ref))
+    }
+    const now = syncMetricUptime()
+    const seen = new Map<string, number>()
+    const obsolete: string[] = []
+    for (const item of await this.listWriterPath('', guard, this.sharedRoot)) {
+      const name = normalizedDavHref(item.href).substring(normalizedDavHref(this.sharedRoot).length)
+      const address = this.sharedRoot + name
+      if (item.isCollection || referenced.has(address) ||
+        (name !== MANIFEST && !SHARED_OBJECT_NAME.test(name) && !SHARED_OLD_SLOT_NAME.test(name))) continue
+      const since = state.unreferenced.get(address) ?? now
+      seen.set(address, since)
+      // Leave an unreferenced blob readable across in-flight WebDAV calls.
+      if (now - since >= SHARED_GC_DELAY_MS) obsolete.push(address)
+    }
+    state.unreferenced = seen
+    if (obsolete.length === 0 || (await this.readSharedHead(guard)).sharedHash !== remote.sharedHash) return
+    for (const address of obsolete.slice(0, 64)) {
+      const response = await this.requestAt('DELETE', address, guard)
+      if (response.status !== 404) requireSuccess(response.status)
+      state.unreferenced.delete(address)
+    }
   }
 
   async verifySharedWrite(remote: SyncRemoteManifest, datasets: string[], guard: SyncRequestGuard,
@@ -1336,14 +1469,14 @@ export class DeviceSyncWebDav {
       const next = copySyncManifest(manifest)
       next.epoch = Math.max(manifest.epoch, legacy.manifest.epoch)
       next.revision = Math.max(manifest.revision + 1, next.epoch)
-      next.alternatives = legacy.manifest.datasets.concat(legacy.manifest.alternatives ?? [])
+      next.alternatives = (next.alternatives ?? []).concat(legacy.manifest.datasets, legacy.manifest.alternatives ?? [])
       const objects: SyncObject[] = []
       await this.prepareSharedMigration(next, objects, guard)
       next.legacyMigration = { frontier: legacy.frontier ?? [], legacyHash: legacy.legacyHash }
-      await this.publishShared(next, objects, shared.hash, guard, async (): Promise<void> => {})
+      await this.publishShared(next, objects, shared.sharedHash ?? shared.hash, guard, async (): Promise<void> => {})
       return
     }
-    for (const dataset of manifest.datasets) {
+    for (const dataset of manifest.datasets.concat(manifest.alternatives ?? [])) {
       for (let start = 0; start < dataset.shards.length; start += 4) {
         await Promise.all(dataset.shards.slice(start, start + 4).map((ref: SyncShardRef): Promise<string> =>
           this.readSharedObject(dataset.id, ref, guard)))
@@ -1360,7 +1493,7 @@ export class DeviceSyncWebDav {
     const next = copySyncManifest(manifest)
     next.legacyMigration = undefined
     next.revision++
-    await this.publishShared(next, [], shared.hash, guard, async (): Promise<void> => {})
+    await this.publishShared(next, [], shared.sharedHash ?? shared.hash, guard, async (): Promise<void> => {})
   }
 
   async readManifest(guard: SyncRequestGuard, requiredTag: string = '', discoveryOnly: boolean = false): Promise<SyncRemoteManifest> {

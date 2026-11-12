@@ -3,7 +3,7 @@ import {
   applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleHeads, syncVisibleValue, SyncEdit,
   SyncEditKind, SyncFact, SyncGroup, SyncVersion, SYNC_GROUPS,
 } from './DeviceSyncFacts'
-import { checkSyncGroupFact, SyncReadingWorkProgress, syncReadingWorkProgress, SyncRecentValue, SyncWorkLabel,
+import { checkSyncGroupFact, SyncPositionValue, SyncReadingWorkProgress, syncReadingWorkProgress, SyncRecentValue, SyncWorkLabel,
   syncBucketKey, syncBusinessKey, syncGroupVisibleValue, syncKey, syncKeyParts, SYNC_SHELF_DATASET, syncShelfMove } from './DeviceSyncData'
 import {
   copySyncManifest, decodeSyncShard, sharedSyncRootBucket, syncDatasetBytes, syncDigest, syncRootBucket, syncShardPath, syncDatasetBranches,
@@ -165,14 +165,6 @@ function prepareSyncPlan(prepared: PreparedGroup[], existing: SyncManifest | und
 interface CheckedShard {
   data?: SyncFact[]
   error?: string
-}
-
-interface FocusManifestCache {
-  generation: number
-  space: string
-  at: number
-  remote: SyncRemoteManifest
-  provider: DeviceSyncWebDav
 }
 
 const DEFAULT_GROUPS: SyncGroup[] = ['shelf', 'reading']
@@ -359,7 +351,6 @@ export class DeviceSyncEngine {
   private focusRunning?: Promise<SyncReadingWorkResult>
   lastReadingRound?: SyncReadingRound
   private appliedRemoteTag: string = ''
-  private focusManifest?: FocusManifestCache
   private cache: DatasetCache[] = []
   private cacheSize: number = 0
   private restoreInProgress: boolean = false
@@ -538,7 +529,6 @@ export class DeviceSyncEngine {
       // successful persistence replaces the endpoint and invalidates old work.
       this.generation++
       this.prepared = undefined
-      this.focusManifest = undefined
       this.cache = []
       this.cacheSize = 0
       SYNC_GROUPS.forEach((group: SyncGroup): void => { this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1) })
@@ -857,17 +847,15 @@ export class DeviceSyncEngine {
           if ((error as Error).message === 'sync_remote_changed') continue
           throw error as Error
         }
-        if (attempt === 0) this.focusManifest = { generation: this.generation, space: provider.spaceId(),
-          at: Date.now(), remote, provider }
         const appliedTag = JSON.stringify([configured.endpointIdentity, configured.selected, remote.etag, remote.hash])
         if (probeOnly && active !== undefined && !remote.warning && appliedTag === this.appliedRemoteTag &&
           !active.groups.some((group: SyncGroupState): boolean => configured.selected.includes(group.id) && group.pending.length > 0)) {
           if (remote.manifest !== undefined) this.retireLegacy(draft, remote.manifest, guard)
+          if (remote.sharedHeads !== undefined) provider.scheduleSharedCollection(guard)
           return
         }
         this.checkHighWater(this.active(), remote)
         if (remote.manifest?.maintenance === true) {
-          this.focusManifest = undefined
           remote = await this.finishMaintenance(provider, remote, guard)
         }
         this.checkHighWater(this.active(), remote)
@@ -904,12 +892,13 @@ export class DeviceSyncEngine {
         try {
           await this.execute(provider, this.active() ?? connection, configured.credential, configured.selected, remote,
             proposal, guard, false, configured.endpointIdentity, [], active === undefined)
-          if (proposal.publish) this.focusManifest = undefined
           if (remote.warning) throw new Error(remote.warning)
           if (groupErrors.length > 0) throw new Error('sync_partial:' + groupErrors[0])
+          const changed = appliedTag !== this.appliedRemoteTag
           this.appliedRemoteTag = proposal.publish || groups.some((group: PreparedGroup): boolean =>
             group.coverUnavailable === true) ? '' : appliedTag
           this.retireLegacy(draft, proposal.manifest, guard)
+          if (remote.sharedHeads !== undefined) provider.scheduleSharedCollection(guard, changed)
           return
         } catch (error) {
           if ((error as Error).message !== 'sync_remote_changed') throw error as Error
@@ -918,7 +907,6 @@ export class DeviceSyncEngine {
       throw new Error('sync_remote_changed')
     } catch (error) {
       guard()
-      this.focusManifest = undefined
       const active = this.active()
       if (active !== undefined) {
         await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
@@ -954,41 +942,55 @@ export class DeviceSyncEngine {
       } catch (error) {
         guard()
         if ((error as Error).message !== 'sync_remote_changed') throw error as Error
-        this.focusManifest = undefined
       }
     }
     if (remoteFacts === undefined) throw new Error('sync_remote_changed')
     if (remoteFacts.length === 0) return { applied: false }
     const current = this.active()?.groups.find((group: SyncGroupState): boolean => group.id === 'reading')
     const localFacts = current?.facts ?? []
-    const local = syncReadingWorkProgress(localFacts, source, work)
-    const remote = syncReadingWorkProgress(remoteFacts, source, work)
+    const workKey = syncKey([source, work])
+    const pending = (current?.pending ?? []).filter((item: SyncPendingEdit): boolean => {
+      const parts = syncKeyParts(item.key)
+      return (parts[0] === 'recent' || parts[0] === 'position') && parts[1] === source && parts[2] === work
+    })
+    const localWork = localFacts.filter((fact: SyncFact): boolean => syncBucketKey(fact.key) === workKey)
+      .map((fact: SyncFact): SyncFact => {
+        const visible = syncVisibleHeads(fact)
+        const pendingHeads = visible.filter((head: SyncEdit): boolean => pending.some((item: SyncPendingEdit): boolean =>
+          item.key === fact.key && item.version.replica === head.version.replica && item.version.sequence === head.version.sequence))
+        const saved = visible.length > 1 ? current?.baseline.find((item: SyncLocalValue): boolean => item.key === fact.key)?.value :
+          undefined
+        const heads = pendingHeads.length > 0 ? pendingHeads : visible.filter((head: SyncEdit): boolean => head.value === saved)
+        return heads.length === 0 ? fact : { key: fact.key, values: heads, seen: fact.seen,
+          barriers: fact.barriers, cleared: fact.cleared }
+      })
+    const local = syncReadingWorkProgress(localWork, source, work)
+    let remote = syncReadingWorkProgress(remoteFacts, source, work)
     if (remote === undefined) return { applied: false }
     if (local === undefined) {
       await this.applyReadingFocus(remoteFacts, guard)
       return { applied: true }
     }
-    const pending = current?.pending.some((item: SyncPendingEdit): boolean => {
-      const parts = syncKeyParts(item.key)
-      return (parts[0] === 'recent' || parts[0] === 'position') && parts[1] === source && parts[2] === work
-    }) ?? false
     const localRecent = localFacts.find((fact: SyncFact): boolean => fact.key === syncKey(['recent', source, work]))
     const remoteRecent = remoteFacts.find((fact: SyncFact): boolean => fact.key === syncKey(['recent', source, work]))
     const localPosition = localFacts.find((fact: SyncFact): boolean =>
       fact.key === syncKey(['position', source, work, local.chapter]))
-    const remotePosition = remoteFacts.find((fact: SyncFact): boolean =>
-      fact.key === syncKey(['position', source, work, remote.chapter]))
+    const remotePositionKey = syncKey(['position', source, work, remote.chapter])
+    const remotePosition = remoteFacts.find((fact: SyncFact): boolean => fact.key === remotePositionKey)
     const concurrent = (localRecent !== undefined && syncVisibleHeads(localRecent).length > 1) ||
       (remoteRecent !== undefined && syncVisibleHeads(remoteRecent).length > 1) ||
       (localPosition !== undefined && syncVisibleHeads(localPosition).length > 1) ||
       (remotePosition !== undefined && syncVisibleHeads(remotePosition).length > 1)
+    if (concurrent && remoteRecent !== undefined && local.chapter === remote.chapter && local.page === remote.page) {
+      remote = this.otherReadingBranch(remoteRecent, remoteFacts, source, work, local) ?? remote
+    }
     const remoteUnseen = remoteRecent !== undefined && remoteRecent.values.some((edit: SyncEdit): boolean =>
       localRecent === undefined || !syncObserves(localRecent.seen, edit.version))
     const differs = local.chapter !== remote.chapter || local.page !== remote.page
     // The remote is allowed to advance a device that has not read here since.
     // Once local time wins, a differing position is ambiguous: it may be a
     // deliberate reread or a stale save made before this remote was pulled.
-    if (differs && (pending || concurrent || (local.date >= remote.date && remoteUnseen))) {
+    if (differs && (pending.length > 0 || concurrent || (local.date >= remote.date && remoteUnseen))) {
       return { applied: false, conflict: { source, work, local, remote, facts: remoteFacts } }
     }
     if (differs) {
@@ -1001,20 +1003,39 @@ export class DeviceSyncEngine {
     return { applied: false }
   }
 
+  private otherReadingBranch(recentFact: SyncFact, facts: SyncFact[], source: string, work: string,
+    local: SyncReadingWorkProgress): SyncReadingWorkProgress | undefined {
+    const heads = syncVisibleHeads(recentFact)
+    let alternate: SyncReadingWorkProgress | undefined
+    for (const head of heads) {
+      const recent = JSON.parse(head.value) as SyncRecentValue
+      const key = syncKey(['position', source, work, recent.chapter])
+      const fact = facts.find((candidate: SyncFact): boolean => candidate.key === key)
+      if (fact === undefined) continue
+      for (const page of syncVisibleHeads(fact)) {
+        const position = JSON.parse(page.value) as SyncPositionValue
+        if (heads.length > 1 && recent.savedPage !== undefined && recent.savedPage !== position.page) continue
+        if (recent.chapter === local.chapter && position.page === local.page) continue
+        const date = position.date ?? recent.date
+        if (alternate !== undefined && date <= alternate.date) continue
+        const resume: SyncRecentValue = { title: recent.title, sourceName: recent.sourceName,
+          sourceVersion: recent.sourceVersion, chapter: recent.chapter, chapterTitle: recent.chapterTitle,
+          date, savedPage: position.page, workUrl: recent.workUrl }
+        alternate = { recent: resume, position, chapter: recent.chapter,
+          page: position.page, total: position.total, date }
+      }
+    }
+    return alternate
+  }
+
   private async readReadingWorkFocus(source: string, work: string, guard: SyncRequestGuard): Promise<SyncFact[]> {
     const active = this.active()
     if (active === undefined) return []
-    const cached = this.focusManifest
-    const reusable = cached !== undefined && cached.generation === this.generation && cached.space === active.space &&
-      Date.now() - cached.at < 5000
-    const provider = reusable && cached !== undefined ? cached.provider :
-      new DeviceSyncWebDav(await readSyncCredential(active.credential), active.frontier, active.space, this.publicationWriter())
-    if (!reusable) this.configureReplans(provider, active.endpointIdentity)
-    const remote = reusable && cached !== undefined ? cached.remote : await provider.readSyncState(guard)
+    const provider = new DeviceSyncWebDav(await readSyncCredential(active.credential),
+      active.frontier, active.space, this.publicationWriter())
+    this.configureReplans(provider, active.endpointIdentity)
+    const remote = await provider.readSyncState(guard)
     provider.beginShardReadRound()
-    if (remote !== cached?.remote) {
-      this.focusManifest = { generation: this.generation, space: active.space, at: Date.now(), remote, provider }
-    }
     if (remote.manifest === undefined) return []
     if (remote.manifest.maintenance === true) return []
     const root = syncRootBucket(syncKey([source, work]))
@@ -1055,8 +1076,20 @@ export class DeviceSyncEngine {
     })
   }
 
-  /** Apply only the fetched work's visible values and keep the local receipt. */
-  async applyReadingFocus(facts: SyncFact[], guard: SyncRequestGuard): Promise<void> {
+  async resolveReadingWork(conflict: SyncReadingWorkConflict, useRemote: boolean, guard: SyncRequestGuard): Promise<void> {
+    const chosen = useRemote ? conflict.remote : conflict.local
+    const edits: DeviceSyncLocalEdit[] = [{ key: syncKey(['recent', conflict.source, conflict.work]),
+      kind: 'set', value: JSON.stringify(chosen.recent) }]
+    if (chosen.position !== undefined) {
+      edits.push({ key: syncKey(['position', conflict.source, conflict.work, chosen.chapter]),
+        kind: 'set', value: JSON.stringify(chosen.position) })
+    }
+    await this.applyReadingFocus(conflict.facts, guard, edits)
+  }
+
+  /** Apply the chosen location and record the resolving edit in the same receipt. */
+  private async applyReadingFocus(facts: SyncFact[], guard: SyncRequestGuard,
+    choice: DeviceSyncLocalEdit[] = []): Promise<void> {
     if (facts.length === 0) return
     const active = this.active()
     if (active === undefined) return
@@ -1067,12 +1100,18 @@ export class DeviceSyncEngine {
     const localValues = byLocalValue(local.values)
     const focusKeys = new Set<string>(facts.map((fact: SyncFact): string => fact.key))
     const changes: SyncLocalValue[] = []
-    merged.forEach((fact: SyncFact): void => {
-      if (!focusKeys.has(fact.key)) return
-      const value = syncGroupVisibleValue('reading', fact)
-      if (value !== localValues.get(fact.key)) changes.push({ key: fact.key, value: value ?? '' })
-    })
-    if (changes.length === 0) {
+    if (choice.length > 0) {
+      choice.forEach((edit: DeviceSyncLocalEdit): void => {
+        if (edit.value !== localValues.get(edit.key)) changes.push({ key: edit.key, value: edit.value })
+      })
+    } else {
+      merged.forEach((fact: SyncFact): void => {
+        if (!focusKeys.has(fact.key)) return
+        const value = syncGroupVisibleValue('reading', fact)
+        if (value !== localValues.get(fact.key)) changes.push({ key: fact.key, value: value ?? '' })
+      })
+    }
+    if (changes.length === 0 && choice.length === 0) {
       this.mergeReadingFocusFacts(facts)
       return
     }
@@ -1085,9 +1124,11 @@ export class DeviceSyncEngine {
       pending: current.pending, deferred: current.deferred, deferredRoots: current.deferredRoots }
     await this.owner.commit([{ group: 'reading', changes }], [{ group: 'reading', revision: local.revision }],
       (id: string): void => {
+        guard()
         this.storage.update((state: SyncLocalDocument): void => {
-          if (state.active === undefined || state.active.space !== active.space) return
+          if (state.active === undefined || state.active.space !== active.space) throw new Error('sync_connection_changed')
           state.active.groups = replaceGroup(state.active.groups, nextGroup)
+          this.prepareEdits(state, 'reading', choice)?.apply(state)
           state.localReceipt = id
         })
       })
@@ -1095,7 +1136,10 @@ export class DeviceSyncEngine {
 
   private checkHighWater(connection: SyncSavedConnection | undefined, remote: SyncRemoteManifest): void {
     if (connection === undefined || connection.revision === 0) return
-    if (remote.sharedHash !== undefined && remote.manifest?.space === connection.space) return
+    if (remote.sharedHash !== undefined && remote.manifest?.space === connection.space) {
+      if (remote.manifest.revision < connection.revision) throw new Error('sync_space_changed')
+      return
+    }
     if (remote.journal) {
       // The provider directly GETs durable frontier witnesses. Concurrent DAG heads
       // may have equal/decreasing scalar revisions; those are not rollback evidence.
@@ -1535,14 +1579,14 @@ export class DeviceSyncEngine {
     selected: SyncGroup[], remote: SyncRemoteManifest, proposal: ProposedSync, guard: SyncRequestGuard,
     manualPreview: boolean, endpoint: string, reviewedGroups: PreparedGroup[] = [], activate: boolean = false): Promise<void> {
     const shared = remote.sharedHash !== undefined
-    if (remote.sharedHash === '') {
+    if (shared && remote.sharedHeads === undefined) {
       // A partial legacy view must not become the authoritative index:
       // subsequent rounds would stop discovering the omitted old heads.
       if (remote.warning) throw new Error(remote.warning)
       proposal.manifest = copySyncManifest(proposal.manifest)
       if (!proposal.publish) proposal.manifest.revision++
       await provider.prepareSharedMigration(proposal.manifest, proposal.objects, guard)
-      if (remote.manifest !== undefined) {
+      if (remote.sharedHash === '' && remote.manifest !== undefined) {
         proposal.manifest.legacyMigration = { frontier: remote.frontier ?? [], legacyHash: remote.legacyHash }
       }
       proposal.publish = true
@@ -1970,7 +2014,6 @@ export class DeviceSyncEngine {
     this.generation++
     this.reviewGeneration++
     this.prepared = undefined
-    this.focusManifest = undefined
     before.forEach((group: SyncGroup): void => {
       if (!selected.includes(group)) this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1)
     })
@@ -2336,7 +2379,6 @@ export class DeviceSyncEngine {
     this.generation++
     this.prepared = undefined
     this.tested = undefined
-    this.focusManifest = undefined
     SYNC_GROUPS.forEach((group: SyncGroup): void => { this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1) })
     this.cache = []
     this.cacheSize = 0
@@ -2377,7 +2419,6 @@ export class DeviceSyncEngine {
     this.generation++
     this.prepared = undefined
     this.restoreInProgress = true
-    this.focusManifest = undefined
     SYNC_GROUPS.forEach((group: SyncGroup): void => { this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1) })
     const current = this.storage.load()
     this.restoreBefore = current.active

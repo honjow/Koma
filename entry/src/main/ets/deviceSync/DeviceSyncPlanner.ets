@@ -1,9 +1,9 @@
 import {
-  applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleValue, SyncEdit,
+  applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleHeads, syncVisibleValue, SyncEdit,
   SyncEditKind, SyncFact, SyncGroup, SyncVersion,
 } from './DeviceSyncFacts'
 import {
-  checkSyncGroupFact, SyncChapterCatalog, SyncRecentValue, syncBucketKey, syncGroupVisibleValue, syncKey, syncKeyParts,
+  checkSyncGroupFact, SyncChapterCatalog, SyncPositionValue, SyncRecentValue, syncBucketKey, syncGroupVisibleValue, syncKey, syncKeyParts,
   SYNC_READING_DATASET, SYNC_SHELF_CATALOG_DATASET, SYNC_READER_SETTINGS_DATASET, SYNC_SUBSCRIPTIONS_DATASET,
   SYNC_SEARCH_DATASET, syncShelfMove, syncShelfMoveDestination,
 } from './DeviceSyncData'
@@ -132,6 +132,13 @@ export function usesReadingTime(group: PreparedGroup, key: string): boolean {
   return kind === 'position' || kind === 'recent'
 }
 
+function sameReadingLocation(kind: string, left: string, right: string): boolean {
+  if (kind === 'position') return (JSON.parse(left) as SyncPositionValue).page === (JSON.parse(right) as SyncPositionValue).page
+  const a = JSON.parse(left) as SyncRecentValue
+  const b = JSON.parse(right) as SyncRecentValue
+  return a.chapter === b.chapter && (a.savedPage === undefined || b.savedPage === undefined || a.savedPage === b.savedPage)
+}
+
 export function dependsOnConflict(key: string, root: string): boolean {
   const parts = syncKeyParts(key)
   const conflict = syncKeyParts(root)
@@ -232,8 +239,11 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
         conflictChoice(choices, row.id, key) === undefined) deferred.add(key)
     })
     const conflictRoots = Array.from(deferred)
+    const heldReadingWorks = new Set<string>()
     const isDeferred = (key: string): boolean => {
       if (deferred.has(key)) return true
+      if (heldReadingWorks.size > 0 && usesReadingTime(row, key) &&
+        heldReadingWorks.has(syncBucketKey(key))) return true
       if (automaticMerge) return false
       return conflictRoots.some((root: string): boolean => deferred.has(root) && dependsOnConflict(key, root))
     }
@@ -325,6 +335,10 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
               pending.some((item: SyncPendingEdit): boolean => item.key === key) ||
               existing.barriers.length > 0 || existing.cleared.length > 0 ||
               existing.values.some((candidate: SyncEdit): boolean => candidate.value === value)) return
+            // Opening the same page can update local history without producing
+            // a reader capture. That timestamp alone cannot create a branch.
+            const baseline = prior.get(key)
+            if (transport?.shared === true && baseline !== undefined && sameReadingLocation(kind, baseline, value)) return
             const localDate = (JSON.parse(value) as SyncRecentValue).date
             if (localDate === undefined || localDate <= 0) return
             // The local save could only have observed the previous local
@@ -375,11 +389,44 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
         editFact(key, 'delete', '')
       }
     })
+    if (transport?.shared === true && automaticMerge && row.id === 'reading') {
+      // Keep an independent local save and the published position on their
+      // respective devices until the existing resume choice resolves them.
+      for (const item of pending) {
+        if (!usesReadingTime(row, item.key)) continue
+        const localFact = edits.get(item.key)
+        const remoteFact = remote.get(item.key)
+        if (localFact === undefined || remoteFact === undefined) continue
+        const localEdit = syncVisibleHeads(localFact).find((head: SyncEdit): boolean =>
+          head.version.replica === item.version.replica && head.version.sequence === item.version.sequence)
+        if (localEdit === undefined) continue
+        const kind = syncKeyParts(item.key)[0]
+        if (syncVisibleHeads(remoteFact).some((head: SyncEdit): boolean =>
+          !syncObserves(localEdit.observed, head.version) && !syncObserves(head.observed, localEdit.version) &&
+          (head.version.replica !== localEdit.version.replica || head.version.sequence !== localEdit.version.sequence) &&
+          !sameReadingLocation(kind, localEdit.value, head.value))) heldReadingWorks.add(syncBucketKey(item.key))
+      }
+    }
     if (pending.length !== pendingBefore) {
       staged.push({ id: row.id, facts: Array.from(edits.values()), baseline: localValueRows(prior),
         pending: pending.slice(), deferred: row.previous?.deferred, deferredRoots: row.previous?.deferredRoots })
     }
     const facts = mergeSyncFacts(Array.from(edits.values()), row.remote)
+    const divergentReadingWorks = new Set<string>()
+    if (transport?.shared === true && automaticMerge && row.id === 'reading') {
+      for (const fact of facts) {
+        if (!usesReadingTime(row, fact.key)) continue
+        const saved = local.get(fact.key)
+        if (saved === undefined) continue
+        const heads = syncVisibleHeads(fact)
+        if (heads.length < 2) continue
+        const kind = syncKeyParts(fact.key)[0]
+        if (heads.some((head: SyncEdit): boolean => sameReadingLocation(kind, head.value, saved)) &&
+          heads.some((head: SyncEdit): boolean => !sameReadingLocation(kind, head.value, saved))) {
+          divergentReadingWorks.add(syncBucketKey(fact.key))
+        }
+      }
+    }
     const accepted = bySyncFact(facts)
     const visible = (key: string): string | undefined => {
       const fact = accepted.get(key)
@@ -390,6 +437,8 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
     facts.forEach((fact: SyncFact): void => {
       const value = syncGroupVisibleValue(row.id, fact)
       if (isCoverKey(fact.key) && (value === undefined || local.has(fact.key))) return
+      if (value !== undefined && divergentReadingWorks.size > 0 && usesReadingTime(row, fact.key) &&
+        divergentReadingWorks.has(syncBucketKey(fact.key))) return
       if (!isDeferred(fact.key) && !protectedKeys.has(fact.key) && value !== local.get(fact.key)) {
         if (row.id === 'shelf') {
           const parts = syncKeyParts(fact.key)

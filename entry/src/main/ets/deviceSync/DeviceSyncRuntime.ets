@@ -523,17 +523,7 @@ class DeviceSyncRuntime {
 
   async resolveReadingResumeConflict(conflict: SyncReadingWorkConflict, useRemote: boolean): Promise<void> {
     const engine = this.needed()
-    const guard = engine.requestGuard()
-    if (useRemote) await engine.applyReadingFocus(conflict.facts, guard)
-    else engine.mergeReadingFocusFacts(conflict.facts)
-    const chosen = useRemote ? conflict.remote : conflict.local
-    const edits: DeviceSyncLocalEdit[] = [{ key: syncKey(['recent', conflict.source, conflict.work]),
-      kind: 'set', value: JSON.stringify(chosen.recent) }]
-    if (chosen.position !== undefined) {
-      edits.push({ key: syncKey(['position', conflict.source, conflict.work, chosen.chapter]),
-        kind: 'set', value: JSON.stringify(chosen.position) })
-    }
-    engine.recordEdits('reading', edits)
+    await engine.resolveReadingWork(conflict, useRemote, engine.requestGuard())
     this.schedule(0)
   }
 
