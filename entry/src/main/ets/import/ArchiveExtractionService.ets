@@ -1,8 +1,10 @@
 import { zlib } from '@kit.BasicServicesKit'
 import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
-import { ReadingDirection } from '../model/ComicModels'
+import { Chapter, Page, ReadingDirection, normalizeSortKey } from '../model/ComicModels'
 import { extractNativeComicArchive } from './NativeArchiveExtraction'
 import { readOrderedEpubImages } from './EpubArchiveReader'
+import { ArchiveImageChapter, archiveImageChapters } from './ArchiveImageChapters'
+import { parseLocalLibrarySidecarMetadata } from '../model/LocalLibraryMetadataService'
 import {
   ArchiveEntryCandidate,
   ArchiveImportResult,
@@ -14,6 +16,7 @@ import {
   isSupportedArchivePath,
   isSupportedImagePath,
   stripExtension,
+  compareNaturalPath,
 } from './ImageSortUtils'
 
 export interface ArchiveExtractionCachePaths {
@@ -37,6 +40,8 @@ export interface ArchiveExtractionRequest {
   readingDirection?: ReadingDirection
   cleanOutputDir?: boolean
   cancelToken?: ArchiveExtractionCancelToken
+  /** Folder scanning already owns its chapter boundaries. */
+  expandNestedArchives?: boolean
 }
 
 export interface ArchiveExtractionResult {
@@ -112,6 +117,19 @@ async function removeDirectoryIfPresent(path: string): Promise<void> {
   }
 }
 
+async function copyNestedArchive(source: string, destination: string): Promise<void> {
+  let input: fs.File | undefined = undefined
+  let output: fs.File | undefined = undefined
+  try {
+    input = await fs.open(source, fs.OpenMode.READ_ONLY)
+    output = await fs.open(destination, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+    await fs.copyFile(input.fd, output.fd, 0)
+  } finally {
+    if (input !== undefined) await fs.close(input)
+    if (output !== undefined) await fs.close(output)
+  }
+}
+
 export function createArchiveExtractionCachePaths(cacheDir: string, archivePath: string, cacheKeySeed?: string): ArchiveExtractionCachePaths {
   assertNoTraversalPath(cacheDir, 'cacheDir')
   const readableSegment = sanitizeCacheSegment(archivePath)
@@ -164,7 +182,9 @@ export class ArchiveExtractionService {
     assertNotCancelled(request.cancelToken)
 
     const entries = await this.listImageEntries(request.extractionDir)
-    if (entries.length === 0) {
+    const nested = request.expandNestedArchives === false || /\.epub$/i.test(request.archivePath) ? [] :
+      await this.listNestedArchives(request.extractionDir)
+    if (entries.length === 0 && nested.length === 0) {
       throw new Error(`Archive contains no supported image pages: ${request.archivePath}`)
     }
     const importResult = buildComicFromArchive({
@@ -177,6 +197,79 @@ export class ArchiveExtractionService {
       importedAt: request.importedAt,
       readingDirection: request.readingDirection,
     })
+    try {
+      const metadata = parseLocalLibrarySidecarMetadata(await fs.readText(`${request.extractionDir}/ComicInfo.xml`))
+      if (metadata.status === 'ok' && (metadata.metadata?.authors?.length ?? 0) > 0) {
+        importResult.comic.author = metadata.metadata?.authors?.join('、')
+      }
+    } catch (_error) {
+      // Optional metadata is not required to read the archive.
+    }
+
+    const imageGroups = request.expandNestedArchives === false || !/\.zip$/i.test(request.archivePath) ? [] :
+      archiveImageChapters(entries.map((entry: ArchiveEntryCandidate): string => entry.path))
+    if (nested.length > 0 || imageGroups.length > 0) {
+      const comic = importResult.comic
+      const imagesAreCoverOnly = entries.length === 1 && stripExtension(getBaseName(entries[0].path)).toLowerCase() === 'cover'
+      const chapters: Chapter[] = []
+      if (imageGroups.length > 0) {
+        imageGroups.forEach((group: ArchiveImageChapter): void => {
+          const selected = new Set<string>(group.paths)
+          const groupResult = buildComicFromArchive({ archivePath: request.archivePath, extractionDir: request.extractionDir,
+            comicId: comic.id, title: group.title, importedAt: request.importedAt, readingDirection: request.readingDirection,
+            entries: entries.filter((entry: ArchiveEntryCandidate): boolean => selected.has(entry.path)) })
+          chapters.push(groupResult.comic.chapters[0])
+        })
+        const grouped = new Set<string>()
+        imageGroups.forEach((group: ArchiveImageChapter): void => group.paths.forEach((path: string): void => { grouped.add(path) }))
+        const cover = entries.find((entry: ArchiveEntryCandidate): boolean => !grouped.has(entry.path))
+        if (cover !== undefined) {
+          comic.coverUri = comic.chapters[0].pages.find((page: Page): boolean => page.sortKey === normalizeSortKey(cover.path))?.uri
+        }
+      } else if (entries.length > 0 && !imagesAreCoverOnly) {
+        chapters.push(...comic.chapters)
+      }
+      for (let index = 0; index < nested.length; index += 1) {
+        assertNotCancelled(request.cancelToken)
+        const childPath = nested[index]
+        const childRoot = `${request.extractionDir}.chapters/${index}`
+        await fs.mkdir(childRoot, true)
+        const copyPath = `${childRoot}/archive.zip`
+        await copyNestedArchive(createExtractedPagePath(request.extractionDir, childPath), copyPath)
+        const child = await this.extractArchive({
+          archivePath: `${request.archivePath}#${childPath}`, sandboxZipPath: copyPath,
+          extractionDir: `${childRoot}/extract`, title: stripExtension(getBaseName(childPath)),
+          importedAt: request.importedAt, readingDirection: request.readingDirection,
+          cleanOutputDir: false, cancelToken: request.cancelToken,
+        })
+        const childAuthor = child.importResult.comic.author
+        if (childAuthor !== undefined && childAuthor.length > 0) {
+          const existing = comic.author?.split('、') ?? []
+          childAuthor.split('、').forEach((author: string): void => {
+            if (!existing.includes(author)) existing.push(author)
+          })
+          comic.author = existing.join('、')
+        }
+        child.importResult.comic.chapters.forEach((chapter: Chapter): void => { chapters.push(chapter) })
+      }
+      chapters.sort((left: Chapter, right: Chapter): number => compareNaturalPath(left.title, right.title))
+      chapters.forEach((chapter: Chapter, chapterIndex: number): void => {
+        const chapterId = `${comic.id}-chapter-${chapterIndex + 1}`
+        chapter.id = chapterId
+        chapter.comicId = comic.id
+        chapter.index = chapterIndex
+        chapter.sortKey = normalizeSortKey(chapter.title)
+        chapter.pages.forEach((page: Page, pageIndex: number): void => {
+          page.id = `${chapterId}-page-${pageIndex + 1}`
+          page.comicId = comic.id
+          page.chapterId = chapterId
+        })
+      })
+      comic.chapters = chapters
+      comic.chapterCount = chapters.length
+      comic.pageCount = chapters.reduce((sum: number, chapter: Chapter): number => sum + chapter.pageCount, 0)
+      if (comic.coverUri === undefined) comic.coverUri = chapters[0]?.pages[0]?.uri
+    }
 
     return {
       archivePath: request.archivePath,
@@ -185,6 +278,18 @@ export class ArchiveExtractionService {
       entries,
       importResult,
     }
+  }
+
+  async listNestedArchives(extractionDir: string): Promise<string[]> {
+    const listed = await fs.listFile(extractionDir, { recursion: true, listNum: 0 })
+    const candidates = listed.map(normalizeListedEntryPath)
+      .filter((path: string): boolean => isSafeArchiveEntryPath(path) && isSupportedArchivePath(path))
+      .sort(compareNaturalPath)
+    const files: string[] = []
+    for (const candidate of candidates) {
+      if ((await fs.stat(createExtractedPagePath(extractionDir, candidate))).isFile()) files.push(candidate)
+    }
+    return files
   }
 
   async listImageEntries(extractionDir: string): Promise<ArchiveEntryCandidate[]> {

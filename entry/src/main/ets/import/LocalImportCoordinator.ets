@@ -507,6 +507,7 @@ export class LocalImportCoordinator {
       }
 
       extractionResult.importResult.comic.localImportOrigin = { kind: 'archive', sourceUris: [request.sourceUri] }
+      if (/\.epub$/i.test(request.sourceUri)) extractionResult.importResult.comic.localImportOrigin.epubOrderRevision = 1
 
       this.reportDebugEvent({
         step: LOCAL_ARCHIVE_DEBUG_STEP_IMPORT_SUCCEEDED,

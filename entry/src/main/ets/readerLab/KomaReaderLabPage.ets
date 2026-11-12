@@ -195,6 +195,7 @@ export struct KomaReaderLabPage {
   @Local private chapterPickerShown: boolean = false
   @Local private chapterChoices: KomaReaderLabChapterChoice[] = []
   @Local private currentChapterUnit: string = ''
+  @Local private chapterPickerSelected: number = -1
   private unitKey: ReaderUnitKey = new ReaderUnitKey('', '', '')
   private initialPageIndex: number = 0
   private trialWindow: ReaderTrialWindow = new ReaderTrialWindow(null, true,
@@ -227,6 +228,7 @@ export struct KomaReaderLabPage {
   private preferencesStore: ReaderPreferencesStore | null = null
   private preferenceWrites: Promise<void> = Promise.resolve()
   private chapterPickerTarget: ReaderUnitKey | null = null
+  private chapterPickerTargetPage: number | undefined = undefined
   private chapterChoiceIdentity: string = ''
   private observedCatalogUnit: ReaderUnitKey | null = null
   private observedSourceSignature: string = ''
@@ -253,8 +255,7 @@ export struct KomaReaderLabPage {
 
   private chapterPickerInitialIndex(): number {
     if (this.hasChapterPickerPosition()) return this.chapterPickerFirstIndex
-    return Math.max(0, this.chapterChoices.findIndex((choice: KomaReaderLabChapterChoice): boolean =>
-      choice.key.unit === this.currentChapterUnit))
+    return Math.max(0, this.chapterPickerSelected)
   }
 
   private restoreChapterPickerPosition(): void {
@@ -697,7 +698,7 @@ export struct KomaReaderLabPage {
   private syncChapterChoices(unit: ReaderUnitKey): void {
     const choices = this.adapter?.chapterChoices(unit) ?? []
     const identity = JSON.stringify(choices.map((choice: KomaReaderLabChapterChoice): string =>
-      `${choice.key.scope}:${choice.key.work}:${choice.key.unit}:${choice.title}`))
+      `${choice.key.scope}:${choice.key.work}:${choice.key.unit}:${choice.title}:${choice.pageIndex ?? -1}`))
     if (identity !== this.chapterChoiceIdentity) {
       this.chapterChoiceIdentity = identity
       this.chapterChoices = choices
@@ -706,8 +707,10 @@ export struct KomaReaderLabPage {
   }
 
   private chapterControlLabel(): string {
-    const index = this.chapterChoices.findIndex((choice: KomaReaderLabChapterChoice): boolean =>
-      choice.key.unit === this.currentChapterUnit)
+    if (this.chapterChoices.some((choice: KomaReaderLabChapterChoice): boolean => choice.pageIndex !== undefined)) {
+      return AppStrings.get('reader_control_contents')
+    }
+    const index = this.chapterChoices.findIndex((choice: KomaReaderLabChapterChoice): boolean => choice.key.unit === this.currentChapterUnit)
     const title = AppStrings.get('reader_control_chapter')
     return index < 0 ? title : `${title} ${index + 1} / ${this.chapterChoices.length}`
   }
@@ -731,6 +734,13 @@ export struct KomaReaderLabPage {
       snapshot.navigationRevision !== navigation) return
     this.syncChapterChoices(source)
     if (this.chapterChoices.length > 0) {
+      const sourceIndex = snapshot.anchor?.sourceIndexHint ?? 0
+      let selected = this.chapterChoices.findIndex((choice: KomaReaderLabChapterChoice): boolean =>
+        choice.key.unit === source.unit && choice.pageIndex === undefined)
+      this.chapterChoices.forEach((choice: KomaReaderLabChapterChoice, index: number): void => {
+        if (choice.key.unit === source.unit && choice.pageIndex !== undefined && choice.pageIndex <= sourceIndex) selected = index
+      })
+      this.chapterPickerSelected = selected
       // The new List can report its initial index before onAppear. Keep that
       // layout from overwriting the retained position before restoration.
       this.chapterPickerPositionReady = false
@@ -743,6 +753,7 @@ export struct KomaReaderLabPage {
 
   private selectChapterFromPicker(choice: KomaReaderLabChapterChoice): void {
     this.chapterPickerTarget = choice.key.copy()
+    this.chapterPickerTargetPage = choice.pageIndex
     this.chapterPickerShown = false
   }
 
@@ -751,14 +762,19 @@ export struct KomaReaderLabPage {
     this.chapterPickerOpening = false
     this.chapterPickerLayoutRevision++
     const target = this.chapterPickerTarget
+    const targetPage = this.chapterPickerTargetPage
     this.chapterPickerTarget = null
+    this.chapterPickerTargetPage = undefined
     this.chapterPickerShown = false
     this.syncKeepScreenOn()
     this.syncVolumeKeys()
     const snapshot = this.session?.snapshot()
-    if (target !== null && snapshot?.phase === 'ready' && snapshot.unit !== null &&
-      !snapshot.unit.key.equals(target)) {
-      void this.openChapterTarget(target, snapshot.unit.key.copy(), 'picker')
+    if (target !== null && snapshot?.phase === 'ready' && snapshot.unit !== null) {
+      if (targetPage !== undefined && snapshot.unit.key.equals(target)) {
+        this.session?.seekSource(targetPage, target, snapshot.navigationRevision)
+      } else if (!snapshot.unit.key.equals(target)) {
+        void this.openChapterTarget(target, snapshot.unit.key.copy(), 'picker')
+      }
     }
   }
 
@@ -1304,7 +1320,8 @@ export struct KomaReaderLabPage {
   @Builder
   private ReaderHostChapterPickerSheet() {
     KomaModalScaffold({
-      title: $r('app.string.reader_control_chapter'),
+      title: this.chapterChoices.some((choice: KomaReaderLabChapterChoice): boolean => choice.pageIndex !== undefined)
+        ? $r('app.string.reader_control_contents') : $r('app.string.reader_control_chapter'),
       modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'),
       contentOwnsScrolling: true,
       onClose: (): void => { this.chapterPickerShown = false },
@@ -1315,15 +1332,15 @@ export struct KomaReaderLabPage {
           ListItem() {
             ConciseListRow({
               title: this.chapterPickerTitle(choice, index),
-              primaryColor: choice.key.unit === this.currentChapterUnit ? ThemeConstants.BRAND_PRIMARY : undefined,
-              showChevron: choice.key.unit !== this.currentChapterUnit,
-              suffixBuilderParam: choice.key.unit === this.currentChapterUnit ? (): void => {
+              primaryColor: index === this.chapterPickerSelected ? ThemeConstants.BRAND_PRIMARY : undefined,
+              showChevron: index !== this.chapterPickerSelected,
+              suffixBuilderParam: index === this.chapterPickerSelected ? (): void => {
                 this.ChapterSelectedCheckmark()
               } : undefined,
               action: (): void => { this.selectChapterFromPicker(choice) },
             })
           }
-        }, (choice: KomaReaderLabChapterChoice): string => choice.key.unit)
+        }, (choice: KomaReaderLabChapterChoice): string => `${choice.key.unit}:${choice.pageIndex ?? -1}:${choice.title}`)
       }.width('100%').height('100%')
         .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XL })
         .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })

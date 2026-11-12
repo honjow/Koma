@@ -9,6 +9,7 @@ let failTracking = false
 const preferencePort = {
   async has(key) { return preferenceData.has(key) },
   async get(key, fallback) { return preferenceData.has(key) ? preferenceData.get(key) : fallback },
+  async getAll() { return Object.fromEntries(preferenceData) },
   async put(key, value) { if (failTracking) throw Error('storage failure'); preferenceData.set(key, value) },
   async delete(key) { preferenceData.delete(key) }, async flush() {},
 }
@@ -51,6 +52,29 @@ const persistenceModule = load('model/LibraryPersistence')
 const { commitMangaMigration } = load('model/SourceMangaMigrationService')
 const tracking = load('model/TrackerModels')
 const kind = load('model/ComicModels').ComicSourceKind.PRIVATE_LIBRARY
+
+test('legacy EPUB page anchoring survives restart and a failed write leaves progress untouched', () => {
+  let disk = { progress: [], sourceHistory: [], chapters: [] }, fail = false
+  const adapter = { loadSnapshot: () => clone(disk), saveSnapshot(value) { if (fail) throw Error('disk full'); disk = clone(value) } }
+  const store = new PersistentReaderSessionStore(adapter)
+  store.saveProgress({ comicId:'epub', chapterId:'one', pageIndex:2, totalPages:5,
+    progressRatio:0.6, completed:false, updatedAt:1 })
+  assert.equal(store.flush(), true)
+  const before = clone(store.getProgress('epub'))
+  fail = true
+  assert.equal(store.reconcileLocalEpubPositions('epub','one',['old-2','old-2'],false), false)
+  assert.deepEqual(clone(store.getProgress('epub')), before)
+  fail = false
+  assert.equal(store.reconcileLocalEpubPositions('epub','one',['old-2','old-2'],false), true)
+  let cold = new PersistentReaderSessionStore(adapter)
+  assert.equal(cold.getChapterProgress('epub','one').pageId, 'old-2')
+  assert.equal(cold.getProgress('epub').updatedAt, before.updatedAt)
+  assert.equal(cold.reconcileLocalEpubPositions('epub','one',['old-0','old-2','old-4'],true), true)
+  cold = new PersistentReaderSessionStore(adapter)
+  assert.equal(cold.getProgress('epub').pageIndex, 1)
+  assert.equal(cold.getProgress('epub').totalPages, 3)
+  assert.equal(cold.getProgress('epub').updatedAt, before.updatedAt)
+})
 
 test('target preparation reuses a complete preview but rejects a changed source, route or incomplete catalog', async () => {
   const { prepareMangaMigration } = load('model/SourceMangaMigrationService')

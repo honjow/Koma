@@ -31,3 +31,9 @@ Rule: Verify downloads through the file manager or app storage API. Do not infer
 Failure: The source registry was read with a sequence of different `grep` patterns because its nesting and field names were not understood first.
 
 Rule: Read one complete structural sample or schema before selecting fields. Parse once, then extract the needed values in one bounded command.
+
+## 2026-11-12 - A hidden navigation tab consumed a shelf-card tap
+
+Failure: A layout retained the text bounds of a mostly hidden navigation tab. Tapping its reported position opened the shelf item underneath instead of navigating.
+
+Rule: Before tapping a floating or auto-hidden control, verify that its entire hit area is visible and unobstructed in the current screenshot. Reveal the control first; a layout node alone does not prove its hit area is usable.

@@ -641,6 +641,8 @@ export struct MangaDetailPage {
       // Returning from the source manager may have installed or enabled the
       // package. Retry only the missing-source state; normal revisits stay cached.
       void this.loadMangaDetail()
+    } else {
+      this.refreshLocalEpubChapterProjection()
     }
     this.scheduleDownloadRefresh()
   }
@@ -895,7 +897,21 @@ export struct MangaDetailPage {
   @Monitor('readerProgressRevision')
   private onReadingStateRevision(): void {
     if (!this.chrome.visible) return
+    this.refreshLocalEpubChapterProjection()
     this.applyChapterStatesToCurrent()
+  }
+
+  /** An EPUB may have been upgraded while this detail route was covered by
+   * Reader. Refresh only when its stored chapter catalog actually changed. */
+  private refreshLocalEpubChapterProjection(): void {
+    const comic = this.libraryStore?.getComic(this.currentComicId())
+    if (comic?.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE || comic.localImportOrigin?.epubOrderRevision !== 1) return
+    const changed = comic.chapters.length !== this.chapters.length || comic.chapters.some((chapter: Chapter, index: number): boolean =>
+      this.chapters[index]?.id !== chapter.id || this.chapters[index]?.pageCount !== chapter.pageCount)
+    if (!changed) return
+    this.manga = mangaDetailFromComic(comic, this.sourceRegistry)
+    this.chapters = this.decorateChapterStates(comic.chapters.map((chapter: Chapter): MangaChapterItem =>
+      mangaChapterItemFromComicChapter(chapter, comic.sourceKind)))
   }
 
   private decorateChapterStates(chapters: MangaChapterItem[]): MangaChapterItem[] {

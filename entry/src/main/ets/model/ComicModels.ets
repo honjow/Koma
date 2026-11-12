@@ -90,6 +90,8 @@ export function isDeferredFolderArchiveChapter(chapter: Chapter): boolean {
 export interface LocalImportOrigin {
   kind: 'archive' | 'images'
   sourceUris: string[]
+  /** Revision of the EPUB reading-order projection, independent of the original file. */
+  epubOrderRevision?: number
 }
 
 export function copyLocalImportOrigin(origin: LocalImportOrigin): LocalImportOrigin {
@@ -99,7 +101,9 @@ export function copyLocalImportOrigin(origin: LocalImportOrigin): LocalImportOri
     (origin.kind === 'archive' && origin.sourceUris.length !== 1)) {
     throw new Error('Invalid local import origin')
   }
-  return { kind: origin.kind, sourceUris: origin.sourceUris.slice() }
+  const copy: LocalImportOrigin = { kind: origin.kind, sourceUris: origin.sourceUris.slice() }
+  if (origin.epubOrderRevision !== undefined) copy.epubOrderRevision = origin.epubOrderRevision
+  return copy
 }
 
 /** Collected source detail, owned by the library alongside its chapter table.
@@ -446,7 +450,8 @@ export function currentComicReadingProgress(comic: Comic, progress?: ReadingProg
     !comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
     return undefined
   }
-  if (progress === undefined || comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER) {
+  if (progress === undefined || (comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER &&
+    !(comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE && comic.localImportOrigin?.epubOrderRevision === 1))) {
     return progress
   }
   const chapter = comic.chapters.find((item: Chapter): boolean => item.id === progress.chapterId)

@@ -23,6 +23,8 @@ import { ComicSourceKind, isDeferredFolderArchiveChapter } from '../model/ComicM
 import { localLibraryFolderRootUriFromComic } from '../model/LocalLibraryFolderContract'
 import { activateLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAccessService'
 import { openLocalFolderArchive, removeLocalFolderArchive } from '../import/LocalFolderArchiveReader'
+import { ComicArchiveBookmark } from '../import/ComicArchiveBookmarkParser'
+import { comicArchiveExtractionRoot, readComicArchiveBookmarks } from '../import/ComicArchiveBookmarks'
 import { AppFilesLibraryStorePersistenceAdapter, hydrateLibraryStoreFromJson } from '../model/LibraryPersistence'
 import { ReaderSessionConfig, cloneReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { OfflineDownloadStore } from '../model/OfflineDownloadStore'
@@ -41,10 +43,12 @@ const AUTOMATIC_PAGE_RETRY_DELAY_MS: number[] = [300, 800, 1500]
 export class KomaReaderLabChapterChoice {
   key: ReaderUnitKey
   title: string
+  pageIndex?: number
 
-  constructor(key: ReaderUnitKey, title: string) {
+  constructor(key: ReaderUnitKey, title: string, pageIndex?: number) {
     this.key = key
     this.title = title
+    this.pageIndex = pageIndex
   }
 }
 
@@ -98,6 +102,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   }
   private library: InMemoryLibraryStore = new InMemoryLibraryStore()
   private configs: Map<string, ReaderSessionConfig> = new Map()
+  private archiveBookmarks: Map<string, ComicArchiveBookmark[]> = new Map()
   private sources: Map<string, ReaderPageRenderSource[]> = new Map()
   private preparedUnits: Map<string, ReaderUnit> = new Map()
   private preparingUnits: Map<string, Promise<ReaderUnit>> = new Map()
@@ -251,7 +256,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     const hosted = await this.catalogHost?.prepare(key, cancellation) ?? null
-    if (hosted !== null) return this.installConfig(key, hosted, cancellation)
+    if (hosted !== null) {
+      await this.prepareArchiveBookmarks(key, hosted, cancellation)
+      return this.installConfig(key, hosted, cancellation)
+    }
     const comic = this.library.getComic(key.work)
     if (comic === undefined || !comic.chapters.some((chapter) => chapter.id === key.unit)) {
       throw new Error('missing_koma_chapter')
@@ -295,7 +303,18 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     if (!Number.isSafeInteger(config.totalPages) || config.totalPages < 1) {
       throw new Error('missing_koma_chapter_pages')
     }
+    await this.prepareArchiveBookmarks(key, config, cancellation)
     return this.installConfig(key, config, cancellation)
+  }
+
+  private async prepareArchiveBookmarks(key: ReaderUnitKey, config: ReaderSessionConfig,
+    cancellation: ReaderCancellation): Promise<void> {
+    if (config.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE && config.deferredLocalArchive !== true) return
+    const root = comicArchiveExtractionRoot(config.pageUris[0] ?? '')
+    if (root === undefined) return
+    const bookmarks = await readComicArchiveBookmarks(root, config.totalPages, config.pageUris)
+    cancellation.check()
+    if (!this.closed && bookmarks.length > 0) this.archiveBookmarks.set(this.unitId(key), bookmarks)
   }
 
   private installConfig(key: ReaderUnitKey, config: ReaderSessionConfig,
@@ -379,12 +398,21 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     // Manual selection shows the complete catalog. Only the
     // previous/next boundary above is restricted to the verified continuation
     // sequence, so editions outside that sequence do not disappear from UI.
-    return config.chapterIds.map((chapterId: string, index: number): KomaReaderLabChapterChoice => {
-      return new KomaReaderLabChapterChoice(
-        new ReaderUnitKey(unit.scope, unit.work, chapterId),
-        index >= 0 ? (config.chapterTitles?.[index] ?? '') : '',
-      )
+    const choices: KomaReaderLabChapterChoice[] = []
+    config.chapterIds.forEach((chapterId: string, index: number): void => {
+      const bookmarks = chapterId === unit.unit ? (this.archiveBookmarks.get(this.unitId(unit)) ?? []) : []
+      if (config.chapterIds.length !== 1 || bookmarks.length === 0) {
+        choices.push(new KomaReaderLabChapterChoice(
+          new ReaderUnitKey(unit.scope, unit.work, chapterId), config.chapterTitles?.[index] ?? '',
+        ))
+      }
+      if (chapterId === unit.unit) {
+        bookmarks.forEach((bookmark: ComicArchiveBookmark): void => {
+          choices.push(new KomaReaderLabChapterChoice(unit.copy(), bookmark.title, bookmark.pageIndex))
+        })
+      }
     })
+    return choices
   }
 
   // The title leaf reads only current metadata; page changes must not clone the full catalog.

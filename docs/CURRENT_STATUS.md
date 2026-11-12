@@ -84,6 +84,64 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "DETAIL_CREATOR_WRAP_20261112",
+      "number": 286,
+      "title": "作品详情作者列表换行不自然",
+      "kind": "done",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-12",
+      "reportedAtSource": "用户报告长作者列表换行异常，并指定《装备我最强》。",
+      "registeredAt": "2026-11-12T11:05:00+08:00",
+      "updatedAt": "2026-11-12T11:30:00+08:00",
+      "closedAt": "2026-11-12T11:30:00+08:00",
+      "status": "已验证并本地提交",
+      "result": "197 瓜子漫画《装备我最强》原先在 Redice Studio 中间换行；用户确认姓名间换行、保留两行和原始数据。候选仅调整展示文本，197 对照后姓名完整位于第二行，原两行与省略保留。本地提交 46bc7ac6。",
+      "remaining": "其他屏幕宽度和更长作者姓名未单独实测。",
+      "evidence": [
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T110515907986",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T111430762145"
+      ]
+    },
+    {
+      "id": "LOCAL_READING_REAL_CBZ_20261112",
+      "number": 285,
+      "title": "本地漫画导入与CBZ阅读兼容",
+      "kind": "open",
+      "progressPhase": "needs_work",
+      "priority": "用户反馈",
+      "owner": "Root：本地阅读",
+      "reportedAt": null,
+      "reportedDate": "2026-11-12",
+      "reportedAtSource": "用户转述 CBZ 打不开并要求使用现成文件测试；原反馈发生时间未知。",
+      "registeredAt": "2026-11-12T09:55:57+08:00",
+      "updatedAt": "2026-11-12T12:37:00+08:00",
+      "status": "真实多层 ZIP、书签目录和旧 EPUB 迁移已核",
+      "result": "197 公开 CBZ、CB7、RAR5 CBR、CBT 和漫画 ZIP 已核首页，文件夹内归档章节可读并续读。用户提供的 ZIP 包含封面与 3 个 CBZ，修复后 197 分别打开 68、55、43 页三章；再次导入保留第 2 章进度并识别作者。带书签的公开参考 CBZ 显示目录并跳页。用用户漫画原图制作的图片章节文件夹 CBZ 测试副本，197 显示两章目录并跳到第 3/4 页。公开 EPUB 的旧页序 175 页：第 175 页升级到同图的第 88/88 页，无法映射的第 90 页保留第 90/175 页；修正详情页返回后旧页数未更新的问题并复验。",
+      "remaining": "图片章节文件夹尚无未经改造的真实压缩包验证；文件夹导入中内含多章归档的嵌套情形未支持，复杂编码、加密和损坏文件未覆盖，不能代表用户此前所有 CBZ 故障。测试中一次书架搜索对可见测试书无结果，原因未确认，后续另一测试书搜索正常。197 本轮测试文件和书架记录已移除，历史当前顶部无测试作品，电源已恢复并释租。",
+      "relatedItems": [
+        "LOCAL_ARCHIVE"
+      ],
+      "evidence": [
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T094907463400",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T095125620102",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T102856178096",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T102919667004",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T102947579957",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T103850069829",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T105105375569",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T105709995228",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T105926180427",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T112348687768",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T115756307323",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T120205805567",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T121541016592",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T121943737897",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T122208644043",
+        ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T123315926787"
+      ]
+    },
+    {
       "id": "HOME_BOTTOM_BAR_AUTO_HIDE",
       "number": 280,
       "title": "主页导航栏自动隐藏",

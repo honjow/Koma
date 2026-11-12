@@ -32,27 +32,30 @@ function localPagePath(page: Page): string {
 }
 
 export async function sameOrderedLocalImportPages(previous: Comic, fresh: Comic): Promise<boolean> {
-  if (previous.chapters.length !== 1 || fresh.chapters.length !== 1) return false
-  const oldPages = previous.chapters[0].pages
-  const newPages = fresh.chapters[0].pages
-  if (oldPages.length !== newPages.length) return false
-  for (let index = 0; index < newPages.length; index += 1) {
-    // New content must be readable. Missing old content can only invalidate
-    // resume; it is never a reason to discard a valid newly selected copy.
-    const newHash = await hash.hash(localPagePath(newPages[index]), 'sha256')
-    let oldHash: string
-    try {
-      oldHash = await hash.hash(localPagePath(oldPages[index]), 'sha256')
-    } catch (_error) {
-      return false
+  if (previous.chapters.length !== fresh.chapters.length) return false
+  for (let chapterIndex = 0; chapterIndex < fresh.chapters.length; chapterIndex += 1) {
+    const oldPages = previous.chapters[chapterIndex].pages
+    const newPages = fresh.chapters[chapterIndex].pages
+    if (oldPages.length !== newPages.length) return false
+    for (let index = 0; index < newPages.length; index += 1) {
+      // New content must be readable. Missing old content can only invalidate
+      // resume; it is never a reason to discard a valid newly selected copy.
+      const newHash = await hash.hash(localPagePath(newPages[index]), 'sha256')
+      let oldHash: string
+      try {
+        oldHash = await hash.hash(localPagePath(oldPages[index]), 'sha256')
+      } catch (_error) {
+        return false
+      }
+      if (oldHash !== newHash) return false
     }
-    if (oldHash !== newHash) return false
   }
   return true
 }
 
 export function mergeLocalImport(previous: Comic | undefined, fresh: Comic, samePages: boolean): Comic {
-  if (fresh.localImportOrigin === undefined || fresh.chapters.length !== 1 || fresh.chapters[0].pages.length === 0 ||
+  if (fresh.localImportOrigin === undefined || fresh.chapters.length === 0 ||
+    fresh.chapters.some((chapter): boolean => chapter.pages.length === 0) ||
     (fresh.localImportOrigin.kind === 'archive' && fresh.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE) ||
     (fresh.localImportOrigin.kind === 'images' && fresh.sourceKind !== ComicSourceKind.LOCAL_FOLDER)) {
     throw new Error('Invalid prepared local import')
@@ -60,31 +63,35 @@ export function mergeLocalImport(previous: Comic | undefined, fresh: Comic, same
   fresh.localImportOrigin = copyLocalImportOrigin(fresh.localImportOrigin)
   if (previous === undefined) return fresh
 
-  const oldChapter = previous.chapters[0]
-  const chapter = fresh.chapters[0]
   fresh.id = previous.id
-  chapter.comicId = previous.id
-  chapter.id = samePages && oldChapter !== undefined ? oldChapter.id : `${previous.id}-chapter-${util.generateRandomUUID()}`
-  chapter.createdAt = samePages && oldChapter !== undefined ? oldChapter.createdAt : chapter.createdAt
-  chapter.pages.forEach((page: Page, index: number): void => {
-    page.comicId = previous.id
-    page.chapterId = chapter.id
-    page.id = samePages ? oldChapter.pages[index].id : `${chapter.id}-page-${index + 1}`
+  fresh.chapters.forEach((chapter, chapterIndex): void => {
+    const oldChapter = previous.chapters[chapterIndex]
+    chapter.comicId = previous.id
+    chapter.id = samePages && oldChapter !== undefined ? oldChapter.id : `${previous.id}-chapter-${util.generateRandomUUID()}`
+    chapter.createdAt = samePages && oldChapter !== undefined ? oldChapter.createdAt : chapter.createdAt
+    chapter.pages.forEach((page: Page, index: number): void => {
+      page.comicId = previous.id
+      page.chapterId = chapter.id
+      page.id = samePages ? oldChapter.pages[index].id : `${chapter.id}-page-${index + 1}`
+    })
   })
   fresh.createdAt = previous.createdAt
   fresh.title = previous.title
   fresh.sortTitle = previous.sortTitle
-  fresh.author = previous.author
+  fresh.author = previous.author ?? fresh.author
   fresh.subtitle = previous.subtitle
   fresh.categoryIds = previous.categoryIds?.slice()
   fresh.localMetadata = previous.localMetadata
   fresh.preferredDirection = previous.preferredDirection
 
   if (previous.coverUri !== undefined) {
-    const oldCoverIndex = oldChapter?.pages.findIndex((page: Page): boolean => page.uri === previous.coverUri) ?? -1
-    if (samePages && oldCoverIndex >= 0) {
-      fresh.coverUri = chapter.pages[oldCoverIndex].uri
-    } else if (oldCoverIndex !== 0) {
+    const oldCoverChapter = previous.chapters.findIndex((chapter): boolean =>
+      chapter.pages.some((page: Page): boolean => page.uri === previous.coverUri))
+    const oldCoverIndex = oldCoverChapter < 0 ? -1 : previous.chapters[oldCoverChapter].pages.findIndex(
+      (page: Page): boolean => page.uri === previous.coverUri)
+    if (samePages && oldCoverChapter >= 0 && oldCoverIndex >= 0) {
+      fresh.coverUri = fresh.chapters[oldCoverChapter].pages[oldCoverIndex].uri
+    } else if (oldCoverChapter !== 0 || oldCoverIndex !== 0) {
       // Explicit cover remains reachable in the retained previous generation.
       fresh.coverUri = previous.coverUri
     }
@@ -113,7 +120,8 @@ export class LocalImportCommitService {
       const samePages = previous !== undefined && await sameOrderedLocalImportPages(previous, fresh)
       // Metadata can be edited while hashes run. Preserve the latest user row.
       const latest = previous === undefined ? undefined : this.libraryStore.getComic(previous.id)
-      if (previous !== undefined && (latest === undefined || latest.chapters[0]?.id !== previous.chapters[0]?.id)) {
+      if (previous !== undefined && (latest === undefined || latest.chapters.length !== previous.chapters.length ||
+        latest.chapters.some((chapter, index): boolean => chapter.id !== previous.chapters[index].id))) {
         throw new Error('Local import changed during commit')
       }
       const merged = mergeLocalImport(latest, fresh, samePages)

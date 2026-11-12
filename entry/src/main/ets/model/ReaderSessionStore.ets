@@ -738,6 +738,33 @@ export abstract class ReaderSessionStore {
     return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.position
   }
 
+  /** Anchor both saved positions to existing page IDs before replacing an EPUB
+   * page list. After publication, normalize indexes without changing read time. */
+  reconcileLocalEpubPositions(comicId: ComicId, chapterId: ChapterId, pageIds: string[],
+    normalize: boolean): boolean {
+    const rows: ReadingProgress[] = []
+    const recent = this.getProgress(comicId)
+    if (recent !== undefined && recent.chapterId === chapterId) rows.push(recent)
+    const chapter = this.getChapterProgress(comicId, chapterId)
+    if (chapter !== undefined) rows.push(chapter)
+    if (normalize && rows.some((row: ReadingProgress): boolean => row.pageId === undefined || !pageIds.includes(row.pageId))) return false
+    if (!normalize && rows.length !== pageIds.length) return false
+    if (rows.length === 0) return true
+    return this.commitUserMutation((): void => {
+      rows.forEach((row: ReadingProgress, index: number): void => {
+        if (!normalize) {
+          row.pageId = pageIds[index]
+        } else {
+          const nextIndex = pageIds.indexOf(row.pageId as string)
+          row.pageIndex = nextIndex
+          row.totalPages = pageIds.length
+          row.progressRatio = pageIds.length > 0 ? (nextIndex + 1) / pageIds.length : 0
+        }
+      })
+      this.chapterStatesChanged()
+    })
+  }
+
   isChapterRead(comicId: ComicId, chapterId: ChapterId): boolean {
     return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.isRead === true
   }

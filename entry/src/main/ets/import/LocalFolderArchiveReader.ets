@@ -30,6 +30,7 @@ export async function openLocalFolderArchive(cacheDir: string, sourceUri: string
       sandboxZipPath,
       extractionDir: `${rootDir}/extract`,
       cleanOutputDir: false,
+      expandNestedArchives: false,
     })
     return { rootDir, pages: result.importResult.comic.chapters[0].pages }
   } catch (error) {

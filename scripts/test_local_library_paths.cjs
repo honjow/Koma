@@ -21,6 +21,12 @@ const folder = load('model/LocalLibraryFolderContract', {
   '@kit.ArkTS': { util: {} }, '../import/ImageSortUtils': sort,
   './ComicModels': models, './LocalLibraryMetadataService': metadata,
 })
+const archives = load('import/ArchiveImageChapters', {
+  '../model/LocalLibraryFolderContract': folder, './ImageSortUtils': sort,
+})
+const folderBookmarks = load('import/ComicArchiveFolderBookmarks', {
+  './ArchiveImageChapters': archives,
+})
 test('ordinary colon filenames scan and resolve to encoded local folder paths', () => {
   const original = 'A: Series/Chapter: Start/page: 01.jpg'
   const scan = folder.scanLocalLibraryFolderEntries([{ relativePath: original, kind: 'file' }])
@@ -42,4 +48,22 @@ test('unopened folder archives retain reading progress while their page catalog 
   const progress = { comicId: comic.id, chapterId: comic.chapters[0].id, pageId: 'saved-page',
     pageIndex: 5, totalPages: 20, progressRatio: 0.3, completed: false, updatedAt: 1 }
   assert.deepEqual(models.currentComicReadingProgress(comic, progress), progress)
+})
+
+test('image archive splits explicit chapter folders but leaves ambiguous folders together', () => {
+  assert.deepEqual(archives.archiveImageChapters([
+    'book/cover.jpg', 'book/第1话/001.jpg', 'book/第1话/002.jpg', 'book/第2话/001.jpg',
+  ]), [
+    { title: '第1话', paths: ['book/第1话/001.jpg', 'book/第1话/002.jpg'] },
+    { title: '第2话', paths: ['book/第2话/001.jpg'] },
+  ])
+  assert.deepEqual(archives.archiveImageChapters(['book/images/001.jpg', 'book/extras/002.jpg']), [])
+  assert.deepEqual(archives.archiveImageChapters(['book/images/001.jpg', 'book/images/002.jpg']), [])
+  const nested = ['book/chapter-1/images/001.jpg', 'book/chapter-1/images/002.jpg', 'book/chapter-2/img/001.jpg']
+  assert.deepEqual(archives.archiveImageChapters(nested), [
+    { title: 'chapter-1', paths: nested.slice(0, 2) }, { title: 'chapter-2', paths: nested.slice(2) },
+  ])
+  assert.deepEqual(folderBookmarks.comicArchiveFolderBookmarks('/extract', nested.map(p => `file:///extract/${p}`)), [
+    { title: 'chapter-1', pageIndex: 0 }, { title: 'chapter-2', pageIndex: 2 },
+  ])
 })

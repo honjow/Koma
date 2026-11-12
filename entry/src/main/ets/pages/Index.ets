@@ -41,6 +41,9 @@ import { common } from '@kit.AbilityKit'
 import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
 import { KomaReaderCatalogHost } from '../readerLab/KomaReaderCatalogHost'
 import { KomaReaderFailure } from '../readerLab/KomaReaderFailure'
+import { comicArchiveExtractionRoot } from '../import/ComicArchiveBookmarks'
+import { readOrderedEpubImages } from '../import/EpubArchiveReader'
+import { planLegacyEpubOrder } from '../import/LegacyEpubOrder'
 import { SourceFailureDetails } from '../model/SourceRuntimeError'
 import { SourceTextOverlay } from '../model/SourceTextOverlay'
 import { ReaderLabLaunchState, ReaderLabRequest, connectReaderLabLaunch, ReaderRouteTransition } from '@reader-kit/ui'
@@ -897,13 +900,15 @@ struct Index {
     chapterId: string | undefined,
     openEpoch: number,
   ): Promise<void> {
-    const originalComic = this.readerComicForOpen(comicId)
+    let originalComic = this.readerComicForOpen(comicId)
     if (originalComic === undefined) {
       if (openEpoch === this.readerOpenEpoch) {
         this.readerSessionLoading = false
       }
       return
     }
+    await this.upgradeLegacyEpubOrder(originalComic, openEpoch)
+    originalComic = this.readerComicForOpen(comicId) ?? originalComic
     if (originalComic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
       const rootUri = localLibraryFolderRootUriFromComic(originalComic)
       if (rootUri !== undefined) {
@@ -932,6 +937,43 @@ struct Index {
     // Terminal publication: the one-shot crossing intent has been consumed.
     this.readerOpenIntent = 'resume'
     this.readerSessionLoading = false
+  }
+
+  /** A legacy EPUB is changed only when every saved position maps to the same
+   * image in the corrected spine. Pin old page IDs before publishing the new
+   * list so an interrupted write cannot move the reader to another image. */
+  private async upgradeLegacyEpubOrder(comic: Comic, openEpoch: number): Promise<void> {
+    if (!this.readerSessionPersistenceReady || comic.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE ||
+      !/\.epub$/i.test(comic.sourcePath) || comic.localImportOrigin?.epubOrderRevision === 1 ||
+      comic.chapters.length !== 1 || this.activeReaderComicSnapshot?.id === comic.id) return
+    const root = comicArchiveExtractionRoot(comic.chapters[0].pages[0]?.uri ?? '')
+    if (root === undefined) return
+    try {
+      const paths = await readOrderedEpubImages(root)
+      await BackupRestoreActivity.runWrite(async (): Promise<void> => {
+        if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) return
+        const current = this.libraryStore.getComic(comic.id)
+        if (current === undefined || current.sourcePath !== comic.sourcePath || current.chapters.length !== 1 ||
+          current.chapters[0].id !== comic.chapters[0].id || current.localImportOrigin?.epubOrderRevision === 1) return
+        const chapterId = current.chapters[0].id
+        const positions: ReadingProgress[] = []
+        const recent = this.readerSessionStore.getProgress(current.id)
+        if (recent !== undefined && recent.chapterId === chapterId) positions.push(recent)
+        const chapter = this.readerSessionStore.getChapterProgress(current.id, chapterId)
+        if (chapter !== undefined) positions.push(chapter)
+        const plan = planLegacyEpubOrder(current, root, paths, positions)
+        if (plan === undefined || !this.readerSessionStore.reconcileLocalEpubPositions(
+          current.id, chapterId, plan.anchoredPageIds, false)) return
+        const persistence = this.ensureLibraryPersistenceService()
+        if (persistence === undefined) return
+        upsertComicAndPersistLibraryStore(this.libraryStore, persistence, plan.comic)
+        this.readerSessionStore.reconcileLocalEpubPositions(current.id, chapterId,
+          plan.comic.chapters[0].pages.map((page: Page): string => page.id), true)
+        this.refreshLibrarySnapshot()
+      })
+    } catch (_error) {
+      DiagnosticLogger.warn('local_import', 'epub_order_upgrade', '[LocalImport] epub_order_upgrade_failed')
+    }
   }
 
   private createSourceReaderSessionConfig(
