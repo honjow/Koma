@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：237 已复核 Koma、NextE、NextN 公共半模态的滚动透底。覆盖源详情和普通自定义主题色，漫画源设置沿用相同标题栏。详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。197 已确认备份页重进直接显示现有记录。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。1.2.3 已发布，公开下载包已核对。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。WebDAV 同步候选已加入分片清理、定向续读和冲突提示，待真机验证。详情页书源不可用状态已收敛：有可读缓存时只在书源名后显示实心红色警告，无缓存时失败区提供查找书源；197 已实测。公开下载目录迁移和单源可读路径已通过，但两个真实书源同名作品下载仍未验收：漫画柜留下空目录，MangaBz 未完成“加入书架并下载”确认。
+当前结果：237 已复核 Koma、NextE、NextN 公共半模态的滚动透底。覆盖源详情和普通自定义主题色，漫画源设置沿用相同标题栏。详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。197 已确认备份页重进直接显示现有记录。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。1.2.3 已发布，公开下载包已核对。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。WebDAV 已在 197 和 103 的原连接复测旧进度保护、续读选择和立即同步计数。详情页书源不可用状态已收敛：有可读缓存时只在书源名后显示实心红色警告，无缓存时失败区提供查找书源；197 已实测。公开下载目录迁移和单源可读路径已通过，但两个真实书源同名作品下载仍未验收：漫画柜留下空目录，MangaBz 未完成“加入书架并下载”确认。
 
 设备：197与103已完成本次同步验证，原设置、电源及租约均已恢复，两机保留无测试CA的正常包。临时WebDAV已关闭，私钥和随机凭据已清理。此前的备份验证临时记录已清理。237 本次完成龙禁漫 P2 验证后已删除临时包、恢复 10 秒超时并释租，保留 1.4.2 code15 同签包和已安装的龙禁漫 0.1.2。 237 本轮复现并验证哔哩漫画书架续读，已删除临时包、恢复 10 秒超时并释租，保留 1.4.2 code15 与哔哩漫画 0.1.5。237 本轮阅读失败态复验未触发失败瞬间：临时 WLAN 代理只影响系统检查、应用图片请求未经过它，代理已恢复为“无”，临时截图/布局已删除，超时恢复 10000ms 读回后休眠并释租。200 本轮两项问题已复测，原超时已恢复并释租。197 本轮详情缺源提示验证后已恢复电源并释租；测试临时停用的动漫屋仍保持停用，由用户自行启用。四私库搁置。
 
@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-13T02:37:46+08:00",
+  "updatedAt": "2026-11-13T03:48:36+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -97,14 +97,16 @@
       "reportedDate": "2026-11-12",
       "reportedAtSource": "用户报告 197 持续提示无法连接及服务器文件数量膨胀。",
       "registeredAt": "2026-11-12T22:24:00+08:00",
-      "updatedAt": "2026-11-13T02:37:46+08:00",
-      "status": "原路径已迁移并自动回收旧目录，双设备续读已验证",
-      "result": "旧版超大目录响应会导致 WebDAV 报错。197 用候选包迁移原路径，服务端确认旧协议目录已回收。随后立即同步成功。197 和 103 从历史续读打开了同一章同一页。",
-      "remaining": "候选已装测试机，待随版本交付。",
+      "updatedAt": "2026-11-13T03:48:36+08:00",
+      "status": "197 和 103 已用最终候选复测原连接",
+      "result": "旧版超大目录响应导致 WebDAV 报错。197 迁移原路径后旧目录自动回收，197 和 103 已续读到同一章同一页。后续候选修复了迟到写入覆盖，同一 AList 的隔离目录中三个客户端收齐两台并发写入，最终合并为一份清单。无变化时只查询一次小目录。",
+      "remaining": "待随应用版本交付。删除版本仍保留在分片内。",
       "relatedItems": [
         "WEBDAV_AUTO_PROGRESS_STALE"
       ],
       "evidence": [
+        ".hvigor/outputs/device-sync-independent/shared-sync-assessment-20261113/koma-sync-head-real.log",
+        ".hvigor/outputs/device-sync-independent/shared-sync-assessment-20261113/koma-sync-head-upgrade.log",
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T221358176274",
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/webdav-probe-20261112T221640652308",
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261112T223159602277",
@@ -10249,19 +10251,28 @@
       "title": "WebDAV 自动同步时另一台设备的阅读进度未更新",
       "kind": "pending_verification",
       "priority": "用户反馈",
-      "status": "候选已实现：分片清理、定向续读与冲突提示，待设备验证",
-      "stage": "本地回归和 Debug 构建通过；真机未验",
+      "status": "197 和 103 原连接验证通过，待随版本交付",
+      "stage": "双真机复测通过",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户报告，原始消息时间未核实。",
-      "result": "2026-11-10 候选：发布时不再重新下载校验已存在的分片；旧目录摘要块生成删除，避免目录每刷新一次就永久累积；历史和书架续读按作品桶定向读取，不再整组全量加载；本地与远端位置不同且本地时间不早于远端时显示「保留本机／使用另一台设备」选择。原验证仍保留：197 的阅读进度同步到 103，续读到同一章同一页，103 下拉收到收藏和章节目录，独立 AList 验证损坏组回退。",
-      "remaining": "待设备验证定向续读、冲突弹窗和旧目录块清理；真实 WebDAV 请求量、耗时和登录书源双机续读仍未知。",
+      "result": "《護城花巫女》103 晚保存的第 64 页未覆盖服务器和 197 的第 67 页。从历史选择另一台设备后，103 实际打开同章第 67 页。各点三次立即同步，197 在接收恢复的原位置后连续两轮为零，103 三轮为零。此前定向续读、旧分片回收、收藏与目录及损坏组回退的证据保留。",
+      "remaining": "待随应用版本交付。",
       "closedAt": null,
       "relatedItems": [
         "READING_HISTORY_SYNC"
       ],
       "evidence": [
+        ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/device-sync-live-account/navigate-20261113T034534420918",
+        ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/device-sync-live-account/navigate-20261113T034558382510",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/navigate-20261113T034732712254",
+        ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/device-sync-live-account/navigate-20261113T034803423155",
+        ".hvigor/outputs/device-sync-independent/shared-sync-assessment-20261113/koma-sync-final-head-stale.log",
+        ".hvigor/outputs/device-sync-independent/shared-sync-assessment-20261113/koma-sync-final-head-round.log",
+        ".hvigor/outputs/device-sync-independent/shared-sync-assessment-20261113/koma-sync-head-concurrent-reading.log",
+        ".hvigor/outputs/device-sync-independent/shared-sync-assessment-20261113/koma-sync-v5-stale-reader.log",
+        ".hvigor/outputs/device-sync-independent/shared-sync-assessment-20261113/koma-sync-v5-scenarios.log",
         ".hvigor/outputs/device-sync-rebuild/live-103-chapter-chrome.log",
         ".hvigor/outputs/device-sync-rebuild/pull-103-history-swipe.log",
         ".hvigor/outputs/device-sync-rebuild/equipment-103-shelf-after.log",
@@ -10282,8 +10293,8 @@
         "原排查记录｜本地用当前调度和双副本合并实现复现。阅读保存触发延迟 15 秒，发送端先切后台会撤掉本次调度；接收端前台同步成功后没有后续拉取。首次合并暂缓的最近阅读章节会连同该书的后续章节页位一起暂缓，其他书仍可同步。界面将不同原因合为跳过项。另用设置页的按钮分流和双副本同步逻辑连续执行三次立即同步。每次任务成功，接收端已读到服务器上的新页码，但待核对作品的进度不写入本机，另一本书更新。待核对入口在同步内容下方、状态上方的待处理项目；模拟原差异关联待核验进度时，状态仍提示核对但预览没有可选差异。双副本继续复现确认循环。只剩一条可见差异时明确选择并确认，选择实际写入且自动开关维持开启，但未列出的待核验阅读差异仍使管理页立即显示有差异待核对，再打开预览没有可选项。对应记录解除保护并确认后提示才清除。用户进一步报告差异处理后进度和历史仍不一致。本地双副本用支持范围内的作品、无差异连接和模拟章节核验失败复跑：发端保留新章页但从未发布对应阅读记录，发端和收端连续两轮立即同步均结束且无错误，收端历史和页码仍为空。此复现解释独立于暂缓的失效路径，用户现场原因尚未确认。用户提供的现用 WebDAV 目录返回 207。逐一校验现存 6 次提交和全部 7 个分片，最新包含 2 个分类、1 条排序、1 个订阅，整个现存提交链和旧分片均无阅读记录、页码及收藏作品。使用真实服务器和当前接收端同步引擎在主机回放，18 次请求，应用分类与订阅共 4 项，阅读 0 项，仍记录为成功且无待核对，服务端没有写入。手机端未上传的具体筛除点尚未取得。 当前候选已去掉按书源、包版本和作品公开性筛选，收发本机保存的历史和章页。用临时 AList，197 与 103 实测包子漫画《歸還者的魔法要特別》001 01 从第 19 页自动更新到第 24 页，独立复核两机正文一致。",
         "原验证记录｜当前候选已自动应用所选组，不再按书源名单筛选。订阅和搜索写入实际存储，书架同步完整章节目录，接收端用同一目录计算未读和筛选。同步内容在同步总览共用，继承旧选择并在无连接时可保存。测试已验证首轮撤销范围、损坏分片的组隔离、新端默认偏好不覆盖已有值，以及缺源设备收到 440 个章节 ID 后重载可得 439 个未读。当前候选通过临时 AList v3.66.0 双主机副本双向收发。两端重载后各有 440 个章节 ID、439 个未读，续读为第 2 章第 6 页及第 9 页。197 真机从设置进入总览改范围，取消连接表单后回原页，重启读回并恢复原勾选。103 用同签名候选走通横屏设置路径，独立复核确认共享范围只在总览。连接表单返回后选择保持，冷启动后读回已修改范围并恢复测试前勾选。使用用户真实 WebDAV，197 已登录 Komiic 并读到《ONE PIECE 航海王》1196 话第 4 页，103 未登录即可点历史续读到相同正文。103 仅手动模式下由历史下拉收到第 6 页。书架下拉完成后收到瓜子《装备我最强》收藏、封面、273 话及第 61 页，章节检查有手动发起日志。独立 AList 制造缺片，新设备回退到第 6 页，已有第 9 页的设备保持原值，修复缺片后追到第 9 页，健康书架组持续可用。单独损坏封面及提交回复丢失时的重试已执行。Komiic 样本允许匿名打开正文，登录硬门槛和真机空闲请求量仍未核。旧记录没有可靠身份时留在原设备。"
       ],
-      "updatedAt": "2026-11-10T11:06:31+08:00",
-      "progressPhase": null
+      "updatedAt": "2026-11-13T03:48:36+08:00",
+      "progressPhase": "verification"
     },
     {
       "id": "RELEASE_1_4_2",
@@ -10550,6 +10561,60 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "webdav-original-route-device-retest-237-20261113",
+      "at": "2026-11-13T03:48:36+08:00",
+      "itemId": "WEBDAV_AUTO_PROGRESS_STALE",
+      "title": "#237 原连接双机复测通过",
+      "detail": "原候选保住远端第 67 页，但已在书架的历史项绕过冲突检查，13 份没有历史条目的封面每轮误计为下载。修订后，103 从同一历史项选择另一台设备并打开第 67 页。恢复第 62 页后，197 手动三轮计数为 1、0、0，103 为 0、0、0。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/device-sync-live-account/navigate-20261113T034558382510"
+    },
+    {
+      "id": "webdav-original-route-device-retest-289-20261113",
+      "at": "2026-11-13T03:48:36+08:00",
+      "itemId": "WEBDAV_DIRECTORY_GROWTH_20261112",
+      "title": "#289 最终候选在原路径正常收发",
+      "detail": "两台安装相同签名候选，原 WebDAV 成功接收进度和执行手动同步。恢复的第 62 页在服务器读回为唯一位置。两台无变化的手动轮次均只有一次目录查询。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/device-sync-live-account/navigate-20261113T034803423155"
+    },
+    {
+      "id": "webdav-sync-reading-fix-237-20261113",
+      "at": "2026-11-13T03:18:04+08:00",
+      "itemId": "WEBDAV_AUTO_PROGRESS_STALE",
+      "title": "#237 修复续读回退和重复下载计数",
+      "detail": "本地用应用阅读存储复测，旧进度未覆盖远端第 12 页，选择另一台设备立即写入对应章页，未读记录连续三轮下载计数为 1、0、0。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/device-sync-independent/shared-sync-assessment-20261113/koma-sync-final-head-round.log"
+    },
+    {
+      "id": "webdav-shared-publish-fix-289-20261113",
+      "at": "2026-11-13T03:18:04+08:00",
+      "itemId": "WEBDAV_DIRECTORY_GROWTH_20261112",
+      "title": "#289 并发发布和旧分片升级验证",
+      "detail": "AList 隔离目录保住两份并发写入，三个客户端收到合并结果，无变化时一次目录查询，测试目录已清理。本地回放从上一候选的固定槽分片原地升级，阅读页码保留。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/device-sync-independent/shared-sync-assessment-20261113/koma-sync-head-real.log"
+    },
+    {
+      "id": "webdav-reading-fork-237-local-20261113",
+      "at": "2026-11-13T02:49:54+08:00",
+      "itemId": "WEBDAV_AUTO_PROGRESS_STALE",
+      "title": "#237 复现阅读分叉、选择未落地和重复下载计数",
+      "detail": "用真实同步与阅读存储实现回放：远端第 12 页，本机从第 3 页翻至第 4 页，双方保留两个互未观察的版本但最后显示第 4 页。仅打开旧页也会刷新历史时间，同章样本另一台退至第 1 页。另复现选择远端后本机仍打开旧章页，以及未读已落地却连续三轮显示下载 1 项。未操作真实设备或服务数据。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/device-sync-independent/shared-sync-assessment-20261113/koma-sync-v5-stale-reader.log"
+    },
+    {
+      "id": "webdav-shared-late-put-289-local-20261113",
+      "at": "2026-11-13T02:49:54+08:00",
+      "itemId": "WEBDAV_DIRECTORY_GROWTH_20261112",
+      "title": "#289 复现共享分片迟到写入",
+      "detail": "在无条件写入的本地 WebDAV 回放中，另一台确认成功后，较慢的请求覆盖同一槽位，索引指向的分片校验失败。成功写入端下一轮使用缓存仍显示成功，第三台无法读取。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/device-sync-independent/shared-sync-assessment-20261113/koma-sync-v5-scenarios.log"
+    },
     {
       "id": "webdav-directory-growth-289-live-retirement-20261113",
       "at": "2026-11-13T02:37:46+08:00",

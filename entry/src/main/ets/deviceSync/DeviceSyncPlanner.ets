@@ -496,7 +496,21 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
     const deferredRoots = Array.from(deferred)
     groups.push({ id: row.id, facts, baseline, pending, deferred: allDeferred, deferredRoots })
     remaining.push({ id: row.id, facts, baseline, pending: unpublished, deferred: allDeferred, deferredRoots })
-    applies.push({ group: row.id, changes })
+    let applicable = changes
+    if (row.local.readingHistoryKeys !== undefined && changes.some((change: SyncLocalValue): boolean => isCoverKey(change.key))) {
+      const applied = byLocalValue(changes)
+      const histories = new Set<string>(row.local.readingHistoryKeys)
+      applicable = changes.filter((change: SyncLocalValue): boolean => {
+        if (!isCoverKey(change.key)) return true
+        // A cover is applied to a history entry. Keep the shared cover available
+        // for a future entry without counting or writing it on every round.
+        const parts = syncKeyParts(change.key)
+        const recent = syncKey(['recent', parts[1], parts[2]])
+        const next = applied.get(recent)
+        return next === undefined ? histories.has(recent) : next !== ''
+      })
+    }
+    applies.push({ group: row.id, changes: applicable })
     revisions.push({ group: row.id, revision: row.local.revision })
   }
   const outputBytes = datasets.filter((dataset: SyncDatasetRef): boolean =>

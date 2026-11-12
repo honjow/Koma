@@ -660,6 +660,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       JSON.stringify(archive ?? null)]) as string
     return { values, labels, revision,
       skipped: readingOutsideScope, readingOutsideScope,
+      readingHistoryKeys: reading.sourceHistory.map((entry: SourceReadHistoryEntry): string =>
+        syncKey(['recent', entry.sourceId, entry.mangaId])),
       protectedKeys: Array.from(protectedKeys),
       restoreEdits: verify && archive !== undefined ? this.restoreReadingEdits(archive, identities) : undefined }
   }

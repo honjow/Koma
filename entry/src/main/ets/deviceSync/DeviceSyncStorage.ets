@@ -18,6 +18,8 @@ export interface SyncLocalSnapshot {
   revision: string
   skipped: number
   readingOutsideScope?: number
+  // Covers can only land on an existing or newly applied history entry.
+  readingHistoryKeys?: string[]
   protectedKeys?: string[]
   // Fixed host settings keep their actual local value when their shared record
   // is deleted. This does not protect normal edits or an explicit re-upload.

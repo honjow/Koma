@@ -3603,7 +3603,11 @@ struct Index {
                 },
                 onOpenReader: (comicId: ComicId, chapterId?: string) => {
                   this.cancelHistoryResume()
-                  void this.openReader(comicId, chapterId)
+                  const comic = this.libraryStore.getComic(comicId)
+                  // A history row resumes the work, including progress received
+                  // since it was rendered. Explicit chapter opens keep their ID.
+                  const sourceResume = comic?.sourceRuntimeId !== undefined && comic.remoteResourceId !== undefined
+                  void this.openReader(comicId, sourceResume ? undefined : chapterId)
                 },
                 onOpenSourceReader: (request: SourceReaderSessionRequest) => {
                   void this.resumeSourceFromHistory(request)
