@@ -2,6 +2,7 @@ import { util } from '@kit.ArkTS'
 import {
   compareNaturalPath,
   getBaseName,
+  isSupportedArchivePath,
   isSupportedImagePath,
   normalizeSortKey,
   stripExtension,
@@ -23,10 +24,9 @@ import {
   resolveLocalLibrarySeriesCoverReference,
 } from './LocalLibraryMetadataService'
 
-// Folder scans retain their accepted chapter-descriptor contract. New archive
-// codecs are consumed by the explicit file importer, not advertised as empty
-// folder chapters before that separate materialization path exists.
-function isSupportedArchivePath(path: string): boolean { return /\.(?:cbz|zip)$/i.test(path) }
+// Folder chapters are materialized by LocalFolderArchiveReader on entry, using
+// the same archive codecs as direct import. Keep saved chapter identities based
+// on the selected folder path, independent of temporary extracted pages.
 
 export const LOCAL_LIBRARY_FOLDER_CONTRACT_VERSION = 1
 export const LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'BEST_EFFORT_DOCUMENT_PICKER'
@@ -212,7 +212,7 @@ export function createLocalLibraryFolderRootContract(rootName: string = 'Local L
     version: LOCAL_LIBRARY_FOLDER_CONTRACT_VERSION,
     rootName: safeRootName,
     rootId: idFor('root', normalizeSortKey(safeRootName)),
-    directoryConvention: 'root/{series path}/{chapter folder pages | chapter.cbz | chapter.zip}; image-only series folders are one chapter',
+    directoryConvention: 'root/{series path}/{chapter folder pages | supported chapter archive}; image-only series folders are one chapter',
     runtimeFolderPicker: LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS,
   }
 }

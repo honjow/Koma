@@ -27,6 +27,10 @@ const archives = load('import/ArchiveImageChapters', {
 const folderBookmarks = load('import/ComicArchiveFolderBookmarks', {
   './ArchiveImageChapters': archives,
 })
+const folderArchive = load('import/LocalFolderArchiveReader', {
+  '@kit.ArkTS': { util: {} }, '@kit.BasicServicesKit': {}, '@kit.CoreFileKit': {},
+  './ArchiveExtractionService': {}, './LocalImportCoordinator': {},
+})
 test('ordinary colon filenames scan and resolve to encoded local folder paths', () => {
   const original = 'A: Series/Chapter: Start/page: 01.jpg'
   const scan = folder.scanLocalLibraryFolderEntries([{ relativePath: original, kind: 'file' }])
@@ -48,6 +52,31 @@ test('unopened folder archives retain reading progress while their page catalog 
   const progress = { comicId: comic.id, chapterId: comic.chapters[0].id, pageId: 'saved-page',
     pageIndex: 5, totalPages: 20, progressRatio: 0.3, completed: false, updatedAt: 1 }
   assert.deepEqual(models.currentComicReadingProgress(comic, progress), progress)
+})
+
+test('folder discovery recognizes the same archive formats the reader opens', () => {
+  const formats = ['cbz', 'zip', 'cbr', 'rar', 'cb7', '7z', 'cbt', 'tar', 'epub']
+  const scan = folder.scanLocalLibraryFolderEntries(formats.map((ext, i) => ({
+    relativePath: `Series/Chapter ${i + 1}.${ext}`, kind: 'file',
+  })))
+  assert.equal(scan.series.length, 1)
+  assert.equal(scan.series[0].chapters.length, formats.length)
+  const comic = folder.buildComicFromLocalLibraryFolderSeries(scan.series[0], { rootUri: 'file://picked/root' })
+  assert.ok(comic.chapters.every(models.isDeferredFolderArchiveChapter))
+})
+
+test('nested archive chapters retain page order and expose exact reader offsets', () => {
+  const pages = ids => ids.map(id => ({ id }))
+  const opened = folderArchive.flattenFolderArchiveChapters([
+    { title: '第1话', pages: pages(['a1', 'a2']) },
+    { title: '第2话', pages: pages(['b1', 'b2', 'b3']) },
+    { title: '第3话', pages: pages(['c1']) },
+  ])
+  assert.deepEqual(opened.pages.map(page => page.id), ['a1', 'a2', 'b1', 'b2', 'b3', 'c1'])
+  assert.deepEqual(opened.bookmarks, [
+    { title: '第1话', pageIndex: 0 }, { title: '第2话', pageIndex: 2 }, { title: '第3话', pageIndex: 5 },
+  ])
+  assert.deepEqual(folderArchive.flattenFolderArchiveChapters([{ title: 'One', pages: pages(['1']) }]).bookmarks, [])
 })
 
 test('image archive splits explicit chapter folders but leaves ambiguous folders together', () => {

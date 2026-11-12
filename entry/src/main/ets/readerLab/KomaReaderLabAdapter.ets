@@ -290,6 +290,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       config.totalPages = opened.pages.length
       config.pageUris = opened.pages.map((page) => page.uri)
       config.pageIds = opened.pages.map((_page, index) => `${key.unit}-page-${index + 1}`)
+      if (opened.bookmarks.length > 0) this.archiveBookmarks.set(this.unitId(key), opened.bookmarks)
     }
     if (config.totalPages <= 0 && config.chapterId.length > 0) {
       try {
@@ -310,6 +311,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private async prepareArchiveBookmarks(key: ReaderUnitKey, config: ReaderSessionConfig,
     cancellation: ReaderCancellation): Promise<void> {
     if (config.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE && config.deferredLocalArchive !== true) return
+    if (this.archiveBookmarks.has(this.unitId(key))) return
     const root = comicArchiveExtractionRoot(config.pageUris[0] ?? '')
     if (root === undefined) return
     const bookmarks = await readComicArchiveBookmarks(root, config.totalPages, config.pageUris)
