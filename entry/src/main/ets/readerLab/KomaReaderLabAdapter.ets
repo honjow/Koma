@@ -19,9 +19,10 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { ReaderFileInformation } from '@reader-kit/ui'
 import { KomaReaderCropSource } from './KomaReaderCropSource'
 import { InMemoryLibraryStore } from '../model/LibraryStore'
-import { ComicSourceKind } from '../model/ComicModels'
+import { ComicSourceKind, isDeferredFolderArchiveChapter } from '../model/ComicModels'
 import { localLibraryFolderRootUriFromComic } from '../model/LocalLibraryFolderContract'
 import { activateLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAccessService'
+import { openLocalFolderArchive, removeLocalFolderArchive } from '../import/LocalFolderArchiveReader'
 import { AppFilesLibraryStorePersistenceAdapter, hydrateLibraryStoreFromJson } from '../model/LibraryPersistence'
 import { ReaderSessionConfig, cloneReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { OfflineDownloadStore } from '../model/OfflineDownloadStore'
@@ -157,6 +158,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   }
   private requestContext?: common.UIAbilityContext
   private filesDir: string
+  private cacheDir: string
+  private localArchiveRoots: string[] = []
   private offlineStorageBase: string
   private runtimeKey: string
   private thumbnails: KomaReaderLabThumbnailProvider
@@ -177,6 +180,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     this.remotePreloadAllowed = remotePreloadAllowed
     this.requestContext = requestContext
     this.filesDir = filesDir
+    this.cacheDir = cacheDir
     this.offlineStorageBase = requestContext === undefined ? filesDir : komaContentStorageBase(requestContext)
     this.runtimeKey = requestContext === undefined ? filesDir : komaRuntimeStorageKey(requestContext)
     this.thumbnails = new KomaReaderLabThumbnailProvider(cacheDir)
@@ -265,6 +269,20 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       }
     }
     let config = createReaderSessionConfigFromComic(comic, key.unit)
+    const chapter = comic.chapters.find((item) => item.id === key.unit)
+    if (comic.sourceKind === ComicSourceKind.LOCAL_FOLDER && chapter !== undefined &&
+      isDeferredFolderArchiveChapter(chapter)) {
+      const opened = await openLocalFolderArchive(this.cacheDir, chapter.sourcePath)
+      if (this.closed || cancellation.isCancelled()) {
+        await removeLocalFolderArchive(opened.rootDir)
+        cancellation.check()
+        throw new Error('closed_koma_reader')
+      }
+      this.localArchiveRoots.push(opened.rootDir)
+      config.totalPages = opened.pages.length
+      config.pageUris = opened.pages.map((page) => page.uri)
+      config.pageIds = opened.pages.map((_page, index) => `${key.unit}-page-${index + 1}`)
+    }
     if (config.totalPages <= 0 && config.chapterId.length > 0) {
       try {
         const validation = new OfflineDownloadStore(this.offlineStorageBase, this.runtimeKey).validateDownloadedChapter(
@@ -673,6 +691,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   close(): void {
     this.closed = true
     this.preparationCancellation.cancel()
+    this.localArchiveRoots?.forEach((root: string): void => { void removeLocalFolderArchive(root) })
+    this.localArchiveRoots = []
     this.preparingUnits.clear()
     this.preparingSequences.clear()
     this.resolvedSequences.clear()

@@ -35,3 +35,11 @@ test('ordinary colon filenames scan and resolve to encoded local folder paths', 
     assert.throws(() => metadata.validateLocalLibraryCoverOverridePath(bad))
   }
 })
+
+test('unopened folder archives retain reading progress while their page catalog is deferred', () => {
+  const scan = folder.scanLocalLibraryFolderEntries([{ relativePath: 'Series/Chapter 1.cbz', kind: 'file' }])
+  const comic = folder.buildComicFromLocalLibraryFolderSeries(scan.series[0], { rootUri: 'file://picked/root' })
+  const progress = { comicId: comic.id, chapterId: comic.chapters[0].id, pageId: 'saved-page',
+    pageIndex: 5, totalPages: 20, progressRatio: 0.3, completed: false, updatedAt: 1 }
+  assert.deepEqual(models.currentComicReadingProgress(comic, progress), progress)
+})

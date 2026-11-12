@@ -81,6 +81,12 @@ export interface Chapter {
   updatedAt: number
 }
 
+/** Folder scans identify archive chapters before indexing their pages. Keep this
+ * extension set aligned with the formats accepted by ImageSortUtils. */
+export function isDeferredFolderArchiveChapter(chapter: Chapter): boolean {
+  return chapter.pageCount === 0 && /\.(?:cbz|zip|rar|cbr|7z|cb7|tar|cbt|epub)$/i.test(chapter.sourcePath)
+}
+
 export interface LocalImportOrigin {
   kind: 'archive' | 'images'
   sourceUris: string[]
@@ -447,6 +453,9 @@ export function currentComicReadingProgress(comic: Comic, progress?: ReadingProg
   if (chapter === undefined) {
     return progress
   }
+  // A folder archive is indexed when opened; an empty scan is not a zero-page
+  // update and must not erase the reader's saved page or completion state.
+  if (chapter.pages.length === 0 && isDeferredFolderArchiveChapter(chapter)) return progress
   const totalPages = chapter.pages.length
   if (totalPages === progress.totalPages &&
     (progress.pageId === undefined || chapter.pages[progress.pageIndex]?.id === progress.pageId)) {

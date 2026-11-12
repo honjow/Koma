@@ -5,6 +5,7 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { MangaDetail, MangaStatus } from '../model/MangaDetailModels'
 import { ComicSourceKind } from '../model/ComicModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { formatMangaCreatorList } from './MangaCreatorText'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -50,13 +51,13 @@ export struct MangaDetailHeader {
     const author = this.manga.author === undefined ? '' : this.manga.author
     const artist = this.manga.artist === undefined ? '' : this.manga.artist
     if (author.length > 0 && artist.length > 0 && author !== artist) {
-      return `${author} / ${artist}`
+      return `${formatMangaCreatorList(author)} / ${formatMangaCreatorList(artist)}`
     }
     if (author.length > 0) {
-      return author
+      return formatMangaCreatorList(author)
     }
     if (artist.length > 0) {
-      return artist
+      return formatMangaCreatorList(artist)
     }
     return s('manga_detail_creator_unknown')
   }

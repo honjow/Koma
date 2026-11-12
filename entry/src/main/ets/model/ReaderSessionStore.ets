@@ -23,6 +23,7 @@ import {
   currentComicReadingProgress,
   readerFormatFromTags,
   readingProgressPageIndex,
+  isDeferredFolderArchiveChapter,
 } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFailureDetails } from './SourceRuntimeError'
@@ -175,6 +176,8 @@ export interface ReaderSessionConfig {
   chapterTitle?: string
   readingFormat?: ReaderSeriesFormat
   totalPages: number
+  /** The folder archive's page list is resolved by the reader after opening. */
+  deferredLocalArchive?: boolean
   pageUris: string[]
   /** Original public image URIs retained by newer offline manifests, when available. */
   sourceOriginalImageUris?: (string | undefined)[]
@@ -217,6 +220,7 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     chapterTitle: config.chapterTitle,
     readingFormat: config.readingFormat,
     totalPages: config.totalPages,
+    deferredLocalArchive: config.deferredLocalArchive,
     pageUris: config.pageUris.slice(),
     sourceOriginalImageUris: config.sourceOriginalImageUris?.slice(),
     pageIds: config.pageIds?.slice(),
@@ -838,6 +842,9 @@ export abstract class ReaderSessionStore {
     if (progress === undefined) {
       return 0
     }
+    if (config.deferredLocalArchive === true && config.totalPages === 0) {
+      return Math.max(0, progress.pageIndex)
+    }
     return readingProgressPageIndex(progress, config.totalPages, config.pageIds)
   }
 
@@ -1390,6 +1397,8 @@ export function createReaderSessionConfigFromComic(
     chapterTitle: chapter === undefined ? undefined : readerChapterDisplayTitle(chapter),
     readingFormat: readerFormatFromTags(comic.sourceMetadata?.tags),
     totalPages: chapter === undefined ? 0 : chapter.pageCount,
+    deferredLocalArchive: comic.sourceKind === ComicSourceKind.LOCAL_FOLDER && chapter !== undefined &&
+      isDeferredFolderArchiveChapter(chapter),
     pageUris: chapter === undefined ? [] : chapter.pages.map((page) => page.uri),
     pageIds: chapter === undefined ? [] : chapter.pages.map((page) => page.id),
     pageWidths: chapter === undefined ? [] : chapter.pages.map((page) => page.width),

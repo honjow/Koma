@@ -35,8 +35,9 @@ export function resolveEpubEntry(base: string, reference: string): string {
 }
 function parent(path: string): string { return path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '' }
 
-/** Mihon EpubReader: OPF spine -> XHTML document order -> img / SVG image references.
- * Never natural-sort the result or append unreferenced covers/thumbnails from the archive.
+/** OPF spine -> XHTML document order -> img / SVG image references.
+ * Non-linear documents are auxiliary links, not sequential reading pages; preserve
+ * intentional repeated image references in the remaining linear documents.
  */
 export function readEpubImages(root: string): string[] {
   let packagePath = 'OEBPS/content.opf'
@@ -56,6 +57,7 @@ export function readEpubImages(root: string): string[] {
   if (spine === undefined) throw new Error('EPUB reading order missing')
   const result: string[] = []
   namedElements(spine, 'itemref').forEach((ref: EpubNode): void => {
+    if (ref._attributes?.['linear']?.toLowerCase() === 'no') return
     const item = items.get(ref._attributes?.['idref'] ?? '')
     if (item === undefined) throw new Error('EPUB reading order references a missing item')
     const path = resolveEpubEntry(parent(packagePath), item.href)
