@@ -104,6 +104,33 @@ test('batch editing preserves untouched mixed memberships, saves once and rolls 
  assert.equal(library.listLibraryItems(undefined, { filterCategoryId: 'all' }).length, 2)
  assert.equal(library.listLibraryItems(undefined, { filterCategoryId: b.id }).length, 0)
 })
+test('a new favorite saves initial memberships and emits them with the shelf addition', () => {
+ const library = new InMemoryLibraryStore()
+ const category = library.createCustomCategory('Manual')
+ const comic = book('favorite')
+ comic.remoteResourceId = 'work'
+ comic.categoryIds = [category.id]
+ const batches = []
+ const signals = load('deviceSync/DeviceSyncSignals')
+ signals.connectDeviceSyncOwnerEdits(actions => batches.push(clone(actions)), () => {}, () => {}, () => undefined)
+ try {
+  assert.throws(() => persistence.upsertComicAndPersistLibraryStore(library, { persist() { throw Error('disk full') } }, comic), /disk full/)
+  assert.equal(library.getComic(comic.id), undefined)
+  assert.equal(batches.length, 0)
+  let saves = 0
+  persistence.upsertComicAndPersistLibraryStore(library, { persist() {
+   saves++
+   assert.deepEqual(clone(library.getComic(comic.id).categoryIds), [category.id])
+  } }, comic)
+  assert.equal(saves, 1)
+  assert.deepEqual(batches, [[
+   { kind: 'add-book', source: 'favorite', work: 'work' },
+   { kind: 'add-member', source: 'favorite', work: 'work', category: category.id },
+  ]])
+ } finally {
+  signals.connectDeviceSyncOwnerEdits(() => {}, () => {}, () => {}, () => undefined)
+ }
+})
 test('tracker mapping projection publishes only committed public mappings and refreshes after backup replacement',async()=>{
  const store=new TrackerPreferencesStore({filesDir:'/smart-test'}),seen=[]
  const stop=store.subscribeMappings(()=>seen.push(clone(store.mappingSnapshot())))

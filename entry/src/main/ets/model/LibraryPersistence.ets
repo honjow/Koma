@@ -906,7 +906,10 @@ export function upsertComicAndPersistLibraryStore(
   try {
     persistenceService.persist()
     if (newMembership && comic.sourceRuntimeId !== undefined && comic.remoteResourceId !== undefined) {
-      signalDeviceSyncLibrary([{ kind: 'add-book', source: comic.sourceRuntimeId, work: comic.remoteResourceId }])
+      // Initial categories and the new shelf record share the same save and sync batch.
+      const edits: SyncLibrarySignal[] = [{ kind: 'add-book', source: comic.sourceRuntimeId, work: comic.remoteResourceId }]
+      edits.push(...syncLibraryMembershipChanges(comic, normalizeCategoryIds(comic.categoryIds), []))
+      signalDeviceSyncLibrary(edits)
     }
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
@@ -1297,9 +1300,8 @@ export function upsertLocalLibraryFolderRescanAndPersistLibraryStore(
   }
 }
 
-function syncLibraryMembershipChanges(comic: Comic, next: string[]): SyncLibrarySignal[] {
+function syncLibraryMembershipChanges(comic: Comic, next: string[], before: string[] = comic.categoryIds ?? []): SyncLibrarySignal[] {
   if (comic.sourceRuntimeId === undefined || comic.remoteResourceId === undefined) return []
-  const before = comic.categoryIds ?? []
   const removed = before.filter((key: string): boolean => !next.includes(key))
   const added = next.filter((key: string): boolean => !before.includes(key))
   const actions: SyncLibrarySignal[] = []

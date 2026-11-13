@@ -18,7 +18,8 @@ import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSec
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
-import { KomaModalScaffold, komaModalSheetOptions } from '../components/KomaModalScaffold'
+import { KomaModalScaffold } from '../components/KomaModalScaffold'
+import { LibraryCategoryChoice, LibraryCategoryPicker, libraryCategoryPickerSheetOptions } from '../components/LibraryCategoryPicker'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { gridFallbackContainerWidth } from '../utils/GridColumns'
 import { libraryCoverGridColumnCount, libraryCoverGridGap } from '../utils/LibraryCoverLayout'
@@ -101,14 +102,6 @@ function s(name: string): string {
 interface LibraryServerSourceFilterOption {
   filter: LibrarySourceFilter
   title: string
-}
-
-type CategoryCheckState = 'none' | 'mixed' | 'all'
-
-interface LibraryCategoryChoice {
-  id: string
-  name: string
-  initial: CategoryCheckState
 }
 
 interface LibraryGridProjection {
@@ -302,7 +295,6 @@ export struct LibraryPage {
   @Local private filtersShown: boolean = false
   @Local private categoryEditorShown: boolean = false
   @Local private categoryChoices: LibraryCategoryChoice[] = []
-  @Local private categoryChecks: Map<string, CategoryCheckState> = new Map<string, CategoryCheckState>()
   private categoryEditComicIds: ComicId[] = []
   private titleMenu: KomaMenuController = new KomaMenuController()
   @Local private comicActionMenuKey: string = ''
@@ -1410,30 +1402,10 @@ export struct LibraryPage {
       const count = comics.filter((comic: Comic): boolean => normalizeCategoryIds(comic.categoryIds).includes(category.id)).length
       return { id: category.id, name: category.name, initial: count === 0 ? 'none' : count === comics.length ? 'all' : 'mixed' }
     })
-    this.categoryChecks = new Map<string, CategoryCheckState>()
     this.categoryEditorShown = true
   }
 
-  private categoryCheck(choice: LibraryCategoryChoice): CategoryCheckState {
-    return this.categoryChecks.get(choice.id) ?? choice.initial
-  }
-
-  private toggleCategoryCheck(choice: LibraryCategoryChoice): void {
-    const current = this.categoryCheck(choice)
-    const next = current === 'all' ? 'none' : current === 'none' && choice.initial === 'mixed' ? 'mixed' : 'all'
-    const checks = new Map<string, CategoryCheckState>(this.categoryChecks)
-    if (next === choice.initial) checks.delete(choice.id)
-    else checks.set(choice.id, next)
-    this.categoryChecks = checks
-  }
-
-  private saveCategoryEditor(): void {
-    const added: string[] = []
-    const removed: string[] = []
-    this.categoryChecks.forEach((state: CategoryCheckState, id: string): void => {
-      if (state === 'all') added.push(id)
-      else if (state === 'none') removed.push(id)
-    })
+  private saveCategoryEditor(added: string[], removed: string[]): void {
     try {
       this.onEditCategoriesRequested(this.categoryEditComicIds, added, removed)
       this.categoryEditorShown = false
@@ -1445,41 +1417,17 @@ export struct LibraryPage {
 
   @Builder
   private CategoryEditor() {
-    KomaModalScaffold({
+    LibraryCategoryPicker({
       title: s('library_action_categories'),
-      confirmLabel: this.categoryChoices.length > 0 ? s('common_save') : undefined,
-      confirmEnabled: this.categoryChecks.size > 0,
-      onConfirm: (): void => { this.saveCategoryEditor() },
+      confirmLabel: s('common_save'),
+      choices: this.categoryChoices,
+      onConfirm: (added: string[], removed: string[]): void => { this.saveCategoryEditor(added, removed) },
       onClose: (): void => { this.categoryEditorShown = false },
-    }) {
-      ListItem() {
-        GroupedListSection({ inModal: true }) {
-          if (this.categoryChoices.length === 0) {
-            ConciseListRow({ title: s('settings_row_library_categories_title'), leadingIcon: $r('sys.symbol.plus'),
-              action: (): void => {
-                this.categoryEditorShown = false
-                this.onOpenCategoriesRequested()
-              } })
-          } else {
-            ForEach(this.categoryChoices, (choice: LibraryCategoryChoice, index: number) => {
-              ConciseListRow({
-                title: choice.name,
-                wrapTitle: true,
-                showChevron: false,
-                trailingIcon: this.categoryCheck(choice) === 'all' ? $r('sys.symbol.checkmark') :
-                  this.categoryCheck(choice) === 'mixed' ? $r('sys.symbol.minus') : undefined,
-                trailingIconColor: ThemeConstants.BRAND_PRIMARY,
-                trailingIconLabel: this.categoryCheck(choice) === 'mixed' ? s('library_category_partial_selection') :
-                  s('library_category_selection_checked'),
-                trailingIconAction: (): void => { this.toggleCategoryCheck(choice) },
-                action: (): void => { this.toggleCategoryCheck(choice) },
-              })
-              if (index < this.categoryChoices.length - 1) ListDivider()
-            }, (choice: LibraryCategoryChoice): string => choice.id)
-          }
-        }
-      }
-    }
+      onManageCategories: (): void => {
+        this.categoryEditorShown = false
+        this.onOpenCategoriesRequested()
+      },
+    })
   }
 
   private showToast(message: string): void {
@@ -2508,10 +2456,7 @@ export struct LibraryPage {
     .width('100%')
     .height('100%')
     .backgroundColor(ThemeConstants.BG_SUB)
-    .bindSheet($$this.categoryEditorShown, this.CategoryEditor, komaModalSheetOptions({
-      height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE],
-      showClose: false, enableOutsideInteractive: false, scrollSizeMode: ScrollSizeMode.CONTINUOUS,
-    }))
+    .bindSheet($$this.categoryEditorShown, this.CategoryEditor, libraryCategoryPickerSheetOptions())
     .onAreaChange((_old: Area, next: Area) => {
       this.containerWidth = next.width as number
     })

@@ -10,6 +10,7 @@ import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial
 import { SEARCH_TITLE_BOTTOM_HEIGHT, TrackerSearchTitleFieldContentBuilder } from '../components/SearchTitleField'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
+import { LibraryCategoryChoice, LibraryCategoryPicker, libraryCategoryPickerSheetOptions } from '../components/LibraryCategoryPicker'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { MangaWebRouteParam, SourcePackageManagerRouteParam } from '../common/RouterHelper'
 import { RouteName } from '../common/Constants'
@@ -75,6 +76,7 @@ import {
   Chapter,
   Comic,
   ComicSourceKind,
+  CustomLibraryCategory,
   ReadingDirection,
   ReadingProgress,
   updateReadingProgress,
@@ -91,6 +93,7 @@ import {
 import { LibraryStore } from '../model/LibraryStore'
 import {
   LibraryStorePersistenceService,
+  editComicCategoriesAndPersistLibraryStore,
   removeComicRecordAndPersistLibraryStore,
   updateLocalLibraryMetadataAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
@@ -304,6 +307,8 @@ export struct MangaDetailPage {
   @Local private manga: MangaDetail | undefined = undefined
   @Local private chapters: MangaChapterItem[] = []
   @Local private isInLibrary: boolean = false
+  @Local private favoriteCategoryPickerShown: boolean = false
+  @Local private favoriteCategoryChoices: LibraryCategoryChoice[] = []
   @Local private sourceDetailContentState: SourceDetailContentState = SourceDetailContentState.UNRESOLVED
   // A route list row is preview data. It is not a resolved detail payload.
   @Local private sourceDetailDataResolved: boolean = false
@@ -658,6 +663,7 @@ export struct MangaDetailPage {
     this.unsubscribeTrackingMappings?.()
     this.unsubscribeTrackingMappings = undefined
     this.notesEditorShown = false
+    this.favoriteCategoryPickerShown = false
     // A hidden detail route must not let an old source response repaint a later route instance.
     this.closeDetailWebChallenge()
     this.clearDetailWebChallenge()
@@ -1920,7 +1926,71 @@ export struct MangaDetailPage {
     }
   }
 
-  private async handleAddToLibrary(showFeedback: boolean = true): Promise<boolean> {
+  private handleLibraryBookmark(): void {
+    if (this.favoriteCategoryPickerShown || !this.canAddCurrentMangaToLibrary()) return
+    if (this.isInLibrary) {
+      void this.handleRemoveFromLibrary()
+      return
+    }
+    const categories = this.libraryStore?.listCustomCategories() ?? []
+    if (categories.length === 0) {
+      this.handleAddToLibrary()
+      return
+    }
+    this.favoriteCategoryChoices = categories.map((category: CustomLibraryCategory): LibraryCategoryChoice => {
+      return { id: category.id, name: category.name, initial: 'none' }
+    })
+    this.favoriteCategoryPickerShown = true
+  }
+
+  private confirmFavoriteCategories(categoryIds: string[]): void {
+    if (this.favoriteCategoryPickerShown && this.handleAddToLibrary(true, categoryIds)) {
+      this.favoriteCategoryPickerShown = false
+    }
+  }
+
+  @Builder
+  private FavoriteCategoryPicker() {
+    LibraryCategoryPicker({
+      title: s('common_add_to_library'),
+      confirmLabel: s('common_confirm'),
+      choices: this.favoriteCategoryChoices,
+      confirmWithoutChanges: true,
+      onConfirm: (added: string[]): void => { this.confirmFavoriteCategories(added) },
+      onClose: (): void => { this.favoriteCategoryPickerShown = false },
+    })
+  }
+
+  private async handleRemoveFromLibrary(): Promise<void> {
+    const library = this.libraryStore
+    const manga = this.manga
+    if (library === undefined || manga === undefined) return
+    const comicId = this.currentComicId()
+    try {
+      const removed = this.libraryPersistenceService === undefined
+        ? library.getComic(comicId) !== undefined
+        : removeComicRecordAndPersistLibraryStore(library, this.libraryPersistenceService, comicId)
+      if (this.libraryPersistenceService === undefined && removed) {
+        library.removeComic(comicId)
+      }
+      if (!removed) {
+        this.showToast(s('common_remove_from_library_failed'))
+        return
+      }
+      await new ReaderPreferencesStore(this.getUIContext().getHostContext() as common.UIAbilityContext).copyBannerOverride(comicId, '', true)
+      this.activeLibraryComicId = ''
+      this.isInLibrary = false
+      manga.isInLibrary = false
+      this.onLibraryChanged()
+      this.showToast(s('common_removed_from_library'))
+    } catch (error) {
+      void error
+      DiagnosticLogger.error('manga_detail_page', 'remove_from_library_failed', '[manga-detail] step=remove_from_library_failed reason=library_persist')
+      this.showToast(s('common_remove_from_library_failed'))
+    }
+  }
+
+  private handleAddToLibrary(showFeedback: boolean = true, categoryIds: string[] = []): boolean {
     if (!this.canAddCurrentMangaToLibrary()) {
       return false
     }
@@ -1933,50 +2003,36 @@ export struct MangaDetailPage {
     if (manga === undefined) {
       return false
     }
-    if (this.isInLibrary) {
-      const comicId = this.currentComicId()
-      try {
-        const removed = this.libraryPersistenceService === undefined
-          ? this.libraryStore.getComic(comicId) !== undefined
-          : removeComicRecordAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comicId)
-        if (this.libraryPersistenceService === undefined && removed) {
-          this.libraryStore.removeComic(comicId)
-        }
-        if (!removed) {
-          this.showToast(s('common_remove_from_library_failed'))
-          return false
-        }
-        await new ReaderPreferencesStore(this.getUIContext().getHostContext() as common.UIAbilityContext).copyBannerOverride(comicId, '', true)
-        this.activeLibraryComicId = ''
-        this.isInLibrary = false
-        manga.isInLibrary = false
-        this.onLibraryChanged()
-        this.showToast(s('common_removed_from_library'))
-        return true
-      } catch (error) {
-        void error
-        DiagnosticLogger.error('manga_detail_page', 'remove_from_library_failed', '[manga-detail] step=remove_from_library_failed reason=library_persist')
-        this.showToast(s('common_remove_from_library_failed'))
-        return false
-      }
-    }
-    const comic = comicFromSourceManga(manga, this.chapters, this.currentComicId())
-    if (this.sourceChaptersResolved) {
-      setCompleteSourceChapterCatalog(comic, this.chapters.map((chapter: MangaChapterItem): string => chapter.id), Date.now())
-    }
+    const comicId = this.currentComicId()
     try {
-      if (this.libraryPersistenceService === undefined) {
-        this.libraryStore.upsertComic(comic)
+      if (this.libraryStore.getComic(comicId) !== undefined) {
+        // A sync may add this work while the picker is open. Apply only the
+        // user's checked categories to the latest record.
+        editComicCategoriesAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService,
+          [comicId], categoryIds, [])
       } else {
-        upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
+        const comic = comicFromSourceManga(manga, this.chapters, comicId)
+        if (categoryIds.length > 0) {
+          const selected = this.libraryStore.listCustomCategories().filter((category: CustomLibraryCategory): boolean =>
+            categoryIds.includes(category.id)).map((category: CustomLibraryCategory): string => category.id)
+          if (selected.length > 0) comic.categoryIds = selected
+        }
+        if (this.sourceChaptersResolved) {
+          setCompleteSourceChapterCatalog(comic, this.chapters.map((chapter: MangaChapterItem): string => chapter.id), Date.now())
+        }
+        if (this.libraryPersistenceService === undefined) {
+          this.libraryStore.upsertComic(comic)
+        } else {
+          upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
+        }
       }
-      this.activeLibraryComicId = comic.id
+      this.activeLibraryComicId = comicId
       this.isInLibrary = true
       manga.isInLibrary = true
       // A source item becomes a normal shelf/history item only after this
       // explicit user action. Keep its existing progress, but remove the
       // transient-source metadata so History cannot render it twice.
-      this.readerSessionStore.removeSourceHistory(comic.id)
+      this.readerSessionStore.removeSourceHistory(comicId)
       this.onLibraryChanged()
       if (showFeedback) this.showToast(s('common_added_to_library'))
       return true
@@ -2163,7 +2219,7 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
       const storageBase = await ensureKomaContentStorageBase(context)
       await OfflineDownloadService.ensureQueueInitialized(storageBase, komaRuntimeStorageKey(context))
       if (!this.chrome.visible) return
-      if (!this.isInLibrary && this.manga?.sourceId !== undefined && !await this.handleAddToLibrary(false)) return
+      if (!this.isInLibrary && this.manga?.sourceId !== undefined && !this.handleAddToLibrary(false)) return
       const comic = this.libraryStore?.getComic(this.currentComicId())
       if (comic === undefined) {
         this.showToast(s('manga_detail_add_to_library_first'))
@@ -2972,9 +3028,7 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
             iconSize: ThemeConstants.FONT_SIZE_TITLE,
             // Match the adjacent tracking glyph's weight while the bookmark is outlined.
             iconWeight: this.isInLibrary ? FontWeight.Normal : FontWeight.Bold,
-            action: () => {
-              this.handleAddToLibrary()
-            },
+            action: () => { this.handleLibraryBookmark() },
           })
         }
       }
@@ -3973,6 +4027,8 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack({ alignContent: Alignment.TopEnd }) {
         SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.visible })
+        Column() {}.width(0).height(0)
+          .bindSheet($$this.favoriteCategoryPickerShown, this.FavoriteCategoryPicker, libraryCategoryPickerSheetOptions())
         Column() {}.width(0).height(0)
           .bindSheet($$this.notesEditorShown, this.NotesEditor, komaSheetOptions({
             detents: [SheetSize.LARGE], showClose: false, enableFloatingDragBar: true,
