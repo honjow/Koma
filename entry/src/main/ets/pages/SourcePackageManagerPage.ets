@@ -9,7 +9,7 @@ import { groupSourcesByLanguage, SourceCatalogFilters, sourceCatalogLanguage, So
   sourceMatchesCatalogFilters, sourceMatchesCatalogSearch } from '../model/SourceCatalogPresentation'
 import { appSourcePackageLocalImport, SourcePackageLocalImport } from '../sourceRuntime/SourcePackageLocalImport'
 import { SourcePackageManagerCache, appSourcePackageManagerCache, SourcePackageUpdateStatus, SourcePackageUpdateCandidate, SourcePackageUpdateState } from '../viewmodel/SourcePackageManagerCache'
-import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
+import { KomaSheetOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceSettingsSheetContent as SourceSettingsForm, sourceSettingsDraft } from '../components/SourceSettingsSheetContent'
 import { sourceHasAuthentication } from '../sourceRuntime/SourceAuthenticationService'
@@ -676,7 +676,7 @@ export struct SourcePackageManagerPage {
   private finishSourceIndexSheetDismissal(): void {
   }
 
-  private sourceDetailsSheetOptions(): SheetOptions {
+  private sourceDetailsSheetOptions(): KomaSheetOptions {
     return {
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
       showClose: false,
@@ -689,7 +689,7 @@ export struct SourcePackageManagerPage {
     }
   }
 
-  private sourceSettingsSheetOptions(): SheetOptions {
+  private sourceSettingsSheetOptions(): KomaSheetOptions {
     return {
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
       showClose: false,
@@ -703,7 +703,7 @@ export struct SourcePackageManagerPage {
     }
   }
 
-  private sourceIndexSheetOptions(): SheetOptions {
+  private sourceIndexSheetOptions(): KomaSheetOptions {
     return {
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
       showClose: false,

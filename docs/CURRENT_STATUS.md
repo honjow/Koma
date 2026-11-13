@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-13T20:36:41+08:00",
+  "updatedAt": "2026-11-13T23:58:59+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -85,6 +85,28 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "MANGA_NOTES_DOUBLE_SHEET_DISMISS_20261113",
+      "number": 296,
+      "title": "作品笔记半模态重复关闭",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedDate": "2026-11-13",
+      "reportedAtSource": "用户在本会话指出作品笔记的关闭回调重复，原始时刻未核实。",
+      "registeredAt": "2026-11-13T23:58:59+08:00",
+      "updatedAt": "2026-11-13T23:58:59+08:00",
+      "status": "197 已核对笔记的三种关闭方式",
+      "result": "笔记用系统关闭，公共半模态选项统一管理关闭拦截。197 从《腦洞學生會》详情验证下拉、返回和标题栏关闭，关闭后可重新打开，原内容一致。设备已恢复休眠并释租。",
+      "remaining": "",
+      "evidence": [
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T235828027333/screen.png",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T235841858997/screen.png",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T235854659576/screen.png",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261113T235859211403/run-metadata.json"
+      ],
+      "closedAt": "2026-11-13T23:58:59+08:00"
+    },
     {
       "id": "READER_THUMBNAIL_RAIL_CLARITY_20261113",
       "number": 295,
@@ -10646,6 +10668,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "manga-notes-sheet-native-dismissal-197-20261113",
+      "at": "2026-11-13T23:58:59+08:00",
+      "itemId": "MANGA_NOTES_DOUBLE_SHEET_DISMISS_20261113",
+      "title": "#296 个人笔记关闭已复验",
+      "detail": "197 已核对笔记半模态下拉、系统返回和标题关闭及重新打开。公共选项收口关闭回调，设备恢复原超时并释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T235828027333/screen.png"
+    },
     {
       "id": "baozi-reader-final-candidate-197-20261113",
       "at": "2026-11-13T20:36:41+08:00",

@@ -234,14 +234,18 @@ export struct SearchPage {
   }
 
   private closeWebChallenge(): void {
+    if (this.webChallengeShown) this.webChallengeClosing = true
+    this.webChallengeShown = false
+    this.cancelPresentedWebChallenge()
+  }
+
+  private cancelPresentedWebChallenge(): void {
     const receipt = this.webChallengeReceipt
     if (receipt !== undefined) {
       this.cancelCurrentWebSession()
       this.service?.cancelWebChallenge(receipt)
     }
     this.webChallengeReceipt = undefined
-    if (this.webChallengeShown) this.webChallengeClosing = true
-    this.webChallengeShown = false
   }
 
   private async completeWebChallenge(): Promise<void> {
@@ -266,6 +270,8 @@ export struct SearchPage {
   }
 
   private finishWebChallengeDismiss(): void {
+    this.webChallengeClosing = true
+    this.cancelPresentedWebChallenge()
     this.webChallengeClosing = false
     this.handleWebChallenges()
   }
@@ -1353,10 +1359,6 @@ export struct SearchPage {
     .bindSheet($$this.webChallengeShown, this.WebChallengeSheet, komaSheetOptions({
       detents: [SheetSize.LARGE], showClose: false,
       enableOutsideInteractive: false, enableFloatingDragBar: true,
-      onWillDismiss: (action: DismissSheetAction) => {
-        this.closeWebChallenge()
-        action.dismiss()
-      },
       onDisappear: () => { this.finishWebChallengeDismiss() },
     }))
   }

@@ -129,11 +129,15 @@ export struct SourceBrowsePage {
 
   private closeWebChallenge(): void {
     if (this.webChallengeShown) this.webChallengeClosing = true
+    this.webChallengeShown = false
+    this.cancelPresentedWebChallenge()
+  }
+
+  private cancelPresentedWebChallenge(): void {
     const session = this.webChallengeParams.sourceSession
     if (session !== undefined) appSourceWebSessionStore.cancel(session.sourceId, session.sessionId)
     if (this.webChallengeId > 0) this.viewModel.cancelWebChallenge(this.webChallengeScope, this.webChallengeId)
     this.webChallengeId = 0
-    this.webChallengeShown = false
   }
 
   private completeWebChallenge(): void {
@@ -152,6 +156,8 @@ export struct SourceBrowsePage {
   }
 
   private finishWebChallengeDismiss(): void {
+    this.webChallengeClosing = true
+    this.cancelPresentedWebChallenge()
     this.webChallengeClosing = false
     this.handleWebChallenge()
   }
@@ -890,10 +896,6 @@ export struct SourceBrowsePage {
           .bindSheet($$this.webChallengeShown, this.WebChallengeSheet, komaSheetOptions({
             detents: [SheetSize.LARGE], showClose: false,
             enableOutsideInteractive: false, enableFloatingDragBar: true,
-            onWillDismiss: (action: DismissSheetAction) => {
-              this.closeWebChallenge()
-              action.dismiss()
-            },
             onDisappear: () => { this.finishWebChallengeDismiss() },
           }))
         SourceMangaGrid({

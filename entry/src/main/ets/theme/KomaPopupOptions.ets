@@ -33,12 +33,22 @@ export function komaContextMenuOptions(options: ContextMenuOptions = {}): Contex
   return options
 }
 
-export function komaSheetOptions(options: SheetOptions): SheetOptions {
+export interface KomaSheetOptions extends SheetOptions {
+  onWillDismiss?: undefined
+  shouldDismiss?: undefined
+}
+
+/** Callers may decide whether to close. Only the shared options can execute a native dismissal. */
+export function komaSheetOptions(options: KomaSheetOptions, canDismiss?: () => boolean): SheetOptions {
   // App sheets have a close action in the shared modal title bar. A second
   // native close button overlaps it on wide windows and uses a different surface.
   options.showClose = false
   options.systemMaterial = popupMaterial(true)
-  return options
+  const nativeOptions: SheetOptions = options
+  if (canDismiss !== undefined) {
+    nativeOptions.onWillDismiss = (action: DismissSheetAction): void => { if (canDismiss()) action.dismiss() }
+  }
+  return nativeOptions
 }
 
 // Native Toasts share the same material owner as the other system popups.

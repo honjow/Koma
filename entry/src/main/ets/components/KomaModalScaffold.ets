@@ -1,4 +1,4 @@
-import { komaModalContentBackground, komaSheetOptions } from '../theme/KomaPopupOptions'
+import { KomaSheetOptions, komaModalContentBackground, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions, hdsMaterial, ScrollEffectType, BlurStrategy, DividerShowType, BottomBuilderParams } from '@kit.UIDesignKit'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { AppStrings } from '../i18n/AppStrings'
@@ -11,7 +11,7 @@ export const KOMA_MODAL_TABS_HEADER_HEIGHT: number = ThemeConstants.BUTTON_HEIGH
 
 // This scaffold owns its HDS title bar. Reserve no second title/drag-bar row
 // above it; the native drag indicator floats over the standard modal header.
-export function komaModalSheetOptions(options: SheetOptions): SheetOptions {
+export function komaModalSheetOptions(options: KomaSheetOptions): SheetOptions {
   options.enableFloatingDragBar = true
   return komaSheetOptions(options)
 }

@@ -1,4 +1,6 @@
-export function sourceFilterSheetOptions(onDisappear: () => void): SheetOptions {
+import { KomaSheetOptions } from '../theme/KomaPopupOptions'
+
+export function sourceFilterSheetOptions(onDisappear: () => void): KomaSheetOptions {
   return {
     detents: [SheetSize.MEDIUM, SheetSize.LARGE],
     showClose: false,

@@ -490,16 +490,19 @@ export struct MangaDetailPage {
 
   private closeDetailWebChallenge(): void {
     if (this.detailWebChallengeShown) this.detailWebChallengeClosing = true
-    const id = this.detailWebChallengeId
-    const session = this.detailWebChallengeParams.sourceSession
-    // Consume this sheet's receipt before callbacks or session cancellation can run.
-    this.detailWebChallengeId = 0
     this.detailWebChallengeShown = false
-    if (id > 0) {
-      this.detailWebChallengeGate.cancel(id)
-      if (this.detailWebChallenge?.id === id) this.detailWebChallenge = null
-      if (session !== undefined) appSourceWebSessionStore.cancel(session.sourceId, session.sessionId)
-    } else if (!this.detailWebChallengeClosing) this.clearDetailWebChallenge()
+    if (this.detailWebChallengeId > 0) this.cancelPresentedDetailWebChallenge()
+    else if (!this.detailWebChallengeClosing) this.clearDetailWebChallenge()
+  }
+
+  private cancelPresentedDetailWebChallenge(): void {
+    const id = this.detailWebChallengeId
+    if (id <= 0) return
+    const session = this.detailWebChallengeParams.sourceSession
+    this.detailWebChallengeId = 0
+    this.detailWebChallengeGate.cancel(id)
+    if (this.detailWebChallenge?.id === id) this.detailWebChallenge = null
+    if (session !== undefined) appSourceWebSessionStore.cancel(session.sourceId, session.sessionId)
   }
 
   private completeDetailWebChallenge(): void {
@@ -513,8 +516,8 @@ export struct MangaDetailPage {
   }
 
   private finishDetailWebChallengeDismiss(): void {
-    // The old sheet has fully disappeared. Never cancel mutable params here:
-    // a newer challenge may already be waiting for this presentation boundary.
+    this.detailWebChallengeClosing = true
+    this.cancelPresentedDetailWebChallenge()
     this.detailWebChallengeClosing = false
     this.handleDetailWebChallenge()
   }
@@ -4095,7 +4098,6 @@ export struct MangaDetailPage {
         Column() {}.width(0).height(0)
           .bindSheet($$this.notesEditorShown, this.NotesEditor, komaSheetOptions({
             detents: [SheetSize.LARGE], showClose: false, enableFloatingDragBar: true,
-            onWillDismiss: (action: DismissSheetAction) => { this.notesEditorShown = false; action.dismiss() },
           }))
         Column() {}
           .width(0)
@@ -4103,10 +4105,6 @@ export struct MangaDetailPage {
           .bindSheet($$this.detailWebChallengeShown, this.DetailWebChallengeSheet, komaSheetOptions({
             detents: [SheetSize.LARGE], showClose: false,
             enableOutsideInteractive: false, enableFloatingDragBar: true,
-            onWillDismiss: (action: DismissSheetAction) => {
-              this.closeDetailWebChallenge()
-              action.dismiss()
-            },
             onDisappear: () => { this.finishDetailWebChallengeDismiss() },
           }))
         Column() {}.width(0).height(0)
@@ -4117,10 +4115,7 @@ export struct MangaDetailPage {
             onTypeDidChange: (type: SheetType) => { this.trackingSheetType = type },
             scrollSizeMode: ScrollSizeMode.CONTINUOUS,
             showClose: false, enableFloatingDragBar: true,
-            onWillDismiss: (action: DismissSheetAction) => {
-              if (!this.trackerMappingBusy && !this.trackerSyncBusy) { this.trackingSheetShown = false; action.dismiss() }
-            },
-          }))
+          }, (): boolean => !this.trackerMappingBusy && !this.trackerSyncBusy))
         this.DetailLayout()
       }
       .width('100%')
