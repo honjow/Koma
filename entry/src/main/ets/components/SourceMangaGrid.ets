@@ -25,21 +25,22 @@ export struct SourceMangaGrid {
   @Param pinnedOverlayHeight: number = 0
   @Param singleColumn: boolean = false
   @Param withPullRefresh: boolean = false
-  @Param resumeAtVisibleTail: boolean = false
-  @Local private lastVisibleIndex: number = -1
+  @Param paginationItemIndex: number = -1
+  private lastVisibleIndex: number = -1
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private coverLayout: LibraryCoverLayoutState = connectLibraryCoverLayout()
   @Local private pullScrollEnabled: boolean = true
   @Event onRefresh?: () => Promise<void>
-  @Event onReachEnd?: () => void
+  @Event onPaginationRequested?: () => void
 
-  @Monitor('resumeAtVisibleTail')
-  private resumePendingTail(): void {
-    // An empty source page leaves the same tail item visible, so no new scroll
-    // or appearance event occurs. Re-evaluate demand when loading completes.
-    if (this.resumeAtVisibleTail && this.withPullRefresh &&
-      this.lastVisibleIndex >= this.contentItemCount + 1 && this.onReachEnd) {
-      this.onReachEnd()
+  @Monitor('paginationItemIndex')
+  private requestNextPageIfVisible(): void {
+    // The leading inset occupies Grid index 0. Use the visible range because
+    // ForEach can mount offscreen items. Recheck when a short or empty page
+    // completes without changing that range.
+    if (this.paginationItemIndex >= 0 && this.lastVisibleIndex >= this.paginationItemIndex + 1 &&
+      this.lastVisibleIndex <= this.contentItemCount + 1) {
+      this.onPaginationRequested?.()
     }
   }
 
@@ -76,10 +77,6 @@ export struct SourceMangaGrid {
             Math.max(0, this.safeArea.keyboardHeight))
         }.width('100%')
       }
-      .onAppear(() => {
-        // The existing Browse list loads at tail appearance; Search only at reach-end.
-        if (this.withPullRefresh && this.onReachEnd) this.onReachEnd()
-      })
     }
     .columnsTemplate(this.columnsTemplate())
     .columnsGap(libraryCoverGridGap(this.coverLayout.density))
@@ -96,11 +93,8 @@ export struct SourceMangaGrid {
     })
     .onScrollIndex((_first: number, last: number) => {
       this.lastVisibleIndex = last
-      if (this.withPullRefresh && last >= this.contentItemCount + 1 && this.onReachEnd) {
-        this.onReachEnd()
-      }
+      this.requestNextPageIfVisible()
     })
-    .onReachEnd(() => { if (this.onReachEnd) this.onReachEnd() })
   }
 
   build() {

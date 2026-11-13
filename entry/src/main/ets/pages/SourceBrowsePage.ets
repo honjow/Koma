@@ -62,6 +62,7 @@ interface SourceBrowseGridProjection {
   rows: SourceBrowseGridRow[]
   byKey: Map<string, SourceBrowseGridRow>
   fullRowIndexes: number[]
+  lastMangaIndex: number
 }
 
 @ComponentV2
@@ -628,11 +629,28 @@ export struct SourceBrowsePage {
     }
     const byKey = new Map<string, SourceBrowseGridRow>()
     const fullRowIndexes: number[] = []
+    let lastMangaIndex = -1
     rows.forEach((row: SourceBrowseGridRow, index: number) => {
       byKey.set(row.key, row)
-      if (row.kind !== 'manga') fullRowIndexes.push(index)
+      if (row.kind === 'manga') lastMangaIndex = index
+      else fullRowIndexes.push(index)
     })
-    return { rows, byKey, fullRowIndexes }
+    return { rows, byKey, fullRowIndexes, lastMangaIndex }
+  }
+
+  @Computed
+  private get paginationItemIndex(): number {
+    if (!this.chrome.visible) return -1
+    if (this.isSearchActive()) {
+      return !this.viewModel.loadingSearch && this.viewModel.hasMoreSearch &&
+        this.viewModel.searchErrorMessage.length === 0 ? this.gridProjection.lastMangaIndex : -1
+    }
+    if (this.viewModel.loadingBrowse || !this.viewModel.hasMoreBrowse ||
+      this.viewModel.browseErrorIntent !== BrowseLoadIntent.NONE) return -1
+    const lastMangaIndex = this.gridProjection.lastMangaIndex
+    // An empty source page can still advertise a following page. Keep the
+    // bottom inset as its continuation anchor until actual cards arrive.
+    return lastMangaIndex >= 0 ? lastMangaIndex : this.gridProjection.rows.length
   }
 
   private currentGridRow(row: SourceBrowseGridRow): SourceBrowseGridRow {
@@ -851,13 +869,13 @@ export struct SourceBrowsePage {
           fullRowIndexes: this.gridProjection.fullRowIndexes,
           pinnedOverlayHeight: SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT,
           withPullRefresh: true,
-          resumeAtVisibleTail: !this.isSearchActive() && !this.viewModel.loadingBrowse &&
-            this.viewModel.hasMoreBrowse && this.viewModel.browseErrorIntent === BrowseLoadIntent.NONE,
+          paginationItemIndex: this.paginationItemIndex,
           onRefresh: async () => {
             if (this.isSearchActive()) await this.viewModel.runSearch(this.currentSource(), this.viewModel.searchQuery)
             else await this.refreshBrowse()
           },
-          onReachEnd: () => {
+          onPaginationRequested: () => {
+            if (this.paginationItemIndex < 0) return
             if (this.isSearchActive()) void this.viewModel.loadMoreSearch()
             else void this.viewModel.loadMoreBrowse()
           },

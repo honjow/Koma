@@ -406,6 +406,12 @@ export struct SourceSearchPage {
     return this.gridProjection.byKey.get(row.key) ?? row
   }
 
+  @Computed
+  private get paginationItemIndex(): number {
+    return this.chrome.visible && !this.viewModel.loadingSearch && this.viewModel.hasMoreSearch &&
+      this.viewModel.searchErrorMessage.length === 0 ? this.viewModel.searchResults.length - 1 : -1
+  }
+
   @Builder
   private GridRowContent(row: SourceSearchGridRow) {
     if (row.kind === 'manga' && this.selectionMode) {
@@ -557,7 +563,10 @@ export struct SourceSearchPage {
           contentItemCount: this.gridProjection.rows.length,
           fullRowIndexes: this.gridProjection.fullRowIndexes,
           pinnedOverlayHeight: SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT,
-          onReachEnd: () => { void this.viewModel.loadMoreSearch() },
+          paginationItemIndex: this.paginationItemIndex,
+          onPaginationRequested: () => {
+            if (this.paginationItemIndex >= 0) void this.viewModel.loadMoreSearch()
+          },
         }) {
           ForEach(this.gridProjection.rows, (row: SourceSearchGridRow) => {
             GridItem() { this.GridRowContent(this.currentGridRow(row)) }
