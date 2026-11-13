@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-13T23:58:59+08:00",
+  "updatedAt": "2026-11-14T00:02:53+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -130,11 +130,11 @@
       "priority": "用户反馈",
       "owner": "Root",
       "registeredAt": "2026-11-13T17:12:23+08:00",
-      "updatedAt": "2026-11-13T20:36:41+08:00",
+      "updatedAt": "2026-11-14T00:02:53+08:00",
       "status": "197 已验证正文弹窗、取消和恢复阅读",
-      "result": "阅读器将正文挑战交给现有验证弹窗，包子源声明正文域并识别 Cloudflare 的响应头。197 实际续读《大象無形》第十章第 3 页成功。对同一正文请求回放一次 503 挑战，弹窗打开的是该章官网，完成后回到原页；取消后可重试，并能回到原页。197 已装回正常候选并复核正文，删除临时导入文件，恢复原电源状态并释租。",
+      "result": "阅读器将正文挑战交给现有验证弹窗，包子源声明正文域并识别 Cloudflare 的响应头。197 实际续读《大象無形》第十章第 3 页成功。对同一正文请求回放一次 503 挑战，弹窗打开的是该章官网，完成后回到原页；取消后可重试，并能回到原页。197 已装回正常候选并复核正文，删除临时导入文件，恢复原电源状态并释租。后续候选通过系统返回关闭验证弹窗，手动重试回到原页。",
       "remaining": "站点这次对正文正常返回，尚未在 197 遇到真实的正文 Cloudflare 挑战。",
-      "evidence": [".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203314888708", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203356759426", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T203511615540", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T203531609676", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/install-20261113T203539931800", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203634748282", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261113T203641620990"],
+      "evidence": [".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203314888708", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203356759426", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T203511615540", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T203531609676", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/install-20261113T203539931800", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203634748282", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261113T203641620990", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/observe-20261114T000220837681/screen.png", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/observe-20261114T000227453532/screen.png", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/observe-20261114T000235716914/screen.png", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261114T000253671467/run-metadata.json"],
       "relatedItems": [
         "SOURCE_WEB_SESSION"
       ]
@@ -10668,6 +10668,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "baozi-native-sheet-back-retry-197-20261114",
+      "at": "2026-11-14T00:02:53+08:00",
+      "itemId": "BAOZI_READER_CF_20261113",
+      "title": "#294 197 已复验系统返回关闭验证和原页重试",
+      "detail": "受控正文挑战弹窗由系统返回关闭，重试恢复第十章第 3 页。装回正常候选并读回设备原电源状态。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/observe-20261114T000235716914/screen.png"
+    },
     {
       "id": "manga-notes-sheet-native-dismissal-197-20261113",
       "at": "2026-11-13T23:58:59+08:00",
