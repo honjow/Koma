@@ -67,6 +67,8 @@ export interface Chapter {
   volumeNumber?: string
   readingOrder?: number
   readingGroup?: string
+  readingVariantGroup?: string
+  readingVariantSequence?: string
   continuationEligible?: boolean
   scanlator?: string
   language?: string

@@ -71,6 +71,7 @@ export struct SearchPage {
   @Event onMangaSelected: (manga: SourceManga) => void = (_manga: SourceManga) => {}
   @Param chrome: SearchRouteChromeState = new SearchRouteChromeState()
   @Param initialLibrarySource: LibrarySearchSource | undefined = undefined
+  @Param initialSourceFilter?: CrossSearchSourceFilter = undefined
   @Local private librarySource: LibrarySearchSource | undefined = undefined
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private queryText: string = ''
@@ -160,7 +161,12 @@ export struct SearchPage {
     } else {
       this.loadHistory()
       this.loadResultMode()
-      this.loadSourceFilter()
+      if (this.initialSourceFilter !== undefined) {
+        this.sourceFilter = this.initialSourceFilter
+        this.sourceFilterLoaded = true
+      } else {
+        this.loadSourceFilter()
+      }
     }
     this.consumeChromeQuery()
     console.info('[Search] step=page_appear')

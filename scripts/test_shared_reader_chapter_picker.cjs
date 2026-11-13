@@ -744,6 +744,23 @@ test('verified source reading order preserves duplicate numbers and unnumbered e
     ['v1c1', 'v1c2', 'v1c3', 'v2c1'])
 })
 
+test('reader prefers the current scanlator only among source-declared variants', () => {
+  const { continuationChapterIds } = chapterSequence()
+  const row = (id, order, variant, scanlator) => ({ id, title: id, readingOrder: order,
+    readingGroup: 'edition', readingVariantGroup: variant, scanlator, continuationEligible: true })
+  const current = row('start', 1, 'one', 'Blue')
+  const chapters = [row('red', 2, 'two', 'Red'), current, row('blue', 2, 'two', 'Blue'), row('final', 3, 'three', 'Red')]
+  assert.deepEqual(Array.from(continuationChapterIds(chapters, 'start', true)), ['start', 'blue', 'final'])
+  assert.deepEqual(Array.from(continuationChapterIds(chapters, 'red', true)), ['start', 'red', 'final'])
+  assert.deepEqual(Array.from(continuationChapterIds(chapters, 'start')), ['start'])
+  assert.deepEqual(Array.from(continuationChapterIds(chapters.map(chapter => ({ ...chapter,
+    readingVariantGroup: undefined })), 'start', true)), ['start'])
+  const editions = chapters.map(chapter => ({ ...chapter, scanlator: 'Same display name',
+    readingGroup: chapter.scanlator, readingVariantSequence: 'en' }))
+  assert.deepEqual(Array.from(continuationChapterIds(editions, 'start', true)), ['start', 'blue', 'final'])
+  assert.deepEqual(Array.from(continuationChapterIds(editions, 'start')), ['start', 'blue'])
+})
+
 test('declared source chronology supplies the same chapter relation without edition metadata', () => {
   const source = fs.readFileSync(path.join(root, '../model/ReaderChapterSequence.ets'), 'utf8')
   const output = {}

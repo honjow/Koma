@@ -9,6 +9,9 @@ export interface ReaderChapterDescriptor {
   volumeNumber?: string
   readingOrder?: number
   readingGroup?: string
+  readingVariantGroup?: string
+  readingVariantSequence?: string
+  scanlator?: string
   continuationEligible?: boolean
 }
 
@@ -50,6 +53,9 @@ export function cloneReaderChapterDescriptor(chapter: ReaderChapterDescriptor): 
     volumeNumber: chapter.volumeNumber,
     readingOrder: chapter.readingOrder,
     readingGroup: chapter.readingGroup,
+    readingVariantGroup: chapter.readingVariantGroup,
+    readingVariantSequence: chapter.readingVariantSequence,
+    scanlator: chapter.scanlator,
     continuationEligible: chapter.continuationEligible,
   }
 }
@@ -139,6 +145,7 @@ export function automaticContinuationChapterIds(
 export function continuationChapterIds(
   chapters: ReaderChapterDescriptor[],
   currentId: string,
+  preferScanlator: boolean = false,
 ): string[] | undefined {
   const current = chapters.find((chapter: ReaderChapterDescriptor): boolean => chapter.id === currentId)
   if (current === undefined) {
@@ -155,8 +162,10 @@ export function continuationChapterIds(
     return [currentId]
   }
   // Filter before numeric comparison: unknown ordinals must not participate in sorting.
+  const versionSequence = preferScanlator ? current.readingVariantSequence : undefined
   const eligible = chapters.filter((chapter: ReaderChapterDescriptor): boolean =>
-    chapter.readingGroup === group && chapter.continuationEligible === true && readingOrder(chapter) !== undefined)
+    (versionSequence === undefined ? chapter.readingGroup === group : chapter.readingVariantSequence === versionSequence) &&
+    chapter.continuationEligible === true && readingOrder(chapter) !== undefined)
   const explicitOrder = eligible.every((chapter: ReaderChapterDescriptor): boolean =>
     chapter.readingOrder !== undefined && Number.isFinite(chapter.readingOrder) && chapter.readingOrder >= 0)
   // An ordinal is not a volume or chapter number. Do not compare partial
@@ -173,12 +182,29 @@ export function continuationChapterIds(
     const volumeDifference = volumeOrder ? Number(left.volumeNumber) - Number(right.volumeNumber) : 0
     return volumeDifference || (left.chapterNumber ?? 0) - (right.chapterNumber ?? 0)
   }
-  eligible.sort(compare)
-  // Equal source positions do not establish which chapter follows which.
-  // Display/library array order cannot break that tie; the source must supply
-  // a unique ordinal (duplicate displayed chapter numbers remain valid).
-  for (let index = 1; index < eligible.length; index += 1) {
-    if (compare(eligible[index - 1], eligible[index]) === 0) return [currentId]
+  eligible.sort((left: ReaderChapterDescriptor, right: ReaderChapterDescriptor): number =>
+    compare(left, right) || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0))
+  const sequence: string[] = []
+  const seenVariantGroups = new Set<string>()
+  const scanlator = current.scanlator?.trim()
+  for (let start = 0; start < eligible.length;) {
+    let end = start + 1
+    while (end < eligible.length && compare(eligible[start], eligible[end]) === 0) end += 1
+    const slot = eligible.slice(start, end)
+    const first = slot[0]
+    const variant = preferScanlator ? first.readingVariantGroup : undefined
+    // Only source-declared alternatives at the same explicit ordinal are
+    // interchangeable for next/previous. Keep all IDs in the manual catalog.
+    if (variant !== undefined && seenVariantGroups.has(variant)) return [currentId]
+    if (variant !== undefined) seenVariantGroups.add(variant)
+    if (slot.length > 1 && (!preferScanlator || !explicitOrder || variant === undefined || variant.length === 0 ||
+      !slot.every((chapter: ReaderChapterDescriptor): boolean => chapter.readingVariantGroup === variant))) return [currentId]
+    const chosen = slot.find((chapter: ReaderChapterDescriptor): boolean => chapter.id === currentId) ??
+      (versionSequence !== undefined ?
+        slot.find((chapter: ReaderChapterDescriptor): boolean => chapter.readingGroup === group) :
+        scanlator ? slot.find((chapter: ReaderChapterDescriptor): boolean => chapter.scanlator?.trim() === scanlator) : undefined) ?? first
+    sequence.push(chosen.id)
+    start = end
   }
-  return eligible.map((chapter: ReaderChapterDescriptor): string => chapter.id)
+  return sequence
 }

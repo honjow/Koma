@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-13T12:40:39+08:00",
+  "updatedAt": "2026-11-13T20:36:41+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -85,6 +85,61 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "READER_THUMBNAIL_RAIL_CLARITY_20261113",
+      "number": 295,
+      "title": "阅读器缩略图锯齿明显",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "registeredAt": "2026-11-13T18:39:12+08:00",
+      "updatedAt": "2026-11-13T18:43:12+08:00",
+      "status": "197 已核对同一章节的新旧效果",
+      "result": "缩略图按槽位实际像素解码，保留原裁剪和预载范围。197 用《腦洞學生會》同一章对照，细字和线条更清楚。",
+      "remaining": "",
+      "evidence": [".hvigor/outputs/daily-flow-293/thumbnail-comparison-197.png"],
+      "closedAt": "2026-11-13T18:43:12+08:00"
+    },
+    {
+      "id": "BAOZI_READER_CF_20261113",
+      "number": 294,
+      "title": "包子漫画正文挑战未弹出验证",
+      "kind": "pending_verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "registeredAt": "2026-11-13T17:12:23+08:00",
+      "updatedAt": "2026-11-13T20:36:41+08:00",
+      "status": "197 已验证正文弹窗、取消和恢复阅读",
+      "result": "阅读器将正文挑战交给现有验证弹窗，包子源声明正文域并识别 Cloudflare 的响应头。197 实际续读《大象無形》第十章第 3 页成功。对同一正文请求回放一次 503 挑战，弹窗打开的是该章官网，完成后回到原页；取消后可重试，并能回到原页。197 已装回正常候选并复核正文，删除临时导入文件，恢复原电源状态并释租。",
+      "remaining": "站点这次对正文正常返回，尚未在 197 遇到真实的正文 Cloudflare 挑战。",
+      "evidence": [".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203314888708", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203356759426", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T203511615540", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T203531609676", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/install-20261113T203539931800", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203634748282", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261113T203641620990"],
+      "relatedItems": [
+        "SOURCE_WEB_SESSION"
+      ]
+    },
+    {
+      "id": "KOMA_DAILY_READER_FLOWS_20261113",
+      "number": 293,
+      "title": "更新、找书、下载和续章的日常操作改进",
+      "kind": "done",
+      "priority": "用户直接要求",
+      "owner": "Root",
+      "registeredAt": "2026-11-13T17:12:23+08:00",
+      "updatedAt": "2026-11-13T20:26:16+08:00",
+      "status": "已在 197 验证正式源同组续章",
+      "result": "1. 更新页：197 用两部测试作品实际批量下载和标为已读，未选译本仍未读；隔离数据另验写入失败恢复。\n2. 详情标题：197 验到短按搜同作、长按复制。\n3. 同名收藏：197 验到同名提示及继续选分类。\n4. 未收藏下载：197 的《Yotsuba to!》完成 51/51 页，冷启动可从下载管理打开正文；先前一次退出未复现。\n5. 源内搜索预设：197 在 MangaDex 验到保存及重新应用。\n6. 同组续章：测试源为下一话提供 Red、Blue 两个版本，197 在条漫中从第一话 Blue 向下滑，实际显示第二话 Blue。正式 MangaDex 源在 197 用《Yotsuba to!》从 James Burner Scanlations 第 1 话续到同组第 2 话，已按实际章节 ID 核对。简体和繁体候选与英文版共用顺序实现。",
+      "remaining": "",
+      "relatedItems": ["BAOZI_READER_CF_20261113", "READER_THUMBNAIL_RAIL_CLARITY_20261113", "DOWNLOAD_QUEUE_MANAGEMENT"],
+      "closedAt": "2026-11-13T20:26:16+08:00",
+      "evidence": [
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T202616347627",
+        ".hvigor/outputs/daily-flow-293",
+        ".hvigor/outputs/daily-flow-293/qa/updates-write.cjs",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T191938372927/screen.png",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T192030018124/screen.png",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261113T192446832081/run-metadata.json"
+      ]
+    },
     {
       "id": "SOURCE_BROWSE_PREFETCH_VISIBLE_TAIL_20261113",
       "number": 292,
@@ -10508,9 +10563,9 @@
       "reportedDate": "2026-11-11",
       "reportedAtSource": "本会话用户反馈无法按作品批量暂停或取消，任务多时只能断网后清理失败任务。原始消息时刻未核实。",
       "registeredAt": "2026-11-11T18:22:33+08:00",
-      "updatedAt": "2026-11-11T23:12:41+08:00",
-      "status": "197 已核对分组操作、筛选动画、设置入口和 CBZ 回导",
-      "result": "下载管理在设置首页无痕模式下方。标题栏露出当前主要操作，分组菜单按任务能否重试显示操作或原因。197 已核对章节菜单对齐，逐帧确认展开、收起时卡片连续移动，筛选切换无新旧文字重叠。CBZ 选章拖动后保存至系统 Download，已回导并按排序阅读两页。 197 已核对长列表末章避让和点选、隐藏滚动条、设置首页图标配色，以及继续图标居中。目录索引仅在映射变化或重建时落盘，章节进度不再读写索引。本地验证误删后重建与交错增删，197 用已有三章生成可解压的 CBZ。",
+      "updatedAt": "2026-11-13T17:54:27+08:00",
+      "status": "197 已复核下载分组封面留白和同心圆角",
+      "result": "下载管理在设置首页无痕模式下方。标题栏露出当前主要操作，分组菜单按任务能否重试显示操作或原因。197 已核对章节菜单对齐，逐帧确认展开、收起时卡片连续移动，筛选切换无新旧文字重叠。CBZ 选章拖动后保存至系统 Download，已回导并按排序阅读两页。 197 已核对长列表末章避让和点选、隐藏滚动条、设置首页图标配色，以及继续图标居中。目录索引仅在映射变化或重建时落盘，章节进度不再读写索引。本地验证误删后重建与交错增删，197 用已有三章生成可解压的 CBZ。197 核对实际封面及占位，封面 60×80 vp，左侧和上下留白 8 vp，内外圆角 16/24 vp。",
       "remaining": "全队列取消只核对确认范围，未取消原有任务；独立暂停和分组取消已跑逻辑回归。断网、后台传输、大文件导出及其他保存目录仍未全面实机验证。",
       "relatedItems": [
         "DOWNLOAD_USER_FLOW",
@@ -10518,6 +10573,7 @@
       ],
       "evidence": [
         "entry/src/main/ets/pages/DownloadsPage.ets",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T174927886757/screen.png",
         "scripts/test_chapter_management.cjs",
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/actions-20261111T201229990204/screen.png",
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/capture-cbz-20261111T201151494971/selected.cbz",
@@ -10590,6 +10646,33 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "baozi-reader-final-candidate-197-20261113",
+      "at": "2026-11-13T20:36:41+08:00",
+      "itemId": "BAOZI_READER_CF_20261113",
+      "title": "#294 正常候选复验与设备恢复",
+      "detail": "装回正常候选后从历史续读《大象無形》第十章第 3 页，正文实显。删除临时导入文件，读回原超时和休眠状态并释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261113T203641620990"
+    },
+    {
+      "id": "baozi-reader-challenge-replay-197-20261113",
+      "at": "2026-11-13T20:36:04+08:00",
+      "itemId": "BAOZI_READER_CF_20261113",
+      "title": "#294 197 已验证包子正文挑战恢复",
+      "detail": "实际正文可续读到第十章第 3 页。对同一请求回放一次带挑战标记的 503，确认弹窗加载原正文，完成、取消后重试均回到同一页。装回正常候选。站点正文未自然触发挑战。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203356759426"
+    },
+    {
+      "id": "production-same-scanlator-197-20261113",
+      "at": "2026-11-13T20:26:16+08:00",
+      "itemId": "KOMA_DAILY_READER_FLOWS_20261113",
+      "title": "#293 正式 MangaDex 源同组续章已验证",
+      "detail": "197 用正式源候选从《Yotsuba to!》James Burner Scanlations 第 1 话翻到同组第 2 话第 1 页，实际章节 ID 与公开目录相符。另一译本仍保留独立入口。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T202616347627"
+    },
     {
       "id": "source-prefetch-visible-tail-verified-20261113",
       "at": "2026-11-13T12:40:39+08:00",

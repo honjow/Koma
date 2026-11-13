@@ -9,6 +9,7 @@ import { MangaMigrationRouteChromeState } from '../state/MangaMigrationRouteChro
 import { MigrationMatchOptions } from '../model/MangaMigrationPreferencesStore'
 import { LibrarySearchSource } from '../model/LibrarySearchQuery'
 import { DownloadsChrome } from '../state/DownloadsChrome'
+import { CrossSearchSourceFilter } from '../model/CrossSearchService'
 
 export interface MangaDetailRouteParam {
   mangaId: string
@@ -44,6 +45,7 @@ export interface SourcePackageManagerRouteParam {
 
 export interface SearchRouteParam {
   query?: string
+  sourceFilter?: CrossSearchSourceFilter
   librarySource?: LibrarySearchSource
   chrome?: SearchRouteChromeState
 }

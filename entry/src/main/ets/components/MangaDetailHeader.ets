@@ -24,6 +24,7 @@ export struct MangaDetailHeader {
   @Param remoteServerId: string = ''
   @Param sourceUnavailable: boolean = false
   @Event onSourceClick: () => void = () => {}
+  @Event onTitleClick?: () => void
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private failedCoverUrl: string = ''
 
@@ -162,6 +163,7 @@ export struct MangaDetailHeader {
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .copyOption(this.manga.title.length > 0 ? CopyOptions.LocalDevice : CopyOptions.None)
+          .onClick(() => { this.onTitleClick?.() })
 
         Text(this.creatorText())
           .fontSize(ThemeConstants.FONT_SIZE_BODY)

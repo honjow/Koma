@@ -112,6 +112,7 @@ import { SourcePackageManagerPage } from './SourcePackageManagerPage'
 import { WebDavServerPage } from './WebDavServerPage'
 import { DownloadsPage } from './DownloadsPage'
 import { DownloadsChrome, DownloadsCommand } from '../state/DownloadsChrome'
+import { LibraryUpdatesChrome } from '../state/LibraryUpdatesChrome'
 import { BackupManagementPage } from './BackupManagementPage'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { TrackerSettingsPage } from './TrackerSettingsPage'
@@ -195,7 +196,8 @@ import {
   getReaderSessionPageId,
 } from '../model/ReaderSessionStore'
 import { createReaderOfflineMissingUri } from '../model/ReaderPageSourceAdapter'
-import { SourceChapterPageHydrator, resolveSourceChapterPages, sourceChapterPagesMatchSettings } from '../model/SourceChapterPageHydrator'
+import { SourceChapterPageFailure, SourceChapterPageHydrator, SourceChapterPageHydrationResult,
+  SourceChapterPagesResolveResult, resolveSourceChapterPages, sourceChapterPagesMatchSettings } from '../model/SourceChapterPageHydrator'
 import {
   SourceReadHistoryEntry,
   SourceReaderSessionRequest,
@@ -212,8 +214,11 @@ import {
   bootstrapSourceRuntimeAppRegistry,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
-import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
-import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
+import { appSourceWebSessionStore, sourceWebOrigin } from '../sourceRuntime/SourceWebSessionStore'
+import { openSourceWebSession, prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
+import { clearSourceRejectedRequest, sourceRejectedRequestUrl } from '../sourceRuntime/SourceRuntimeHttpTransport'
+import { newSourceRuntimeOperationGuardId, registerSourceRuntimeOperationGuard } from '../sourceRuntime/SourceRuntimeOperationGuard'
+import { ReaderSourceWebChallenge } from '../readerLab/ReaderSourceWebChallenge'
 import { normalizeSourceHomepage } from '../sourceRuntime/SourcePackageMetadata'
 import { selectedSourceHomepage } from '../sourceRuntime/SourceHomepageSelection'
 import { configureSourceFilterPreferencesStore } from '../sourceRuntime/SourceFilterPreferencesStore'
@@ -284,6 +289,7 @@ struct Index {
   @Local private readerRouteTransition: ReaderRouteTransition = new ReaderRouteTransition()
 
   private captureSharedReaderEntry(newRoute: boolean): void {
+    if (this.readerWebChallenge !== null) this.finishReaderWebChallenge(this.readerWebChallenge, false)
     if (newRoute) {
       this.readerRouteTransition.begin()
     }
@@ -325,6 +331,7 @@ struct Index {
   @Local private readerOpen: boolean = false
   @Local private readerClosing: boolean = false
   @Local private readerRouteVisible: boolean = false
+  @Local private readerWebChallenge: ReaderSourceWebChallenge | null = null
   @Local private readerSessionLoading: boolean = false
   @Local private readerCloseRequestId: number = 0
   @Local private readerPageIndex: number = 0
@@ -778,17 +785,46 @@ struct Index {
     }
   }
 
-  private libraryUpdatesTitleBarOptions(): Record<string, Object> {
-    const options = this.navDestTitleBarOpts(AppStrings.get('library_updates_title'))
+  private libraryUpdatesTitleBarOptions(chrome: LibraryUpdatesChrome): Record<string, Object> {
+    const options = this.navDestTitleBarOpts(chrome.selecting
+      ? AppStrings.get('chapter_list_selected_count').replace('%s', `${chrome.selectedKeys.size}`)
+      : AppStrings.get('library_updates_title'))
+    const content = options['content'] as Record<string, Object>
+    // Clearing the override restores the system back button after selection.
+    const close: Record<string, Object> = {
+      'label': AppStrings.get('common_cancel'), 'icon': $r('sys.symbol.xmark'), 'isEnabled': !chrome.busy,
+      'action': (): void => { if (!chrome.busy) chrome.exitSelection() },
+    }
+    content['backIcon'] = chrome.selecting ? close : {} as Record<string, Object>
+    if (chrome.selecting) {
+      const select: Record<string, Object> = {
+        'label': AppStrings.get(chrome.allSelected ? 'chapter_list_menu_deselect_all_filtered' :
+          'chapter_list_menu_select_all_filtered'),
+        'icon': chrome.allSelected ? $r('sys.symbol.square') : $r('sys.symbol.checkmark_square'),
+        'isEnabled': !chrome.busy, 'action': (): void => { chrome.request('toggleAll') },
+      }
+      const enabled = chrome.selectedKeys.size > 0 && !chrome.busy
+      const download: Record<string, Object> = { 'label': AppStrings.get('manga_detail_action_download_chapter'),
+        'isEnabled': enabled, 'action': (): void => { chrome.request('download') } }
+      const mark: Record<string, Object> = { 'label': AppStrings.get('chapter_list_menu_mark_read'),
+        'isEnabled': enabled, 'action': (): void => { chrome.request('markRead') } }
+      const items: Record<string, Object>[] = [{ 'content': select }, { 'content': download }, { 'content': mark }]
+      content['menu'] = { 'value': items, 'maxCount': 2 } as Record<string, Object>
+      return options
+    }
+    const filterIcon = new SymbolGlyphModifier($r('sys.symbol.funnel')).fontColor([
+      chrome.unreadOnly ? ThemeConstants.BRAND_PRIMARY : $r('sys.color.font_primary')])
+    const filter: Record<string, Object> = { 'label': AppStrings.get(chrome.unreadOnly ? 'common_all' :
+      'library_updates_unread_only'), 'icon': filterIcon,
+      'action': (): void => { chrome.unreadOnly = !chrome.unreadOnly } }
     const check: Record<string, Object> = { 'label': AppStrings.get('source_pkg_check_updates'),
       'icon': $r('sys.symbol.arrow_clockwise'), 'isEnabled': !this.libraryUpdateState.busy,
       'action': (): void => { this.libraryUpdatesRefreshController.triggerTopRefresh() } }
     const results: Record<string, Object> = { 'label': AppStrings.get('route_library_update_results_title'),
       'icon': $r('sys.symbol.list_bullet'),
       'action': (): void => { this.appPathStack.pushPath({ name: RouteName.LIBRARY_UPDATE_RESULTS }) } }
-    const items: Record<string, Object>[] = [{ 'content': check }, { 'content': results }]
-    const content = options['content'] as Record<string, Object>
-    content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
+    const items: Record<string, Object>[] = [{ 'content': filter }, { 'content': check }, { 'content': results }]
+    content['menu'] = { 'value': items, 'maxCount': 2 } as Record<string, Object>
     return options
   }
 
@@ -868,21 +904,59 @@ struct Index {
     }
   }
 
+  private async readReaderPagesWithVerification<T extends SourceChapterPageFailure>(sourceId: string | undefined,
+    read: (guardId?: string) => Promise<T>, current?: () => boolean): Promise<T> {
+    const entry = sourceId === undefined ? undefined : this.sourceRegistry.lookup(sourceId).entry
+    if (sourceId === undefined || entry === undefined || current === undefined || (entry.webSessionOrigins ?? []).length === 0) {
+      return read()
+    }
+    const guard = newSourceRuntimeOperationGuardId()
+    const release = registerSourceRuntimeOperationGuard(guard, current)
+    try {
+      const result = await read(guard)
+      if (result.sourceFailure?.kind !== 'challenge' || !current() || this.readerWebChallenge !== null) return result
+      const exactUrl = sourceRejectedRequestUrl(sourceId, guard)
+      if (exactUrl.length === 0 || !(entry.webSessionOrigins ?? []).includes(sourceWebOrigin(exactUrl))) return result
+      const params = prepareSourceWebSession(sourceId, entry.manifestName, guard)
+      if (params?.sourceSession === undefined) return result
+      const verified = await new Promise<boolean>((resolve: (value: boolean) => void): void => {
+        this.readerWebChallenge = new ReaderSourceWebChallenge(params, current, resolve)
+      })
+      return verified && current() ? await read(guard) : result
+    } finally {
+      release()
+      clearSourceRejectedRequest(sourceId, guard)
+    }
+  }
+
+  private finishReaderWebChallenge(request: ReaderSourceWebChallenge, verified: boolean): void {
+    if (this.readerWebChallenge !== request) return
+    this.readerWebChallenge = null
+    request.finish(verified)
+  }
+
+  private readerPageRequestCurrent(openEpoch: number): boolean {
+    return this.readerOpenEpoch === openEpoch && this.readerOpen && !this.readerClosing
+  }
+
   private async ensureReaderSourceChapterPages(comic: Comic, chapterId: string | undefined,
     onSourceFailure?: (reason: string | undefined, details?: SourceFailureDetails) => void,
-    forceRefresh: boolean = false): Promise<boolean> {
+    forceRefresh: boolean = false, current?: () => boolean): Promise<boolean> {
     if (!forceRefresh && !this.chapterNeedsReaderSourcePages(comic, chapterId)) {
       return true
     }
     try {
-      const result = await new SourceChapterPageHydrator(
+      const hydrator = new SourceChapterPageHydrator(
         this.libraryStore,
         this.sourceRegistry,
         this.ensureLibraryPersistenceService(),
         () => {
           this.refreshLibrarySnapshot()
         },
-      ).ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string, forceRefresh)
+      )
+      const result = await this.readReaderPagesWithVerification<SourceChapterPageHydrationResult>(comic.sourceRuntimeId,
+        (guard?: string): Promise<SourceChapterPageHydrationResult> =>
+          hydrator.ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string, forceRefresh, guard), current)
       if (!result.hydrated) {
         onSourceFailure?.(result.sourceFailureReason, result.sourceFailure)
         this.logReaderSourcePagesUnavailable(result.reasonCode)
@@ -922,7 +996,8 @@ struct Index {
     let sourceFailure: SourceFailureDetails | undefined = undefined
     if (!offlineReaderPagesReady) {
       sourcePagesReady = await this.ensureReaderSourceChapterPages(originalComic, chapterId,
-        (reason: string | undefined, details?: SourceFailureDetails): void => { sourceFailureReason = reason; sourceFailure = details })
+        (reason: string | undefined, details?: SourceFailureDetails): void => { sourceFailureReason = reason; sourceFailure = details },
+        false, (): boolean => this.readerPageRequestCurrent(openEpoch))
     }
     const comic = this.readerComicForOpen(comicId) ?? originalComic
     if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) {
@@ -997,7 +1072,7 @@ struct Index {
       chapterIds,
       chapterTitles,
       continuationChapterIds: request.chaptersResolved === true && request.chapters !== undefined
-        ? continuationChapterIds(request.chapters, request.chapterId) : undefined,
+        ? continuationChapterIds(request.chapters, request.chapterId, true) : undefined,
       title: request.title,
       chapterTitle: chapterTitles[selectedIndex],
       readingFormat: request.readingFormat,
@@ -1056,13 +1131,15 @@ struct Index {
     // Do not share the library hydrator's result here. Source hosts may issue
     // short-lived descriptors; a transient Reader open always resolves pages
     // afresh and never writes them to LibraryStore.
-    const resolution = await resolveSourceChapterPages(this.sourceRegistry, {
+    const resolution = await this.readReaderPagesWithVerification<SourceChapterPagesResolveResult>(request.sourceId,
+      (guard?: string): Promise<SourceChapterPagesResolveResult> => resolveSourceChapterPages(this.sourceRegistry, {
       comicId: request.comicId,
       sourceId: request.sourceId,
       mangaId: request.mangaId,
       mangaUrl: request.mangaUrl,
       chapterId: request.chapterId,
-    })
+      operationGuardId: guard,
+    }), (): boolean => this.readerPageRequestCurrent(openEpoch))
     const activeRequest = this.activeSourceReaderRequest
     if (openEpoch !== this.readerOpenEpoch ||
       !this.readerOpen ||
@@ -1142,6 +1219,12 @@ struct Index {
   private async prepareReaderLabCatalog(target: ReaderUnitKey,
     cancellation: ReaderCancellation, forceRefresh: boolean = false): Promise<ReaderSessionConfig | null> {
     if (target.scope !== 'koma-local') return null
+    const openEpoch = this.readerOpenEpoch
+    // The adapter also calls this method for speculative adjacent units. Only
+    // the displayed unit can request verification through this entry point.
+    const current = this.readerSessionConfig.comicId === target.work && this.readerSessionConfig.chapterId === target.unit
+      ? (): boolean => !cancellation.isCancelled() && this.readerPageRequestCurrent(openEpoch) &&
+        this.readerSessionConfig.chapterId === target.unit : undefined
     const sourceRequest = this.activeSourceReaderRequest
     if (sourceRequest !== undefined && sourceRequest.comicId === target.work) {
       const nextRequest = sourceReaderSessionRequestForChapter(sourceRequest, target.unit)
@@ -1156,13 +1239,15 @@ struct Index {
         // provider request before the shared surface can display it.
         return cloneReaderSessionConfig(this.readerSessionConfig)
       }
-      const resolution = await resolveSourceChapterPages(this.sourceRegistry, {
+      const resolution = await this.readReaderPagesWithVerification<SourceChapterPagesResolveResult>(nextRequest.sourceId,
+        (guard?: string): Promise<SourceChapterPagesResolveResult> => resolveSourceChapterPages(this.sourceRegistry, {
         comicId: nextRequest.comicId,
         sourceId: nextRequest.sourceId,
         mangaId: nextRequest.mangaId,
         mangaUrl: nextRequest.mangaUrl,
         chapterId: nextRequest.chapterId,
-      })
+        operationGuardId: guard,
+      }), current)
       cancellation.check()
       // A chapter handoff is prepared beside the still-readable shared session.
       // Do not turn a provider failure into a committed placeholder unit: reject
@@ -1194,7 +1279,7 @@ struct Index {
     if (!offlineReady) {
       const hydrated = await this.ensureReaderSourceChapterPages(original, target.unit,
         (reason: string | undefined, details?: SourceFailureDetails): void => { sourceFailureReason = reason; sourceFailure = details },
-        forceRefresh)
+        forceRefresh, current)
       // A failed explicit refresh must not silently reuse the same stale page plan.
       if (forceRefresh && !hydrated) throw KomaReaderFailure.sourceError(sourceFailureReason, sourceFailure)
     }
@@ -1235,7 +1320,7 @@ struct Index {
       updated.chaptersResolved = true
       this.activeSourceReaderRequest = updated
       this.rememberSharedChapterCatalog(updated)
-      return continuationChapterIds(catalog.chapters, target.unit)
+      return continuationChapterIds(catalog.chapters, target.unit, true)
     }
     return new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
       this.ensureLibraryPersistenceService()).resolveChapterSequence(target.work, target.unit, isCurrent)
@@ -1416,16 +1501,14 @@ struct Index {
         if (!isCurrent()) {
           return
         }
-        if (!restored || comic === undefined || !await this.ensureReaderSourceChapterPages(comic, targetChapterId)) {
+        // Only restore the chapter identity before navigation. Foreground page
+        // resolution belongs to the reader and may need its verification sheet.
+        if (!restored || comic === undefined) {
           if (isCurrent()) {
             this.showToast(AppStrings.get('manga_detail_load_source_chapters_failed'))
           }
           return
         }
-        if (!isCurrent()) {
-          return
-        }
-        comic = this.libraryStore.getComic(comicId)
       } catch (_error) {
         if (isCurrent()) {
           this.showToast(AppStrings.get('manga_detail_load_source_chapters_failed'))
@@ -1881,6 +1964,7 @@ struct Index {
   }
 
   private finishReaderRouteClose(): void {
+    if (this.readerWebChallenge !== null) this.finishReaderWebChallenge(this.readerWebChallenge, false)
     if (!this.readerClosing) {
       return
     }
@@ -2918,6 +3002,10 @@ struct Index {
         routeTransition: this.readerRouteTransition,
         closeRequestId: this.readerCloseRequestId,
         catalogHost: this.sharedReaderCatalogHost,
+        webChallenge: this.readerWebChallenge,
+        onWebChallengeFinished: (request: ReaderSourceWebChallenge, verified: boolean): void => {
+          this.finishReaderWebChallenge(request, verified)
+        },
         prepareInitial: async (): Promise<void> => { await this.readerPreparation },
         readInitialColumn: (work: string, unit: string): 'odd_left' | 'even_left' =>
           this.readReaderLabInitialColumn(work, unit),
@@ -3034,6 +3122,7 @@ struct Index {
       SearchPage({
         chrome: RouterHelper.ensureSearchRouteChrome(param),
         initialLibrarySource: param.librarySource,
+        initialSourceFilter: param.sourceFilter,
         onOpenLibraryResult: (comicId: string) => { this.openLibraryMangaDetail(comicId) },
         libraryStore: this.libraryStore,
         libraryPersistenceService: this.ensureLibraryPersistenceService(),
@@ -3121,6 +3210,7 @@ struct Index {
           onOpenImportRequested: () => { this.openImport() },
           onRefreshLocalFolder: (comicId: string) => this.rescanLocalLibraryFolders(comicId),
           onLibraryChanged: () => { this.onMangaDetailLibraryChanged() },
+          onOpenExistingFavorite: (comicId: string): void => { this.openLibraryMangaDetail(comicId, true) },
           onMigrationRequested: (comicId: string) => {
             void this.openMangaMigration([comicId], true)
           }
@@ -3357,14 +3447,22 @@ struct Index {
       .titleBar(this.settingsPaneTitleBarOpts(param as SettingsPaneRouteParam))
     } else if (name === RouteName.LIBRARY_UPDATES) {
       HdsNavDestination() {
-        LibraryUpdatesPage({ libraryStore: this.libraryStore, libraryRevision: this.libraryRevision,
+        LibraryUpdatesPage({ chrome: param as LibraryUpdatesChrome,
+          libraryStore: this.libraryStore, libraryRevision: this.libraryRevision,
           refreshController: this.libraryUpdatesRefreshController,
           readerSessionStore: this.readerSessionStore, readerProgressRevision: this.readerProgressRevision,
           onOpenReader: (comicId: string, chapterId: string): void => { void this.openReader(comicId, chapterId) },
           onOpenComic: (comicId: string): void => { this.openLibraryMangaDetail(comicId) },
+          onReadingStateChanged: (): void => { this.readerProgressRevision += 1 },
           onRefresh: async (): Promise<void> => { await this.checkLibraryUpdatesNow() } })
       }
-      .titleBar(this.libraryUpdatesTitleBarOptions())
+      .titleBar(this.libraryUpdatesTitleBarOptions(param as LibraryUpdatesChrome))
+      .onBackPressed((): boolean => {
+        const chrome = param as LibraryUpdatesChrome
+        if (!chrome.selecting) return false
+        if (!chrome.busy) chrome.exitSelection()
+        return true
+      })
       .onShown((): void => { this.markLibraryUpdatesSeen() })
     } else if (name === RouteName.LIBRARY_UPDATE_RESULTS) {
       HdsNavDestination() {
@@ -3530,7 +3628,9 @@ struct Index {
                 onMigrationRequested: (comicIds: string[]): void => {
                   void this.openMangaMigration(comicIds, false)
                 },
-                onOpenUpdatesRequested: (): void => { this.appPathStack.pushPath({ name: RouteName.LIBRARY_UPDATES }) },
+                onOpenUpdatesRequested: (): void => {
+                  this.appPathStack.pushPath({ name: RouteName.LIBRARY_UPDATES, param: new LibraryUpdatesChrome() })
+                },
                 onOpenCategoriesRequested: (): void => {
                   this.appPathStack.pushPath({ name: RouteName.LIBRARY_CATEGORIES, param: new LibraryCategoryManagementChrome() })
                 },

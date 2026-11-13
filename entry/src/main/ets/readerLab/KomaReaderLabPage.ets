@@ -1,6 +1,8 @@
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
 import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
 import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
+import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
+import { ReaderSourceWebChallenge } from './ReaderSourceWebChallenge'
 import { effectiveBannerFilter } from '../model/ImageBannerRules'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
 import { komaReaderImageEffects } from './KomaReaderDisplayEffects'
@@ -138,6 +140,8 @@ export struct KomaReaderLabPage {
   @Event onOpenMangaDetail: (work: string) => void = () => {}
   @Event onClose: () => void = () => {}
   @Param catalogHost: KomaReaderCatalogHost | null = null
+  @Param webChallenge: ReaderSourceWebChallenge | null = null
+  @Event onWebChallengeFinished: (request: ReaderSourceWebChallenge, verified: boolean) => void = () => {}
   @Local private session: ReaderPagedSession | null = null
   @Local private surfaceEntries: KomaReaderSessionEntry[] = []
   private surfaceGeneration: number = 0
@@ -152,6 +156,36 @@ export struct KomaReaderLabPage {
   @Local private readerSettingsSheetShown: boolean = false
   @Local private authentication: SourceAuthenticationRequest | null = null
   @Local private authenticationShown: boolean = false
+  @Local private webChallengeShown: boolean = false
+  @Local private presentedWebChallenge: ReaderSourceWebChallenge | null = null
+  private webChallengeVerified: boolean = false
+
+  @Monitor('webChallenge', 'routeActive', 'labVisibility.foreground')
+  private syncWebChallenge(): void {
+    const request = this.webChallenge
+    const active = this.routeActive && this.labVisibility.foreground && !this.readerClosed
+    if (this.presentedWebChallenge !== null) {
+      if (!active || request !== this.presentedWebChallenge || !request.current()) this.dismissWebChallenge(false)
+      return
+    }
+    if (request === null || !active) return
+    if (!request.current()) { this.onWebChallengeFinished(request, false); return }
+    this.presentedWebChallenge = request
+    this.webChallengeVerified = false
+    this.webChallengeShown = true
+  }
+
+  private dismissWebChallenge(verified: boolean): void {
+    if (!this.webChallengeShown) return
+    this.webChallengeVerified = verified
+    this.webChallengeShown = false
+  }
+
+  private finishWebChallengeDismissal(): void {
+    const request = this.presentedWebChallenge
+    this.presentedWebChallenge = null
+    if (request !== null) this.onWebChallengeFinished(request, this.webChallengeVerified && request.current())
+  }
 
   private requestSourceAuthentication(sourceId: string, unit: ReaderUnitKey, current: () => boolean,
     reopenCatalog: boolean = false): Promise<boolean> {
@@ -362,7 +396,10 @@ export struct KomaReaderLabPage {
     this.translationRevision += 1
     void this.reloadTranslationSettings()
     try {
-      const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost, context, this.productionEntry,
+      // Match the shared ReaderThumbnailRail tile's image height in physical pixels.
+      const thumbnailHeightPx = Math.ceil(this.getUIContext().vp2px(118))
+      const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, thumbnailHeightPx,
+        this.catalogHost, context, this.productionEntry,
         (): string => this.hostPreferences?.cropStrength ?? 'standard',
         (): boolean => readerRemotePreloadAllowed(this.hostPreferences?.preloadWifiOnly === true),
         () => effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride))
@@ -1359,10 +1396,30 @@ export struct KomaReaderLabPage {
   }
 
   @Builder
+  private ReaderWebChallengeSheet() {
+    if (this.presentedWebChallenge !== null) {
+      SourceWebSessionSheet({
+        params: this.presentedWebChallenge.params,
+        autoRetryOnClearance: true,
+        canProbeOriginal: (): boolean => this.webChallengeShown && this.presentedWebChallenge?.current() === true,
+        onClose: (): void => { this.dismissWebChallenge(false) },
+        onCompleted: (): void => { this.dismissWebChallenge(true) },
+      })
+    }
+  }
+
+  @Builder
   private ReaderContent() {
     Column() {
       SourceAuthenticationSheetHost({ request: this.authentication, active: this.routeActive && this.labVisibility.foreground,
         onPresentedChanged: (shown: boolean) => { this.authenticationShown = shown } })
+      Column() {}.width(0).height(0)
+        .bindSheet($$this.webChallengeShown, this.ReaderWebChallengeSheet, komaSheetOptions({
+          detents: [SheetSize.LARGE], showClose: false,
+          enableOutsideInteractive: false, enableFloatingDragBar: true,
+          // Native gestures close the bound sheet. Complete or cancel the request once it disappears.
+          onDisappear: (): void => { this.finishWebChallengeDismissal() },
+        }))
       if (this.session !== null) {
         ForEach(this.surfaceEntries, (entry: KomaReaderSessionEntry) => {
           if (this.request.readingChrome) {
@@ -1416,7 +1473,7 @@ export struct KomaReaderLabPage {
                 }),
               hostStatus: this.translationStatus(),
               active: this.routeActive && this.labVisibility.foreground && !this.authenticationShown && !this.readerSettingsSheetShown &&
-                !this.chapterPickerShown,
+                !this.chapterPickerShown && this.presentedWebChallenge === null,
               centerAction: this.chapterChoices.length > 0
                 ? new ReaderCenterAction(this.chapterControlLabel(),
                   (sourceUnit: ReaderUnitKey, navigation: number): void => {

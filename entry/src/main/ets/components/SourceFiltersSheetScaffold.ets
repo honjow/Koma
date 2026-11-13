@@ -5,6 +5,7 @@ import { KomaActionButton } from './ui/KomaActionButton'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter } from '../model/SourceModels'
 import { SourceFilterControls, SourceFilterControlValue, SourceFilterControlValues } from './SourceFilterControls'
+import { HdsNavigationMenuItemOptions } from '@kit.UIDesignKit'
 
 @ComponentV2
 export struct SourceFiltersSheetScaffold {
@@ -15,6 +16,7 @@ export struct SourceFiltersSheetScaffold {
   @Param filters: SourceFilter[] = []
   @Param values: SourceFilterControlValues = {}
   @Param optionsLoading: boolean = false
+  @Param additionalActions: HdsNavigationMenuItemOptions[] = []
   @Event onClose: () => void = () => {}
   @Event onReset: () => void = () => {}
   @Event onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => void =
@@ -32,6 +34,7 @@ export struct SourceFiltersSheetScaffold {
   build() {
     KomaModalScaffold({
       title: this.title,
+      additionalActions: this.additionalActions,
       // Other controls keep their existing immediate apply behavior.
       confirmLabel: this.filters.some((filter: SourceFilter): boolean => filter.type === 'text')
         ? AppStrings.get('common_confirm') : undefined,

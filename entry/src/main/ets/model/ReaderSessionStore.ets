@@ -1418,7 +1418,7 @@ export function createReaderSessionConfigFromComic(
     comicId: comic.id,
     chapterId: targetChapterId,
     chapterIds: comic.chapters.map((item) => item.id),
-    continuationChapterIds: continuationChapterIds(comic.chapters, targetChapterId),
+    continuationChapterIds: continuationChapterIds(comic.chapters, targetChapterId, true),
     chapterTitles: comic.chapters.map((item) => readerChapterDisplayTitle(item)),
     title: comic.title,
     chapterTitle: chapter === undefined ? undefined : readerChapterDisplayTitle(chapter),

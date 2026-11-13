@@ -39,6 +39,8 @@ export interface MangaChapterItem extends ChapterReadSequenceEntry {
   volumeNumber?: string
   readingOrder?: number
   readingGroup?: string
+  readingVariantGroup?: string
+  readingVariantSequence?: string
   continuationEligible?: boolean
   scanlator?: string
   language?: string
@@ -261,6 +263,8 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
     chapterNumber,
     readingOrder,
     readingGroup,
+    readingVariantGroup: optionalSourceString(item['readingVariantGroup']),
+    readingVariantSequence: optionalSourceString(item['readingVariantSequence']),
     continuationEligible: hasContinuationContract ? item['continuationEligible'] === true &&
       readingGroup !== undefined && (readingOrder !== undefined || chapterNumber !== undefined || optionalSourceNumber(volumeNumber) !== undefined) : undefined,
     volumeNumber,

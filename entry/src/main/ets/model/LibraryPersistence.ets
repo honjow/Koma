@@ -132,6 +132,8 @@ export interface PersistedChapter {
   volumeNumber?: string
   readingOrder?: number
   readingGroup?: string
+  readingVariantGroup?: string
+  readingVariantSequence?: string
   continuationEligible?: boolean
   scanlator?: string
   language?: string
@@ -225,6 +227,8 @@ function persistChapter(chapter: Chapter): PersistedChapter {
     volumeNumber: chapter.volumeNumber,
     readingOrder: chapter.readingOrder,
     readingGroup: chapter.readingGroup,
+    readingVariantGroup: chapter.readingVariantGroup,
+    readingVariantSequence: chapter.readingVariantSequence,
     continuationEligible: chapter.continuationEligible,
     sourcePath: chapter.sourcePath,
     sortKey: chapter.sortKey,
@@ -258,6 +262,8 @@ function hydrateChapter(row: PersistedChapter): Chapter {
     volumeNumber: row.volumeNumber,
     readingOrder: row.readingOrder,
     readingGroup: row.readingGroup,
+    readingVariantGroup: row.readingVariantGroup,
+    readingVariantSequence: row.readingVariantSequence,
     continuationEligible: row.continuationEligible,
     sourcePath: row.sourcePath,
     sortKey: row.sortKey,
@@ -530,6 +536,8 @@ function assertValidPersistedChapter(row: PersistedChapter): void {
   assertOptionalStringField(row.volumeNumber, 'chapter.volumeNumber')
   assertOptionalNumberField(row.readingOrder, 'chapter.readingOrder')
   assertOptionalStringField(row.readingGroup, 'chapter.readingGroup')
+  assertOptionalStringField(row.readingVariantGroup, 'chapter.readingVariantGroup')
+  assertOptionalStringField(row.readingVariantSequence, 'chapter.readingVariantSequence')
   if (row.continuationEligible !== undefined && typeof row.continuationEligible !== 'boolean') {
     throw new Error('Invalid library store persistence chapter.continuationEligible: expected boolean')
   }

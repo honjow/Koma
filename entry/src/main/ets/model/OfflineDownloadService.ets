@@ -124,7 +124,7 @@ function pageAtIndex(chapter: Chapter, index: number): Page | undefined {
 }
 
 // Only the installed package's public work origins can persist a safe URL.
-function publicSourceWorkUri(sourceId: string | undefined, value: string | undefined): string | undefined {
+export function publicSourceWorkUri(sourceId: string | undefined, value: string | undefined): string | undefined {
   if (sourceId === undefined || value === undefined) return undefined
   const domains = appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy?.publicWorkUrlDomains
   if (domains === undefined) return undefined

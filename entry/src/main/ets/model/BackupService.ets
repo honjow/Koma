@@ -739,6 +739,10 @@ function normalizeBackupDownloadQueuePayload(payload: string): string {
       pageCount: normalizeBackupCount(row['pageCount']),
       downloadedPageCount: normalizeBackupCount(row['downloadedPageCount']),
       updatedAt: normalizeBackupCount(row['updatedAt']),
+      sourceId: normalizeBackupString(row['sourceId']),
+      sourceMangaId: normalizeBackupString(row['sourceMangaId']),
+      sourceMangaUrl: normalizeBackupString(row['sourceMangaUrl']),
+      sourceName: normalizeBackupString(row['sourceName']),
     }
     const comicTitle = normalizeBackupString(row['comicTitle'])
     if (comicTitle !== undefined) {

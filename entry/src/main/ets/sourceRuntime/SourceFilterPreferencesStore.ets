@@ -8,9 +8,16 @@ export type SourceFilterPreferenceValue = string | number | boolean | string[]
 export type SourceFilterPreferenceRecord = Record<string, SourceFilterPreferenceValue>
 export type SourceFilterPreferenceKind = 'browse' | 'search'
 
+export interface SourceSearchPreset {
+  name: string
+  query: string
+  filters: SourceFilterPreferenceRecord
+}
+
 export interface SourceFilterPreferenceSourceRecord {
   browse?: SourceFilterPreferenceRecord
   search?: SourceFilterPreferenceRecord
+  searchPresets?: SourceSearchPreset[]
 }
 
 interface SourceFilterPreferencesDocument {
@@ -226,6 +233,36 @@ export class SourceFilterPreferencesStore {
     this.writeDocument(document)
   }
 
+  listSearchPresets(sourceId: string): SourceSearchPreset[] {
+    return this.readDocument().sources[sourceId]?.searchPresets ?? []
+  }
+
+  saveSearchPreset(sourceId: string, preset: SourceSearchPreset, filters: SourceFilter[]): void {
+    const document = this.readDocument()
+    const record = document.sources[sourceId] ?? {} as SourceFilterPreferenceSourceRecord
+    const presets = record.searchPresets ?? []
+    if (presets.some((entry: SourceSearchPreset): boolean => entry.name === preset.name)) {
+      throw new Error('duplicate_search_preset')
+    }
+    presets.push({ name: preset.name, query: preset.query, filters: this.filterSafeValues(preset.filters, filters) })
+    record.searchPresets = presets
+    document.sources[sourceId] = record
+    this.writeDocument(document)
+  }
+
+  removeSearchPreset(sourceId: string, name: string): void {
+    const document = this.readDocument()
+    const record = document.sources[sourceId]
+    if (record?.searchPresets === undefined) return
+    const remaining = record.searchPresets.filter((entry: SourceSearchPreset): boolean => entry.name !== name)
+    record.searchPresets = remaining.length > 0 ? remaining : undefined
+    this.writeDocument(document)
+  }
+
+  searchPresetValues(preset: SourceSearchPreset, filters: SourceFilter[]): SourceFilterPreferenceRecord {
+    return this.filterSafeValues(preset.filters, filters)
+  }
+
   removeSource(sourceId: string): void {
     const normalizedSourceId = sourceId.trim()
     if (normalizedSourceId.length === 0 || !this.isConfigured()) {
@@ -253,6 +290,7 @@ export class SourceFilterPreferencesStore {
       return
     }
     const nextRecord: SourceFilterPreferenceSourceRecord = {}
+    nextRecord.searchPresets = sourceRecord.searchPresets
     if (kind === 'browse' && sourceRecord.search !== undefined) {
       nextRecord.search = sourceRecord.search
     }
@@ -265,7 +303,7 @@ export class SourceFilterPreferencesStore {
         nextSources[key] = document.sources[key]
       }
     })
-    if (nextRecord.browse !== undefined || nextRecord.search !== undefined) {
+    if (nextRecord.browse !== undefined || nextRecord.search !== undefined || nextRecord.searchPresets !== undefined) {
       nextSources[normalizedSourceId] = nextRecord
     }
     document.sources = nextSources
@@ -295,7 +333,18 @@ export class SourceFilterPreferencesStore {
       if (Object.keys(search).length > 0) {
         safeRecord.search = search
       }
-      if (safeRecord.browse !== undefined || safeRecord.search !== undefined) {
+      if (Array.isArray(sourceRecord.searchPresets)) {
+        const names = new Set<string>()
+        const presets: SourceSearchPreset[] = []
+        sourceRecord.searchPresets.forEach((preset: SourceSearchPreset): void => {
+          if (preset === null || typeof preset?.name !== 'string' || preset.name.trim().length === 0 ||
+            typeof preset.query !== 'string' || names.has(preset.name)) return
+          names.add(preset.name)
+          presets.push({ name: preset.name, query: preset.query, filters: this.filterSafeStoredValues(preset.filters) })
+        })
+        if (presets.length > 0) safeRecord.searchPresets = presets
+      }
+      if (safeRecord.browse !== undefined || safeRecord.search !== undefined || safeRecord.searchPresets !== undefined) {
         sanitized[sourceId] = safeRecord
       }
     })
@@ -363,7 +412,10 @@ export class SourceFilterPreferencesStore {
     const sourcesValid = Object.keys(document.sources).every((sourceId: string): boolean => {
       const record = document.sources[sourceId]
       return record !== null && typeof record === 'object' && !Array.isArray(record) &&
-        storedFilterValuesValid(record.browse) && storedFilterValuesValid(record.search)
+        storedFilterValuesValid(record.browse) && storedFilterValuesValid(record.search) &&
+        (record.searchPresets === undefined || (Array.isArray(record.searchPresets) &&
+          record.searchPresets.every((preset: SourceSearchPreset): boolean => preset !== null &&
+            typeof preset.name === 'string' && typeof preset.query === 'string' && storedFilterValuesValid(preset.filters))))
     })
     if (!sourcesValid) throw new Error('source_filter_preferences_invalid')
     return document

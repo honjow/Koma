@@ -108,6 +108,8 @@ JSON POST 使用 HTTP 信封的 `body` 字段传入已经序列化的正文字�
 
 章节可选 `readingOrder` 表示源明确验证的同一阅读序列顺序，独立于展示用 `chapterNumber`／`volumeNumber`。宿主派生自动续读顺序时优先使用有限、非负的 `readingOrder`，并保留既有 `readingGroup`／`continuationEligible` 分组许可；未提供时仍按原卷／话号规则。同组排序位置重复时不能按数组位置决定先后，该组须补齐可区分的序号后才自动续读；有唯一阅读序号的重复话号、无号番外仍可正常续读。不得凭标题猜顺序或伪造卷号。依赖此字段的源仅在 `hostFeatures` 含 `chapter_reading_order_v1` 时输出对应续读合同，旧宿主保留原章节输出。宿主的详情快照、入库、目录更新、持久化和 Reader 会话使用同一字段，缓存页和进度不因预载而写回。
 
+`chapter_reading_variants_v1` 支持源以 `readingVariantGroup` 声明同一话的多个可读版本。每组必须使用同一阅读序列和显式 `readingOrder`，且组名在该序列中只对应一个位置。可选 `readingVariantSequence` 指定可跨译本续读的序列，此时 `readingGroup` 继续标识原译本组，阅读器优先选同组。缺省时，序列仍由 `readingGroup` 标识，阅读器在替代版本中优先匹配 `scanlator`。自动前后章和预载保留当前手选版本，其他位置无同组时按稳定章节 ID 选取。所有版本保有独立章节 ID、阅读记录和手动入口，批量已读和导出仍按原组处理。源在宿主未声明能力时只发原有的章节顺序和分组。
+
 正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`source_public_cookie_override_v1`、`source_homepage_choices_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1`、`chapter_reading_order_v1`、`source_private_session_v1`、`source_page_image_processing_v1` 是正文图片准备的可选声明。现有 `imageProcessing: { kind: "baozi_banner", mode: "1" | "2" }` 由订阅图片规则中的兼容映射消费；普通、强力及关闭语义保持。宿主在“跟随书源”下遵守该声明，在“自动识别”下使用已取得且允许跨源的规则；“关闭”保留原图。处理不再依赖某个源 ID 或图片域名，封面不参与。
 
 `source_related_manga_v1` 允许 `get_manga` 在 `data.manga.relatedManga` 返回可选的同源作品卡片数组，使用现有列表卡片的身份、标题、封面及公开图片请求字段。宿主保留原顺序，跳过本作、重复和无效条目，最多读取前 100 项。详情仅在有有效条目时通过现有更多菜单显示「相关作品」，用同一书源的普通详情入口打开卡片。缺省或空数组不改变现有详情与阅读，宿主不会为此发起额外的源调用。

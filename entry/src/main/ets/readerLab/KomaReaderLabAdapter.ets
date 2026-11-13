@@ -173,7 +173,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
 
   private unitId(key: ReaderUnitKey): string { return JSON.stringify([key.scope, key.work, key.unit]) }
 
-  constructor(filesDir: string, cacheDir: string, catalogHost: KomaReaderCatalogHost | null = null,
+  constructor(filesDir: string, cacheDir: string, thumbnailHeightPx: number, catalogHost: KomaReaderCatalogHost | null = null,
     requestContext?: common.UIAbilityContext, chapterPreloadEnabled: boolean = false,
     cropStrength: () => string = (): string => 'standard',
     remotePreloadAllowed: () => boolean = (): boolean => true,
@@ -189,7 +189,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     this.cacheDir = cacheDir
     this.offlineStorageBase = requestContext === undefined ? filesDir : komaContentStorageBase(requestContext)
     this.runtimeKey = requestContext === undefined ? filesDir : komaRuntimeStorageKey(requestContext)
-    this.thumbnails = new KomaReaderLabThumbnailProvider(cacheDir)
+    this.thumbnails = new KomaReaderLabThumbnailProvider(cacheDir, thumbnailHeightPx)
     this.catalogHost = catalogHost
     const payload = new AppFilesLibraryStorePersistenceAdapter(filesDir).load()
     if (payload !== undefined) hydrateLibraryStoreFromJson(this.library, payload)

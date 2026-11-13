@@ -6,10 +6,14 @@ import { ReaderAsset, ReaderCancellation } from '@reader-kit/core'
 /** Local, optional-reader derivatives. Original/downloaded files are never owned here. */
 export class KomaReaderLabThumbnailProvider {
   private cacheDir: string
+  private targetHeightPx: number
   private closed: boolean = false
   private tail: Promise<void> = Promise.resolve()
 
-  constructor(cacheDir: string) { this.cacheDir = cacheDir }
+  constructor(cacheDir: string, targetHeightPx: number) {
+    this.cacheDir = cacheDir
+    this.targetHeightPx = targetHeightPx
+  }
 
   load(uri: string, cancellation: ReaderCancellation): Promise<ReaderAsset> {
     const request = this.tail.then((): Promise<ReaderAsset> => this.derive(uri, cancellation))
@@ -52,12 +56,11 @@ export class KomaReaderLabThumbnailProvider {
         const height = info.size.height
         if (width <= 0 || height <= 0) throw new Error('koma_thumbnail_invalid_dimensions')
         // Keep these cover limits aligned with ReaderThumbnailRail.widthValue().
-        // Crop the source window before downsampling: a full-strip 192px decode
-        // would leave too few horizontal pixels for the bounded cover tile.
+        // Crop before downsampling so a long strip retains enough pixels for the tile.
         const aspect = width / height
         const regionWidth = aspect > 1.4 ? Math.max(1, Math.min(width, Math.round(height * 1.4))) : width
         const regionHeight = aspect < 0.45 ? Math.max(1, Math.min(height, Math.round(width / 0.45))) : height
-        const scale = Math.min(1, 192 / Math.max(regionWidth, regionHeight))
+        const scale = Math.min(1, this.targetHeightPx / regionHeight)
         pixels = await source.createPixelMap({
           desiredRegion: {
             x: Math.floor((width - regionWidth) / 2), y: Math.floor((height - regionHeight) / 2),

@@ -31,6 +31,7 @@ import {
 import {
   SourceFilterPreferenceKind,
   appSourceFilterPreferencesStore,
+  SourceSearchPreset,
 } from '../sourceRuntime/SourceFilterPreferencesStore'
 import {
   SourceRuntimeRegistryEntry,
@@ -1182,6 +1183,22 @@ export class BrowseViewModel {
   hasSearchFilterChanges(query: string = this.searchQuery): boolean {
     return !this.sourceFilterValuesEqual(this.filterValuesForQuery(this.searchFilterValues, query, this.filters, this.useSearchForFilters),
       this.filterValuesForQuery(this.initialSearchFilterValues(), query, this.filters, this.useSearchForFilters))
+  }
+
+  saveSearchPreset(sourceId: string, name: string, query: string): void {
+    const filters = sourceFiltersForQuery(this.filters, query, this.useSearchForFilters)
+    appSourceFilterPreferencesStore.saveSearchPreset(sourceId, {
+      name, query, filters: this.filterValuesForQuery(this.searchFilterValues, query, this.filters, this.useSearchForFilters),
+    }, filters)
+  }
+
+  applySearchPreset(preset: SourceSearchPreset): void {
+    const filters = sourceFiltersForQuery(this.filters, preset.query, this.useSearchForFilters)
+    const values = this.defaultSourceFilterValues(filters)
+    const saved = appSourceFilterPreferencesStore.searchPresetValues(preset, filters)
+    Object.keys(saved).forEach((key: string): void => { values[key] = saved[key] })
+    this.saveSourceFilterValues('search', values)
+    this.searchFilterValues = values
   }
 
   private initialSearchFilterValues(): SourceMangaListFilters {

@@ -1,6 +1,8 @@
+import { SourceSearchPresetSheetHost } from '../components/SourceSearchPresetSheetHost'
 import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
 import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { komaSheetOptions, komaToastOptions } from "../theme/KomaPopupOptions"
+import { HdsNavigationMenuItemOptions } from '@kit.UIDesignKit'
 import { SourceSettingsSheetHost } from '../components/SourceSettingsSheetHost'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
@@ -70,6 +72,8 @@ export struct SourceSearchPage {
   @Local private coverLayout: LibraryCoverLayoutState = connectLibraryCoverLayout()
   private gridScroller: Scroller = new Scroller()
   @Local private filtersShown: boolean = false
+  @Local private presetRequestSeq: number = 0
+  private openPresetsAfterFilters: boolean = false
   private searchTimer: number = 0
   private handledFilterRequestSeq: number = 0
   private handledRefreshRequestSeq: number = 0
@@ -292,11 +296,28 @@ export struct SourceSearchPage {
     this.filtersShown = false
   }
 
+  private finishFiltersDismiss(): void {
+    this.closeFilters()
+    if (!this.openPresetsAfterFilters) return
+    this.openPresetsAfterFilters = false
+    if (this.chrome.visible) this.presetRequestSeq++
+  }
+
+  private presetActions(): HdsNavigationMenuItemOptions[] {
+    if (this.selectionMode || !this.viewModel.sourceCanSearch(this.currentSource())) return []
+    return [{ content: { label: s('source_search_presets'), icon: $r('sys.symbol.bookmark'),
+      isEnabled: this.searchFiltersReady, action: (): void => {
+        this.openPresetsAfterFilters = true
+        this.closeFilters()
+      } } }]
+  }
+
   private syncTitleActions(): void {
     const source = this.currentSource()
     this.chrome.authenticationAvailable = source.enabled && source.authentication !== undefined
     this.chrome.webSessionAvailable = source.enabled && (source.webSessionOrigins ?? []).length > 0
-    this.chrome.filtersAvailable = this.hasRuntimeFilters()
+    this.chrome.filtersAvailable = this.hasRuntimeFilters() ||
+      (!this.selectionMode && this.searchFiltersReady && this.viewModel.sourceCanSearch(source))
   }
 
   @Monitor('chrome.filterRequestSeq')
@@ -444,6 +465,7 @@ export struct SourceSearchPage {
   private SearchFiltersSheet() {
     SourceFiltersSheetScaffold({
       title: s('common_filter'),
+      additionalActions: this.presetActions(),
       resetLabel: s('common_reset'),
       showReset: this.hasActiveSearchFilters(),
       resetEnabled: !this.viewModel.loadingSearch,
@@ -533,6 +555,15 @@ export struct SourceSearchPage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
+        SourceSearchPresetSheetHost({
+          sourceId: this.source.sourceId, query: this.query, active: this.chrome.visible,
+          requestSeq: this.presetRequestSeq, viewModel: this.viewModel,
+          onApply: (query: string): void => {
+            this.chrome.query = query
+            this.query = query
+            this.rerunSearchIfReady()
+          },
+        })
         SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.visible })
         SourceSettingsSheetHost({
           sourceId: this.source.sourceId,
@@ -579,7 +610,7 @@ export struct SourceSearchPage {
       .height('100%')
       .bindSheet($$this.filtersShown, this.SearchFiltersSheet,
         komaSheetOptions(sourceFilterSheetOptions(() => {
-          this.closeFilters()
+          this.finishFiltersDismiss()
         })))
     }
   }

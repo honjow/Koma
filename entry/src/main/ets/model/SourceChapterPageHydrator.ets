@@ -36,7 +36,8 @@ import { resolveSourceChapterForResume, resolveSourceChapterList } from './Sourc
 import { continuationChapterIds } from './ReaderChapterSequence'
 import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
 import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
-import { SourceFailureDetails, sourceFailureDetails } from './SourceRuntimeError'
+import { SourceFailureDetails, sourceFailureDetails, SourceRuntimeError } from './SourceRuntimeError'
+import { selectSourceRejectedRequest } from '../sourceRuntime/SourceRuntimeHttpTransport'
 import { MangaChapterItem } from './MangaDetailModels'
 
 interface SourceOperationDataPayload {
@@ -73,12 +74,15 @@ interface SourcePagesRequest {
   hostHints: SourcePagesRequestHostHints
 }
 
-export interface SourceChapterPageHydrationResult {
+export interface SourceChapterPageFailure {
+  sourceFailureReason?: string
+  sourceFailure?: SourceFailureDetails
+}
+
+export interface SourceChapterPageHydrationResult extends SourceChapterPageFailure {
   hydrated: boolean
   pageCount: number
   reasonCode?: string
-  sourceFailureReason?: string
-  sourceFailure?: SourceFailureDetails
 }
 
 /**
@@ -93,14 +97,13 @@ export interface SourceChapterPagesResolveRequest {
   mangaId?: string
   mangaUrl?: string
   chapterId: string
+  operationGuardId?: string
 }
 
-export interface SourceChapterPagesResolveResult {
+export interface SourceChapterPagesResolveResult extends SourceChapterPageFailure {
   pages: Page[]
   settingsFingerprint?: string
   reasonCode?: string
-  sourceFailureReason?: string
-  sourceFailure?: SourceFailureDetails
 }
 
 function sourcePagePlanIdentity(entry: SourceRuntimeRegistryEntry): string {
@@ -305,21 +308,26 @@ async function fetchSourceChapterPages(
     hostHints: { network: true, imageStrategy: 'descriptor-or-url' },
   }
   configureSourceRequestPolicy(entry.requestLimits, sourceRequest.settings)
-  const requestJson: string = sourceRequestWithHostFeatures(JSON.stringify(sourceRequest))
+  const requestJson: string = sourceRequestWithHostFeatures(JSON.stringify(sourceRequest), request.operationGuardId !== undefined)
   const responseJson = await diagnoseSourceOperation(requestJson, () => executeSourceChapterPagesOperation(
     requestJson,
     cloneWasmBytes(entry),
-    sourceHttpIdentityJson(entry, undefined, false, 'get_pages'),
+    sourceHttpIdentityJson(entry, request.operationGuardId, false, 'get_pages'),
   ))
   const response = JSON.parse(responseJson) as SourceOperationResponsePayload
   const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
   if (response.ok !== true) {
     const reason = optionalSourceString(response.reasonCode) ?? optionalSourceString(response.error?.['code'])
+    const failure = sourceFailureDetails({ ok: false, reasonCode: response.reasonCode, error: response.error })
+    if (request.operationGuardId !== undefined && failure.kind === 'challenge') {
+      const error = new SourceRuntimeError({ ok: false, reasonCode: response.reasonCode, error: response.error })
+      selectSourceRejectedRequest(entry.sourceId, request.operationGuardId, error.challengeRequestId)
+    }
     // Keep download reason codes stable. Reader receives only the allowlisted
     // category/status, never provider messages, URLs, headers, or response bodies.
     return { pages: [], reasonCode: 'source_pages_failed',
       sourceFailureReason: reason?.trim().toLowerCase() === 'unsupported' ? 'unsupported' : undefined,
-      sourceFailure: sourceFailureDetails({ ok: false, reasonCode: response.reasonCode, error: response.error }) }
+      sourceFailure: failure }
   }
   if (rows.length === 0) return { pages: [], reasonCode: 'source_pages_failed' }
   return { pages: await pagesFromSourceRows(request.comicId, request.chapterId, rows),
@@ -357,6 +365,7 @@ export async function resolveSourceChapterPages(
       mangaId: request.mangaId,
       mangaUrl: request.mangaUrl,
       chapterId,
+      operationGuardId: request.operationGuardId,
     })
     if (resolution.pages.length === 0) {
       DiagnosticLogger.warn('source_chapter_page_hydrator', 'fetch_pages_failed', '[SourceChapterPages] step=fetch_pages_failed failed=true reason=source_pages_failed')
@@ -427,6 +436,8 @@ export class SourceChapterPageHydrator {
       volumeNumber: descriptor.volumeNumber,
       readingOrder: descriptor.readingOrder,
       readingGroup: descriptor.readingGroup,
+      readingVariantGroup: descriptor.readingVariantGroup,
+      readingVariantSequence: descriptor.readingVariantSequence,
       continuationEligible: descriptor.continuationEligible,
       scanlator: descriptor.scanlator,
       language: descriptor.language,
@@ -477,7 +488,7 @@ export class SourceChapterPageHydrator {
       else upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, updated)
       this.onLibraryChanged?.()
     }
-    return continuationChapterIds(resolved.chapters, chapterId)
+    return continuationChapterIds(resolved.chapters, chapterId, true)
   }
 
   async ensureChapterPages(
@@ -485,6 +496,7 @@ export class SourceChapterPageHydrator {
     sourceId: string | undefined,
     chapterId: string,
     forceRefresh: boolean = false,
+    operationGuardId?: string,
   ): Promise<SourceChapterPageHydrationResult> {
     const comic = this.libraryStore.getComic(comicId)
     const chapter = comic?.chapters.find((item: Chapter): boolean => item.id === chapterId)
@@ -507,6 +519,7 @@ export class SourceChapterPageHydrator {
       mangaId: sourceMangaIdFromComic(comic, resolvedSourceId),
       mangaUrl: comic.sourcePath,
       chapterId,
+      operationGuardId,
     })
     if (resolution.pages.length === 0) {
       return { hydrated: false, pageCount: 0, reasonCode: resolution.reasonCode ?? 'pages_missing',

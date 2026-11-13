@@ -47,6 +47,18 @@ export function enrichSourceChapterMetadata(comic: Comic, remoteChapters: MangaC
       chapter.readingGroup = remote.readingGroup
       changed = true
     }
+    if (remote.readingVariantGroup !== chapter.readingVariantGroup) {
+      chapter.readingVariantGroup = remote.readingVariantGroup
+      changed = true
+    }
+    if (remote.readingVariantSequence !== chapter.readingVariantSequence) {
+      chapter.readingVariantSequence = remote.readingVariantSequence
+      changed = true
+    }
+    if (remote.scanlator !== undefined && remote.scanlator !== chapter.scanlator) {
+      chapter.scanlator = remote.scanlator
+      changed = true
+    }
     if (remote.continuationEligible !== chapter.continuationEligible) {
       chapter.continuationEligible = remote.continuationEligible
       changed = true

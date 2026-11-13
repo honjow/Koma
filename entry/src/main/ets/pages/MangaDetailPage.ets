@@ -22,6 +22,7 @@ import { newSourceRuntimeOperationGuardId, registerSourceRuntimeOperationGuard }
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
+import { normalizeSearchText } from '../model/CrossSearchText'
 import { SourceRuntimeError } from '../model/SourceRuntimeError'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -84,7 +85,7 @@ import {
   readerFormatFromTags,
   setCompleteSourceChapterCatalog,
 } from '../model/ComicModels'
-import { downloadBlockedReason, OfflineDownloadService, OfflineDownloadWaitReason } from '../model/OfflineDownloadService'
+import { downloadBlockedReason, OfflineDownloadService, OfflineDownloadWaitReason, publicSourceWorkUri } from '../model/OfflineDownloadService'
 import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore, isOfflineDownloadTaskPending } from '../model/OfflineDownloadQueueStore'
 import { OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
 import {
@@ -309,6 +310,9 @@ export struct MangaDetailPage {
   @Local private isInLibrary: boolean = false
   @Local private favoriteCategoryPickerShown: boolean = false
   @Local private favoriteCategoryChoices: LibraryCategoryChoice[] = []
+  @Local private favoriteMatchesShown: boolean = false
+  @Local private favoriteMatches: Comic[] = []
+  private favoriteAfterMatch: string = ''
   @Local private sourceDetailContentState: SourceDetailContentState = SourceDetailContentState.UNRESOLVED
   // A route list row is preview data. It is not a resolved detail payload.
   @Local private sourceDetailDataResolved: boolean = false
@@ -423,6 +427,7 @@ export struct MangaDetailPage {
   @Event onRefreshLocalFolder: (comicId: string) => Promise<LocalLibraryFolderRescanActionResult | undefined> =
     async (_comicId: string) => undefined
   @Event onLibraryChanged: () => void = () => {}
+  @Event onOpenExistingFavorite: (comicId: string) => void = () => {}
   @Event onMigrationRequested: (comicId: string) => void = () => {}
   @Local private detailWebChallenge: SourceWebChallengeReceipt | null = null
   @Local private detailWebChallengeShown: boolean = false
@@ -945,6 +950,8 @@ export struct MangaDetailPage {
         volumeNumber: chapter.volumeNumber,
         readingOrder: chapter.readingOrder,
         readingGroup: chapter.readingGroup,
+        readingVariantGroup: chapter.readingVariantGroup,
+        readingVariantSequence: chapter.readingVariantSequence,
         continuationEligible: chapter.continuationEligible,
         localReadingIndex: chapter.localReadingIndex,
         scanlator: chapter.scanlator,
@@ -1927,11 +1934,25 @@ export struct MangaDetailPage {
   }
 
   private handleLibraryBookmark(): void {
-    if (this.favoriteCategoryPickerShown || !this.canAddCurrentMangaToLibrary()) return
+    if (this.favoriteMatchesShown || this.favoriteCategoryPickerShown || !this.canAddCurrentMangaToLibrary()) return
     if (this.isInLibrary) {
       void this.handleRemoveFromLibrary()
       return
     }
+    const title = normalizeSearchText(this.manga?.title ?? '')
+    const comicId = this.currentComicId()
+    const matches = title.length === 0 ? [] : (this.libraryStore?.listComics(false) ?? [])
+      .filter((comic: Comic): boolean => comic.id !== comicId && normalizeSearchText(comic.title) === title)
+    if (matches.length > 0) {
+      this.favoriteMatches = matches
+      this.favoriteMatchesShown = true
+      return
+    }
+    this.openFavoriteCategoryPicker()
+  }
+
+  private openFavoriteCategoryPicker(): void {
+    if (!this.canAddCurrentMangaToLibrary() || this.isInLibrary) return
     const categories = this.libraryStore?.listCustomCategories() ?? []
     if (categories.length === 0) {
       this.handleAddToLibrary()
@@ -1941,6 +1962,48 @@ export struct MangaDetailPage {
       return { id: category.id, name: category.name, initial: 'none' }
     })
     this.favoriteCategoryPickerShown = true
+  }
+
+  private favoriteMatchSubtitle(comic: Comic): string {
+    const source = comic.sourceRuntimeId === undefined ? s('tab_library') :
+      sourceDisplayName(comic.sourceRuntimeId, comic.sourceMetadata?.sourceName ?? '')
+    const progress = this.readerSessionStore.getProgress(comic.id)
+    const chapter = comic.chapters.find((item: Chapter): boolean => item.id === progress?.chapterId)
+    const count = this.formatString('favorite_match_chapters', [comic.chapterCount])
+    return progress === undefined ? `${source} · ${count}` :
+      `${source} · ${count}\n${chapter?.title ?? ''} ${this.formatString('favorite_match_page', [progress.pageIndex + 1])}`.trim()
+  }
+
+  private finishFavoriteMatch(): void {
+    const next = this.favoriteAfterMatch
+    this.favoriteAfterMatch = ''
+    this.favoriteMatches = []
+    if (!this.chrome.visible || next.length === 0) return
+    if (next === this.currentComicId()) this.openFavoriteCategoryPicker()
+    else this.onOpenExistingFavorite(next)
+  }
+
+  @Builder
+  private FavoriteMatchesSheet() {
+    KomaModalScaffold({ title: s('favorite_match_title'), confirmLabel: s('favorite_match_add'),
+      onConfirm: (): void => {
+        this.favoriteAfterMatch = this.currentComicId()
+        this.favoriteMatchesShown = false
+      },
+      onClose: (): void => { this.favoriteMatchesShown = false },
+    }) {
+      ListItem() {
+        GroupedListSection({ inModal: true }) {
+          ForEach(this.favoriteMatches, (comic: Comic, index: number) => {
+            if (index > 0) ListDivider()
+            ConciseListRow({ title: comic.title, subtitle: this.favoriteMatchSubtitle(comic), action: (): void => {
+              this.favoriteAfterMatch = comic.id
+              this.favoriteMatchesShown = false
+            } })
+          }, (comic: Comic): string => comic.id)
+        }
+      }
+    }
   }
 
   private confirmFavoriteCategories(categoryIds: string[]): void {
@@ -2186,47 +2249,37 @@ export struct MangaDetailPage {
     const title = scope === ChapterBatchScope.SELECTED ? s('manga_detail_action_download_chapter') :
       mode === ChapterBatchDownloadMode.FAILED_ONLY ? s('chapter_list_menu_retry_failed') :
       s('chapter_list_menu_download_filtered')
-    const needsLibrary = !this.isInLibrary && this.manga?.sourceId !== undefined
-    const scopeMessage = this.formatString('downloads_confirm_chapters', [targets.length])
     this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title,
-      message: needsLibrary ? `${scopeMessage}
-${s('downloads_add_to_library_prompt')}` : scopeMessage,
+      message: this.formatString('downloads_confirm_chapters', [targets.length]),
       autoCancel: true,
       primaryButton: { value: s('common_cancel'), action: () => {} },
-      secondaryButton: { value: s(needsLibrary ? 'downloads_add_and_download' : 'manga_detail_action_download_chapter'),
-        action: () => { void this.requestDownloads(targets, needsLibrary) } },
+      secondaryButton: { value: s('manga_detail_action_download_chapter'),
+        action: () => { void this.requestDownloads(targets) } },
     })
   }
 
-  private async requestDownloads(chapterIds: string[], allowAddToLibrary: boolean = false): Promise<void> {
+  private async requestDownloads(chapterIds: string[]): Promise<void> {
     if (this.downloadBusy || !this.chrome.chapterDownloadAvailable || chapterIds.length === 0) return
-    if (!this.isInLibrary && this.manga?.sourceId !== undefined && !allowAddToLibrary) {
-      this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
-        title: s('manga_detail_action_download_chapter'),
-        message: s('downloads_add_to_library_prompt'),
-        autoCancel: true,
-        primaryButton: { value: s('common_cancel'), action: () => {} },
-        secondaryButton: { value: s('downloads_add_and_download'), action: () => {
-          void this.requestDownloads(chapterIds, true)
-        } },
-      })
-      return
-    }
+    const comicId = this.currentComicId()
     this.downloadBusy = true
     try {
       const context = getContext(this) as common.UIAbilityContext
       const storageBase = await ensureKomaContentStorageBase(context)
       await OfflineDownloadService.ensureQueueInitialized(storageBase, komaRuntimeStorageKey(context))
-      if (!this.chrome.visible) return
-      if (!this.isInLibrary && this.manga?.sourceId !== undefined && !this.handleAddToLibrary(false)) return
-      const comic = this.libraryStore?.getComic(this.currentComicId())
+      if (!this.chrome.visible || comicId !== this.currentComicId()) return
+      const manga = this.manga
+      const shelved = this.libraryStore?.getComic(comicId)
+      const comic = shelved ?? (manga?.sourceId !== undefined
+        ? comicFromSourceManga(manga, this.chapters.filter((chapter: MangaChapterItem): boolean =>
+          chapterIds.includes(chapter.id)), comicId) : undefined)
       if (comic === undefined) {
-        this.showToast(s('manga_detail_add_to_library_first'))
+        this.showToast(s('library_download_enqueue_failed'))
         return
       }
       const queue = this.downloadQueue()
-      const count = queue.requestChapters(comic, chapterIds)
+      const count = queue.requestChapters(comic, chapterIds, shelved === undefined,
+        shelved === undefined ? publicSourceWorkUri(comic.sourceRuntimeId, comic.sourcePath) : undefined)
       this.applyChapterStatesToCurrent()
       if (count === 0) {
         this.showToast(s('manga_detail_no_matching_chapters'))
@@ -3679,6 +3732,10 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
           sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
           remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
           sourceUnavailable: this.missingSourceName.length > 0,
+          onTitleClick: (): void => {
+            const title = this.manga?.title.trim() ?? ''
+            if (title.length > 0) RouterHelper.openSearch({ query: title, sourceFilter: 'source' })
+          },
           onSourceClick: (): void => {
             const sourceId = this.manga?.sourceId
             const name = this.manga?.sourceName
@@ -4028,6 +4085,12 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
       Stack({ alignContent: Alignment.TopEnd }) {
         SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.visible })
         Column() {}.width(0).height(0)
+          .bindSheet($$this.favoriteMatchesShown, this.FavoriteMatchesSheet, komaSheetOptions({
+            height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+            showClose: false, enableOutsideInteractive: false, enableFloatingDragBar: true,
+            onDisappear: (): void => { this.finishFavoriteMatch() },
+          }))
+        Column() {}.width(0).height(0)
           .bindSheet($$this.favoriteCategoryPickerShown, this.FavoriteCategoryPicker, libraryCategoryPickerSheetOptions())
         Column() {}.width(0).height(0)
           .bindSheet($$this.notesEditorShown, this.NotesEditor, komaSheetOptions({
@@ -4082,7 +4145,9 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
 function sameDetailChapterRow(left: MangaChapterItem, right: MangaChapterItem): boolean {
   return left.id === right.id && left.title === right.title && left.chapterNumber === right.chapterNumber &&
     left.volumeNumber === right.volumeNumber && left.readingOrder === right.readingOrder &&
-    left.readingGroup === right.readingGroup && left.continuationEligible === right.continuationEligible &&
+    left.readingGroup === right.readingGroup && left.readingVariantGroup === right.readingVariantGroup &&
+    left.readingVariantSequence === right.readingVariantSequence &&
+    left.continuationEligible === right.continuationEligible &&
     left.localReadingIndex === right.localReadingIndex && left.scanlator === right.scanlator &&
     left.language === right.language && left.dateUpload === right.dateUpload &&
     (left.pageCount ?? 0) === (right.pageCount ?? 0) && left.isRead === right.isRead &&
@@ -4136,6 +4201,8 @@ function mangaChapterItemFromComicChapter(chapter: Chapter, sourceKind: ComicSou
     volumeNumber: chapter.volumeNumber,
     readingOrder: chapter.readingOrder,
     readingGroup: chapter.readingGroup,
+    readingVariantGroup: chapter.readingVariantGroup,
+    readingVariantSequence: chapter.readingVariantSequence,
     continuationEligible: chapter.continuationEligible,
     localReadingIndex: chapterPagesAreLocalOffline(sourceKind) ? chapter.index : undefined,
     scanlator: chapter.scanlator,

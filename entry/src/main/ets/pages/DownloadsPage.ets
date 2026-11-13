@@ -11,7 +11,7 @@ import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { KomaMenuChip } from '../components/ui/KomaMenuChip'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { LibraryStore } from '../model/LibraryStore'
-import { downloadBlockedReason, OfflineDownloadService, OfflineDownloadWaitReason } from '../model/OfflineDownloadService'
+import { downloadBlockedReason, OfflineDownloadService, OfflineDownloadWaitReason, publicSourceWorkUri } from '../model/OfflineDownloadService'
 import { DownloadsChrome } from '../state/DownloadsChrome'
 import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { sourceRuntimeEntryEnabled } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -23,6 +23,7 @@ import {
   OfflineDownloadStore,
 } from '../model/OfflineDownloadStore'
 import {
+  hasOfflineDownloadSourceIdentity,
   OfflineDownloadQueueEntry,
   OfflineDownloadQueuePreferences,
   OfflineDownloadQueueRecoverySummary,
@@ -52,6 +53,7 @@ function s(name: string): string {
 }
 
 const DOWNLOAD_LIST_TRANSITION_MS: number = 220
+const DOWNLOAD_GROUP_COVER_INSET: number = ThemeConstants.SPACE_SM
 
 function filterRowTransition(): TransitionEffect {
   // A removed row must release its pixels before another row appears in the same slot.
@@ -330,10 +332,13 @@ export struct DownloadsPage {
   private taskPrerequisite(entry: OfflineDownloadQueueEntry): string {
     if (!this.taskNeedsAttention(entry)) return ''
     const comic = this.libraryStore?.getComic(entry.comicId)
-    if (comic === undefined) return 'comic_missing'
-    if (!comic.chapters.some((chapter: Chapter): boolean => chapter.id === entry.chapterId)) return 'chapter_missing'
-    if (comic.sourceRuntimeId !== undefined) {
-      const source = appSourceRuntimeRegistry.lookup(comic.sourceRuntimeId).entry
+    if (!hasOfflineDownloadSourceIdentity(entry)) {
+      if (comic === undefined) return 'comic_missing'
+      if (!comic.chapters.some((chapter: Chapter): boolean => chapter.id === entry.chapterId)) return 'chapter_missing'
+    }
+    const sourceId = comic?.sourceRuntimeId ?? entry.sourceId
+    if (sourceId !== undefined) {
+      const source = appSourceRuntimeRegistry.lookup(sourceId).entry
       if (source === undefined) return 'source_not_installed'
       if (!sourceRuntimeEntryEnabled(source)) return 'source_disabled'
     }
@@ -453,7 +458,8 @@ export struct DownloadsPage {
   private groupSource(group: DownloadComicGroup): string {
     const comic = this.libraryStore?.getComic(group.comicId)
     const label = comic?.sourceMetadata?.sourceName ?? group.entries[0]?.sourceName ?? ''
-    return comic?.sourceRuntimeId === undefined ? label : sourceDisplayName(comic.sourceRuntimeId, label)
+    const sourceId = comic?.sourceRuntimeId ?? group.entries[0]?.sourceId
+    return sourceId === undefined ? label : sourceDisplayName(sourceId, label)
   }
 
   private groupSubtitle(group: DownloadComicGroup, completed: boolean): string {
@@ -596,6 +602,14 @@ export struct DownloadsPage {
   private openDownloadEntry(entry: OfflineDownloadQueueEntry): void {
     const comic = this.libraryStore?.getComic(entry.comicId)
     if (comic === undefined) {
+      if (hasOfflineDownloadSourceIdentity(entry)) {
+        const sourceId = entry.sourceId!
+        const mangaId = entry.sourceMangaId!
+        RouterHelper.pushMangaDetail({ mangaId, sourceId, sourceName: entry.sourceName,
+          initialManga: { id: mangaId, sourceId, title: entry.comicTitle ?? '',
+            url: publicSourceWorkUri(sourceId, entry.sourceMangaUrl) } })
+        return
+      }
       this.showToast(s('downloads_toast_entry_unavailable'))
       return
     }
@@ -1022,7 +1036,7 @@ export struct DownloadsPage {
 
   private recoveryLabel(entry: OfflineDownloadQueueEntry): string {
     const comic = this.libraryStore?.getComic(entry.comicId)
-    if (comic?.sourceRuntimeId === undefined) return ''
+    if ((comic?.sourceRuntimeId ?? entry.sourceId) === undefined) return ''
     const reason = this.taskFailureReason(entry)
     if (reason === 'source_not_installed' || reason === 'source_lookup_failed') {
       return 'device_sync_find_source'
@@ -1035,7 +1049,7 @@ export struct DownloadsPage {
 
   private recoverSource(entry: OfflineDownloadQueueEntry): void {
     const comic = this.libraryStore?.getComic(entry.comicId)
-    const sourceId = comic?.sourceRuntimeId
+    const sourceId = comic?.sourceRuntimeId ?? entry.sourceId
     if (sourceId === undefined) return
     if (this.recoveryLabel(entry) === 'device_sync_find_source') {
       const param: SourcePackageManagerRouteParam = { settingsSourceId: '', recoverySourceId: sourceId,
@@ -1051,7 +1065,8 @@ export struct DownloadsPage {
   private DownloadRowMenu(key: string) {
     if (this.entryForKey(key) !== undefined) {
       Menu() {
-        if (this.libraryStore?.getComic(this.entryForKey(key)!.comicId) !== undefined) {
+        if (this.libraryStore?.getComic(this.entryForKey(key)!.comicId) !== undefined ||
+          hasOfflineDownloadSourceIdentity(this.entryForKey(key)!)) {
           MenuItem({ content: s('downloads_view_work') })
             .onClick(() => { this.openDownloadEntry(this.entryForKey(key)!) })
         }
@@ -1185,7 +1200,7 @@ export struct DownloadsPage {
   @Builder
   private GroupMenu(group: DownloadComicGroup, completed: boolean) {
     Menu() {
-      if (this.libraryStore?.getComic(group.comicId) !== undefined) {
+      if (this.libraryStore?.getComic(group.comicId) !== undefined || group.entries.some(hasOfflineDownloadSourceIdentity)) {
         MenuItem({ content: s('downloads_view_work') }).onClick(() => { this.openGroupWork(group, completed) })
       }
       if (completed) {
@@ -1244,9 +1259,9 @@ export struct DownloadsPage {
         })
       }
     }
-    .width(ThemeConstants.LIST_COVER_WIDTH)
-    .height(ThemeConstants.LIST_COVER_HEIGHT)
-    .borderRadius(ThemeConstants.RADIUS_COVER)
+    .width(ThemeConstants.LIST_COVER_WIDTH + ThemeConstants.SPACE_MD)
+    .height(ThemeConstants.LIST_COVER_HEIGHT + ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD - DOWNLOAD_GROUP_COVER_INSET)
     .clip(true)
     .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
   }
@@ -1380,7 +1395,9 @@ export struct DownloadsPage {
         }
       }
       .width('100%')
-      .padding(ThemeConstants.SPACE_LG)
+      // Equal insets keep the cover's left corners concentric with the card.
+      .padding({ left: DOWNLOAD_GROUP_COVER_INSET, right: ThemeConstants.SPACE_LG,
+        top: DOWNLOAD_GROUP_COVER_INSET, bottom: DOWNLOAD_GROUP_COVER_INSET })
       .alignItems(VerticalAlign.Center)
       if (this.expandedGroups.has(this.groupKey(group, completed))) {
         Column() {

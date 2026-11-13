@@ -9,7 +9,8 @@ export function sourceCatalogChronology(
 ): MangaChapterItem[] {
   if ((order !== 'oldest_first' && order !== 'newest_first') || chapters.length === 0 ||
     chapters.some((chapter: MangaChapterItem): boolean => chapter.readingGroup !== undefined ||
-      chapter.continuationEligible !== undefined || chapter.readingOrder !== undefined) ||
+      chapter.continuationEligible !== undefined || chapter.readingOrder !== undefined ||
+      chapter.readingVariantGroup !== undefined || chapter.readingVariantSequence !== undefined) ||
     new Set<string>(chapters.map((chapter: MangaChapterItem): string => chapter.id)).size !== chapters.length) {
     return chapters
   }

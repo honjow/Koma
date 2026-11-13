@@ -1,11 +1,17 @@
 import { common } from '@kit.AbilityKit'
-import { sameComicIdentity } from './ComicModels'
+import { Chapter, Comic, sameComicIdentity } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import { LibraryStorePersistenceService } from './LibraryPersistence'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
-import { SourceChapterPageHydrator, SourceChapterPageHydrationResult } from './SourceChapterPageHydrator'
-import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore, isOfflineDownloadTaskPending } from './OfflineDownloadQueueStore'
-import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from './OfflineDownloadService'
+import { resolveSourceChapterPages, SourceChapterPageHydrator, SourceChapterPageHydrationResult } from './SourceChapterPageHydrator'
+import { hasOfflineDownloadSourceIdentity, OfflineDownloadQueueEntry, OfflineDownloadQueueStore,
+  isOfflineDownloadTaskPending } from './OfflineDownloadQueueStore'
+import { comicFromSourceManga } from './SourceLibraryComic'
+import { fetchSourceMangaDetail } from './SourceMangaDetailRequest'
+import { sourceMangaDetailSnapshotCache } from './SourceMangaDetailSnapshotCache'
+import { appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
+import { canRunOfflineDownloadQueueNow, OfflineDownloadService, publicSourceWorkUri } from './OfflineDownloadService'
 import { OfflineDownloadStatus, OfflineDownloadStore } from './OfflineDownloadStore'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
 import { publishOfflineDownloadSummary } from './OfflineDownloadNotificationStore'
@@ -26,6 +32,36 @@ export function recoverableDownloadEntry(entry: OfflineDownloadQueueEntry): bool
   return entry.status !== OfflineDownloadStatus.BLOCKED ||
     ['pages_missing', 'source_pages_failed', 'source_lookup_failed', 'source_not_installed', 'source_disabled', 'wifi_only', 'offline', 'paused', 'download_interrupted']
       .includes(entry.failureReasonCode ?? '')
+}
+
+/** Queue metadata can reconstruct a source request after a cold start, without
+ * creating a shelf item or persisting resolved page URLs in the queue. */
+function standaloneDownloadComic(entry: OfflineDownloadQueueEntry): Comic | undefined {
+  if (!hasOfflineDownloadSourceIdentity(entry)) return undefined
+  return comicFromSourceManga({ id: entry.sourceMangaId!, sourceId: entry.sourceId, title: entry.comicTitle ?? '',
+    sourceName: entry.sourceName, url: publicSourceWorkUri(entry.sourceId, entry.sourceMangaUrl),
+    chapterCount: 1, isInLibrary: false },
+    [{ id: entry.chapterId, title: entry.chapterTitle ?? '', pageCount: entry.pageCount,
+      isRead: false, isDownloaded: false }], entry.comicId)
+}
+
+async function standaloneWorkUrl(registry: SourceRuntimeRegistry, entry: OfflineDownloadQueueEntry): Promise<string | undefined> {
+  const saved = publicSourceWorkUri(entry.sourceId, entry.sourceMangaUrl)
+  if (saved !== undefined || entry.sourceId === undefined || entry.sourceMangaId === undefined) return saved
+  const source = registry.lookup(entry.sourceId).entry
+  if (source === undefined || !source.enabled) return undefined
+  const settings = appSourceSettingsStore.loadForSource(entry.sourceId)
+  const cached = sourceMangaDetailSnapshotCache.read(source, entry.sourceId, entry.sourceMangaId,
+    undefined, sourceSettingsFingerprint(settings))
+  if (cached?.detail.url) return cached.detail.url
+  // Keep source-supplied routes in memory only. Some providers need their
+  // canonical work URL in get_pages or get_image_request even with a chapter ID.
+  try {
+    const response = await fetchSourceMangaDetail(source, entry.sourceMangaId, undefined, settings, 'download')
+    return response.detail.url
+  } catch (_error) {
+    return undefined
+  }
 }
 
 /** Page actions and automatic updates execute through the same hydrator, identity check and runtime slots. */
@@ -51,7 +87,10 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
           current.comicId === entry.comicId && current.chapterId === entry.chapterId &&
           current.requestId === entry.requestId && !current.pausedByUser && isOfflineDownloadTaskPending(current))
       if (!recoverableDownloadEntry(entry) || !isPending()) return
-      const comic = request.library.getComic(entry.comicId)
+      const shelved = request.library.getComic(entry.comicId)
+      const standalone = shelved?.chapters.some((chapter: Chapter): boolean => chapter.id === entry.chapterId) !== true
+        ? standaloneDownloadComic(entry) : undefined
+      const comic = standalone ?? shelved
       if (comic === undefined) {
         queue.upsert({ comicId: entry.comicId, chapterId: entry.chapterId, comicTitle: entry.comicTitle,
           chapterTitle: entry.chapterTitle, status: OfflineDownloadStatus.BLOCKED,
@@ -61,7 +100,18 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
       }
       let hydration: SourceChapterPageHydrationResult = { hydrated: true, pageCount: 0 }
       try {
-        if (comic.sourceRuntimeId) {
+        if (standalone !== undefined) {
+          const mangaUrl = await standaloneWorkUrl(request.registry, entry)
+          if (!isPending()) return
+          if (mangaUrl !== undefined) standalone.sourcePath = mangaUrl
+          const resolved = await resolveSourceChapterPages(request.registry, { comicId: standalone.id,
+            sourceId: entry.sourceId!, mangaId: entry.sourceMangaId, chapterId: entry.chapterId,
+            mangaUrl })
+          standalone.chapters[0].pages = resolved.pages
+          standalone.chapters[0].pageCount = resolved.pages.length
+          hydration = { hydrated: resolved.pages.length > 0, pageCount: resolved.pages.length,
+            reasonCode: resolved.reasonCode, sourceFailure: resolved.sourceFailure }
+        } else if (comic.sourceRuntimeId) {
           hydration = await new SourceChapterPageHydrator(request.library, request.registry, request.persistence,
             request.onLibraryChanged).ensureChapterPages(comic.id, comic.sourceRuntimeId, entry.chapterId)
         }
@@ -69,7 +119,7 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
         DiagnosticLogger.exception('downloads', 'chapter_hydration_failed', error as Error)
         hydration = { hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' }
       }
-      const current = request.library.getComic(entry.comicId)
+      const current = standalone ?? request.library.getComic(entry.comicId)
       if (!isPending() || !canRunOfflineDownloadQueueNow(queue.loadPreferences())) return
       if (current === undefined) {
         entry.status = OfflineDownloadStatus.BLOCKED

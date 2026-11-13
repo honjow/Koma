@@ -1,3 +1,5 @@
+import { HdsNavigationMenuItemOptions } from '@kit.UIDesignKit'
+import { SourceSearchPresetSheetHost } from '../components/SourceSearchPresetSheetHost'
 import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
 import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions } from "../theme/KomaPopupOptions"
@@ -89,6 +91,8 @@ export struct SourceBrowsePage {
   @Local private sourceRuntimeState: SourceRuntimeState = connectSourceRuntimeState()
   private pendingSourceRuntimeRevision: number = 0
   @Local private filtersShown: boolean = false
+  @Local private presetRequestSeq: number = 0
+  private openPresetsAfterFilters: boolean = false
   @Local private listingMenuOpen: boolean = false
   private handledFilterRequestSeq: number = 0
   private handledRefreshRequestSeq: number = 0
@@ -404,8 +408,12 @@ export struct SourceBrowsePage {
     return !this.viewModel.sourceCanBrowse(source) && this.viewModel.sourceCanSearch(source)
   }
 
+  private canOpenSearchPresets(): boolean {
+    return this.hasSearchFilterQuery() && this.viewModel.sourceCanSearch(this.currentSource())
+  }
+
   private openFilters(): void {
-    if (!this.hasRuntimeFilters()) return
+    if (!this.hasRuntimeFilters() && !this.canOpenSearchPresets()) return
     if (this.viewModel.useSearchForFilters) void this.viewModel.ensureSearchFilters(this.currentSource())
     this.filtersShown = true
     void this.loadFilterData()
@@ -420,11 +428,27 @@ export struct SourceBrowsePage {
     this.filtersShown = false
   }
 
+  private finishFiltersDismiss(): void {
+    this.closeFilters()
+    if (!this.openPresetsAfterFilters) return
+    this.openPresetsAfterFilters = false
+    if (this.chrome.visible) this.presetRequestSeq++
+  }
+
+  private presetActions(): HdsNavigationMenuItemOptions[] {
+    if (!this.canOpenSearchPresets()) return []
+    return [{ content: { label: s('source_search_presets'), icon: $r('sys.symbol.bookmark'),
+      isEnabled: !this.viewModel.loadingSearch, action: (): void => {
+        this.openPresetsAfterFilters = true
+        this.closeFilters()
+      } } }]
+  }
+
   private syncTitleActions(): void {
     const source = this.currentSource()
     this.chrome.authenticationAvailable = source.enabled && source.authentication !== undefined
     this.chrome.webSessionAvailable = source.enabled && (source.webSessionOrigins ?? []).length > 0
-    this.chrome.filtersAvailable = this.hasRuntimeFilters()
+    this.chrome.filtersAvailable = this.hasRuntimeFilters() || this.canOpenSearchPresets()
   }
 
   @Monitor('chrome.filterRequestSeq')
@@ -743,8 +767,9 @@ export struct SourceBrowsePage {
   private SourceFiltersSheet() {
     SourceFiltersSheetScaffold({
       title: s('common_filter'),
+      additionalActions: this.presetActions(),
       resetLabel: s('common_reset'),
-      showReset: true,
+      showReset: this.hasRuntimeFilters(),
       resetEnabled: !(this.hasSearchFilterQuery() ? this.viewModel.loadingSearch : this.viewModel.loadingBrowse),
       filters: this.runtimeFilters(),
       values: this.hasSearchFilterQuery() ? this.viewModel.searchFilterValues : this.viewModel.browseFilterValues,
@@ -837,6 +862,15 @@ export struct SourceBrowsePage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
+        SourceSearchPresetSheetHost({
+          sourceId: this.source.sourceId, query: this.chrome.query, active: this.chrome.visible,
+          requestSeq: this.presetRequestSeq, viewModel: this.viewModel,
+          onApply: (query: string): void => {
+            this.chrome.query = query
+            this.submitFilterSearch()
+            this.syncTitleActions()
+          },
+        })
         SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.visible })
         SourceSettingsSheetHost({
           sourceId: this.source.sourceId,
@@ -894,9 +928,7 @@ export struct SourceBrowsePage {
       .width('100%')
       .height('100%')
       .bindSheet($$this.filtersShown, this.SourceFiltersSheet,
-        komaSheetOptions(sourceFilterSheetOptions(() => {
-          this.closeFilters()
-        })))
+        komaSheetOptions(sourceFilterSheetOptions(() => { this.finishFiltersDismiss() })))
     }
   }
 }

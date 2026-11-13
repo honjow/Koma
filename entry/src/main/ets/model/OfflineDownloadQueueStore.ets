@@ -4,6 +4,7 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { Chapter, Comic, ComicId } from './ComicModels'
+import { sourceLibraryComicId } from './SourceLibraryComic'
 import {
   OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
   OfflineChapterDownloadManifest,
@@ -71,6 +72,9 @@ export interface OfflineDownloadQueueEntry extends OfflineDownloadTaskId {
   canceling?: boolean
   requestId?: string
   sourceName?: string
+  sourceId?: string
+  sourceMangaId?: string
+  sourceMangaUrl?: string
   comicTitle?: string
   chapterTitle?: string
   status: OfflineDownloadStatus
@@ -78,6 +82,19 @@ export interface OfflineDownloadQueueEntry extends OfflineDownloadTaskId {
   downloadedPageCount: number
   updatedAt: number
   failureReasonCode?: string
+}
+
+export interface OfflineDownloadChapterBatch {
+  comic: Comic
+  chapterIds: string[]
+  standalone?: boolean
+  sourceMangaUrl?: string
+}
+
+export function hasOfflineDownloadSourceIdentity(entry: OfflineDownloadQueueEntry): boolean {
+  return typeof entry.sourceId === 'string' && entry.sourceId.length > 0 &&
+    typeof entry.sourceMangaId === 'string' && entry.sourceMangaId.length > 0 &&
+    sourceLibraryComicId(entry.sourceId, entry.sourceMangaId) === entry.comicId
 }
 
 export function offlineDownloadTaskKey(task: OfflineDownloadTaskId): string {
@@ -225,6 +242,12 @@ function normalizeEntry(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueE
   }
   if (entry.chapterTitle !== undefined && entry.chapterTitle.length > 0) {
     next.chapterTitle = entry.chapterTitle
+  }
+  if (hasOfflineDownloadSourceIdentity(entry)) {
+    next.sourceId = entry.sourceId
+    next.sourceMangaId = entry.sourceMangaId
+    next.sourceMangaUrl = typeof entry.sourceMangaUrl === 'string' && /^https?:\/\/[^\s/@?#]+(?:\/[^\s?#]*)?$/i
+      .test(entry.sourceMangaUrl) ? entry.sourceMangaUrl : undefined
   }
   const failureReasonCode = normalizeOfflineDownloadFailureReasonCode(entry.failureReasonCode)
   if (failureReasonCode !== undefined) {
@@ -450,6 +473,9 @@ export class OfflineDownloadQueueStore {
         pausedByUser: entry.pausedByUser,
         requestId: entry.requestId,
         sourceName: entry.sourceName,
+        sourceId: entry.sourceId,
+        sourceMangaId: entry.sourceMangaId,
+        sourceMangaUrl: entry.sourceMangaUrl,
         comicId: entry.comicId,
         chapterId: entry.chapterId,
         comicTitle: entry.comicTitle,
@@ -535,6 +561,9 @@ export class OfflineDownloadQueueStore {
         pausedByUser: existing.pausedByUser,
         requestId: existing.requestId,
         sourceName: existing.sourceName ?? recovered.sourceName,
+        sourceId: existing.sourceId,
+        sourceMangaId: existing.sourceMangaId,
+        sourceMangaUrl: existing.sourceMangaUrl,
         comicId: existing.comicId,
         chapterId: existing.chapterId,
         comicTitle: existing.comicTitle,
@@ -688,6 +717,9 @@ export class OfflineDownloadQueueStore {
       canceling: previous?.canceling,
       requestId: previous?.requestId ?? entry.requestId,
       sourceName: entry.sourceName ?? previous?.sourceName,
+      sourceId: entry.sourceId ?? previous?.sourceId,
+      sourceMangaId: entry.sourceMangaId ?? previous?.sourceMangaId,
+      sourceMangaUrl: entry.sourceMangaUrl ?? previous?.sourceMangaUrl,
       comicId: entry.comicId,
       chapterId: entry.chapterId,
       comicTitle: entry.comicTitle,
@@ -755,37 +787,56 @@ export class OfflineDownloadQueueStore {
   }
 
   /** Explicit chapter requests also start previously staged or failed entries. */
-  requestChapters(comic: Comic, chapterIds: string[]): number {
+  requestChapters(comic: Comic, chapterIds: string[], standalone: boolean = false, sourceMangaUrl?: string): number {
+    return this.requestChapterBatches([{ comic, chapterIds, standalone, sourceMangaUrl }])
+  }
+
+  /** A selection across multiple works is published as one queue change. */
+  requestChapterBatches(batches: OfflineDownloadChapterBatch[]): number {
+    if (BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_busy')
     const document = this.loadDocument()
-    const entries = new Map<string, OfflineDownloadQueueEntry>()
-    document.entries.forEach((entry: OfflineDownloadQueueEntry) => {
-      if (entry.comicId === comic.id) entries.set(entry.chapterId, entry)
-    })
-    const chapters = new Map<string, Chapter>()
-    comic.chapters.forEach((chapter: Chapter) => { chapters.set(chapter.id, chapter) })
+    const entries = new Map(document.entries.map((entry: OfflineDownloadQueueEntry): [string, OfflineDownloadQueueEntry] =>
+      [offlineDownloadTaskKey(entry), entry]))
     const added: OfflineDownloadQueueEntry[] = []
     let count = 0
-    new Set(chapterIds).forEach((id: string) => {
-      const chapter = chapters.get(id)
-      const entry = entries.get(id)
-      if (chapter === undefined || entry?.canceling || entry?.pausedByUser ||
-        entry?.status === OfflineDownloadStatus.DOWNLOADED ||
-        entry?.status === OfflineDownloadStatus.DOWNLOADING ||
-        OfflineDownloadRuntime.isActive(this.runtimeKeyValue, comic.id, id) ||
-        OfflineDownloadRuntime.isRemovingChapter(this.runtimeKeyValue, comic.id, id)) return
-      if (entry?.status === OfflineDownloadStatus.QUEUED && entry.automatic === true) return
-      if (entry !== undefined) {
-        entry.requestId = newOfflineDownloadRequestId()
-        entry.automatic = true
-        entry.status = OfflineDownloadStatus.QUEUED
-        entry.failureReasonCode = undefined
-      } else {
-        added.push({ automatic: true, requestId: newOfflineDownloadRequestId(),
-          comicId: comic.id, chapterId: id, comicTitle: comic.title,
-          chapterTitle: chapter.title, status: OfflineDownloadStatus.QUEUED,
-          pageCount: Math.max(chapter.pageCount, chapter.pages.length), downloadedPageCount: 0, updatedAt: Date.now() })
-      }
-      count++
+    batches.forEach((batch: OfflineDownloadChapterBatch): void => {
+      const comic = batch.comic
+      const chapters = new Map(comic.chapters.map((chapter: Chapter): [string, Chapter] => [chapter.id, chapter]))
+      new Set(batch.chapterIds).forEach((id: string): void => {
+        const chapter = chapters.get(id)
+        const key = offlineDownloadTaskKey({ comicId: comic.id, chapterId: id })
+        const entry = entries.get(key)
+        if (chapter === undefined || entry?.canceling || entry?.pausedByUser ||
+          entry?.status === OfflineDownloadStatus.DOWNLOADED ||
+          entry?.status === OfflineDownloadStatus.DOWNLOADING ||
+          OfflineDownloadRuntime.isActive(this.runtimeKeyValue, comic.id, id) ||
+          OfflineDownloadRuntime.isRemovingChapter(this.runtimeKeyValue, comic.id, id)) return
+        if (entry?.status === OfflineDownloadStatus.QUEUED && entry.automatic === true) return
+        if (entry !== undefined) {
+          if (batch.standalone) {
+            entry.sourceId = comic.sourceRuntimeId
+            entry.sourceMangaId = comic.remoteResourceId
+            entry.sourceName = comic.sourceMetadata?.sourceName ?? entry.sourceName
+            entry.sourceMangaUrl = batch.sourceMangaUrl ?? entry.sourceMangaUrl
+          }
+          entry.requestId = newOfflineDownloadRequestId()
+          entry.automatic = true
+          entry.status = OfflineDownloadStatus.QUEUED
+          entry.failureReasonCode = undefined
+        } else {
+          const task: OfflineDownloadQueueEntry = { automatic: true, requestId: newOfflineDownloadRequestId(),
+            comicId: comic.id, chapterId: id, comicTitle: comic.title,
+            sourceId: batch.standalone ? comic.sourceRuntimeId : undefined,
+            sourceMangaId: batch.standalone ? comic.remoteResourceId : undefined,
+            sourceName: batch.standalone ? comic.sourceMetadata?.sourceName : undefined,
+            sourceMangaUrl: batch.sourceMangaUrl,
+            chapterTitle: chapter.title, status: OfflineDownloadStatus.QUEUED,
+            pageCount: Math.max(chapter.pageCount, chapter.pages.length), downloadedPageCount: 0, updatedAt: Date.now() }
+          added.push(task)
+          entries.set(key, task)
+        }
+        count++
+      })
     })
     if (count > 0) this.saveDocument({
       schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION, preferences: document.preferences,
