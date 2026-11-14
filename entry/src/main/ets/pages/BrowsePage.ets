@@ -73,17 +73,34 @@ export struct BrowsePage {
   }
 
   @Computed
-  private get pinnedRuntimeSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
+  private get enabledRuntimeSourcesById(): Map<string, SourceRuntimeRegistryInstalledSourceSummary> {
     const byId = new Map<string, SourceRuntimeRegistryInstalledSourceSummary>()
     this.enabledRuntimeSources.forEach((source: SourceRuntimeRegistryInstalledSourceSummary): void => {
       byId.set(source.sourceId, source)
     })
+    return byId
+  }
+
+  private runtimeSourcesInOrder(ids: string[]): SourceRuntimeRegistryInstalledSourceSummary[] {
     const sources: SourceRuntimeRegistryInstalledSourceSummary[] = []
-    this.catalogFilters.pinnedSourceIds.forEach((id: string): void => {
+    const byId = this.enabledRuntimeSourcesById
+    ids.forEach((id: string): void => {
       const source = byId.get(id)
       if (source !== undefined) sources.push(source)
     })
     return sources
+  }
+
+  @Computed
+  private get pinnedRuntimeSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
+    return this.runtimeSourcesInOrder(this.catalogFilters.pinnedSourceIds)
+  }
+
+  @Computed
+  private get recentRuntimeSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
+    // This shortcut group shares the live catalog filters. Pins and language
+    // groups continue to own their existing rows regardless of the last visit.
+    return this.runtimeSourcesInOrder(this.catalogFilters.recentSourceIds)
   }
 
   private toggleSourcePin(id: string): void {
@@ -288,12 +305,28 @@ export struct BrowsePage {
   }
 
   @Builder
-  private RuntimeSourceRow(source: SourceRuntimeRegistryInstalledSourceSummary, pinned: boolean) {
+  private RuntimeSourceRow(source: SourceRuntimeRegistryInstalledSourceSummary) {
     SourceListItem({ source, subtitle: `v${source.version}`, languageBadge: '',
-      accentColor: ThemeConstants.SOURCE_WASM_COLOR, showSearchButton: false, showPinButton: this.catalogFilters.loaded, pinned,
+      accentColor: ThemeConstants.SOURCE_WASM_COLOR, showSearchButton: false, showPinButton: this.catalogFilters.loaded,
+      pinned: this.catalogFilters.pinnedSourceIds.includes(source.sourceId),
       onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary): void => { this.openSource(selected) },
       onPinToggle: (id: string): void => { this.toggleSourcePin(id) } })
       .transition(TransitionEffect.IDENTITY)
+  }
+
+  @Builder
+  private RecentSourceListItems() {
+    ListItem() {
+      GroupedListSection({ title: s('browse_recent_sources_heading') }) {
+        ForEach(this.recentRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
+          this.RuntimeSourceRow(source)
+          if (this.sourceNeedsDivider(this.recentRuntimeSources, source.sourceId)) {
+            ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
+          }
+        }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
+          sourceDisplayName(source.sourceId, source.displayName)]))
+      }
+    }.transition(TransitionEffect.IDENTITY)
   }
 
   @Builder
@@ -302,7 +335,7 @@ export struct BrowsePage {
       GroupedListSection({ title: s('browse_pinned_sources_heading') }) {
         // Do not bind the row key to its position just to draw a divider.
         ForEach(this.pinnedRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-          this.RuntimeSourceRow(source, true)
+          this.RuntimeSourceRow(source)
           if (this.sourceNeedsDivider(this.pinnedRuntimeSources, source.sourceId)) {
             ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
           }
@@ -321,7 +354,7 @@ export struct BrowsePage {
         GroupedListSection({ title: sourceLanguageName(language) || s('source_catalog_language_unknown'),
           subtitle: s('browse_installed_sources_count').replace('%s', `${this.sourcesInLanguage(language).length}`) }) {
           ForEach(this.sourcesInLanguage(language), (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-            this.RuntimeSourceRow(source, false)
+            this.RuntimeSourceRow(source)
             if (this.sourceNeedsDivider(this.sourcesInLanguage(language), source.sourceId)) {
               ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
             }
@@ -445,6 +478,9 @@ export struct BrowsePage {
           this.EmptySources()
         }
       } else {
+        if (this.recentRuntimeSources.length > 0) {
+          this.RecentSourceListItems()
+        }
         if (this.pinnedRuntimeSources.length > 0) {
           this.PinnedSourceListItems()
         }

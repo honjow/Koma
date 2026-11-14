@@ -5,6 +5,8 @@ import { SourceCatalogFilters, SourceCatalogRating, sourceCatalogLanguage } from
 
 const STORE: string = 'koma_source_catalog_filters_v1'
 const KEY: string = 'catalog.filters'
+const RECENT_SOURCE_IDS_KEY: string = 'browse.recentSourceIds'
+const RECENT_SOURCE_LIMIT: number = 2
 
 interface SourceCatalogPresentationPreferences extends SourceCatalogFilters {
   pinnedSourceIds?: string[]
@@ -21,6 +23,19 @@ function normalizedFilters(value: SourceCatalogPresentationPreferences): SourceC
   return { languages, rating, pinnedSourceIds }
 }
 
+function readRecentSourceIds(payload: string): string[] {
+  try {
+    const ids = JSON.parse(payload) as string[]
+    if (Array.isArray(ids)) {
+      return Array.from(new Set(ids.filter((id: string): boolean => typeof id === 'string' && id.length > 0)))
+        .slice(0, RECENT_SOURCE_LIMIT)
+    }
+  } catch (_error) {
+    // An unusable shortcut list must not prevent loading filters or pins.
+  }
+  return []
+}
+
 // One portable display preference owner for Browse and the package catalog.
 // It does not enable/disable source packages or change global search scope.
 @ObservedV2
@@ -28,6 +43,7 @@ export class SourceCatalogFilterState {
   @Trace languages: string[] | undefined = undefined
   @Trace rating: SourceCatalogRating = 'all'
   @Trace pinnedSourceIds: string[] = []
+  @Trace recentSourceIds: string[] = []
   @Trace loaded: boolean = false
   private ready?: Promise<void>
   private context?: common.Context
@@ -43,9 +59,11 @@ export class SourceCatalogFilterState {
       const edit = this.edit
       const loading = preferences.getPreferences(context, STORE).then(async (store: preferences.Preferences): Promise<void> => {
         const value = normalizedFilters(JSON.parse(await store.get(KEY, '{}') as string) as SourceCatalogPresentationPreferences)
+        const recent = readRecentSourceIds(await store.get(RECENT_SOURCE_IDS_KEY, '[]') as string)
         if (generation === this.generation) {
           this.persisted = value
           if (edit === this.edit) this.publish(value)
+          this.recentSourceIds = recent
           this.loaded = true
         }
       }).catch((error: Error): void => {
@@ -98,6 +116,34 @@ export class SourceCatalogFilterState {
     const next = this.pinnedSourceIds.filter((key: string): boolean => key !== id)
     if (pinned) next.unshift(id)
     return this.savePresentation({ languages: this.languages, rating: this.rating, pinnedSourceIds: next })
+  }
+
+  // Shortcut order lives on this device, separately from portable pins and filters.
+  recordSourceUse(id: string): Promise<void> {
+    const context = this.context
+    if (id.length === 0 || context === undefined) return Promise.resolve()
+    const generation = this.generation
+    const preparation = this.prepare(context)
+    const run = this.writes.then(async (): Promise<void> => {
+      await preparation
+      if (generation !== this.generation || this.recentSourceIds[0] === id) return
+      await BackupRestoreActivity.runWrite(async (): Promise<void> => {
+        if (generation !== this.generation) return
+        const next = this.recentSourceIds.filter((sourceId: string): boolean => sourceId !== id)
+        next.unshift(id)
+        const recent = next.slice(0, RECENT_SOURCE_LIMIT)
+        const store = await preferences.getPreferences(context, STORE)
+        const previous = await store.get(RECENT_SOURCE_IDS_KEY, '[]') as string
+        try { await store.put(RECENT_SOURCE_IDS_KEY, JSON.stringify(recent)); await store.flush() }
+        catch (error) {
+          await store.put(RECENT_SOURCE_IDS_KEY, previous); await store.flush()
+          throw error as Error
+        }
+        if (generation === this.generation) this.recentSourceIds = recent
+      })
+    })
+    this.writes = run.catch((): void => {})
+    return run
   }
 
   private savePresentation(value: SourceCatalogPresentationPreferences): Promise<void> {

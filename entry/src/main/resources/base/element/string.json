@@ -452,6 +452,7 @@
     { "name": "browse_empty_title", "value": "No sources installed" },
     { "name": "browse_empty_message", "value": "Add a source subscription or import a local .koma package." },
     { "name": "browse_empty_action_manage_sources", "value": "Manage sources" },
+    { "name": "browse_recent_sources_heading", "value": "Recently used" },
     { "name": "browse_pinned_sources_heading", "value": "Pinned" },
     { "name": "browse_source_pin", "value": "Pin source" },
     { "name": "browse_source_unpin", "value": "Unpin source" },

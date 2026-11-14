@@ -109,6 +109,9 @@
     ]
   },
   "deviceOnly": {
+    "state/SourceCatalogFilterState.ets": [
+      "browse.recentSourceIds"
+    ],
     "diagnostics/DiagnosticsSettings.ets": [
       "enabled",
       "minLevel"

@@ -452,6 +452,7 @@
     { "name": "browse_empty_title", "value": "未安装书源" },
     { "name": "browse_empty_message", "value": "添加书源订阅，或导入本地 .koma 书源。" },
     { "name": "browse_empty_action_manage_sources", "value": "管理书源" },
+    { "name": "browse_recent_sources_heading", "value": "最近使用" },
     { "name": "browse_pinned_sources_heading", "value": "已置顶" },
     { "name": "browse_source_pin", "value": "置顶书源" },
     { "name": "browse_source_unpin", "value": "取消置顶" },

@@ -10,6 +10,9 @@ import { MigrationMatchOptions } from '../model/MangaMigrationPreferencesStore'
 import { LibrarySearchSource } from '../model/LibrarySearchQuery'
 import { DownloadsChrome } from '../state/DownloadsChrome'
 import { CrossSearchSourceFilter } from '../model/CrossSearchService'
+import { appSourceCatalogFilters } from '../state/SourceCatalogFilterState'
+import { connectIncognitoState } from '../state/IncognitoState'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 
 export interface MangaDetailRouteParam {
   mangaId: string
@@ -211,6 +214,7 @@ export class RouterHelper {
       chrome: new SourceBrowseRouteChromeState(param.source.displayName, param.source.sourceId),
     }
     stack.pushPath({ name: RouteName.SOURCE_BROWSE, param: routeParam })
+    RouterHelper.recordSourceUse(param.source)
   }
 
   static pushSourceSearch(param: SourceRouteParam, initialQuery: string = '', onMangaSelected?: (manga: SourceManga) => void): void {
@@ -224,6 +228,16 @@ export class RouterHelper {
       onMangaSelected,
     }
     stack.pushPath({ name: RouteName.SOURCE_SEARCH, param: routeParam })
+    RouterHelper.recordSourceUse(param.source)
+  }
+
+  private static recordSourceUse(source: SourceRuntimeRegistryInstalledSourceSummary): void {
+    // Only an explicit source route updates recency. Global queries can fan out
+    // to many sources, and incognito must leave the existing order untouched.
+    if (!source.enabled || connectIncognitoState().enabled) return
+    void appSourceCatalogFilters.recordSourceUse(source.sourceId).catch((): void => {
+      DiagnosticLogger.warn('source_catalog', 'recent_source_save_failed', 'phase=preferences')
+    })
   }
 
   static pushSourceRelated(manga: SourceManga[]): void {
