@@ -157,6 +157,7 @@ export type DeviceSyncReviewReason = 'first' | 'scope' | 'restore' | 'difference
 
 @ComponentV2
 export struct DeviceSyncOverviewPage {
+  @Param inModal: boolean = false
   @Param scroller: Scroller = new Scroller()
   @Event onOpenWebDav: () => void = (): void => {}
   @Local private state: DeviceSyncViewState = appDeviceSync.view
@@ -173,15 +174,15 @@ export struct DeviceSyncOverviewPage {
   }
 
   build() {
-    SecondaryListScaffold({ scroller: this.scroller, bottomPadding: ThemeConstants.SPACE_XL }) {
+    SecondaryListScaffold({ inModal: this.inModal, scroller: this.scroller, bottomPadding: ThemeConstants.SPACE_XL }) {
       ListItem() {
-        GroupedListSection() {
+        GroupedListSection({ inModal: this.inModal }) {
           ConciseListRow({ title: t('device_sync_webdav'), subtitle: stateText(this.state),
             action: (): void => { this.onOpenWebDav() } })
         }
       }
       ListItem() {
-        GroupedListSection({ title: t('device_sync_contents') }) {
+        GroupedListSection({ inModal: this.inModal, title: t('device_sync_contents') }) {
           ForEach(SYNC_GROUPS, (group: SyncGroup, index: number) => {
             if (index > 0) ListDivider()
             ConciseListRow({ title: t(groupKey(group)), subtitle: t(groupKey(group) + '_detail'),
@@ -197,6 +198,7 @@ export struct DeviceSyncOverviewPage {
 
 @ComponentV2
 export struct DeviceSyncWebDavPage {
+  @Param inModal: boolean = false
   @Param chrome: DeviceSyncWebDavChrome = new DeviceSyncWebDavChrome()
   @Event onEditConnection: () => void = (): void => {}
   @Event onReview: (groups: SyncGroup[], reason: DeviceSyncReviewReason) => void =
@@ -234,9 +236,9 @@ export struct DeviceSyncWebDavPage {
   }
 
   build() {
-    SecondaryListScaffold({ scroller: this.chrome.scroller, bottomPadding: ThemeConstants.SPACE_XL }) {
+    SecondaryListScaffold({ inModal: this.inModal, scroller: this.chrome.scroller, bottomPadding: ThemeConstants.SPACE_XL }) {
       ListItem() {
-        GroupedListSection() {
+        GroupedListSection({ inModal: this.inModal }) {
           ConciseListRow({ title: t('device_sync_enabled'), hasSwitch: true, checked: this.state.enabled,
             showChevron: false, isEnabled: this.state.ready && this.state.configured,
             subtitle: !this.state.configured ? t('device_sync_configure_first') : this.state.enabled ?
@@ -245,14 +247,14 @@ export struct DeviceSyncWebDavPage {
         }
       }
       ListItem() {
-        GroupedListSection({ title: t('device_sync_connection') }) {
+        GroupedListSection({ inModal: this.inModal, title: t('device_sync_connection') }) {
           ConciseListRow({ title: t(this.state.configured ? 'device_sync_edit' : 'device_sync_configure'),
             subtitle: this.state.configured ? this.connectionLabel : t('device_sync_configure_detail'), subtitleMaxLines: 3,
             isEnabled: this.state.ready, action: (): void => { this.onEditConnection() } })
         }
       }
       ListItem() {
-        GroupedListSection() {
+        GroupedListSection({ inModal: this.inModal }) {
           ConciseListRow({ title: t('device_sync_last_result'), subtitle: this.statusDetail(), subtitleMaxLines: 5, showChevron: false })
           ListDivider()
           ConciseListRow({ title: t('device_sync_now'), showChevron: false,
@@ -278,6 +280,7 @@ export struct DeviceSyncWebDavPage {
 
 @ComponentV2
 export struct DeviceSyncConnectionPage {
+  @Param inModal: boolean = false
   @Param chrome: DeviceSyncWebDavChrome = new DeviceSyncWebDavChrome()
   @Param titleAction: FormTitleActionState = new FormTitleActionState()
   @Event onSaved: () => void = (): void => {}
@@ -361,9 +364,9 @@ export struct DeviceSyncConnectionPage {
   }
 
   build() {
-    SecondaryListScaffold({ scroller: this.chrome.scroller, bottomPadding: ThemeConstants.SPACE_XL }) {
+    SecondaryListScaffold({ inModal: this.inModal, scroller: this.chrome.scroller, bottomPadding: ThemeConstants.SPACE_XL }) {
       ListItem() {
-        GroupedListSection({ title: t('device_sync_connection'),
+        GroupedListSection({ inModal: this.inModal, title: t('device_sync_connection'),
           subtitle: t(this.state.configured ? 'device_sync_save_replace_detail' : 'device_sync_save_detail') }) {
           Column({ space: ThemeConstants.SPACE_MD }) {
             KomaFormTextField({ label: t('device_sync_address'), placeholder: 'https://', value: this.directory,
@@ -376,7 +379,7 @@ export struct DeviceSyncConnectionPage {
         }
       }
       ListItem() {
-        GroupedListSection() {
+        GroupedListSection({ inModal: this.inModal }) {
           ConciseListRow({ title: t(this.testing ? 'device_sync_testing_draft' : this.tested ? 'device_sync_test_ok' : 'device_sync_test'),
             subtitle: t('device_sync_test_detail'), showChevron: false,
             isEnabled: this.canEditDraft() && this.directory.trim().length > 0,
@@ -385,7 +388,7 @@ export struct DeviceSyncConnectionPage {
       }
       if (this.chrome.busy || this.error.length > 0) {
         ListItem() {
-          GroupedListSection() {
+          GroupedListSection({ inModal: this.inModal }) {
             ConciseListRow({ title: t(this.chrome.busy ? 'device_sync_saving' : 'device_sync_needs_attention'),
               subtitle: errorText(this.error), subtitleMaxLines: 6, showChevron: false })
           }
@@ -397,6 +400,7 @@ export struct DeviceSyncConnectionPage {
 
 @ComponentV2
 export struct DeviceSyncReviewPage {
+  @Param inModal: boolean = false
   @Param chrome: DeviceSyncWebDavChrome = new DeviceSyncWebDavChrome()
   @Param titleAction: FormTitleActionState = new FormTitleActionState()
   @Param selected: SyncGroup[] = []
@@ -569,13 +573,13 @@ export struct DeviceSyncReviewPage {
   @Builder
   private Review(preview: SyncPreview) {
     ListItem() {
-      GroupedListSection() {
+      GroupedListSection({ inModal: this.inModal }) {
         ConciseListRow({ title: t('device_sync_destination'), subtitle: preview.destination,
           subtitleMaxLines: 4, showChevron: false })
       }
     }
     ListItem() {
-      GroupedListSection({ title: t('device_sync_review_contents'),
+      GroupedListSection({ inModal: this.inModal, title: t('device_sync_review_contents'),
         subtitle: preview.groups.some((row: SyncPreviewGroup): boolean => row.group !== 'reading' && row.skipped > 0) ?
           t('device_sync_skipped_detail') : undefined }) {
         if (preview.migration) {
@@ -603,7 +607,7 @@ export struct DeviceSyncReviewPage {
     }
     if (this.visibleRemovals().length > 0) {
       ListItem() {
-        GroupedListSection({ title: t('device_sync_removals_title') }) {
+        GroupedListSection({ inModal: this.inModal, title: t('device_sync_removals_title') }) {
           ForEach(this.visibleRemovals(), (item: SyncPreviewRemoval, index: number) => {
             if (index > 0) ListDivider()
             ConciseListRow({ title: this.removalTitle(item), subtitle: t(groupKey(item.group)) + ' · ' + t(item.target === 'remote' ? 'device_sync_other_device' : 'device_sync_this_device'),
@@ -614,7 +618,7 @@ export struct DeviceSyncReviewPage {
     }
     if (preview.conflicts.length > 0) {
       ListItem() {
-        GroupedListSection({ title: t('device_sync_review_differences'),
+        GroupedListSection({ inModal: this.inModal, title: t('device_sync_review_differences'),
           subtitle: t(preview.conflicts.some((item: SyncMergeConflict): boolean => item.retainLocalOnDelete === true) ?
             'device_sync_retained_setting_detail' : 'device_sync_review_differences_detail') }) {
           ForEach(preview.conflicts, (item: SyncMergeConflict, index: number) => {
@@ -631,7 +635,7 @@ export struct DeviceSyncReviewPage {
     }
     if (preview.beforeRestore.length > 0) {
       ListItem() {
-        GroupedListSection({ title: t('device_sync_before_restore'), subtitle: t('device_sync_review_restore_detail') }) {
+        GroupedListSection({ inModal: this.inModal, title: t('device_sync_before_restore'), subtitle: t('device_sync_review_restore_detail') }) {
           ForEach(preview.beforeRestore, (item: SyncMergeConflict, index: number) => {
             if (index > 0) ListDivider()
             ConciseListRow({ title: conflictTitle(item), wrapTitle: true,
@@ -651,7 +655,7 @@ export struct DeviceSyncReviewPage {
   private PendingItems() {
       if (this.state.shelfRemovals.length > 0) {
         ListItem() {
-          GroupedListSection({ title: t('device_sync_shelf_removals') }) {
+          GroupedListSection({ inModal: this.inModal, title: t('device_sync_shelf_removals') }) {
             ForEach(this.state.shelfRemovals, (item: SyncShelfRemoval, index: number) => {
               if (index > 0) ListDivider()
               ConciseListRow({ title: item.title, subtitle: t('device_sync_shelf_removal_detail'), subtitleMaxLines: 4, showChevron: false,
@@ -662,7 +666,7 @@ export struct DeviceSyncReviewPage {
       }
       if (this.state.blockedReadings.length > 0) {
         ListItem() {
-          GroupedListSection({ title: t('device_sync_reading_results') }) {
+          GroupedListSection({ inModal: this.inModal, title: t('device_sync_reading_results') }) {
             ForEach(this.state.blockedReadings, (item: SyncBlockedReading) => {
               ConciseListRow({ title: item.title || t('device_sync_group_reading'), showChevron: false,
                 subtitle: t('device_sync_reading_retained').replace('%s', (item.capture.page + 1).toString()),
@@ -697,11 +701,11 @@ export struct DeviceSyncReviewPage {
   }
 
   build() {
-    SecondaryListScaffold({ scroller: this.chrome.scroller, bottomPadding: ThemeConstants.SPACE_XL }) {
+    SecondaryListScaffold({ inModal: this.inModal, scroller: this.chrome.scroller, bottomPadding: ThemeConstants.SPACE_XL }) {
       if (this.preview !== undefined) this.Review(this.preview)
       if (this.loading || this.error.length > 0 || this.state.unresolvedCommit) {
         ListItem() {
-          GroupedListSection() {
+          GroupedListSection({ inModal: this.inModal }) {
             ConciseListRow({ title: t(this.loading ? 'device_sync_preparing' :
                 this.state.unresolvedCommit ? 'device_sync_review_last' : 'device_sync_needs_attention'),
               subtitle: errorText(this.error || (this.state.unresolvedCommit ? 'sync_remote_result_unknown' : '')),
@@ -719,7 +723,7 @@ export struct DeviceSyncReviewPage {
       if (this.reason === 'pending') this.PendingItems()
       if (this.reason === 'pending' && !this.state.enabled) {
         ListItem() {
-          GroupedListSection() {
+          GroupedListSection({ inModal: this.inModal }) {
             ConciseListRow({ title: t('device_sync_paused'), subtitle: t('device_sync_paused_review_detail'),
               subtitleMaxLines: 4, showChevron: false })
           }
@@ -728,7 +732,7 @@ export struct DeviceSyncReviewPage {
       if (this.reason === 'pending' && !this.state.needsReview &&
         this.state.shelfRemovals.length === 0 && this.state.blockedReadings.length === 0) {
         ListItem() {
-          GroupedListSection() {
+          GroupedListSection({ inModal: this.inModal }) {
             ConciseListRow({ title: t('device_sync_no_pending_items'), showChevron: false })
           }
         }

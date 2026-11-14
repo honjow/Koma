@@ -30,7 +30,7 @@ import { applyBackgroundLibraryResults, synchronizeBackgroundMaintenance } from 
 import { bindRemoteProgressLibrary } from '../model/RemoteProgressBootstrapSync'
 import { SourcePackageManagerCache, appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { komaDialogMaterial, komaMenuOptions, komaToastOptions } from "../theme/KomaPopupOptions"
+import { komaDialogMaterial, komaMenuOptions, komaSheetOptions, komaToastOptions } from "../theme/KomaPopupOptions"
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
@@ -54,6 +54,8 @@ import {
   HdsNavDestination,
   HdsNavigation,
   HdsAnimationMode,
+  HdsNavigationMenuItemOptions,
+  HdsNavDestinationTitleMode,
   HdsNavigationTitleMode,
   HdsTabs,
   HdsTabsController,
@@ -62,7 +64,7 @@ import {
   BottomBuilderShowType,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
-import { ComponentContent, LoadingDialogV2, SymbolGlyphModifier } from '@kit.ArkUI'
+import { ComponentContent, FrameCallback, LoadingDialogV2, SymbolGlyphModifier } from '@kit.ArkUI'
 import { LibraryPage, LibraryTitleBarPresentation } from './LibraryPage'
 import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
@@ -72,7 +74,8 @@ import { TrackerPreferencesStore } from '../model/TrackerModels'
 import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from '../model/RemoteReaderSession'
 import { SearchPage } from './SearchPage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../components/SearchTitleField'
-import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage'
+import { SettingsPage, SettingsPaneKey, settingsPaneTitle, usesWideSettingsHome } from './SettingsPage'
+import { KomaModalContent, KomaModalScaffold, komaModalCloseAction, komaModalTitleBarOptions } from '../components/KomaModalScaffold'
 import { FormTitleActionState } from '../state/FormTitleActionState'
 import { MODEL_SOURCE_ADD_BUTTON_ID, ModelSourcesTitleAction } from '../components/KomaTranslationSourcesContent'
 import { KomaMenuController, KomaMenuAction, KomaMenuGroup, komaTitleMoreIcon } from '../components/ui/KomaMenuController'
@@ -244,6 +247,8 @@ const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLib
 const sourceRuntimeRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
 // HDS uses one slot for More when the source has more than three actions.
 const SOURCE_ROUTE_TITLE_MENU_MAX_COUNT = 3
+const SETTINGS_MODAL_ROUTE = 'SettingsModal'
+const SETTINGS_MODAL_HOME = 'SettingsModalHome'
 interface SettingsPaneRouteParam {
   pane: string
   searchTarget?: string
@@ -271,6 +276,31 @@ interface SettingsSearchRouteParam {
 interface BackupManagementRouteParam {
   searchTarget: string
   scroller: Scroller
+}
+
+interface SettingsModalDestination {
+  name: string
+  param: Object
+  scroller: Scroller
+}
+
+interface SettingsModalMotion {
+  from: NavPathInfo
+  to: NavPathInfo
+  pushing: boolean
+}
+
+class SettingsModalLayoutFrame extends FrameCallback {
+  private readonly onLayout: () => void
+
+  constructor(onLayout: () => void) {
+    super()
+    this.onLayout = onLayout
+  }
+
+  onIdle(): void {
+    this.onLayout()
+  }
 }
 
 @Entry
@@ -310,6 +340,13 @@ struct Index {
   }
   @Local selectedTab: number = TabIndex.LIBRARY
   @Local private rootNavigationVisible: boolean = true
+  @Local private settingsModalShown: boolean = false
+  private settingsModalStack: NavPathStack = new NavPathStack()
+  @Local private settingsModalTop?: NavPathInfo = undefined
+  @Local private settingsModalMotion?: SettingsModalMotion = undefined
+  @Local private settingsModalProgress: number = 1
+  private afterSettingsModalDismiss?: () => void
+  @Local private settingsModalDestination?: SettingsModalDestination = undefined
   @Local private importMenuShown: boolean = false
   @Local private trackerSettingsRevision: number = 0
   @Local private applicationSettingsRestoreRevision: number = 0
@@ -432,7 +469,7 @@ struct Index {
     return param.chrome
   }
 
-  private sourceManagerTitleBarOptions(param?: SourcePackageManagerRouteParam): Record<string, Object> {
+  private sourceManagerTitleBarOptions(param?: SourcePackageManagerRouteParam, stack: NavPathStack = this.appPathStack): Record<string, Object> {
     // Flat actions use HDS's native overflow; only Filter remains exposed.
     const options = this.navDestTitleBarOpts(AppStrings.get('route_source_package_manager_title'))
     if ((param?.settingsSourceId.length ?? 0) > 0) return options
@@ -442,7 +479,7 @@ struct Index {
       'height': SOURCE_MANAGER_SECTIONS_HEIGHT,
       'showType': BottomBuilderShowType.DIRECTLY_SHOW } as Record<string, Object>
     if (chrome.section === 'plugins') {
-      content['menu'] = (this.imagePluginsTitleBarOptions()['content'] as Record<string, Object>)['menu']
+      content['menu'] = (this.imagePluginsTitleBarOptions(stack)['content'] as Record<string, Object>)['menu']
       return options
     }
     const filter: Record<string, Object> = { 'label': AppStrings.get('common_filter'), 'icon': $r('sys.symbol.funnel'),
@@ -450,7 +487,7 @@ struct Index {
     const local: Record<string, Object> = { 'label': AppStrings.get('source_pkg_local_import'), 'icon': $r('sys.symbol.folder'),
       'isEnabled': !this.localSourceImport.busy, 'action': (): void => { chrome.request('import') } }
     const subscriptions: Record<string, Object> = { 'label': AppStrings.get('source_pkg_index_url_heading'), 'icon': $r('sys.symbol.link'),
-      'action': (): void => { this.appPathStack.pushPath({ name: RouteName.SOURCE_SUBSCRIPTIONS, param: new SourceCatalogPageChrome() }) } }
+      'action': (): void => { stack.pushPath({ name: RouteName.SOURCE_SUBSCRIPTIONS, param: new SourceCatalogPageChrome() }) } }
     const filterItem: Record<string, Object> = { 'content': filter }
     const localItem: Record<string, Object> = { 'content': local }
     const subscriptionsItem: Record<string, Object> = { 'content': subscriptions }
@@ -465,12 +502,12 @@ struct Index {
     return options
   }
 
-  private imagePluginsTitleBarOptions(): Record<string, Object> {
+  private imagePluginsTitleBarOptions(stack: NavPathStack = this.appPathStack): Record<string, Object> {
     const options = this.navDestTitleBarOpts(AppStrings.get('image_plugins_title'))
     const content = options['content'] as Record<string, Object>
     const subscriptions: Record<string, Object> = { 'label': AppStrings.get('source_pkg_index_url_heading'),
       'type': TextStyleMode.NORMAL, 'action': (): void => {
-        this.appPathStack.pushPath({ name: RouteName.SOURCE_SUBSCRIPTIONS, param: new SourceCatalogPageChrome() })
+        stack.pushPath({ name: RouteName.SOURCE_SUBSCRIPTIONS, param: new SourceCatalogPageChrome() })
       } }
     const items: Record<string, Object>[] = [{ 'content': subscriptions }]
     content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
@@ -2411,13 +2448,13 @@ struct Index {
 
   private sourceManagerOpening: boolean = false
 
-  private openSettingsSecondary(routeName: string): void {
+  private openSettingsSecondary(routeName: string, stack: NavPathStack = this.appPathStack): void {
     if (routeName === RouteName.DOWNLOADS) {
-      RouterHelper.pushDownloads()
+      this.leaveSettingsModalFor((): void => { RouterHelper.pushDownloads() }, stack !== this.appPathStack)
       return
     }
     if (routeName !== RouteName.SOURCE_PACKAGE_MANAGER) {
-      this.appPathStack.pushPath({ name: routeName })
+      stack.pushPath({ name: routeName })
       return
     }
     if (this.sourceManagerOpening) return
@@ -2426,8 +2463,9 @@ struct Index {
     // Disk hydration finishes before the destination exists; a warm revisit
     // consumes the same ready snapshot, without another network check.
     void appSourcePackageManagerCache.prepare(context, connectLanguageState().effectiveLocale).then((): void => {
+      if (stack !== this.appPathStack && stack !== this.settingsModalStack) return
       appSourcePackageManagerCache.revalidateInBackground(context)
-      this.appPathStack.pushPath({ name: routeName,
+      stack.pushPath({ name: routeName,
         param: { settingsSourceId: '', chrome: new SourceCatalogPageChrome() } as SourcePackageManagerRouteParam })
     }).finally((): void => { this.sourceManagerOpening = false })
   }
@@ -2447,50 +2485,98 @@ struct Index {
     } finally { this.migrationOpening = false }
   }
 
-  private openSettingsPane(pane: SettingsPaneKey, rowKey?: string): void {
+  private openSettingsPane(pane: SettingsPaneKey, rowKey?: string, fromHome: boolean = false, stack: NavPathStack = this.appPathStack): void {
     if (pane === 'backup' && rowKey === 'device-sync') {
-      this.openDeviceSyncOverview()
+      const param: DeviceSyncWebDavRouteParam = { chrome: new DeviceSyncWebDavChrome() }
+      this.presentSettingsDestination(RouteName.DEVICE_SYNC, param, fromHome, param.chrome.scroller, stack)
       return
     }
     if (pane === 'backup' && rowKey === 'device-sync-webdav') {
-      this.openDeviceSyncWebDav()
+      const param: DeviceSyncWebDavRouteParam = { chrome: new DeviceSyncWebDavChrome() }
+      this.presentSettingsDestination(RouteName.DEVICE_SYNC_WEBDAV, param, fromHome, param.chrome.scroller, stack)
       return
     }
     // Backup owns its configuration and task navigation; do not insert a
     // second settings directory whose entries all open the same home page.
     if (pane === 'backup') {
       const param: BackupManagementRouteParam = { searchTarget: rowKey ?? '', scroller: new Scroller() }
-      this.appPathStack.pushPath({ name: RouteName.BACKUP_MANAGEMENT, param })
+      this.presentSettingsDestination(RouteName.BACKUP_MANAGEMENT, param, fromHome, param.scroller, stack)
       return
     }
     if (pane === 'tracking') {
-      this.appPathStack.pushPath({ name: RouteName.TRACKER_SETTINGS, param: { searchTarget: rowKey ?? '' } as SettingsSearchRouteParam })
+      this.presentSettingsDestination(RouteName.TRACKER_SETTINGS, { searchTarget: rowKey ?? '' } as SettingsSearchRouteParam, fromHome, undefined, stack)
       return
     }
     const routeParam: SettingsPaneRouteParam = { pane: pane, searchTarget: rowKey, formTitleAction: new FormTitleActionState(),
       modelSourcesTitleAction: new ModelSourcesTitleAction() }
-    this.appPathStack.pushPath({ name: RouteName.SETTINGS_PANE, param: routeParam })
+    this.presentSettingsDestination(RouteName.SETTINGS_PANE, routeParam, fromHome, undefined, stack)
   }
 
-  private openDeviceSyncOverview(): void {
+  private presentSettingsDestination(name: string, param: Object, fromHome: boolean, scroller?: Scroller,
+    stack: NavPathStack = this.appPathStack): void {
+    // This decision belongs to the entry action. Keep an open sheet and its
+    // scroll position through resizes and deeper navigation until dismissal.
+    if (fromHome && usesWideSettingsHome(this.layoutSafeArea.windowWidthVp)) {
+      if (this.settingsModalDestination !== undefined) return
+      const modalStack = new NavPathStack()
+      modalStack.setInterception({
+        interception: (from: NavPathInfo | NavBar, to: NavPathInfo | NavBar, _stack: NavPathStack,
+          operation: NavigationOperation, animated: boolean): void => {
+          if (from === 'navBar' || to === 'navBar' || !animated) {
+            this.settingsModalTop = to === 'navBar' ? undefined : to
+            this.settingsModalMotion = undefined
+            return
+          }
+          // Set the initial positions before the framework creates the new route.
+          this.settingsModalProgress = 0
+          this.settingsModalMotion = { from, to, pushing: operation === NavigationOperation.PUSH }
+        },
+      })
+      this.settingsModalStack = modalStack
+      this.settingsModalDestination = { name, param, scroller: scroller ?? new Scroller() }
+      const home: NavPathInfo = { name: SETTINGS_MODAL_HOME, param: this.settingsModalDestination }
+      this.settingsModalTop = home
+      this.settingsModalStack.pushPath(home, false)
+      this.appPathStack.pushPath({ name: SETTINGS_MODAL_ROUTE }, false)
+    } else {
+      stack.pushPath({ name, param })
+    }
+  }
+
+  private canDismissSettingsModal(): boolean {
+    return this.settingsModalDestination?.name !== RouteName.BACKUP_MANAGEMENT || !BackupRestoreActivity.isRestoring()
+  }
+
+  private shouldDismissSettingsModal(reason: DismissReason): boolean {
+    // ArkUI delivers Back to the sheet before its inner Navigation on some
+    // window modes. Forward it to the displayed destination when it has a parent.
+    if (reason === DismissReason.PRESS_BACK && this.settingsModalStack.size() > 1) {
+      this.backWithinSettingsModal()
+      return false
+    }
+    return this.canDismissSettingsModal()
+  }
+
+  private openDeviceSyncOverview(stack: NavPathStack = this.appPathStack): void {
     const param: DeviceSyncWebDavRouteParam = { chrome: new DeviceSyncWebDavChrome() }
-    this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC, param })
+    stack.pushPath({ name: RouteName.DEVICE_SYNC, param })
   }
 
-  private openDeviceSyncWebDav(): void {
+  private openDeviceSyncWebDav(stack: NavPathStack = this.appPathStack): void {
     const param: DeviceSyncWebDavRouteParam = { chrome: new DeviceSyncWebDavChrome() }
-    this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC_WEBDAV, param })
+    stack.pushPath({ name: RouteName.DEVICE_SYNC_WEBDAV, param })
   }
 
-  private openDeviceSyncConnection(): void {
+  private openDeviceSyncConnection(stack: NavPathStack = this.appPathStack): void {
     const param: DeviceSyncConnectionRouteParam = { chrome: new DeviceSyncWebDavChrome(),
       titleKey: appDeviceSync.view.configured ? 'device_sync_edit' : 'device_sync_configure' }
-    this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC_CONNECTION, param })
+    stack.pushPath({ name: RouteName.DEVICE_SYNC_CONNECTION, param })
   }
 
-  private openDeviceSyncReview(groups: SyncGroup[], reason: DeviceSyncReviewReason): void {
+  private openDeviceSyncReview(groups: SyncGroup[], reason: DeviceSyncReviewReason,
+    stack: NavPathStack = this.appPathStack): void {
     const param: DeviceSyncReviewRouteParam = { chrome: new DeviceSyncWebDavChrome(), groups, reason }
-    this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC_REVIEW, param })
+    stack.pushPath({ name: RouteName.DEVICE_SYNC_REVIEW, param })
   }
 
   private selectRootTab(index: number): void {
@@ -3179,7 +3265,19 @@ struct Index {
 
   @Builder
   private AppDestination(name: string, param: Object) {
-    if (name === 'ReaderLab') {
+    if (name === SETTINGS_MODAL_ROUTE) {
+      HdsNavDestination() {
+        Column()
+          .width('100%')
+          .height('100%')
+          .hitTestBehavior(HitTestMode.None)
+          .bindSheet($$this.settingsModalShown, this.SettingsModal, this.settingsModalOptions())
+      }
+      .mode(NavDestinationMode.DIALOG)
+      .hideTitleBar(true)
+      .backgroundColor(Color.Transparent)
+      .onShown((): void => { this.settingsModalShown = true })
+    } else if (name === 'ReaderLab') {
       KomaReaderLabPage({ request: param as ReaderLabRequest,
         catalogHost: this.createReaderLabCatalogHost(),
         readInitialColumn: (work: string, unit: string): 'odd_left' | 'even_left' => {
@@ -3360,120 +3458,6 @@ struct Index {
         })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_webdav_title')))
-    } else if (name === RouteName.KOMGA_SERVER) {
-      HdsNavDestination() {
-        KomgaServerPage()
-      }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_komga_title')))
-    } else if (name === RouteName.KAVITA_SERVER) {
-      HdsNavDestination() {
-        KavitaServerPage()
-      }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_kavita_title')))
-    } else if (name === RouteName.OPDS_SERVER) {
-      HdsNavDestination() {
-        OpdsServerPage()
-      }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_opds_title')))
-    } else if (name === RouteName.WEBDAV_SERVER) {
-      HdsNavDestination() {
-        WebDavServerPage()
-      }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_webdav_title')))
-    } else if (name === RouteName.SOURCE_PACKAGE_MANAGER) {
-      HdsNavDestination() {
-        SourcePackageManagerPage({
-          chrome: this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined),
-          initialSettingsSourceId: (param as SourcePackageManagerRouteParam | undefined)?.settingsSourceId ?? '',
-          recoverySourceId: (param as SourcePackageManagerRouteParam | undefined)?.recoverySourceId ?? '',
-          recoverySourceName: (param as SourcePackageManagerRouteParam | undefined)?.recoverySourceName ?? '',
-          onSettingsSaved: () => { (param as SourcePackageManagerRouteParam | undefined)?.onSettingsSaved?.() },
-          onBeforeRemove: (sourceId: string, sourceName: string): void => {
-            const persistence = this.ensureLibraryPersistenceService()
-            if (persistence === undefined) throw new Error('library_persistence_unavailable')
-            if (retainLibrarySourceNameAndPersist(this.libraryStore, persistence, sourceId, sourceName)) {
-              this.refreshLibrarySnapshot()
-            }
-          },
-        })
-      }
-      .titleBar(this.sourceManagerTitleBarOptions(param as SourcePackageManagerRouteParam | undefined))
-      .dynamicHideTitleBar({
-        hideTitleArea: this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined).searchExpanded,
-        hideBottomBuilder: false,
-        hideStatusBar: false,
-        mode: HideMode.SCROLL_UP,
-      })
-      .bindToScrollable([this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined).scroller])
-      .onBackPressed((): boolean => {
-        const chrome = this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined)
-        if (!chrome.searchExpanded) return false
-        this.toggleManagerCatalogSearch(chrome)
-        return true
-      })
-      .onDisAppear((): void => {
-        const chrome = this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined)
-        this.disposeSourceManagerSection(chrome)
-        this.disposeCatalogSearch(chrome)
-      })
-    } else if (name === RouteName.SOURCE_SUBSCRIPTIONS) {
-      HdsNavDestination() {
-        SourceSubscriptionsPage({ chrome: param as SourceCatalogPageChrome })
-      }
-      .titleBar(this.sourceSubscriptionsTitleBarOptions(param as SourceCatalogPageChrome))
-    } else if (name === RouteName.IMAGE_PLUGINS) {
-      HdsNavDestination() { ImagePluginsPage({ request: param as ImagePluginsRequest }) }
-        .titleBar(this.imagePluginsTitleBarOptions())
-    } else if (name === RouteName.SETTINGS_PANE) {
-      HdsNavDestination() {
-        SettingsPage({
-          enhancementModelsRevision: this.enhancementModelsRevision,
-          onEnhancementModelsChanged: () => { this.enhancementModelsRevision += 1 },
-          preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
-          pane: this.settingsPaneFromParam(param),
-          searchTarget: (param as SettingsPaneRouteParam).searchTarget ?? '',
-          formTitleAction: (param as SettingsPaneRouteParam).formTitleAction,
-          modelSourcesTitleAction: (param as SettingsPaneRouteParam).modelSourcesTitleAction,
-          onClosePane: () => { this.appPathStack.pop() },
-          onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
-          libraryStore: this.libraryStore,
-          libraryPersistenceService: this.ensureLibraryPersistenceService(),
-          sourceRegistry: this.sourceRegistry,
-          onOpenSettingsPane: (nextPane: SettingsPaneKey, rowKey?: string) => {
-            this.openSettingsPane(nextPane, rowKey)
-          },
-          onOpenKomgaSettings: () => {
-            this.openSettingsSecondary(RouteName.KOMGA_SERVER)
-          },
-          onOpenKavitaSettings: () => {
-            this.openSettingsSecondary(RouteName.KAVITA_SERVER)
-          },
-          onOpenOpdsSettings: () => {
-            this.openSettingsSecondary(RouteName.OPDS_SERVER)
-          },
-          onOpenWebDavSettings: () => {
-            this.openSettingsSecondary(RouteName.WEBDAV_SERVER)
-          },
-          onOpenImagePlugins: (request: ImagePluginsRequest): void => { this.appPathStack.pushPath({ name: RouteName.IMAGE_PLUGINS, param: request }) },
-          onOpenSourcePackageManager: () => {
-            this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
-          },
-          onOpenLibraryUpdateResults: () => {
-            this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS)
-          },
-          onOpenDownloads: () => {
-            this.openSettingsSecondary(RouteName.DOWNLOADS)
-          },
-          onOpenImportRequested: () => {
-            this.openImport()
-          },
-          onRefreshLocalFolders: () => this.rescanLocalLibraryFolders(),
-          onLibraryChanged: () => {
-            this.refreshLibrarySnapshot()
-          }
-        })
-      }
-      .titleBar(this.settingsPaneTitleBarOpts(param as SettingsPaneRouteParam))
     } else if (name === RouteName.LIBRARY_UPDATES) {
       HdsNavDestination() {
         LibraryUpdatesPage({ chrome: param as LibraryUpdatesChrome,
@@ -3493,14 +3477,6 @@ struct Index {
         return true
       })
       .onShown((): void => { this.markLibraryUpdatesSeen() })
-    } else if (name === RouteName.LIBRARY_UPDATE_RESULTS) {
-      HdsNavDestination() {
-        LibraryUpdateResultPage({
-          libraryStore: this.libraryStore,
-          sourceRegistry: this.sourceRegistry,
-        })
-      }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_library_update_results_title')))
     } else if (name === RouteName.LIBRARY_CATEGORIES) {
       HdsNavDestination() {
         LibraryCategoryManagementPage({
@@ -3530,71 +3506,499 @@ struct Index {
         chrome.request('exitSelection')
         return true
       })
-    } else if (name === RouteName.BACKUP_MANAGEMENT) {
-      HdsNavDestination() {
-        BackupManagementPage({ refreshRevision: this.backupSettingsRevision,
-          searchTarget: (param as BackupManagementRouteParam).searchTarget,
-          backupScroller: (param as BackupManagementRouteParam).scroller,
-          onOpenDeviceSync: (): void => { this.openDeviceSyncOverview() },
-          onRestoreCompleted: () => { this.onBackupRestored() } })
-      }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_backup_management_title')))
-      .bindToScrollable([(param as BackupManagementRouteParam).scroller])
-      .onBackPressed(() => BackupRestoreActivity.isRestoring())
-    } else if (name === RouteName.DEVICE_SYNC) {
-      HdsNavDestination() {
-        DeviceSyncOverviewPage({ scroller: (param as DeviceSyncWebDavRouteParam).chrome.scroller,
-          onOpenWebDav: (): void => { this.openDeviceSyncWebDav() } })
-      }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('device_sync_title')))
-      .bindToScrollable([(param as DeviceSyncWebDavRouteParam).chrome.scroller])
-    } else if (name === RouteName.DEVICE_SYNC_WEBDAV) {
-      HdsNavDestination() {
-        DeviceSyncWebDavPage({ chrome: (param as DeviceSyncWebDavRouteParam).chrome,
-          onEditConnection: (): void => { this.openDeviceSyncConnection() },
-          onReview: (groups: SyncGroup[], reason: DeviceSyncReviewReason): void => { this.openDeviceSyncReview(groups, reason) } })
-      }
-      .titleBar(this.deviceSyncWebDavTitleBarOpts())
-      .bindToScrollable([(param as DeviceSyncWebDavRouteParam).chrome.scroller])
-      .onShown((): void => { (param as DeviceSyncWebDavRouteParam).chrome.shownSeq++ })
-    } else if (name === RouteName.DEVICE_SYNC_CONNECTION) {
-      HdsNavDestination() {
-        DeviceSyncConnectionPage({ chrome: (param as DeviceSyncConnectionRouteParam).chrome,
-          titleAction: (param as DeviceSyncConnectionRouteParam).chrome.confirm,
-          onSaved: (): void => { this.appPathStack.pop() } })
-      }
-      .titleBar(this.deviceSyncActionTitleBarOpts((param as DeviceSyncConnectionRouteParam).chrome,
-        (param as DeviceSyncConnectionRouteParam).titleKey, 'common_save'))
-      .bindToScrollable([(param as DeviceSyncConnectionRouteParam).chrome.scroller])
-      .onBackPressed((): boolean => (param as DeviceSyncConnectionRouteParam).chrome.busy)
-    } else if (name === RouteName.DEVICE_SYNC_REVIEW) {
-      HdsNavDestination() {
-        DeviceSyncReviewPage({ chrome: (param as DeviceSyncReviewRouteParam).chrome,
-          titleAction: (param as DeviceSyncReviewRouteParam).chrome.confirm,
-          selected: (param as DeviceSyncReviewRouteParam).groups, reason: (param as DeviceSyncReviewRouteParam).reason,
-          onCompleted: (): void => { this.appPathStack.pop() } })
-      }
-      .titleBar(this.deviceSyncActionTitleBarOpts((param as DeviceSyncReviewRouteParam).chrome,
-        this.deviceSyncReviewTitle((param as DeviceSyncReviewRouteParam).reason), 'device_sync_confirm_merge'))
-      .bindToScrollable([(param as DeviceSyncReviewRouteParam).chrome.scroller])
-      .onBackPressed((): boolean => (param as DeviceSyncReviewRouteParam).chrome.busy)
     } else if (name === RouteName.READING_STATISTICS) {
       HdsNavDestination() {
         ReadingStatisticsPage({ libraryStore: this.libraryStore, sessionStore: this.readerSessionStore })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('reading_statistics_title')))
+    } else {
+      this.SettingsDestination(name, param, this.appPathStack)
+    }
+  }
+
+  private settingsModalOffset(name: string, param?: Object): string {
+    const motion = this.settingsModalMotion
+    if (motion !== undefined) {
+      const direction: number = motion.pushing ? 1 : -1
+      if (motion.from.name === name && motion.from.param === param) {
+        return `${-direction * this.settingsModalProgress * 100}%`
+      }
+      if (motion.to.name === name && motion.to.param === param) {
+        return `${direction * (1 - this.settingsModalProgress) * 100}%`
+      }
+    }
+    // Navigation may reveal a cached parent before the pop's reactive updates are painted.
+    // Park every covered destination at the left edge even between transitions.
+    return this.settingsModalTop?.name === name && this.settingsModalTop.param === param ? '0%' : '-100%'
+  }
+
+  private settingsModalTransition(from: NavContentInfo, to: NavContentInfo): NavigationAnimatedTransition | undefined {
+    if (from.index < 0 || to.index < 0) return undefined
+    const motion = this.settingsModalMotion
+    if (motion === undefined) return undefined
+    const ui = this.getUIContext()
+    return {
+      transition: (proxy: NavigationTransitionProxy): void => {
+        // Let the incoming destination lay out at the viewport edge before
+        // animating both pages through adjacent, non-overlapping positions.
+        ui.postFrameCallback(new SettingsModalLayoutFrame((): void => {
+          if (this.settingsModalMotion !== motion) {
+            proxy.finishTransition()
+            return
+          }
+          ui.animateTo({ duration: 300, curve: Curve.FastOutSlowIn,
+            onFinish: (): void => { proxy.finishTransition() } },
+            (): void => { this.settingsModalProgress = 1 })
+        }))
+      },
+      onTransitionEnd: (): void => {
+        if (this.settingsModalMotion === motion) {
+          const paths = this.settingsModalStack.getAllPathName()
+          const top = paths.length - 1
+          this.settingsModalTop = top < 0 ? undefined :
+            { name: paths[top], param: this.settingsModalStack.getParamByIndex(top) }
+          this.settingsModalMotion = undefined
+        }
+      },
+    }
+  }
+
+  private settingsDestinationTitleMode(inModal: boolean): HdsNavDestinationTitleMode {
+    // HDS reserves the same top inset on every sheet route, including the native back button.
+    return inModal ? HdsNavDestinationTitleMode.MODAL : HdsNavDestinationTitleMode.MINI
+  }
+
+  private settingsDestinationTitleOptions(inModal: boolean, options: Record<string, Object>): Record<string, Object> {
+    if (inModal) {
+      options['avoidLayoutSafeArea'] = false
+      options['enableComponentSafeArea'] = true
+    }
+    return options
+  }
+
+  @Builder
+  private ModalSettingsDestination(name: string, param: Object) {
+    if (name === SETTINGS_MODAL_HOME) {
+      this.SettingsModalHome(param as SettingsModalDestination)
+    } else {
+      this.SettingsDestination(name, param, this.settingsModalStack, true)
+    }
+  }
+
+  @Builder
+  private SettingsDestination(name: string, param: Object, stack: NavPathStack, inModal: boolean = false) {
+    if (name === RouteName.KOMGA_SERVER) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          KomgaServerPage({ inModal: inModal })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.navDestTitleBarOpts(AppStrings.get('route_komga_title'))))
+    } else if (name === RouteName.KAVITA_SERVER) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          KavitaServerPage({ inModal: inModal })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.navDestTitleBarOpts(AppStrings.get('route_kavita_title'))))
+    } else if (name === RouteName.OPDS_SERVER) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          OpdsServerPage({ inModal: inModal })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.navDestTitleBarOpts(AppStrings.get('route_opds_title'))))
+    } else if (name === RouteName.WEBDAV_SERVER) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          WebDavServerPage({ inModal: inModal })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.navDestTitleBarOpts(AppStrings.get('route_webdav_title'))))
+    } else if (name === RouteName.SOURCE_PACKAGE_MANAGER) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          SourcePackageManagerPage({
+            inModal: inModal,
+            onOpenSubscriptions: (): void => {
+              stack.pushPath({ name: RouteName.SOURCE_SUBSCRIPTIONS, param: new SourceCatalogPageChrome() })
+            },
+            onCloseSettingsRoute: (): void => { stack.pop() },
+            onOpenSourceCatalog: (action: () => void): void => { this.leaveSettingsModalFor(action, inModal) },
+            chrome: this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined),
+            initialSettingsSourceId: (param as SourcePackageManagerRouteParam | undefined)?.settingsSourceId ?? '',
+            recoverySourceId: (param as SourcePackageManagerRouteParam | undefined)?.recoverySourceId ?? '',
+            recoverySourceName: (param as SourcePackageManagerRouteParam | undefined)?.recoverySourceName ?? '',
+            onSettingsSaved: () => { (param as SourcePackageManagerRouteParam | undefined)?.onSettingsSaved?.() },
+            onBeforeRemove: (sourceId: string, sourceName: string): void => {
+              const persistence = this.ensureLibraryPersistenceService()
+              if (persistence === undefined) throw new Error('library_persistence_unavailable')
+              if (retainLibrarySourceNameAndPersist(this.libraryStore, persistence, sourceId, sourceName)) {
+                this.refreshLibrarySnapshot()
+              }
+            },
+          })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.sourceManagerTitleBarOptions(param as SourcePackageManagerRouteParam | undefined, stack)))
+      .dynamicHideTitleBar({
+        hideTitleArea: this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined).searchExpanded,
+        hideBottomBuilder: false,
+        hideStatusBar: false,
+        mode: HideMode.SCROLL_UP,
+      })
+      .bindToScrollable([this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined).scroller])
+      .onBackPressed((): boolean => {
+        const chrome = this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined)
+        if (!chrome.searchExpanded) return false
+        this.toggleManagerCatalogSearch(chrome)
+        return true
+      })
+      .onDisAppear((): void => {
+        const chrome = this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined)
+        this.disposeSourceManagerSection(chrome)
+        this.disposeCatalogSearch(chrome)
+      })
+    } else if (name === RouteName.SOURCE_SUBSCRIPTIONS) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          SourceSubscriptionsPage({ chrome: param as SourceCatalogPageChrome, embedded: inModal })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.sourceSubscriptionsTitleBarOptions(param as SourceCatalogPageChrome)))
+    } else if (name === RouteName.IMAGE_PLUGINS) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+            ImagePluginsPage({ request: param as ImagePluginsRequest, embedded: inModal })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.imagePluginsTitleBarOptions(stack)))
+    } else if (name === RouteName.SETTINGS_PANE) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          this.SettingsPaneContent(param as SettingsPaneRouteParam, new Scroller(), inModal, stack)
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.settingsPaneTitleBarOpts(param as SettingsPaneRouteParam)))
+    } else if (name === RouteName.LIBRARY_UPDATE_RESULTS) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          LibraryUpdateResultPage({ inModal: inModal,
+            onOpenResult: (action: () => void): void => { this.leaveSettingsModalFor(action, inModal) },
+            libraryStore: this.libraryStore,
+            sourceRegistry: this.sourceRegistry,
+          })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.navDestTitleBarOpts(AppStrings.get('route_library_update_results_title'))))
+    } else if (name === RouteName.BACKUP_MANAGEMENT) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          this.BackupSettingsContent(param as BackupManagementRouteParam, inModal)
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.navDestTitleBarOpts(AppStrings.get('route_backup_management_title'))))
+      .bindToScrollable([(param as BackupManagementRouteParam).scroller])
+      .onBackPressed(() => BackupRestoreActivity.isRestoring())
+    } else if (name === RouteName.DEVICE_SYNC) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          DeviceSyncOverviewPage({ inModal: inModal, scroller: (param as DeviceSyncWebDavRouteParam).chrome.scroller,
+            onOpenWebDav: (): void => { this.openDeviceSyncWebDav(stack) } })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.navDestTitleBarOpts(AppStrings.get('device_sync_title'))))
+      .bindToScrollable([(param as DeviceSyncWebDavRouteParam).chrome.scroller])
+    } else if (name === RouteName.DEVICE_SYNC_WEBDAV) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          this.DeviceSyncWebDavContent(param as DeviceSyncWebDavRouteParam, stack, inModal)
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.deviceSyncWebDavTitleBarOpts()))
+      .bindToScrollable([(param as DeviceSyncWebDavRouteParam).chrome.scroller])
+      .onShown((): void => {
+        (param as DeviceSyncWebDavRouteParam).chrome.shownSeq++
+      })
+    } else if (name === RouteName.DEVICE_SYNC_CONNECTION) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          DeviceSyncConnectionPage({ inModal: inModal, chrome: (param as DeviceSyncConnectionRouteParam).chrome,
+            titleAction: (param as DeviceSyncConnectionRouteParam).chrome.confirm,
+            onSaved: (): void => { stack.pop() } })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.deviceSyncActionTitleBarOpts((param as DeviceSyncConnectionRouteParam).chrome,
+        (param as DeviceSyncConnectionRouteParam).titleKey, 'common_save')))
+      .bindToScrollable([(param as DeviceSyncConnectionRouteParam).chrome.scroller])
+      .onBackPressed((): boolean => (param as DeviceSyncConnectionRouteParam).chrome.busy)
+    } else if (name === RouteName.DEVICE_SYNC_REVIEW) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          DeviceSyncReviewPage({ inModal: inModal, chrome: (param as DeviceSyncReviewRouteParam).chrome,
+            titleAction: (param as DeviceSyncReviewRouteParam).chrome.confirm,
+            selected: (param as DeviceSyncReviewRouteParam).groups, reason: (param as DeviceSyncReviewRouteParam).reason,
+            onCompleted: (): void => { stack.pop() } })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.deviceSyncActionTitleBarOpts((param as DeviceSyncReviewRouteParam).chrome,
+        this.deviceSyncReviewTitle((param as DeviceSyncReviewRouteParam).reason), 'device_sync_confirm_merge')))
+      .bindToScrollable([(param as DeviceSyncReviewRouteParam).chrome.scroller])
+      .onBackPressed((): boolean => (param as DeviceSyncReviewRouteParam).chrome.busy)
+
     } else if (name === RouteName.TRACKER_SETTINGS) {
       HdsNavDestination() {
-        TrackerSettingsPage({
-          refreshRevision: this.trackerSettingsRevision,
-          searchTarget: (param as SettingsSearchRouteParam)?.searchTarget ?? '',
-          preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
-        })
+        KomaModalContent({ useInset: inModal }) {
+          this.TrackerSettingsContent(param as SettingsSearchRouteParam, new Scroller(), inModal)
+        }
       }
-      .titleBar(this.navDestTitleBarOpts(settingsPaneTitle('tracking')))
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.navDestTitleBarOpts(settingsPaneTitle('tracking'))))
       .onShown(() => {
         this.trackerSettingsRevision += 1
       })
+    }
+  }
+
+  @Builder
+  private DeviceSyncWebDavContent(param: DeviceSyncWebDavRouteParam, stack: NavPathStack, inModal: boolean) {
+    DeviceSyncWebDavPage({ inModal: inModal, chrome: param.chrome,
+      onEditConnection: (): void => { this.openDeviceSyncConnection(stack) },
+      onReview: (groups: SyncGroup[], reason: DeviceSyncReviewReason): void => {
+        this.openDeviceSyncReview(groups, reason, stack)
+      } })
+  }
+
+  @Builder
+  private SettingsPaneContent(param: SettingsPaneRouteParam, scroller: Scroller = new Scroller(),
+    inModal: boolean = false, stack: NavPathStack = this.appPathStack) {
+    SettingsPage({
+      enhancementModelsRevision: this.enhancementModelsRevision,
+      onEnhancementModelsChanged: () => { this.enhancementModelsRevision += 1 },
+      preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
+      pane: this.settingsPaneFromParam(param),
+      inModal: inModal,
+      scroller: scroller,
+      searchTarget: param.searchTarget ?? '',
+      formTitleAction: param.formTitleAction,
+      modelSourcesTitleAction: param.modelSourcesTitleAction,
+      onClosePane: () => {
+        if (inModal && stack.size() === 1) this.settingsModalShown = false
+        else stack.pop()
+      },
+      onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
+      libraryStore: this.libraryStore,
+      libraryPersistenceService: this.ensureLibraryPersistenceService(),
+      sourceRegistry: this.sourceRegistry,
+      onOpenSettingsPane: (nextPane: SettingsPaneKey, rowKey?: string) => {
+        this.openSettingsPane(nextPane, rowKey, false, stack)
+      },
+      onOpenKomgaSettings: () => {
+        this.openSettingsSecondary(RouteName.KOMGA_SERVER, stack)
+      },
+      onOpenKavitaSettings: () => {
+        this.openSettingsSecondary(RouteName.KAVITA_SERVER, stack)
+      },
+      onOpenOpdsSettings: () => {
+        this.openSettingsSecondary(RouteName.OPDS_SERVER, stack)
+      },
+      onOpenWebDavSettings: () => {
+        this.openSettingsSecondary(RouteName.WEBDAV_SERVER, stack)
+      },
+      onOpenImagePlugins: (request: ImagePluginsRequest): void => { stack.pushPath({ name: RouteName.IMAGE_PLUGINS, param: request }) },
+      onOpenSourcePackageManager: () => {
+        this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER, stack)
+      },
+      onOpenLibraryUpdateResults: () => {
+        this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS, stack)
+      },
+      onOpenDownloads: () => {
+        this.openSettingsSecondary(RouteName.DOWNLOADS, stack)
+      },
+      onOpenImportRequested: () => {
+        this.leaveSettingsModalFor((): void => { this.openImport() }, inModal)
+      },
+      onRefreshLocalFolders: () => this.rescanLocalLibraryFolders(),
+      onLibraryChanged: () => {
+        this.refreshLibrarySnapshot()
+      }
+    })
+  }
+
+  @Builder
+  private BackupSettingsContent(param: BackupManagementRouteParam, inModal: boolean = false) {
+    BackupManagementPage({ refreshRevision: this.backupSettingsRevision, searchTarget: param.searchTarget,
+      backupScroller: param.scroller, inModal: inModal,
+      onOpenDeviceSync: (): void => { this.openDeviceSyncOverview(inModal ? this.settingsModalStack : this.appPathStack) },
+      onRestoreCompleted: () => { this.onBackupRestored() } })
+  }
+
+  @Builder
+  private TrackerSettingsContent(param: SettingsSearchRouteParam, scroller: Scroller = new Scroller(),
+    inModal: boolean = false) {
+    TrackerSettingsPage({ refreshRevision: this.trackerSettingsRevision, settingsScroller: scroller, inModal: inModal,
+      searchTarget: param?.searchTarget ?? '', preferencesRestoreRevision: this.applicationSettingsRestoreRevision })
+  }
+
+  private settingsModalTitle(destination: SettingsModalDestination): string {
+    if (destination.name === RouteName.BACKUP_MANAGEMENT) return AppStrings.get('route_backup_management_title')
+    if (destination.name === RouteName.TRACKER_SETTINGS) return settingsPaneTitle('tracking')
+    if (destination.name === RouteName.DEVICE_SYNC) return AppStrings.get('device_sync_title')
+    if (destination.name === RouteName.DEVICE_SYNC_WEBDAV) return AppStrings.get('device_sync_webdav')
+    return settingsPaneTitle(this.settingsPaneFromParam(destination.param))
+  }
+
+  private settingsModalActions(destination: SettingsModalDestination): HdsNavigationMenuItemOptions[] {
+    let actions: HdsNavigationMenuItemOptions[] = []
+    if (destination.name === RouteName.SETTINGS_PANE) {
+      actions = this.settingsPaneTitleActions(destination.param as SettingsPaneRouteParam)
+    }
+    // HDS reserves the final slot for overflow. Keep Close on the title bar.
+    actions.splice(actions.length > 2 ? 1 : actions.length, 0, komaModalCloseAction((): void => {
+      if (this.canDismissSettingsModal()) this.settingsModalShown = false
+    }))
+    return actions
+  }
+
+  @Builder
+  private SettingsModalHome(destination: SettingsModalDestination) {
+    HdsNavDestination() {
+      KomaModalContent() {
+        if (destination.name === RouteName.BACKUP_MANAGEMENT) {
+          this.BackupSettingsContent(destination.param as BackupManagementRouteParam, true)
+        } else if (destination.name === RouteName.TRACKER_SETTINGS) {
+          this.TrackerSettingsContent(destination.param as SettingsSearchRouteParam, destination.scroller, true)
+        } else if (destination.name === RouteName.DEVICE_SYNC) {
+          DeviceSyncOverviewPage({ inModal: true, scroller: destination.scroller,
+            onOpenWebDav: (): void => { this.openDeviceSyncWebDav(this.settingsModalStack) } })
+        } else if (destination.name === RouteName.DEVICE_SYNC_WEBDAV) {
+          this.DeviceSyncWebDavContent(destination.param as DeviceSyncWebDavRouteParam, this.settingsModalStack, true)
+        } else {
+          this.SettingsPaneContent(destination.param as SettingsPaneRouteParam, destination.scroller, true,
+            this.settingsModalStack)
+        }
+      }
+    }
+    .titleBar(komaModalTitleBarOptions(this.settingsModalTitle(destination), this.settingsModalActions(destination)))
+    .titleMode(HdsNavDestinationTitleMode.MODAL)
+    .hideBackButton(true)
+    .bindToScrollable([destination.scroller])
+    .backgroundColor(Color.Transparent)
+    .translate({ x: this.settingsModalOffset(SETTINGS_MODAL_HOME, destination) })
+    .onBackPressed((): boolean => !this.canDismissSettingsModal())
+  }
+
+  @Builder
+  private SettingsModalContent() {
+    KomaModalScaffold({ contentOwnsNavigation: true }) {
+      Column() {
+        HdsNavigation(this.settingsModalStack) {}
+          .hideNavBar(true)
+          .navDestination(this.ModalSettingsDestination)
+          .customNavContentTransition((from: NavContentInfo, to: NavContentInfo): NavigationAnimatedTransition | undefined =>
+            this.settingsModalTransition(from, to))
+          .mode(NavigationMode.Stack)
+          .expandSafeArea([], [])
+          .width('100%')
+          .height('100%')
+      }
+      .width('100%')
+      .height('100%')
+    }
+  }
+
+  private backWithinSettingsModal(): void {
+    const paths = this.settingsModalStack.getAllPathName()
+    const name = paths[paths.length - 1]
+    const param = this.settingsModalStack.getParamByIndex(paths.length - 1) as Object | undefined
+    if (name === RouteName.SOURCE_PACKAGE_MANAGER) {
+      const chrome = this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined)
+      if (chrome.searchExpanded) {
+        this.toggleManagerCatalogSearch(chrome)
+        return
+      }
+    }
+    if (name === RouteName.BACKUP_MANAGEMENT && BackupRestoreActivity.isRestoring()) return
+    if ((name === RouteName.DEVICE_SYNC_CONNECTION || name === RouteName.DEVICE_SYNC_REVIEW) &&
+      (param as DeviceSyncWebDavRouteParam).chrome.busy) return
+    this.settingsModalStack.pop()
+  }
+
+  private leaveSettingsModalFor(action: () => void, inModal: boolean): void {
+    if (inModal) {
+      this.afterSettingsModalDismiss = action
+      this.settingsModalShown = false
+    } else {
+      action()
+    }
+  }
+
+  private settingsModalOptions(): SheetOptions {
+    // The platform chooses the sheet's presentation. Settings destinations
+    // share its native Navigation stack and the same content transition.
+    return komaSheetOptions({
+      onDisappear: (): void => {
+        this.settingsModalDestination = undefined
+        this.settingsModalStack = new NavPathStack()
+        this.settingsModalTop = undefined
+        this.settingsModalMotion = undefined
+        const paths = this.appPathStack.getAllPathName()
+        if (paths[paths.length - 1] === SETTINGS_MODAL_ROUTE) this.appPathStack.pop(false)
+        const action = this.afterSettingsModalDismiss
+        this.afterSettingsModalDismiss = undefined
+        action?.()
+      },
+    }, (reason: DismissReason): boolean => this.shouldDismissSettingsModal(reason))
+  }
+
+  @Builder
+  private SettingsModal() {
+    if (this.settingsModalDestination !== undefined) {
+      this.SettingsModalContent()
     }
   }
 
@@ -3761,7 +4165,7 @@ struct Index {
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
                 sourceRegistry: this.sourceRegistry,
                 onOpenSettingsPane: (pane: SettingsPaneKey, rowKey?: string) => {
-                  this.openSettingsPane(pane, rowKey)
+                  this.openSettingsPane(pane, rowKey, true)
                 },
                 onOpenKomgaSettings: () => {
                   this.openSettingsSecondary(RouteName.KOMGA_SERVER)
@@ -4273,27 +4677,27 @@ struct Index {
 
   private settingsPaneTitleBarOpts(param: SettingsPaneRouteParam): Record<string, Object> {
     const options = this.navDestTitleBarOpts(settingsPaneTitle(this.settingsPaneFromParam(param)))
-    if (param.pane === 'llm-sources') {
+    const actions = this.settingsPaneTitleActions(param)
+    if (actions.length > 0) {
       const content = options['content'] as Record<string, Object>
-      const add: Record<string, Object> = { 'label': AppStrings.get('llm_source_add'),
+      content['menu'] = { 'value': actions, 'maxCount': 1 } as Record<string, Object>
+    }
+    return options
+  }
+
+  private settingsPaneTitleActions(param: SettingsPaneRouteParam): HdsNavigationMenuItemOptions[] {
+    if (param.pane === 'llm-sources') {
+      return [{ content: { 'label': AppStrings.get('llm_source_add'),
         'icon': $r('sys.symbol.plus'), 'componentId': MODEL_SOURCE_ADD_BUTTON_ID,
         'isEnabled': param.modelSourcesTitleAction.enabled,
-        'action': (): void => { param.modelSourcesTitleAction.requestId++ } }
-      const items: Record<string, Object>[] = [{ 'content': add }]
-      content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
-      return options
+        'action': (): void => { param.modelSourcesTitleAction.requestId++ } } }]
     }
-    if (param.pane !== 'translation') return options
-    const content = options['content'] as Record<string, Object>
-    const action: Record<string, Object> = {
+    if (param.pane !== 'translation') return []
+    return [{ content: {
       'label': AppStrings.get('common_save'), 'icon': $r('sys.symbol.checkmark'),
       'isEnabled': param.formTitleAction.enabled,
       'action': (): void => { param.formTitleAction.requestSave() },
-    }
-    const item: Record<string, Object> = { 'content': action }
-    const menu: Record<string, Object> = { 'value': [item], 'maxCount': 1 }
-    content['menu'] = menu
-    return options
+    } }]
   }
 
   private deviceSyncReviewTitle(reason: DeviceSyncReviewReason): string {

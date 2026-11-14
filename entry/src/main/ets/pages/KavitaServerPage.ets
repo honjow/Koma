@@ -16,6 +16,8 @@ function s(name: string): string {
 
 @ComponentV2
 export struct KavitaServerPage {
+  @Param inModal: boolean = false
+  @Provider('koma.modal.groupedCards') private modalGroupedCards: boolean = false
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private baseUrl: string = ''
   @Local private apiKey: string = ''
@@ -31,6 +33,7 @@ export struct KavitaServerPage {
   }
 
   aboutToAppear(): void {
+    this.modalGroupedCards = this.inModal
     this.loadSaved()
   }
 
@@ -217,6 +220,7 @@ export struct KavitaServerPage {
   build() {
     Column() {
       SecondaryListScaffold({
+        inModal: this.inModal,
         listSpace: ThemeConstants.SPACE_LG,
         bottomPadding: ThemeConstants.SPACE_XL,
         includeKeyboardPadding: true,
@@ -231,6 +235,6 @@ export struct KavitaServerPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
+    .backgroundColor(this.inModal ? Color.Transparent : ThemeConstants.BG_SUB)
   }
 }

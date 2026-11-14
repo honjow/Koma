@@ -312,14 +312,13 @@ export struct KomaAboutContent {
     .width('100%')
     .alignItems(HorizontalAlign.Center)
     .justifyContent(FlexAlign.Center)
+    // Keep the header's vertical spacing when displaying it without a card surface.
     .padding({
       left: ThemeConstants.SPACE_LG,
       right: ThemeConstants.SPACE_LG,
       top: ThemeConstants.SPACE_XL,
       bottom: ThemeConstants.SPACE_LG,
     })
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder

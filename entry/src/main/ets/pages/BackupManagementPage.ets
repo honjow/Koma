@@ -2,7 +2,7 @@ import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { selectAutomaticBackupDirectory, AutomaticBackupDirectorySelection } from '../model/BackupAutomaticDirectory'
-import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaToastOptions, komaDialogMaterial, komaModalCardSurface } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { Binding, CustomContentDialogV2, LengthMetrics, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
@@ -78,6 +78,8 @@ export struct BackupManagementPage {
   @Param searchTarget: string = ''
   @Event onOpenDeviceSync: () => void = () => {}
   @Param backupScroller: Scroller = new Scroller()
+  @Param inModal: boolean = false
+  @Provider('koma.modal.groupedCards') private modalGroupedCards: boolean = false
   @Local private backupSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Param refreshRevision: number = 0
   @Event onRestoreCompleted: () => void = () => {}
@@ -834,14 +836,15 @@ export struct BackupManagementPage {
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
     .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+    .backgroundColor(this.inModal ? komaModalCardSurface() : ThemeConstants.CARD)
   }
 
   private positionBackupSection(): void {
     // Search positions the same page without creating, importing or changing a preference.
     const index = BACKUP_SECTIONS.indexOf(this.searchTarget)
     if (index < 0) return
-    const inset = this.backupSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_MD
+    const inset = (this.inModal ? 0 : this.backupSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT) +
+      ThemeConstants.SPACE_MD
     // The shared scaffold owns the first spacer item.
     this.backupScroller.scrollToIndex(index + 1, false, ScrollAlign.START, { extraOffset: LengthMetrics.vp(-inset) })
   }
@@ -1276,7 +1279,7 @@ export struct BackupManagementPage {
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
     .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+    .backgroundColor(this.inModal ? komaModalCardSurface() : ThemeConstants.CARD)
   }
 
   build() {
@@ -1284,6 +1287,7 @@ export struct BackupManagementPage {
       Column() {
         SecondaryListScaffold({
           scroller: this.backupScroller,
+          inModal: this.inModal,
           onListAttach: () => { this.positionBackupSection() },
           listSpace: ThemeConstants.SPACE_LG,
           bottomPadding: ThemeConstants.SPACE_XL,
@@ -1306,7 +1310,7 @@ export struct BackupManagementPage {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(ThemeConstants.BG_SUB)
+      .backgroundColor(this.inModal ? Color.Transparent : ThemeConstants.BG_SUB)
     }
   }
 
@@ -1316,6 +1320,7 @@ export struct BackupManagementPage {
   }
 
   aboutToAppear(): void {
+    this.modalGroupedCards = this.inModal
     this.active = true
     this.backupState = this.backupService().managementState()
     // Mount preference controls with the last saved/read values, never the defaults while a read is pending.

@@ -1,5 +1,5 @@
 import { KomaSheetOptions, komaModalContentBackground, komaSheetOptions } from '../theme/KomaPopupOptions'
-import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions, hdsMaterial, ScrollEffectType, BlurStrategy, DividerShowType, BottomBuilderParams } from '@kit.UIDesignKit'
+import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions, HdsNavigationTitleBarOptions, hdsMaterial, ScrollEffectType, BlurStrategy, DividerShowType, BottomBuilderParams } from '@kit.UIDesignKit'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -16,6 +16,50 @@ export function komaModalSheetOptions(options: KomaSheetOptions): SheetOptions {
   return komaSheetOptions(options)
 }
 
+export function komaModalCloseAction(onClose: () => void): HdsNavigationMenuItemOptions {
+  return { content: { label: AppStrings.get('common_close'), icon: $r('sys.symbol.xmark'),
+    isEnabled: true, action: onClose } }
+}
+
+export function komaModalTitleBarOptions(title: ResourceStr, actions: HdsNavigationMenuItemOptions[],
+  subtitle?: ResourceStr, titleBottom?: BottomBuilderParams): HdsNavigationTitleBarOptions {
+  return {
+    enableComponentSafeArea: true,
+    style: {
+      systemMaterialEffect: deviceInfo.apiAvailable('6.1.0') ? {
+        materialType: hdsMaterial.MaterialType.ADAPTIVE,
+        materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
+      } : undefined,
+      scrollEffectOpts: { enableScrollEffect: true, scrollEffectType: ScrollEffectType.GRADIENT_BLUR },
+      blurStrategy: BlurStrategy.ENABLE,
+    },
+    content: {
+      bottomBuilder: titleBottom,
+      title: { mainTitle: title, subTitle: subtitle },
+      menu: { value: actions, maxCount: Math.min(3, actions.length) },
+    },
+  }
+}
+
+@ComponentV2
+export struct KomaModalContent {
+  @Param useInset: boolean = true
+  @BuilderParam content: () => void
+
+  build() {
+    if (this.useInset) {
+      Column() {
+        this.content()
+      }
+      .width('100%')
+      .height('100%')
+      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+    } else {
+      this.content()
+    }
+  }
+}
+
 @ComponentV2
 export struct KomaModalScaffold {
   @Param title: ResourceStr = ''
@@ -25,6 +69,7 @@ export struct KomaModalScaffold {
   // not another horizontal wrapper. A full-bleed WebView explicitly opts out.
   @Param contentHorizontalPadding: number = ThemeConstants.SPACE_LG
   @Param contentOwnsScrolling: boolean = false
+  @Param contentOwnsNavigation: boolean = false
   // Fixed search results can consume scrolling without changing the sheet detent.
   @Param keepScrollInContent: boolean = false
   @Param titleBottom: BottomBuilderParams | undefined = undefined
@@ -51,8 +96,7 @@ export struct KomaModalScaffold {
       items.push({ content: { label: this.confirmLabel, icon: $r('sys.symbol.checkmark'),
         isEnabled: this.confirmEnabled, action: (): void => { this.onConfirm() } } })
     }
-    items.push({ content: { label: AppStrings.get('common_close'), icon: $r('sys.symbol.xmark'),
-      isEnabled: true, action: (): void => { this.onClose() } } })
+    items.push(komaModalCloseAction(this.onClose))
     return items
   }
 
@@ -102,7 +146,9 @@ export struct KomaModalScaffold {
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
-      if (this.tabLabels.length > 0) {
+      if (this.contentOwnsNavigation) {
+        this.content()
+      } else if (this.tabLabels.length > 0) {
         Stack({ alignContent: Alignment.TopStart }) {
           this.TabbedModal()
           this.TabHeader()
@@ -149,33 +195,7 @@ export struct KomaModalScaffold {
             }
           }.width('100%').height('100%')
         }
-        .titleBar({
-          enableComponentSafeArea: true,
-          style: {
-            // The sheet's material does not configure HDS title actions. Keep the
-            // shared title bar on the same adaptive material contract as app pages.
-            systemMaterialEffect: deviceInfo.apiAvailable('6.1.0') ? {
-              materialType: hdsMaterial.MaterialType.ADAPTIVE,
-              materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-            } : undefined,
-            scrollEffectOpts: {
-              enableScrollEffect: true,
-              scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-            },
-            blurStrategy: BlurStrategy.ENABLE,
-          },
-          content: {
-            bottomBuilder: this.titleBottom,
-            title: {
-              mainTitle: this.title,
-              subTitle: this.subtitle,
-            },
-            menu: {
-              value: this.titleBarActions(),
-              maxCount: Math.min(3, this.additionalActions.length + (this.confirmLabel === undefined ? 1 : 2)),
-            },
-          },
-        })
+        .titleBar(komaModalTitleBarOptions(this.title, this.titleBarActions(), this.subtitle, this.titleBottom))
         .titleMode(HdsNavigationTitleMode.MODAL)
         .bindToScrollable([this.scroller])
         .width('100%')
@@ -184,6 +204,7 @@ export struct KomaModalScaffold {
     }
     .width('100%')
     .height('100%')
+    .clip(this.contentOwnsNavigation)
     .backgroundColor(komaModalContentBackground(this.modalSurfaceColor))
   }
 }

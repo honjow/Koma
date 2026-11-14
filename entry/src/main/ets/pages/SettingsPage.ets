@@ -209,8 +209,12 @@ interface SettingsPaneSection {
   items: SettingsPaneItem[]
 }
 
-// The root settings list already excludes page insets from its measured width.
-const SETTINGS_ROOT_TOP_PAIR_MIN_WIDTH: number = 560
+const SETTINGS_LIST_HORIZONTAL_PADDING: number = ThemeConstants.SPACE_MD
+const SETTINGS_ROOT_TWO_COLUMN_MIN_WIDTH: number = 560
+
+export function usesWideSettingsHome(windowWidthVp: number): boolean {
+  return windowWidthVp - 2 * SETTINGS_LIST_HORIZONTAL_PADDING >= SETTINGS_ROOT_TWO_COLUMN_MIN_WIDTH
+}
 
 interface SettingsSearchResult {
   key: string
@@ -529,8 +533,9 @@ export struct SettingsPage {
   @Event onOpenSettingsPane: (pane: SettingsPaneKey, rowKey?: string) => void = (_pane: SettingsPaneKey, _rowKey?: string) => {}
   @Param searchTarget: string = ''
   @Param embeddedTracking: boolean = false
+  @Param inModal: boolean = false
+  @Provider('koma.modal.groupedCards') private modalGroupedCards: boolean = false
   @Local private settingsSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
-  @Local private rootSettingsWidth: number = 0
   @Local private incognito: IncognitoState = connectIncognitoState()
   private positionedSearchTarget: boolean = false
   @Event onOpenKomgaSettings: () => void = () => {}
@@ -2701,8 +2706,8 @@ export struct SettingsPage {
     const y = Number(area.globalPosition.y)
     if (this.positionedSearchTarget || Number(area.height) <= 0 || !Number.isFinite(y)) return
     this.positionedSearchTarget = true
-    const top = this.settingsSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_SM
-    this.scroller.scrollBy(0, y - top)
+    const top = this.inModal ? 0 : this.settingsSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT
+    this.scroller.scrollBy(0, y - top - ThemeConstants.SPACE_SM)
   }
 
   @Builder
@@ -2771,14 +2776,50 @@ export struct SettingsPage {
   }
 
   @Builder
+  private RootItemPair(first: SettingsPaneItem, second: SettingsPaneItem | undefined) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Column() { this.RootPaneRow(first) }.layoutWeight(1)
+      Column() {
+        if (second !== undefined) {
+          this.RootPaneRow(second)
+        }
+      }.layoutWeight(1)
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Computed
+  get rootSettingsUsesTwoColumns(): boolean {
+    // The root tab fills the main window. Use its published width before the
+    // list's first layout so an intermediate full-width row is never built.
+    return usesWideSettingsHome(this.settingsSafeArea.windowWidthVp)
+  }
+
+  @Builder
   private RootSection(section: SettingsPaneSection) {
     GroupedListSection() {
-      ForEach(section.items, (item: SettingsPaneItem, index: number) => {
-        this.RootPaneRow(item)
-        if (index < section.items.length - 1) {
-          ListDivider()
-        }
-      }, (item: SettingsPaneItem) => item.key)
+      if (section.items.length > 1 && this.rootSettingsUsesTwoColumns) {
+        ForEach(section.items.filter((_item: SettingsPaneItem, index: number) => index % 2 === 0),
+          (item: SettingsPaneItem, row: number) => {
+            this.RootItemPair(item, section.items[row * 2 + 1])
+            if (row * 2 + 2 < section.items.length) {
+              // Each segment follows its column and leaves the center gutter untouched.
+              Row({ space: ThemeConstants.SPACE_SM }) {
+                Column() { ListDivider({ rightMargin: ThemeConstants.SPACE_LG }) }.layoutWeight(1)
+                Column() { ListDivider({ rightMargin: ThemeConstants.SPACE_LG }) }.layoutWeight(1)
+              }
+              .width('100%')
+            }
+          }, (item: SettingsPaneItem) => item.key)
+      } else {
+        ForEach(section.items, (item: SettingsPaneItem, index: number) => {
+          this.RootPaneRow(item)
+          if (index < section.items.length - 1) {
+            ListDivider()
+          }
+        }, (item: SettingsPaneItem) => item.key)
+      }
     }
   }
 
@@ -2786,15 +2827,9 @@ export struct SettingsPage {
   private RootSettings(sections: SettingsPaneSection[]) {
     Column({ space: ThemeConstants.SPACE_LG }) {
       // The first two groups share a surface only when both original HDS rows fit.
-      if (this.rootSettingsWidth >= SETTINGS_ROOT_TOP_PAIR_MIN_WIDTH) {
+      if (this.rootSettingsUsesTwoColumns) {
         GroupedListSection() {
-          Row({ space: ThemeConstants.SPACE_SM }) {
-            // Split the available width evenly; longer descriptions wrap within their slot.
-            Column() { this.RootPaneRow(sections[0].items[0]) }.layoutWeight(1)
-            Column() { this.RootPaneRow(sections[1].items[0]) }.layoutWeight(1)
-          }
-          .width('100%')
-          .alignItems(VerticalAlign.Center)
+          this.RootItemPair(sections[0].items[0], sections[1].items[0])
         }
       } else {
         this.RootSection(sections[0])
@@ -2805,10 +2840,6 @@ export struct SettingsPage {
       }, (section: SettingsPaneSection) => section.key)
     }
     .width('100%')
-    .onSizeChange((_old: SizeOptions, size: SizeOptions) => {
-      const width = Number(size.width)
-      if (width > 0 && this.rootSettingsWidth !== width) this.rootSettingsWidth = width
-    })
   }
 
   @Builder
@@ -2871,7 +2902,8 @@ export struct SettingsPage {
   @Builder
   private Section(section: SettingsSection) {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      GroupedListSection({ title: section.titleKey.length > 0 ? this.sectionTitle(section) : undefined }) {
+      GroupedListSection({ title: section.titleKey.length > 0 ? this.sectionTitle(section) : undefined,
+        inModal: this.modalGroupedCards }) {
         ForEach(section.rows, (row: SettingsRow, index: number) => {
           if (row.key === this.searchTarget) {
             Column() { this.SectionRow(row) }
@@ -2995,6 +3027,7 @@ export struct SettingsPage {
   }
 
   aboutToAppear(): void {
+    this.modalGroupedCards = this.inModal
     this.loadPanePreferences()
     void supportsReaderSmartKeyNavigation().then((available: boolean): void => {
       this.readerSmartKeyAvailable = available
@@ -3014,6 +3047,8 @@ export struct SettingsPage {
           scroller: this.scroller,
           onDidScroll: this.onRootScroll,
           listSpace: ThemeConstants.SPACE_LG,
+          horizontalPadding: SETTINGS_LIST_HORIZONTAL_PADDING,
+          inModal: this.inModal,
           bottomPadding: ThemeConstants.SPACE_XL,
           floatingTabTailPadding: this.pane === 'root' ? ThemeConstants.FLOATING_TAB_BAR_CLEARANCE : 0,
         }) {
@@ -3029,7 +3064,7 @@ export struct SettingsPage {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(ThemeConstants.BG_SUB)
+      .backgroundColor(this.inModal ? Color.Transparent : ThemeConstants.BG_SUB)
       .bindSheet($$this.readerDisplaySheetShown, this.ReaderDisplaySheet, komaSheetOptions({
         detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false, enableOutsideInteractive: false,
         scrollSizeMode: ScrollSizeMode.CONTINUOUS, enableFloatingDragBar: true,

@@ -88,28 +88,53 @@
     {
       "id": "SETTINGS_ROOT_ADAPTIVE_PAIR",
       "number": 301,
-      "title": "设置首页顶部两项宽窗等宽合组",
+      "title": "设置首页首帧适配及宽窗子页",
       "kind": "done",
       "priority": "用户反馈",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-15",
       "reportedAtSource": "本轮用户指定无痕模式、下载管理及 103 两种窗口状态，原始时刻未核实。",
-      "status": "103 竖屏和窄悬浮窗往返已核对",
-      "result": "103 最终包竖屏全屏一张卡内两项等宽，实测各 754 px，间隔 19 px。无痕说明改为「不记历史和进度，不同步」，全屏和窄悬浮窗均实拍单行。窄悬浮窗恢复两组，回全屏重新合组。点列间空隙无操作，无痕开关开关后恢复原值，下载管理可正常打开及返回。103 复原全屏设置页和原电源超时，保留验证包并释租。",
-      "remaining": "此轮限设置首页两项及 103 两种窗口状态。未做其他分组的多列适配。原生按压过渡录制来自文字缩短前的等宽包；最终包实测操作路径。",
+      "status": "103 核对次级标题栏、首帧及面板内推入返回",
+      "result": "103 最终包竖屏全屏一张卡内两项等宽，实测各 754 px，间隔 19 px。无痕说明改为「不记历史和进度，不同步」，全屏和窄悬浮窗均实拍单行。窄悬浮窗恢复两组，回全屏重新合组。点列间空隙无操作，无痕开关开关后恢复原值，下载管理可正常打开及返回。103 复原全屏设置页和原电源超时，保留验证包并释租。 继续按用户要求适配下方两组：103 全屏竖屏下原顺序逐行排成等宽两列，两张分组卡片各自保留，行间分隔线在列间断开。窄悬浮窗两组恢复原单列，最大化重新排成两列。外观、追踪的原生按下反馈只出现在本项，均可打开和返回；列间空白无动作。103 保留新候选，恢复原全屏设置页及与测试前一致的 600 秒电源超时并释租。修复：设置首页首帧用主窗口宽度扣除列表留白，移除以零宽度起步的尺寸回调。最终包已核对首次入场、窄悬浮窗及最大化。宽窗四个具名入口实拍半模态，备份进入同步后返回原半模态。该版展示和导航被本轮用户纠正取代。现用系统默认半模态及面板内原生导航栈，统一列表留白与材质，推入及返回相邻滑动。下载管理沿用独立页面。 统一各级 HDS 半模态标题栏。103 的诊断日志返回键下移 19 px，与首层关闭键等高。修复同步返回首帧两页叠字，返回前被覆盖页已停在左边界外。103 核对高级和诊断日志、备份与恢复和同步，含标题栏按钮及系统返回。",
+      "remaining": "最终包的深色、横屏、分屏及其他设置分支未逐一实测。",
       "evidence": [
+        ".hvigor/outputs/settings-root-adaptive-103/settings-root-default-sheet-title-stable-signed.hap",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/modal-title-stable-roundtrip/modal-title-stable-roundtrip.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/modal-title-new-layout/diagnostics-title-comparison.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/modal-title-stable-roundtrip/sync-button-back.jpg",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/modal-title-stable-restore/run-metadata.json",
         ".hvigor/outputs/settings-root-adaptive-103/settings-root-adaptive-short-copy-signed.hap",
         ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-wide/portrait.png",
         ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-window/floating.png",
         ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-window/wide-return.png",
         ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-actions/on.json",
         ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-return/final-home.json",
-        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/restore/run-metadata.json"
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/restore/run-metadata.json",
+        ".hvigor/outputs/settings-root-adaptive-103/settings-root-adaptive-groups-signed.hap",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-wide/portrait.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-window/floating.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-narrow-return/lower.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-complete-window/tail.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-window/wide-return.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-recording/koma-settings-groups-press-103.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-restore/run-metadata.json",
+        ".hvigor/outputs/settings-root-adaptive-103/settings-root-first-frame-modal-signed.hap",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/first-frame-anchor-wide/first-frame-anchor-wide.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/first-frame-anchor-wide/decoded-frame-changes.tsv",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/first-frame-anchor-narrow/first-frame-anchor-narrow.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/first-frame-new-anchor-terminal/settings.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/first-frame-restore/run-metadata.json",
+        ".hvigor/outputs/settings-root-adaptive-103/settings-root-default-sheet-entry-signed.hap",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/full-height-motion-entry/full-height-motion-entry.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/full-height-motion-entry/settings-navigation-demo.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/full-height-final-compare/modal-insets-comparison.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/full-height-window-return/appearance.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/full-height-restore/run-metadata.json"
       ],
       "progressPhase": "done",
-      "updatedAt": "2026-11-15T04:18:07+08:00",
-      "closedAt": "2026-11-15T04:18:07+08:00"
+      "updatedAt": "2026-11-15T05:54:14+08:00",
+      "closedAt": "2026-11-15T05:54:14+08:00"
     },
     {
       "id": "LIBRARY_SHELF_CONTROL_FEEDBACK",
@@ -8715,7 +8740,7 @@
       "owner": "Root：关于页及更新日志移植",
       "dependencies": [],
       "relatedItems": [],
-      "result": "关于页按NextE结构移植；真实更新、Markdown历史、版本切换与滑动、缓存重入及所选发布页打开已验证。",
+      "result": "关于页按NextE结构移植；真实更新、Markdown历史、版本切换与滑动、缓存重入及所选发布页打开已验证。 按用户要求去掉关于页顶部 Koma 区域的卡片底色。103 改前改后实测该区域高 264 px，标题、版本和下方应用分组坐标一致。",
       "remaining": "",
       "remainingActions": [],
       "boundaries": [
@@ -8727,6 +8752,7 @@
       "reopenedAt": null,
       "closedAt": "2026-10-29T21:33:43+08:00",
       "evidence": [
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/modal-title-new-layout/about-header-comparison.png",
         "同签0.1.3/code4 release候选HAP d47589…；diagnostics/about197-validation-94与98/99/101：真实GitHub历史、NativeMarkdown、v0.1.2/v0.1.3选择与双向滑动、取消及缓存重入已亲审；about197-external-loaded-99浏览器DOM多处v0.1.2-pre。首次脚本隐形/可见页签bounds不同而停，保失败后按共同区域恢复；浏览器单次Back未回关于页，保101现场并走恢复分支，不冒返回成功。三语言说明及隐私文档同步中，版本未变、未tag发布。",
         "旧隐私/开源主列表行移除，许可仍包内；197最终原七域byteEqual、原书架、SLEEP/120000/Override10000及租约released，最终ae70同签0.1.3/code4保留，非新发版。diagnostics/about197-validation-94/delivery-findings.json、about-native-live-history.png、about-swipe-newer/older-release.png、about-selected-release-loaded.png及103/104回执。102 context旧d475标签但install argv指ae70，按delivery-findings说明。正式提交与CI待核。",
         "源码50e5cba93d180f67e348324d302c34e3ee45cedb已推，精确CI待核；未tag或发布新版本。",
@@ -10837,6 +10863,71 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "settings-sheet-title-and-about-header-20261115",
+      "at": "2026-11-15T05:54:14+08:00",
+      "itemId": "SETTINGS_ROOT_ADAPTIVE_PAIR",
+      "title": "103 核对次级标题栏及半模态往返",
+      "detail": "诊断日志返回键距面板顶从 19 px 调整到 38 px，改用和首层一致的 HDS 半模态标题栏。录屏重现同步返回首帧叠字后，令被覆盖页提前停在可视区外；最终录屏检查诊断日志返回、同步按钮返回和系统返回，复核帧未见两层叠绘。关于页去底色并保留原高度。103 恢复至全屏设置及 600 秒息屏超时，保留同签候选包并释租。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/modal-title-stable-roundtrip/modal-title-stable-roundtrip.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/modal-title-stable-roundtrip/sync-button-back.jpg",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/modal-title-new-layout/diagnostics-title-comparison.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/modal-title-new-layout/about-header-comparison.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/modal-title-stable-restore/run-metadata.json"
+      ]
+    },
+    {
+      "id": "settings-default-sheet-nested-navigation-20261115",
+      "at": "2026-11-15T05:40:46+08:00",
+      "itemId": "SETTINGS_ROOT_ADAPTIVE_PAIR",
+      "title": "103 核对默认半模态、统一内边距和逐级转场",
+      "detail": "此前的底部全宽候选和侧边候选均已撤下，当前使用系统默认位置和尺寸。103 宽窗的图片插件、诊断日志和同步面板同为 1140×1330 px，列表左右各留 38 px。原生导航栈在面板内推入，页面创建前确定起点，前后页移动区域相邻。录屏核对备份、同步、WebDAV 同步往返及高级、诊断日志往返，返回图片插件前的阅读页位置保持。下载管理仍为原独立页面。窄窗外观复测使用整页，恢复全屏双列。设备保留最终签名包，息屏超时恢复 600 秒并释租。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/settings-root-adaptive-103/settings-root-default-sheet-entry-signed.hap",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/full-height-motion-entry/full-height-motion-entry.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/full-height-motion-entry/settings-navigation-demo.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/full-height-final-compare/modal-insets-comparison.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/full-height-window-return/appearance.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/full-height-restore/run-metadata.json"
+      ]
+    },
+    {
+      "id": "settings-root-first-frame-and-wide-modal-20261115",
+      "at": "2026-11-15T04:50:59+08:00",
+      "itemId": "SETTINGS_ROOT_ADAPTIVE_PAIR",
+      "title": "103 复测设置首帧和全高半模态",
+      "detail": "竖屏全屏首次可见设置列表已是等宽双列，窄悬浮窗首屏为单列且外观沿用整页导航，最大化恢复双列。宽窗外观、下载管理、追踪、备份与恢复使用全高半模态；从备份打开同步后系统返回同一个半模态。原有已打开页签的旧包录屏未捕捉到单列闪动。恢复全屏设置和 600 秒超时，保留最终签名包并释租。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/settings-root-adaptive-103/settings-root-first-frame-modal-signed.hap",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/first-frame-anchor-wide/first-frame-anchor-wide.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/first-frame-anchor-wide/decoded-frame-changes.tsv",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/first-frame-anchor-narrow/first-frame-anchor-narrow.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/first-frame-new-anchor-terminal/settings.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/first-frame-restore/run-metadata.json"
+      ]
+    },
+    {
+      "id": "settings-root-adaptive-groups-2026-11-15T04:27:21+08:00",
+      "at": "2026-11-15T04:27:21+08:00",
+      "itemId": "SETTINGS_ROOT_ADAPTIVE_PAIR",
+      "title": "103 已核对设置首页下方两组的双列与单列",
+      "detail": "沿用顶部宽度阈值，两组各自保留卡片和交互；分隔线分段、窄窗恢复单列。实拍、按下录屏和状态恢复均已核对。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/settings-root-adaptive-103/settings-root-adaptive-groups-signed.hap",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-wide/portrait.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-window/floating.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-narrow-return/lower.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-complete-window/tail.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-window/wide-return.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-recording/koma-settings-groups-press-103.mp4",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/groups-restore/run-metadata.json"
+      ]
+    },
     {
       "id": "settings-root-adaptive-pair-2026-11-15T04:18:07+08:00",
       "at": "2026-11-15T04:18:07+08:00",

@@ -124,6 +124,10 @@ interface SourceDiagnosticsSettingCounts {
 
 @ComponentV2
 export struct SourcePackageManagerPage {
+  @Param inModal: boolean = false
+  @Event onOpenSubscriptions: () => void = (): void => { RouterHelper.openLaunchRoute(RouteName.SOURCE_SUBSCRIPTIONS) }
+  @Event onCloseSettingsRoute: () => void = (): void => { RouterHelper.pop() }
+  @Event onOpenSourceCatalog: (action: () => void) => void = (action: () => void): void => { action() }
   @Param chrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
   @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
   @Local private localImport: SourcePackageLocalImport = appSourcePackageLocalImport
@@ -529,14 +533,14 @@ export struct SourcePackageManagerPage {
     if (!source.enabled) {
       return
     }
-    RouterHelper.pushSourceBrowse({ source: this.sourceSummary(source) })
+    this.onOpenSourceCatalog((): void => { RouterHelper.pushSourceBrowse({ source: this.sourceSummary(source) }) })
   }
 
   private openSourceSearch(source: InstalledSourcePackage): void {
     if (!source.enabled || !this.sourceSupportsSearch(source)) {
       return
     }
-    RouterHelper.pushSourceSearch({ source: this.sourceSummary(source) })
+    this.onOpenSourceCatalog((): void => { RouterHelper.pushSourceSearch({ source: this.sourceSummary(source) }) })
   }
 
   private sourceSheetSource(): InstalledSourcePackage | undefined {
@@ -555,7 +559,7 @@ export struct SourcePackageManagerPage {
   }
 
   private openIndexSheet(): void {
-    RouterHelper.openLaunchRoute(RouteName.SOURCE_SUBSCRIPTIONS)
+    this.onOpenSubscriptions()
   }
 
   private requestSourceSheetDismiss(action: SourceManagerPendingAction = 'none', source?: InstalledSourcePackage): void {
@@ -670,7 +674,7 @@ export struct SourcePackageManagerPage {
     this.closeSettings()
     if (this.settingsRouteActive && this.settingsAuthenticationChanged) this.onSettingsSaved()
     this.settingsAuthenticationChanged = false
-    if (this.settingsRouteActive && this.initialSettingsSourceId.length > 0) RouterHelper.pop()
+    if (this.settingsRouteActive && this.initialSettingsSourceId.length > 0) this.onCloseSettingsRoute()
   }
 
   private finishSourceIndexSheetDismissal(): void {
@@ -2548,7 +2552,7 @@ export struct SourcePackageManagerPage {
   private PackageListGroups(groups: SourcePackageListGroups) {
     if (groups.updates.length > 0) {
       ListItem() {
-        GroupedListSection({
+        GroupedListSection({ inModal: this.inModal,
           title: t('source_pkg_update_available'),
           actionLabel: t('source_pkg_update_all'),
           action: () => { this.updateAllAvailablePackages() },
@@ -2563,7 +2567,7 @@ export struct SourcePackageManagerPage {
     }
     if (groups.installed.length > 0) {
       ListItem() {
-        GroupedListSection({ title: t('source_pkg_installed_heading') }) {
+        GroupedListSection({ inModal: this.inModal, title: t('source_pkg_installed_heading') }) {
           ForEach(groups.installed, (source: InstalledSourcePackage, index: number) => {
             this.PackageCard(source)
             if (source.id !== this.lastInstalledSourceId) { ListDivider() }
@@ -2577,7 +2581,7 @@ export struct SourcePackageManagerPage {
         ListItem() {
           // Like Browse, keep the language key stable and read the live members
           // when an install, filter or search changes the section.
-          GroupedListSection({ title: sourceLanguageName(language) || t('source_catalog_language_unknown') }) {
+          GroupedListSection({ inModal: this.inModal, title: sourceLanguageName(language) || t('source_catalog_language_unknown') }) {
             ForEach(this.missingInLanguage(language), (entry: SourceIndexEntry) => {
               this.RemoteIndexCard(entry)
               if (entry.id !== this.lastMissingSourceId(language)) { ListDivider() }
@@ -2596,7 +2600,7 @@ export struct SourcePackageManagerPage {
   @Builder
   private RecoverySourceGroup() {
     ListItem() {
-      GroupedListSection({ title: this.recoverySourceName || this.recoverySourceId }) {
+      GroupedListSection({ inModal: this.inModal, title: this.recoverySourceName || this.recoverySourceId }) {
         ConciseListRow({ title: this.recoverySourceId,
           subtitle: t('device_sync_source_identity_hint'), showChevron: false })
         if (this.installedPackage(this.recoverySourceId)?.enabled === false) {
@@ -2630,6 +2634,10 @@ export struct SourcePackageManagerPage {
       Stack() {
         Column() {
           PullRefreshListScaffold({
+            horizontalPadding: this.inModal ? 0 : ThemeConstants.SPACE_MD,
+            reserveTitleBar: !this.inModal,
+            reserveSystemSafeArea: !this.inModal,
+            surfaceColor: this.inModal ? Color.Transparent : ThemeConstants.BG_SUB,
             scroller: this.chrome.scroller,
             pinnedOverlayHeight: this.initialSettingsSourceId.length === 0 ? SOURCE_MANAGER_SECTIONS_HEIGHT : 0,
             listSpace: ThemeConstants.SPACE_MD,
@@ -2663,7 +2671,7 @@ export struct SourcePackageManagerPage {
         // Keep each mounted list and its scroll position when switching sections;
         // only visiting Plugins initializes its existing global management view.
         if (this.chrome.pluginsVisited && this.initialSettingsSourceId.length === 0) {
-          ImagePluginsPage({ pinnedOverlayHeight: SOURCE_MANAGER_SECTIONS_HEIGHT })
+          ImagePluginsPage({ pinnedOverlayHeight: SOURCE_MANAGER_SECTIONS_HEIGHT, embedded: this.inModal })
             .visibility(this.chrome.section === 'plugins' ? Visibility.Visible : Visibility.Hidden)
         }
         Column() {
@@ -2688,7 +2696,7 @@ export struct SourcePackageManagerPage {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(ThemeConstants.BG_SUB)
+      .backgroundColor(this.inModal ? Color.Transparent : ThemeConstants.BG_SUB)
     }
   }
 }

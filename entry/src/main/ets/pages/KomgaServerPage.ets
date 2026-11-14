@@ -18,6 +18,8 @@ function s(name: string): string {
 
 @ComponentV2
 export struct KomgaServerPage {
+  @Param inModal: boolean = false
+  @Provider('koma.modal.groupedCards') private modalGroupedCards: boolean = false
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private baseUrl: string = ''
   @Local private authKind: KomgaAuthKind = KomgaAuthKind.BASIC
@@ -37,6 +39,7 @@ export struct KomgaServerPage {
   }
 
   aboutToAppear(): void {
+    this.modalGroupedCards = this.inModal
     this.loadSaved()
   }
 
@@ -284,6 +287,7 @@ export struct KomgaServerPage {
   build() {
     Column() {
       SecondaryListScaffold({
+        inModal: this.inModal,
         listSpace: ThemeConstants.SPACE_LG,
         bottomPadding: ThemeConstants.SPACE_XL,
         includeKeyboardPadding: true,
@@ -298,6 +302,6 @@ export struct KomgaServerPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
+    .backgroundColor(this.inModal ? Color.Transparent : ThemeConstants.BG_SUB)
   }
 }

@@ -39,14 +39,14 @@ export interface KomaSheetOptions extends SheetOptions {
 }
 
 /** Callers may decide whether to close. Only the shared options can execute a native dismissal. */
-export function komaSheetOptions(options: KomaSheetOptions, canDismiss?: () => boolean): SheetOptions {
+export function komaSheetOptions(options: KomaSheetOptions, canDismiss?: (reason: DismissReason) => boolean): SheetOptions {
   // App sheets have a close action in the shared modal title bar. A second
   // native close button overlaps it on wide windows and uses a different surface.
   options.showClose = false
   options.systemMaterial = popupMaterial(true)
   const nativeOptions: SheetOptions = options
   if (canDismiss !== undefined) {
-    nativeOptions.onWillDismiss = (action: DismissSheetAction): void => { if (canDismiss()) action.dismiss() }
+    nativeOptions.onWillDismiss = (action: DismissSheetAction): void => { if (canDismiss(action.reason)) action.dismiss() }
   }
   return nativeOptions
 }

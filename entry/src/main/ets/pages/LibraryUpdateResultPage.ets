@@ -34,6 +34,9 @@ function s(name: string): string {
 
 @ComponentV2
 export struct LibraryUpdateResultPage {
+  @Param inModal: boolean = false
+  @Event onOpenResult: (action: () => void) => void = (action: () => void): void => { action() }
+  @Provider('koma.modal.groupedCards') private modalGroupedCards: boolean = false
   @Param libraryStore?: LibraryStore = undefined
   @Param sourceRegistry?: SourceRuntimeRegistry = undefined
   @Local private languageState: LanguageState = connectLanguageState()
@@ -50,6 +53,7 @@ export struct LibraryUpdateResultPage {
   }
 
   aboutToAppear(): void {
+    this.modalGroupedCards = this.inModal
     this.reloadResults()
   }
 
@@ -185,7 +189,7 @@ export struct LibraryUpdateResultPage {
   }
 
   private openResultComic(result: LibraryUpdateComicResult): void {
-    RouterHelper.pushMangaDetail({ mangaId: result.comicId })
+    this.onOpenResult((): void => { RouterHelper.pushMangaDetail({ mangaId: result.comicId }) })
   }
 
   @Builder
@@ -386,6 +390,7 @@ export struct LibraryUpdateResultPage {
   build() {
     Column() {
       SecondaryListScaffold({
+        inModal: this.inModal,
         listSpace: ThemeConstants.SPACE_MD,
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
@@ -402,6 +407,6 @@ export struct LibraryUpdateResultPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
+    .backgroundColor(this.inModal ? Color.Transparent : ThemeConstants.BG_SUB)
   }
 }

@@ -2,7 +2,7 @@ import { AdvancedDialogV2Button, ColorMetrics, CustomContentDialogV2 } from '@ki
 import { connectTrackerBrowserAuthorization, TrackerBrowserAuthorizationState } from '../state/TrackerBrowserAuthorizationState'
 import { SettingsPage } from './SettingsPage'
 import { TRACKER_BRAND_IMAGES } from '../components/TrackerBrandIcons'
-import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
+import { komaToastOptions, komaDialogMaterial, komaModalCardSurface } from '../theme/KomaPopupOptions'
 import { TrackerDirectConnectionService, DirectTrackerProviderId } from '../model/TrackerDirectConnectionService'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
@@ -56,7 +56,8 @@ export struct TrackerSettingsPage {
   @Param providerId: string = ''
   @Param searchTarget: string = ''
   @Param preferencesRestoreRevision: number = 0
-  private settingsScroller: Scroller = new Scroller()
+  @Param settingsScroller: Scroller = new Scroller()
+  @Param inModal: boolean = false
   @Param refreshRevision: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private browserAuthorization: TrackerBrowserAuthorizationState = connectTrackerBrowserAuthorization()
@@ -712,13 +713,14 @@ export struct TrackerSettingsPage {
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
     .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+    .backgroundColor(this.inModal ? komaModalCardSurface() : ThemeConstants.CARD)
   }
 
   build() {
     Column() {
       SecondaryListScaffold({
         scroller: this.settingsScroller,
+        inModal: this.inModal,
         listSpace: ThemeConstants.SPACE_MD,
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
@@ -727,7 +729,7 @@ export struct TrackerSettingsPage {
         }
         if (this.providerId.length === 0) {
           ListItem() {
-            SettingsPage({ pane: 'tracking', embeddedTracking: true, scroller: this.settingsScroller,
+            SettingsPage({ pane: 'tracking', embeddedTracking: true, inModal: this.inModal, scroller: this.settingsScroller,
               searchTarget: this.searchTarget, preferencesRestoreRevision: this.preferencesRestoreRevision })
           }
         }
@@ -740,6 +742,6 @@ export struct TrackerSettingsPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
+    .backgroundColor(this.inModal ? Color.Transparent : ThemeConstants.BG_SUB)
   }
 }

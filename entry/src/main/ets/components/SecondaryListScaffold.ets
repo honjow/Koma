@@ -10,6 +10,7 @@ export struct SecondaryListScaffold {
   @Param scroller: Scroller = new Scroller()
   @Param listSpace: number = ThemeConstants.SPACE_SM - 2
   @Param horizontalPadding: number = ThemeConstants.SPACE_MD
+  @Param inModal: boolean = false
   // Total height owned by a pinned title-bar bottomBuilder. This is the
   // content boundary, not ordinary List padding: List.space already occupies
   // the final interval between the reserve row and the first real item.
@@ -34,7 +35,9 @@ export struct SecondaryListScaffold {
         List({ space: this.listSpace, scroller: this.scroller }) {
           ListItem() {
             Column() {
-              Blank().height(this.safeArea.topAvoidHeight + this.titleBarPadding() + this.pinnedOverlayReserve())
+              // The modal's HDS navigation places the list below its title.
+              Blank().height((this.inModal ? 0 : this.safeArea.topAvoidHeight + this.titleBarPadding()) +
+                this.pinnedOverlayReserve())
             }
             .width('100%')
           }
@@ -54,10 +57,10 @@ export struct SecondaryListScaffold {
         .width('100%')
         .height('100%')
         .padding({
-          left: this.horizontalPadding,
-          right: this.horizontalPadding,
+          left: this.inModal ? 0 : this.horizontalPadding,
+          right: this.inModal ? 0 : this.horizontalPadding,
         })
-        .clipContent(ContentClipMode.CONTENT_ONLY)
+        .clipContent(this.inModal ? ContentClipMode.SAFE_AREA : ContentClipMode.CONTENT_ONLY)
         .enableScrollInteraction(this.scrollEnabled)
         .edgeEffect(this.alwaysEnableEdgeSpring ? EdgeEffect.Spring : EdgeEffect.None, {
           alwaysEnabled: this.alwaysEnableEdgeSpring,
@@ -84,7 +87,7 @@ export struct SecondaryListScaffold {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(this.surfaceColor)
+    .backgroundColor(this.inModal ? Color.Transparent : this.surfaceColor)
   }
 
   private keyboardPadding(): number {
