@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-14T00:02:53+08:00",
+  "updatedAt": "2026-11-14T18:19:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -86,20 +86,45 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "MANGA_DETAIL_CHAPTER_FLING_20261114",
+      "number": 298,
+      "title": "详情页章节长列表惯性滚动卡顿",
+      "kind": "active",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedDate": "2026-11-14",
+      "reportedAtSource": "用户本轮反馈，原始时刻未核实。",
+      "registeredAt": "2026-11-14T17:35:46+08:00",
+      "updatedAt": "2026-11-14T18:14:35+08:00",
+      "status": "已减少惯性滚动的重复更新，明显顿挫未复现",
+      "result": "197《腦洞學生會》203 章，匹配的五次短划使详情页面更新从 777 次降到 16 次，应用最慢帧从 6.809 降到 4.626 毫秒。两组均无应用帧超过 8.3 毫秒；惯性中段合成帧间隔均约 8.3 毫秒。十次间隔 350 毫秒的快速短划，应用最慢 4.822 毫秒。返回顶部与短下拉后页面布局一致。",
+      "remaining": "原报的明显顿挫仍待真实触发条件；本次可确认已消除封面离屏后的逐帧更新。",
+      "evidence": [
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-203-trace-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-baseline-trace-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-backdrop-trace-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-backdrop-reopen-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-backdrop-after-pull-path"
+      ]
+    },
+    {
       "id": "READER_AUTOMATIC_PAGING_ORIENTATION_20261114",
       "number": 297,
       "title": "阅读器自动分页与屏幕方向",
-      "kind": "done",
+      "kind": "active",
       "priority": "用户需求",
       "owner": "Root",
       "reportedDate": "2026-11-14",
       "reportedAtSource": "用户在本会话要求实施，原始时刻未核实。",
       "registeredAt": "2026-11-14T01:12:04+08:00",
-      "updatedAt": "2026-11-14T17:12:20+08:00",
-      "status": "197 真机复测通过，常规构建已接入",
-      "result": "独立 reader-kit 原仓已推送 bac5466，Koma 常规 Release 构建通过。197 横屏全屏同章短划各 8 次。单页 237 帧，超过 8.3/16.7/33.3 毫秒分别为 12/0/0，最慢 13.65 毫秒。自动双页 239 帧，分别为 21/5/0，最慢 23.91 毫秒。两种模式均无重复的 116 MB 超分图缓冲分配。往返页组保持、放大正文与完整分辨率参考一致，冷启动回第 16 话第 14 页。 真实宽页横屏往返保持整张，竖屏右半到左半保持第 12 页。原设置、阅读位置和电源已恢复。",
-      "remaining": "120 Hz 的 8.3 毫秒预算仍有超时帧，自动双页主要耗时在原生分页组件的布局阶段。",
+      "updatedAt": "2026-11-14T18:19:00+08:00",
+      "status": "8.3 毫秒帧预算未达标，已定位图片节点创建峰值",
+      "result": "独立 reader-kit 原仓已推送 bac5466，Koma 常规 Release 构建通过。197 横屏全屏同章短划各 8 次。单页 237 帧，超过 8.3/16.7/33.3 毫秒分别为 12/0/0，最慢 13.65 毫秒。自动双页 240 帧，分别为 21/5/0，最慢 23.91 毫秒。两种模式均无重复的 116 MB 超分图缓冲分配。往返页组保持、放大正文与完整分辨率参考一致，冷启动回第 16 话第 14 页。 真实宽页横屏往返保持整张，竖屏右半到左半保持第 12 页。原设置、阅读位置和电源已恢复。 位置回调减负后仍有长帧。把邻页更新改到帧尾使双页超 16.7 毫秒由 6 帧降为 1 帧，但收集垃圾时出现 32.35 毫秒峰值，已撤回该调度实验。",
+      "remaining": "翻页仍反复构造页面与重新计算布局。以原生页组、双页视觉和原始解码为边界，减少选页带来的计算，再用 197 同一操作复验。",
       "evidence": [
+        ".hvigor/outputs/reader-auto-pagination/qa/window-after-frame-297-auto-trace-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/image-layers-297-single-trace-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/image-layers-297-auto-trace-path",
         ".hvigor/outputs/reader-auto-pagination/candidate-297-regular-bac5466.hap",
         ".hvigor/outputs/reader-auto-pagination/qa/regular-bac5466-297-single-trace-path",
         ".hvigor/outputs/reader-auto-pagination/qa/regular-bac5466-297-auto-trace-path",
@@ -170,8 +195,7 @@
         ".hvigor/outputs/reader-auto-pagination/device197__ALN-AL80/not-applicable/landscape-2720x1260/reader-auto-pagination/motion-20261114T080103844473/koma_297_final_20261114T080103844473.mp4",
         ".hvigor/outputs/reader-auto-pagination/qa/project-motion-trace-path",
         ".hvigor/outputs/reader-auto-pagination/qa/stable-restored-system-orientation-path"
-      ],
-      "closedAt": "2026-11-14T17:12:20+08:00"
+      ]
     },
     {
       "id": "MANGA_NOTES_DOUBLE_SHEET_DISMISS_20261113",
@@ -10756,6 +10780,33 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-297-frame-split-measured-20261114",
+      "at": "2026-11-14T18:19:00+08:00",
+      "itemId": "READER_AUTOMATIC_PAGING_ORIENTATION_20261114",
+      "title": "#297 邻页预载帧尾实验",
+      "detail": "双页超 16.7 毫秒由 6 帧降为 1 帧，但 ArkTS 垃圾回收使峰值升至 32.35 毫秒。已撤回这项调度；继续压低更新中对象分配。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/reader-auto-pagination/qa/window-after-frame-297-auto-trace-path"
+    },
+    {
+      "id": "detail-298-inertia-197-20261114",
+      "at": "2026-11-14T18:14:35+08:00",
+      "itemId": "MANGA_DETAIL_CHAPTER_FLING_20261114",
+      "title": "#298 详情章节列表短划",
+      "detail": "197 的 203 章详情页确认消除离屏背景逐帧更新；同手势最慢 4.626 毫秒，十次连续短划最慢 4.822 毫秒。样本未复现明显顿挫。设备已恢复。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/reader-auto-pagination/qa/detail-298-203-trace-path"
+    },
+    {
+      "id": "reader-297-reopen-120hz-20261114",
+      "at": "2026-11-14T17:33:17+08:00",
+      "itemId": "READER_AUTOMATIC_PAGING_ORIENTATION_20261114",
+      "title": "#297 重开 120 Hz 翻页性能问题",
+      "detail": "常规包单页 12 帧、自动双页 21 帧超过 8.3 毫秒。旧验收记录覆盖功能回归，当前帧预算未达标。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/reader-auto-pagination/qa/regular-bac5466-297-auto-trace-path"
+    },
     {
       "id": "reader-paging-regular-build-197-20261114",
       "at": "2026-11-14T17:12:20+08:00",
