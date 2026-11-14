@@ -334,13 +334,17 @@ struct Index {
   @Local private readerWebChallenge: ReaderSourceWebChallenge | null = null
   @Local private readerSessionLoading: boolean = false
   @Local private readerCloseRequestId: number = 0
-  @Local private readerPageIndex: number = 0
+  // Passed through the entry request when opening. Progress writes can update
+  // the resume position without invalidating the navigation root mid-turn.
+  private readerPageIndex: number = 0
   @Local private readerSessionConfig: ReaderSessionConfig = MOCK_LIBRARY_READER_SESSION
   // The reader writes this store directly. Bump the revision only after its
   // close path has flushed so LibraryPage can rebuild `lastRead` ordering from
   // the same in-memory snapshot rather than reopening a second store.
   @Local private readerProgressRevision: number = 0
   @Local private libraryRevision: number = 0
+  private libraryPresentationPending: boolean = false
+  private readingPresentationPending: boolean = false
   @Local private imageRuleState: ImageRuleState = connectImageRuleState()
   @Local private sourcePackageManagerCache: SourcePackageManagerCache = appSourcePackageManagerCache
   private migrationOpening: boolean = false
@@ -679,9 +683,27 @@ struct Index {
 
   @Monitor('libraryUpdateState.revision')
   private refreshLibrarySnapshot(): void {
-    this.libraryComics = this.libraryStore.listComics()
-    this.libraryRevision += 1
+    this.libraryPresentationPending = true
+    if (!this.isReaderRouteVisible()) this.publishDeferredReaderBackgroundPresentation()
     this.resumeAutomaticDownloadQueue()
+  }
+
+  private refreshReadingPresentation(): void {
+    this.readingPresentationPending = true
+    if (!this.isReaderRouteVisible()) this.publishDeferredReaderBackgroundPresentation()
+  }
+
+  /** The stores and sync continue live. Refresh the covered views when Reader yields the route. */
+  private publishDeferredReaderBackgroundPresentation(): void {
+    if (this.libraryPresentationPending) {
+      this.libraryPresentationPending = false
+      this.libraryComics = this.libraryStore.listComics()
+      this.libraryRevision += 1
+    }
+    if (this.readingPresentationPending) {
+      this.readingPresentationPending = false
+      this.readerProgressRevision += 1
+    }
   }
 
   private cleanupService(): ReadDownloadCleanup {
@@ -1957,7 +1979,8 @@ struct Index {
     if (committed) appDeviceSync.readerClosed()
     this.cleanupProgressCommitted = committed
     this.readerTrackerProgress?.close(committed)
-    this.readerProgressRevision += 1
+    this.readingPresentationPending = true
+    this.publishDeferredReaderBackgroundPresentation()
     this.readerClosing = true
     this.readerRouteVisible = false
     this.appPathStack.pop(true)
@@ -2129,7 +2152,10 @@ struct Index {
 
   private loadLibraryChapterUpdateHistory(context: common.UIAbilityContext): void {
     void new LibraryUpdateResultStore(context).loadChapterUpdates()
-      .then((): void => { this.libraryRevision += 1 })
+      .then((): void => {
+        this.libraryPresentationPending = true
+        if (!this.isReaderRouteVisible()) this.publishDeferredReaderBackgroundPresentation()
+      })
       .catch((): void => { DiagnosticLogger.warn('library_updates', 'history_load_failed', 'phase=preferences') })
     this.refreshLibraryUpdateBadge(context)
   }
@@ -2895,7 +2921,7 @@ struct Index {
         this.ensureLibraryPersistenceService()?.restore()
         this.refreshLibrarySnapshot()
       }
-      if (groups.includes('reading')) this.readerProgressRevision++
+      if (groups.includes('reading')) this.refreshReadingPresentation()
     })
     this.loadLibraryChapterUpdateHistory(context)
     configureSourceSettingsStore(context)
@@ -2961,7 +2987,7 @@ struct Index {
               DiagnosticLogger.exception('backup', 'automatic_default_directory_failed', error)
             })
           this.refreshLibrarySnapshot()
-          this.readerProgressRevision += 1
+          this.refreshReadingPresentation()
           return
         }
         if (attempt < 2) this.retryPublicContentStorage(attempt + 1)
@@ -3026,7 +3052,10 @@ struct Index {
         onOpenMangaDetail: (_work: string): void => { this.openReaderMangaDetail() },
         onRouteVisibleChange: (visible: boolean): void => {
           this.readerRouteVisible = visible
-          if (!visible) this.readerRouteTransition.cancel()
+          if (!visible) {
+            this.readerRouteTransition.cancel()
+            this.publishDeferredReaderBackgroundPresentation()
+          }
         },
         onRouteDisappear: (): void => { this.finishReaderRouteClose() },
         onClose: (): void => { this.popReaderRouteAfterSystemBarRestore() },
@@ -3811,6 +3840,7 @@ struct Index {
         .mode(NavigationMode.Stack)
         .onNavBarStateChange((visible: boolean) => {
           this.rootNavigationVisible = visible
+          if (visible) this.publishDeferredReaderBackgroundPresentation()
         })
         .width('100%')
         .height('100%')

@@ -2,7 +2,7 @@
 import { common } from '@kit.AbilityKit'
 import {
   ReaderAsset, ReaderAssetKind, ReaderAssetProvider, ReaderCancellation, ReaderProcessingCancellation, ReaderImageInformation,
-  ReaderOriginalAssetPlan, ReaderPage,
+  ReaderImagePixelSize, ReaderOriginalAssetPlan, ReaderPage,
   ReaderProcessedAssetVariant, ReaderVariantAssetPlan,
 } from '@reader-kit/core'
 import { ReaderFileInformation } from '@reader-kit/ui'
@@ -55,16 +55,19 @@ class KomaReaderSuperResolutionPlan implements ReaderVariantAssetPlan {
   private path: string
   private ownerKey: string
   private originalAvailable: boolean
+  private pixelSize: ReaderImagePixelSize | null
   private cropStrength: () => string
   private saveUri: string
 
   constructor(page: ReaderPage, identity: string, path: string, ownerKey: string, originalAvailable: boolean,
+    pixelSize: ReaderImagePixelSize | null,
     cropStrength: () => string = (): string => '', saveUri: string = '') {
     this.page = page.copy()
     this.identity = identity
     this.path = path
     this.ownerKey = ownerKey
     this.originalAvailable = originalAvailable
+    this.pixelSize = pixelSize
     this.cropStrength = cropStrength
     this.saveUri = saveUri
   }
@@ -76,12 +79,15 @@ class KomaReaderSuperResolutionPlan implements ReaderVariantAssetPlan {
     const facts = new ReaderImageInformation()
     facts.variant = 'enhanced'
     facts.originalAvailable = this.originalAvailable
+    facts.width = this.pixelSize?.width ?? 0
+    facts.height = this.pixelSize?.height ?? 0
     const asset = new ReaderAsset(`file://${this.path}`,
       (): void => { readerSuperResolutionReleaseOwner(this.ownerKey) },
       new ReaderFileInformation(this.path, facts))
     asset.saveUri = this.saveUri
     asset.crop = new KomaReaderCropSource(this.path, this.cropStrength)
     asset.originalAvailable = this.originalAvailable
+    asset.pixelSize = this.pixelSize
     return asset
   }
 }
@@ -192,7 +198,8 @@ export class KomaReaderSuperResolutionProvider implements ReaderAssetProvider {
       if (saveUri.length === 0) throw new Error('reader_variant_save_source_unavailable')
       retained = true
       return new KomaReaderSuperResolutionPlan(page, identity, path, ownerKey,
-        this.provider.prepareOriginal !== undefined, this.cropStrength, saveUri)
+        this.provider.prepareOriginal !== undefined, result.outputWidth > 0 && result.outputHeight > 0
+          ? { width: result.outputWidth, height: result.outputHeight } : null, this.cropStrength, saveUri)
     } catch (error) {
       const current = this.informationByPage.get(this.pageIdentity(page))
       if (current !== undefined && current.identity === identity && !current.applied &&

@@ -130,6 +130,8 @@ import {
   ReaderImageScalingQuality,
   ReaderPageGapMode,
   ReaderPageMode,
+  ReaderScreenOrientation,
+  getReaderScreenOrientationLabel,
   ReaderPreferences,
   ReaderPreferencesStore,
   readerPreferencesFromRuntimeState,
@@ -252,6 +254,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-background', titleKey: 'settings_row_reader_background_title', detailKey: 'settings_row_reader_background_detail' },
         { key: 'reader-image-scaling', titleKey: 'reader_image_scaling_quality_title', detailKey: 'reader_image_scaling_quality_detail' },
         { key: 'reader-show-page-number', titleKey: 'reader_show_page_number_title', detailKey: 'reader_show_page_number_detail' },
+        { key: 'reader-screen-orientation', titleKey: 'reader_screen_orientation_title', detailKey: 'reader_screen_orientation_detail' },
         { key: 'reader-fullscreen', titleKey: 'reader_fullscreen_title', detailKey: 'reader_fullscreen_detail' },
         { key: 'reader-page-animation', titleKey: 'reader_page_turn_animation_title', detailKey: 'reader_page_turn_animation_detail' },
         { key: 'reader-double-tap-zoom', titleKey: 'reader_double_tap_zoom_title', detailKey: 'reader_double_tap_zoom_detail' },
@@ -701,7 +704,10 @@ export struct SettingsPage {
 
   private rowDetail(row: SettingsRow): string {
     if (row.key === 'page-mode') {
-      return getReaderPageModeLabel(this.pageMode === 'double_page' && !this.isReaderWebtoonLayout() ? 'double_page' : 'single_page')
+      return getReaderPageModeLabel(this.horizontalPageMode())
+    }
+    if (row.key === 'reader-screen-orientation') {
+      return getReaderScreenOrientationLabel(this.readerPreferences.screenOrientation)
     }
     if (row.key === 'reading-direction') {
       return s(readerControlDirectionLabelKey(readerControlDirection({ pageMode: this.pageMode, readingDirection: this.readingDirection })))
@@ -898,7 +904,7 @@ export struct SettingsPage {
         { key: 'reader-layout', titleKey: 'settings_reader_group_layout', rows: this.rowsByKeys([
           'page-mode', 'reading-direction', 'reader-spread-layout', 'reader-page-animation', 'reader-wide-image-mode', 'reader-page-gap']) },
         { key: 'reader-display', titleKey: 'settings_reader_group_display', rows: this.rowsByKeys([
-          'reader-display-effects', 'reader-background', 'reader-image-scaling', 'reader-show-page-number', 'reader-fullscreen', 'reader-keep-screen-awake']) },
+          'reader-display-effects', 'reader-background', 'reader-image-scaling', 'reader-show-page-number', 'reader-screen-orientation', 'reader-fullscreen', 'reader-keep-screen-awake']) },
         { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', rows: this.rowsByKeys(['image-plugins', 'reader-trim-margins', 'reader-crop-strength', 'reader-images', 'reader-super-resolution', 'reader-super-resolution-model', 'reader-super-resolution-max-height', 'enhancement-models']) },
         { key: 'reader-operation', titleKey: 'settings_reader_group_navigation', rows: this.rowsByKeys([
           'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-double-tap-zoom', 'reader-double-tap-interval', 'reader-auto-page', 'reader-eye-gaze-page-turn', 'reader-volume-key-navigation', 'reader-volume-key-behavior', 'reader-smart-key']) },
@@ -1005,6 +1011,11 @@ export struct SettingsPage {
 
   private isSettingsSearchActive(): boolean {
     return this.pane === 'root' && this.normalizedSettingsSearchText.length > 0
+  }
+
+  private horizontalPageMode(): ReaderPageMode {
+    if (this.isReaderWebtoonLayout()) return 'single_page'
+    return this.pageMode === 'double_page' || this.pageMode === 'auto_page' ? this.pageMode : 'single_page'
   }
 
   private isReaderWebtoonLayout(): boolean {
@@ -2248,6 +2259,7 @@ export struct SettingsPage {
       row.key === 'theme' ||
       row.key === 'theme-color' ||
       row.key === 'language' ||
+      row.key === 'reader-screen-orientation' ||
       row.key === 'reader-spread-layout' ||
       row.key === 'reader-background' ||
       row.key === 'reader-image-scaling' ||
@@ -2406,8 +2418,21 @@ export struct SettingsPage {
   private SettingsSelectionMenu(row: SettingsRow, select: (action: () => void) => void) {
     Menu() {
       if (row.key === 'page-mode') {
-        this.SelectionMenuItem(select, s('reader_page_mode_single'), this.pageMode !== 'double_page', () => { this.savePageMode('single_page') })
-        this.SelectionMenuItem(select, s('reader_page_mode_double'), this.pageMode === 'double_page', () => { this.savePageMode('double_page') })
+        ForEach(['single_page', 'double_page', 'auto_page'] as ReaderPageMode[], (mode: ReaderPageMode) => {
+          this.SelectionMenuItem(select, getReaderPageModeLabel(mode), this.horizontalPageMode() === mode,
+            (): void => { this.savePageMode(mode) })
+        }, (mode: ReaderPageMode): string => mode)
+      } else if (row.key === 'reader-screen-orientation') {
+        ForEach(['system', 'portrait', 'landscape'] as ReaderScreenOrientation[], (orientation: ReaderScreenOrientation) => {
+          this.SelectionMenuItem(select, getReaderScreenOrientationLabel(orientation),
+            this.readerPreferences.screenOrientation === orientation, (): void => {
+              void this.preferencesStore().saveScreenOrientation(orientation)
+                .then((saved: ReaderPreferences): void => { this.applyReaderPreferences(saved) })
+                .catch((error: Error): void => {
+                  DiagnosticLogger.warn('settings_page', 'save_reader_orientation_failed', safeSettingsErrorCode(error))
+                })
+            })
+        }, (orientation: ReaderScreenOrientation): string => orientation)
       } else if (row.key === 'reading-direction') {
         ReaderDirectionMenuItems(readerControlDirection({ pageMode: this.pageMode, readingDirection: this.readingDirection }),
           (direction: ReaderDirectionChoice): void => { select(() => { this.saveReadingMethod(direction) }) })

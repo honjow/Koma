@@ -15,7 +15,8 @@ export function readerControlDirectionSelection(current: ReaderSeriesModeOverrid
   choice: ReaderDirectionChoice): ReaderSeriesModeOverride {
   if (choice === 'continuous') return readerModeSelection(current, 'continuous_scroll')
   if (choice === 'vertical_page') return readerModeSelection(current, 'vertical_page')
-  return { pageMode: current.pageMode === 'double_page' && readerControlDirection(current) !== 'continuous' ? 'double_page' : 'single_page',
+  const horizontal = current.pageMode === 'double_page' || current.pageMode === 'auto_page'
+  return { pageMode: horizontal && readerControlDirection(current) !== 'continuous' ? current.pageMode : 'single_page',
     readingDirection: choice === 'rtl' ? ReadingDirection.RIGHT_TO_LEFT : ReadingDirection.LEFT_TO_RIGHT }
 }
 

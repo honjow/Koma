@@ -40,6 +40,7 @@ export class ReaderModeSnapshot {
   showProgressControls: boolean
   keepScreenAwake: boolean
   fullscreen: boolean
+  screenOrientation: string
   imageFitMode: string
   imageScalingQuality: string
   showPageNumber: boolean
@@ -100,6 +101,7 @@ export class ReaderModeSnapshot {
     doubleTapIntervalMs: number = 300,
     preloadWifiOnly: boolean = false,
     displaySettings: ReaderDisplaySettings = new ReaderDisplaySettings(),
+    screenOrientation: string = 'system',
   ) {
     this.pageMode = pageMode
     this.readingDirection = readingDirection
@@ -108,6 +110,7 @@ export class ReaderModeSnapshot {
     this.showProgressControls = showProgressControls
     this.keepScreenAwake = keepScreenAwake
     this.fullscreen = fullscreen
+    this.screenOrientation = screenOrientation
     this.imageFitMode = imageFitMode
     this.imageScalingQuality = imageScalingQuality
     this.showPageNumber = showPageNumber
@@ -147,6 +150,7 @@ export class ReaderModeState {
   @Trace showProgressControls: boolean = true
   @Trace keepScreenAwake: boolean = true
   @Trace fullscreen: boolean = true
+  @Trace screenOrientation: string = 'system'
   @Trace imageFitMode: string = 'fit_width'
   @Trace imageScalingQuality: string = 'medium'
   @Trace showPageNumber: boolean = true
@@ -197,6 +201,7 @@ export class ReaderModeStateBridge {
       state.showProgressControls !== next.showProgressControls ||
       state.keepScreenAwake !== next.keepScreenAwake ||
       state.fullscreen !== next.fullscreen ||
+      state.screenOrientation !== next.screenOrientation ||
       state.imageFitMode !== next.imageFitMode ||
       state.imageScalingQuality !== next.imageScalingQuality ||
       state.showPageNumber !== next.showPageNumber ||
@@ -230,6 +235,7 @@ export class ReaderModeStateBridge {
     state.showProgressControls = next.showProgressControls
     state.keepScreenAwake = next.keepScreenAwake
     state.fullscreen = next.fullscreen
+    state.screenOrientation = next.screenOrientation
     state.imageFitMode = next.imageFitMode
     state.imageScalingQuality = next.imageScalingQuality
     state.showPageNumber = next.showPageNumber
@@ -297,6 +303,7 @@ export class ReaderModeStateBridge {
       state.doubleTapIntervalMs,
       state.preloadWifiOnly,
       state.displaySettings,
+      state.screenOrientation,
     )
   }
 }

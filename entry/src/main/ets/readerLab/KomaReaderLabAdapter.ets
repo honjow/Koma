@@ -115,6 +115,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private preloadedSizes: Map<string, KomaReaderPreloadedSize> = new Map()
   /** First-open format evidence: dimensions read from the page's own download. */
   onPageSize: ((unitId: string, index: number, width: number, height: number) => void) | undefined = undefined
+  onAutomaticPageSize: ((page: ReaderPage) => void) | undefined = undefined
+  automaticPaging: () => boolean = (): boolean => false
   private preloadedSizeVersions: Map<string, number> = new Map()
   private refreshingSources: Map<string, Promise<void>> = new Map()
   private automaticallyRefreshedUnits: Set<string> = new Set()
@@ -368,6 +370,22 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     // resolve a failed source request again without changing the current page.
   }
 
+  spreadMetadata(unit: ReaderUnit): ReaderPage[] {
+    const config = this.configs.get(this.unitId(unit.key))
+    if (config === undefined) return []
+    const boundaries: ReaderPage[] = []
+    for (let index = 0; index < unit.pageCount; index++) {
+      const width = config.pageWidths?.[index] ?? 0
+      const height = config.pageHeights?.[index] ?? 0
+      if (!Number.isFinite(width) || !Number.isFinite(height) || height <= 0 || width < height) continue
+      const page = new ReaderPage(unit.key, config.pageIds?.[index] ?? `${unit.key.unit}:${index}`, index)
+      page.width = width
+      page.height = height
+      boundaries.push(page)
+    }
+    return boundaries
+  }
+
   async page(unit: ReaderUnit, index: number, cancellation: ReaderCancellation): Promise<ReaderPage> {
     cancellation.check()
     const config = this.configs.get(this.unitId(unit.key))
@@ -561,11 +579,17 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const pending = this.sourceRequests.get(id)
     if (pending !== undefined && !forceReload) return pending
     const revision = this.presentationRevision
+    const sizeVersion = this.preloadedSizeVersions.get(id) ?? 0
     const policy = this.bannerPolicy()
     const request = this.ruleSnapshot.then(async (snapshot: ImageRuleSnapshot): Promise<string> => {
       const path = await fetchAndCacheReaderRemoteSource(source, this.requestContext, forceReload, { snapshot, policy },
         (width: number, height: number): void => {
-          this.onPageSize?.(this.unitId(key), index, width, height)
+          if (!this.closed && revision === this.presentationRevision &&
+            (this.preloadedSizeVersions.get(id) ?? 0) === sizeVersion &&
+            this.sources.get(this.unitId(key))?.[index] === source) {
+            this.onPageSize?.(this.unitId(key), index, width, height)
+            if (this.automaticPaging()) this.publishPreparedSize(key, index, source, width, height)
+          }
         })
       if (revision !== this.presentationRevision || policy !== this.bannerPolicy()) throw new Error('reader_source_page_processing_stale')
       return path
@@ -578,6 +602,44 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     return request
   }
 
+  private publishPreparedSize(key: ReaderUnitKey, index: number, source: ReaderPageRenderSource,
+    width: number, height: number): void {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return
+    const unit = this.unitId(key)
+    const id = JSON.stringify([unit, index])
+    const previous = this.preloadedSizes.get(id)
+    if (previous?.source === source && previous.width === width && previous.height === height) return
+    this.preloadedSizes.set(id, new KomaReaderPreloadedSize(source, width, height))
+    const config = this.configs.get(unit)
+    if (config === undefined || !this.automaticPaging()) return
+    const page = new ReaderPage(key, config.pageIds?.[index] ?? `${key.unit}:${index}`, index)
+    page.width = width
+    page.height = height
+    this.onAutomaticPageSize?.(page)
+  }
+
+  private async prepareImageSize(page: ReaderPage, filePath: string, cancellation: ReaderCancellation): Promise<void> {
+    if (page.width > 0 && page.height > 0) return
+    const unitId = this.unitId(page.unit)
+    const source = this.sources.get(unitId)?.[page.sourceIndex]
+    const sizeKey = JSON.stringify([unitId, page.sourceIndex])
+    if (source === undefined || this.preloadedSizes.get(sizeKey)?.source === source) return
+    const sizeVersion = this.preloadedSizeVersions.get(sizeKey) ?? 0
+    const revision = this.presentationRevision
+    try {
+      const size = await taskpool.execute<[string], string>(readPreloadedImageSize, filePath)
+      cancellation.check()
+      if (this.closed || revision !== this.presentationRevision ||
+        (this.preloadedSizeVersions.get(sizeKey) ?? 0) !== sizeVersion ||
+        this.sources.get(unitId)?.[page.sourceIndex] !== source) return
+      const dimensions = size.split(',')
+      this.publishPreparedSize(page.unit, page.sourceIndex, source, Number(dimensions[0]), Number(dimensions[1]))
+    } catch (_error) {
+      // Native image decoding remains the fallback when no header size is available.
+      cancellation.check()
+    }
+  }
+
   async preload(page: ReaderPage, cancellation: ReaderCancellation): Promise<void> {
     cancellation.check()
     const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
@@ -586,31 +648,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     }
     if (!this.remotePreloadAllowed() && (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE ||
       source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST)) return
-    const sizeKey = JSON.stringify([this.unitId(page.unit), page.sourceIndex])
-    const sizeVersion = this.preloadedSizeVersions.get(sizeKey) ?? 0
-    const presentationRevision = this.presentationRevision
     const filePath = await this.sourceFile(page.unit, page.sourceIndex)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
-    // Downloaded/local pages need the same prepared geometry as remote files.
-    // Skipping them made a warmed single-page chapter reopen with unknown size.
-    if (page.width <= 0 || page.height <= 0) {
-      try {
-        const size = await taskpool.execute<[string], string>(readPreloadedImageSize, filePath)
-        cancellation.check()
-        const values = size.split(',').map((value: string): number => Number(value))
-        if (!this.closed && presentationRevision === this.presentationRevision &&
-          (this.preloadedSizeVersions.get(sizeKey) ?? 0) === sizeVersion &&
-          this.sources.get(this.unitId(page.unit))?.[page.sourceIndex] === source &&
-          values.length === 2 && Number.isFinite(values[0]) && Number.isFinite(values[1]) &&
-          values[0] > 0 && values[1] > 0) {
-          this.preloadedSizes.set(sizeKey, new KomaReaderPreloadedSize(source, values[0], values[1]))
-        }
-      } catch (_error) {
-        // Header preparation is optional; the real native decode still owns failures and dimensions.
-        cancellation.check()
-      }
-    }
+    await this.prepareImageSize(page, filePath, cancellation)
     console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=ready`)
   }
 
@@ -719,6 +760,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     if (kind === 'thumbnail') return this.thumbnails.load(displayPath, cancellation)
+    if (this.automaticPaging()) await this.prepareImageSize(page, displayPath, cancellation)
+    cancellation.check()
     const asset = new ReaderAsset(displayPath.startsWith('/') ? `file://${displayPath}` : displayPath,
       () => {}, new KomaReaderFileInformation(filePath))
     asset.saveUri = filePath.startsWith('/') ? `file://${filePath}` : filePath

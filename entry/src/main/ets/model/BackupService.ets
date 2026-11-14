@@ -1839,6 +1839,7 @@ export class BackupService {
       showProgressControls: settings.showProgressControls ?? DEFAULT_READER_PREFERENCES.showProgressControls,
       keepScreenAwake: settings.keepScreenAwake ?? DEFAULT_READER_PREFERENCES.keepScreenAwake,
       fullscreen: settings.fullscreen ?? DEFAULT_READER_PREFERENCES.fullscreen,
+      screenOrientation: settings.screenOrientation ?? DEFAULT_READER_PREFERENCES.screenOrientation,
       imageFitMode: settings.imageFitMode ?? DEFAULT_READER_PREFERENCES.imageFitMode,
       imageScalingQuality: settings.imageScalingQuality ?? DEFAULT_READER_PREFERENCES.imageScalingQuality,
       showPageNumber: settings.showPageNumber ?? DEFAULT_READER_PREFERENCES.showPageNumber,

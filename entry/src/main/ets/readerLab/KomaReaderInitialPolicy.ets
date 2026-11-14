@@ -11,6 +11,7 @@ export class KomaReaderInitialPolicy {
     policy.layout = vertical ? 'single' :
       preferences.pageMode === 'continuous_scroll' || preferences.readingDirection === ReadingDirection.WEBTOON
         ? 'continuous' : preferences.pageMode === 'double_page' ? 'spread' : 'single'
+    policy.automaticPaging = preferences.pageMode === 'auto_page' && policy.layout === 'single' && !vertical
     policy.pagingAxis = vertical ? 'vertical' : 'horizontal'
     policy.direction = preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? 'rtl' : 'ltr'
     policy.spreadLayout = preferences.spreadLayoutMode === 'split' ? 'split' : 'joined'
@@ -28,6 +29,7 @@ export class KomaReaderInitialPolicy {
     if (request.entryLayoutOverride === 'single' || request.entryLayoutOverride === 'spread' ||
       request.entryLayoutOverride === 'continuous') {
       policy.layout = request.entryLayoutOverride
+      policy.automaticPaging = false
       policy.pagingAxis = 'horizontal'
     }
     if (request.entryDirectionOverride === 'ltr' || request.entryDirectionOverride === 'rtl') {

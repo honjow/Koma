@@ -13,6 +13,7 @@ export class KomaReaderPreferenceBridge {
       showProgressControls: current.showProgressControls,
       keepScreenAwake: current.keepScreenAwake,
       fullscreen: current.fullscreen,
+      screenOrientation: current.screenOrientation,
       imageFitMode: current.imageFitMode,
       imageScalingQuality: current.imageScalingQuality,
       showPageNumber: current.showPageNumber,
@@ -83,7 +84,8 @@ export class KomaReaderPreferenceBridge {
   static applyPolicy(current: ReaderPreferences, policy: ReaderDisplayPolicy): ReaderPreferences {
     const next = KomaReaderPreferenceBridge.copy(current)
     const mode: ReaderPageMode = policy.layout === 'continuous' ? 'continuous_scroll' :
-      policy.layout === 'spread' ? 'double_page' : policy.pagingAxis === 'vertical' ? 'vertical_page' : 'single_page'
+      policy.pagingAxis === 'vertical' ? 'vertical_page' : policy.automaticPaging ? 'auto_page' :
+      policy.layout === 'spread' ? 'double_page' : 'single_page'
     // Vertical layouts do not choose a horizontal direction. Preserve the host's dormant choice.
     if (policy.layout !== 'continuous' && policy.pagingAxis !== 'vertical') {
       next.readingDirection = policy.direction === 'rtl' ? ReadingDirection.RIGHT_TO_LEFT : ReadingDirection.LEFT_TO_RIGHT

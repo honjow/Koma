@@ -12,7 +12,7 @@ import { ReaderDirectionMenuItems } from './ReaderDirectionMenu'
 import { ReaderDirectionChoice, readerControlDirection, readerControlDirectionSelection, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
 import { ReaderSuperResolutionModelsContent } from './ReaderSuperResolutionModelsContent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
-import { ReaderMode, getReaderModeLabel } from '../model/ReaderSessionStore'
+import { ReaderMode } from '../model/ReaderSessionStore'
 import {
   readerModeSelection,
   readerDirectionSelection,
@@ -21,6 +21,9 @@ import {
   ReaderImageScalingQuality,
   ReaderPageGapMode,
   ReaderPageMode,
+  ReaderScreenOrientation,
+  getReaderPageModeLabel,
+  getReaderScreenOrientationLabel,
   ReaderPreferences,
   ReaderSpreadLayoutMode,
   ReaderTapZoneInvert,
@@ -117,6 +120,7 @@ export struct ReaderSettingsContent {
       showProgressControls: true,
       keepScreenAwake: p.keepScreenAwake,
       fullscreen: p.fullscreen,
+      screenOrientation: p.screenOrientation,
       imageFitMode: p.imageFitMode,
       imageScalingQuality: p.imageScalingQuality,
       showPageNumber: p.showPageNumber,
@@ -279,8 +283,33 @@ export struct ReaderSettingsContent {
   @Builder
   private PageModeMenu(select: (action: () => void) => void) {
     Menu() {
-      MenuItem({ content: getReaderModeLabel(ReaderMode.SINGLE_PAGE), symbolEndIcon: this.readerMode !== ReaderMode.DUAL_PAGE ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setPageMode('single_page') }) })
-      MenuItem({ content: getReaderModeLabel(ReaderMode.DUAL_PAGE), symbolEndIcon: this.readerMode === ReaderMode.DUAL_PAGE ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setPageMode('double_page') }) })
+      ForEach(['single_page', 'double_page', 'auto_page'] as ReaderPageMode[], (mode: ReaderPageMode) => {
+        MenuItem({ content: getReaderPageModeLabel(mode),
+          symbolEndIcon: this.selectedPageMode() === mode ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
+          .onClick((): void => { select((): void => { this.setPageMode(mode) }) })
+      }, (mode: ReaderPageMode): string => mode)
+    }
+  }
+
+  private selectedPageMode(): ReaderPageMode {
+    if (this.isWebtoonLayout()) return 'single_page'
+    const mode = this.preferences.pageMode
+    return mode === 'auto_page' || mode === 'double_page' ? mode : 'single_page'
+  }
+
+  @Builder
+  private ScreenOrientationMenu(select: (action: () => void) => void) {
+    Menu() {
+      ForEach(['system', 'portrait', 'landscape'] as ReaderScreenOrientation[], (orientation: ReaderScreenOrientation) => {
+        MenuItem({ content: getReaderScreenOrientationLabel(orientation),
+          symbolEndIcon: this.preferences.screenOrientation === orientation ?
+            new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
+          .onClick((): void => { select((): void => {
+            const next = this.copyPreferences()
+            next.screenOrientation = orientation
+            this.update(next)
+          }) })
+      }, (orientation: ReaderScreenOrientation): string => orientation)
     }
   }
 
@@ -451,13 +480,13 @@ export struct ReaderSettingsContent {
         Column({ space: ThemeConstants.SPACE_SM }) {
           if (index === 0) {
             GroupedListSection({ title: s('settings_reader_group_layout'), headerSpacing: ThemeConstants.SPACE_SM }) {
-              ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderModeLabel(this.readerMode === ReaderMode.DUAL_PAGE ? ReaderMode.DUAL_PAGE : ReaderMode.SINGLE_PAGE), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
+              ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderPageModeLabel(this.selectedPageMode()), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
               ListDivider()
               ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: this.effectiveDirectionLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
               ListDivider()
-              ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SpreadLayoutMenu(select) } })
+              ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.preferences.pageMode === 'auto_page' || this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SpreadLayoutMenu(select) } })
               ListDivider()
-              ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ColumnModeMenu(select) } })
+              ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.preferences.pageMode === 'auto_page' || this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ColumnModeMenu(select) } })
               ListDivider()
               ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, isEnabled: this.readerMode !== ReaderMode.VERTICAL_PAGE, switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
               ListDivider()
@@ -482,6 +511,12 @@ export struct ReaderSettingsContent {
               onPreferencesChange: (next: ReaderPreferences) => { this.update(next) } })
           } else if (index === 1) {
             GroupedListSection({ title: s('settings_reader_group_display'), headerSpacing: ThemeConstants.SPACE_SM }) {
+              ConciseListRow({ title: s('reader_screen_orientation_title'),
+                trailingText: getReaderScreenOrientationLabel(this.preferences.screenOrientation), trailingDropdown: true,
+                dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => {
+                  this.ScreenOrientationMenu(select)
+                } })
+              ListDivider()
               ConciseListRow({ title: s('settings_row_reader_background_title'), trailingText: getReaderBackgroundModeLabel(this.preferences.backgroundMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BackgroundMenu(select) } })
               ListDivider()
               ConciseListRow({ title: s('reader_image_scaling_quality_title'), trailingText: this.scalingQualityLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ScalingQualityMenu(select) } })

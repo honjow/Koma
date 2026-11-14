@@ -492,7 +492,8 @@ test('automatic next-chapter translation does not inherit the current chapter pa
 })
 
 test('a speculative translation failure is associated with the chapter only after it is observed', () => {
-  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['observeTranslationPosition'])
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage',
+    ['observeTranslationPosition', 'refreshTranslationPresentation'])
   const page = new Page(), target = unitKey('B')
   Object.assign(page, { translationUnit: unitKey('A'), translationProjectId: 'project-A',
     translationProjectForUnit: unit => `project-${unit.unit}`, translationRequestedPages: [0],

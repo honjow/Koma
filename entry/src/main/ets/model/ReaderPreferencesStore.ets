@@ -9,7 +9,8 @@ import { ReaderSeriesFormat, ReadingDirection } from './ComicModels'
 import { ReaderModeSnapshot, ReaderModeStateBridge } from '../state/ReaderModeState'
 import { connectAppearanceState } from '../state/AppearanceState'
 
-export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll' | 'vertical_page'
+export type ReaderPageMode = 'single_page' | 'double_page' | 'auto_page' | 'continuous_scroll' | 'vertical_page'
+export type ReaderScreenOrientation = 'system' | 'portrait' | 'landscape'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
 /** Matches NextE's persisted reader background contract. */
 export type ReaderBackgroundMode = 'black' | 'gray' | 'white' | 'auto'
@@ -37,6 +38,7 @@ export interface ReaderPreferences {
   showProgressControls: boolean
   keepScreenAwake: boolean
   fullscreen: boolean
+  screenOrientation: ReaderScreenOrientation
   imageFitMode: ReaderImageFitMode
   imageScalingQuality: ReaderImageScalingQuality
   showPageNumber: boolean
@@ -132,6 +134,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   showProgressControls: true,
   keepScreenAwake: true,
   fullscreen: true,
+  screenOrientation: 'system',
   imageFitMode: 'fit_width',
   imageScalingQuality: 'medium',
   showPageNumber: true,
@@ -183,7 +186,7 @@ export function getReaderCropStrengthLabel(value: string): string {
 }
 
 export function normalizeReaderPageMode(value: string): ReaderPageMode {
-  if (value === 'double_page' || value === 'continuous_scroll' || value === 'vertical_page') {
+  if (value === 'auto_page' || value === 'double_page' || value === 'continuous_scroll' || value === 'vertical_page') {
     return value
   }
   return 'single_page'
@@ -300,6 +303,7 @@ export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPref
     showProgressControls: value.showProgressControls !== false,
     keepScreenAwake: value.keepScreenAwake !== false,
     fullscreen: value.fullscreen !== false,
+    screenOrientation: normalizeReaderScreenOrientation(value.screenOrientation),
     imageFitMode: normalizeReaderImageFitMode(value.imageFitMode),
     imageScalingQuality: normalizeReaderImageScalingQuality(value.imageScalingQuality),
     showPageNumber: value.showPageNumber !== false,
@@ -348,6 +352,7 @@ export function readerPreferencesFromRuntimeState(columnMode: ReaderColumnMode, 
     showProgressControls: runtime.showProgressControls,
     keepScreenAwake: runtime.keepScreenAwake,
     fullscreen: runtime.fullscreen,
+    screenOrientation: normalizeReaderScreenOrientation(runtime.screenOrientation),
     imageFitMode: normalizeReaderImageFitMode(runtime.imageFitMode),
     imageScalingQuality: normalizeReaderImageScalingQuality(runtime.imageScalingQuality),
     showPageNumber: runtime.showPageNumber,
@@ -414,6 +419,7 @@ function publishReaderModeState(preferences: ReaderPreferences): void {
     preferences.doubleTapIntervalMs,
     preferences.preloadWifiOnly,
     preferences.displaySettings,
+    preferences.screenOrientation,
   ))
 }
 
@@ -449,6 +455,7 @@ function preferencesFromRecord(record: Record<string, Object>, fallback: ReaderP
     showProgressControls: booleanField(record, 'showProgressControls', fallback.showProgressControls),
     keepScreenAwake: booleanField(record, 'keepScreenAwake', fallback.keepScreenAwake),
     fullscreen: booleanField(record, 'fullscreen', fallback.fullscreen),
+    screenOrientation: normalizeReaderScreenOrientation(stringField(record, 'screenOrientation', fallback.screenOrientation)),
     imageFitMode: normalizeReaderImageFitMode(stringField(record, 'imageFitMode', fallback.imageFitMode)),
     imageScalingQuality: normalizeReaderImageScalingQuality(stringField(record, 'imageScalingQuality', fallback.imageScalingQuality)),
     showPageNumber: booleanField(record, 'showPageNumber', fallback.showPageNumber),
@@ -569,6 +576,7 @@ export function applyReaderSeriesModeOverride(
     showProgressControls: preferences.showProgressControls,
     keepScreenAwake: preferences.keepScreenAwake,
     fullscreen: preferences.fullscreen,
+    screenOrientation: preferences.screenOrientation,
     imageFitMode: preferences.imageFitMode,
     imageScalingQuality: preferences.imageScalingQuality,
     showPageNumber: preferences.showPageNumber,
@@ -600,7 +608,16 @@ export function applyReaderSeriesModeOverride(
   }
 }
 
+export function normalizeReaderScreenOrientation(value: string): ReaderScreenOrientation {
+  return value === 'portrait' || value === 'landscape' ? value : 'system'
+}
+
+export function getReaderScreenOrientationLabel(value: ReaderScreenOrientation): string {
+  return AppStrings.get('reader_screen_orientation_' + value)
+}
+
 export function getReaderPageModeLabel(mode: ReaderPageMode): string {
+  if (mode === 'auto_page') return AppStrings.get('reader_page_mode_auto')
   if (mode === 'double_page') {
     return AppStrings.get('reader_page_mode_double')
   }
@@ -765,6 +782,7 @@ export function rebaseReaderPreferenceChanges(base: ReaderPreferences, previous:
   if (previous.showProgressControls !== next.showProgressControls) rebased.showProgressControls = next.showProgressControls
   if (previous.keepScreenAwake !== next.keepScreenAwake) rebased.keepScreenAwake = next.keepScreenAwake
   if (previous.fullscreen !== next.fullscreen) rebased.fullscreen = next.fullscreen
+  if (previous.screenOrientation !== next.screenOrientation) rebased.screenOrientation = next.screenOrientation
   if (previous.imageFitMode !== next.imageFitMode) rebased.imageFitMode = next.imageFitMode
   if (previous.imageScalingQuality !== next.imageScalingQuality) rebased.imageScalingQuality = next.imageScalingQuality
   if (previous.showPageNumber !== next.showPageNumber) rebased.showPageNumber = next.showPageNumber
@@ -850,12 +868,18 @@ export class ReaderPreferencesStore {
       if (!(await store.has('reader.pageTurnAnimation'))) unsetFields.push('animation')
       if (!(await store.has('reader.showPageNumber'))) unsetFields.push('page-number')
       if (!(await store.has('reader.imageFitMode'))) unsetFields.push('image-fit')
+      const books = await this.readSeriesModeOverrides()
+      for (const id of Object.keys(books)) {
+        if (books[id].pageMode === 'auto_page') books[id].pageMode = 'single_page'
+      }
       return {
-        mode: { pageMode: current.pageMode, readingDirection: current.readingDirection },
+        // Keep the existing wire enum readable by older installs. Automatic is local.
+        mode: { pageMode: current.pageMode === 'auto_page' ? 'single_page' : current.pageMode,
+          readingDirection: current.readingDirection },
         pageTurnAnimation: current.pageTurnAnimation,
         showPageNumber: current.showPageNumber,
         imageFitMode: current.imageFitMode,
-        books: await this.readSeriesModeOverrides(),
+        books,
         unsetFields,
       }
     })
@@ -867,7 +891,15 @@ export class ReaderPreferencesStore {
     // the current global preference on this device.
     return this.ordered(async (): Promise<ReaderPreferences> => {
       const current = await this.readPreferences()
-      current.pageMode = state.mode.pageMode
+      if (current.pageMode !== 'auto_page' || state.mode.pageMode !== 'single_page') {
+        current.pageMode = state.mode.pageMode
+      }
+      const localBooks = await this.readSeriesModeOverrides()
+      for (const id of Object.keys(state.books)) {
+        if (localBooks[id]?.pageMode === 'auto_page' && state.books[id].pageMode === 'single_page') {
+          state.books[id].pageMode = 'auto_page'
+        }
+      }
       current.readingDirection = state.mode.readingDirection
       current.pageTurnAnimation = state.pageTurnAnimation
       current.showPageNumber = state.showPageNumber
@@ -887,6 +919,7 @@ export class ReaderPreferencesStore {
     const backgroundMode = field('reader.backgroundMode', DEFAULT_READER_PREFERENCES.backgroundMode) as string
     const showProgressControls = field('reader.showProgressControls', DEFAULT_READER_PREFERENCES.showProgressControls) as boolean
     const keepScreenAwake = field('reader.keepScreenAwake', DEFAULT_READER_PREFERENCES.keepScreenAwake) as boolean
+    const screenOrientation = field('reader.screenOrientation', 'system') as string
     const fullscreen = field('reader.fullscreen', DEFAULT_READER_PREFERENCES.fullscreen) as boolean
     const imageFitMode = field('reader.imageFitMode', DEFAULT_READER_PREFERENCES.imageFitMode) as string
     const imageScalingQuality = field('reader.imageScalingQuality', DEFAULT_READER_PREFERENCES.imageScalingQuality) as string
@@ -928,6 +961,7 @@ export class ReaderPreferencesStore {
       showProgressControls,
       keepScreenAwake,
       fullscreen,
+      screenOrientation: normalizeReaderScreenOrientation(screenOrientation),
       imageFitMode: normalizeReaderImageFitMode(imageFitMode),
       imageScalingQuality: normalizeReaderImageScalingQuality(imageScalingQuality),
       showPageNumber,
@@ -1016,6 +1050,7 @@ export class ReaderPreferencesStore {
       'reader.showProgressControls',
       'reader.keepScreenAwake',
       'reader.fullscreen',
+      'reader.screenOrientation',
       'reader.imageFitMode',
       'reader.imageScalingQuality',
       'reader.showPageNumber',
@@ -1061,6 +1096,7 @@ export class ReaderPreferencesStore {
       await store.put('reader.showProgressControls', normalized.showProgressControls)
       await store.put('reader.keepScreenAwake', normalized.keepScreenAwake)
       await store.put('reader.fullscreen', normalized.fullscreen)
+      await store.put('reader.screenOrientation', normalized.screenOrientation)
       await store.put('reader.imageFitMode', normalized.imageFitMode)
       await store.put('reader.imageScalingQuality', normalized.imageScalingQuality)
       await store.put('reader.showPageNumber', normalized.showPageNumber)
@@ -1160,7 +1196,8 @@ export class ReaderPreferencesStore {
     const normalized = await this.persistPreferences(narrowed, false, seriesModeOverrides, JSON.stringify(banners))
     if (seriesModeOverrides !== undefined) {
       const saved = (JSON.parse(seriesModeOverrides) as Record<string, ReaderSeriesModeOverride>)[key]
-      signalDeviceSyncBookMode({ comicId: key, mode: saved?.pageMode, direction: saved?.readingDirection })
+      signalDeviceSyncBookMode({ comicId: key, mode: saved?.pageMode === 'auto_page' ? 'single_page' : saved?.pageMode,
+        direction: saved?.readingDirection })
     }
     const effective = this.cloneBase(normalized)
     effective.pageMode = requested.pageMode
@@ -1271,6 +1308,7 @@ export class ReaderPreferencesStore {
       showProgressControls: current.showProgressControls,
       keepScreenAwake: current.keepScreenAwake,
       fullscreen: current.fullscreen,
+      screenOrientation: current.screenOrientation,
       imageFitMode: current.imageFitMode,
       imageScalingQuality: current.imageScalingQuality,
       showPageNumber: current.showPageNumber,
@@ -1355,6 +1393,10 @@ export class ReaderPreferencesStore {
     return this.mutatePreferences((next: ReaderPreferences): void => {
       next.showPageNumber = showPageNumber
     })
+  }
+
+  async saveScreenOrientation(orientation: ReaderScreenOrientation): Promise<ReaderPreferences> {
+    return this.mutatePreferences((next: ReaderPreferences): void => { next.screenOrientation = orientation })
   }
 
   async saveFullscreen(fullscreen: boolean): Promise<ReaderPreferences> {

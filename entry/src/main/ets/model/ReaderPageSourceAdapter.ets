@@ -1146,13 +1146,11 @@ export const readerImageSizeCache: Map<string, ReaderImageSize> = new Map()
 export async function probeReaderImageFileSize(path: string,
   onSize: (width: number, height: number) => void): Promise<void> {
   try {
-    const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
+    const file = await fs.open(path, fs.OpenMode.READ_ONLY)
     try {
-      const stat = fs.statSync(path)
-      if (stat.size <= 0) return
-      const capacity = Math.min(stat.size, 64 * 1024)
+      const capacity = 64 * 1024
       const buffer = new ArrayBuffer(capacity)
-      const read = fs.readSync(file.fd, buffer)
+      const read = await fs.read(file.fd, buffer)
       if (read <= 0) return
       const size = readerImagePixelSize(new Uint8Array(buffer, 0, Math.min(read, capacity)))
       if (size !== undefined) {
@@ -1163,7 +1161,7 @@ export async function probeReaderImageFileSize(path: string,
         DiagnosticLogger.info('reader_image_size', 'cached_unparsed', 'readBytes=' + read)
       }
     } finally {
-      fs.closeSync(file)
+      await fs.close(file)
     }
   } catch (_error) {
     // Cached-file probing is additive; the visible image path stays unchanged.

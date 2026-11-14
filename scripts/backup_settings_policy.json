@@ -53,6 +53,7 @@
       "reader.showProgressControls",
       "reader.keepScreenAwake",
       "reader.fullscreen",
+      "reader.screenOrientation",
       "reader.imageFitMode",
       "reader.imageScalingQuality",
       "reader.showPageNumber",
