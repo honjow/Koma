@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-15T03:31:47+08:00",
+  "updatedAt": "2026-11-15T04:18:07+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -85,6 +85,32 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "SETTINGS_ROOT_ADAPTIVE_PAIR",
+      "number": 301,
+      "title": "设置首页顶部两项宽窗等宽合组",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-15",
+      "reportedAtSource": "本轮用户指定无痕模式、下载管理及 103 两种窗口状态，原始时刻未核实。",
+      "status": "103 竖屏和窄悬浮窗往返已核对",
+      "result": "103 最终包竖屏全屏一张卡内两项等宽，实测各 754 px，间隔 19 px。无痕说明改为「不记历史和进度，不同步」，全屏和窄悬浮窗均实拍单行。窄悬浮窗恢复两组，回全屏重新合组。点列间空隙无操作，无痕开关开关后恢复原值，下载管理可正常打开及返回。103 复原全屏设置页和原电源超时，保留验证包并释租。",
+      "remaining": "此轮限设置首页两项及 103 两种窗口状态。未做其他分组的多列适配。原生按压过渡录制来自文字缩短前的等宽包；最终包实测操作路径。",
+      "evidence": [
+        ".hvigor/outputs/settings-root-adaptive-103/settings-root-adaptive-short-copy-signed.hap",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-wide/portrait.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-window/floating.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-window/wide-return.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-actions/on.json",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-return/final-home.json",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/restore/run-metadata.json"
+      ],
+      "progressPhase": "done",
+      "updatedAt": "2026-11-15T04:18:07+08:00",
+      "closedAt": "2026-11-15T04:18:07+08:00"
+    },
     {
       "id": "LIBRARY_SHELF_CONTROL_FEEDBACK",
       "number": 300,
@@ -10811,6 +10837,23 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "settings-root-adaptive-pair-2026-11-15T04:18:07+08:00",
+      "at": "2026-11-15T04:18:07+08:00",
+      "itemId": "SETTINGS_ROOT_ADAPTIVE_PAIR",
+      "title": "103 已核对等宽卡片及窄窗回退",
+      "detail": "根据用户反馈撤下 6:5，改回等宽并精简说明。最终包的全屏、窄窗、全屏往返及开关、导航、恢复均有本轮证据。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/settings-root-adaptive-103/settings-root-adaptive-short-copy-signed.hap",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-wide/portrait.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-window/floating.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-window/wide-return.png",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-actions/on.json",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/copy-return/final-home.json",
+        ".hvigor/outputs/settings-root-adaptive-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/settings-home/restore/run-metadata.json"
+      ]
+    },
     {
       "id": "shelf-controls-padding-highlight-2026-11-15T03:31:47+08:00",
       "at": "2026-11-15T03:31:47+08:00",

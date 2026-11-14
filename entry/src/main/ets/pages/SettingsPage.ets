@@ -209,6 +209,9 @@ interface SettingsPaneSection {
   items: SettingsPaneItem[]
 }
 
+// The root settings list already excludes page insets from its measured width.
+const SETTINGS_ROOT_TOP_PAIR_MIN_WIDTH: number = 560
+
 interface SettingsSearchResult {
   key: string
   pane: SettingsPaneKey
@@ -527,6 +530,7 @@ export struct SettingsPage {
   @Param searchTarget: string = ''
   @Param embeddedTracking: boolean = false
   @Local private settingsSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private rootSettingsWidth: number = 0
   @Local private incognito: IncognitoState = connectIncognitoState()
   private positionedSearchTarget: boolean = false
   @Event onOpenKomgaSettings: () => void = () => {}
@@ -2779,13 +2783,32 @@ export struct SettingsPage {
   }
 
   @Builder
-  private RootSettings() {
+  private RootSettings(sections: SettingsPaneSection[]) {
     Column({ space: ThemeConstants.SPACE_LG }) {
-      ForEach(settingsRootSections(), (section: SettingsPaneSection) => {
+      // The first two groups share a surface only when both original HDS rows fit.
+      if (this.rootSettingsWidth >= SETTINGS_ROOT_TOP_PAIR_MIN_WIDTH) {
+        GroupedListSection() {
+          Row({ space: ThemeConstants.SPACE_SM }) {
+            // Split the available width evenly; longer descriptions wrap within their slot.
+            Column() { this.RootPaneRow(sections[0].items[0]) }.layoutWeight(1)
+            Column() { this.RootPaneRow(sections[1].items[0]) }.layoutWeight(1)
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+        }
+      } else {
+        this.RootSection(sections[0])
+        this.RootSection(sections[1])
+      }
+      ForEach(sections.slice(2), (section: SettingsPaneSection) => {
         this.RootSection(section)
       }, (section: SettingsPaneSection) => section.key)
     }
     .width('100%')
+    .onSizeChange((_old: SizeOptions, size: SizeOptions) => {
+      const width = Number(size.width)
+      if (width > 0 && this.rootSettingsWidth !== width) this.rootSettingsWidth = width
+    })
   }
 
   @Builder
@@ -2886,7 +2909,7 @@ export struct SettingsPage {
     } else if (this.pane === 'about') {
       KomaAboutContent()
     } else if (this.pane === 'root') {
-      this.RootSettings()
+      this.RootSettings(settingsRootSections())
     } else if (this.pane !== 'reader' || this.searchTarget.length === 0 ||
       this.readerPreferencesReady || this.readerPreferencesLoadFailed) {
       // A search destination must measure the row after the image and mode groups are ready.

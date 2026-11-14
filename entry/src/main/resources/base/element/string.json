@@ -281,7 +281,7 @@
     { "name": "settings_pane_appearance_detail", "value": "Theme, accent color, and language" },
     { "name": "settings_section_privacy", "value": "Privacy" },
     { "name": "settings_row_incognito_title", "value": "Incognito mode" },
-    { "name": "settings_row_incognito_detail", "value": "Reading leaves no history, progress or sync traces" },
+    { "name": "settings_row_incognito_detail", "value": "No history, progress, or sync" },
     { "name": "incognito_mode_label", "value": "Incognito" },
     { "name": "settings_pane_library_title", "value": "Library" },
     { "name": "settings_pane_library_detail", "value": "Categories, updates, local refresh" },
