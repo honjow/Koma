@@ -281,7 +281,7 @@
     { "name": "settings_pane_appearance_detail", "value": "主题、强调色、语言" },
     { "name": "settings_section_privacy", "value": "隐私" },
     { "name": "settings_row_incognito_title", "value": "无痕模式" },
-    { "name": "settings_row_incognito_detail", "value": "不记历史和进度，不同步" },
+    { "name": "settings_row_incognito_detail", "value": "暂停记录阅读历史" },
     { "name": "incognito_mode_label", "value": "无痕模式" },
     { "name": "settings_pane_library_title", "value": "书架" },
     { "name": "settings_pane_library_detail", "value": "分类、更新、本地刷新" },
