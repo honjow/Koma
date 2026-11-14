@@ -57,7 +57,9 @@ export interface ChapterReadCommitResult {
 export type ComicReadingState = 'unread' | 'reading' | 'completed'
 
 function chapterStateKey(comicId: ComicId, chapterId: ChapterId): string {
-  return JSON.stringify([comicId, chapterId])
+  // An in-memory lookup only. The length keeps arbitrary source IDs
+  // unambiguous without encoding a JSON array for every chapter row.
+  return `${comicId.length}:${comicId}${chapterId}`
 }
 
 function copyReadingProgressWithTimestamp(progress: ReadingProgress): ReadingProgress {
@@ -644,6 +646,10 @@ export abstract class ReaderSessionStore {
 
   isChapterBookmarked(comicId: ComicId, chapterId: ChapterId): boolean {
     return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.bookmarked === true
+  }
+
+  chapterReadingState(comicId: ComicId, chapterId: ChapterId): Readonly<ChapterReadingState> | undefined {
+    return this.chapterStates.get(chapterStateKey(comicId, chapterId))
   }
 
   commitChapterBookmark(comicId: ComicId, chapterId: ChapterId, bookmarked: boolean, identity?: SyncReadingSource): boolean {

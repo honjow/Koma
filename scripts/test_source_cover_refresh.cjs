@@ -167,10 +167,10 @@ function detailFixture() {
   const compiled = ts.transpileModule(sameChapterRow + '\nexport class Page { ' + pageMethods + ' }', { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
   new Function('exports', 'refreshSourceMangaDetailAndPersistLibraryStore', 'DiagnosticLogger', 'SourceDetailContentState',
     'reconcileSourceChapterIdentity', 'protectedSourceChapterIds', 'getContext', 'mangaChapterItemFromComicChapter',
-    'sourceChapterDisplayRows', 'appSourceRuntimeRegistry', compiled)(
+    'sourceChapterDisplayRows', 'appSourceRuntimeRegistry', 'UIUtils', compiled)(
     out, exportsForTest.refreshSourceMangaDetailAndPersistLibraryStore, { exception: (...args) => errors.push(args) }, { READY: 'ready' },
     (_comic, _id, chapters) => ({ chapters, storedChapters: f.store.getComic('owned-work').chapters }), () => [], () => ({ filesDir: 'unused' }),
-    chapter => clone(chapter), exportsForTest.sourceChapterDisplayRows, { lookup: () => ({}) })
+    chapter => clone(chapter), exportsForTest.sourceChapterDisplayRows, { lookup: () => ({}) }, { getTarget: value => value })
   const page = new out.Page()
   Object.assign(page, { chapters: [], sourceChaptersResolved: true, sourceDetailSettingsFingerprint: '', libraryStore: f.store, libraryPersistenceService: f.service,
     isCurrentSourceDetailRequest: () => true, sourceDetailWithRouteIdentity: detail => ({ ...detail }),

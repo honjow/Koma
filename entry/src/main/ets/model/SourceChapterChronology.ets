@@ -14,11 +14,23 @@ export function sourceCatalogChronology(
     new Set<string>(chapters.map((chapter: MangaChapterItem): string => chapter.id)).size !== chapters.length) {
     return chapters
   }
-  const result = JSON.parse(JSON.stringify(chapters)) as MangaChapterItem[]
-  result.forEach((chapter: MangaChapterItem, index: number): void => {
-    chapter.readingGroup = 'source-catalog'
-    chapter.readingOrder = order === 'oldest_first' ? index : result.length - index - 1
-    chapter.continuationEligible = true
-  })
-  return result
+  return chapters.map((chapter: MangaChapterItem, index: number): MangaChapterItem => ({
+    id: chapter.id,
+    title: chapter.title,
+    pageCount: chapter.pageCount,
+    chapterNumber: chapter.chapterNumber,
+    volumeNumber: chapter.volumeNumber,
+    localReadingIndex: chapter.localReadingIndex,
+    scanlator: chapter.scanlator,
+    language: chapter.language,
+    dateUpload: chapter.dateUpload,
+    isRead: chapter.isRead,
+    isBookmarked: chapter.isBookmarked,
+    isDownloaded: chapter.isDownloaded,
+    downloadStatus: chapter.downloadStatus,
+    downloadProgress: chapter.downloadProgress,
+    readingGroup: 'source-catalog',
+    readingOrder: order === 'oldest_first' ? index : chapters.length - index - 1,
+    continuationEligible: true,
+  }))
 }

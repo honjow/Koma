@@ -1,46 +1,22 @@
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { taskpool } from '@kit.ArkTS'
+import { AppStrings } from '../i18n/AppStrings'
 import { SourceRuntimeError } from './SourceRuntimeError'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { configureSourceRequestPolicy } from '../sourceRuntime/SourceRequestPolicy'
 import { sourceChapterForRetainedIdentity } from './SourceChapterIdentity'
-import { MangaChapterItem, parseMangaChapterFromSourceItem } from './MangaDetailModels'
+import type { MangaChapterItem } from './MangaDetailModels'
+import { projectSourceChapterResponse, SourceChapterProjection } from './SourceChapterResponseWorker'
 import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import { executeSourceRequestInWorker as executeSourceChapterListOperation } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { SourceSettingsRecord, appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { appSourceSettingObservationStore } from '../sourceRuntime/SourceSettingObservationStore'
-import { SourceSettingObservations } from '../sourceRuntime/SourceSettingObservations'
 import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { sourceChapterExclusions } from './SourceChapterVisibility'
 import { sourceCatalogChronology } from './SourceChapterChronology'
-
-interface SourceChapterPage {
-  hasMore?: boolean
-  hasNextPage?: boolean
-  has_more?: boolean
-  nextCursor?: string | null
-  next_cursor?: string | null
-}
-
-interface SourceChapterData {
-  settingObservations?: SourceSettingObservations
-  excludedChapterIds?: string[]
-  items?: Record<string, Object>[]
-  chapters?: Record<string, Object>[]
-  page?: SourceChapterPage
-  hasNextPage?: boolean
-  hasMore?: boolean
-  has_more?: boolean
-}
-
-interface SourceChapterResponse {
-  ok?: boolean
-  reasonCode?: string
-  error?: Record<string, Object | string | number | boolean | null>
-  data?: SourceChapterData
-}
 
 interface SourceChapterPageArgs {
   cursor: string | null
@@ -110,6 +86,13 @@ async function fetchSourceChapterList(
 ): Promise<SourceChapterListResult> {
   const chapters: MangaChapterItem[] = []
   const excludedChapterIds: Set<string> = new Set<string>()
+  const chapterIdCounts: Map<string, number> = new Map<string, number>()
+  let duplicateIdGroups = 0
+  let duplicateRows = 0
+  let numberedRows = 0
+  let minNumber: number | undefined = undefined
+  let maxNumber: number | undefined = undefined
+  const leadingNumbers: string[] = []
   let cursor: string | null = null
   const requestedCursors: Set<string> = new Set()
   const settingsRevision = appSourceSettingsStore.revisionForSource(entry.sourceId)
@@ -141,7 +124,10 @@ async function fetchSourceChapterList(
       sourceHttpIdentityJson(entry, undefined, chapterContext !== undefined && chapterId === undefined, 'get_chapters'),
     ))
     if (!current()) return { chapters, resolved: false, reasonCode: 'source_chapters_cancelled' }
-    const response = JSON.parse(responseJson) as SourceChapterResponse
+    const projection = await taskpool.execute(projectSourceChapterResponse, responseJson,
+      AppStrings.get('manga_detail_chapter_untitled'), AppStrings.get('library_update_chapter_fallback_title')) as SourceChapterProjection
+    if (!current()) return { chapters, resolved: false, reasonCode: 'source_chapters_cancelled' }
+    const response = projection.response
     if (response.ok !== true) {
       const nativeReason = response.reasonCode
       const sourceReason = response.error?.['code']
@@ -152,8 +138,23 @@ async function fetchSourceChapterList(
       failure.message = reason
       throw failure
     }
-    const rows = response.data?.items ?? response.data?.chapters ?? []
-    rows.forEach((item: Record<string, Object>): void => { chapters.push(parseMangaChapterFromSourceItem(item)) })
+    projection.chapters.forEach((chapter: MangaChapterItem): void => {
+      if (chapterId === undefined) {
+        const count = (chapterIdCounts.get(chapter.id) ?? 0) + 1
+        chapterIdCounts.set(chapter.id, count)
+        if (count === 2) duplicateIdGroups += 1
+        if (count > 1) duplicateRows += 1
+        const number = chapter.chapterNumber
+        const known = number !== undefined && Number.isFinite(number) && number >= 0
+        if (known) {
+          numberedRows += 1
+          minNumber = minNumber === undefined ? number : Math.min(minNumber, number)
+          maxNumber = maxNumber === undefined ? number : Math.max(maxNumber, number)
+        }
+        if (chapters.length < 8) leadingNumbers.push(chapters.length + ':' + (known ? number : '?'))
+      }
+      chapters.push(chapter)
+    })
     try {
       sourceChapterExclusions(response.data?.excludedChapterIds).forEach((id: string): void => { excludedChapterIds.add(id) })
     } catch (_error) {
@@ -189,30 +190,9 @@ async function fetchSourceChapterList(
       response.data?.page?.hasNextPage === true || response.data?.page?.has_more === true || nextCursor !== undefined
     if (!hasMore) {
       if (chapterId === undefined) {
-        const counts = new Map<string, number>()
-        let duplicateIdGroups = 0
-        let duplicateRows = 0
-        let numberedRows = 0
-        let minNumber: number | undefined = undefined
-        let maxNumber: number | undefined = undefined
-        const leadingNumbers: string[] = []
-        chapters.forEach((chapter: MangaChapterItem, index: number): void => {
-          const count = (counts.get(chapter.id) ?? 0) + 1
-          counts.set(chapter.id, count)
-          if (count === 2) duplicateIdGroups += 1
-          if (count > 1) duplicateRows += 1
-          const number = chapter.chapterNumber
-          const known = number !== undefined && Number.isFinite(number) && number >= 0
-          if (known) {
-            numberedRows += 1
-            minNumber = minNumber === undefined ? number : Math.min(minNumber, number)
-            maxNumber = maxNumber === undefined ? number : Math.max(maxNumber, number)
-          }
-          if (index < 8) leadingNumbers.push(index + ':' + (known ? number : '?'))
-        })
         // Completed catalog only: no identifiers, titles, URLs, page-by-page or scroll logging.
         DiagnosticLogger.info('source_chapters', 'catalog_identity', 'total=' + chapters.length +
-          ' uniqueId=' + counts.size + ' duplicateIdGroups=' + duplicateIdGroups + ' duplicateRows=' + duplicateRows)
+          ' uniqueId=' + chapterIdCounts.size + ' duplicateIdGroups=' + duplicateIdGroups + ' duplicateRows=' + duplicateRows)
         DiagnosticLogger.info('source_chapters', 'catalog_order', 'total=' + chapters.length +
           ' numbered=' + numberedRows + ' unknown=' + (chapters.length - numberedRows) +
           ' min=' + (minNumber ?? 'none') + ' max=' + (maxNumber ?? 'none') +

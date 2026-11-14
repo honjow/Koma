@@ -24,8 +24,10 @@ export function sourceChapterExclusions(value: Object | undefined): string[] {
 export function sourceChapterDisplayRows(
   current: MangaChapterItem[], retained: MangaChapterItem[], excludedChapterIds: string[] = [],
 ): MangaChapterItem[] {
+  if (retained.length === 0 && excludedChapterIds.length === 0) return current
   const excluded = new Set<string>(excludedChapterIds)
   const displayed = current.filter((chapter: MangaChapterItem): boolean => !excluded.has(chapter.id))
+  if (retained.length === 0) return displayed
   const ids = new Set<string>(displayed.map((chapter: MangaChapterItem): string => chapter.id))
   retained.forEach((chapter: MangaChapterItem): void => {
     if (!ids.has(chapter.id) && !excluded.has(chapter.id)) {

@@ -12,6 +12,12 @@ const compile = source => ts.transpileModule(source, {
 const chapterVisibility = {}
 new Function('exports', 'require', compile(read('model/SourceChapterVisibility')))(chapterVisibility, () => ({}))
 const strings = { get: key => key, format: (_key, text, status) => `${text} HTTP ${status}` }
+const chapterText = {}
+new Function('exports', compile(read('model/SourceTextNormalizer')))(chapterText)
+const chapterRows = {}
+new Function('exports', 'require', compile(read('model/SourceChapterRow')))(chapterRows, () => chapterText)
+const chapterWorker = {}
+new Function('exports', 'require', compile(read('model/SourceChapterResponseWorker')))(chapterWorker, () => chapterRows)
 const errors = { exports: {} }
 new Function('module', 'exports', 'require', compile(read('model/SourceRuntimeError')))(errors, errors.exports,
   () => ({ AppStrings: strings }))
@@ -45,7 +51,7 @@ function fixture() {
   new Function('exports', 'SourceAuthenticationRequest', 'SourceRuntimeError', 'DiagnosticLogger', 's', 'sourceHttpIdentityJson',
     'diagnoseSourceOperation', 'taskpool', 'executeMangaDetailSourceOperation', 'parseMangaDetailFromSourceItem', 'parseSourceRelatedManga',
     'parseMangaChapterFromSourceItem', 'sourceRuntimeEntryEnabled', 'sourceMangaDetailSnapshotCache',
-    'resolveSourceChapterList', 'SourceDetailContentState', 'mangaChapterItemFromComicChapter', 'SourceWebChallengeGate', 'appSourceWebSessionStore', 'appSourceSettingsStore', 'sourceSettingsFingerprint', code)(
+    'resolveSourceChapterList', 'SourceDetailContentState', 'mangaChapterItemFromComicChapter', 'SourceWebChallengeGate', 'appSourceWebSessionStore', 'appSourceSettingsStore', 'sourceSettingsFingerprint', 'UIUtils', code)(
     exports, authentication.SourceAuthenticationRequest, SourceRuntimeError, { warn: (...args) => logs.push(args.join(' ')) }, key => key,
     (...args) => { identities.push(args); return '{}' },
     (_request, execute) => execute(), { execute: async () => state.task ? state.task() : JSON.stringify(state.response) },
@@ -53,7 +59,7 @@ function fixture() {
     (_source, item) => item, () => undefined, item => item, item => item.enabled,
     { read: () => { reads.push(true); return state.cache }, write: (...args) => writes.push(args) },
     async (...args) => { chapterCalls.push(args); if (state.chapterError) throw state.chapterError; return { resolved: true, chapters: state.chapters, excludedChapterIds: state.excludedChapterIds } },
-    { UNRESOLVED: 'unresolved', LOADING: 'loading', READY: 'ready', ERROR: 'error' }, chapter => ({ ...chapter }), SourceWebChallengeGate, { cancel: (...args) => cancelledSessions.push(args) }, { loadForSource: () => ({}) }, () => '')
+    { UNRESOLVED: 'unresolved', LOADING: 'loading', READY: 'ready', ERROR: 'error' }, chapter => ({ ...chapter }), SourceWebChallengeGate, { cancel: (...args) => cancelledSessions.push(args) }, { loadForSource: () => ({}) }, () => '', { getTarget: value => value })
   const page = new exports.Page()
   Object.assign(page, {
     chrome: { visible: true }, detailWebChallenge: null, detailWebChallengeShown: false, detailWebChallengeId: 0,
@@ -316,7 +322,10 @@ test('directory resolver preserves legacy reason message alongside HTTP diagnost
     if (name === './SourceChapterChronology') return chapterChronology
     if (name === './SourceRuntimeError') return { SourceRuntimeError }
     if (name === './SourceChapterVisibility') return chapterVisibility
-    if (name === '@kit.ArkTS') return { taskpool: { execute: async () => JSON.stringify(response) } }
+    if (name === '@kit.ArkTS') return { taskpool: { execute: async (worker, ...args) => worker(...args) } }
+    if (name === '../i18n/AppStrings') return { AppStrings: strings }
+    if (name === './SourceChapterResponseWorker') return chapterWorker
+    if (name === '../sourceRuntime/SourceRequestPolicy') return { configureSourceRequestPolicy() {} }
     if (name === '../sourceRuntime/SourceRuntimeWorkerClient') return { executeSourceRequestInWorker: async () => JSON.stringify(response) }
     if (name === '../sourceRuntime/SourceRuntimeRunner') return { diagnoseSourceOperation: (_request, execute) => execute() }
     if (name === '../sourceRuntime/SourceWebSessionStore') return { sourceHttpIdentityJson: () => '{}' }
@@ -446,15 +455,15 @@ test('completed catalog diagnostic counts duplicate identities without merging t
     if (name === './SourceChapterChronology') return chapterChronology
     if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { info: (...args) => logs.push(args.join(' ')) } }
     if (name === './SourceRuntimeError') return { SourceRuntimeError }
-    if (name === '@kit.ArkTS') return { taskpool: { execute: async (_worker, request) => {
-      requests.push(JSON.parse(request)); return JSON.stringify(responses.shift())
-    } } }
+    if (name === '@kit.ArkTS') return { taskpool: { execute: async (worker, ...args) => worker(...args) } }
+    if (name === '../i18n/AppStrings') return { AppStrings: strings }
+    if (name === './SourceChapterResponseWorker') return chapterWorker
+    if (name === '../sourceRuntime/SourceRequestPolicy') return { configureSourceRequestPolicy() {} }
     if (name === '../sourceRuntime/SourceRuntimeWorkerClient') return { executeSourceRequestInWorker: async request => {
       requests.push(JSON.parse(request)); return JSON.stringify(responses.shift())
     } }
     if (name === '../sourceRuntime/SourceRuntimeRunner') return { diagnoseSourceOperation: (_request, execute) => execute() }
     if (name === '../sourceRuntime/SourceWebSessionStore') return { sourceHttpIdentityJson: (...args) => { identities.push(args); return '{}' } }
-    if (name === './MangaDetailModels') return { parseMangaChapterFromSourceItem: item => item }
     if (name === './SourceChapterVisibility') return chapterVisibility
     if (name === '../sourceRuntime/SourceSettingObservationStore') return { appSourceSettingObservationStore: { tokenForSource: () => 'same' } }
     if (name === '../sourceRuntime/SourceHostFeatures') return { sourceRequestWithHostFeatures: json => json }
@@ -466,7 +475,8 @@ test('completed catalog diagnostic counts duplicate identities without merging t
   const context = { version: 1, work: 'private-work', editions: ['one'] }
   const result = await exports.resolveSourceChapterList(entry, 'private-work', 'https://private.invalid/work', () => true, context)
   assert.equal(result.resolved, true)
-  assert.deepEqual(result.chapters, [...first, ...second])
+  assert.deepEqual(result.chapters.map(({ id, title, chapterNumber }) => ({ id, title,
+    ...(chapterNumber === undefined ? {} : { chapterNumber }) })), [...first, ...second])
   assert.equal(requests.length, 2)
   assert.equal(requests[1].args.page.cursor, 'page-two')
   assert.deepEqual(requests.map(request => request.args.chapterContext), [context, context])
@@ -660,7 +670,7 @@ test('actual detail merge hides only explicit exclusions while preserving stored
   const exported = {}
   const retained = [{ id: 'hidden', title: 'Blocked', pages: [{ uri: 'keep-original' }] }, { id: 'missing', title: 'Retained' }]
   const original = JSON.stringify(retained)
-  const globals = { SourceDetailContentState: { READY: 'ready' },
+  const globals = { UIUtils: { getTarget: value => value }, SourceDetailContentState: { READY: 'ready' },
     getContext: () => ({ filesDir: '/app' }), protectedSourceChapterIds: () => ['hidden'],
     reconcileSourceChapterIdentity: (_comic, _manga, chapters) => ({ chapters, storedChapters: retained }),
     mangaChapterItemFromComicChapter: value => ({ ...value }), sourceChapterDisplayRows: chapterVisibility.sourceChapterDisplayRows }

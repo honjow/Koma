@@ -83,7 +83,7 @@ function cloneSnapshot(snapshot: SourceMangaDetailSnapshot): SourceMangaDetailSn
   }
 }
 
-function cloneRecord(record: SourceMangaDetailSnapshotRecord): SourceMangaDetailSnapshotRecord {
+function copyRecord(record: SourceMangaDetailSnapshotRecord, copySnapshot: boolean): SourceMangaDetailSnapshotRecord {
   return {
     sourceId: record.sourceId,
     mangaId: record.mangaId,
@@ -94,7 +94,7 @@ function cloneRecord(record: SourceMangaDetailSnapshotRecord): SourceMangaDetail
     settingsFingerprint: record.settingsFingerprint,
     mangaUrl: record.mangaUrl,
     lastAccessAt: record.lastAccessAt,
-    snapshot: cloneSnapshot(record.snapshot),
+    snapshot: copySnapshot ? cloneSnapshot(record.snapshot) : record.snapshot,
   }
 }
 
@@ -139,15 +139,19 @@ export class SourceMangaDetailSnapshotCache {
       const key = this.recordKey(record)
       const existing = this.snapshots.get(key)
       if (existing === undefined || existing.lastAccessAt <= record.lastAccessAt) {
-        this.snapshots.set(key, cloneRecord(record))
+        this.snapshots.set(key, copyRecord(record, true))
       }
     })
   }
 
   persistenceRecords(): SourceMangaDetailSnapshotRecord[] {
+    return this.collectRecords(true)
+  }
+
+  private collectRecords(copySnapshot: boolean): SourceMangaDetailSnapshotRecord[] {
     const records: SourceMangaDetailSnapshotRecord[] = []
     this.snapshots.forEach((record: SourceMangaDetailSnapshotRecord): void => {
-      if (record.snapshot.chaptersResolved === true) records.push(cloneRecord(record))
+      if (record.snapshot.chaptersResolved === true) records.push(copyRecord(record, copySnapshot))
     })
     return records.sort((left: SourceMangaDetailSnapshotRecord, right: SourceMangaDetailSnapshotRecord): number =>
       right.lastAccessAt - left.lastAccessAt)
@@ -164,7 +168,9 @@ export class SourceMangaDetailSnapshotCache {
   }
 
   private persistIfNeeded(): void {
-    this.persistence?.persist(this.persistenceRecords())
+    // The cache owns its snapshot contents. Copy each record's recency for
+    // the queued write while sharing the snapshot until TaskPool transfers it.
+    this.persistence?.persist(this.collectRecords(false))
   }
 
   read(
@@ -194,8 +200,17 @@ export class SourceMangaDetailSnapshotCache {
     if (route !== undefined && route.length > 0 && snapshot.detail.url?.trim() !== route) {
       return undefined
     }
+    const previousAccess = cached.lastAccessAt
     cached.lastAccessAt = Date.now()
-    this.persistIfNeeded()
+    // Only the eviction order is durable. Reopening its newest entry
+    // does not need another transfer of all cached chapter rows to disk.
+    for (const record of this.snapshots.values()) {
+      if (record !== cached && record.snapshot.chaptersResolved &&
+        (record.lastAccessAt >= previousAccess || record.lastAccessAt > cached.lastAccessAt)) {
+        this.persistIfNeeded()
+        break
+      }
+    }
     return cloneSnapshot(snapshot)
   }
 

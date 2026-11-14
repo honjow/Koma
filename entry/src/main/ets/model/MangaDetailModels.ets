@@ -1,6 +1,8 @@
 import { SourceMangaWebLink, sourceMangaWebUrl } from './MangaWebLink'
 import { AppStrings } from '../i18n/AppStrings'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTextNormalizer'
+import { optionalSourceString, optionalSourceDisplayString, sourceStringList, firstSourceDisplayString,
+  firstSourceString, firstSourceNumber, parseSourceChapterRow } from './SourceChapterRow'
 import { ChapterReadSequenceEntry } from './ReaderChapterSequence'
 import { SourceManga } from './SourceModels'
 
@@ -68,76 +70,6 @@ export enum ChapterSortDirection {
 
 type SourceRuntimeRecord = Record<string, Object>
 
-function optionalSourceString(value: Object | undefined): string | undefined {
-  if (typeof value !== 'string') {
-    return undefined
-  }
-  const normalized = value.trim()
-  return normalized.length === 0 ? undefined : normalized
-}
-
-function optionalSourceDisplayString(value: Object | undefined): string | undefined {
-  if (typeof value !== 'string') {
-    return undefined
-  }
-  return normalizeSourceDisplayText(value)
-}
-
-function optionalSourceNumber(value: Object | undefined): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value
-  }
-  if (typeof value !== 'string') {
-    return undefined
-  }
-  if (value.trim().length === 0) {
-    return undefined
-  }
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : undefined
-}
-
-function optionalSourceTimestamp(value: Object | undefined): number | undefined {
-  const numeric = optionalSourceNumber(value)
-  if (numeric !== undefined) {
-    return numeric > 0 && numeric < 100000000000 ? numeric * 1000 : numeric
-  }
-  if (typeof value !== 'string') {
-    return undefined
-  }
-  const parsed = Date.parse(value)
-  return Number.isFinite(parsed) ? parsed : undefined
-}
-
-function sourceStringList(value: Object | undefined): string[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined
-  }
-  const result: string[] = []
-  value.forEach((item: Object) => {
-    const normalized = optionalSourceDisplayString(item)
-    if (normalized !== undefined) {
-      result.push(normalized)
-    }
-  })
-  return result.length === 0 ? undefined : result
-}
-
-function firstSourceDisplayString(values: (Object | undefined)[]): string | undefined {
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index]
-    const direct = optionalSourceDisplayString(value)
-    if (direct !== undefined && direct.trim().length > 0) {
-      return direct
-    }
-    const list = sourceStringList(value)
-    if (list !== undefined && list.length > 0) {
-      return list.join(', ')
-    }
-  }
-  return undefined
-}
-
 function sourceStatus(value: string | undefined): MangaStatus {
   if (value === MangaStatus.ONGOING ||
     value === MangaStatus.COMPLETED ||
@@ -148,42 +80,12 @@ function sourceStatus(value: string | undefined): MangaStatus {
   return MangaStatus.UNKNOWN
 }
 
-function firstSourceString(values: (string | undefined)[]): string | undefined {
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index]
-    if (value !== undefined && value.trim().length > 0) {
-      return value
-    }
-  }
-  return undefined
-}
-
 function nestedSourceString(record: SourceRuntimeRecord, key: string, nestedKey: string): string | undefined {
   const value = record[key]
   if (value === undefined || value === null || Array.isArray(value) || typeof value !== 'object') {
     return undefined
   }
   return optionalSourceString((value as SourceRuntimeRecord)[nestedKey])
-}
-
-function firstSourceNumber(values: (Object | undefined)[]): number | undefined {
-  for (let index = 0; index < values.length; index += 1) {
-    const value = optionalSourceNumber(values[index])
-    if (value !== undefined) {
-      return value
-    }
-  }
-  return undefined
-}
-
-function firstSourceTimestamp(values: (Object | undefined)[]): number | undefined {
-  for (let index = 0; index < values.length; index += 1) {
-    const value = optionalSourceTimestamp(values[index])
-    if (value !== undefined) {
-      return value
-    }
-  }
-  return undefined
 }
 
 export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRuntimeRecord): MangaDetail {
@@ -235,66 +137,6 @@ export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRun
 }
 
 export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): MangaChapterItem {
-  const id = firstSourceString([
-    optionalSourceString(item['id']),
-    optionalSourceString(item['chapter_id']),
-    optionalSourceString(item['title']),
-  ]) ?? 'source-chapter'
-  const hasContinuationContract = item['readingGroup'] !== undefined || item['continuationEligible'] !== undefined
-  const chapterNumber = firstSourceNumber([
-    item['chapter_number'],
-    item['chapterNumber'],
-    item['chapter'],
-  ])
-  const sourceTitle = optionalSourceDisplayString(item['title'])
-  const sourceReadingOrder = optionalSourceNumber(item['readingOrder'])
-  const readingOrder = sourceReadingOrder !== undefined && sourceReadingOrder >= 0 ? sourceReadingOrder : undefined
-  const readingGroup = optionalSourceString(item['readingGroup'])
-  const volumeNumber = firstSourceString([
-    optionalSourceString(item['volume_number']),
-    optionalSourceString(item['volumeNumber']),
-    optionalSourceString(item['volume']),
-  ])
-  return {
-    id,
-    title: sourceTitle ?? (chapterNumber === undefined
-      ? AppStrings.get('manga_detail_chapter_untitled')
-      : AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${chapterNumber}`)),
-    chapterNumber,
-    readingOrder,
-    readingGroup,
-    readingVariantGroup: optionalSourceString(item['readingVariantGroup']),
-    readingVariantSequence: optionalSourceString(item['readingVariantSequence']),
-    continuationEligible: hasContinuationContract ? item['continuationEligible'] === true &&
-      readingGroup !== undefined && (readingOrder !== undefined || chapterNumber !== undefined || optionalSourceNumber(volumeNumber) !== undefined) : undefined,
-    volumeNumber,
-    scanlator: firstSourceDisplayString([
-      item['scanlator'],
-      item['scanlators'],
-      item['group'],
-      item['groups'],
-    ]),
-    language: firstSourceString([
-      optionalSourceString(item['language']),
-      optionalSourceString(item['lang']),
-      optionalSourceString(item['translatedLanguage']),
-      optionalSourceString(item['locale']),
-    ]),
-    dateUpload: firstSourceTimestamp([
-      item['date_upload'],
-      item['dateUpload'],
-      item['uploadDate'],
-      item['uploadedAt'],
-      item['updatedAt'],
-      item['publishedAt'],
-      item['published_at'],
-    ]),
-    pageCount: firstSourceNumber([
-      item['page_count'],
-      item['pageCount'],
-      item['pages'],
-    ]),
-    isRead: false,
-    isDownloaded: false,
-  }
+  return parseSourceChapterRow(item, AppStrings.get('manga_detail_chapter_untitled'),
+    AppStrings.get('library_update_chapter_fallback_title'))
 }

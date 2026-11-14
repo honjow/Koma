@@ -123,18 +123,26 @@ test('ordinary catalog learns real candidates and the async settings consumer re
     settings.appSourceSettingsStore.configure({ filesDir: f.directory })
     entry.capabilities = ['get_chapters', 'settings']
     const revision = settings.appSourceSettingsStore.revisionForSource(entry.sourceId)
+    const chapterRows = load('model/SourceChapterRow.ets', {
+      './SourceTextNormalizer': load('model/SourceTextNormalizer.ets'),
+    })
+    const chapterWorker = load('model/SourceChapterResponseWorker.ets', { './SourceChapterRow': chapterRows })
     const resolver = load('model/SourceChapterListResolver.ets', {
       './SourceChapterVisibility': load('model/SourceChapterVisibility.ets'),
       '../sourceRuntime/SourceSettingsStore': settings, '../sourceRuntime/SourceSettingObservationStore': observationImport,
       '../sourceRuntime/SourceRuntimeAppRegistry': { appSourceRuntimeRegistry: registry },
-      '../sourceRuntime/SourceHostFeatures': host, './MangaDetailModels': { parseMangaChapterFromSourceItem: value => value },
+      '../sourceRuntime/SourceHostFeatures': host, './SourceChapterResponseWorker': chapterWorker,
       '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { info() {}, warn() {} } },
       '../sourceRuntime/SourceWebSessionStore': { sourceHttpIdentityJson: () => '{}' },
       '../sourceRuntime/SourceRuntimeRunner': { diagnoseSourceOperation: (_json, fn) => fn() },
-      '@kit.ArkTS': { taskpool: { execute: async (_fn, json) => {
+      '@kit.ArkTS': { taskpool: { execute: async (worker, ...args) => worker(...args) } },
+      '../i18n/AppStrings': { AppStrings: { get: key => key } },
+      '../sourceRuntime/SourceRequestPolicy': { configureSourceRequestPolicy() {} },
+      './SourceChapterChronology': load('model/SourceChapterChronology.ets'),
+      '../sourceRuntime/SourceRuntimeWorkerClient': { executeSourceRequestInWorker: async json => {
         assert(JSON.parse(json).hostFeatures.includes('source_setting_observations_v1'))
         return JSON.stringify({ ok: true, data: { items: [{ id: 'chapter', title: 'Chapter' }], excludedChapterIds: ['hidden'], settingObservations: groups(['甲组', 'Beta']) } })
-      } } },
+      } },
     })
     const catalog = await resolver.resolveSourceChapterList(entry, 'work')
     assert.equal(catalog.chapters[0].id, 'chapter')

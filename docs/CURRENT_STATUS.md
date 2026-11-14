@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-14T20:19:29+08:00",
+  "updatedAt": "2026-11-14T21:40:44+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -95,20 +95,19 @@
       "reportedDate": "2026-11-14",
       "reportedAtSource": "用户本轮反馈，原始时刻未核实。",
       "registeredAt": "2026-11-14T17:35:46+08:00",
-      "updatedAt": "2026-11-14T20:19:29+08:00",
-      "status": "已减少惯性滚动的重复更新，明显顿挫未复现",
-      "result": "封面离屏后停止重复更新。197《腦洞學生會》203 章，五次同样短划使页面更新从 777 次降到 16 次，最慢帧从 6.809 降到 4.626 毫秒。移除章节行未显示的重复文案计算后，《武炼巅峰》3,874 章十次同样短划由 873 帧、峰值 6.272 毫秒变为 894 帧、峰值 3.720 毫秒，两包均无帧超过 8.3 毫秒。详情初始画面与可访问节点一致。",
-      "remaining": "两本实测作品均未出现反馈中的明显顿挫，保留原反馈开放。",
+      "updatedAt": "2026-11-14T21:40:44+08:00",
+      "status": "已定位并降低长目录刷新卡顿，保留剩余掉帧",
+      "result": "197《武炼巅峰》3,874 章，打开后连续短划最长帧间隔 11.8 毫秒；刷新期间约 108 降到 26.5 毫秒。解析和缓存序列化移到后台，主线程复用未变的章节行。已验证冷启动显示 3,874 章、已下载筛选及恢复全部。",
+      "remaining": "刷新回包应用仍有一次 22 毫秒的主线程回调；另一次跳帧与系统列表预绘提交重叠。详情惯性滚动反馈仍开放。",
       "evidence": [
-        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-row-text-fling-path",
-        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-row-text-catalog-path",
-        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-manhuashe-fling-path",
-        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-manhuashe-catalog-path",
-        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-203-trace-path",
-        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-baseline-trace-path",
-        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-backdrop-trace-path",
-        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-backdrop-reopen-path",
-        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-backdrop-after-pull-path"
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-final-first-open-fling-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-final-refresh-fling-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-profile-state-refresh-fling-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-marked-refresh-fling-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-final-cold-catalog-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-final-download-filter-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-final-restored-filter-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-row-text-fling-path"
       ]
     },
     {
@@ -10790,6 +10789,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "detail-298-background-catalog-20261114",
+      "at": "2026-11-14T21:40:44+08:00",
+      "itemId": "MANGA_DETAIL_CHAPTER_FLING_20261114",
+      "title": "#298 长目录刷新移出解析及缓存序列化",
+      "detail": "197 连续短划时的最长刷新帧间隔由约 108 降到 26.5 毫秒，冷启动目录及筛选已验。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/reader-auto-pagination/qa/detail-298-final-refresh-fling-path"
+    },
     {
       "id": "detail-298-row-text-20261114",
       "at": "2026-11-14T20:19:29+08:00",

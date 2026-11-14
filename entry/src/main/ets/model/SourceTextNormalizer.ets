@@ -17,6 +17,7 @@ function isHexQuad(value: string): boolean {
 }
 
 export function decodeSourceDisplayTextEscapes(value: string): string {
+  if (!value.includes('\\u')) return value
   let decoded = ''
   let index = 0
   while (index < value.length) {

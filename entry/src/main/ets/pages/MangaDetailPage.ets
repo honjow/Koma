@@ -36,7 +36,7 @@ import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { CachedCoverImage } from '../components/CachedCoverImage'
 import { ChapterArchiveActions, CHAPTER_ARCHIVE_SAVE_FAILED } from '../model/ChapterArchiveExport'
 import { selectComicCover, saveComicPersonalization, discardUncommittedComicCover } from '../model/ComicPersonalization'
-import { ColorMetrics, ComponentContent, LengthMetrics } from '@kit.ArkUI'
+import { ColorMetrics, ComponentContent, LengthMetrics, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
 import { systemShare } from '@kit.ShareKit'
@@ -63,6 +63,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import {
   MangaChapterItem,
+  MangaChapterDownloadStatus,
   MangaDetail,
   MangaStatus,
   parseMangaChapterFromSourceItem,
@@ -948,7 +949,33 @@ export struct MangaDetailPage {
     const comic = this.libraryStore?.getComic(comicId)
     const localOffline = comic !== undefined && chapterPagesAreLocalOffline(comic.sourceKind)
     return chapters.map((chapter: MangaChapterItem): MangaChapterItem => {
-      const next: MangaChapterItem = {
+      const reading = this.readerSessionStore.chapterReadingState(comicId, chapter.id)
+      const isRead = reading?.isRead === true
+      const isBookmarked = reading?.bookmarked === true
+      const summary = summaries.get(chapter.id)
+      // The queue and local archive state are authoritative, including after deletion.
+      const locallyAvailable = localOffline && (chapter.pageCount ?? 0) > 0
+      const isDownloaded = locallyAvailable || summary?.status === OfflineDownloadStatus.DOWNLOADED
+      let downloadStatus: MangaChapterDownloadStatus | undefined = locallyAvailable ? 'downloaded' : undefined
+      let downloadProgress: string | undefined
+      if (summary !== undefined) {
+        downloadStatus = summary.status
+        if (summary.canceling) downloadStatus = 'canceling'
+        else if (isOfflineDownloadTaskPending(summary)) {
+          if (summary.pausedByUser || wait === 'paused') downloadStatus = 'paused'
+          else if (wait === 'offline') downloadStatus = 'waiting_network'
+          else if (wait === 'wifi_only') downloadStatus = 'waiting_wifi'
+          else if (summary.status !== OfflineDownloadStatus.DOWNLOADING) downloadStatus = 'queued'
+        }
+        if (summary.pageCount > 0 && (summary.status === OfflineDownloadStatus.DOWNLOADING ||
+          summary.status === OfflineDownloadStatus.PARTIAL)) {
+          downloadProgress = this.formatString('downloads_page_progress', [summary.downloadedPageCount, summary.pageCount])
+        }
+      }
+      if (chapter.isRead === isRead && (chapter.isBookmarked === true) === isBookmarked &&
+        chapter.isDownloaded === isDownloaded && chapter.downloadStatus === downloadStatus &&
+        chapter.downloadProgress === downloadProgress) return chapter
+      return {
         id: chapter.id,
         title: chapter.title,
         chapterNumber: chapter.chapterNumber,
@@ -963,41 +990,20 @@ export struct MangaDetailPage {
         language: chapter.language,
         dateUpload: chapter.dateUpload,
         pageCount: chapter.pageCount,
-        isRead: this.readerSessionStore.isChapterRead(comicId, chapter.id),
-        isBookmarked: this.readerSessionStore.isChapterBookmarked(comicId, chapter.id),
-        // Re-read host downloads after cleanup; the prior decorated row is not persistent truth.
-        // Local archives/folders remain available independently of the download queue.
-        isDownloaded: localOffline && (chapter.pageCount ?? 0) > 0,
-        downloadStatus: localOffline && (chapter.pageCount ?? 0) > 0 ? 'downloaded' : undefined,
+        isRead,
+        isBookmarked,
+        isDownloaded,
+        downloadStatus,
+        downloadProgress,
       }
-      const summary = summaries.get(chapter.id)
-      if (summary !== undefined) {
-        next.downloadStatus = summary.status
-        if (summary.canceling) next.downloadStatus = 'canceling'
-        else if (isOfflineDownloadTaskPending(summary)) {
-          if (summary.pausedByUser || wait === 'paused') next.downloadStatus = 'paused'
-          else if (wait === 'offline') next.downloadStatus = 'waiting_network'
-          else if (wait === 'wifi_only') next.downloadStatus = 'waiting_wifi'
-          else if (summary.status !== OfflineDownloadStatus.DOWNLOADING) next.downloadStatus = 'queued'
-        }
-        if (summary.pageCount > 0 && (summary.status === OfflineDownloadStatus.DOWNLOADING ||
-          summary.status === OfflineDownloadStatus.PARTIAL)) {
-          next.downloadProgress = this.formatString('downloads_page_progress', [summary.downloadedPageCount, summary.pageCount])
-        }
-      }
-      if (summary?.status === OfflineDownloadStatus.DOWNLOADED) next.isDownloaded = true
-      return next
     })
   }
 
   private applyChapterStatesToCurrent(): void {
-    const chapters = this.decorateChapterStates(this.chapters)
-    if (chapters.some((chapter: MangaChapterItem, index: number): boolean => {
-      const previous = this.chapters[index]
-      return chapter.isRead !== previous.isRead || chapter.isBookmarked !== previous.isBookmarked ||
-        chapter.isDownloaded !== previous.isDownloaded || chapter.downloadStatus !== previous.downloadStatus ||
-        chapter.downloadProgress !== previous.downloadProgress
-    })) this.chapters = chapters
+    const previous = UIUtils.getTarget(this.chapters)
+    const chapters = this.decorateChapterStates(previous)
+    if (chapters.some((chapter: MangaChapterItem, index: number): boolean =>
+      chapter !== previous[index])) this.chapters = chapters
   }
 
   private async loadMangaDetail(): Promise<void> {
@@ -1177,7 +1183,7 @@ export struct MangaDetailPage {
     this.closeDetailWebChallenge()
     this.clearDetailWebChallenge(automaticRecovery)
     const retainedDetail = this.sourceDetailDataResolved ? this.manga : undefined
-    const retainedChapters = retainedDetail === undefined ? [] : this.chapters.slice()
+    const retainedChapters = retainedDetail === undefined ? [] : UIUtils.getTarget(this.chapters)
     const retainedChaptersResolved = this.sourceChaptersResolved
     const waitingForChapters = retainedDetail !== undefined && retainedChapters.length === 0 && !retainedChaptersResolved
     // Automatic revalidation must not interrupt a readable collected detail
@@ -1558,14 +1564,23 @@ export struct MangaDetailPage {
     nextDetail.isInLibrary = libraryComic !== undefined
     nextDetail.sourceName = entry.manifestName
     if (libraryComic?.customCoverUri) nextDetail.coverUrl = libraryComic.customCoverUri
-    this.manga = nextDetail
+    const previousDetail = this.manga
+    // An unchanged refresh should not rebind the detail header and title actions.
+    if (previousDetail === undefined ||
+      JSON.stringify(UIUtils.getTarget(previousDetail)) !== JSON.stringify(nextDetail)) this.manga = nextDetail
     const nextChapters = this.decorateChapterStates(displayedChapters)
     // Equal background results must not rerun the list's sort/filter and
     // selection reconciliation just because the source returned new objects.
-    if (nextChapters.length !== this.chapters.length || nextChapters.some((row: MangaChapterItem, index: number): boolean =>
-      !sameDetailChapterRow(row, this.chapters[index]))) {
-      this.chapters = nextChapters
-    }
+    // Rows are replaced as a batch, so an equality check can read the
+    // original array without walking ArkUI's observation proxy on every row.
+    const previousChapters = UIUtils.getTarget(this.chapters)
+    let changed = nextChapters.length !== previousChapters.length
+    nextChapters.forEach((row: MangaChapterItem, index: number): void => {
+      const previous = previousChapters[index]
+      if (previous !== undefined && sameDetailChapterRow(row, previous)) nextChapters[index] = previous
+      else changed = true
+    })
+    if (changed) this.chapters = nextChapters
     this.isInLibrary = nextDetail.isInLibrary
     this.sourceDetailDataResolved = true
     this.feedbackText = feedbackText
@@ -4161,7 +4176,7 @@ function sameDetailChapterRow(left: MangaChapterItem, right: MangaChapterItem): 
     left.localReadingIndex === right.localReadingIndex && left.scanlator === right.scanlator &&
     left.language === right.language && left.dateUpload === right.dateUpload &&
     (left.pageCount ?? 0) === (right.pageCount ?? 0) && left.isRead === right.isRead &&
-    left.isBookmarked === right.isBookmarked && left.isDownloaded === right.isDownloaded &&
+    (left.isBookmarked === true) === (right.isBookmarked === true) && left.isDownloaded === right.isDownloaded &&
     left.downloadStatus === right.downloadStatus && left.downloadProgress === right.downloadProgress
 }
 
