@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-14T19:08:00+08:00",
+  "updatedAt": "2026-11-14T19:27:21+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -95,11 +95,13 @@
       "reportedDate": "2026-11-14",
       "reportedAtSource": "用户本轮反馈，原始时刻未核实。",
       "registeredAt": "2026-11-14T17:35:46+08:00",
-      "updatedAt": "2026-11-14T18:14:35+08:00",
+      "updatedAt": "2026-11-14T19:27:21+08:00",
       "status": "已减少惯性滚动的重复更新，明显顿挫未复现",
-      "result": "197《腦洞學生會》203 章，匹配的五次短划使详情页面更新从 777 次降到 16 次，应用最慢帧从 6.809 降到 4.626 毫秒。两组均无应用帧超过 8.3 毫秒；惯性中段合成帧间隔均约 8.3 毫秒。十次间隔 350 毫秒的快速短划，应用最慢 4.822 毫秒。返回顶部与短下拉后页面布局一致。",
-      "remaining": "原报的明显顿挫仍待真实触发条件；本次可确认已消除封面离屏后的逐帧更新。",
+      "result": "197《腦洞學生會》203 章，五次同样短划使详情页更新从 777 次降到 16 次，应用最慢帧从 6.809 降到 4.626 毫秒。十次快速短划最慢 4.822 毫秒，返回顶部和短下拉后的布局一致。补测《武炼巅峰》3,874 章，十次短划共 873 帧，应用最慢 6.272 毫秒，无帧超过 8.3 毫秒。最长帧主要花在新行的文字测量。",
+      "remaining": "两本实测作品均未出现反馈中的明显顿挫，保留原反馈开放。",
       "evidence": [
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-manhuashe-fling-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/detail-298-manhuashe-catalog-path",
         ".hvigor/outputs/reader-auto-pagination/qa/detail-298-203-trace-path",
         ".hvigor/outputs/reader-auto-pagination/qa/detail-298-baseline-trace-path",
         ".hvigor/outputs/reader-auto-pagination/qa/detail-298-backdrop-trace-path",
@@ -10783,6 +10785,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "detail-298-manhuashe-3874-20261114",
+      "at": "2026-11-14T19:27:21+08:00",
+      "itemId": "MANGA_DETAIL_CHAPTER_FLING_20261114",
+      "title": "#298 验证 3,874 章长目录",
+      "detail": "197 打开漫画社《武炼巅峰》的完整目录，十次连续短划的 873 帧均低于 8.3 毫秒，最慢 6.272 毫秒。未复现明显顿挫。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/reader-auto-pagination/qa/detail-298-manhuashe-fling-path"
+    },
     {
       "id": "reader-297-position-receipt-20261114",
       "at": "2026-11-14T19:08:00+08:00",
