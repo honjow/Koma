@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-14T21:40:44+08:00",
+  "updatedAt": "2026-11-15T03:31:47+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -85,6 +85,28 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "LIBRARY_SHELF_CONTROL_FEEDBACK",
+      "number": 300,
+      "title": "书架筛选图标及排序按下反馈",
+      "kind": "pending_verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-15",
+      "reportedAtSource": "本轮用户明确要求合并两项 UI 调整，原始时刻未核实。",
+      "status": "已放宽按钮内边距并补上筛选高亮，签名包可用",
+      "result": "用户上机指出上一版按下反馈范围不一致、漏斗离文字偏远且排序和筛选偏远。现两项共用同一原生行为的公共按钮、对称内边距和圆角，漏斗与文字及两按钮之间的间距均收至 4 vp。排序方向和原菜单保留。更新后的签名 Debug 包已构建。 根据后续用户反馈，排序和筛选的左右内边距各增加到 8 vp，图标与文字及按钮之间的间距仍为 4 vp；有生效筛选时文字、计数和漏斗使用主题色。包含两项更新的签名 Debug 包构建通过。",
+      "remaining": "按用户要求只交付签名包。新版内边距、筛选启用和清空时的颜色变化、实际按压及菜单开合尚未真机验收。",
+      "evidence": [
+        ".hvigor/outputs/koma-shelf-controls-20261115/koma-shelf-controls-signed.hap",
+        ".hvigor/outputs/koma-shelf-controls-20261115/device197__ALN-AL80/not-applicable/portrait-1260x2720/shelf-controls/baseline/run-metadata.json",
+        ".hvigor/outputs/koma-shelf-controls-20261115/koma-shelf-controls-spacing-signed.hap",
+        ".hvigor/outputs/koma-shelf-controls-20261115/koma-shelf-controls-padding-highlight-signed.hap"
+      ],
+      "progressPhase": "verification",
+      "updatedAt": "2026-11-15T03:31:47+08:00"
+    },
     {
       "id": "MANGA_DETAIL_CHAPTER_FLING_20261114",
       "number": 298,
@@ -10789,6 +10811,40 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "shelf-controls-padding-highlight-2026-11-15T03:31:47+08:00",
+      "at": "2026-11-15T03:31:47+08:00",
+      "itemId": "LIBRARY_SHELF_CONTROL_FEEDBACK",
+      "title": "调整书架按钮内边距并补上筛选高亮",
+      "detail": "左右内边距各 8 vp，保留紧凑间距；启用筛选时按钮内容使用主题色，清空恢复正文色。已交付新版签名包。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/koma-shelf-controls-20261115/koma-shelf-controls-padding-highlight-signed.hap"
+      ]
+    },
+    {
+      "id": "shelf-controls-spacing-2026-11-15T03:27:42+08:00",
+      "at": "2026-11-15T03:27:42+08:00",
+      "itemId": "LIBRARY_SHELF_CONTROL_FEEDBACK",
+      "title": "统一书架按钮反馈和间距",
+      "detail": "依照用户实测纠正旧候选。两入口共用原生按钮；紧凑间距候选构建通过，按约定交付签名包。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/koma-shelf-controls-20261115/koma-shelf-controls-spacing-signed.hap"
+      ]
+    },
+    {
+      "id": "shelf-controls-candidate-2026-11-15T03:17:56+08:00",
+      "at": "2026-11-15T03:17:56+08:00",
+      "itemId": "LIBRARY_SHELF_CONTROL_FEEDBACK",
+      "title": "筛选漏斗与排序按下态已合入候选",
+      "detail": "签名 Debug 包可用。197 只读基线已取，设备操作被自动审批挡住，未改设备状态，设备租约已读回释放。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/koma-shelf-controls-20261115/koma-shelf-controls-signed.hap",
+        ".hvigor/outputs/koma-shelf-controls-20261115/device197__ALN-AL80/not-applicable/portrait-1260x2720/shelf-controls/baseline/run-metadata.json"
+      ]
+    },
     {
       "id": "detail-298-background-catalog-20261114",
       "at": "2026-11-14T21:40:44+08:00",

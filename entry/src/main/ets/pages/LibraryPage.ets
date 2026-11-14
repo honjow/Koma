@@ -1805,30 +1805,6 @@ export struct LibraryPage {
 
 
   @Builder
-  private SortSelector() {
-    Row({ space: ThemeConstants.SPACE_XS }) {
-      Text(librarySortLabel(this.sortBy))
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .flexShrink(1)
-      Text(this.sortDirection === 'asc' ? '↑' : '↓')
-        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-        .flexShrink(0)
-        .accessibilityLevel('no')
-    }
-    .height(ThemeConstants.BUTTON_HEIGHT)
-    .padding({ right: ThemeConstants.SPACE_SM })
-    .backgroundColor(Color.Transparent)
-    .alignItems(VerticalAlign.Center)
-    .accessibilityText(librarySortSummary(this.sortBy, this.sortDirection))
-  }
-
-  @Builder
   private CategorySelector() {
     Row({ space: ThemeConstants.SPACE_XS }) {
       Text(this.categoryLabel())
@@ -1919,7 +1895,7 @@ export struct LibraryPage {
 
   @Builder
   private SortFilterBar() {
-    Row({ space: ThemeConstants.SPACE_SM }) {
+    Row({ space: ThemeConstants.SPACE_XS }) {
       // The spacer takes the available width. The menu anchors to the inner
       // button, whose bounds stop at the disclosure glyph.
       Row() {
@@ -1927,19 +1903,26 @@ export struct LibraryPage {
       }
       .layoutWeight(1)
 
-      Row() {
-        this.SortSelector()
-      }
-      .constraintSize({ maxWidth: '53%' })
-      .bindMenu(this.SortMenu(), komaMenuOptions())
+      // Use the same button component and insets for both pressed surfaces.
+      KomaActionButton({
+        label: librarySortLabel(this.sortBy),
+        trailingContent: this.sortDirection === 'asc' ? '↑' : '↓',
+        accessibilityLabel: librarySortSummary(this.sortBy, this.sortDirection),
+        kind: 'ghost',
+        horizontalPadding: ThemeConstants.SPACE_SM,
+        maxWidth: '53%',
+        accentColor: ThemeConstants.TEXT_PRIMARY,
+        menuBuilder: () => { this.SortMenu() },
+      })
 
       Row() {
         KomaActionButton({
           label: this.filtersButtonLabel(),
+          // Keep the active count with the label so the funnel always comes last.
+          trailingContent: $r('sys.symbol.funnel'),
           kind: 'ghost',
-          compact: true,
-          controlHeight: ThemeConstants.BUTTON_HEIGHT,
-          accentColor: ThemeConstants.TEXT_PRIMARY,
+          horizontalPadding: ThemeConstants.SPACE_SM,
+          accentColor: this.hasActiveFilters() ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.TEXT_PRIMARY,
           action: () => {
             this.filtersShown = true
           },

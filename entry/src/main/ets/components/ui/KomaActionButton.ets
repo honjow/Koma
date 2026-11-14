@@ -1,3 +1,4 @@
+import { komaMenuOptions } from '../../theme/KomaPopupOptions'
 import { ThemeConstants } from '../../theme/ThemeConstants'
 
 export type KomaActionButtonKind = 'primary' | 'secondary' | 'danger' | 'ghost'
@@ -7,6 +8,7 @@ export type KomaActionButtonKind = 'primary' | 'secondary' | 'danger' | 'ghost'
 class KomaDisabledActionContent implements ContentModifier<ButtonConfiguration> {
   label: ResourceStr
   icon: Resource | undefined
+  trailingContent: Resource | string | undefined
   controlHeight: number
   horizontalPadding: number
   expand: boolean
@@ -16,12 +18,13 @@ class KomaDisabledActionContent implements ContentModifier<ButtonConfiguration> 
   borderWidth: number
 
   constructor(
-    label: ResourceStr, icon: Resource | undefined, controlHeight: number,
+    label: ResourceStr, icon: Resource | undefined, trailingContent: Resource | string | undefined, controlHeight: number,
     horizontalPadding: number, expand: boolean, foreground: ResourceColor,
     background: ResourceColor, borderColor: ResourceColor, borderWidth: number,
   ) {
     this.label = label
     this.icon = icon
+    this.trailingContent = trailingContent
     this.controlHeight = controlHeight
     this.horizontalPadding = horizontalPadding
     this.expand = expand
@@ -38,7 +41,8 @@ class KomaDisabledActionContent implements ContentModifier<ButtonConfiguration> 
 
 @Builder
 function disabledActionContent(configuration: ButtonConfiguration) {
-  Row({ space: ThemeConstants.SPACE_SM }) {
+  Row({ space: (configuration.contentModifier as KomaDisabledActionContent).trailingContent === undefined ?
+    ThemeConstants.SPACE_SM : ThemeConstants.SPACE_XS }) {
     if ((configuration.contentModifier as KomaDisabledActionContent).icon !== undefined) {
       SymbolGlyph((configuration.contentModifier as KomaDisabledActionContent).icon)
         .fontSize(ThemeConstants.FONT_SIZE_HEADING)
@@ -50,6 +54,9 @@ function disabledActionContent(configuration: ButtonConfiguration) {
       .fontColor((configuration.contentModifier as KomaDisabledActionContent).foreground)
       .maxLines(1)
       .textOverflow({ overflow: TextOverflow.Ellipsis })
+      .flexShrink((configuration.contentModifier as KomaDisabledActionContent).trailingContent === undefined ? 0 : 1)
+    actionButtonTrailingContent((configuration.contentModifier as KomaDisabledActionContent).trailingContent,
+      (configuration.contentModifier as KomaDisabledActionContent).foreground)
   }
   .width((configuration.contentModifier as KomaDisabledActionContent).expand ? '100%' : undefined)
   .height((configuration.contentModifier as KomaDisabledActionContent).controlHeight)
@@ -67,6 +74,24 @@ function disabledActionContent(configuration: ButtonConfiguration) {
   .borderRadius((configuration.contentModifier as KomaDisabledActionContent).controlHeight / 2)
 }
 
+@Builder
+function actionButtonTrailingContent(content: Resource | string | undefined, foreground: ResourceColor) {
+  if (typeof content === 'string') {
+    Text(content)
+      .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+      .fontWeight(FontWeight.Medium)
+      .fontColor(foreground)
+      .flexShrink(0)
+      .accessibilityLevel('no')
+  } else if (content !== undefined) {
+    SymbolGlyph(content)
+      .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+      .fontColor([foreground])
+      .flexShrink(0)
+      .accessibilityLevel('no')
+  }
+}
+
 @ComponentV2
 export struct KomaActionButton {
   @Param componentId: string = ''
@@ -78,6 +103,12 @@ export struct KomaActionButton {
   @Param busy: boolean = false
   @Param controlHeight: number = ThemeConstants.BUTTON_HEIGHT
   @Param icon: Resource | undefined = undefined
+  @Param trailingContent: Resource | string | undefined = undefined
+  @Param horizontalPadding: number | undefined = undefined
+  @Param accessibilityLabel: string | undefined = undefined
+  @Param maxWidth: Length | undefined = undefined
+  @BuilderParam menuBuilder?: () => void
+  @Local private menuShown: boolean = false
   @Param accentColor: ResourceColor | undefined = undefined
   @Param contentColor: ResourceColor | undefined = undefined
   @Param fillColor: ResourceColor | undefined = undefined
@@ -139,14 +170,14 @@ export struct KomaActionButton {
   }
 
   private buttonHorizontalPadding(): number {
-    return this.compact ? ThemeConstants.SPACE_MD : ThemeConstants.SPACE_LG
+    return this.horizontalPadding ?? (this.compact ? ThemeConstants.SPACE_MD : ThemeConstants.SPACE_LG)
   }
 
   private disabledContent(): KomaDisabledActionContent | undefined {
     if (this.isEnabled && !this.busy) {
       return undefined
     }
-    return new KomaDisabledActionContent(this.label, this.icon, this.controlHeight,
+    return new KomaDisabledActionContent(this.label, this.icon, this.trailingContent, this.controlHeight,
       this.buttonHorizontalPadding(), this.fullWidth || this.fill,
       this.buttonForegroundColor(), this.buttonBackgroundColor(),
       this.buttonBorderColor(), this.buttonBorderWidth())
@@ -154,7 +185,7 @@ export struct KomaActionButton {
 
   @Builder
   private ButtonContent() {
-    Row({ space: ThemeConstants.SPACE_SM }) {
+    Row({ space: this.trailingContent === undefined ? ThemeConstants.SPACE_SM : ThemeConstants.SPACE_XS }) {
       if (this.icon !== undefined) {
         SymbolGlyph(this.icon)
           .fontSize(ThemeConstants.FONT_SIZE_HEADING)
@@ -166,11 +197,44 @@ export struct KomaActionButton {
         .fontColor(this.buttonForegroundColor())
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .flexShrink(this.trailingContent === undefined ? 0 : 1)
+      if (typeof this.trailingContent === 'string') {
+        Text(this.trailingContent)
+          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.buttonForegroundColor())
+          .flexShrink(0)
+          .accessibilityLevel('no')
+      } else if (this.trailingContent !== undefined) {
+        SymbolGlyph(this.trailingContent)
+          .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+          .fontColor([this.buttonForegroundColor()])
+          .flexShrink(0)
+          .accessibilityLevel('no')
+      }
     }
     .height(this.controlHeight)
     .justifyContent(FlexAlign.Center)
     .alignItems(VerticalAlign.Center)
     .padding({ left: this.buttonHorizontalPadding(), right: this.buttonHorizontalPadding() })
+  }
+
+  @Builder
+  private MenuContent() {
+    if (this.menuBuilder) {
+      this.menuBuilder()
+    }
+  }
+
+  private menuBindingOptions(): MenuOptions | undefined {
+    return this.menuBuilder ? komaMenuOptions({ onDisappear: () => { this.menuShown = false } }) : undefined
+  }
+
+  private handleClick(): void {
+    if (this.menuBuilder) {
+      this.menuShown = true
+    }
+    this.action()
   }
 
   build() {
@@ -190,9 +254,10 @@ export struct KomaActionButton {
         .opacity(1)
         .enabled(this.isEnabled && !this.busy)
         .contentModifier(this.disabledContent())
-        .onClick(() => {
-          this.action()
-        })
+        .constraintSize({ maxWidth: this.maxWidth })
+        .accessibilityText(this.accessibilityLabel)
+        .bindMenu(this.menuShown, this.MenuContent(), this.menuBindingOptions())
+        .onClick(() => { this.handleClick() })
     } else {
       Button({ type: ButtonType.Normal, stateEffect: true }) {
         if (this.isEnabled && !this.busy) {
@@ -208,9 +273,10 @@ export struct KomaActionButton {
         .opacity(1)
         .enabled(this.isEnabled && !this.busy)
         .contentModifier(this.disabledContent())
-        .onClick(() => {
-          this.action()
-        })
+        .constraintSize({ maxWidth: this.maxWidth })
+        .accessibilityText(this.accessibilityLabel)
+        .bindMenu(this.menuShown, this.MenuContent(), this.menuBindingOptions())
+        .onClick(() => { this.handleClick() })
     }
   }
 }
