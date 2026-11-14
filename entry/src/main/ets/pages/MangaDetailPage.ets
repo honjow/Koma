@@ -364,7 +364,9 @@ export struct MangaDetailPage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private detailSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private detailScrollEnabled: boolean = true
-  @Local private detailScrollOffset: number = 0
+  @Local private coverBackdropOffset: number = 0
+  private detailScrollOffset: number = 0
+  private coverBackdropHeight: number = 0
   private get detailScroller(): ListScroller {
     return this.chrome.detailScroller
   }
@@ -3711,7 +3713,11 @@ export struct MangaDetailPage {
       }
       .width('100%')
       .height('60%')
-      .translate({ y: -this.detailScrollOffset })
+      .translate({ y: -this.coverBackdropOffset })
+      .onSizeChange((_old: SizeOptions, size: SizeOptions): void => {
+        this.coverBackdropHeight = Number(size.height)
+        this.updateCoverBackdropOffset()
+      })
       .clip(true)
       .hitTestBehavior(HitTestMode.None)
     }
@@ -3892,8 +3898,17 @@ export struct MangaDetailPage {
 
   private onInformationScroll(offset: number): void {
     this.detailScrollOffset = offset
+    this.updateCoverBackdropOffset()
     const showTitle = offset > 160
     if (this.chrome.showTitle !== showTitle) this.chrome.showTitle = showTitle
+  }
+
+  private updateCoverBackdropOffset(): void {
+    // Beyond its measured lower edge the backdrop is already offscreen.
+    // Preserve the exact offset while visible, including pull-down overscroll.
+    const offset = this.coverBackdropHeight > 0
+      ? Math.min(this.detailScrollOffset, this.coverBackdropHeight) : this.detailScrollOffset
+    if (this.coverBackdropOffset !== offset) this.coverBackdropOffset = offset
   }
 
   private selectedChapterIds(): string[] {
