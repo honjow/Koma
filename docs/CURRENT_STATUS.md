@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-14T18:19:00+08:00",
+  "updatedAt": "2026-11-14T19:08:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -117,11 +117,14 @@
       "reportedDate": "2026-11-14",
       "reportedAtSource": "用户在本会话要求实施，原始时刻未核实。",
       "registeredAt": "2026-11-14T01:12:04+08:00",
-      "updatedAt": "2026-11-14T18:19:00+08:00",
-      "status": "8.3 毫秒帧预算未达标，已定位图片节点创建峰值",
-      "result": "独立 reader-kit 原仓已推送 bac5466，Koma 常规 Release 构建通过。197 横屏全屏同章短划各 8 次。单页 237 帧，超过 8.3/16.7/33.3 毫秒分别为 12/0/0，最慢 13.65 毫秒。自动双页 240 帧，分别为 21/5/0，最慢 23.91 毫秒。两种模式均无重复的 116 MB 超分图缓冲分配。往返页组保持、放大正文与完整分辨率参考一致，冷启动回第 16 话第 14 页。 真实宽页横屏往返保持整张，竖屏右半到左半保持第 12 页。原设置、阅读位置和电源已恢复。 位置回调减负后仍有长帧。把邻页更新改到帧尾使双页超 16.7 毫秒由 6 帧降为 1 帧，但收集垃圾时出现 32.35 毫秒峰值，已撤回该调度实验。",
-      "remaining": "翻页仍反复构造页面与重新计算布局。以原生页组、双页视觉和原始解码为边界，减少选页带来的计算，再用 197 同一操作复验。",
+      "updatedAt": "2026-11-14T19:08:00+08:00",
+      "status": "8.3 毫秒帧预算未达标",
+      "result": "197 横屏全屏同章短划各 8 次。常规包单页 237 帧、自动双页 240 帧，超 8.3/16.7/33.3 毫秒分别为 12/0/0、21/5/0，最慢 13.65 和 23.91 毫秒。分离纯进度回执的候选为 209 帧、251 帧，分别超 12/0/0、19/3/0，最慢 12.55 和 20.27 毫秒。该候选冷启动续读到第 16 话第 14 页。197 已恢复原设置、进度和电源。",
+      "remaining": "最长的双页帧仍同时更新旧页、创建新页的两个图片节点并做首次布局。页内 Repeat 候选出现缺图，已撤回。当前帧预算未达标。",
       "evidence": [
+        ".hvigor/outputs/reader-auto-pagination/qa/position-receipt-297-auto-trace-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/position-receipt-297-single-trace-path",
+        ".hvigor/outputs/reader-auto-pagination/qa/position-receipt-297-cold-resume-path",
         ".hvigor/outputs/reader-auto-pagination/qa/window-after-frame-297-auto-trace-path",
         ".hvigor/outputs/reader-auto-pagination/qa/image-layers-297-single-trace-path",
         ".hvigor/outputs/reader-auto-pagination/qa/image-layers-297-auto-trace-path",
@@ -10780,6 +10783,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-297-position-receipt-20261114",
+      "at": "2026-11-14T19:08:00+08:00",
+      "itemId": "READER_AUTOMATIC_PAGING_ORIENTATION_20261114",
+      "title": "#297 分离翻页绘制和进度回执",
+      "detail": "197 自动双页超 16.7 毫秒由 5 帧降为 3 帧。单页仍有 12 帧超 8.3 毫秒。续读第 16 话第 14 页通过。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/reader-auto-pagination/qa/position-receipt-297-auto-trace-path"
+    },
     {
       "id": "reader-297-frame-split-measured-20261114",
       "at": "2026-11-14T18:19:00+08:00",
