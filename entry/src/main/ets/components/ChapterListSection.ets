@@ -751,14 +751,10 @@ export struct ChapterListSection {
 
   @Builder
   private ChapterRow(ri: RepeatItem<MangaChapterItem>) {
-    // Use the same inset HDS press surface as other grouped rows. The outer
-    // ListItem/card never owns feedback; its 4vp margin stays unchanged.
+    // The inset HDS surface owns press feedback. ChapterText supplies the
+    // text, so a row entering the viewport need not format unused defaults.
     ConciseListRow({
-      title: this.chapterTitle(ri.item),
-      subtitle: this.chapterSubtitle(ri.item),
-      subtitleMaxLines: 1,
       showChevron: false,
-      primaryColor: ri.item.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'),
       textBuilderParam: () => { this.ChapterText(ri) },
       suffixPaddingRight: ThemeConstants.SPACE_SM,
       suffixBuilderParam: () => { this.ChapterRowActions(ri) },
