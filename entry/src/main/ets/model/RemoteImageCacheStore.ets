@@ -3,6 +3,34 @@ import { buffer } from '@kit.ArkTS'
 import { isAvifFileType } from './ImageFileContent'
 
 export type RemoteImageCacheHeaders = Record<string, string>
+export type RemoteImageDownloadProgress = (loaded: number, total: number) => void
+
+/** Share a file and its latest byte count with consumers joining an in-flight request. */
+export class RemoteImageFileRequest {
+  readonly file: Promise<string>
+  private listeners: Set<RemoteImageDownloadProgress> = new Set<RemoteImageDownloadProgress>()
+  private loaded: number = 0
+  private total: number = 0
+
+  constructor(start: (report: RemoteImageDownloadProgress) => Promise<string>) {
+    this.file = start((loaded: number, total: number): void => {
+      this.loaded = loaded
+      this.total = total
+      this.listeners.forEach((listener: RemoteImageDownloadProgress): void => { listener(loaded, total) })
+    })
+  }
+
+  observe(listener: RemoteImageDownloadProgress): () => void {
+    this.listeners.add(listener)
+    if (this.total > 0) listener(this.loaded, this.total)
+    return (): void => { this.listeners.delete(listener) }
+  }
+
+  wait(listener?: RemoteImageDownloadProgress): Promise<string> {
+    if (listener === undefined) return this.file
+    return this.file.finally(this.observe(listener))
+  }
+}
 
 export const DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES: number = 500 * 1024 * 1024
 const REMOTE_IMAGE_CACHE_SCHEMA_VERSION: number = 1
@@ -174,8 +202,8 @@ export class RemoteImageCacheStore {
   private manifestWritePaused: boolean = false
 
   private operationTail: Promise<void> = Promise.resolve()
-  private imageRequests: Map<string, Promise<string>> = new Map<string, Promise<string>>()
-  private reloadRequests: Map<string, Promise<string>> = new Map<string, Promise<string>>()
+  private imageRequests: Map<string, RemoteImageFileRequest> = new Map<string, RemoteImageFileRequest>()
+  private reloadRequests: Map<string, RemoteImageFileRequest> = new Map<string, RemoteImageFileRequest>()
   private evictionPaused: boolean = false
   private evictionPending: boolean = false
   private pendingEvictionMaxBytes: number = 0
@@ -270,27 +298,28 @@ export class RemoteImageCacheStore {
   getOrFetch(
     url: string,
     headers: RemoteImageCacheHeaders | undefined,
-    fetchBytes: () => Promise<ArrayBuffer>,
+    fetchBytes: (report: RemoteImageDownloadProgress) => Promise<ArrayBuffer>,
     cacheKeySeed?: string,
     forceReload: boolean = false,
+    onProgress?: RemoteImageDownloadProgress,
   ): Promise<string> {
     const key = cacheKeyFor(url, headers, cacheKeySeed)
     const refreshing = this.reloadRequests.get(key)
-    if (refreshing !== undefined) return refreshing
+    if (refreshing !== undefined) return refreshing.wait(onProgress)
     const pending = this.imageRequests.get(key)
-    if (pending !== undefined && !forceReload) return pending
-    const request = (async (): Promise<string> => {
+    if (pending !== undefined && !forceReload) return pending.wait(onProgress)
+    const request = new RemoteImageFileRequest(async (report: RemoteImageDownloadProgress): Promise<string> => {
       if (forceReload && pending !== undefined) {
         // Retire the old publisher first; it must not overwrite the explicit replacement later.
-        try { await pending } catch (_error) {}
+        try { await pending.file } catch (_error) {}
       }
       if (!forceReload) {
         const cached = await this.get(url, headers, cacheKeySeed)
         if (cached !== undefined && cached.length > 0) return cached
       }
-      const bytes = await fetchBytes()
+      const bytes = await fetchBytes(report)
       return this.put(url, headers, bytes, cacheKeySeed)
-    })()
+    })
     this.imageRequests.set(key, request)
     if (forceReload) this.reloadRequests.set(key, request)
     const release = (): void => {
@@ -298,8 +327,8 @@ export class RemoteImageCacheStore {
       if (this.reloadRequests.get(key) === request) this.reloadRequests.delete(key)
     }
     // Release both success and failure; a failed shared request must permit an ordinary retry.
-    void request.then(release, release)
-    return request
+    void request.file.then(release, release)
+    return request.wait(onProgress)
   }
 
   put(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer, cacheKeySeed?: string): Promise<string> {

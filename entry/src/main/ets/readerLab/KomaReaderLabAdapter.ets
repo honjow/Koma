@@ -29,6 +29,7 @@ import { parsePdfPageUri, readPdfBookmarks } from '../import/PdfPageService'
 import { AppFilesLibraryStorePersistenceAdapter, hydrateLibraryStoreFromJson } from '../model/LibraryPersistence'
 import { ReaderSessionConfig, cloneReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { OfflineDownloadStore } from '../model/OfflineDownloadStore'
+import { RemoteImageDownloadProgress, RemoteImageFileRequest } from '../model/RemoteImageCacheStore'
 import { komaContentStorageBase, komaRuntimeStorageKey } from '../model/KomaContentStorage'
 import { createKomaReaderLabOfflineConfig } from './KomaReaderLabOfflineConfig'
 import { KomaReaderLabThumbnailProvider } from './KomaReaderLabThumbnailProvider'
@@ -111,7 +112,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private resolvedSequences: Map<string, string[]> = new Map()
   onSequenceReady: () => void = (): void => {}
   private preparationCancellation: ReaderCancellation = new ReaderCancellation()
-  private sourceRequests: Map<string, Promise<string>> = new Map()
+  private sourceRequests: Map<string, RemoteImageFileRequest> = new Map()
   private preloadedSizes: Map<string, KomaReaderPreloadedSize> = new Map()
   /** First-open format evidence: dimensions read from the page's own download. */
   onPageSize: ((unitId: string, index: number, width: number, height: number) => void) | undefined = undefined
@@ -567,7 +568,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   }
 
   /** Share descriptor resolution and image transport before the file-cache layer. */
-  private sourceFile(key: ReaderUnitKey, index: number, forceReload: boolean = false): Promise<string> {
+  private sourceFile(key: ReaderUnitKey, index: number, forceReload: boolean = false,
+    onProgress?: RemoteImageDownloadProgress): Promise<string> {
     if (this.closed) return Promise.reject(new Error('closed_koma_reader'))
     const source = this.sources.get(this.unitId(key))?.[index]
     if (source === undefined) return Promise.reject(new Error('missing_koma_page_source'))
@@ -577,11 +579,12 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       this.preloadedSizeVersions.set(id, (this.preloadedSizeVersions.get(id) ?? 0) + 1)
     }
     const pending = this.sourceRequests.get(id)
-    if (pending !== undefined && !forceReload) return pending
+    if (pending !== undefined && !forceReload) return pending.wait(onProgress)
     const revision = this.presentationRevision
     const sizeVersion = this.preloadedSizeVersions.get(id) ?? 0
     const policy = this.bannerPolicy()
-    const request = this.ruleSnapshot.then(async (snapshot: ImageRuleSnapshot): Promise<string> => {
+    const request = new RemoteImageFileRequest(async (report: RemoteImageDownloadProgress): Promise<string> => {
+      const snapshot = await this.ruleSnapshot
       const path = await fetchAndCacheReaderRemoteSource(source, this.requestContext, forceReload, { snapshot, policy },
         (width: number, height: number): void => {
           if (!this.closed && revision === this.presentationRevision &&
@@ -590,7 +593,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
             this.onPageSize?.(this.unitId(key), index, width, height)
             if (this.automaticPaging()) this.publishPreparedSize(key, index, source, width, height)
           }
-        })
+        }, report)
       if (revision !== this.presentationRevision || policy !== this.bannerPolicy()) throw new Error('reader_source_page_processing_stale')
       return path
     })
@@ -598,8 +601,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const retire = (): void => {
       if (this.sourceRequests.get(id) === request) this.sourceRequests.delete(id)
     }
-    void request.then(retire, retire)
-    return request
+    void request.file.then(retire, retire)
+    return request.wait(onProgress)
   }
 
   private publishPreparedSize(key: ReaderUnitKey, index: number, source: ReaderPageRenderSource,
@@ -689,7 +692,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     })
   }
 
-  async load(page: ReaderPage, kind: ReaderAssetKind, cancellation: ReaderCancellation, forceReload: boolean): Promise<ReaderAsset> {
+  async load(page: ReaderPage, kind: ReaderAssetKind, cancellation: ReaderCancellation, forceReload: boolean,
+    onProgress?: RemoteImageDownloadProgress): Promise<ReaderAsset> {
     cancellation.check()
     const prior = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
     if (forceReload && prior?.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE &&
@@ -716,9 +720,15 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const retryId = JSON.stringify([this.unitId(page.unit), page.key])
     let retries = this.automaticPageRetries.get(retryId) ?? 0
     let filePath = ''
+    let progressTotal: number = 0
+    const report = onProgress === undefined ? undefined : (loaded: number, total: number): void => {
+      if (this.closed || cancellation.isCancelled()) return
+      progressTotal = total
+      onProgress(loaded, total)
+    }
     while (true) {
       try {
-        filePath = await this.sourceFile(page.unit, page.sourceIndex, forceReload || retries > 0)
+        filePath = await this.sourceFile(page.unit, page.sourceIndex, forceReload || retries > 0, report)
         break
       } catch (error) {
         cancellation.check()
@@ -731,6 +741,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
           throw error as Error
         }
         retries += 1
+        if (progressTotal > 0) report?.(0, progressTotal)
         this.automaticPageRetries.set(retryId, retries)
         DiagnosticLogger.info('reader', 'automatic_page_retry',
           `attempt=${retries}/${MAX_AUTOMATIC_PAGE_RETRIES} delay=${AUTOMATIC_PAGE_RETRY_DELAY_MS[retries - 1]} reason=${(error as Error).message}`)

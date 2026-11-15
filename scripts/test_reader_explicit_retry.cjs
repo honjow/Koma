@@ -4,7 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
 const ts = require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
-function methods(file, owner, names, globals = {}) {
+function methods(file, owner, names, globals = {}, declarations = []) {
   const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets', file), 'utf8').replace(/\bstruct /g, 'class ')
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
   const cls = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.getText(tree) === owner)
@@ -14,15 +14,20 @@ function methods(file, owner, names, globals = {}) {
     assert.ok(member, name)
     return member.getText(tree)
   })
+  const dependencies = declarations.map(name => {
+    const declaration = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.getText(tree) === name)
+    assert.ok(declaration, name)
+    return declaration.getText(tree)
+  }).join('\n')
   const exports = {}
-  vm.runInNewContext(ts.transpileModule(`export class Subject { ${members.join('\n')} }`, {
+  vm.runInNewContext(ts.transpileModule(`${dependencies}\nexport class Subject { ${members.join('\n')} }`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports, Map, console, ...globals })
   return exports.Subject
 }
 const Cache = methods('model/RemoteImageCacheStore.ets', 'RemoteImageCacheStore', ['getOrFetch'], {
   cacheKeyFor: (url, _headers, seed) => seed || url,
-})
+}, ['RemoteImageFileRequest'])
 function cacheFixture() {
   const cache = new Cache(), writes = []
   Object.assign(cache, { imageRequests: new Map(), reloadRequests: new Map(),
@@ -141,6 +146,30 @@ test('a forced refresh retires an older publisher and all new consumers join the
   finishOld('old'); await old; await new Promise(setImmediate)
   finishNew('fresh'); await fresh
   assert.deepEqual(writes, ['old', 'fresh']); assert.equal(freshCalls, 1)
+})
+
+test('foreground joins the preload byte count before the cache publishes a file', async () => {
+  const { cache, writes } = cacheFixture()
+  cache.get = async () => undefined
+  let report, finish
+  const preload = cache.getOrFetch('url', undefined, publish => {
+    report = publish
+    return new Promise(resolve => { finish = resolve })
+  })
+  await new Promise(setImmediate)
+  report(12, 80)
+  const received = []
+  const foreground = cache.getOrFetch('url', undefined, () => { throw Error('duplicate download') },
+    undefined, false, (loaded, total) => { received.push([loaded, total]) })
+  assert.deepEqual(received, [[12, 80]])
+  report(48, 80)
+  assert.deepEqual(received, [[12, 80], [48, 80]])
+  assert.equal(writes.length, 0)
+  finish(new ArrayBuffer(80))
+  assert.equal(await foreground, await preload)
+  assert.equal(writes.length, 1)
+  report(80, 80)
+  assert.deepEqual(received, [[12, 80], [48, 80]])
 })
 const Index = methods('pages/Index.ets', 'Index', ['prepareReaderLabCatalog'], {
   ComicSourceKind: { LOCAL_FOLDER: 'folder' }, KomaReaderFailure: { sourceError: () => Error('source failure') },

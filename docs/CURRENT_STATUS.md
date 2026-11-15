@@ -86,6 +86,31 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "READER_REMOTE_IMAGE_DOWNLOAD_PROGRESS",
+      "number": 306,
+      "title": "阅读器缺少单张图片的加载进度",
+      "kind": "pending_verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedDate": "2026-11-15",
+      "reportedAtSource": "用户在本会话报告，原始时刻未核实。",
+      "registeredAt": "2026-11-15T21:55:14+08:00",
+      "updatedAt": "2026-11-15T22:31:51+08:00",
+      "status": "237 分页、条漫均已实测，哔咔分流 2 待登录",
+      "result": "Koma 宿主将真实下载字节接入共享阅读器现有百分比。当前页可接续预载的进度，缓存仍在接收完整图片后发布。签名 Debug HAP 构建通过。本地验证覆盖重试、预载接续、完整文件发布和流式接收上限，扩展运行有 8 项与改动前相同的失败。237 分页实测《碧藍之海》第105话首图从 2% 更新到 26%，Komiic 的响应总大小未知，显示循环加载后正常出图。同包条漫实测瓜子漫画《从姑获鸟开始》334 鬼梦貘，从循环加载切换到 72%，随后正常出图并能连续滚动；可见两张正文图。哔哩漫画第105、106话在本轮条漫对照中部分请求等不到响应头，保留循环加载。已恢复本书原单页从右到左、无痕开关、书架第56话第3页及 10000ms 休眠超时，释租，保留测试包。",
+      "remaining": "237 的哔咔漫画显示要求登录。需要在设备上完成登录，才能用分流 2 的正文图实测特殊 DNS 请求进度。尚未发布。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-image-progress/06-chapter105-recording/koma_reader_progress_237_2211.mp4",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-image-progress/07-reader-outcome/reader.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-image-progress/11-control-settled/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-image-progress/12-restore/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-image-progress/33-guazi-continuous/koma_reader_cont_progress_guazi_237.mp4",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-image-progress/34-guazi-verify-then-shelf/reader.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-image-progress/17-pica-auth/pica.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-image-progress/40-followup-restore/run-metadata.json"
+      ]
+    },
+    {
       "id": "SOURCE_SEARCH_PLACEHOLDER_COPY",
       "number": 304,
       "title": "源内搜索占位文案去掉「漫画」",

@@ -70,8 +70,9 @@ function requireCurrent(scope: SourceDnsBootstrapScope, performed: boolean = fal
 
 export async function requestSourceDnsHop(fullUrl: string, method: string, headers: Record<string, string>,
   body: string, timeoutMs: number, current: () => boolean, ip?: string, maxBytes?: number,
+  onProgress?: (loaded: number, total: number) => void,
 ): Promise<SourceRcpHopResponse> {
-  return requestSourceRcpHop(fullUrl, method, headers, body, timeoutMs, current, { ip, maxBytes })
+  return requestSourceRcpHop(fullUrl, method, headers, body, timeoutMs, current, { ip, maxBytes, onProgress })
 }
 
 /** Only the Host-selected committed preference reaches this public, unsigned preparation. */

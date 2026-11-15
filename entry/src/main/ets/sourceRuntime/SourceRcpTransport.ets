@@ -3,7 +3,12 @@ import { url, util } from '@kit.ArkTS'
 import { inflateSourceGzip } from '../model/SourceRequiredImageDecodePrimitives'
 
 export interface SourceRcpHopResponse { status: number; bytes: ArrayBuffer; headers: Object }
-export interface SourceRcpHopOptions { ip?: string; maxBytes?: number; freshHttp11?: boolean }
+export interface SourceRcpHopOptions {
+  ip?: string
+  maxBytes?: number
+  freshHttp11?: boolean
+  onProgress?: (loaded: number, total: number) => void
+}
 
 export class SourceRcpTransportFailure extends Error {
   code: number = 0
@@ -41,6 +46,12 @@ export async function requestSourceRcpHop(fullUrl: string, method: string, heade
     transfer.httpVersionSelectCallback = (_target: rcp.URL): rcp.HttpVersion => '1.1'
   }
   const configuration: rcp.Configuration = { proxy: 'system', transfer }
+  if (options.onProgress !== undefined) {
+    const notify = options.onProgress
+    configuration.tracing = { httpEventsHandler: { onDownloadProgress: (total: number, loaded: number): void => {
+      if (current()) notify(loaded, total)
+    } } }
+  }
   if (ip !== undefined) configuration.dns = { dnsRules: [{ host: parsed.hostname,
     port: parsed.port.length > 0 ? Number(parsed.port) : parsed.protocol === 'https:' ? 443 : 80, ipAddresses: [ip] }] }
   const request = new rcp.Request(fullUrl, method, headers, body.length > 0 ? body : undefined)
