@@ -66,7 +66,8 @@ export struct ReaderSettingsContent {
   @Param enhancementControlsAvailable: boolean = false
   // Reader owns immediate reading controls. Provider/account configuration belongs
   // to the global translation settings route, not a form reachable only in this sheet.
-  @Local private selectedTab: number = 0
+  @Param selectedTab: number = 0
+  @Event onTabSelect: (index: number) => void = (_index: number) => {}
   @Local private smartKeyAvailable: boolean = false
   @Local private tabScrolled: boolean = false
   @Local private tabHeaderHeight: number = KOMA_MODAL_TABS_HEADER_HEIGHT
@@ -85,14 +86,14 @@ export struct ReaderSettingsContent {
   aboutToDisappear(): void { this.onFilterPreviewChange(false) }
 
   private selectTab(index: number): void {
-    this.selectedTab = index
+    this.onTabSelect(index)
     const scroller = index === 0 ? this.modeScroller : index === 1 ? this.generalScroller : this.filterScroller
     this.tabScrolled = scroller.currentOffset().yOffset > 0
-    this.publishFilterSheetHeight()
+    this.publishFilterSheetHeight(index)
     this.onFilterPreviewChange(index === 2)
   }
-  private publishFilterSheetHeight(): void {
-    const height = this.selectedTab === 2 && this.filterContentHeight > 0 ?
+  private publishFilterSheetHeight(index: number = this.selectedTab): void {
+    const height = index === 2 && this.filterContentHeight > 0 ?
       Math.ceil(this.tabHeaderHeight + this.filterContentHeight) : 0
     this.onFilterSheetHeightChange(height)
   }

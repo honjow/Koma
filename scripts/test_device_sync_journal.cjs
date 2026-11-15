@@ -87,6 +87,55 @@ test('a staged sync state cannot overwrite a newer local write or publish after 
   assert.equal(storage.load().archivePending[0].checks, 1)
   assert.equal(JSON.parse(files.get(path)).archivePending[0].awaitingListing, true)
 })
+
+test('reading receipt stages only its changes and rebases after a concurrent durable write', async () => {
+  const files = new Map()
+  const file = '/reading-delta/device-sync-state.v1.json'
+  const fileIo = { accessSync: name => files.has(name), readTextSync: name => files.get(name),
+    renameSync: (from, to) => { assert.ok(files.has(from)); files.set(to, files.get(from)); files.delete(from) },
+    unlink: async name => files.delete(name) }
+  let pause, entered, transfers = []
+  const stageStarted = new Promise(resolve => { entered = resolve })
+  const { DeviceSyncStorage } = compile('DeviceSyncStorage', {
+    '@kit.CoreFileKit': { fileIo }, '@kit.AssetStoreKit': {},
+    '@kit.ArkTS': { util: { generateRandomUUID: randomUUID }, taskpool: { async execute(worker, ...args) {
+      const payload = args.at(-1)
+      transfers.push(payload)
+      const result = worker(...structuredClone(args))
+      if (transfers.length === 1) await new Promise(resolve => { pause = resolve; entered() })
+      return result
+    } } },
+    '../model/AppFileTextPersistence': { writeAppTextFile: (name, content) => files.set(name, content) },
+    './DeviceSyncFacts': facts, './DeviceSyncWire': wire, './DeviceSyncWebDav': {},
+  })
+  const storage = new DeviceSyncStorage('/reading-delta')
+  storage.update(state => {
+    state.replica = A
+    state.active = { credential: 'fixture', space: 'test', endpointIdentity: 'endpoint', revision: 0, manifestHash: '',
+      selected: ['reading', 'shelf'], automatic: true, reviewRequired: false, lastSuccess: 0, lastError: '',
+      groups: [{ id: 'reading', facts: [facts.emptySyncFact('page'), facts.emptySyncFact('other')],
+        pending: [], baseline: [{ key: 'page', value: 'old' }] },
+        { id: 'shelf', facts: [facts.emptySyncFact('shelf-book')], baseline: [], pending: [] }] }
+  })
+  const saving = storage.updateInBackground(state => {
+    const reading = state.active.groups.find(row => row.id === 'reading')
+    const version = dot(A, ++state.counter)
+    const editPage = edit(reading.facts[0], version, 'delete', '')
+    state.active.groups = state.active.groups.filter(row => row !== reading).concat({
+      ...reading, facts: [editPage, reading.facts[1]], baseline: [], pending: [{ key: 'page', version }],
+    })
+    state.readingReceipts = [{ key: 'page', id: 'received', version }]
+    return true
+  }, () => {}, true)
+  await stageStarted
+  storage.update(state => { state.counter = 7; state.active.lastSuccess = 123 })
+  pause()
+  await saving
+  assert.deepEqual(transfers.map(delta => delta.facts.map(row => row.key)), [['page'], ['page']])
+  assert.deepEqual(JSON.parse(files.get(file)), JSON.parse(JSON.stringify(storage.load())))
+  assert.equal(storage.load().active.lastSuccess, 123)
+  assert.equal(storage.load().readingReceipts[0].version.sequence, 8)
+})
 const noop = () => {}
 const clone = value => structuredClone(value)
 const response = (status, body = '') => ({ responseCode: status,
@@ -397,10 +446,16 @@ test('a v4 receipt advances only its writer while retaining old and other writer
     [one, other, after].sort())
 })
 
-function readingDevice(fixture, id, installed, withShelf = false) {
+function readingDevice(fixture, id, installed, withShelf = false, afterReaderStage = async () => {}) {
   const filesDir = '/' + id
   const files = new Map()
-  const fileIo = { access: async file => files.has(file), readText: async file => files.get(file),
+  const fileIo = { OpenMode: { WRITE_ONLY: 1, CREATE: 2, TRUNC: 4 },
+    openSync: fd => (files.set(fd, ''), { fd }), writeSync: (fd, body) => files.set(fd, body),
+    fsyncSync: noop, closeSync: noop, renameSync: (from, to) => {
+      assert.ok(files.has(from))
+      files.set(to, files.get(from))
+      files.delete(from)
+    }, access: async file => files.has(file), readText: async file => files.get(file),
     accessSync: file => files.has(file), readTextSync: file => files.get(file),
     unlinkSync: file => files.delete(file) }
   const writeAppTextFile = (file, content) => files.set(file, content)
@@ -411,7 +466,11 @@ function readingDevice(fixture, id, installed, withShelf = false) {
   const registry = { getInstalledSourcePackage: source => installed.get(source) }
   const sessions = compile('../model/ReaderSessionStore', {
     '@kit.CoreFileKit': nativeFs,
-    '@kit.ArkTS': { taskpool: { execute: async (worker, ...args) => worker(...args) } },
+    '@kit.ArkTS': { taskpool: { execute: async (worker, ...args) => {
+      const staged = worker(...structuredClone(args))
+      await afterReaderStage()
+      return staged
+    } } },
     './AppFileTextPersistence': { writeAppTextFile },
     './BackupRestoreActivity': backup, '../deviceSync/DeviceSyncSignals': signals, './ComicModels': comics,
     './SourceTextOverlay': {}, './SourceRequiredImageDecode': {}, './SourceTextPageDescriptor': {},
@@ -471,6 +530,42 @@ function readingDevice(fixture, id, installed, withShelf = false) {
   }
   return { ...replica, runtime, reader, coldReader, coldShelf, persistence, owner }
 }
+
+test('background page turns retain chapter order and cannot replace a newer durable edit', async () => {
+  let stage = async () => {}
+  const device = readingDevice(engineFixture(), A, new Map(), false, () => stage())
+  const { reader, coldReader } = device
+  const comicId = 'book'
+  function turn(chapterId, pageIndex) {
+    reader.saveProgress({ comicId, chapterId, pageIndex, totalPages: 20,
+      updatedAt: 0, progressRatio: (pageIndex + 1) / 20, completed: false })
+  }
+  reader.addReadingSession({ comicId, chapterId: 'earlier', startedAt: 1, endedAt: 2, pagesRead: 1 })
+  assert.equal(reader.flush(), true)
+  turn('earlier', 3)
+  turn('later', 5)
+  turn('earlier', 6)
+  assert.equal(await reader.flushAsync(), true)
+  const saved = coldReader()
+  assert.equal(saved.getProgress(comicId).pageIndex, 6)
+  assert.equal(saved.getProgress(comicId).chapterId, 'earlier')
+  assert.equal(saved.getChapterProgress(comicId, 'later').pageIndex, 5)
+  assert.equal(saved.listReadingSessions()[0].pagesRead, 1)
+
+  let release, staged
+  const readerStaged = new Promise(resolve => { staged = resolve })
+  stage = () => new Promise(resolve => { release = resolve; staged() })
+  turn('later', 7)
+  const saving = reader.flushAsync()
+  await readerStaged
+  assert.equal(reader.removeHistoryEntries([comicId]), true)
+  release()
+  assert.equal(await saving, true)
+  const removed = coldReader()
+  assert.equal(removed.getProgress(comicId), undefined)
+  assert.equal(removed.getChapterProgress(comicId, 'later').pageIndex, 7)
+  assert.equal(removed.listReadingSessions().length, 0)
+})
 
 function shelfComic(source, work, categoryIds = [], url = 'https://works.example.test/title/12') {
   return { id: source + ':' + work, sourceRuntimeId: source, remoteResourceId: work, title: 'Series ' + work,
@@ -729,6 +824,66 @@ test('source shelf and category survive an interrupted move; retry publishes bot
   await a.engine.syncNow()
   await c.engine.syncNow()
   for (const device of [a, b, c]) assert.deepEqual(device.coldShelf().shelf.getComic(original.id).categoryIds ?? [], [])
+})
+
+test('shelf sync round-trips smart rule changes using each device’s local category IDs', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.SharedWebDav)
+  const a = readingDevice(fixture, A, new Map(), true)
+  const b = readingDevice(fixture, B, new Map(), true)
+  const first = a.coldShelf()
+  const second = b.coldShelf()
+  const manual = first.shelf.createCustomCategory('Favorites')
+  second.shelf.createCustomCategory('Weekend')
+  second.service.persist()
+  const group = { id: 'smart:1700000000000', name: 'Weekend', sortOrder: 2, createdAt: 1700000000000,
+    updatedAt: 1700000000000, filters: [
+      { method: 'category', value: manual.id, exclude: false },
+      { method: 'downloaded', exclude: true },
+    ] }
+  a.persistence.replaceSmartCategoriesAndPersistLibraryStore(first.shelf, first.service, [group])
+  for (const device of [a, b]) {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['shelf'])).token, [])
+  }
+  const received = b.coldShelf()
+  const groups = received.shelf.listSmartCategories()
+  assert.equal(groups.length, 1)
+  const synced = groups[0]
+  assert.equal(synced.name, 'Weekend (2)')
+  assert.equal(synced.sortOrder, 2)
+  const receiverCategory = received.shelf.listCustomCategories().find(category => category.name === 'Favorites')
+  assert.notEqual(receiverCategory.id, manual.id)
+  assert.deepEqual(synced.filters.map(filter => [filter.method, filter.value, filter.exclude]),
+    [['category', receiverCategory.id, false], ['downloaded', undefined, true]])
+  // A read-back of the local display name and remapped rule must be identical on the wire.
+  const smartRows = device => device.owner.snapshot('shelf', false).then(snapshot =>
+    snapshot.values.filter(row => data.syncKeyParts(row.key)[0] === 'smart-category'))
+  assert.deepEqual(await smartRows(a), await smartRows(b))
+  synced.name = 'To catch up'
+  synced.sortOrder = 1
+  synced.filters[1] = { method: 'hasUnread', exclude: false }
+  b.persistence.replaceSmartCategoriesAndPersistLibraryStore(received.shelf, received.service, [synced])
+  await b.engine.syncNow()
+  await a.engine.syncNow()
+  const edited = a.coldShelf()
+  const updated = edited.shelf.listSmartCategories()
+  assert.equal(updated.length, 1)
+  assert.equal(updated[0].id, group.id)
+  assert.equal(updated[0].name, 'To catch up')
+  assert.equal(updated[0].sortOrder, 1)
+  assert.deepEqual(updated[0].filters.map(filter => [filter.method, filter.value, filter.exclude]),
+    [['category', manual.id, false], ['hasUnread', undefined, false]])
+  a.persistence.replaceSmartCategoriesAndPersistLibraryStore(edited.shelf, edited.service, [])
+  await a.engine.syncNow()
+  await b.engine.syncNow()
+  assert.deepEqual(b.coldShelf().shelf.listSmartCategories(), [])
+  assert.ok(b.coldShelf().shelf.listCustomCategories().some(category => category.id === receiverCategory.id))
+  const writes = transport.trace.filter(request => request.method === 'PUT').length
+  await b.engine.syncNow()
+  await a.engine.syncNow()
+  assert.deepEqual(a.coldShelf().shelf.listSmartCategories(), [])
+  assert.equal(transport.trace.filter(request => request.method === 'PUT').length, writes)
 })
 
 test('a move keeps the original if the destination was independently removed, including a receiver with local notes', async () => {

@@ -4,7 +4,7 @@ import {
 } from './DeviceSyncFacts'
 import {
   checkSyncGroupFact, SyncChapterCatalog, SyncPositionValue, SyncRecentValue, syncBucketKey, syncGroupVisibleValue, syncKey, syncKeyParts,
-  SYNC_READING_DATASET, SYNC_SHELF_CATALOG_DATASET, SYNC_READER_SETTINGS_DATASET, SYNC_SUBSCRIPTIONS_DATASET,
+  SYNC_READING_DATASET, SYNC_SHELF_CATALOG_DATASET, SYNC_SMART_CATEGORIES_DATASET, SYNC_READER_SETTINGS_DATASET, SYNC_SUBSCRIPTIONS_DATASET,
   SYNC_SEARCH_DATASET, syncShelfMove, syncShelfMoveDestination,
 } from './DeviceSyncData'
 import {
@@ -70,7 +70,15 @@ export function coverDatasetId(group: SyncGroup): string {
 
 export function writeDatasetIds(group: SyncGroup): string[] {
   const cover = coverDatasetId(group)
-  return cover === '' ? [writeDatasetId(group)] : [writeDatasetId(group), cover]
+  const ids = cover === '' ? [writeDatasetId(group)] : [writeDatasetId(group), cover]
+  // Older writers still read and update the normal shelf datasets.
+  if (group === 'shelf') ids.push(SYNC_SMART_CATEGORIES_DATASET)
+  return ids
+}
+
+export function writeDatasetForKey(group: SyncGroup, key: string): string {
+  if (group === 'shelf' && key.startsWith('["smart-category",')) return SYNC_SMART_CATEGORIES_DATASET
+  return isCoverKey(key) ? coverDatasetId(group) : writeDatasetId(group)
 }
 
 export function isCoverKey(key: string): boolean {
@@ -482,7 +490,7 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
         const ref = datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === datasetId)
         const covers = datasetId === coverDatasetId(row.id)
         if (covers && row.coverUnavailable === true) continue
-        const records = outgoing.filter((fact: SyncFact): boolean => isCoverKey(fact.key) === covers)
+        const records = outgoing.filter((fact: SyncFact): boolean => writeDatasetForKey(row.id, fact.key) === datasetId)
         const built = buildSyncDataset(datasetId, records, base.epoch, ref, syncBucketKey, transport?.shared === true)
         alternatives = alternatives.filter((entry: SyncDatasetRef): boolean => entry.id !== datasetId)
         if (built.ref.shards.length > 0 || ref !== undefined) {
@@ -514,8 +522,8 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
     revisions.push({ group: row.id, revision: row.local.revision })
   }
   const outputBytes = datasets.filter((dataset: SyncDatasetRef): boolean =>
-    prepared.some((group: PreparedGroup): boolean => writeDatasetId(group.id) === dataset.id ||
-      (group.coverUnavailable !== true && coverDatasetId(group.id) === dataset.id)))
+    prepared.some((group: PreparedGroup): boolean => writeDatasetIds(group.id).includes(dataset.id) &&
+      (group.coverUnavailable !== true || coverDatasetId(group.id) !== dataset.id)))
     .reduce((total: number, dataset: SyncDatasetRef): number => total + syncDatasetBytes(dataset), 0)
   if (outputBytes > SYNC_MAX_ROUND_BYTES) throw new Error('sync_round_too_large')
   datasets.sort((a: SyncDatasetRef, b: SyncDatasetRef): number => a.id < b.id ? -1 : a.id === b.id ? 0 : 1)

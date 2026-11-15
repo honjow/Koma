@@ -22,6 +22,7 @@ import {
 import {
   KOMA_BUNDLE_NAME,
   KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS,
+  KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES,
   KOMA_LAUNCH_ROUTE_PARAM,
 } from '../common/Constants'
 import { AppStrings } from '../i18n/AppStrings'
@@ -341,7 +342,8 @@ export async function publishLibraryUpdateNotification(summary: LibraryUpdateSum
   const title = notificationSummary.failedCount > 0 && notificationSummary.newChapterCount <= 0
     ? AppStrings.get('library_update_notification_failed_title')
     : AppStrings.get('library_update_notification_title')
-  return publishLibraryUpdateNotificationText(title, formatLibraryUpdateNotificationSummary(summary), notificationSummary.checkedAt)
+  return publishLibraryUpdateNotificationText(title, notificationSummary.summaryText, notificationSummary.checkedAt,
+    notificationSummary.newChapterCount > 0 ? KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES : KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS)
 }
 
 export async function publishLibraryUpdateFailureNotification(
@@ -352,6 +354,7 @@ export async function publishLibraryUpdateFailureNotification(
     AppStrings.get('library_update_notification_failed_title'),
     AppStrings.get('library_updates_check_failed'),
     checkedAt,
+    KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS,
   )
 }
 
@@ -359,6 +362,7 @@ async function publishLibraryUpdateNotificationText(
   title: string,
   text: string,
   checkedAt: number,
+  launchRoute: string,
 ): Promise<LibraryUpdateNotificationDispatchResult> {
   if (!isLibraryUpdateNotificationDeliveryEnabled()) {
     return { delivered: false, code: 'disabled' }
@@ -373,7 +377,7 @@ async function publishLibraryUpdateNotificationText(
       label: 'koma.library_update',
       appMessageId: `koma.library_update.${checkedAt}`,
       notificationSlotType: notificationManager.SlotType.CONTENT_INFORMATION,
-      wantAgent: await createLibraryUpdateResultWantAgent(),
+      wantAgent: await createLibraryUpdateWantAgent(launchRoute),
       tapDismissed: true,
       content: {
         notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
@@ -392,9 +396,9 @@ async function publishLibraryUpdateNotificationText(
   }
 }
 
-async function createLibraryUpdateResultWantAgent(): Promise<WantAgent> {
+async function createLibraryUpdateWantAgent(launchRoute: string): Promise<WantAgent> {
   const parameters: Record<string, Object> = {}
-  parameters[KOMA_LAUNCH_ROUTE_PARAM] = KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS
+  parameters[KOMA_LAUNCH_ROUTE_PARAM] = launchRoute
   const launchWant: Want = {
     bundleName: KOMA_BUNDLE_NAME,
     abilityName: 'EntryAbility',

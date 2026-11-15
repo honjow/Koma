@@ -11,7 +11,8 @@
 - 源生产校验要求合法 homepage；App 兼容没有该字段的既有包。地址只接受无账号信息的完整 HTTP(S) URL，不从 API、CDN、失败请求或 ID 猜站点。普通网页仅显示已安装或缓存中已有合法地址的入口，不在点击后补取地址或摆空选项。
 - homepage 与 webSessionOrigins 分工独立：前者用于普通导航，后者限定验证会话。主页不扩大 Cookie、UA 或网络权限。
 - 拷贝漫画已安装包声明默认主页时，普通网站入口用点击时已保存的 `domain` 在同一份三个已知 API/网页域对中选站。没有保存值、保存值无效或设置不可读时，仍打开默认声明主页。这个映射只用于普通导航。
-- 普通空正文GET若携原站会话后重定向到当前同源包已明确声明的另一HTTPS origin，可在不携原站Cookie、Authorization及其它站点专用头的情况下继续匿名读取；逐跳重核当前包身份、启用及声明范围，目标已有独立会话时仅取目标会话。未声明目标、POST及验证probe仍按原边界拒绝；验证probe只读取Host实际观察到的拒绝GET，结果仍仅供原请求消费一次，不授予跨站会话。
+- 普通空正文 GET 携原站会话后，可跟随到当前源包明确声明的另一 HTTPS origin。逐跳核对包身份、启用状态和目标声明。跨 origin 时只保留通用请求头，目标有独立会话时使用目标会话，其余匿名读取。
+- 网页验证跳到同一源包声明的另一 HTTPS origin 后，宿主可在原 origin 重试实际观察到的拒绝 GET。原始请求成功后才完成，授权仍限于原 origin，响应仍只供原请求消费一次。网页登录仍按原 origin 完成。单源搜索的相同提交复用正在执行或等待验证的请求，书源、关键词、筛选或设置变化后发起独立请求。
 
 语言代码 `all` 表示“多语言”分类，不是“全部语言”筛选总开关；语言枚举与源身份保持原值，筛选按各语言项独立选择。
 
@@ -80,8 +81,8 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 宿主安装和重载时都从已解包的清单读取站点声明。注册表持久化安装位置和状态，运行规则只在内存中保留，旧注册表中的规则副本不参与加载。重载时核对同目录清单、书源身份、版本和 WASM 声明。清单缺失或无效时，保留该安装项以便覆盖修复，并阻止它发起书源请求。相同原包按字节确认后可恢复损坏的安装，沿用原订阅归属、设置和会话身份。备份保留已验证的包规则，恢复时写入对应包目录的清单。
 
 - `requestLimits` 最多8个滑动窗口，每项声明唯一 `group`、`permits` 和 `periodMs`。可用精确 `hosts` 或带 `prefix` 的 `firstLabels` 匹配主机，可要求指定 `requestHeaders` 存在。默认同源包同组共享，`perOrigin` 将HTTPS origin分开计数，`oncePerRequest` 使同一次HTTP调用的匹配重定向只占一次。可选 `setting.key` 覆盖次数，`windowValue` 读取「次数/秒」，`keepUntilRestart` 采用该安装首次读取的值，`maxPermits` 限制设置值。缓存命中不入队，排队可取消且不占网络超时。`source_request_limits_v1` 仅对声明有效窗口的安装包提供。
-- `websitePolicy.homepageChoices` 通过 `setting` 和 `options[{value,url}]` 选官网地址，缺省回退包首页。普通网页不获得验证授权。验证页可按精确 `systemWebAgentOrigins` 使用系统UA，普通手机网页可按精确 `mobileWebAndroidAgentOrigins` 保留站点兼容标识。`publicCookieOverrides[{origin,name,values}]` 仅允许已授权会话在同一精确origin替换唯一合法的公共Cookie项，每跳重新核验。
-- `websitePolicy.webSessionAndroidAgent` 是显式 opt-in。开启后验证页使用原生引擎 UA，并把括号内的 OS token 换成 `; Android 10`，Chrome/WebKit 版本和移动指纹保持不变；用于 Cloudflare 不认 OpenHarmony token、managed challenge 不写 clearance 的站点。不要改用桌面 Chrome UA，它会和移动指纹矛盾。默认关闭，避免改变已能拿到 clearance 的源；启用必须逐源在真机验证验证页加载、会话状态和原请求结果，不能只改声明就声称修复。
+- `websitePolicy.homepageChoices` 通过 `setting` 和 `options[{value,url}]` 选官网地址，缺省回退包首页。普通网页不获得验证授权，普通手机网页可按精确 `mobileWebAndroidAgentOrigins` 保留站点兼容标识。`publicCookieOverrides[{origin,name,values}]` 仅允许已授权会话在同一精确origin替换唯一合法的公共Cookie项，每跳重新核验。
+- 验证页的系统 WebView UA 由宿主从当前 ArkWeb 默认 UA 派生，在 OpenHarmony 平台标记内追加 `; Android 10`，保留原有引擎与移动标识。精确 `systemWebAgentOrigins` 可选择 ArkWeb 原生 UA。旧包的 `webSessionAndroidAgent` 和 `webSessionUserAgent` 字段仍可读取，验证页仅接受宿主派生的 UA。普通 HTTP 请求的 UA 和显式网页登录的 `authentication.userAgent` 各自适用。
 - `websitePolicy.webFetchBridge` 是显式 opt-in。开启后宿主在验证完成后保留一个隐藏的 WebView 会话，源的同源 GET（无 body）可由页面内 fetch 读取，响应体作为 200 `bodyText` 交给源；不改变阅读界面。只支持同源 GET、无 body，依赖浏览页验证 WebView 的存活；未声明或 bridge 未就绪时回退现有网络路径。每个新 URL 需要一次页面内 fetch，但不再弹验证页。宿主能力名 `source_web_fetch_bridge_v1`。
 - `websitePolicy.renderedDocumentFallback` 是显式 opt-in，可声明 `true`（手动完成）或 `{"readySelector":"..."}`（就绪后自动完成）。仅该安装包声明且用户已在验证半模态打开站点时，宿主在验证页加载完成后读取当前可见文档，并与原 GET 的源、操作 guard 和请求文本绑定；声明 `readySelector` 时，宿主在每次主文档加载完成后检查该选择器，满足才暂存文档、关闭验证半模态并重试原 GET，不满足则保持验证页。文档以一次性 200 `bodyText`（`networkPerformed=false`）交给源解析。不新增 WASM ABI，不后台自动打开 WebView，也不扩大 Cookie、UA 或网络权限；未声明的源保持原路径。宿主能力名 `source_web_document_handoff_v1`。
 - `httpProfiles[{origin,pathPrefix?,profile}]` 对当前包的精确HTTPS origin选择 `firefox133`、`chrome145` 或 `fresh_http11`。前两者用于空正文GET并保留系统代理和TLS校验。系统代理存在或原生依赖不可用时按原网络预算回退。兼容库的版本与构建见[固定构建配方](../scripts/prepare-source-browser-http.sh)。`source_http_profiles_v1` 表示系统支持 `fresh_http11`（API 26起），该模式要求无正文、Cookie及授权头的GET，使用系统代理、证书验证和HTTP/1.1，禁止连接复用及缓存，仅跟随合法HTTPS重定向，继续使用同传输限制。
@@ -155,7 +156,7 @@ RPC 成功返回 `ok:true`，失败只返回 `ok:false,error:{code}`。`nowMs` �
 
 `source_detail_chapter_context_v1` 仅由详情页本次 `get_manga` 和随后的目录请求声明。源可在成功详情的 `data.chapterContext` 返回非敏感 JSON 对象，宿主仅在同一仍有效的详情事务中将其原样传入 `get_chapters` 的 `args.chapterContext`，分页共用；不写缓存或日志，不跨刷新、源包或设置变更、其他作品或精确章恢复使用。源须核对上下文的版本和作品身份，缺失或不完整时沿原请求路径处理；旧宿主不声明该特性。
 
-`source_http_challenge_cause_v1` 仅由可追踪生命周期的统一搜索、单源搜索及 `get_manga_list` 请求声明。源在单个 GET 中设置 `wantChallengeRequestId: true` 后，宿主仅为该源允许的网页 origin 上返回 401、403 或 503 的实际请求附加短 `challengeRequestId`。只有源最终由该次响应产生 challenge/auth 错误时，才可将同一个 ID 放在 `error.challengeRequestId`；不得推测其他请求的 ID。宿主按 ID、源和本次页面请求身份匹配原 GET，验证后的响应仅由该次请求的重试消费；多条不同失败 GET 缺乏明确 ID 时不能猜测。精确选中的原 GET 可在内存中将有效 UA 交给同 URL 的验证页，保持验证及原请求身份一致，不改源或全局默认 UA；会话仍保存其实际 Web UA，取消或请求失效清除关联。旧源不使用此字段，保留单个候选的既有兼容行为，旧宿主不声明该特性。
+`source_http_challenge_cause_v1` 仅由可追踪生命周期的统一搜索、单源搜索及 `get_manga_list` 请求声明。源在单个 GET 中设置 `wantChallengeRequestId: true` 后，宿主仅为该源允许的网页 origin 上返回 401、403 或 503 的实际请求附加短 `challengeRequestId`。只有源最终由该次响应产生 challenge/auth 错误时，才可将同一个 ID 放在 `error.challengeRequestId`；不得推测其他请求的 ID。宿主按 ID、源和本次页面请求身份匹配原 GET，验证后的响应仅由该次请求的重试消费；多条不同失败 GET 缺乏明确 ID 时不能猜测。验证页在加载前选择系统 WebView UA。成功后会话保存实际 Web UA，后续获准的同源原生请求随 Cookie 一起复用该 UA。取消或请求失效清除关联。旧源不使用此字段，保留单个候选的既有兼容行为，旧宿主不声明该特性。
 
 `source_http_batch_v1` 在原 `http_request` import 上支持 `{version:1,requests:[单请求对象]}`，每组1至5个且不能嵌套，只用于彼此独立的请求；存在响应或会话依赖时仍逐个发送。宿主先校验整组基本请求格式，再并行复用原单请求通道；每项保留源身份、会话、限速、重定向及网络超时。响应为 `{ok:true,responses:[单请求响应对象]}`，顺序与输入一致；外层 `ok` 只表示组格式有效，每项仍可能是原HTTP或传输失败，源必须逐项检查。宿主不自动重试、不缓存组结果、不扩大网络权限；未声明此特性的旧Host沿原逐个请求路径，不需要新增WASM导入。
 
@@ -197,6 +198,8 @@ RPC 成功返回 `ok:true`，失败只返回 `ok:false,error:{code}`。`nowMs` �
 该能力同时提供同源安装范围的私有 RPC `op:"peek"`。返回当前已提交的 `{ok:true,state:"ready",value,versionTag,nowMs}`，无值返回 `{ok:true,state:"empty"}`。它不认领初始化、不等待登录或续期提交，游客和已登录的普通图片请求都可以直接读取当前代。只有实际登录、续期和退出需要认领写入。
 
 显式点击Host表单后，认证事务只将随机grant引用放入可信Native HTTP context，WASM请求args不含账号密码。同次本源/安装/callId经 `private_session` 的 `credential_input` 读取 `{ok:true,credentials:{username,password}}`；只有authenticate可读，探测/普通call/异源/旧包/已取消事务均不能读。HTTP每跳限该grant的精确APIorigin；取消、换包、设置/页面过期后不发新请求、不提交Asset新代、不重试原操作。源沿真实协议处理签名、登录、token与同代401刷新，Host不把任意401/403或challenge推为登录、不自动授权Cookie。成功后在原query/filter/作品/章节仍有效且页面可见时只重试原操作一次，取消保原错误；旧无descriptor包沿原WebChallenge路径。
+
+鸿蒙密码保险箱覆盖书源页时保留原半模态和输入，离开书源路由时关闭。API 26 起，空白表单首次聚焦向系统提供当前登录 origin 和两个字段，同一输入只发一次请求。只将系统确认的结果填回仍有效的空白表单。仅书源确认登录成功后向系统请求保存本次提交的账号密码；显式保存回执到达后再清空表单。密码保险箱负责回填和保存确认，和源的私有会话独立。
 
 账号材料与 token 复用 `SourcePrivateSessionHost` 原 Asset 分块、版本、发布与回滚职责。网页授权和私有值沿用上文的存储身份，所有 HTTP、登录授权和验证完成仍核对当前安装身份。已有包的旧存储身份可直接接续，避免重新写入凭据。退出只作用本源当前会话，不全局清 Cookie 或 Asset。
 

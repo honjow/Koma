@@ -192,14 +192,79 @@ export function copySyncConnection(value: SyncSavedConnection): SyncSavedConnect
     groups: value.groups.slice() }
 }
 
+interface SyncStorageReadingDelta {
+  space: string
+  counter: number
+  facts: SyncFact[]
+  baseline: SyncLocalValue[]
+  removedBaseline: string[]
+  pending: SyncPendingEdit[]
+  receipt: SyncReadingReceipt
+}
+
+function readingDelta(before: SyncLocalDocument, after: SyncLocalDocument): SyncStorageReadingDelta | undefined {
+  const active = after.active
+  const previous = before.active?.groups.find((row: SyncGroupState): boolean => row.id === 'reading')
+  const next = active?.groups.find((row: SyncGroupState): boolean => row.id === 'reading')
+  const receipt = after.readingReceipts?.[after.readingReceipts.length - 1]
+  if (active === undefined || previous === undefined || next === undefined || receipt === undefined) return undefined
+  const pending = next.pending.slice(previous.pending.length)
+  const edited = new Set<string>(pending.map((row: SyncPendingEdit): string => row.key))
+  const baseline = next.baseline.filter((row: SyncLocalValue): boolean => edited.has(row.key))
+  const retained = new Set<string>(baseline.map((row: SyncLocalValue): string => row.key))
+  return {
+    space: active.space, counter: after.counter, pending, baseline, receipt,
+    facts: next.facts.filter((row: SyncFact): boolean => edited.has(row.key)),
+    removedBaseline: Array.from(edited).filter((key: string): boolean => !retained.has(key)),
+  }
+}
+
 @Concurrent
-function stageSyncState(path: string, state: SyncLocalDocument): string {
+function stageSyncState(path: string, body: string): string {
   try {
-    writeAppTextFile(path, JSON.stringify(state))
+    writeAppTextFile(path, body)
     return ''
   } catch (error) {
     return (error as Error).message || 'sync_local_state_write_failed'
   }
+}
+
+/** A reading receipt is derived from the same committed base as its sync facts. */
+@Concurrent
+function stageReadingDelta(path: string, basePath: string, delta: SyncStorageReadingDelta): boolean {
+  let state: SyncLocalDocument
+  try {
+    if (!fs.accessSync(basePath)) return false
+    state = JSON.parse(fs.readTextSync(basePath, { encoding: 'utf-8' })) as SyncLocalDocument
+  } catch (_error) {
+    return false
+  }
+  const active = state?.active
+  if (state?.schema !== 1 || active === undefined || active.space !== delta.space || !Array.isArray(active.groups)) {
+    return false
+  }
+  if (delta.pending.length > 0) {
+    const group = active.groups.find((row: SyncGroupState): boolean => row.id === 'reading')
+    if (group === undefined || state.counter + 1 !== delta.counter ||
+      !Array.isArray(group.facts) || !Array.isArray(group.baseline) || !Array.isArray(group.pending)) return false
+    const facts = new Map<string, SyncFact>()
+    group.facts.forEach((row: SyncFact): void => { facts.set(row.key, row) })
+    delta.facts.forEach((row: SyncFact): void => { facts.set(row.key, row) })
+    const baseline = new Map<string, SyncLocalValue>()
+    group.baseline.forEach((row: SyncLocalValue): void => { baseline.set(row.key, row) })
+    delta.baseline.forEach((row: SyncLocalValue): void => { baseline.set(row.key, row) })
+    delta.removedBaseline.forEach((key: string): void => { baseline.delete(key) })
+    group.facts = Array.from(facts.values())
+    group.baseline = Array.from(baseline.values())
+    group.pending = group.pending.concat(delta.pending)
+    active.groups = active.groups.filter((row: SyncGroupState): boolean => row.id !== 'reading').concat(group)
+    state.counter = delta.counter
+  } else if (state.counter !== delta.counter) return false
+  if (state.readingReceipts !== undefined && !Array.isArray(state.readingReceipts)) return false
+  state.readingReceipts = (state.readingReceipts ?? []).filter((row: SyncReadingReceipt): boolean =>
+    row.key !== delta.receipt.key).concat(delta.receipt)
+  writeAppTextFile(path, JSON.stringify(state))
+  return true
 }
 
 export class DeviceSyncStorage {
@@ -235,13 +300,15 @@ export class DeviceSyncStorage {
   }
 
   /** Stage a complete file off the UI thread. Only the current state may replace the durable cursor. */
-  updateInBackground(change: (state: SyncLocalDocument) => boolean, guard: () => void): Promise<void> {
-    const write = this.backgroundWrite.then((): Promise<void> => this.stageUpdate(change, guard))
+  updateInBackground(change: (state: SyncLocalDocument) => boolean, guard: () => void,
+    readingReceipt: boolean = false): Promise<void> {
+    const write = this.backgroundWrite.then((): Promise<void> => this.stageUpdate(change, guard, readingReceipt))
     this.backgroundWrite = write.catch((): void => {})
     return write
   }
 
-  private async stageUpdate(change: (state: SyncLocalDocument) => boolean, guard: () => void): Promise<void> {
+  private async stageUpdate(change: (state: SyncLocalDocument) => boolean, guard: () => void,
+    readingReceipt: boolean): Promise<void> {
     const stagedPath = this.path + '.background'
     try {
       for (let attempt = 0; attempt < 6; attempt++) {
@@ -249,8 +316,19 @@ export class DeviceSyncStorage {
         const original = this.load()
         const next = this.copy(original)
         if (!change(next)) return
-        const error = await taskpool.execute(stageSyncState, stagedPath, next) as string
-        if (error.length > 0) throw new Error(error)
+        const delta = readingReceipt ? readingDelta(original, next) : undefined
+        let prepared = false
+        if (delta !== undefined) {
+          prepared = await taskpool.execute(stageReadingDelta, stagedPath, this.path, delta) === true
+          guard()
+          if (this.current !== original) continue
+        }
+        if (!prepared) {
+          // Transfer a flat string. Taskpool's object clone otherwise walks the
+          // complete sync document on the caller thread before enqueueing it.
+          const error = await taskpool.execute(stageSyncState, stagedPath, JSON.stringify(next)) as string
+          if (error.length > 0) throw new Error(error)
+        }
         guard()
         if (this.current !== original) continue
         // A synchronous rename is the short commit boundary. A normal local

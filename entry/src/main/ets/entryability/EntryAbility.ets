@@ -13,6 +13,7 @@ import { captureReaderLabWant, updateReaderLabForeground } from '@reader-kit/ui'
 import { KeyboardAvoidMode, window } from '@kit.ArkUI'
 import {
   KOMA_LAUNCH_ROUTE_DOWNLOADS,
+  KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES,
   KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS,
   KOMA_LAUNCH_ROUTE_PARAM,
   KOMA_LAUNCH_ROUTE_READER,
@@ -380,7 +381,9 @@ export default class EntryAbility extends UIAbility {
 
   private openLaunchRouteFromWant(want: Want): void {
     const route = want.parameters?.[KOMA_LAUNCH_ROUTE_PARAM]
-    if (route === KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS) {
+    if (route === KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES) {
+      RouterHelper.pushLibraryUpdates()
+    } else if (route === KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS) {
       RouterHelper.pushLibraryUpdateResults()
     } else if (route === KOMA_LAUNCH_ROUTE_DOWNLOADS) {
       RouterHelper.pushDownloads()

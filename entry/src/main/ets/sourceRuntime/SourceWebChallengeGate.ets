@@ -1,5 +1,11 @@
 export type SourceWebChallengeScope = 'browse' | 'search' | 'detail'
 
+/** Derive the verification identity from ArkWeb before loading the site. */
+export function sourceChallengeWebUserAgent(native: string, useNative: boolean): string {
+  if (useNative || !/OpenHarmony/i.test(native) || /Android/i.test(native)) return native
+  return native.replace(') AppleWebKit', '; Android 10) AppleWebKit')
+}
+
 /** Public UI receipt contains no query, URL, settings or session secrets. */
 export interface SourceWebChallengeReceipt {
   id: number

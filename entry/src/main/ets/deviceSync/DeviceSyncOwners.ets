@@ -23,15 +23,16 @@ import {
 import { SourceReadHistoryEntry } from '../model/SourceReaderSession'
 import { normalizeSearchHistoryEntries, SearchHistoryEntry, SearchHistoryStore } from '../model/SearchHistoryStore'
 import { sourceLibraryComicId } from '../model/SourceLibraryComic'
+import type { LibrarySmartCategory, LibrarySmartFilter } from '../model/LibrarySmartCategory'
 import { SourceIndexDeviceSyncSnapshot, SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { isValidHttpUrl, normalizeIndexUrl, SourceIndexRepository, subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
 import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncOwner'
-import { SyncEdit, SyncFact, SyncGroup } from './DeviceSyncFacts'
+import { isSyncReplica, SyncEdit, SyncFact, SyncGroup } from './DeviceSyncFacts'
 import {
   safeSyncSearch, syncCatalogAddress, syncCatalogRecordKey, syncCoverAddress, SyncChapterCatalog, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSearchValue, SyncSubscription,
   SyncWorkLabel, syncKey, syncKeyParts, syncPublicLabel, syncReadingIdentity, syncReadingPosition,
   syncReadingRecent, syncSearchIdentity, syncShelfIdentity, syncShelfLabel, syncShelfMove, syncShelfMoveDestination,
-  syncGroupVisibleValue, SyncShelfMove, SyncWorkSlice,
+  syncGroupVisibleValue, SyncShelfMove, SyncSmartCategory, SyncWorkSlice,
 } from './DeviceSyncData'
 import { DeviceSyncStorage, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision, SyncReadingReceipt, SyncSavedConnection,
   SyncReadingRestoreCandidate, SyncRestoreEdit } from './DeviceSyncStorage'
@@ -364,6 +365,24 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return id
   }
 
+  private smartCategoryKey(id: string): string {
+    const shared = id.slice('smart:'.length)
+    // Existing local IDs also travel in backups. Derive the same identity
+    // when the same old smart category is restored on two devices.
+    return syncKey(['smart-category', isSyncReplica(shared) ? shared : syncUuid('smart-category:' + id)])
+  }
+
+  private sharedSmartRule(rule: LibrarySmartFilter, projection: SyncProjection): LibrarySmartFilter {
+    const value = rule.value
+    if (rule.method !== 'category' || value === undefined || value === 'uncategorized') return rule
+    const mapping = projection.categories.find((row: SyncLocalCategory): boolean => row.local === value)
+    const shared = value.startsWith(CATEGORY_SYNC_PREFIX) ? value.slice(CATEGORY_SYNC_PREFIX.length) : ''
+    // Keep a deleted category's identity so the rule continues to match
+    // nothing until that category reappears. Never map by the displayed name.
+    const category = mapping?.shared ?? (isSyncReplica(shared) ? shared : this.toSharedCategory(value, projection))
+    return { method: rule.method, value: category, exclude: rule.exclude }
+  }
+
   private sourceIdentities(library: PersistedLibraryStoreDocument, reading: ReaderSessionDocumentSnapshot,
     knownFacts: SyncFact[] = []):
     Map<string, SyncLocalReadingWork> {
@@ -464,6 +483,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       const categories = (library.customCategories ?? []).slice().sort((a: PersistedLibraryCategory,
         b: PersistedLibraryCategory): number => a.sortOrder - b.sortOrder || a.createdAt - b.createdAt)
       const order: string[] = []
+      const protectedKeys: string[] = []
       categories.forEach((category: PersistedLibraryCategory): void => {
         const key = this.sharedCategoryRecord(category.id, projection)
         if (key === undefined) return
@@ -475,6 +495,21 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       })
       if (order.length > 0) row(values, ['order'],
         JSON.stringify(order) === JSON.stringify(projection.projectedOrder) ? projection.categoryOrder ?? order : order)
+      for (const category of library.smartCategories ?? []) {
+        const key = this.smartCategoryKey(category.id)
+        const mapping = projection.categories.find((item: SyncLocalCategory): boolean => item.local === category.id)
+        const name = mapping?.displayedName === category.name ? mapping.originalName ?? category.name : category.name
+        const definition: SyncSmartCategory = { name, order: category.sortOrder, createdAt: category.createdAt,
+          filters: category.filters.map((rule: LibrarySmartFilter): LibrarySmartFilter => this.sharedSmartRule(rule, projection)) }
+        const value = JSON.stringify(definition)
+        if (value.length > 8192) {
+          protectedKeys.push(key)
+          skipped++
+        } else {
+          values.push({ key, value })
+          labels[key] = name
+        }
+      }
       for (const comic of library.comics) {
         const pause = work.pause()
         if (pause !== undefined) { await pause; guard?.() }
@@ -504,7 +539,6 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         state.archives?.find((item: SyncSavedConnection): boolean => item.space === space)
       const staged = connection?.groups.find((item: SyncGroupState): boolean => item.id === 'shelf')
       const previouslyStaged = new Map<string, SyncFact>((staged?.facts ?? []).map((fact: SyncFact): [string, SyncFact] => [fact.key, fact]))
-      const protectedKeys: string[] = []
       library.syncShelfMoves?.forEach((move: SyncLocalShelfMove): void => {
         if (move.space !== space) return
         const key = syncKey(['book', move.source, move.work])
@@ -733,6 +767,10 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const space = this.storage.load().active?.space
     return keys.filter((key: string): boolean => {
       const parts = syncKeyParts(key)
+      if (parts[0] === 'smart-category') {
+        return !(library.smartCategories ?? []).some((category: LibrarySmartCategory): boolean =>
+          this.smartCategoryKey(category.id) === key)
+      }
       if (parts[0] === 'category') {
         return !(library.customCategories ?? []).some((category: PersistedLibraryCategory): boolean =>
           this.toSharedCategory(category.id, projection) === parts[1]) &&
@@ -795,11 +833,50 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return value
   }
 
+  private applySmartCategories(changes: SyncLocalValue[], library: PersistedLibraryStoreDocument,
+    projection: SyncProjection): void {
+    const smartChanges = changes.filter((row: SyncLocalValue): boolean => syncKeyParts(row.key)[0] === 'smart-category')
+    if (smartChanges.length === 0) return
+    const groups = library.smartCategories ?? []
+    const byKey = new Map<string, LibrarySmartCategory>(groups.map((group: LibrarySmartCategory): [string, LibrarySmartCategory] =>
+      [this.smartCategoryKey(group.id), group]))
+    const replaced = new Set<string>(smartChanges.map((row: SyncLocalValue): string => row.key))
+    const names = new Set<string>((library.customCategories ?? []).map((category: PersistedLibraryCategory): string =>
+      libraryCategoryNameKey(category.name)))
+    byKey.forEach((group: LibrarySmartCategory, key: string): void => {
+      if (!replaced.has(key)) names.add(libraryCategoryNameKey(group.name))
+    })
+    for (const change of smartChanges) {
+      const shared = syncKeyParts(change.key)[1]
+      const id = byKey.get(change.key)?.id ?? 'smart:' + shared
+      projection.categories = projection.categories.filter((item: SyncLocalCategory): boolean => item.local !== id)
+      if (change.value === '') {
+        byKey.delete(change.key)
+        library.categoryDisplayStrategies = library.categoryDisplayStrategies?.filter(item => item.categoryId !== id)
+        continue
+      }
+      const definition = JSON.parse(change.value) as SyncSmartCategory
+      const name = this.uniqueCategoryName(definition.name, names)
+      const filters = definition.filters.map((rule: LibrarySmartFilter): LibrarySmartFilter => {
+        const value = rule.value
+        if (rule.method !== 'category' || value === undefined || value === 'uncategorized') return rule
+        return { method: rule.method, value: this.toLocalCategory(value, library, projection), exclude: rule.exclude }
+      })
+      byKey.set(change.key, { id, name, sortOrder: definition.order, createdAt: definition.createdAt, updatedAt: Date.now(), filters })
+      projection.categories.push({ local: id, shared, localOnly: false, originalName: definition.name, displayedName: name })
+    }
+    library.smartCategories = Array.from(byKey.values())
+  }
+
   private applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDocument, projection: SyncProjection,
     acceptedRemoval: string = ''): void {
     const categories = library.customCategories ?? []
     library.customCategories = categories
-    const names = new Set<string>((library.smartCategories ?? []).map(item => libraryCategoryNameKey(item.name)))
+    const updatedSmart = new Set<string>(changes.filter((row: SyncLocalValue): boolean =>
+      syncKeyParts(row.key)[0] === 'smart-category').map((row: SyncLocalValue): string => row.key))
+    const names = new Set<string>((library.smartCategories ?? [])
+      .filter((category: LibrarySmartCategory): boolean => !updatedSmart.has(this.smartCategoryKey(category.id)))
+      .map((category: LibrarySmartCategory): string => libraryCategoryNameKey(category.name)))
     const rename = new Set<string>()
     changes.forEach((change: SyncLocalValue): void => {
       const key = syncKeyParts(change.key)
@@ -824,7 +901,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
                 comic.sourceRuntimeId === key[1] && comic.remoteResourceId === key[2]
             }))
           const deviceSettings = (library.categoryDisplayStrategies ?? []).some(item => item.categoryId === id)
-          const smartDependency = (library.smartCategories ?? []).some(item => JSON.stringify(item).includes(JSON.stringify(id)))
+          const smartDependency = (library.smartCategories ?? []).some((item: LibrarySmartCategory): boolean =>
+            item.filters.some((rule: LibrarySmartFilter): boolean => rule.method === 'category' && rule.value === id))
           if (privateMembers || deviceSettings || smartDependency) {
             projection.categories = projection.categories.filter((row: SyncLocalCategory): boolean => row.local !== id)
             projection.categories.push({ local: id, shared, localOnly: true })
@@ -1173,6 +1251,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
           const library = raw === undefined ? emptySyncLibrary() :
             await taskpool.execute(parseSyncLibrary, raw) as PersistedLibraryStoreDocument
           this.applyShelf(group.changes, library, projection, acceptedRemoval)
+          this.applySmartCategories(group.changes, library, projection)
           this.applyChapterCatalogs(group.changes, library)
           const json = await taskpool.execute(serializeSyncLibrary, library) as string
           this.addImage(files, LIBRARY_STORE_PERSISTENCE_FILE_NAME, raw, json)

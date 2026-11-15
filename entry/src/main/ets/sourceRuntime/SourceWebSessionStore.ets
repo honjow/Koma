@@ -191,6 +191,16 @@ export class SourceWebSessionStore {
     return pending.userAgent
   }
 
+  /** A declared landing may trigger a probe of the original GET, but cannot grant its own origin. */
+  canProbeRedirectedDocument(sourceId: string, sessionId: string, documentUrl: string): boolean {
+    const session = this.pending.get(sourceId)
+    const entry = session?.registry.lookup(sourceId).entry
+    const origin = sourceWebOrigin(documentUrl)
+    return session !== undefined && session.status.sessionId === sessionId && session.userAgent.length === 0 &&
+      origin.length > 0 && origin !== session.status.origin && entry?.enabled === true &&
+      sourceWebPackageIdentity(entry) === session.packageIdentity && (entry.webSessionOrigins ?? []).includes(origin)
+  }
+
   complete(sourceId: string, sessionId: string, currentFullUrl: string, actualUserAgent: string): SourceWebSessionStatus {
     const session = this.pending.get(sourceId)
     if (session === undefined || session.status.sessionId !== sessionId ||
@@ -265,7 +275,9 @@ export class SourceWebSessionStore {
     const session = this.pending.get(identity.sourceId)
     if (session === undefined || session.status.sessionId !== proof.sessionId ||
       session.status.initialUrl !== proof.initialUrl ||
-      sourceWebOrigin(fullUrl) !== session.status.origin || sourceWebOrigin(proof.documentUrl) !== session.status.origin ||
+      sourceWebOrigin(fullUrl) !== session.status.origin ||
+      (sourceWebOrigin(proof.documentUrl) !== session.status.origin &&
+        !this.canProbeRedirectedDocument(identity.sourceId, proof.sessionId, proof.documentUrl)) ||
       identity.sourceVersion !== session.entry.manifestVersion || identity.packageIdentity !== session.packageIdentity ||
       !identity.webSessionOrigins.includes(session.status.origin) ||
       sourceWebPackageIdentity(session.registry.lookup(identity.sourceId).entry ?? session.entry) !== session.packageIdentity ||

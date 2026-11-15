@@ -20,9 +20,9 @@ const owner = compile('model/ReaderSessionStore', {
   './BackupRestoreActivity': compile('model/BackupRestoreActivity'),
   '../deviceSync/DeviceSyncSignals': compile('deviceSync/DeviceSyncSignals'),
   '../sourceRuntime/SourceRuntimeAppRegistry': {}, './SourceTextPageDescriptor': {},
-  './SourceTextOverlay': {},
+  './SourceTextOverlay': {}, './SourceRequiredImageDecode': {},
   '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn() {} } }, './AppFileTextPersistence': {},
-  '@kit.CoreFileKit': { fileIo: {} }, './ComicModels': models,
+  '@kit.CoreFileKit': { fileIo: {} }, '@kit.ArkTS': {}, './ComicModels': models,
   './ReaderChapterSequence': compile('model/ReaderChapterSequence'), '../i18n/AppStrings': { AppStrings: {} },
   './RemoteReaderSession': {}, './ChapterReadStateStore': {},
 })
@@ -61,7 +61,7 @@ test('Shared Reader reports all visible pages after committing the new chapter, 
   const recorder=new stats.ReadingSessionRecorder(record=>records.push(record),()=>now)
   recorder.setActive(true)
   const reader=Object.assign(new module.exports.Reader(),{
-    session:{snapshot:()=>({phase:'ready',unit:{key},policy:{firstPageAlone:false}}),setPreloadDepth(){}},
+    session:{displayPolicyForUnit:unit=>key.equals(unit)?{firstPageAlone:false}:null,setPreloadDepth(){}},
     readerClosed:false,routeActive:true,labVisibility:{foreground:true},hostPreferences:{columnMode:'odd_left'},
     request:{progressReadWrite:true},observedCatalogUnit:null,readerPreloadDepth:()=>2,
     adapter:{sessionConfig:()=>({chapterId:'new'})},catalogHost:{commit(_key,config){committed=config.chapterId}},

@@ -63,12 +63,14 @@ const prefs = compile(source('LibraryUpdatePreferencesStore'), {
 const automationPolicy = compile(source('LibraryAutomationPolicy'), { './ReaderChapterSequence': compile(source('ReaderChapterSequence'), {}), './ComicReleaseSchedule': compile(source('ComicReleaseSchedule'), {}) })
 const chapterUpdates = compile(source('LibraryChapterUpdates'), { './LibraryAutomationPolicy': automationPolicy })
 const publishedNotifications=[]
+const constants = compile(readFileSync(resolve(root, 'entry/src/main/ets/common/Constants.ets'), 'utf8'),
+  { '../i18n/AppStrings': strings })
 const result = compile(source('LibraryUpdateResultStore'), {
-  '@kit.AbilityKit': { wantAgent: { getWantAgent:async()=>({}),OperationType:{START_ABILITY:0},WantAgentFlags:{UPDATE_PRESENT_FLAG:0} } }, '@kit.ArkData': arkData,
+  '@kit.AbilityKit': { wantAgent: { getWantAgent:async options=>options,OperationType:{START_ABILITY:0},WantAgentFlags:{UPDATE_PRESENT_FLAG:0} } }, '@kit.ArkData': arkData,
   '@kit.NotificationKit': {notificationManager:{isNotificationEnabled:async()=>true,SlotType:{CONTENT_INFORMATION:0},ContentType:{NOTIFICATION_CONTENT_BASIC_TEXT:0},publish:async request=>{publishedNotifications.push(request)}}},
   './LibraryChapterUpdates': chapterUpdates,
   './LibraryUpdateService': service, './LibraryUpdatePreferencesStore': prefs,
-  '../common/Constants': {}, '../i18n/AppStrings': strings,
+  '../common/Constants': constants, '../i18n/AppStrings': strings,
 })
 
 const failureNotice={checkedAt:1,totalCount:4,updatedCount:0,unchangedCount:0,skippedCount:0,failedCount:4,
@@ -249,10 +251,16 @@ async function checkBaoziUpdateFailure() {
 }
 
 async function main() {
+  const launchRoute = () => publishedNotifications.at(-1).wantAgent.wants[0].parameters[constants.KOMA_LAUNCH_ROUTE_PARAM]
   assert.equal((await result.publishLibraryUpdateNotification(failureNotice)).delivered,true)
   assert.equal(publishedNotifications.at(-1).content.normal.text,'library_update_summary_counts:0,0,4')
+  assert.equal(launchRoute(), constants.KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS)
   await result.publishLibraryUpdateFailureNotification(1,'unknown')
   assert.equal(publishedNotifications.at(-1).content.normal.text,'library_updates_check_failed')
+  assert.equal(launchRoute(), constants.KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS)
+  const update = summary(['updated', 'failed'])
+  assert.equal((await result.publishLibraryUpdateNotification(update)).delivered, true)
+  assert.equal(launchRoute(), constants.KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES)
   checkChapterIdentityProtection()
   checkBaoziChapterIdentityProtection()
   await checkBaoziUpdateFailure()

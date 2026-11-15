@@ -20,7 +20,7 @@ const ast = ts.createSourceFile('vm.ts', read('viewmodel/BrowseViewModel'), ts.S
 const owner = ast.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'BrowseViewModel')
 const methods = ['authenticationRequest', 'challengeGate', 'clearWebChallenge', 'claimWebChallenge', 'canRetryWebChallenge', 'cancelWebChallenge',
   'completeWebChallenge', 'challengeFingerprint', 'webChallengeGuard', 'publishWebChallenge',
-  'searchResultFingerprint', 'hasActiveSearch', 'runSearch', 'clearSearch', 'loadMoreSearch', 'retrySearchPage', 'retryBrowseFailure', 'beginBrowseLoad',
+  'searchResultFingerprint', 'hasActiveSearch', 'submitSearch', 'runSearch', 'clearSearch', 'loadMoreSearch', 'retrySearchPage', 'retryBrowseFailure', 'beginBrowseLoad',
   'failBrowseLoad', 'loadMoreBrowse', 'selectBrowseListing', 'selectBrowseHome', 'loadBrowseHome', 'setSelectedSource',
   'selectBrowseDestination', 'browseDestinationCacheKey', 'rememberBrowseDestination',
   'sourceSupportsOperation', 'clearBrowseContent', 'clearBrowseListing', 'hasBrowseContent', 'resolveBrowseLoad',
@@ -133,7 +133,7 @@ test('in-place Browse search restores saved filters before dispatch and late lis
   const browsing = f.model.loadBrowseHome(f.source)
   await new Promise(setImmediate)
   assert.equal(typeof finishListing, 'function')
-  // SourceBrowseTitleField -> submitBrowseSearch calls runSearch directly.
+  // Submit through the same entry point as the Browse title field.
   // There is deliberately no ensureSearchFilters call in this user path.
   f.model.searchSource = async (_source, query, _page, _cursor, active) => {
     current = active
@@ -141,7 +141,7 @@ test('in-place Browse search restores saved filters before dispatch and late lis
     assert.deepEqual(f.model.filterValuesForQuery(f.model.searchFilterValues, query), { sort: 'views:desc' })
     return new Promise(resolve => { finishSearch = resolve })
   }
-  const searching = f.model.runSearch(f.source, 'One Piece')
+  const searching = f.model.submitSearch(f.source, 'One Piece')
   await new Promise(setImmediate)
   assert.equal(current(), true)
   finishListing({ manga: [{ id: 'old-list' }], hasNextPage: false })
@@ -151,6 +151,26 @@ test('in-place Browse search restores saved filters before dispatch and late lis
   finishSearch({ manga: [{ id: 'found' }], hasNextPage: false })
   await searching
   assert.deepEqual(f.model.searchResults, [{ id: 'found' }])
+})
+
+test('submitting the same live search preserves the in-flight request and its verification receipt', async () => {
+  const f = searchInitializationFixture()
+  let failSearch, requests = 0
+  f.model.searchSource = async () => {
+    requests += 1
+    return new Promise((_resolve, reject) => { failSearch = reject })
+  }
+  const live = f.model.runSearch(f.source, 'One Piece')
+  await new Promise(setImmediate)
+  await f.model.submitSearch(f.source, ' One Piece ')
+  assert.equal(requests, 1)
+  failSearch(challenge())
+  await live
+  const receipt = f.model.searchWebChallenge
+  assert.ok(f.model.claimWebChallenge('search', receipt.id, true))
+  await f.model.submitSearch(f.source, 'One Piece')
+  assert.equal(requests, 1)
+  assert.ok(f.model.canRetryWebChallenge('search', receipt.id, true))
 })
 
 test('nonpersistent search skips saved choices and preserves its temporary filter on runSearch', async () => {
@@ -459,7 +479,8 @@ test('a late Home response cannot overwrite a newly selected source', async () =
 })
 
 
-const { hasNewSourceClearance, sourceClearanceCookieState } = moduleFrom('sourceRuntime/SourceWebChallengeGate')
+const { hasNewSourceClearance, sourceChallengeWebUserAgent, sourceClearanceCookieState } =
+  moduleFrom('sourceRuntime/SourceWebChallengeGate')
 test('clearance candidate requires a nonempty changed exact cookie; other names and ambiguous duplicates cannot complete', () => {
   for (const [before, after] of [['', 'sid=x'], ['cf_clearance=a', 'cf_clearance=a; sid=new'],
     ['cf_clearance=a', 'cf_clearance='], ['', 'not_cf_clearance=a'], ['', 'cf_clearance=a; cf_clearance=b']]) {
@@ -475,37 +496,59 @@ const sheetOwner = sheetAst.statements.find(n => ts.isClassDeclaration(n) && n.n
 const sheetMethods = ['isCurrent','updateNavState','loadInitialPage','pageBegan','pageEnded','mainPageFailed',
   'completeSourceSession','close','sessionChanged','aboutToDisappear','consoleMessage','resourceFailed','navigationRequested']
 const sheetSource = `export class Sheet { ${sheetMethods.map(name => sheetOwner.members.find(n => n.name?.text === name).getText(sheetAst).replace(/@Monitor\([^\n]*\)\s*/g, '')).join('\n')} }`
-function sheetFixture(loginUserAgent) {
+function sheetFixture(loginUserAgent, websitePolicy, nativeUserAgent = 'Web UA') {
   let cookies = 'cf_clearance=old', failRead = false, saveError = false, saveWait = Promise.resolve(), probeResult = Promise.resolve(false)
   const probes = [], cancelledProbes = []
-  const exports = {}, granted = [], completed = [], events = []
+  const exports = {}, granted = [], completed = [], events = [], pageLoads = []
   const webview = { WebCookieManager: {
     isCookieAllowed: () => true, isThirdPartyCookieAllowed: () => false,
     fetchCookieSync: () => { if (failRead) throw Error('unavailable'); return cookies },
     saveCookieSync: () => { if (saveError) throw Error('async required') }, saveCookieAsync: () => saveWait,
   } }
-  new Function('exports','webview','appSourceWebSessionStore','sourceWebOrigin','hasNewSourceClearance','sourceClearanceCookieState','DiagnosticLogger','AppStrings','mangaHttpUrl','readSourceWebCookies','probeSourceWebSession','cancelSourceWebProbe', compile(sheetSource))(
+  new Function('exports','webview','appSourceWebSessionStore','sourceWebOrigin','hasNewSourceClearance','sourceClearanceCookieState','DiagnosticLogger','AppStrings','mangaHttpUrl','readSourceWebCookies','probeSourceWebSession','cancelSourceWebProbe',
+    'appSourceRuntimeRegistry', 'sourceChallengeWebUserAgent', 'renderedDocumentReadySelector', 'cancelSourceWebDocument', compile(sheetSource))(
     exports, webview, { pendingLoginUserAgent: () => loginUserAgent,
       complete: (...args) => { granted.push(args); return { state:'available' } } },
     u => { try { return new URL(u).origin } catch { return '' } }, hasNewSourceClearance, sourceClearanceCookieState,
     { info: (...args) => events.push(args) }, { get: s => s }, moduleFrom('model/MangaWebLink').mangaHttpUrl,
     fullUrl => webview.WebCookieManager.fetchCookieSync(fullUrl, false),
-    (...args) => { probes.push(args); return probeResult }, (...args) => cancelledProbes.push(args))
+    (...args) => { probes.push(args); return probeResult }, (...args) => cancelledProbes.push(args),
+    { lookup: () => ({ entry: { websitePolicy } }) }, sourceChallengeWebUserAgent, () => '', () => {})
   const sheet = new exports.Sheet(), initialUrl = 'https://test.invalid/catalog'
   Object.assign(sheet, { params: {url:initialUrl,sourceSession:{sourceId:'test',sessionId:'attempt1'}},
     autoRetryOnClearance:true,canProbeOriginal:()=>true,active:true,epoch:1,controllerReady:true,loading:false,completing:false,completed:false,
     autoRetryStarted:false,pageRevision:0,pageUrl:'',pageFailed:false,clearanceBaseline:undefined,
-    controller:{loadUrl:()=>{},getUrl:()=>sheet.pageUrl,getCustomUserAgent:()=>sheet.customUa??'',
-      setCustomUserAgent: ua => { sheet.customUa=ua },getUserAgent:()=> 'Web UA',
+    controller:{loadUrl:()=>pageLoads.push(sheet.customUa),getUrl:()=>sheet.pageUrl,getCustomUserAgent:()=>sheet.customUa??'',
+      setCustomUserAgent: ua => { sheet.customUa=ua },getUserAgent:()=>nativeUserAgent,
       accessBackward:()=>false,accessForward:()=>false},
+    renderedDocumentFallbackEnabled: () => false, autoCompleteRenderedDocument: async () => {},
     onCompleted: status => completed.push(status),onClose:()=>events.push('closed'),
     getUIContext:()=>({getPromptAction:()=>({showToast:()=>{}})}),
   })
   sheet.loadInitialPage(); sheet.navigationRequested({data:{isMainFrame:()=>true,getRequestUrl:()=>initialUrl}}); sheet.pageBegan({url:initialUrl})
-  return { sheet, initialUrl, granted, completed, events, probes, cancelledProbes, setProbe:p=>probeResult=p, setCookies:s=>cookies=s, failRead:()=>failRead=true,
+  return { sheet, initialUrl, granted, completed, events, probes, cancelledProbes, pageLoads, setProbe:p=>probeResult=p, setCookies:s=>cookies=s, failRead:()=>failRead=true,
     delaySave:()=> { saveError=true; let resolve; saveWait=new Promise(r=>resolve=r); return resolve } }
 }
 const settled = () => new Promise(resolve=>setImmediate(resolve))
+test('challenge uses the current ArkWeb identity before navigation and on completion', async () => {
+  const native = 'Mozilla/5.0 (Phone; OpenHarmony 7.0) AppleWebKit/537.36 ArkWeb/7.0 Mobile'
+  const mobile = 'Mozilla/5.0 (Phone; OpenHarmony 7.0; Android 10) AppleWebKit/537.36 ArkWeb/7.0 Mobile'
+  const legacy = { webSessionUserAgent: 'Desktop Firefox' }
+  const f = sheetFixture(undefined, legacy, native)
+  assert.deepEqual(f.pageLoads, [mobile])
+  f.sheet.customUa = 'Previously loaded desktop UA'
+  f.sheet.params = { url: f.initialUrl, sourceSession: { sourceId: 'test', sessionId: 'attempt2', requestHandle: 'request' } }
+  f.sheet.sessionChanged()
+  f.sheet.pageBegan({ url: f.initialUrl })
+  f.sheet.pageEnded({ url: f.initialUrl })
+  await f.sheet.completeSourceSession()
+  assert.deepEqual(f.pageLoads, [mobile, mobile])
+  assert.equal(f.granted[0][3], mobile)
+  const unmodified = sheetFixture(undefined, { systemWebAgentOrigins: ['https://test.invalid'] }, native)
+  assert.deepEqual(unmodified.pageLoads, [native])
+  assert.deepEqual(sheetFixture(undefined, undefined, mobile).pageLoads, [mobile])
+})
+
 test('declared web login uses its source UA for the actual page and completion', async () => {
   const f = sheetFixture('Fixed source desktop UA')
   f.sheet.autoRetryOnClearance = false
@@ -517,9 +560,12 @@ test('declared web login uses its source UA for the actual page and completion',
 function authenticationPresenterFixture() {
   const ast = ts.createSourceFile('auth.ts', read('components/SourceAuthenticationSheetHost').replace(/\bstruct /g, 'class '), ts.ScriptTarget.Latest, true)
   const owner = ast.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SourceAuthenticationSheetHost')
-  const methods = ['aboutToAppear', 'aboutToDisappear', 'requestChanged', 'current', 'open', 'openWeb', 'status', 'authenticate', 'logout', 'finish', 'close', 'finishDismissal']
+  const methods = ['aboutToAppear', 'aboutToDisappear', 'requestChanged', 'current', 'open', 'openWeb', 'status',
+    'authenticate', 'credentialInputId', 'credentialInputRect', 'credentialViewData', 'requestCredentialFill',
+    'offerCredentialSave', 'logout', 'finish', 'close', 'finishDismissal']
   const source = `export class Presenter { ${methods.map(name => owner.members.find(n => n.name?.text === name).getText(ast).replace(/@Monitor\([^\n]*\)\s*/g, '')).join('\n')} }`
-  const replies = [], operations = [], exports = {}; let canceled = 0, completed = 0, cachedStatus
+  const replies = [], operations = [], exports = {}; let canceled = 0, completed = 0, cachedStatus, saveRequest, fillRequest
+  let saveCredential = (_context, _request, callback) => callback.onSuccess()
   class Service {
     descriptor = { kind: 'credentials', loginUrl: 'https://api.invalid/auth', credentialStorage: 'private' }
     title = 'Source'; alive = true
@@ -530,17 +576,64 @@ function authenticationPresenterFixture() {
     cachedStatus() { return cachedStatus }
     async run(op) { operations.push(op); const reply = replies.shift(); return await (reply ?? false) }
   }
-  new Function('exports', 'SourceAuthenticationService', 'AppStrings', 'sourceAuthenticationOrigin', 'SourceRuntimeError', 'komaToastOptions', compile(source))(
-    exports, Service, { get: key => key }, value => new URL(value).origin, SourceRuntimeError, value => value)
+  new Function('exports', 'SourceAuthenticationService', 'AppStrings', 'sourceAuthenticationOrigin', 'SourceRuntimeError',
+    'komaToastOptions', 'autoFillManager', 'deviceInfo', 'KOMA_BUNDLE_NAME', compile(source))(
+    exports, Service, { get: key => key }, value => new URL(value).origin, SourceRuntimeError, value => value,
+    { AutoFillType: { USER_NAME: 2, PASSWORD: 1 }, AutoFillTriggerType: { AUTO_REQUEST: 0 },
+      requestAutoSave: (...args) => saveCredential(...args),
+      requestAutoFill: (_context, request, callback) => { fillRequest = { request, callback } } },
+    { apiAvailable: version => version === '26.0.0' }, 'com.honjow.koma')
   const host = new exports.Presenter()
   const request = () => new SourceAuthenticationRequest('source', () => true, async () => { completed++ }, () => { canceled++ })
   Object.assign(host, { request: request(), active: true, mounted: false, shown: false, closing: false, opening: false, checking: false,
     completed: false, handled: null, presented: null, service: null, epoch: 0, webParams: {},
     onPresentedChanged() {}, onAuthenticationChanged() {},
-    getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }) })
+    getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }),
+      getComponentUtils: () => ({ getRectangleById: id => ({
+        windowOffset: { x: 10, y: id.endsWith('-username') ? 90 : 150 }, size: { width: 320, height: 48 },
+      }) }) }) })
   return { host, replies, operations, request, setCached(value) { cachedStatus = value },
+    deferSave() { saveCredential = (_context, request, callback) => { saveRequest = { request, callback } } },
+    get saveRequest() { return saveRequest },
+    get fillRequest() { return fillRequest },
     get canceled() { return canceled }, get completed() { return completed } }
 }
+test('successful source login keeps its credential fields until the system responds to saving', async () => {
+  const f = authenticationPresenterFixture()
+  f.deferSave()
+  f.host.aboutToAppear()
+  await settled()
+  f.host.username = 'fixture-user'
+  f.host.password = 'fixture-password'
+  f.replies.push(true)
+  const login = f.host.authenticate()
+  await settled()
+  assert.ok(f.saveRequest)
+  assert.equal(f.host.shown, true)
+  assert.equal(f.host.password, 'fixture-password')
+  assert.equal(f.saveRequest.request.viewData.pageUrl, 'https://api.invalid')
+  assert.deepEqual(f.saveRequest.request.viewData.pageNodeInfos.map(node => [node.autoFillType, node.value]),
+    [[2, 'fixture-user'], [1, 'fixture-password']])
+  f.saveRequest.callback.onFailure()
+  await login
+  assert.equal(f.host.shown, false)
+  assert.equal(f.host.password, '')
+  f.host.finishDismissal()
+  assert.equal(f.completed, 1)
+})
+test('source login ignores a vault result that arrives after the user starts editing', async () => {
+  const f = authenticationPresenterFixture()
+  f.host.aboutToAppear()
+  await settled()
+  f.host.requestCredentialFill('username')
+  assert.equal(f.fillRequest.request.viewData.pageUrl, 'https://api.invalid')
+  f.host.username = 'manual-user'
+  f.fillRequest.callback.onSuccess({
+    pageNodeInfos: [{ autoFillType: 2, value: 'fixture-user' }, { autoFillType: 1, value: 'fixture-password' }],
+  })
+  assert.equal(f.host.username, 'manual-user')
+  assert.equal(f.host.password, '')
+})
 test('login presenter retries after dismissal only, and late canceled initialization cannot close its replacement', async () => {
   const f = authenticationPresenterFixture(); f.host.aboutToAppear(); await settled()
   assert.equal(f.host.ready, true); assert.equal(f.host.checking, false)

@@ -1,3 +1,4 @@
+import { util } from '@kit.ArkTS'
 import { Comic, CustomLibraryCategory, LEGACY_LIBRARY_CATEGORIES, LegacyLibraryCategory,
   LIBRARY_CATEGORY_NAME_MAX_LENGTH } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
@@ -20,6 +21,7 @@ function s(key: string): string { return AppStrings.get(key) }
 @ComponentV2
 export struct LibrarySmartCategorySection {
   @Param libraryStore?: LibraryStore = undefined
+  @Param libraryRevision: number = 0
   @Param persistence?: LibraryStorePersistenceService = undefined
   @Event onChanged: () => void = () => {}
   @Local private groups: LibrarySmartCategory[] = []
@@ -28,7 +30,10 @@ export struct LibrarySmartCategorySection {
   @Local private draftName: string = ''
   @Local private draftFilters: LibrarySmartFilter[] = []
 
-  aboutToAppear(): void { this.groups = this.libraryStore?.listSmartCategories() ?? [] }
+  aboutToAppear(): void { this.refreshGroups() }
+
+  @Monitor('libraryRevision')
+  private refreshGroups(): void { this.groups = this.libraryStore?.listSmartCategories() ?? [] }
 
   private openEditor(group?: LibrarySmartCategory): void {
     this.editingId = group?.id ?? ''
@@ -58,7 +63,7 @@ export struct LibrarySmartCategorySection {
     const groups = this.libraryStore?.listSmartCategories() ?? []
     const existing = groups.find((group: LibrarySmartCategory): boolean => group.id === this.editingId)
     const now = Date.now()
-    const next: LibrarySmartCategory = { id: existing?.id ?? `smart:${now}`, name: this.draftName.trim(),
+    const next: LibrarySmartCategory = { id: existing?.id ?? `smart:${util.generateRandomUUID()}`, name: this.draftName.trim(),
       sortOrder: existing?.sortOrder ?? groups.length, createdAt: existing?.createdAt ?? now,
       updatedAt: now, filters: this.draftFilters }
     const updated = groups.filter((group: LibrarySmartCategory): boolean => group.id !== next.id)

@@ -142,6 +142,8 @@ export class ReaderModeSnapshot {
 
 @ObservedV2
 export class ReaderModeState {
+  // Reader settings navigation belongs to the running app, separate from reading preferences.
+  @Trace settingsSheetTab: number = 0
   @Trace displaySettings: ReaderDisplaySettings = new ReaderDisplaySettings()
   @Trace pageMode: string = 'single_page'
   @Trace readingDirection: string = 'ltr'

@@ -7,15 +7,18 @@ export struct KomaFormTextField {
   @Param wrapLabel: boolean = false
   @Param placeholder: ResourceStr = ''
   @Param value: string = ''
+  @Param inputId: string | undefined = undefined
   @Param isPassword: boolean = false
   // Login forms mark the account field so the system password vault can pair it
   // with the password field for autofill suggestions and credential save prompts.
   @Param isUsername: boolean = false
   @Param isEnabled: boolean = true
+  @Param automaticInputFill: boolean = true
   // Only forms with field validation opt in to the native error state.
   @Param validationError: string | undefined = undefined
   @Event change: (value: string) => void = (_value: string) => {}
   @Event submit?: () => void
+  @Event onInputFocus?: () => void
 
   build() {
     Column({ space: ThemeConstants.SPACE_XS }) {
@@ -28,6 +31,7 @@ export struct KomaFormTextField {
         .width('100%')
 
       TextInput({ placeholder: this.placeholder, text: this.value })
+        .id(this.inputId)
         .type(this.isUsername ? InputType.USER_NAME : this.isPassword ? InputType.Password : InputType.Normal)
         .showPassword(false)
         .height(ThemeConstants.BUTTON_HEIGHT)
@@ -37,7 +41,9 @@ export struct KomaFormTextField {
         .backgroundColor($r('sys.color.ohos_id_color_button_normal'))
         .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
         .enabled(this.isEnabled)
+        .enableAutoFill(this.automaticInputFill)
         .showError(this.validationError)
+        .onFocus(() => { this.onInputFocus?.() })
         .onChange((next: string) => {
           this.change(next)
         })

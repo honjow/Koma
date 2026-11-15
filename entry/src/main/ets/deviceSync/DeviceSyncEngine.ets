@@ -4,7 +4,8 @@ import {
   SyncEditKind, SyncFact, SyncGroup, SyncVersion, SYNC_GROUPS,
 } from './DeviceSyncFacts'
 import { checkSyncGroupFact, SyncPositionValue, SyncReadingWorkProgress, syncReadingWorkProgress, SyncRecentValue, SyncWorkLabel,
-  syncBucketKey, syncBusinessKey, syncGroupVisibleValue, syncKey, syncKeyParts, SYNC_SHELF_DATASET, syncShelfMove } from './DeviceSyncData'
+  syncBucketKey, syncBusinessKey, syncGroupVisibleValue, syncKey, syncKeyParts, SYNC_SHELF_DATASET,
+  SYNC_SMART_CATEGORIES_DATASET, syncShelfMove } from './DeviceSyncData'
 import {
   copySyncManifest, decodeSyncShard, sharedSyncRootBucket, syncDatasetBytes, syncDigest, syncRootBucket, syncShardPath, syncDatasetBranches,
   SyncDatasetRef, SyncManifest, SyncObject, SyncShardRef, SYNC_MAX_ROUND_BYTES,
@@ -22,7 +23,7 @@ import {
   byLocalValue, bySyncFact, coverDatasetId, dependsOnConflict, hasLegacyRetainedDeletion,
   isCoverKey, isShelfBook, localValueRows, planDeviceSync,
   PreparedGroup, priorConflictRoots, ProposedSync, replaceGroup, restorableEdits, sameShelfBook, shelfMoveValue,
-  SyncMergeChoice, SyncPlanTransport, usesReadingTime, writeDatasetId, writeDatasetIds,
+  SyncMergeChoice, SyncPlanTransport, usesReadingTime, writeDatasetForKey, writeDatasetId, writeDatasetIds,
 } from './DeviceSyncPlanner'
 
 export { SyncMergeChoice } from './DeviceSyncPlanner'
@@ -153,9 +154,10 @@ interface CheckedPlan {
 }
 
 @Concurrent
-function prepareSyncPlan(prepared: PreparedGroup[], existing: SyncManifest | undefined, choices: SyncMergeChoice[],
+function prepareSyncPlan(preparedText: string, existing: SyncManifest | undefined, choices: SyncMergeChoice[],
   space: string, replica: string, counter: number, transport: SyncPlanTransport): CheckedPlan {
   try {
+    const prepared = JSON.parse(preparedText) as PreparedGroup[]
     return { plan: planDeviceSync(prepared, existing, choices, space, false, replica, counter, transport) }
   } catch (error) {
     return { error: (error as Error).message }
@@ -174,7 +176,8 @@ function groupDatasets(manifest: SyncManifest | undefined, group: SyncGroup): Sy
   // Older clients still read their own dataset IDs. Never write records that
   // they cannot decode into those datasets.
   return refs.concat(syncDatasetBranches(manifest, group),
-    group === 'shelf' ? syncDatasetBranches(manifest, SYNC_SHELF_DATASET) : [])
+    group === 'shelf' ? syncDatasetBranches(manifest, SYNC_SHELF_DATASET)
+      .concat(syncDatasetBranches(manifest, SYNC_SMART_CATEGORIES_DATASET)) : [])
 }
 
 function selectedDatasetIds(groups: SyncGroup[]): string[] {
@@ -196,6 +199,9 @@ function validateSyncShard(group: SyncGroup, datasetId: string, ref: SyncShardRe
     const data = decodeSyncShard(datasetId, ref, body, syncBucketKey)
     for (const fact of data) {
       if (fact.key.startsWith('["cover",') !== cover) throw new Error('sync_update_required')
+      if (fact.key.startsWith('["smart-category",') !== (datasetId === SYNC_SMART_CATEGORIES_DATASET)) {
+        throw new Error('sync_update_required')
+      }
       checkSyncGroupFact(group, fact, datasetId === 'shelf')
     }
     return { data }
@@ -1360,8 +1366,9 @@ export class DeviceSyncEngine {
           previous.baseline.filter((item: SyncLocalValue): boolean => !local.values.some((now: SyncLocalValue): boolean =>
             now.key === item.key)).map((item: SyncLocalValue): string => item.key) :
           await this.owner.removed(id, previous.baseline.map((value: SyncLocalValue): string => value.key))
-        const ownRef = transport?.own?.datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === writeDatasetId(id))
-        let published = ownRef === undefined ? [] : await this.loadDataset(provider, ownRef, guard, id)
+        const ownRefs = (transport?.own?.datasets ?? []).filter((dataset: SyncDatasetRef): boolean =>
+          writeDatasetIds(id).includes(dataset.id) && dataset.id !== coverDatasetId(id))
+        let published = await this.loadGroup(provider, ownRefs, id, guard)
         let migrating: SyncFact[] = []
         for (const ref of groupDatasets(transport?.old, id)) {
           migrating = mergeSyncFacts(migrating, await this.loadDataset(provider, ref, guard, id))
@@ -1524,7 +1531,9 @@ export class DeviceSyncEngine {
     }
     const transport: SyncPlanTransport = { writer: remote.writer, shared: remote.sharedHash !== undefined,
       ownWritable: remote.sharedHash === undefined ? remote.ownWritable : undefined, own }
-    const checked = await taskpool.execute(prepareSyncPlan, groups, remote.manifest, choices,
+    // Groups contain entire fact tables. Flatten the data before crossing the
+    // Taskpool boundary so handing the plan to a worker does not deep-clone it.
+    const checked = await taskpool.execute(prepareSyncPlan, JSON.stringify(groups), remote.manifest, choices,
       space, state.replica, state.counter, transport) as CheckedPlan
     guard()
     if (checked.plan === undefined) throw new Error(checked.error ?? 'sync_invalid_plan')
@@ -1899,7 +1908,11 @@ export class DeviceSyncEngine {
       const coverId = coverDatasetId(group.id)
       const refs = groupDatasets(remote.manifest, group.id).concat(syncDatasetBranches(remote.manifest, coverId))
         .filter((ref: SyncDatasetRef): boolean => (written === undefined || written.includes(ref.id)) &&
-          group.pending.some((row: SyncPendingEdit): boolean => isCoverKey(row.key) === (ref.id === coverId)))
+          group.pending.some((row: SyncPendingEdit): boolean => {
+            const dataset = writeDatasetForKey(group.id, row.key)
+            return dataset === ref.id || (dataset === writeDatasetId(group.id) &&
+              (ref.id === group.id || ref.id === SYNC_SHELF_DATASET))
+          }))
       if (refs.length === 0 || group.pending.length === 0) {
         groups.push(group)
         continue
@@ -2105,7 +2118,7 @@ export class DeviceSyncEngine {
       if (change === undefined) return false
       change.apply(state)
       return true
-    }, guard)
+    }, guard, true)
     return version
   }
 

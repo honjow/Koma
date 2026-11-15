@@ -35,6 +35,7 @@ export class LibraryCategoryManagementChrome {
 export struct LibraryCategoryManagementPage {
   @Param chrome: LibraryCategoryManagementChrome = new LibraryCategoryManagementChrome()
   @Param libraryStore?: LibraryStore = undefined
+  @Param libraryRevision: number = 0
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
   @Local private categories: CustomLibraryCategory[] = []
@@ -46,6 +47,7 @@ export struct LibraryCategoryManagementPage {
   @Local private editingCategoryId: string = ''
   @Local private languageState: LanguageState = connectLanguageState()
 
+  @Monitor('libraryRevision')
   private refreshCategories(): void {
     this.categories = this.libraryStore === undefined ? [] : this.libraryStore.listCustomCategories()
   }
@@ -323,6 +325,7 @@ export struct LibraryCategoryManagementPage {
         }
         ListItem() {
           LibrarySmartCategorySection({ libraryStore: this.libraryStore, persistence: this.libraryPersistenceService,
+            libraryRevision: this.libraryRevision,
             onChanged: (): void => {
               this.refreshCategories()
               this.onLibraryChanged()

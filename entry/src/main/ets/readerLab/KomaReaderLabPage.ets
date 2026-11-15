@@ -334,12 +334,12 @@ export struct KomaReaderLabPage {
     this.chapterPickerFirstY = rect.y
   }
 
-  private readerPreloadDepth(): number {
+  private readerPreloadDepth(observedUnit?: ReaderUnitKey): number {
     const depth = this.hostPreferences?.preloadPages ?? this.readerMode.preloadPages
-    const unit = this.session?.snapshot().unit?.key
-    const remote = unit === undefined || this.adapter?.unitUsesRemoteImages(unit) === true
     const wifiOnly = this.hostPreferences?.preloadWifiOnly ?? this.readerMode.preloadWifiOnly
-    return wifiOnly && !this.preloadNetworkWifi && remote ? 0 : depth
+    if (!wifiOnly || this.preloadNetworkWifi) return depth
+    const unit = observedUnit ?? this.session?.snapshot().unit?.key
+    return unit === undefined || this.adapter?.unitUsesRemoteImages(unit) === true ? 0 : depth
   }
 
   aboutToAppear(): void {
@@ -863,7 +863,9 @@ export struct KomaReaderLabPage {
         position.anchor.unit.work, position.anchor.unit.unit, position.displayedSourceIndexes)
       return
     }
-    session.setPreloadDepth(this.readerPreloadDepth())
+    // The validated observation already carries the current unit. Avoid projecting
+    // the chapter and its native page window just to decide network eligibility.
+    session.setPreloadDepth(this.readerPreloadDepth(position.anchor.unit))
     if (this.observedCatalogUnit?.equals(position.anchor.unit) !== true) {
       const chapterChanged = this.observedCatalogUnit !== null
       this.syncChapterChoices(position.anchor.unit)
@@ -947,6 +949,7 @@ export struct KomaReaderLabPage {
   private openHostSettings(): void {
     if (!this.request.preferencesReadWrite || this.hostPreferences === null || this.readerClosed ||
       !this.routeActive || !this.labVisibility.foreground || this.session === null) return
+    this.readerFilterPreview = this.readerMode.settingsSheetTab === 2
     this.readerSettingsSheetShown = true
     this.syncKeepScreenOn()
     this.syncVolumeKeys()
@@ -1388,6 +1391,8 @@ export struct KomaReaderLabPage {
       ReaderSettingsContent({
         readerMode: this.currentReaderMode(),
         preferences: this.hostPreferences,
+        selectedTab: this.readerMode.settingsSheetTab,
+        onTabSelect: (index: number): void => { this.readerMode.settingsSheetTab = index },
         seriesOverrideActive: this.seriesOverrideActive,
         cropControlsAvailable: true,
         enhancementControlsAvailable: true,

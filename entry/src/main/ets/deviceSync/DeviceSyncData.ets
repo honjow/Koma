@@ -1,6 +1,7 @@
 import { SyncEdit, SyncFact, SyncGroup, isSyncReplica, syncVisibleHeads, syncVisibleValue, syncObserves } from './DeviceSyncFacts'
 import { isSyncDigest, syncDigest } from './DeviceSyncWire'
 import { syncDefaultCaseFold } from './DeviceSyncCaseFold'
+import type { LibrarySmartFilter } from '../model/LibrarySmartCategory'
 
 /** Bulk projection is asynchronous but each synchronous chunk still shares the UI event loop. */
 export class SyncWorkSlice {
@@ -22,6 +23,7 @@ export const SYNC_CATALOG_ID = 'honjow/koma-sources'
 export const SYNC_READING_DATASET = 'reading-records'
 export const SYNC_SHELF_DATASET = 'shelf-records'
 export const SYNC_SHELF_CATALOG_DATASET = 'shelf-catalog-records'
+export const SYNC_SMART_CATEGORIES_DATASET = 'shelf-smart-categories'
 export const SYNC_READER_SETTINGS_DATASET = 'reader-settings-records'
 export const SYNC_SUBSCRIPTIONS_DATASET = 'source-subscriptions-records'
 export const SYNC_SEARCH_DATASET = 'search-history-records'
@@ -45,6 +47,13 @@ export interface SyncShelfMove {
   toSource: string
   toWork: string
   categories?: string[]
+}
+
+export interface SyncSmartCategory {
+  name: string
+  order: number
+  createdAt: number
+  filters: LibrarySmartFilter[]
 }
 
 export interface SyncRecentValue {
@@ -283,6 +292,26 @@ function validateDate(date: number): boolean {
 }
 
 function validShelfValue(parts: string[], value: Object, legacy: boolean): boolean {
+  if (parts[0] === 'smart-category') {
+    const category = value as SyncSmartCategory
+    if (!onlyFields(value, 'createdAt,filters,name,order') || !checkText(category.name, 40) ||
+      !Number.isSafeInteger(category.order) || category.order < 0 || !validateDate(category.createdAt) ||
+      !Array.isArray(category.filters) || category.filters.length === 0) return false
+    const rules = new Set<string>()
+    return category.filters.every((rule: LibrarySmartFilter): boolean => {
+      if (rule === null || typeof rule !== 'object' || typeof rule.exclude !== 'boolean') return false
+      const takesValue = rule.method === 'category' || rule.method === 'source' || rule.method === 'contentRating'
+      if (!onlyFields(rule, takesValue ? 'exclude,method,value' : 'exclude,method')) return false
+      if (takesValue) {
+        if (rule.value === undefined || !checkText(rule.value, 512) ||
+          (rule.method === 'category' && rule.value !== 'uncategorized' && !validCategory(rule.value))) return false
+      } else if (!['downloaded', 'tracking', 'hasUnread', 'started', 'completed'].includes(rule.method)) return false
+      const key = syncKey([rule.method, rule.value ?? '-'])
+      if (rules.has(key)) return false
+      rules.add(key)
+      return true
+    })
+  }
   if (parts[0] === 'chapter-catalog') {
     const catalog = value as SyncChapterCatalog
     return onlyFields(value, 'blocks,count,date,digest') && isSyncDigest(catalog.digest) && validateDate(catalog.date) &&
@@ -377,6 +406,7 @@ function validKey(group: SyncGroup, parts: string[], legacyShelf: boolean): bool
   if (kind === 'cover') return !legacyShelf && (group === 'shelf' || group === 'reading') &&
     parts.length === 3 && isSourceWork(parts)
   if (group === 'shelf') {
+    if (kind === 'smart-category') return !legacyShelf && parts.length === 2 && isSyncReplica(parts[1])
     if (kind === 'chapter-catalog' || kind === 'chapter-catalog-block') {
       return !legacyShelf && isSourceWork(parts) && ((kind === 'chapter-catalog' && parts.length === 3) ||
         (kind === 'chapter-catalog-block' && parts.length === 5 && isSyncDigest(parts[3]) && /^\d+$/.test(parts[4])))

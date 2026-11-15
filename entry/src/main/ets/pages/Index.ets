@@ -386,6 +386,7 @@ struct Index {
   @Local private sourcePackageManagerCache: SourcePackageManagerCache = appSourcePackageManagerCache
   private migrationOpening: boolean = false
   private detailMenu: KomaMenuController = new KomaMenuController()
+  private downloadsMenu: KomaMenuController = new KomaMenuController()
   private sourceBrowseMenu: KomaMenuController = new KomaMenuController()
   @Local private browseCatalogChrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
   @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
@@ -544,45 +545,59 @@ struct Index {
     const options = this.navDestTitleBarOpts(title)
     const content = options['content'] as Record<string, Object>
     const items: Record<string, Object>[] = []
-    const add = (label: string, command: DownloadsCommand, visible: boolean = true): void => {
-      if (!visible) return
-      items.push({ 'content': { 'label': AppStrings.get(label), 'type': TextStyleMode.NORMAL,
+    const iconAction = (label: string, icon: Resource | SymbolGlyphModifier, command: DownloadsCommand): void => {
+      items.push({ 'content': { 'label': AppStrings.get(label), 'icon': icon,
         'action': (): void => { chrome.request(command) } } as Record<string, Object> })
     }
+    // HDS can promote remaining items when the queue state changes. Give the
+    // toolbar explicit symbol actions and keep localized text in the menu.
+    if (chrome.selecting && chrome.hasVisible) {
+      iconAction(chrome.allSelected ? 'downloads_deselect_all' : 'library_action_select_all',
+        chrome.allSelected ? $r('sys.symbol.square') : $r('sys.symbol.checkmark_square'), 'toggleAll')
+    } else if (!chrome.selecting && chrome.queueAction.length > 0) {
+      let icon: Resource | SymbolGlyphModifier = $r('sys.symbol.pause')
+      if (chrome.queueAction !== 'downloads_action_pause_all') {
+        // Match the HDS icon size and center the triangle's visual weight.
+        icon = new SymbolGlyphModifier($r('sys.symbol.play'))
+          .fontSize(ThemeConstants.FONT_SIZE_H1).fontColor([$r('sys.color.font_primary')]).translate({ x: 2 })
+      }
+      iconAction(chrome.queueAction, icon, 'queue')
+    } else if (!chrome.selecting && chrome.hasRetryable) {
+      iconAction('downloads_action_retry_failed', $r('sys.symbol.arrow_clockwise'), 'retryAll')
+    }
+    const more: Record<string, Object> = { 'label': AppStrings.get('common_more_actions'),
+      'icon': komaTitleMoreIcon(), 'componentId': chrome.menuAnchorId, 'action': (): void => {
+        this.downloadsMenu.open(this.getUIContext(), chrome.menuAnchorId,
+          (): KomaMenuGroup[] => [{ id: 'downloads', items: this.downloadsMenuActions(chrome) }],
+          (): void => { DiagnosticLogger.warn('downloads', 'menu_open_failed', 'result=failed') })
+      } }
+    items.push({ 'content': more })
+    content['menu'] = { 'value': items, 'maxCount': items.length } as Record<string, Object>
+    return options
+  }
+
+  private downloadsMenuActions(chrome: DownloadsChrome): KomaMenuAction[] {
+    const items: KomaMenuAction[] = []
+    const add = (label: string, command: DownloadsCommand, visible: boolean = true): void => {
+      if (!visible) return
+      items.push({ label: AppStrings.get(label), action: (): void => { chrome.request(command) } })
+    }
     if (chrome.selecting) {
-      add(chrome.allSelected ? 'downloads_deselect_all' : 'library_action_select_all', 'toggleAll', chrome.hasVisible)
       add('downloads_pause_selected', 'pauseSelected', chrome.canPauseSelected)
       add('downloads_resume_selected', 'resumeSelected', chrome.canResumeSelected)
-      add('downloads_action_retry_failed', 'retrySelected', chrome.canRetrySelected)
+      add('downloads_retry_selected', 'retrySelected', chrome.canRetrySelected)
       add('downloads_cancel_selected', 'cancelSelected', chrome.canCancelSelected)
-      add('downloads_action_delete_files', 'deleteSelected', chrome.canDeleteSelected)
+      add('downloads_delete_selected', 'deleteSelected', chrome.canDeleteSelected)
       add('downloads_exit_selection', 'exitSelection')
     } else {
-      if (chrome.queueAction.length > 0) {
-        let icon: Resource | SymbolGlyphModifier = $r('sys.symbol.pause')
-        if (chrome.queueAction !== 'downloads_action_pause_all') {
-          const play = new SymbolGlyphModifier($r('sys.symbol.play'))
-          // Match the HDS icon size and center the triangle's visual weight.
-          play.fontSize(ThemeConstants.FONT_SIZE_H1).fontColor([$r('sys.color.font_primary')]).translate({ x: 2 })
-          icon = play
-        }
-        items.push({ 'content': { 'label': AppStrings.get(chrome.queueAction), 'icon': icon,
-          'action': (): void => { chrome.request('queue') } } as Record<string, Object> })
-      } else {
-        add('downloads_action_retry_failed', 'retryAll', chrome.hasRetryable)
-      }
       add('downloads_cancel_all_tasks', 'cancelAll', chrome.hasTasks)
       add('downloads_action_retry_failed', 'retryAll', chrome.queueAction.length > 0 && chrome.hasRetryable)
       add('downloads_clear_failed', 'clearFailed', chrome.hasFailures)
-      add('downloads_delete_completed', 'deleteDownloaded', chrome.hasDownloaded)
+      add('downloads_delete_all', 'deleteDownloaded', chrome.hasDownloaded)
       add('chapter_list_menu_enter_selection', 'select', chrome.hasVisible)
       add('downloads_action_rescan', 'rescan')
     }
-    // HDS counts the More button as a slot. A queue or failure action stays
-    // visible even when there are no runnable downloads.
-    const hasPrimary = chrome.selecting || chrome.queueAction.length > 0 || chrome.hasRetryable || chrome.hasTasks
-    content['menu'] = { 'value': items, 'maxCount': hasPrimary ? 2 : 1 } as Record<string, Object>
-    return options
+    return items
   }
 
   @Local private libraryComics: Comic[] = seededLibraryStore.listComics()
@@ -871,18 +886,25 @@ struct Index {
       content['menu'] = { 'value': items, 'maxCount': 2 } as Record<string, Object>
       return options
     }
-    const filterIcon = new SymbolGlyphModifier($r('sys.symbol.funnel')).fontColor([
-      chrome.unreadOnly ? ThemeConstants.BRAND_PRIMARY : $r('sys.color.font_primary')])
-    const filter: Record<string, Object> = { 'label': AppStrings.get(chrome.unreadOnly ? 'common_all' :
-      'library_updates_unread_only'), 'icon': filterIcon,
-      'action': (): void => { chrome.unreadOnly = !chrome.unreadOnly } }
+    // The dot follows the unread-only view, independently of the shelf's new-update badge.
+    const visibilityIcon: Resource | SymbolGlyphModifier = chrome.unreadOnly
+      ? new SymbolGlyphModifier($r('sys.symbol.envelope_badge_dot')).fontSize(ThemeConstants.FONT_SIZE_H1)
+        .fontColor([ThemeConstants.BRAND_PRIMARY])
+      : $r('sys.symbol.envelope')
+    const visibility: Record<string, Object> = { 'label': AppStrings.get(chrome.unreadOnly ?
+      'library_updates_show_all' : 'library_updates_unread_only'), 'icon': visibilityIcon,
+      'action': (): void => {
+        chrome.unreadOnly = !chrome.unreadOnly
+        this.showLibraryUpdateToast(AppStrings.get(chrome.unreadOnly ?
+          'library_updates_showing_unread' : 'library_updates_showing_all'))
+      } }
     const check: Record<string, Object> = { 'label': AppStrings.get('source_pkg_check_updates'),
       'icon': $r('sys.symbol.arrow_clockwise'), 'isEnabled': !this.libraryUpdateState.busy,
       'action': (): void => { this.libraryUpdatesRefreshController.triggerTopRefresh() } }
     const results: Record<string, Object> = { 'label': AppStrings.get('route_library_update_results_title'),
       'icon': $r('sys.symbol.list_bullet'),
       'action': (): void => { this.appPathStack.pushPath({ name: RouteName.LIBRARY_UPDATE_RESULTS }) } }
-    const items: Record<string, Object>[] = [{ 'content': filter }, { 'content': check }, { 'content': results }]
+    const items: Record<string, Object>[] = [{ 'content': visibility }, { 'content': check }, { 'content': results }]
     content['menu'] = { 'value': items, 'maxCount': 2 } as Record<string, Object>
     return options
   }
@@ -2138,11 +2160,16 @@ struct Index {
   private persistReaderLabObserved(position: ReaderObservedPosition,
     column: 'odd_left' | 'even_left'): void {
     if (!this.readerSessionPersistenceReady || position.anchor.unit.scope !== 'koma-local') return
-    const config = this.readerLabInitialConfig(position.anchor.unit.work, position.anchor.unit.unit)
+    const anchor = position.anchor
+    const current = this.readerSessionConfig
+    // The active route only reads the exact page ID and page count here.
+    // Catalog consumers still receive detached configs with their full arrays.
+    const config = current.comicId === anchor.unit.work && current.chapterId === anchor.unit.unit && current.totalPages > 0
+      ? current : this.readerLabInitialConfig(anchor.unit.work, anchor.unit.unit)
     if (config === null) return
-    if (config.chapterId !== position.anchor.unit.unit || config.totalPages !== position.pageCount ||
-      position.anchor.sourceIndexHint < 0 || position.anchor.sourceIndexHint >= config.totalPages) return
-    const index = position.anchor.sourceIndexHint
+    if (config.chapterId !== anchor.unit.unit || config.totalPages !== position.pageCount ||
+      anchor.sourceIndexHint < 0 || anchor.sourceIndexHint >= config.totalPages) return
+    const index = anchor.sourceIndexHint
     const progress: ReadingProgress = {
       comicId: config.comicId,
       chapterId: config.chapterId,
@@ -3166,8 +3193,8 @@ struct Index {
       this.disposeSourceBrowseFieldContent(param.chrome)
     })
     .onShown(() => { param.chrome.resume() })
-    .onHidden(() => {
-      param.chrome.hide()
+    .onHidden((reason: VisibilityChangeReason) => {
+      param.chrome.hide(reason === VisibilityChangeReason.CONTENT_COVER)
       this.sourceBrowseMenu.close()
     })
     .titleBar(this.sourceBrowseTitleBarOpts(param))
@@ -3222,7 +3249,7 @@ struct Index {
       })
     }
     .onShown(() => { param.chrome.resume() })
-    .onHidden(() => { param.chrome.hide() })
+    .onHidden((reason: VisibilityChangeReason) => { param.chrome.hide(reason === VisibilityChangeReason.CONTENT_COVER) })
     .titleBar(this.sourceSearchTitleBarOpts(param))
     .onDisAppear(() => {
       // A detail route only hides this destination. Dispose the cached title
@@ -3482,6 +3509,7 @@ struct Index {
         LibraryCategoryManagementPage({
           chrome: param as LibraryCategoryManagementChrome,
           libraryStore: this.libraryStore,
+          libraryRevision: this.libraryRevision,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           onLibraryChanged: () => {
             this.refreshLibrarySnapshot()
@@ -3491,15 +3519,11 @@ struct Index {
       .titleBar(this.libraryCategoryTitleBarOptions(param as LibraryCategoryManagementChrome))
     } else if (name === RouteName.DOWNLOADS) {
       HdsNavDestination() {
-        DownloadsPage({
-          chrome: param as DownloadsChrome,
-          libraryStore: this.libraryStore,
-          onOpenReader: (comicId: ComicId, chapterId: string) => {
-            this.openDownloadedChapter(comicId, chapterId)
-          },
-        })
+        DownloadsPage({ chrome: param as DownloadsChrome, libraryStore: this.libraryStore,
+          onOpenReader: (comicId: ComicId, chapterId: string): void => { this.openDownloadedChapter(comicId, chapterId) } })
       }
       .titleBar(this.downloadsTitleBarOptions(param as DownloadsChrome))
+      .onHidden((): void => { this.downloadsMenu.close() })
       .onBackPressed((): boolean => {
         const chrome = param as DownloadsChrome
         if (!chrome.selecting) return false
@@ -4062,7 +4086,7 @@ struct Index {
                   void this.openMangaMigration(comicIds, false)
                 },
                 onOpenUpdatesRequested: (): void => {
-                  this.appPathStack.pushPath({ name: RouteName.LIBRARY_UPDATES, param: new LibraryUpdatesChrome() })
+                  RouterHelper.pushLibraryUpdates()
                 },
                 onOpenCategoriesRequested: (): void => {
                   this.appPathStack.pushPath({ name: RouteName.LIBRARY_CATEGORIES, param: new LibraryCategoryManagementChrome() })

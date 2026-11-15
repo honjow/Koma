@@ -171,7 +171,7 @@ export struct SourceSearchPage {
     if (this.canAuthenticateSource()) { this.authenticateSource(); return }
     const fingerprint = this.authenticationFingerprint()
     this.authentication = new SourceAuthenticationRequest(this.currentSource().sourceId,
-      (): boolean => this.chrome.visible && this.authenticationFingerprint() === fingerprint,
+      (): boolean => this.chrome.formRouteActive && this.authenticationFingerprint() === fingerprint,
       async (): Promise<void> => { this.chrome.markRefreshNeeded(); this.chrome.resume() })
   }
 
@@ -179,7 +179,7 @@ export struct SourceSearchPage {
     return this.viewModel.searchAuthentication !== null
   }
   private authenticateSource(): void {
-    this.authentication = this.viewModel.authenticationRequest('search', (): boolean => this.chrome.visible)
+    this.authentication = this.viewModel.authenticationRequest('search', (): boolean => this.chrome.formRouteActive)
   }
 
   private canVerifySource(): boolean {
@@ -239,7 +239,7 @@ export struct SourceSearchPage {
       this.viewModel.clearSearch(this.currentSource())
       return
     }
-    void this.viewModel.runSearch(this.currentSource(), value)
+    void this.viewModel.submitSearch(this.currentSource(), value)
   }
 
   private rerunSearchIfReady(): void {
@@ -570,12 +570,12 @@ export struct SourceSearchPage {
             this.rerunSearchIfReady()
           },
         })
-        SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.visible })
+        SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.formRouteActive })
         SourceSettingsSheetHost({
           sourceId: this.source.sourceId,
           sourceName: this.source.displayName,
           requestSeq: this.chrome.settingsRequestSeq,
-          active: this.chrome.visible,
+          active: this.chrome.formRouteActive,
           deferAvailability: this.viewModel.loadingSearch,
           onAvailabilityChanged: (available: boolean) => { this.chrome.settingsAvailable = available },
           onSettingsSaved: () => {

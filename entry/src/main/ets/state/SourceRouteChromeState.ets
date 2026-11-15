@@ -16,6 +16,7 @@ export class SourceBrowseRouteChromeState {
   readonly scroller: Scroller = new Scroller()
   @Trace layout: SourceBrowseLayout = 'grid'
   @Trace visible: boolean = false
+  @Trace formRouteActive: boolean = false
   @Trace filtersAvailable: boolean = false
   @Trace webSessionAvailable: boolean = false
   @Trace authenticationAvailable: boolean = false
@@ -28,9 +29,15 @@ export class SourceBrowseRouteChromeState {
 
   markRefreshNeeded(): void { this.refreshPending = true }
 
-  hide(): void { this.visible = false }
+  hide(covered: boolean = false): void {
+    // A system content cover (Password Vault) overlays the same destination.
+    // Keep its mounted form until the destination itself is left.
+    if (!covered) this.formRouteActive = false
+    this.visible = false
+  }
 
   resume(): void {
+    this.formRouteActive = true
     this.visible = true
     if (!this.refreshPending) return
     this.refreshPending = false
@@ -72,6 +79,7 @@ export class SourceSearchRouteChromeState {
   readonly sourceId: string
   readonly initialQuery: string
   @Trace visible: boolean = false
+  @Trace formRouteActive: boolean = false
   @Trace filtersAvailable: boolean = false
   @Trace webSessionAvailable: boolean = false
   @Trace authenticationAvailable: boolean = false
@@ -84,9 +92,13 @@ export class SourceSearchRouteChromeState {
 
   markRefreshNeeded(): void { this.refreshPending = true }
 
-  hide(): void { this.visible = false }
+  hide(covered: boolean = false): void {
+    if (!covered) this.formRouteActive = false
+    this.visible = false
+  }
 
   resume(): void {
+    this.formRouteActive = true
     this.visible = true
     if (!this.refreshPending) return
     this.refreshPending = false

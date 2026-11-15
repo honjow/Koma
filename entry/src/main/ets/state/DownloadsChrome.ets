@@ -4,6 +4,8 @@ export type DownloadsCommand = 'queue' | 'cancelAll' | 'retryAll' | 'clearFailed
 
 @ObservedV2
 export class DownloadsChrome {
+  private static nextMenuId: number = 0
+  readonly menuAnchorId: string = `downloads-more-${DownloadsChrome.nextMenuId++}`
   @Trace queueAction: string = ''
   @Trace hasTasks: boolean = false
   @Trace hasRetryable: boolean = false

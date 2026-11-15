@@ -60,13 +60,9 @@ export interface SourceWebsitePolicy {
   // page actually contains the declared content. No background WebView opens.
   // See stageSourceWebDocument for the binding rules.
   renderedDocumentFallback?: boolean | SourceRenderedDocumentPolicy
-  // Opt-in browser identity for this source's verification WebView. An empty
-  // value keeps the engine default; the value must also be usable by the
-  // source request so a clearance obtained here stays valid afterwards.
+  // Legacy package fields remain readable. The verification WebView derives
+  // its default identity from the current ArkWeb engine for every source.
   webSessionUserAgent?: string
-  // Opt-in: use the native engine UA with an Android token instead of the
-  // OpenHarmony token Cloudflare does not recognize. Keeps Chrome/WebKit
-  // versions and the mobile fingerprint consistent.
   webSessionAndroidAgent?: boolean
   // Opt-in: source HTTP reads may be served by an in-page fetch in the
   // granted WebView session when the native transport is rejected.

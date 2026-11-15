@@ -44,6 +44,9 @@ const overlays = load('SourceTextOverlay')
 const comicModels = load('ComicModels', {
   '../i18n/AppStrings': { AppStrings: { get: key => key } },
 })
+const sourceLibraryComic = load('SourceLibraryComic', {
+  './ComicModels': comicModels, '../i18n/AppStrings': { AppStrings: { get: key => key } },
+})
 const downloads = load('OfflineDownloadStore', { './SourceTextOverlay': overlays, './AppFileTextPersistence': persistence,
   '@kit.CoreFileKit': { fileIo: io }, './DownloadDirectoryIndex': directoryIndex, './ComicModels': comicModels })
 const runtime = load('OfflineDownloadRuntime', { './BackupRestoreActivity': activity })
@@ -51,7 +54,7 @@ const queues = load('OfflineDownloadQueueStore', {
   './BackupRestoreActivity': activity, './AppFileTextPersistence': persistence,
   '../diagnostics/DiagnosticLogger': { DiagnosticLogger: logger },
   '@kit.CoreFileKit': { fileIo: io }, './OfflineDownloadRuntime': runtime,
-  './OfflineDownloadStore': downloads,
+  './OfflineDownloadStore': downloads, './SourceLibraryComic': sourceLibraryComic,
 })
 async function main() {
   const dir = fs.mkdtempSync('/private/tmp/koma-chapter-management-')

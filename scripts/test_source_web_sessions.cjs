@@ -476,6 +476,7 @@ function fixture(sdkApiVersion = 23) {
       if (name === './SourceRequestPolicy') return network.policy ?? moduleFrom('SourceRequestPolicy', () => ({ url: { URL } }))
       if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store, sourceWebOrigin: api.sourceWebOrigin, sourceWebPackageIdentity: api.sourceWebPackageIdentity }
       if (name === './SourceWebChallengeGate') return moduleFrom('SourceWebChallengeGate', () => ({}))
+      if (name === './SourceWebFetchBridge') return { appSourceWebFetchBridge: { availableFor: () => false } }
       if (name === './SourceRuntimeOperationGuard') return guards
       if (name === './SourceRuntimeAppRegistry') return { appSourceRuntimeRegistry: registry }
       if (name === './SourceRuntimeRegistry') return { sourceRuntimeEntryEnabled: () => true }
@@ -1607,6 +1608,29 @@ test('a verified search response is reserved for its original search even when a
   assert.equal(f.diagnostics.filter(x=>x==='state=used_once').length,1)
 })
 
+test('a declared WebView landing can prove the original GET with only its original-origin session', async () => {
+  const f = fixture(), original = 'https://site.invalid/a', landing = 'https://mobile.invalid/search'
+  f.changeEntry(entry => ({ ...entry, webSessionOrigins: ['https://site.invalid', 'https://mobile.invalid'] }))
+  const context = JSON.stringify(f.identity())
+  const r = await f.http([response(403), response(200)], context, {}, {
+    afterInitial: async ({ transport, execute }) => {
+      const pending = f.store.begin(f.registry, 'source.one', original)
+      assert.equal(await transport.probeSourceWebSession('source.one', pending.sessionId,
+        'https://other.invalid/search', 'ActualUA', () => true), false)
+      assert.throws(() => f.store.complete('source.one', pending.sessionId, landing, 'ActualUA'))
+      assert.equal(await transport.probeSourceWebSession('source.one', pending.sessionId,
+        landing, 'ActualUA', () => true), true)
+      assert.equal(f.store.status('source.one').state, 'none')
+      f.store.complete('source.one', pending.sessionId, original, 'ActualUA')
+      return JSON.parse(await execute(JSON.stringify({ url: original, method: 'GET' }), context))
+    },
+  })
+  assert.equal(r.after.status, 200)
+  assert.deepEqual(r.calls.map(call => call.fullUrl), [original, original])
+  assert.equal(f.fetched.includes(landing), false)
+  assert.equal(f.store.status('source.one', 'https://mobile.invalid').state, 'none')
+})
+
 test('same-source searches retain their own rejected GET for verification', async () => {
   const f=fixture(26), first=f.guards.newSourceRuntimeOperationGuardId(), other=f.guards.newSourceRuntimeOperationGuardId()
   const releaseFirst=f.guards.registerSourceRuntimeOperationGuard(first,()=>true)
@@ -1664,17 +1688,14 @@ test('source-provided challenge ID selects only its own actual rejected GET', as
   assert.notEqual(r.result.challengeRequestId,r.after.later.challengeRequestId)
   const transport=r.after.transport
   assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'')
-  assert.equal(transport.sourceRejectedRequestUserAgent('source.one',id,'https://site.invalid/a'),undefined)
   transport.selectSourceRejectedRequest('source.one',id,r.result.challengeRequestId)
   assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'https://site.invalid/a')
-  assert.equal(transport.sourceRejectedRequestUserAgent('source.one',id,'https://site.invalid/a'),'Source UA')
-  assert.equal(transport.sourceRejectedRequestUserAgent('source.one',id,'https://site.invalid/b'),undefined)
   transport.selectSourceRejectedRequest('source.one',id,'forged')
   assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'')
   transport.selectSourceRejectedRequest('another.source',id,r.after.later.challengeRequestId)
   assert.equal(transport.sourceRejectedRequestUrl('another.source',id),'')
   transport.clearSourceRejectedRequest('source.one',id)
-  assert.equal(transport.sourceRejectedRequestUserAgent('source.one',id,'https://site.invalid/a'),undefined)
+  assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'')
   transport.selectSourceRejectedRequest('source.one',id,r.result.challengeRequestId)
   assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'')
   release()

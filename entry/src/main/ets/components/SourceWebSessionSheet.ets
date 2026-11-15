@@ -1,8 +1,8 @@
 import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { webview } from '@kit.ArkWeb'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { hasNewSourceClearance, sourceClearanceCookieState } from '../sourceRuntime/SourceWebChallengeGate'
-import { cancelSourceWebDocument, cancelSourceWebProbe, probeSourceWebSession, sourceRejectedRequestUserAgent,
+import { hasNewSourceClearance, sourceChallengeWebUserAgent, sourceClearanceCookieState } from '../sourceRuntime/SourceWebChallengeGate'
+import { cancelSourceWebDocument, cancelSourceWebProbe, probeSourceWebSession,
   stageSourceWebDocument } from '../sourceRuntime/SourceRuntimeHttpTransport'
 import { renderedDocumentFallbackEnabled as sourceRenderedDocumentFallbackEnabled,
   renderedDocumentReadySelector } from '../sourceRuntime/SourceWebsitePolicy'
@@ -122,73 +122,28 @@ export struct SourceWebSessionSheet {
     const session = this.params.sourceSession
     const loginUserAgent = session === undefined ? undefined :
       appSourceWebSessionStore.pendingLoginUserAgent(session.sourceId, session.sessionId)
-    const declaredWebUserAgent = session === undefined ? undefined :
-      appSourceRuntimeRegistry.lookup(session.sourceId).entry?.websitePolicy?.webSessionUserAgent
-    const androidWebAgent = session === undefined ? false :
-      appSourceRuntimeRegistry.lookup(session.sourceId).entry?.websitePolicy?.webSessionAndroidAgent === true
-    if (androidWebAgent) {
-      try {
-        const native = this.controller.getUserAgent()
-        this.controller.setCustomUserAgent(native.replace(') AppleWebKit', '; Android 10) AppleWebKit'))
-      } catch (_error) {
-        this.controllerReady = false
-        this.loading = false
-        DiagnosticLogger.warn('source_web_session', 'identity_setup_failed', 'stage=set_android_user_agent')
-        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
-        return
-      }
-    }
-    if (declaredWebUserAgent !== undefined && declaredWebUserAgent.length > 0 && !androidWebAgent) {
-      try { this.controller.setCustomUserAgent(declaredWebUserAgent) }
-      catch (_error) {
-        this.controllerReady = false
-        this.loading = false
-        DiagnosticLogger.warn('source_web_session', 'identity_setup_failed', 'stage=set_declared_user_agent')
-        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
-        return
-      }
-    }
-    if (loginUserAgent !== undefined) {
-      try { this.controller.setCustomUserAgent(loginUserAgent) }
-      catch (_error) {
-        this.controllerReady = false; this.loading = false
-        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
-        return
-      }
-    }
-    if (session?.requestHandle !== undefined && declaredWebUserAgent === undefined && !androidWebAgent) {
-      const requestUa = sourceRejectedRequestUserAgent(session.sourceId, session.requestHandle, url)
-      // Explicitly reset the UA when the verified package declares the system
-      // identity for this origin. Unified search can reuse this controller.
-      const useEngineIdentity = appSourceRuntimeRegistry.lookup(session.sourceId).entry?.websitePolicy
-        ?.systemWebAgentOrigins?.includes(sourceWebOrigin(url)) === true
-      if (requestUa !== undefined || useEngineIdentity) {
-        try {
-          const userAgent = useEngineIdentity ? this.controller.getUserAgent() : requestUa
-          if (userAgent !== undefined) this.controller.setCustomUserAgent(userAgent)
-        }
-        catch (_error) {
-          // Do not load or complete a session under a different identity.
-          this.controllerReady = false
-          this.loading = false
-          DiagnosticLogger.warn('source_web_session', 'identity_setup_failed', 'stage=set_user_agent')
-          this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
-          return
-        }
-      }
+    const policy = session === undefined ? undefined :
+      appSourceRuntimeRegistry.lookup(session.sourceId).entry?.websitePolicy
+    const useEngineIdentity = policy?.systemWebAgentOrigins?.includes(sourceWebOrigin(url)) === true
+    try {
+      const nativeUa = this.controller.getUserAgent()
+      // Set the identity before every session load, including a controller reused by unified search.
+      const userAgent = loginUserAgent ?? sourceChallengeWebUserAgent(nativeUa, useEngineIdentity)
+      this.controller.setCustomUserAgent(userAgent)
+      DiagnosticLogger.info('source_web_session', 'engine_context',
+        'nativeOpenHarmony=' + nativeUa.includes('OpenHarmony') +
+        ' nativeAndroid=' + nativeUa.includes('Android') + ' customUaPresent=' + (userAgent.length > 0) +
+        ' customUaEqualsNative=' + (userAgent === nativeUa) + ' verificationAndroid=' + userAgent.includes('Android'))
+    } catch (_error) {
+      this.controllerReady = false
+      this.loading = false
+      DiagnosticLogger.warn('source_web_session', 'identity_setup_failed', 'stage=set_user_agent')
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
+      return
     }
     if (this.autoRetryOnClearance && this.clearanceBaseline === undefined) {
       try { this.clearanceBaseline = readSourceWebCookies(url) }
       catch (_error) { /* Missing baseline disables automatic retry; manual completion remains. */ }
-    }
-    try {
-      const nativeUa = this.controller.getUserAgent()
-      const customUa = this.controller.getCustomUserAgent()
-      DiagnosticLogger.info('source_web_session', 'engine_context',
-        'nativeOpenHarmony=' + nativeUa.includes('OpenHarmony') +
-        ' nativeAndroid=' + nativeUa.includes('Android') + ' customUaPresent=' + (customUa.length > 0) + ' customUaEqualsNative=' + (customUa === nativeUa))
-    } catch (_error) {
-      DiagnosticLogger.info('source_web_session', 'engine_context', 'state=unavailable')
     }
     this.loading = true
     try { this.controller.loadUrl(url) }
@@ -252,7 +207,16 @@ export struct SourceWebSessionSheet {
     try {
       const currentUrl = this.controller.getUrl()
       const origin = sourceWebOrigin(this.params.url)
-      if (origin.length === 0 || sourceWebOrigin(currentUrl) !== origin || currentUrl !== event.url) {
+      if (origin.length === 0 || currentUrl !== event.url) return
+      if (sourceWebOrigin(currentUrl) !== origin) {
+        const session = this.params.sourceSession
+        if (!this.pageFailed && this.canProbeOriginal() &&
+          appSourceWebSessionStore.canProbeRedirectedDocument(session.sourceId, session.sessionId, currentUrl)) {
+          this.autoRetryStarted = true
+          DiagnosticLogger.info('source_web_session', 'native_probe_candidate', 'action=validate_original_get_after_redirect')
+          void this.completeSourceSession(true, true)
+          return
+        }
         DiagnosticLogger.info('source_web_session', 'automatic_wait', 'reason=document_origin_mismatch')
         return
       }
@@ -488,8 +452,11 @@ export struct SourceWebSessionSheet {
       if (automatic && ((this.pageFailed && !canProbeFailedLanding) || this.loading || this.pageRevision !== pageRevision)) return
       const customUa = this.controller.getCustomUserAgent()
       const actualUa = customUa.length > 0 ? customUa : this.controller.getUserAgent()
+      const documentUrl = this.controller.getUrl()
+      const redirectedDocument = sourceWebOrigin(documentUrl) !== sourceWebOrigin(this.params.url) && this.canProbeOriginal() &&
+        appSourceWebSessionStore.canProbeRedirectedDocument(sourceId, sessionId, documentUrl)
       let documentStaged = false
-      if (this.renderedDocumentFallbackEnabled(sourceId) && (!automatic || documentReady)) {
+      if (!redirectedDocument && this.renderedDocumentFallbackEnabled(sourceId) && (!automatic || documentReady)) {
         const staged = await this.stageRenderedDocument(epoch, sourceId, sessionId)
         documentStaged = staged
         if (!staged && !automatic) {
@@ -499,22 +466,27 @@ export struct SourceWebSessionSheet {
           return
         }
       }
-      if (automatic && needsNativeProbe && !documentStaged) {
+      if (((automatic && needsNativeProbe) || redirectedDocument) && !documentStaged) {
         if (!this.canProbeOriginal()) return
         const current = (): boolean => this.isCurrent(epoch, sourceId, sessionId) && this.canProbeOriginal() &&
           !this.loading && this.pageRevision === pageRevision &&
           (!this.pageFailed || (canProbeFailedLanding && this.pageHttpStatus === 404))
-        const ready = await probeSourceWebSession(sourceId, sessionId, this.controller.getUrl(), actualUa, current,
+        const ready = await probeSourceWebSession(sourceId, sessionId, documentUrl, actualUa, current,
           this.params.sourceSession?.requestHandle)
         if (!ready || !current()) {
           DiagnosticLogger.info('source_web_session', 'automatic_wait', 'reason=native_probe_not_ready')
+          if (!automatic && current()) {
+            this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_failure_challenge') }))
+          }
           return
         }
       }
-      const status = appSourceWebSessionStore.complete(sourceId, sessionId, this.controller.getUrl(), actualUa)
+      // A successful replay proves the original origin. The landing page grants no cross-origin cookies.
+      const grantUrl = redirectedDocument ? this.params.url : this.controller.getUrl()
+      const status = appSourceWebSessionStore.complete(sourceId, sessionId, grantUrl, actualUa)
       if (status.state !== 'available') throw new Error('session_unavailable')
       try {
-        const completedCookies = readSourceWebCookies(this.controller.getUrl())
+        const completedCookies = readSourceWebCookies(grantUrl)
         DiagnosticLogger.info('source_web_session', 'clearance_after_complete',
           'state=' + sourceClearanceCookieState(completedCookies) +
           ' cookiePresent=' + (completedCookies.length > 0))

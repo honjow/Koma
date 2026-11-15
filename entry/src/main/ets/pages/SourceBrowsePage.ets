@@ -198,7 +198,7 @@ export struct SourceBrowsePage {
     if (this.canAuthenticateSource()) { this.authenticateSource(); return }
     const fingerprint = this.authenticationFingerprint()
     this.authentication = new SourceAuthenticationRequest(this.currentSource().sourceId,
-      (): boolean => this.chrome.visible && this.authenticationFingerprint() === fingerprint,
+      (): boolean => this.chrome.formRouteActive && this.authenticationFingerprint() === fingerprint,
       async (): Promise<void> => { this.chrome.markRefreshNeeded(); this.chrome.resume() })
   }
 
@@ -206,7 +206,8 @@ export struct SourceBrowsePage {
     return (this.isSearchActive() ? this.viewModel.searchAuthentication : this.viewModel.browseAuthentication) !== null
   }
   private authenticateSource(): void {
-    this.authentication = this.viewModel.authenticationRequest(this.isSearchActive() ? 'search' : 'browse', (): boolean => this.chrome.visible)
+    this.authentication = this.viewModel.authenticationRequest(this.isSearchActive() ? 'search' : 'browse',
+      (): boolean => this.chrome.formRouteActive)
   }
 
   private canVerifySource(): boolean {
@@ -293,7 +294,7 @@ export struct SourceBrowsePage {
       this.viewModel.clearSearch(this.currentSource())
       return
     }
-    void this.viewModel.runSearch(this.currentSource(), value)
+    void this.viewModel.submitSearch(this.currentSource(), value)
   }
 
   @Monitor('chrome.queryChangeSeq')
@@ -877,12 +878,12 @@ export struct SourceBrowsePage {
             this.syncTitleActions()
           },
         })
-        SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.visible })
+        SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.formRouteActive })
         SourceSettingsSheetHost({
           sourceId: this.source.sourceId,
           sourceName: this.source.displayName,
           requestSeq: this.chrome.settingsRequestSeq,
-          active: this.chrome.visible,
+          active: this.chrome.formRouteActive,
           deferAvailability: this.isSearchActive() ? this.viewModel.loadingSearch : this.isBlockingBrowseLoading(),
           onAvailabilityChanged: (available: boolean) => { this.chrome.settingsAvailable = available },
           onSettingsSaved: () => {

@@ -9,6 +9,7 @@ import { MangaMigrationRouteChromeState } from '../state/MangaMigrationRouteChro
 import { MigrationMatchOptions } from '../model/MangaMigrationPreferencesStore'
 import { LibrarySearchSource } from '../model/LibrarySearchQuery'
 import { DownloadsChrome } from '../state/DownloadsChrome'
+import { LibraryUpdatesChrome } from '../state/LibraryUpdatesChrome'
 import { CrossSearchSourceFilter } from '../model/CrossSearchService'
 import { appSourceCatalogFilters } from '../state/SourceCatalogFilterState'
 import { connectIncognitoState } from '../state/IncognitoState'
@@ -121,6 +122,10 @@ export class RouterHelper {
       param = new SourceCatalogPageChrome()
     } else if (routeName === RouteName.DOWNLOADS) {
       param = new DownloadsChrome()
+    } else if (routeName === RouteName.LIBRARY_UPDATES) {
+      const names = stack.getAllPathName()
+      if (names[names.length - 1] === RouteName.LIBRARY_UPDATES) return
+      param = new LibraryUpdatesChrome()
     }
     stack.pushPath({ name: routeName, param })
   }
@@ -158,6 +163,10 @@ export class RouterHelper {
 
   static pushLibraryUpdateResults(): void {
     RouterHelper.openLaunchRoute(RouteName.LIBRARY_UPDATE_RESULTS)
+  }
+
+  static pushLibraryUpdates(): void {
+    RouterHelper.openLaunchRoute(RouteName.LIBRARY_UPDATES)
   }
 
   static pushDownloads(): void {

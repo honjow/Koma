@@ -1,5 +1,7 @@
 import { autoFillManager } from '@kit.AbilityKit'
+import { deviceInfo } from '@kit.BasicServicesKit'
 import { AppStrings } from '../i18n/AppStrings'
+import { KOMA_BUNDLE_NAME } from '../common/Constants'
 import { SourceAuthenticationRequest, SourceAuthenticationService } from '../sourceRuntime/SourceAuthenticationService'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -45,6 +47,7 @@ export struct SourceAuthenticationSheetHost {
   private closing: boolean = false
   private opening: boolean = false
   private completed: boolean = false
+  private autofillRequested: boolean = false
   private epoch: number = 0
 
   aboutToAppear(): void { this.mounted = true; this.requestChanged() }
@@ -75,6 +78,7 @@ export struct SourceAuthenticationSheetHost {
     this.username = ''; this.password = ''; this.errorText = ''; this.authenticated = false; this.replacing = false
     this.ready = false
     this.checkFailed = false
+    this.autofillRequested = false
     const epoch = ++this.epoch
     try {
       this.service = new SourceAuthenticationService(request.sourceId,
@@ -162,14 +166,15 @@ export struct SourceAuthenticationSheetHost {
     }
     if (this.checking || this.checkFailed) return
     if (this.username.trim().length === 0 || this.password.length === 0) return
+    const username = this.username
+    const password = this.password
     this.busy = true; this.errorText = ''
     try {
-      await this.service!.run('authenticate', this.username, this.password)
+      await this.service!.run('authenticate', username, password)
       if (this.current(epoch)) {
-        this.offerCredentialSave()
-        this.finish(true)
-      }
-      else if (this.epoch === epoch) this.close()
+        await this.offerCredentialSave(username, password)
+        if (this.current(epoch)) this.finish(true)
+      } else if (this.epoch === epoch) this.close()
     } catch (error) {
       if (this.current(epoch)) this.errorText = error instanceof SourceRuntimeError &&
         ['network', 'timeout', 'access', 'rate_limit', 'server'].includes(error.diagnostic.kind)
@@ -178,20 +183,87 @@ export struct SourceAuthenticationSheetHost {
     } finally { if (this.epoch === epoch) this.busy = false }
   }
 
-  // Offer the system password vault a save/update prompt while the form still
-  // holds the credential; a declined or failed prompt never blocks the sign-in.
-  private offerCredentialSave(): void {
-    try {
-      autoFillManager.requestAutoSave(this.getUIContext())
-    } catch (_error) {
-      // Password vault may be unavailable; the sign-in result is already applied.
+  private credentialInputId(field: 'username' | 'password'): string {
+    return `source-login-${this.presented?.sourceId}-${this.inSettings ? 'settings' : 'access'}-${field}`
+  }
+
+  private credentialInputRect(field: 'username' | 'password'): autoFillManager.AutoFillRect {
+    const info = this.getUIContext().getComponentUtils().getRectangleById(this.credentialInputId(field))
+    return { left: info.windowOffset.x, top: info.windowOffset.y, width: info.size.width, height: info.size.height }
+  }
+
+  private credentialViewData(username: string, password: string,
+    focused?: 'username' | 'password'): autoFillManager.ViewData {
+    const usernameRect = this.credentialInputRect('username')
+    const passwordRect = this.credentialInputRect('password')
+    return {
+      bundleName: KOMA_BUNDLE_NAME,
+      pageUrl: this.loginOrigin,
+      pageRect: { left: 0, top: 0, width: Math.max(usernameRect.left + usernameRect.width,
+        passwordRect.left + passwordRect.width),
+        height: Math.max(usernameRect.top + usernameRect.height, passwordRect.top + passwordRect.height) },
+      pageNodeInfos: [
+        { id: 1, autoFillType: autoFillManager.AutoFillType.USER_NAME, value: username,
+          rect: usernameRect, isFocus: focused === 'username' },
+        { id: 2, autoFillType: autoFillManager.AutoFillType.PASSWORD, value: password,
+          rect: passwordRect, isFocus: focused === 'password' },
+      ],
     }
+  }
+
+  private requestCredentialFill(focused: 'username' | 'password'): void {
+    if (!deviceInfo.apiAvailable('26.0.0') || this.autofillRequested || !this.ready || this.busy ||
+      this.username.length > 0 || this.password.length > 0 || !this.current(this.epoch)) return
+    const epoch = this.epoch
+    this.autofillRequested = true
+    try {
+      autoFillManager.requestAutoFill(this.getUIContext(), {
+        type: focused === 'username' ? autoFillManager.AutoFillType.USER_NAME : autoFillManager.AutoFillType.PASSWORD,
+        triggerType: autoFillManager.AutoFillTriggerType.AUTO_REQUEST,
+        viewData: this.credentialViewData('', '', focused),
+      }, {
+        onSuccess: (data: autoFillManager.ViewData): void => {
+          if (!this.current(epoch) || this.username.length > 0 || this.password.length > 0) return
+          const username = data.pageNodeInfos.find(node => node.autoFillType === autoFillManager.AutoFillType.USER_NAME)
+          const password = data.pageNodeInfos.find(node => node.autoFillType === autoFillManager.AutoFillType.PASSWORD)
+          if (username !== undefined && password !== undefined) {
+            this.username = username.value
+            this.password = password.value
+          }
+        },
+        onFailure: (): void => {},
+      })
+    } catch (_error) {
+      // The ordinary input fields remain available when Password Vault is disabled.
+    }
+  }
+
+  private offerCredentialSave(username: string, password: string): Promise<void> {
+    return new Promise<void>((resolve: () => void): void => {
+      try {
+        const context = this.getUIContext()
+        if (deviceInfo.apiAvailable('26.0.0')) {
+          // The credentials live in a sheet, outside the page scanned by the legacy API.
+          // Provide the two submitted fields from the confirmed source origin.
+          autoFillManager.requestAutoSave(context, { viewData: this.credentialViewData(username, password) },
+            { onSuccess: resolve, onFailure: resolve })
+        } else {
+          // The legacy call scans the mounted inputs before returning and can
+          // return silently when the page has nothing to save.
+          autoFillManager.requestAutoSave(context)
+          resolve()
+        }
+      } catch (_error) {
+        resolve()
+      }
+    })
   }
 
   private changeReplacement(replacing: boolean): void {
     if (!this.inSettings || !this.authenticated || !this.ready || this.busy || this.checking || this.checkFailed ||
       !this.current(this.epoch)) return
     // authenticate performs the existing atomic replacement; the current login survives cancellation and failure.
+    this.autofillRequested = false
     this.username = ''; this.password = ''; this.errorText = ''; this.replacing = replacing
   }
 
@@ -257,10 +329,16 @@ export struct SourceAuthenticationSheetHost {
     Text(AppStrings.get(this.credentialStorage === 'private' ? 'source_login_storage_private' : 'source_login_storage_memory'))
       .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
     if (!this.authenticated || this.replacing) {
-      KomaFormTextField({ label: this.usernameLabel, value: this.username, isUsername: true, isEnabled: this.ready && !this.busy,
-        change: (value: string) => { this.username = value } })
-      KomaFormTextField({ label: this.passwordLabel, value: this.password, isPassword: true, isEnabled: this.ready && !this.busy,
-        change: (value: string) => { this.password = value }, submit: () => { void this.authenticate() } })
+      KomaFormTextField({ label: this.usernameLabel, value: this.username, isUsername: true,
+        inputId: this.credentialInputId('username'), isEnabled: this.ready && !this.busy,
+        automaticInputFill: !deviceInfo.apiAvailable('26.0.0'),
+        change: (value: string) => { this.username = value },
+        onInputFocus: (): void => { this.requestCredentialFill('username') } })
+      KomaFormTextField({ label: this.passwordLabel, value: this.password, isPassword: true,
+        inputId: this.credentialInputId('password'), isEnabled: this.ready && !this.busy,
+        automaticInputFill: !deviceInfo.apiAvailable('26.0.0'),
+        change: (value: string) => { this.password = value }, submit: () => { void this.authenticate() },
+        onInputFocus: (): void => { this.requestCredentialFill('password') } })
     }
     if (this.errorText.length > 0) {
       Text(this.errorText).fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)

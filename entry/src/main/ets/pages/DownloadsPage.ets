@@ -554,8 +554,10 @@ export struct DownloadsPage {
       case 'queue': this.handlePrimaryQueueAction(); break
       case 'cancelAll': this.confirmCancel(this.entries, s('downloads_cancel_all_tasks')); break
       case 'retryAll': this.retryDownloads(this.entries); break
-      case 'clearFailed': this.confirmCancel(this.cleanupEntries(false), s('downloads_clear_failed')); break
-      case 'deleteDownloaded': this.confirmDelete(this.cleanupEntries(true), s('downloads_delete_completed')); break
+      case 'clearFailed':
+        this.confirmCancel(this.cleanupEntries(false), s('downloads_clear_failed'), s('downloads_clear_failed_confirm'))
+        break
+      case 'deleteDownloaded': this.confirmDelete(this.cleanupEntries(true), s('downloads_delete_all')); break
       case 'rescan': this.rescanDownloads(); break
       case 'select': this.chrome.selecting = true; break
       case 'exitSelection':
@@ -572,7 +574,7 @@ export struct DownloadsPage {
       case 'resumeSelected': this.setPaused(selected, false); break
       case 'cancelSelected': this.confirmCancel(selected, s('downloads_cancel_selected')); break
       case 'retrySelected': this.retryDownloads(selected); break
-      case 'deleteSelected': this.confirmDelete(selected, s('downloads_action_delete_files')); break
+      case 'deleteSelected': this.confirmDelete(selected, s('downloads_delete_selected')); break
     }
   }
 
@@ -669,11 +671,12 @@ export struct DownloadsPage {
     }
   }
 
-  private confirmCancel(entries: OfflineDownloadQueueEntry[], title: string): void {
+  private confirmCancel(entries: OfflineDownloadQueueEntry[], title: string,
+    message: string = s('downloads_cancel_tasks_confirm')): void {
     const targets = entries.filter((entry: OfflineDownloadQueueEntry): boolean => this.canCancel(entry))
     if (targets.length === 0) return
     this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(), title,
-      message: s('downloads_cancel_tasks_confirm').replace('%s', String(targets.length)), autoCancel: true,
+      message: message.replace('%s', String(targets.length)), autoCancel: true,
       primaryButton: { value: s('common_cancel'), action: () => {} },
       secondaryButton: { value: s('common_confirm'), fontColor: ThemeConstants.DANGER,
         action: () => { void this.cancelTasks(targets) } },
@@ -1087,15 +1090,15 @@ export struct DownloadsPage {
           MenuItem({ content: s('downloads_move_bottom') }).onClick(() => { this.moveDownload(key, false, false) })
         }
         if (this.canRetry(this.entryForKey(key)!)) {
-          MenuItem({ content: s('common_retry') }).onClick(() => { this.retryDownloads([this.entryForKey(key)!]) })
+          MenuItem({ content: s('downloads_retry_chapter') }).onClick(() => { this.retryDownloads([this.entryForKey(key)!]) })
         }
         if (this.canRead(this.entryForKey(key)!)) {
           MenuItem({ content: s('chapter_export_cbz') }).enabled(!this.chapterArchiveBusy)
             .onClick(() => { void this.exportChapter(key, false) })
           MenuItem({ content: s('chapter_share_cbz') }).enabled(!this.chapterArchiveBusy)
             .onClick(() => { void this.exportChapter(key, true) })
-          MenuItem({ content: s('downloads_action_delete_files') })
-            .onClick(() => { this.confirmDelete([this.entryForKey(key)!], s('downloads_action_delete_files')) })
+          MenuItem({ content: s('downloads_delete_completed') })
+            .onClick(() => { this.confirmDelete([this.entryForKey(key)!], s('downloads_delete_completed')) })
         } else if (this.canCancel(this.entryForKey(key)!)) {
           MenuItem({ content: s('downloads_cancel_task') })
             .onClick(() => { this.confirmCancel([this.entryForKey(key)!], s('downloads_cancel_task')) })
@@ -1205,8 +1208,8 @@ export struct DownloadsPage {
       }
       if (completed) {
         MenuItem({ content: s('chapter_export_cbz') }).onClick(() => { this.openWorkArchive(group) })
-        MenuItem({ content: s('downloads_action_delete_files') }).onClick(() => {
-          this.confirmDelete(this.fullGroup(group.comicId, true), s('downloads_action_delete_files'))
+        MenuItem({ content: s('downloads_delete_group') }).onClick(() => {
+          this.confirmDelete(this.fullGroup(group.comicId, true), s('downloads_delete_group'))
         })
       } else {
         if (this.groupRecoveryEntry(group) !== undefined) {
@@ -1225,7 +1228,7 @@ export struct DownloadsPage {
           MenuItem({ content: s('downloads_resume_group') }).onClick(() => { this.setPaused(this.fullGroup(group.comicId, false), false) })
         }
         if (this.groupCanRetry(group)) {
-          MenuItem({ content: s('downloads_action_retry_failed') }).onClick(() => { this.retryDownloads(this.fullGroup(group.comicId, false)) })
+          MenuItem({ content: s('downloads_retry_group') }).onClick(() => { this.retryDownloads(this.fullGroup(group.comicId, false)) })
         }
         if (this.groupCanMove(group)) {
           MenuItem({ content: s('downloads_move_top') }).onClick(() => { this.moveGroup(group, true) })

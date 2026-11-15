@@ -616,6 +616,8 @@ export class BrowseViewModel {
 
   private browseRequestId: number = 0
   private searchRequestId: number = 0
+  private searchAttemptEntry?: SourceRuntimeRegistryEntry
+  private searchAttemptFingerprint: string = ''
   private searchResultsIdentity?: SourceSearchResultsIdentity
   private searchErrorIsFirstPage: boolean = false
   private persistSearchFilters: boolean = true
@@ -1255,6 +1257,14 @@ export class BrowseViewModel {
       appSourceSettingsStore.revisionForSource(source.sourceId), query.trim(), this.searchFilterValues])
   }
 
+  async submitSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string): Promise<void> {
+    // A tap after live search starts must keep the matching in-flight request or its verification receipt.
+    if ((this.loadingSearch || this.searchWebChallenge !== null) && this.searchAttemptEntry !== undefined &&
+      this.searchAttemptEntry === this.registry.lookup(source.sourceId).entry &&
+      this.searchAttemptFingerprint === this.searchResultFingerprint(source, query)) return
+    await this.runSearch(source, query)
+  }
+
   async runSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string, automaticRecovery: boolean = false,
     operationGuardId?: string, fromFilters: boolean = this.filterOnlySearch): Promise<void> {
     // In-place Browse search also comes here without ensureSearchFilters.
@@ -1268,6 +1278,8 @@ export class BrowseViewModel {
     const settingsRevision = appSourceSettingsStore.revisionForSource(source.sourceId)
     const persistFilters = this.persistSearchFilters
     let fingerprint = this.searchResultFingerprint(source, query)
+    this.searchAttemptEntry = entry
+    this.searchAttemptFingerprint = fingerprint
     const retained = this.searchResultsIdentity
     let retainsCurrentResults = this.searchResults.length > 0 && entry !== undefined &&
       retained?.entry === entry && retained.fingerprint === fingerprint
@@ -1298,6 +1310,7 @@ export class BrowseViewModel {
         appSourceSettingsStore.revisionForSource(source.sourceId) !== settingsRevision ||
         this.persistSearchFilters !== persistFilters) return
       fingerprint = this.searchResultFingerprint(source, query)
+      this.searchAttemptFingerprint = fingerprint
       retainsCurrentResults = this.searchResults.length > 0 && entry !== undefined &&
         retained?.entry === entry && retained.fingerprint === fingerprint
       this.searchPage = retainsCurrentResults ? retained!.page : 1
