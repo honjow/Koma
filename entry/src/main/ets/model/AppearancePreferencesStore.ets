@@ -13,6 +13,7 @@ export interface AppearancePreferences {
 const APPEARANCE_PREFERENCES_STORE_NAME: string = 'koma_appearance_preferences_v1'
 const ACCENT_COLOR_KEY: string = 'appearance.accentColor'
 const AUTO_HIDE_BOTTOM_BAR_KEY: string = 'appearance.autoHideBottomBar'
+const DOUBLE_BACK_TO_EXIT_KEY: string = 'navigation.backGuardEnabled'
 
 export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
   accentColor: 'emerald',
@@ -68,6 +69,7 @@ export class AppearancePreferencesStore {
       const accentColor = normalizeAppearanceAccentColor(raw)
       connectAppearanceState().accentColor = accentColor
       connectAppearanceState().autoHideBottomBar = await store.get(AUTO_HIDE_BOTTOM_BAR_KEY, true) as boolean
+      connectAppearanceState().doubleBackToExit = await store.get(DOUBLE_BACK_TO_EXIT_KEY, true) as boolean
       return { accentColor }
     })
   }
@@ -92,21 +94,33 @@ export class AppearancePreferencesStore {
     }))
   }
 
-  async saveAutoHideBottomBar(enabled: boolean): Promise<void> {
+  saveAutoHideBottomBar(enabled: boolean): Promise<void> {
+    return this.saveBooleanPreference(AUTO_HIDE_BOTTOM_BAR_KEY, enabled, () => {
+      connectAppearanceState().autoHideBottomBar = enabled
+    })
+  }
+
+  saveDoubleBackToExit(enabled: boolean): Promise<void> {
+    return this.saveBooleanPreference(DOUBLE_BACK_TO_EXIT_KEY, enabled, () => {
+      connectAppearanceState().doubleBackToExit = enabled
+    })
+  }
+
+  private saveBooleanPreference(key: string, enabled: boolean, publish: () => void): Promise<void> {
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<void> => {
       const store = await this.preferences()
-      const existed = await store.has(AUTO_HIDE_BOTTOM_BAR_KEY)
-      const previous = await store.get(AUTO_HIDE_BOTTOM_BAR_KEY, true)
+      const existed = await store.has(key)
+      const previous = await store.get(key, true)
       try {
-        await store.put(AUTO_HIDE_BOTTOM_BAR_KEY, enabled)
+        await store.put(key, enabled)
         await store.flush()
       } catch (error) {
-        if (existed) await store.put(AUTO_HIDE_BOTTOM_BAR_KEY, previous)
-        else await store.delete(AUTO_HIDE_BOTTOM_BAR_KEY)
+        if (existed) await store.put(key, previous)
+        else await store.delete(key)
         await store.flush()
         throw error as Error
       }
-      connectAppearanceState().autoHideBottomBar = enabled
+      publish()
     }))
   }
 

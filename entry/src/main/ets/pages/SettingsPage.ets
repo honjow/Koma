@@ -340,7 +340,10 @@ function createSettingsSections(): SettingsSection[] {
     },
     {
       key: 'advanced', titleKey: 'settings_pane_advanced_title',
-      rows: [{ key: 'diagnostics', titleKey: 'diagnostics_title', detailKey: 'diagnostics_detail' }],
+      rows: [
+        { key: 'double-back-to-exit', titleKey: 'navigation_back_guard', detailKey: '' },
+        { key: 'diagnostics', titleKey: 'diagnostics_title', detailKey: 'diagnostics_detail' },
+      ],
     },
     {
       key: 'translation', titleKey: 'comic_translation_settings_title',
@@ -2289,7 +2292,8 @@ export struct SettingsPage {
   }
 
   private isSwitchRow(row: SettingsRow): boolean {
-    return row.key === 'auto-hide-bottom-bar' || row.key === 'library-background-update' || row.key === 'library-auto-update' ||
+    return row.key === 'auto-hide-bottom-bar' || row.key === 'double-back-to-exit' ||
+      row.key === 'library-background-update' || row.key === 'library-auto-update' ||
       row.key === 'library-badges' ||
       row.key === 'cache-auto-clean' ||
       row.key === 'download-wifi-only' ||
@@ -2309,6 +2313,7 @@ export struct SettingsPage {
 
   private switchRowValue(row: SettingsRow): boolean {
     if (row.key === 'auto-hide-bottom-bar') return this.appearanceState.autoHideBottomBar
+    if (row.key === 'double-back-to-exit') return this.appearanceState.doubleBackToExit
     if (row.key === 'library-background-update') return !this.libraryUpdatePreferences.foregroundOnly
     if (row.key === 'library-auto-update') {
       return this.libraryUpdatePreferences.autoCheckEnabled
@@ -2359,6 +2364,13 @@ export struct SettingsPage {
       void this.appearancePreferencesStore().saveAutoHideBottomBar(value).catch((error: Error): void => {
         DiagnosticLogger.exception('settings_page', 'save_bottom_bar_auto_hide_failed', error)
         this.showToast(s('settings_auto_hide_bottom_bar_save_failed'))
+      })
+      return
+    }
+    if (row.key === 'double-back-to-exit') {
+      void this.appearancePreferencesStore().saveDoubleBackToExit(value).catch((error: Error): void => {
+        DiagnosticLogger.exception('settings_page', 'save_double_back_to_exit_failed', error)
+        this.showToast(s('navigation_back_guard_save_failed'))
       })
       return
     }

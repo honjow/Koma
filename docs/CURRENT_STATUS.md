@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-15T20:20:50+08:00",
+  "updatedAt": "2026-11-15T22:54:14+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -85,6 +85,27 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "ROOT_DOUBLE_BACK_EXIT",
+      "number": 307,
+      "title": "主页面两次返回退出",
+      "kind": "accepted",
+      "priority": "用户明确要求",
+      "owner": "Root",
+      "reportedDate": "2026-11-15",
+      "reportedAtSource": "用户在本会话提出，原始时刻未核实。",
+      "registeredAt": "2026-11-15T22:48:47+08:00",
+      "updatedAt": "2026-11-15T22:54:14+08:00",
+      "status": "用户实测通过",
+      "result": "根页面首次系统返回提示「再按一次返回退出」，1 秒内第二次由系统处理，超时重新提示。高级设置开关默认开启，可从设置搜索定位。关闭后恢复单次系统返回，开关随应用设置备份。阅读器、子页、半模态、浏览搜索和书架多选保留各自返回优先级。用户在本会话确认实测没有问题。",
+      "remaining": "用户未说明设备型号和分项覆盖范围。",
+      "evidence": [
+        "NextE a21b9bf2 引入根页面确认和默认开关，f73436a9 精简开关文案。",
+        ".hvigor/outputs/root-double-back-exit-20261115/logic.log",
+        ".hvigor/outputs/root-double-back-exit-20261115/hvigor.log",
+        ".hvigor/outputs/root-double-back-exit-20261115/koma-root-double-back-exit-signed.hap"
+      ]
+    },
     {
       "id": "READER_REMOTE_IMAGE_DOWNLOAD_PROGRESS",
       "number": 306,
@@ -11092,6 +11113,27 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "root-double-back-exit-user-acceptance-20261115",
+      "at": "2026-11-15T22:54:14+08:00",
+      "itemId": "ROOT_DOUBLE_BACK_EXIT",
+      "title": "用户实测通过主页面两次返回退出",
+      "detail": "用户在本会话确认实测没有问题并要求提交，未说明设备型号及分项覆盖范围。",
+      "kind": "accepted",
+      "evidence": []
+    },
+    {
+      "id": "root-double-back-exit-20261115",
+      "at": "2026-11-15T22:48:47+08:00",
+      "itemId": "ROOT_DOUBLE_BACK_EXIT",
+      "title": "按 NextE 接入主页面两次返回退出",
+      "detail": "本地执行实际返回处理逻辑，覆盖四个根页签、999/1000 毫秒边界、开关关闭和已有返回优先级。偏好存取、失败回退、应用设置备份及签名构建通过；设备上的手势、Toast 和退出尚未核对。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/root-double-back-exit-20261115/logic.log",
+        ".hvigor/outputs/root-double-back-exit-20261115/hvigor.log"
+      ]
+    },
     {
       "id": "source-search-placeholder-copy-20261115",
       "at": "2026-11-15T20:20:50+08:00",

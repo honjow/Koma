@@ -248,6 +248,7 @@ const sourceRuntimeRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
 // HDS uses one slot for More when the source has more than three actions.
 const SOURCE_ROUTE_TITLE_MENU_MAX_COUNT = 3
 const SETTINGS_MODAL_ROUTE = 'SettingsModal'
+const ROOT_BACK_CONFIRMATION_MS: number = 1000
 const SETTINGS_MODAL_HOME = 'SettingsModalHome'
 interface SettingsPaneRouteParam {
   pane: string
@@ -340,6 +341,7 @@ struct Index {
   }
   @Local selectedTab: number = TabIndex.LIBRARY
   @Local private rootNavigationVisible: boolean = true
+  private lastRootBackAt: number | undefined = undefined
   @Local private settingsModalShown: boolean = false
   private settingsModalStack: NavPathStack = new NavPathStack()
   @Local private settingsModalTop?: NavPathInfo = undefined
@@ -4026,22 +4028,37 @@ struct Index {
     }
   }
 
+  @Monitor('selectedTab', 'appForegroundState.revision', 'appearanceState.doubleBackToExit')
+  private resetRootBackConfirmation(): void {
+    this.lastRootBackAt = undefined
+  }
+
   onBackPress(): boolean {
+    const previousRootBackAt = this.lastRootBackAt
+    this.lastRootBackAt = undefined
     if (this.readerOpen && this.isReaderRouteVisible()) {
       this.closeReader()
       return true
     }
-    if (this.appPathStack.getAllPathName().length === 0 && this.selectedTab === TabIndex.BROWSE &&
-      this.browseCatalogChrome.searchExpanded) {
+    if (this.appPathStack.getAllPathName().length > 0) return false
+    if (this.selectedTab === TabIndex.BROWSE && this.browseCatalogChrome.searchExpanded) {
       this.setCatalogSearch(this.browseCatalogChrome, false)
       return true
     }
-    if (this.appPathStack.getAllPathName().length === 0 && this.selectedTab === TabIndex.LIBRARY &&
-      this.libraryTitleBar.selectionMode) {
+    if (this.selectedTab === TabIndex.LIBRARY && this.libraryTitleBar.selectionMode) {
       this.libraryTitleBar.cancelSelection()
       return true
     }
-    return false
+    if (!this.appearanceState.doubleBackToExit) return false
+
+    // NextE uses a one-second confirmation at the root. Child navigation and
+    // transient modes handle Back first. Let the system handle the confirmed exit.
+    const now = Date.now()
+    if (previousRootBackAt !== undefined && now >= previousRootBackAt &&
+      now - previousRootBackAt < ROOT_BACK_CONFIRMATION_MS) return false
+    this.lastRootBackAt = now
+    this.showToast(AppStrings.get('navigation_back_guard_toast'))
+    return true
   }
 
   build() {
@@ -4269,6 +4286,7 @@ struct Index {
         .onNavBarStateChange((visible: boolean) => {
           this.rootNavigationVisible = visible
           if (visible) this.publishDeferredReaderBackgroundPresentation()
+          else this.resetRootBackConfirmation()
         })
         .width('100%')
         .height('100%')

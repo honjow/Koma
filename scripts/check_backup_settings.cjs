@@ -217,6 +217,7 @@ async function verifyRoundTrip() {
   const valuesForStore = {}
   const structuredValues = {
     'appearance.autoHideBottomBar': false,
+    'navigation.backGuardEnabled': false,
     'download.notifications.enabled': true,
     'download.notifications.sound': 'vibrate',
     'migration.selectedSources': JSON.stringify(['source-b', 'source-a']),
