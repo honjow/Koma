@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-15T07:51:39+08:00",
+  "updatedAt": "2026-11-15T08:05:41+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "RELEASE_1_4_3",
   "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
@@ -163,17 +163,18 @@
       "reportedAt": null,
       "reportedDate": "2026-11-15",
       "reportedAtSource": "本轮用户明确要求合并两项 UI 调整，原始时刻未核实。",
-      "status": "已放宽按钮内边距并补上筛选高亮，签名包可用",
-      "result": "用户上机指出上一版按下反馈范围不一致、漏斗离文字偏远且排序和筛选偏远。现两项共用同一原生行为的公共按钮、对称内边距和圆角，漏斗与文字及两按钮之间的间距均收至 4 vp。排序方向和原菜单保留。更新后的签名 Debug 包已构建。 根据后续用户反馈，排序和筛选的左右内边距各增加到 8 vp，图标与文字及按钮之间的间距仍为 4 vp；有生效筛选时文字、计数和漏斗使用主题色。包含两项更新的签名 Debug 包构建通过。",
-      "remaining": "按用户要求只交付签名包。新版内边距、筛选启用和清空时的颜色变化、实际按压及菜单开合尚未真机验收。",
+      "status": "用户实测确认排序菜单闪回已修复",
+      "result": "用户上机指出上一版按下反馈范围不一致、漏斗离文字偏远且排序和筛选偏远。现两项共用同一原生行为的公共按钮、对称内边距和圆角，漏斗与文字及两按钮之间的间距均收至 4 vp。排序方向和原菜单保留。更新后的签名 Debug 包已构建。 根据后续用户反馈，排序和筛选的左右内边距各增加到 8 vp，图标与文字及按钮之间的间距仍为 4 vp；有生效筛选时文字、计数和漏斗使用主题色。包含两项更新的签名 Debug 包构建通过。 用户实测报告切换书架排序后菜单短暂再次弹出。排序按钮改用点击触发的 ArkUI 原生菜单绑定，由系统管理退场，保留按压、箭头及筛选高亮。签名 Debug 包构建完成。 用户在本会话实测确认该问题已修复。",
+      "remaining": "本次用户确认排序菜单闪回已修复。未记录设备型号和其他菜单关闭方式、筛选启用与清空的分项实测结果。",
       "evidence": [
         ".hvigor/outputs/koma-shelf-controls-20261115/koma-shelf-controls-signed.hap",
         ".hvigor/outputs/koma-shelf-controls-20261115/device197__ALN-AL80/not-applicable/portrait-1260x2720/shelf-controls/baseline/run-metadata.json",
         ".hvigor/outputs/koma-shelf-controls-20261115/koma-shelf-controls-spacing-signed.hap",
-        ".hvigor/outputs/koma-shelf-controls-20261115/koma-shelf-controls-padding-highlight-signed.hap"
+        ".hvigor/outputs/koma-shelf-controls-20261115/koma-shelf-controls-padding-highlight-signed.hap",
+        ".hvigor/outputs/koma-shelf-sort-menu-20261115/koma-shelf-sort-menu-signed.hap"
       ],
       "progressPhase": "verification",
-      "updatedAt": "2026-11-15T03:31:47+08:00"
+      "updatedAt": "2026-11-15T08:05:41+08:00"
     },
     {
       "id": "MANGA_DETAIL_CHAPTER_FLING_20261114",
@@ -10880,6 +10881,26 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "shelf-sort-menu-user-acceptance-20261115",
+      "at": "2026-11-15T08:05:41+08:00",
+      "itemId": "LIBRARY_SHELF_CONTROL_FEEDBACK",
+      "title": "用户实测确认书架排序菜单闪回已修复",
+      "detail": "用户在本会话确认实测已修复并要求提交，未指定设备型号及其他覆盖范围。",
+      "kind": "accepted",
+      "evidence": []
+    },
+    {
+      "id": "shelf-sort-native-menu-dismissal-20261115",
+      "at": "2026-11-15T08:01:40+08:00",
+      "itemId": "LIBRARY_SHELF_CONTROL_FEEDBACK",
+      "title": "修复切换书架排序时菜单再次弹出",
+      "detail": "用户报告选中排序项后菜单闪回。共用按钮原先在退出动画结束后才清空显隐标记，排序刷新时仍可能把打开状态传给菜单。按钮改为用原生触发式绑定管理开合，保留原按压反馈和菜单内容。签名 Debug 包通过构建，尚未上机复验。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/koma-shelf-sort-menu-20261115/koma-shelf-sort-menu-signed.hap"
+      ]
+    },
     {
       "id": "browse-recent-sources-user-acceptance-20261115",
       "at": "2026-11-15T07:51:39+08:00",

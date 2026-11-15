@@ -108,7 +108,6 @@ export struct KomaActionButton {
   @Param accessibilityLabel: string | undefined = undefined
   @Param maxWidth: Length | undefined = undefined
   @BuilderParam menuBuilder?: () => void
-  @Local private menuShown: boolean = false
   @Param accentColor: ResourceColor | undefined = undefined
   @Param contentColor: ResourceColor | undefined = undefined
   @Param fillColor: ResourceColor | undefined = undefined
@@ -226,25 +225,16 @@ export struct KomaActionButton {
     }
   }
 
-  private menuBindingOptions(): MenuOptions | undefined {
-    return this.menuBuilder ? komaMenuOptions({ onDisappear: () => { this.menuShown = false } }) : undefined
-  }
-
-  private handleClick(): void {
-    if (this.menuBuilder) {
-      this.menuShown = true
-    }
-    this.action()
-  }
-
   build() {
-    if (this.fullWidth) {
+    if (this.menuBuilder !== undefined) {
+      // Let the native anchor own dismissal. A selection can refresh this
+      // button before the exit animation ends, while a show flag is still true.
       Button({ type: ButtonType.Normal, stateEffect: true }) {
         if (this.isEnabled && !this.busy) {
           this.ButtonContent()
         }
       }
-        .width('100%')
+        .width(this.fullWidth ? '100%' : undefined)
         .height(this.controlHeight)
         .id(this.componentId)
         .layoutWeight(this.fill ? 1 : 0)
@@ -256,14 +246,14 @@ export struct KomaActionButton {
         .contentModifier(this.disabledContent())
         .constraintSize({ maxWidth: this.maxWidth })
         .accessibilityText(this.accessibilityLabel)
-        .bindMenu(this.menuShown, this.MenuContent(), this.menuBindingOptions())
-        .onClick(() => { this.handleClick() })
+        .bindMenu(this.MenuContent(), komaMenuOptions())
     } else {
       Button({ type: ButtonType.Normal, stateEffect: true }) {
         if (this.isEnabled && !this.busy) {
           this.ButtonContent()
         }
       }
+        .width(this.fullWidth ? '100%' : undefined)
         .height(this.controlHeight)
         .id(this.componentId)
         .layoutWeight(this.fill ? 1 : 0)
@@ -275,8 +265,7 @@ export struct KomaActionButton {
         .contentModifier(this.disabledContent())
         .constraintSize({ maxWidth: this.maxWidth })
         .accessibilityText(this.accessibilityLabel)
-        .bindMenu(this.menuShown, this.MenuContent(), this.menuBindingOptions())
-        .onClick(() => { this.handleClick() })
+        .onClick(() => { this.action() })
     }
   }
 }
