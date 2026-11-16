@@ -94,9 +94,9 @@
       "reportedAt": null,
       "reportedDate": "2026-11-16",
       "reportedAtSource": "用户转述添加订阅时反复提示「订阅地址未保存」。",
-      "updatedAt": "2026-11-16T21:05:52+08:00",
+      "updatedAt": "2026-11-16T21:52:22+08:00",
       "status": "197 已验证 HTTP 503、目录格式错误、添加和移除",
-      "result": "HTTP 503 显示状态码，HTML 显示格式错误，有效目录可添加并移除。添加、移除和启停订阅提交后的目录刷新异常按读取失败提示。",
+      "result": "HTTP 503 显示状态码，HTML 显示格式错误，有效目录可添加并移除。添加、移除和启停订阅提交后的目录刷新异常按读取失败提示。 修复已随 1.5.1 发布。",
       "remaining": "原反馈用户的具体地址和日志未取得。",
       "evidence": [
         "entry/src/main/ets/pages/SourceSubscriptionsPage.ets",
@@ -104,7 +104,8 @@
         "scripts/test_image_banner_rules.cjs",
         ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T204425981321",
         ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T204447884188",
-        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T204720506423"
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T204720506423",
+        "https://github.com/honjow/Koma/releases/tag/v1.5.1"
       ],
       "relatedItems": [
         "ERROR_MESSAGE_PHASE_AUDIT"
@@ -120,10 +121,10 @@
       "reportedAt": null,
       "reportedDate": "2026-11-16",
       "reportedAtSource": "用户要求核查其他错误文案和实际失败不一致的地方。",
-      "updatedAt": "2026-11-16T21:05:52+08:00",
+      "updatedAt": "2026-11-16T21:52:22+08:00",
       "status": "四类已修，197 已验证主要失败和成功路径",
       "result": "书源显示下载响应、无效 ZIP 与写入后刷新失败，已装测试源在本地列表可见。正常 CBZ 到达系统保存选择器，临时验证包模拟打包失败并显示打包提示。正确口令解密版本不支持的备份后提示版本，实际恢复同机刚创建的快照后模拟刷新失败，明确提示备份已恢复。测试备份、书源和订阅已清理。",
-      "remaining": "具名失败分支用受控响应或临时故障注入验证。修复待随新版发布。",
+      "remaining": "具名失败分支用受控响应或临时故障注入验证。修复已随 1.5.1 发布。",
       "evidence": [
         "entry/src/main/ets/pages/SourcePackageManagerPage.ets",
         "entry/src/main/ets/model/ChapterArchiveExport.ets",
@@ -136,7 +137,8 @@
         ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T205602879217",
         ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T205127685634",
         ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T205705455817",
-        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T210433317432"
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T210433317432",
+        "https://github.com/honjow/Koma/releases/tag/v1.5.1"
       ],
       "relatedItems": [
         "SUBSCRIPTION_FAILURE_MESSAGES"
@@ -183,17 +185,16 @@
       "id": "MIHON_BACKUP_IMPORT",
       "number": 308,
       "title": "Mihon 备份导入",
-      "kind": "pending_verification",
-      "progressPhase": "verification",
+      "kind": "done",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-15",
       "reportedAtSource": "用户提供真实 .tachibk，要求保留分类、章页、历史与追踪，合并已有作品。未关联时在实际阅读该作品时再说明。",
-      "updatedAt": "2026-11-16T20:03:14+08:00",
+      "updatedAt": "2026-11-16T21:52:22+08:00",
       "status": "197 原大备份导入、冷启动、整库关联与返回均通过",
-      "stage": "最终开发包真机验证完成，修复待随新版发布",
+      "stage": "大备份及匹配返回修复已随 1.5.1 发布",
       "result": "解析、作品与进度合并、暂存文件写入都在 TaskPool 执行，回滚直接复制原文件。197 用原大备份完成导入，冷启动读回 2267 部作品和 9876 条原始历史，并在历史页看到导入的章节条目。从未匹配详情点阅读，关联到拷贝漫画，打开新详情后按一次返回原书架搜索结果。再冷启动确认关联已保存。原设备数据、同步和电源已恢复。原 63 部样本保留 4418 条章节记录、670 条历史和 4 条追踪，35 部自动关联。动漫屋已复测原第 1 话第 10 页，58 个正式书源包通过旧版解析校验。",
-      "remaining": "修复待随新版发布。原 63 部样本的 28 部未关联记录完整保留，其中 19 部保留对应书源，9 部暂无可确认的对应源。",
+      "remaining": "原 63 部样本的 28 部未关联记录完整保留，其中 19 部保留对应书源，9 部暂无可确认的对应源。",
       "evidence": [
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T200055459348/summary.json",
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T200158162123/screen.png",
@@ -215,8 +216,10 @@
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T030216352950",
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T032652987612",
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/match-status-20261116T033900894732",
-        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T033901743357"
-      ]
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T033901743357",
+        "https://github.com/honjow/Koma/releases/tag/v1.5.1"
+      ],
+      "closedAt": "2026-11-16T21:52:22+08:00"
     },
     {
       "id": "ROOT_DOUBLE_BACK_EXIT",
@@ -11247,6 +11250,19 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "koma-v151-github-actions-release-20261116",
+      "at": "2026-11-16T21:52:22+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "Koma 1.5.1 已发布",
+      "detail": "标签工作流构建并发布正式版，读回公开日志、构建号 20、HAP 和构建清单。",
+      "kind": "verified",
+      "evidence": [
+        "changelog/v1.5.1.md",
+        "https://github.com/honjow/Koma/releases/tag/v1.5.1",
+        "https://github.com/honjow/Koma/actions/runs/43878882275"
+      ]
+    },
     {
       "id": "error-message-device-197-20261116",
       "at": "2026-11-16T21:05:52+08:00",
