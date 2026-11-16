@@ -21,6 +21,7 @@ export interface MangaDetailRouteParam {
   /** Persisted display name used only to explain a missing source on the detail route. */
   sourceName?: string
   initialManga?: SourceManga
+  mihonImportId?: string
   chrome?: MangaDetailRouteChromeState
 }
 

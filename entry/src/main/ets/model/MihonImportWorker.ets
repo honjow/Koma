@@ -4,14 +4,16 @@ import { Comic } from './ComicModels'
 import { InMemoryLibraryStore, LibraryContents, libraryContents } from './LibraryStore'
 import { AppFilesLibraryStorePersistenceAdapter, LibraryStorePersistenceService, LIBRARY_STORE_PERSISTENCE_FILE_NAME,
   serializeLibraryStore } from './LibraryPersistence'
-import { alignSnapshotChapterCompletion, AppFilesReaderSessionPersistenceAdapter, ReaderSessionDocumentSnapshot,
-  ReaderSessionReadingSnapshot, READER_PROGRESS_PERSISTENCE_FILE_NAME, serializeReaderSessionForDevice } from './ReaderSessionStore'
-import { MihonImportLabels, MihonImportSummary, importMihonWorks, linkMihonWork, mergeMihonReading,
+import { alignSnapshotChapterCompletion, AppFilesReaderSessionPersistenceAdapter, ChapterReadingState,
+  ReaderSessionDocumentSnapshot, ReaderSessionReadingSnapshot, READER_PROGRESS_PERSISTENCE_FILE_NAME,
+  serializeReaderSessionForDevice } from './ReaderSessionStore'
+import { MihonImportLabels, MihonImportSummary, importMihonWorks, linkMihonWork, mergeMihonReading, mihonDeclaredWork,
   mihonSourceMatcher, ResolvedMihonImport, summarizeMihonImport, withMihonTrackerCandidates } from './MihonImportPlanning'
 import { MihonImportRecord, readMihonBackup } from './MihonBackupReader'
 import { MihonSourceIdentity, mihonPathIdentity } from '../sourceRuntime/MihonSourceIdentity'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { ComicTrackerMapping } from './TrackerModels'
+import { SourceManga } from './SourceModels'
 
 type MihonSourceSummary = SourceRuntimeRegistryInstalledSourceSummary
 
@@ -22,9 +24,16 @@ export interface MihonLinkRequest {
   identity?: MihonSourceIdentity
 }
 
+export interface MihonSourceMatch {
+  id: string
+  sourceId: string
+  work?: SourceManga
+}
+
 export interface MihonTransactionRequest {
   bytes?: ArrayBuffer
   links?: MihonLinkRequest[]
+  sourceMatches?: MihonSourceMatch[]
   identities: Map<string, MihonSourceIdentity>
   sources: MihonSourceSummary[]
   labels: MihonImportLabels
@@ -37,6 +46,8 @@ export interface MihonPreparedTransaction {
   trackerMappings: ComicTrackerMapping[]
   unmatchedChapters: number
   targetComicId?: string
+  linkedComicIds?: string[]
+  removedComicIds?: string[]
 }
 
 @Concurrent
@@ -60,9 +71,23 @@ export async function prepareMihonTransactionTask(filesDir: string, stagedDir: s
     for (const item of entries) {
       if (item.record.targetComicId) continue
       const source = matchSource(item.record)
-      if (source !== undefined) item.record.matchedSourceId = source.sourceId
+      if (source !== undefined) {
+        item.record.matchedSourceId = source.sourceId
+        item.record.linkedWork = mihonDeclaredWork(item.record, source.sourceId, request.identities.get(source.sourceId)) ??
+          item.record.linkedWork
+      }
     }
   } else {
+    if (request.sourceMatches !== undefined) {
+      const matches = new Map<string, MihonSourceMatch>()
+      request.sourceMatches.forEach((item: MihonSourceMatch): void => { matches.set(item.id, item) })
+      library.replaceMihonImports(library.listMihonImports().map((record: MihonImportRecord): MihonImportRecord => {
+        const match = matches.get(record.id)
+        if (match === undefined || record.targetComicId) return record
+        return { id: record.id, work: record.work, categoryIds: record.categoryIds, sourceName: record.sourceName,
+          matchedSourceId: match.sourceId, linkedWork: match.work }
+      }))
+    }
     for (const link of request.links ?? []) {
       const record = library.listMihonImports().find((row: MihonImportRecord): boolean => row.id === link.id)
       if (record === undefined) throw new Error('mihon_import_missing_work')
@@ -92,6 +117,28 @@ export async function prepareMihonTransactionTask(filesDir: string, stagedDir: s
   // TaskPool serializes each message. Send the large collections in batches
   // so a single cross-thread result cannot exhaust its message buffer.
   const contents = libraryContents(library)
+  let linkedComicIds: string[] | undefined
+  let removedComicIds: string[] | undefined
+  if (request.bytes === undefined) {
+    // The two complete files above are committed atomically. Only publish
+    // the affected records into the live stores for a link or rule update.
+    const targetIds = new Set<string>()
+    const originalIds = new Set<string>()
+    const changedImports = new Set<string>(request.sourceMatches?.map((match: MihonSourceMatch): string => match.id) ?? [])
+    for (const item of entries) {
+      targetIds.add(item.target.id)
+      originalIds.add(item.record.id)
+      changedImports.add(item.record.id)
+    }
+    removedComicIds = Array.from(originalIds).filter((id: string): boolean => !targetIds.has(id))
+    const readingIds = new Set<string>(Array.from(targetIds).concat(removedComicIds))
+    linkedComicIds = Array.from(readingIds)
+    contents.comics = contents.comics.filter((comic: Comic): boolean => targetIds.has(comic.id))
+    contents.mihonImports = contents.mihonImports.filter((record: MihonImportRecord): boolean => changedImports.has(record.id))
+    reader.progress = reader.progress.filter((progress): boolean => readingIds.has(progress.comicId))
+    reader.sourceHistory = reader.sourceHistory.filter((history): boolean => readingIds.has(history.comicId))
+    reader.chapters = reader.chapters.filter((chapter: ChapterReadingState): boolean => readingIds.has(chapter.comicId))
+  }
   for (let offset = 0; offset < contents.comics.length; offset += 16) {
     taskpool.Task.sendData('comics', contents.comics.slice(offset, offset + 16))
   }
@@ -107,5 +154,5 @@ export async function prepareMihonTransactionTask(filesDir: string, stagedDir: s
   taskpool.Task.sendData('complete')
   return { library: contents, reader, unmatchedChapters,
     trackerMappings: withMihonTrackerCandidates(request.trackerMappings, entries),
-    targetComicId: entries.length === 1 ? entries[0].target.id : undefined }
+    targetComicId: entries.length === 1 ? entries[0].target.id : undefined, linkedComicIds, removedComicIds }
 }

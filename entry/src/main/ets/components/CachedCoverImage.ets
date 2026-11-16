@@ -257,7 +257,9 @@ export struct CachedCoverImage {
     // belongs to a source. Never hand that local file to the source's HTTP resolver.
     if (uri.startsWith('file://')) return uri
     const context = getContext(this) as common.UIAbilityContext
-    if (sourceRuntimeId.trim().length > 0) {
+    // Mihon records store a backup thumbnail URL before they have a runtime source.
+    // Load that URL through the cover cache until the shelf record is linked.
+    if (sourceRuntimeId.trim().length > 0 && !sourceRuntimeId.startsWith('mihon:')) {
       configureReaderRemoteImageCache(context.cacheDir)
       return fetchAndCacheSourceRuntimeCoverImage(sourceRuntimeId, uri, sourceImageId, sourceMangaUrl, this.sourceCoverHeaders)
     }

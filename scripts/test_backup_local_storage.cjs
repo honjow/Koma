@@ -293,9 +293,29 @@ test('Mihon package rules map the saved path and reject foreign addresses or tra
  assert.equal(identity.mihonPathIdentity('https://book.example.fake/comics/42', absolute), undefined)
  assert.equal(identity.mihonPathIdentity('https://book.example/comics/../42', absolute), undefined)
  assert.equal(identity.mihonPathIdentity('42,1', bare), 'comic:42,1')
+ const photo = {pathPrefix: '/photo/', idPrefix: '', pathIdSegment: 0, targetIdSegment: 2}
+ assert.equal(identity.mihonPathIdentity('/photo/1478353', photo), '1478353')
+ assert.equal(identity.mihonPathIdentity('/photo/1478353/', photo), '1478353')
  for (const input of ['https://other.example/detail/917.html', '/detail/../917.html', '/detail/.html']) {
   assert.equal(identity.mihonPathIdentity(input, source.work), undefined)
  }
+})
+
+test('a Mihon link waits for existing writes and skips a closed detail', async () => {
+ const { BackupRestoreActivity } = evaluate('BackupRestoreActivity', () => ({}))
+ let finishWrite
+ const writer = BackupRestoreActivity.runWrite(() => new Promise(resolve => { finishWrite = resolve }))
+ let current = true
+ const closed = BackupRestoreActivity.beginRestoreWhenIdle(() => current)
+ const open = BackupRestoreActivity.beginRestoreWhenIdle()
+ assert.equal(BackupRestoreActivity.isRestoring(), false)
+ current = false
+ finishWrite()
+ await writer
+ assert.equal(await closed, false)
+ assert.equal(await open, true)
+ assert.equal(BackupRestoreActivity.isRestoring(), true)
+ BackupRestoreActivity.finishRestore()
 })
 
 test('a failed Mihon import lookup remembers its source and history retries the original address before search', async () => {
@@ -328,7 +348,10 @@ test('a failed Mihon import lookup remembers its source and history retries the 
   './BackupRestoreActivity': { BackupRestoreActivity: { runWrite: fn => fn() } },
   '../sourceRuntime/SourceRuntimeAppRegistry': { appSourceRuntimeRegistry: registry },
   '../sourceRuntime/MihonSourceIdentity': evaluate('../sourceRuntime/MihonSourceIdentity', () => ({})),
-  './MihonImportPlanning': evaluate('MihonImportPlanning', () => ({})),
+  './MihonImportPlanning': evaluate('MihonImportPlanning', name => ({
+   '../sourceRuntime/MihonSourceIdentity': evaluate('../sourceRuntime/MihonSourceIdentity', () => ({})),
+   './MangaWebLink': evaluate('MangaWebLink', () => ({})),
+  })[name] || {}),
   './SourceMangaMigrationService': { async prepareMangaMigration(_registry, manga) {
    assert.equal(stored[0].matchedSourceId, source.sourceId)
    requests.push(manga)
@@ -343,7 +366,16 @@ test('a failed Mihon import lookup remembers its source and history retries the 
  })[name] || {})
  const live = new Store(stored)
  const service = new MihonImportService({ filesDir: '/mock' }, live)
- service.commit = async links => {
+ service.commit = async (links, bytes, sourceMatches) => {
+  if (sourceMatches !== undefined) {
+   assert.equal(links, undefined)
+   assert.equal(bytes, undefined)
+   assert.equal(sourceMatches.length, 1)
+   assert.equal(sourceMatches[0].id, record.id)
+   live.replaceMihonImports([{ ...record, matchedSourceId: sourceMatches[0].sourceId, linkedWork: sourceMatches[0].work }])
+   new Persistence(live).persist()
+   return { unmatchedChapters: 0 }
+  }
   assert.equal(links.length, 1)
   assert.equal(links[0].id, record.id)
   assert.equal(links[0].verifiedEdition, true)
@@ -353,13 +385,16 @@ test('a failed Mihon import lookup remembers its source and history retries the 
   new Persistence(live).persist()
   return { unmatchedChapters: 0, targetComicId }
  }
- assert.equal(await service.matchUnresolved(undefined, true), false)
+ assert.equal(await service.matchUnresolved(undefined, true), true)
  assert.equal(stored[0].matchedSourceId, source.sourceId)
  assert.equal(live.listMihonImports()[0].matchedSourceId, source.sourceId)
  assert.equal(stored[0].targetComicId, undefined)
+ await service.retryFromHistory(record.id, () => true)
+ assert.equal(stored[0].matchedSourceId, source.sourceId)
+ assert.equal(stored[0].targetComicId, undefined)
  available = true
  await service.retryFromHistory(record.id, () => true)
- assert.deepEqual(requests, Array.from({ length: 2 }, () => ({
+ assert.deepEqual(requests.map(({ id, sourceId, title }) => ({ id, sourceId, title })), Array.from({ length: 2 }, () => ({
   id: 'book:12', sourceId: source.sourceId, title: record.work.title,
  })))
  assert.equal(stored[0].targetComicId, 'native-work')

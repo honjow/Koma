@@ -503,6 +503,23 @@ export function comicToLibraryItem(comic: Comic, progress?: ReadingProgress): Li
   }
 }
 
+export interface ComicCoverInfo {
+  id: ComicId
+  title: string
+  subtitle: string
+  unreadChapterCount?: number
+  coverColor: string
+  accentColor: string
+  pageCount?: number
+  coverUri?: string
+  sourceRuntimeId?: string
+  sourceImageId?: string
+  sourceMangaUrl?: string
+  sourceKind?: ComicSourceKind
+  remoteServerId?: string
+  categoryLabels?: string[]
+}
+
 export function serializeComic(comic: Comic): string {
   return JSON.stringify(comic)
 }

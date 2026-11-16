@@ -99,6 +99,7 @@ import { MangaGridItem } from '../components/MangaGridItem'
 import { MangaMigrationPage } from './MangaMigrationPage'
 import { MihonImportRecord } from '../model/MihonBackupReader'
 import { MihonImportService } from '../model/MihonImportService'
+import { SourceMangaDetailSnapshot } from '../model/SourceMangaDetailSnapshotCache'
 import { MangaMigrationPreferencesStore } from '../model/MangaMigrationPreferencesStore'
 import { MigrationCommand } from '../state/MangaMigrationRouteChromeState'
 import { MangaMigrationRouteParam } from '../common/RouterHelper'
@@ -610,7 +611,6 @@ struct Index {
     return items
   }
 
-  @Local private libraryComics: Comic[] = seededLibraryStore.listComics()
   private tabController: HdsTabsController = new HdsTabsController()
   private rootTabScrollers: Scroller[] = [new Scroller(), new Scroller(), new Scroller(), new Scroller()]
   @Local private appearanceState: AppearanceState = connectAppearanceState()
@@ -649,6 +649,7 @@ struct Index {
   private readerOpenIntent: ReaderChapterOpenIntent = 'resume'
   private sourceReaderOpenRequest: number = 0
   private historyResumeLoadingTimer: number = -1
+  private historyResumeCanContinue?: () => boolean
   private historyResumeLoadingDialog: number = -1
   private readingConflictHold?: () => void
   /** Present only while Reader was launched from an un-shelved source item. */
@@ -759,7 +760,6 @@ struct Index {
   private publishDeferredReaderBackgroundPresentation(): void {
     if (this.libraryPresentationPending) {
       this.libraryPresentationPending = false
-      this.libraryComics = this.libraryStore.listComics()
       this.libraryRevision += 1
     }
     if (this.readingPresentationPending) {
@@ -1535,11 +1535,14 @@ struct Index {
     intent: ReaderChapterOpenIntent = 'resume',
     comicSnapshot?: Comic,
   ): Promise<void> {
+    if (comicId.startsWith('mihon:')) {
+      if (!await this.openMihonImportedWork(comicId)) this.showToast(AppStrings.get('mihon_import_resume_failed'))
+      return
+    }
     if (comicSnapshot !== undefined) this.activeReaderComicSnapshot = comicSnapshot
     else if (this.activeReaderComicSnapshot?.id !== comicId) this.activeReaderComicSnapshot = undefined
     this.readerOpenIntent = intent
     let comic = this.readerComicForOpen(comicId)
-    if (comic?.sourceRuntimeId?.startsWith('mihon:') && await this.openMihonImportedWork(comicId)) return
     let targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
     if (chapterId === undefined && comic !== undefined && comic.sourceRuntimeId !== undefined &&
       comic.remoteResourceId !== undefined && !this.incognito.enabled) {
@@ -1654,7 +1657,10 @@ struct Index {
       return
     }
     this.sourceReaderOpenRequest++
-    if (nextRequest.sourceId.startsWith('mihon:') && await this.openMihonImportedWork(nextRequest.comicId)) return
+    if (nextRequest.sourceId.startsWith('mihon:')) {
+      if (!await this.openMihonImportedWork(nextRequest.comicId)) this.showToast(AppStrings.get('mihon_import_resume_failed'))
+      return
+    }
     if (appDeviceSync.openReading(nextRequest) === 'missing') {
       const name = nextRequest.sourceName || nextRequest.sourceId
       this.getUIContext().showAlertDialog({
@@ -1725,32 +1731,17 @@ struct Index {
   }
 
   private async resumeMihonFromHistory(comicId: string): Promise<void> {
-    this.closeHistoryResumeLoading()
-    const generation = ++this.sourceReaderOpenRequest
-    const current = (): boolean => generation === this.sourceReaderOpenRequest &&
-      this.selectedTab === TabIndex.HISTORY && this.rootNavigationVisible && this.appForegroundState.active
-    const timer = this.startHistoryResumeLoading(current)
-    try {
-      const service = new MihonImportService(getContext(this) as common.UIAbilityContext, this.libraryStore)
-      await service.retryFromHistory(comicId, current)
-    } catch (error) {
-      DiagnosticLogger.exception('backup', 'mihon_history_retry_failed', error as Error)
-    } finally {
-      if (this.historyResumeLoadingTimer === timer) this.closeHistoryResumeLoading()
-    }
-    if (!current()) return
-    this.refreshMihonImport()
-    await this.openMihonImportedWork(comicId)
+    await this.openMihonImportedWork(comicId, true, true)
   }
 
-  private startHistoryResumeLoading(isCurrent: () => boolean): number {
+  private startHistoryResumeLoading(isCurrent: () => boolean, content: Resource = $r('app.string.history_resume_loading')): number {
     const prompt = this.getUIContext().getPromptAction()
     let dismissed = false
     // Delay only the dialog so a warm resume never flashes before navigation.
     const timer = setTimeout((): void => {
       if (!isCurrent()) return
       void prompt.openCustomDialog({
-        builder: () => { this.HistoryResumeLoading() },
+        builder: () => { this.HistoryResumeLoading(content) },
         alignment: DialogAlignment.Center,
         autoCancel: false,
         onWillDismiss: (action: DismissDialogAction): void => {
@@ -1770,6 +1761,7 @@ struct Index {
       })
     }, 220)
     this.historyResumeLoadingTimer = timer
+    this.historyResumeCanContinue = isCurrent
     return timer
   }
 
@@ -1812,13 +1804,14 @@ struct Index {
   }
 
   @Builder
-  private HistoryResumeLoading() {
-    LoadingDialogV2({ content: $r('app.string.history_resume_loading') })
+  private HistoryResumeLoading(content: Resource) {
+    LoadingDialogV2({ content })
   }
 
   private closeHistoryResumeLoading(): void {
     if (this.historyResumeLoadingTimer >= 0) clearTimeout(this.historyResumeLoadingTimer)
     this.historyResumeLoadingTimer = -1
+    this.historyResumeCanContinue = undefined
     if (this.historyResumeLoadingDialog < 0) return
     const id = this.historyResumeLoadingDialog
     this.historyResumeLoadingDialog = -1
@@ -1833,13 +1826,17 @@ struct Index {
 
   @Monitor('selectedTab', 'rootNavigationVisible', 'appForegroundState.active')
   private cancelHistoryResumeWhenCovered(): void {
-    if (this.selectedTab !== TabIndex.HISTORY || !this.rootNavigationVisible || !this.appForegroundState.active) {
+    if (this.historyResumeCanContinue?.() === false) {
       this.cancelHistoryResume()
     }
   }
 
   private openHistoryDetail(comicId: ComicId, source?: SourceReadHistoryEntry, remote?: RemoteReadHistoryEntry): void {
     this.cancelHistoryResume()
+    if (comicId.startsWith('mihon:')) {
+      void this.openMihonImportedWork(comicId, false, true)
+      return
+    }
     if (source !== undefined) {
       RouterHelper.pushMangaDetail({
         mangaId: source.mangaId, sourceId: source.sourceId, sourceName: source.sourceName,
@@ -2315,6 +2312,12 @@ struct Index {
   }
 
   private openLibraryMangaDetail(comicId: ComicId, newInstance: boolean = false): void {
+    // Existing search rows can still refer to the imported ID after a
+    // successful link has replaced the corresponding shelf entry.
+    if (comicId.startsWith('mihon:')) {
+      void this.openMihonImportedWork(comicId, false)
+      return
+    }
     const comic = this.libraryStore.getComic(comicId)
     if (comic === undefined) {
       return
@@ -2574,16 +2577,57 @@ struct Index {
     }).finally((): void => { this.sourceManagerOpening = false })
   }
 
-  private async openMihonImportedWork(comicId: string, resume: boolean = true): Promise<boolean> {
-    const imported = this.libraryStore.listMihonImports().find((record: MihonImportRecord): boolean => record.id === comicId)
+  private async openMihonImportedWork(comicId: string, resume: boolean = true, fromHistory: boolean = false): Promise<boolean> {
+    let imported = this.libraryStore.listMihonImports().find((record: MihonImportRecord): boolean => record.id === comicId)
     if (imported === undefined) return false
+    // An exact edition can show its detail immediately. Its successful catalog
+    // load resolves the original progress with the same response.
+    if (!imported.targetComicId && (resume ? fromHistory || imported.linkedWork !== undefined ||
+      imported.matchedSourceId !== undefined : imported.linkedWork === undefined && imported.matchedSourceId !== undefined)) {
+      this.closeHistoryResumeLoading()
+      const generation = ++this.sourceReaderOpenRequest
+      const tab = this.selectedTab
+      const route = this.appPathStack.getAllPathName().join('/')
+      const current = (): boolean => generation === this.sourceReaderOpenRequest && this.selectedTab === tab &&
+        this.appPathStack.getAllPathName().join('/') === route && this.appForegroundState.active &&
+        (!fromHistory || this.rootNavigationVisible)
+      const timer = this.startHistoryResumeLoading(current,
+        resume ? $r('app.string.history_resume_loading') : $r('app.string.manga_detail_loading_source'))
+      try {
+        const service = new MihonImportService(getContext(this) as common.UIAbilityContext, this.libraryStore)
+        await service.retryFromHistory(comicId, current)
+      } catch (error) {
+        DiagnosticLogger.exception('backup', 'mihon_history_retry_failed', error as Error)
+      } finally {
+        if (this.historyResumeLoadingTimer === timer) this.closeHistoryResumeLoading()
+      }
+      if (!current()) return true
+      this.refreshMihonImport()
+      imported = this.libraryStore.listMihonImports().find((record: MihonImportRecord): boolean => record.id === comicId)
+      if (imported === undefined) {
+        this.showToast(AppStrings.get('mihon_import_resume_failed'))
+        return true
+      }
+    }
     const target = imported.targetComicId
     const existing = target === undefined ? undefined : this.libraryStore.getComic(target)
     const progress = target === undefined ? undefined : this.readerSessionStore.getProgress(target)
+    const paths = this.appPathStack.getAllPathName()
+    const top = paths.length - 1
+    const detail = paths[top] === RouteName.MANGA_DETAIL ?
+      this.appPathStack.getParamByIndex(top) as MangaDetailRouteParam | undefined : undefined
+    if (resume && (target !== undefined || imported.linkedWork !== undefined) &&
+      (detail?.mangaId === comicId || detail?.sourceId === 'mihon:' + imported.work.sourceId &&
+        detail.mangaId === (imported.work.url.trim() || comicId))) {
+      this.appPathStack.pop(false)
+    }
     if (existing !== undefined) {
       if (resume && progress !== undefined && existing.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
         await this.openReader(existing.id, progress.chapterId)
+      } else if (resume && imported.work.history.length === 0 && existing.chapters.length > 0) {
+        await this.openReader(existing.id)
       } else {
+        if (resume && imported.work.history.length > 0) this.showToast(AppStrings.get('mihon_import_resume_chapter_unmatched'))
         this.openLibraryMangaDetail(existing.id, !resume)
       }
     } else if (imported.linkedWork !== undefined) {
@@ -2591,11 +2635,19 @@ struct Index {
       const history = target === undefined ? undefined : this.readerSessionStore.getSourceHistory(target)
       const request = history !== undefined && history.chapterId === progress?.chapterId ?
         sourceReaderSessionRequestFromHistory(history) : undefined
-      if (resume && request !== undefined) await this.openSourceReader(request)
-      else RouterHelper.pushMangaDetail({ mangaId: work.id, sourceId: work.sourceId, initialManga: work }, true)
+      if (resume && request !== undefined) {
+        await this.openSourceReader(request)
+      } else if (detail?.sourceId !== work.sourceId || detail.mangaId !== work.id) {
+        if (resume && target !== undefined) this.showToast(AppStrings.get('mihon_import_resume_chapter_unmatched'))
+        RouterHelper.pushMangaDetail({ mangaId: work.id, sourceId: work.sourceId, initialManga: work,
+          mihonImportId: target === undefined ? comicId : undefined }, true)
+      } else if (resume) {
+        this.showToast(AppStrings.get(target === undefined ? 'mihon_import_resume_failed' : 'mihon_import_resume_chapter_unmatched'))
+      }
+    } else if (!resume) {
+      RouterHelper.pushMangaDetail({ mangaId: comicId }, true)
     } else {
       this.showToast(AppStrings.get('mihon_import_original_source_unmatched'))
-      const paths = this.appPathStack.getAllPathName()
       // A successful match removes the placeholder from the library. Retire
       // its detail route too when reading from it opened the matching flow.
       const fromDetail = paths[paths.length - 1] === RouteName.MANGA_DETAIL
@@ -3467,8 +3519,30 @@ struct Index {
           onBack: () => {
             this.appPathStack.pop(this.isReaderDetailRouteVisible())
           },
-          onOpenReader: (mangaId: string, chapterId?: string) => { void this.openReader(mangaId, chapterId) },
-          onOpenSourceReader: (request: SourceReaderSessionRequest) => { void this.openSourceReader(request) },
+          onOpenReader: (mangaId: string, chapterId?: string) => {
+            void this.openReader(mangaId, chapterId)
+          },
+          onOpenSourceReader: (request: SourceReaderSessionRequest) => {
+            const importedId = (param as MangaDetailRouteParam).mihonImportId
+            if (importedId !== undefined && this.libraryStore.listMihonImports().some((record: MihonImportRecord): boolean =>
+              record.id === importedId && !record.targetComicId)) void this.openMihonImportedWork(importedId)
+            else void this.openSourceReader(request)
+          },
+          onMihonCatalogReady: async (snapshot: SourceMangaDetailSnapshot, fingerprint: string,
+            isCurrent: () => boolean): Promise<boolean> => {
+            const importedId = (param as MangaDetailRouteParam).mihonImportId
+            if (importedId === undefined) return false
+            try {
+              const service = new MihonImportService(getContext(this) as common.UIAbilityContext, this.libraryStore)
+              if (!await service.linkOpenedCatalog(importedId, snapshot, fingerprint, isCurrent)) return false
+              this.refreshMihonImport()
+              return true
+            } catch (error) {
+              DiagnosticLogger.exception('backup', 'mihon_detail_restore_failed', error as Error)
+              if (isCurrent()) this.showToast(AppStrings.get('mihon_import_resume_failed'))
+              return false
+            }
+          },
           onOpenImportRequested: () => { this.openImport() },
           onRefreshLocalFolder: (comicId: string) => this.rescanLocalLibraryFolders(comicId),
           onLibraryChanged: () => { this.onMangaDetailLibraryChanged() },
@@ -4196,7 +4270,6 @@ struct Index {
                 active: this.selectedTab === TabIndex.LIBRARY && this.rootNavigationVisible,
                 libraryStore: this.libraryStore,
                 libraryPreferencesRevision: this.libraryPreferencesRevision,
-                libraryComics: this.libraryComics,
                 libraryRevision: this.libraryRevision,
                 readerSessionStore: this.readerSessionStore,
                 readerProgressRevision: this.readerProgressRevision,

@@ -1,24 +1,8 @@
 import { libraryUnreadBadgeOptions } from './LibraryUnreadBadge'
 import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { ComicSourceKind } from '../model/ComicModels'
-
-export interface ComicCoverInfo {
-  id: string
-  title: string
-  subtitle: string
-  unreadChapterCount?: number
-  coverColor: string
-  accentColor: string
-  pageCount?: number
-  coverUri?: string
-  sourceRuntimeId?: string
-  sourceImageId?: string
-  sourceMangaUrl?: string
-  sourceKind?: ComicSourceKind
-  remoteServerId?: string
-  categoryLabels?: string[]
-}
+import { ComicCoverInfo } from '../model/ComicModels'
+export { ComicCoverInfo } from '../model/ComicModels'
 
 @ComponentV2
 export struct ComicCoverCard {
@@ -35,6 +19,7 @@ export struct ComicCoverCard {
   @Param accentColor: string = ''
   @Param categoryLabels: string[] = []
   @Param selected: boolean = false
+  @Param unreadBadgeCount: number | undefined = undefined
   @Local private failedCoverUri: string = ''
   @Local private categoryMarqueeStarted: boolean = false
   private categoryMarqueeStartTimer: number = -1
@@ -126,7 +111,7 @@ export struct ComicCoverCard {
 
   build() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      Badge(libraryUnreadBadgeOptions(this.comic.unreadChapterCount, this.displayAccentColor())) {
+      Badge(libraryUnreadBadgeOptions(this.unreadBadgeCount ?? this.comic.unreadChapterCount, this.displayAccentColor())) {
         Stack() {
           this.CoverPlaceholder()
 

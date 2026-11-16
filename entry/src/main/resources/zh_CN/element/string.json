@@ -41,6 +41,8 @@
     { "name": "mihon_import_history", "value": "阅读历史" },
     { "name": "mihon_import_find_work", "value": "查找作品" },
     { "name": "mihon_import_original_source_unmatched", "value": "原书源未匹配" },
+    { "name": "mihon_import_resume_chapter_unmatched", "value": "未找到原章节，请从目录选择章节。" },
+    { "name": "mihon_import_resume_failed", "value": "暂时无法恢复阅读位置，请重试。" },
     { "name": "mihon_import_merge_note", "value": "合并书架和阅读记录。找不到对应书源的作品也会保留。" },
     { "name": "mihon_import_finished", "value": "Mihon 备份已导入" },
     { "name": "mihon_import_unnamed_source", "value": "Mihon 书源 %s" },

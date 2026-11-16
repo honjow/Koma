@@ -33,18 +33,25 @@ export interface PreparedMangaMigration {
   settingsRevision: string
 }
 
+export function mangaMigrationComicFromCatalog(sourceId: string, mangaId: string,
+  snapshot: SourceMangaDetailSnapshot, settingsFingerprint: string): Comic {
+  const detail = snapshot.detail
+  const comic = comicFromSourceManga(detail, snapshot.chapters, sourceLibraryComicId(sourceId, mangaId))
+  setCompleteSourceChapterCatalog(comic, snapshot.chapters.map((chapter: MangaChapterItem): string => chapter.id), Date.now())
+  if (comic.sourceMetadata !== undefined) {
+    comic.sourceMetadata.excludedChapterIds = snapshot.excludedChapterIds
+    comic.sourceMetadata.settingsFingerprint = settingsFingerprint
+  }
+  return comic
+}
+
 function preparedMigrationFromSnapshot(
   manga: SourceManga, entry: SourceRuntimeRegistryEntry, settingsRevision: string,
   settings: SourceSettingsRecord, snapshot: SourceMangaDetailSnapshot,
 ): PreparedMangaMigration {
   const detail = snapshot.detail
   detail.chapterCount = snapshot.chapters.length
-  const comic = comicFromSourceManga(detail, snapshot.chapters, sourceLibraryComicId(manga.sourceId, manga.id))
-  setCompleteSourceChapterCatalog(comic, snapshot.chapters.map((chapter: MangaChapterItem): string => chapter.id), Date.now())
-  if (comic.sourceMetadata !== undefined) {
-    comic.sourceMetadata.excludedChapterIds = snapshot.excludedChapterIds
-    comic.sourceMetadata.settingsFingerprint = sourceSettingsFingerprint(settings)
-  }
+  const comic = mangaMigrationComicFromCatalog(manga.sourceId, manga.id, snapshot, sourceSettingsFingerprint(settings))
   return { manga, detail, chapters: snapshot.chapters, comic, entry, settingsRevision }
 }
 

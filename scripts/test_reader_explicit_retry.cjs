@@ -225,6 +225,35 @@ test('a deferred-page failure leaves body reading available and its explicit ret
   assert.deepEqual(calls, [[1, false], [0, false], [1, true], [1, false]])
 })
 
+test('an automatic image retry keeps the current page when refreshing its chapter fails over the network', async () => {
+  class SourceRuntimeError extends Error {
+    diagnostic = { kind: 'network' }
+  }
+  const kinds = { REMOTE_URL_IMAGE: 'remote', URI_PLACEHOLDER: 'placeholder', SOURCE_TEXT_REQUEST: 'text' }
+  const Reader = methods('readerLab/KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter', ['load', 'recoverableImageFailure'], {
+    ReaderPageRenderKind: kinds, ReaderProcessingCancellation: class {},
+    MAX_AUTOMATIC_PAGE_RETRIES: 3, AUTOMATIC_PAGE_RETRY_DELAY_MS: [300, 600, 1200],
+    DiagnosticLogger: { info() {} }, SourceRuntimeError,
+    ReaderAsset: class { constructor(uri) { this.uri = uri } }, KomaReaderFileInformation: class {},
+    KomaReaderCropSource: class {}, prepareReaderDisplayImage: async file => file,
+  })
+  const reader = new Reader(), requests = []
+  const source = { kind: kinds.REMOTE_URL_IMAGE, sourceRuntimeId: 'online-source', imageUri: 'https://images.example/page.jpg' }
+  Object.assign(reader, { closed: false, sources: new Map([['unit', [source]]]),
+    unitId: () => 'unit', automaticPageRetries: new Map(), automaticallyRefreshedUnits: new Set(),
+    authenticationNotice: () => null, automaticPaging: () => false, delayAutomaticPageRetry: async () => {},
+    refreshPageSources: async () => { throw new SourceRuntimeError('catalog transport failed') },
+    sourceFile: async (_unit, _index, refresh) => {
+      requests.push(refresh)
+      if (!refresh) throw new Error('reader_remote_image_fetch_failed_2300018')
+      return '/cache/recovered-page.jpg'
+    },
+  })
+  const page = { unit: target, sourceIndex: 0, key: 'page' }
+  assert.equal((await reader.load(page, 'original', cancel, false)).uri, 'file:///cache/recovered-page.jpg')
+  assert.deepEqual(requests, [false, true])
+})
+
 // Load the actual descriptor resolver, with worker/network ports controlled in memory.
 function sourceImageRequestSubject(ports) {
   const file = 'model/ReaderPageSourceAdapter.ets'

@@ -60,12 +60,14 @@ export interface LibraryListOptions {
 export interface LibraryStore {
   listMihonImports(): MihonImportRecord[]
   replaceMihonImports(records: MihonImportRecord[]): void
+  updateMihonImports(records: MihonImportRecord[]): void
   listSyncShelfMoves(): SyncLocalShelfMove[]
   replaceSyncShelfMoves(moves: SyncLocalShelfMove[]): void
   listSmartCategories(): LibrarySmartCategory[]
   replaceSmartCategories(categories: LibrarySmartCategory[]): void
   getComic(comicId: ComicId): Comic | undefined
   findByRemote(serverId: string, resourceId: string): Comic | undefined
+  findBySourceManga(sourceId: string, mangaId: string): Comic | undefined
   listComics(sortByTitle?: boolean): Comic[]
   listLibraryItems(progressByComicId?: Map<ComicId, ReadingProgress>, options?: LibraryListOptions): LibraryItem[]
   addComic(comic: Comic): void
@@ -121,6 +123,14 @@ export class InMemoryLibraryStore implements LibraryStore {
 
   replaceMihonImports(records: MihonImportRecord[]): void { this.mihonImports = records.slice() }
 
+  updateMihonImports(records: MihonImportRecord[]): void {
+    if (records.length === 0) return
+    const updates = new Map<string, MihonImportRecord>(records.map((record): [string, MihonImportRecord] =>
+      [record.id, record]))
+    this.mihonImports = this.mihonImports.map((record: MihonImportRecord): MihonImportRecord =>
+      updates.get(record.id) ?? record)
+  }
+
   listSyncShelfMoves(): SyncLocalShelfMove[] { return this.syncShelfMoves.slice() }
 
   replaceSyncShelfMoves(moves: SyncLocalShelfMove[]): void { this.syncShelfMoves = moves.slice() }
@@ -153,18 +163,27 @@ export class InMemoryLibraryStore implements LibraryStore {
     })
   }
 
+  findBySourceManga(sourceId: string, mangaId: string): Comic | undefined {
+    let found: Comic | undefined
+    for (const comic of this.comics.values()) {
+      if (comic.sourceRuntimeId !== sourceId || comic.remoteResourceId !== mangaId) continue
+      // Preserve the old title-sorted choice for duplicate legacy records.
+      // New editions do not need to sort the entire shelf to detect a miss.
+      if (found === undefined || this.compareTitles(comic, found) < 0) found = comic
+    }
+    return found
+  }
+
+  private compareTitles(a: Comic, b: Comic): number {
+    return a.sortTitle.localeCompare(b.sortTitle) || a.createdAt - b.createdAt
+  }
+
   listComics(sortByTitle: boolean = true): Comic[] {
     const comics = Array.from(this.comics.values())
     // Search takes a shallow snapshot and performs the same ordering in its
     // worker. Ordinary consumers retain the established sorted list.
     if (!sortByTitle) return comics
-    return comics.sort((a: Comic, b: Comic) => {
-      const titleCompare = a.sortTitle.localeCompare(b.sortTitle)
-      if (titleCompare !== 0) {
-        return titleCompare
-      }
-      return a.createdAt - b.createdAt
-    })
+    return comics.sort((a: Comic, b: Comic): number => this.compareTitles(a, b))
   }
 
   listLibraryItems(progressByComicId?: Map<ComicId, ReadingProgress>, options?: LibraryListOptions): LibraryItem[] {

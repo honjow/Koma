@@ -5,6 +5,8 @@ import { ActionBarButton, ActionBarStyle, BottomBuilderShowType, HdsActionBar } 
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { comicFromSourceManga, sourceLibraryComicId } from '../model/SourceLibraryComic'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
+import { MihonImportRecord } from '../model/MihonBackupReader'
+import { mihonPlaceholder } from '../model/MihonImportPlanning'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, TrackerSearchTitleFieldContentBuilder } from '../components/SearchTitleField'
@@ -69,7 +71,7 @@ import {
   parseMangaChapterFromSourceItem,
   parseMangaDetailFromSourceItem,
 } from '../model/MangaDetailModels'
-import { sourceMangaDetailSnapshotCache } from '../model/SourceMangaDetailSnapshotCache'
+import { SourceMangaDetailSnapshot, sourceMangaDetailSnapshotCache } from '../model/SourceMangaDetailSnapshotCache'
 import { sourceMangaDetailSnapshotPersistence } from '../model/SourceMangaDetailSnapshotPersistence'
 import { sourceChapterDisplayRows } from '../model/SourceChapterVisibility'
 import { resolveSourceChapterList } from '../model/SourceChapterListResolver'
@@ -159,6 +161,7 @@ interface MangaDetailRouteParams {
   sourceId?: string
   sourceName?: string
   initialManga?: SourceManga
+  mihonImportId?: string
 }
 
 interface DetailReadActionPresentation {
@@ -426,6 +429,8 @@ export struct MangaDetailPage {
   @Event onBack: () => void = () => {}
   @Event onOpenReader: (mangaId: string, chapterId?: string) => void = (_mangaId: string, _chapterId?: string) => {}
   @Event onOpenSourceReader: (request: SourceReaderSessionRequest) => void = (_request: SourceReaderSessionRequest) => {}
+  @Event onMihonCatalogReady: (snapshot: SourceMangaDetailSnapshot, settingsFingerprint: string,
+    isCurrent: () => boolean) => Promise<boolean> = async () => false
   @Event onOpenImportRequested: () => void = () => {}
   @Event onRefreshLocalFolder: (comicId: string) => Promise<LocalLibraryFolderRescanActionResult | undefined> =
     async (_comicId: string) => undefined
@@ -1043,7 +1048,10 @@ export struct MangaDetailPage {
   }
 
   private loadLocalOrMissingManga(mangaId?: string): void {
-    const comic = mangaId === undefined || this.libraryStore === undefined ? undefined : this.libraryStore.getComic(mangaId)
+    const stored = mangaId === undefined ? undefined : this.libraryStore?.getComic(mangaId)
+    const pending = stored === undefined && mangaId?.startsWith('mihon:') ?
+      this.libraryStore?.listMihonImports().find((record: MihonImportRecord): boolean => record.id === mangaId) : undefined
+    const comic = stored ?? (pending === undefined ? undefined : mihonPlaceholder(pending))
     if (comic === undefined) {
       // The sentinel is only a definitive invalid/missing local route. It is never used as a source
       // request's initial or failure value.
@@ -1062,7 +1070,7 @@ export struct MangaDetailPage {
     this.chapters = this.decorateChapterStates(
       comic.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter, comic.sourceKind))
     )
-    this.isInLibrary = true
+    this.isInLibrary = stored !== undefined
     this.sourceDetailDataResolved = true
     this.sourceDetailContentState = SourceDetailContentState.LOCAL
     this.feedbackText = ''
@@ -1177,6 +1185,12 @@ export struct MangaDetailPage {
     this.localMetadataCoverPath = ''
   }
 
+  private hasPendingMihonEdition(): boolean {
+    const id = this.params.mihonImportId
+    return id !== undefined && this.libraryStore?.listMihonImports().some((record: MihonImportRecord): boolean =>
+      record.id === id && !record.targetComicId && record.linkedWork !== undefined) === true
+  }
+
   private async loadSourceMangaDetail(sourceId: string, mangaId: string, forceReload: boolean = false,
     automaticRecovery: boolean = false, retryStage: 'detail' | 'chapters' = 'detail'): Promise<void> {
     this.closeDetailWebChallenge()
@@ -1216,6 +1230,8 @@ export struct MangaDetailPage {
       this.sourceDetailSettingsFingerprint = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
       const cached = forceReload ? undefined : sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId,
         this.sourceMangaRouteUrl(sourceId, mangaId), this.sourceDetailSettingsFingerprint)
+      const isCurrent = (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)
+      const pendingMihonEdition = this.hasPendingMihonEdition()
       // A complete catalog already shown for this route needs no request on
       // entry. A synced list of IDs is insufficient unless every row exists
       // locally and it was resolved with the current source settings.
@@ -1229,6 +1245,11 @@ export struct MangaDetailPage {
           ids.every((id: string): boolean => localIds.has(id))
         if (cached?.chaptersResolved === true || completeSavedCatalog) {
           this.sourceChaptersResolved = true
+          if (pendingMihonEdition && cached?.chaptersResolved === true && cached.chapters.length > 0) {
+            await this.onMihonCatalogReady(cached, this.sourceDetailSettingsFingerprint, isCurrent)
+            if (isCurrent()) this.applySourceMangaDetail(requestEpoch, lookup.entry, sourceId, mangaId,
+              cached.detail, cached.chapters, '', SourceDetailContentState.READY, false, cached.excludedChapterIds)
+          }
           return
         }
       }
@@ -1326,6 +1347,11 @@ export struct MangaDetailPage {
       if (!chaptersLoadFailed) {
         detail.chapterCount = chapters.length
         detail.sourceName = lookup.entry.manifestName
+        if (pendingMihonEdition && this.sourceChaptersResolved && chapters.length > 0) {
+          await this.onMihonCatalogReady({ detail, chapters, chaptersResolved: true, excludedChapterIds },
+            this.sourceDetailSettingsFingerprint, isCurrent)
+          if (!isCurrent()) return
+        }
       }
       const applied = this.applySourceMangaDetail(
         requestEpoch,
@@ -1430,7 +1456,8 @@ export struct MangaDetailPage {
       this.isInLibrary = libraryComic !== undefined
       this.sourceDetailDataResolved = true
       this.sourceChaptersResolved = true
-      this.sourceDetailContentState = SourceDetailContentState.READY
+      this.sourceDetailContentState = this.hasPendingMihonEdition() ?
+        SourceDetailContentState.LOADING : SourceDetailContentState.READY
       this.feedbackText = ''
       return
     }
@@ -1836,9 +1863,7 @@ export struct MangaDetailPage {
     if (normalizedSourceId.length === 0 || normalizedMangaId.length === 0) {
       return undefined
     }
-    return this.libraryStore?.listComics().find((comic: Comic): boolean => {
-      return comic.sourceRuntimeId === normalizedSourceId && comic.remoteResourceId === normalizedMangaId
-    })
+    return this.libraryStore?.findBySourceManga(normalizedSourceId, normalizedMangaId)
   }
 
   @Computed

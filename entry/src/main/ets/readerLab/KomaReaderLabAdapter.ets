@@ -746,17 +746,21 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
         DiagnosticLogger.info('reader', 'automatic_page_retry',
           `attempt=${retries}/${MAX_AUTOMATIC_PAGE_RETRIES} delay=${AUTOMATIC_PAGE_RETRY_DELAY_MS[retries - 1]} reason=${(error as Error).message}`)
         const unitId = this.unitId(page.unit)
-        if (retries === 1) {
-          if (!this.automaticallyRefreshedUnits.has(unitId)) {
+        try {
+          if (retries === 1 && !this.automaticallyRefreshedUnits.has(unitId)) {
             this.automaticallyRefreshedUnits.add(unitId)
             await this.refreshPageSources(page.unit, cancellation)
           } else {
             // Neighbour failures join the same fresh plan, rather than refetching the chapter per image.
             await this.refreshingSources.get(unitId)
           }
-        } else {
-          const pending = this.refreshingSources.get(unitId)
-          if (pending !== undefined) await pending
+        } catch (refreshError) {
+          cancellation.check()
+          if (!(refreshError instanceof SourceRuntimeError) || refreshError.diagnostic.kind !== 'network') {
+            throw refreshError as Error
+          }
+          // The current chapter plan still contains the same page. A temporary
+          // catalog failure must let an automatic retry use that address again.
         }
         cancellation.check()
         if (this.closed) throw new Error('closed_koma_reader')

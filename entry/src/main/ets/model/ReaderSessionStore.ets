@@ -1064,6 +1064,20 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.restoreSnapshot(true, snapshot)
   }
 
+  /** A committed Mihon link only replaces the affected works' recent records
+   * and upserts their chapter states. The restore transaction flushed writes. */
+  applyCommittedMihonLinks(comicIds: string[], snapshot: ReaderSessionDocumentSnapshot): void {
+    for (const id of comicIds) {
+      this.progressByComicId.delete(id)
+      this.sourceHistoryByComicId.delete(id)
+    }
+    for (const progress of snapshot.progress) this.progressByComicId.set(progress.comicId, progress)
+    for (const history of snapshot.sourceHistory) this.sourceHistoryByComicId.set(history.comicId, history)
+    for (const chapter of snapshot.chapters) {
+      this.chapterStates.set(chapterStateKey(chapter.comicId, chapter.chapterId), chapter)
+    }
+  }
+
   restoreReadingState(snapshot: ReaderSessionReadingSnapshot): void {
     this.progressByComicId.clear()
     snapshot.progress.forEach((progress: ReadingProgress): void => {

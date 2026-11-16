@@ -27,8 +27,8 @@ import {
   ContinueReadingCardViewModel,
   LibraryComicPresentation,
   LibraryPresentationByComicId,
-  LibraryViewModel,
-  createLibraryViewModelFromComics,
+  createLibraryComicCard,
+  createLibraryContinueReadingCard,
 } from '../model/MockLibraryData'
 import {
   Chapter,
@@ -234,7 +234,6 @@ export interface LibraryTitleBarPresentation {
 @ComponentV2
 export struct LibraryPage {
   @Param libraryStore: LibraryStore = new InMemoryLibraryStore()
-  @Param libraryComics: Comic[] = []
   @Param libraryRevision: number = 0
   @Param libraryPreferencesRevision: number = 0
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
@@ -383,16 +382,10 @@ export struct LibraryPage {
       () => [{ id: key, items: this.titleMenuItems(key) }], () => { this.showToast(s('common_unavailable')) })
   }
 
-  @Monitor('libraryComics', 'libraryRevision')
+  // Mihon links publish shelf and progress together. Project that committed
+  // state once when the shelf is visible, including when returning to it.
+  @Monitor('libraryRevision', 'readerSessionStore', 'readerProgressRevision', 'active')
   private syncDisplayedSnapshotFromProps(): void {
-    if (!this.active) return
-    this.refreshDisplayedSnapshotFromStore()
-    this.displayedRevision = this.libraryRevision
-    this.removeMissingSelectedComics()
-  }
-
-  @Monitor('active')
-  private onActiveChanged(): void {
     if (!this.active) return
     this.refreshDisplayedSnapshotFromStore()
   }
@@ -401,13 +394,6 @@ export struct LibraryPage {
   private onRemoteProgressSyncRevChanged(): void {
     void this.remoteProgress.syncRevision
     this.onProgressStoreReloadRequested()
-  }
-
-  @Monitor('readerSessionStore', 'readerProgressRevision')
-  private onReaderProgressSnapshotChanged(): void {
-    if (!this.active) return
-    void this.readerProgressRevision
-    this.refreshDisplayedSnapshotFromStore()
   }
 
   @Monitor('libraryPreferencesRevision')
@@ -582,7 +568,7 @@ export struct LibraryPage {
 
   private progressByComicId(): Map<ComicId, ReadingProgress> {
     const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
-    this.libraryStore.listComics().forEach((comic: Comic) => {
+    this.libraryStore.listComics(false).forEach((comic: Comic) => {
       const progress = this.readerSessionStore.getComicProgress(comic)
       if (progress !== undefined) {
         progressByComicId.set(comic.id, progress)
@@ -961,32 +947,17 @@ export struct LibraryPage {
   }
 
   @Computed
-  private get displayedLibraryViewModel(): LibraryViewModel {
-    // Keep the shelf projection tied to the snapshots that can change it. The
-    // previous helper rebuilt every card and scanned the whole library once per
-    // caller, including repeated calls from the same build pass.
-    void this.displayedRevision
-    void this.readerProgressRevision
-    void this.languageState.effectiveLocale
-    return createLibraryViewModelFromComics(this.displayedComics, this.readerSessionStore, this.presentationByComicId)
-  }
-
-  @Computed
   private get continueReadingCard(): ContinueReadingCardViewModel {
     // This card intentionally considers the complete shelf, not the filtered
     // projection. Cache that independent scan across header/layout builders.
     void this.libraryRevision
     void this.readerProgressRevision
     void this.languageState.effectiveLocale
-    return createLibraryViewModelFromComics(
+    return createLibraryContinueReadingCard(
       this.libraryStore.listComics(),
       this.readerSessionStore,
       this.presentationByComicId,
-    ).continueReading
-  }
-
-  private viewModel(): LibraryViewModel {
-    return this.displayedLibraryViewModel
+    )
   }
 
   private continueReading(): ContinueReadingCardViewModel {
@@ -995,30 +966,6 @@ export struct LibraryPage {
 
   private hasContinueReading(): boolean {
     return this.continueReadingCard.comicId.length > 0
-  }
-
-  private gridComics(): ComicCoverInfo[] {
-    return this.viewModel().comics.map((comic: ComicCoverInfo): ComicCoverInfo => {
-      const sourceComic = this.libraryStore.getComic(comic.id)
-      return {
-        id: comic.id,
-        title: comic.title,
-        subtitle: comic.subtitle,
-        unreadChapterCount: comic.unreadChapterCount,
-        coverColor: comic.coverColor,
-        accentColor: comic.accentColor,
-        pageCount: comic.pageCount,
-        coverUri: comic.coverUri,
-        sourceRuntimeId: comic.sourceRuntimeId,
-        sourceMangaUrl: comic.sourceMangaUrl ?? sourceComic?.sourcePath,
-        sourceImageId: comic.sourceImageId ?? sourceComic?.remoteResourceId ?? comic.id,
-        sourceKind: comic.sourceKind ?? sourceComic?.sourceKind,
-        remoteServerId: comic.remoteServerId ?? sourceComic?.remoteServerId,
-        categoryLabels: this.showLibraryBadges ?
-          (sourceComic === undefined ? comic.categoryLabels : this.categoryLabelsForComic(sourceComic)) :
-          [],
-      }
-    })
   }
 
   private listRowSubtitle(comic: ComicCoverInfo): string {
@@ -1030,24 +977,42 @@ export struct LibraryPage {
 
   @Computed
   private get gridProjection(): LibraryGridProjection {
-    // The stores are not observed objects; these existing revisions invalidate
-    // same-ID progress/metadata alongside the observed displayed array.
     void this.displayedRevision
-    void this.readerProgressRevision
     void this.languageState.effectiveLocale
-    const comics = this.gridComics()
+    const categoryNames = new Map<string, string>()
+    if (this.showLibraryBadges) {
+      this.libraryStore.listCustomCategories().forEach((category: CustomLibraryCategory): void => {
+        categoryNames.set(category.id, category.name)
+      })
+    }
+    const comics: ComicCoverInfo[] = []
     const byId = new Map<ComicId, ComicCoverInfo>()
     const indexById = new Map<ComicId, number>()
-    comics.forEach((comic: ComicCoverInfo, index: number) => {
-      byId.set(comic.id, comic)
+    this.displayedComics.forEach((comic: Comic, index: number) => {
+      const labels: string[] = []
+      if (categoryNames.size > 0) {
+        normalizeCategoryIds(comic.categoryIds).forEach((id: string): void => {
+          const name = categoryNames.get(id)
+          if (name !== undefined) labels.push(name)
+        })
+      }
+      // Repeat observes the cover, not the underlying chapter and page arrays.
+      const row = createLibraryComicCard(comic, this.presentationByComicId.get(comic.id), labels)
+      comics.push(row)
+      byId.set(comic.id, row)
       indexById.set(comic.id, index)
     })
-    return { comics: comics, byId: byId, indexById: indexById }
+    return { comics, byId, indexById }
   }
 
-  private currentGridComic(original: ComicCoverInfo): ComicCoverInfo {
-    // A removed cell can finish unbinding with its real prior identity.
-    return this.gridProjection.byId.get(original.id) ?? original
+  private currentGridComic(comic: ComicCoverInfo): ComicCoverInfo {
+    return this.gridProjection.byId.get(comic.id) ?? comic
+  }
+
+  private unreadForCover(comicId: ComicId): number | undefined {
+    void this.readerProgressRevision
+    const comic = this.libraryStore.getComic(comicId)
+    return comic === undefined ? undefined : this.readerSessionStore.unreadChapterCount(comic)
   }
 
   private libraryViewportWidth(): number {
@@ -1134,16 +1099,6 @@ export struct LibraryPage {
     return 68
   }
 
-  private categoryLabelsForComic(comic: Comic): string[] {
-    const labels: string[] = []
-    const customCategories = this.libraryStore.listCustomCategories()
-    normalizeCategoryIds(comic.categoryIds).forEach((categoryId: string) => {
-      const customCategory = customCategories.find((category: CustomLibraryCategory): boolean => category.id === categoryId)
-      if (customCategory !== undefined) labels.push(customCategory.name)
-    })
-    return labels
-  }
-
   private privateServerFilterOptions(): LibraryServerSourceFilterOption[] {
     const seenFilters: string[] = []
     const options: LibraryServerSourceFilterOption[] = []
@@ -1222,7 +1177,7 @@ export struct LibraryPage {
   }
 
   private hasLibraryContent(): boolean {
-    return this.displayedRevision >= 0 && this.libraryStore.listComics().length > 0
+    return this.displayedRevision >= 0 && this.libraryStore.listComics(false).length > 0
   }
 
   private hasVisibleLibraryContent(): boolean {
@@ -1235,14 +1190,6 @@ export struct LibraryPage {
 
   private canSelectComic(comicId: ComicId): boolean {
     return this.displayedRevision >= 0 && this.libraryStore.getComic(comicId) !== undefined
-  }
-
-  private comicRenderKey(comic: ComicCoverInfo): string {
-    return comic.id
-  }
-
-  private listRowRenderKey(comic: ComicCoverInfo): string {
-    return `list:${comic.id}`
   }
 
   private removeMissingSelectedComics(): void {
@@ -1358,7 +1305,7 @@ export struct LibraryPage {
 
   private selectAllVisibleComics(): void {
     const nextSelectedIds = new Set<ComicId>()
-    this.gridComics().forEach((comic: ComicCoverInfo) => {
+    this.displayedComics.forEach((comic: Comic) => {
       if (this.canSelectComic(comic.id)) {
         nextSelectedIds.add(comic.id)
       }
@@ -2019,6 +1966,7 @@ export struct LibraryPage {
     Stack({ alignContent: Alignment.TopEnd }) {
       ComicCoverCard({
         comic: params.comic,
+        unreadBadgeCount: this.unreadForCover(params.comic.id),
         title: params.comic.title,
         subtitle: params.comic.subtitle,
         coverColor: params.comic.coverColor,
@@ -2076,14 +2024,14 @@ export struct LibraryPage {
     const headerCount = this.hasContinueReading() ? 3 : 2
     const irregularIndexes: number[] = []
     for (let index = 0; index < headerCount; index += 1) irregularIndexes.push(index)
-    irregularIndexes.push(headerCount + this.gridProjection.comics.length)
+    irregularIndexes.push(headerCount + this.displayedComics.length)
     return { regularSize: [1, 1], irregularIndexes: irregularIndexes }
   }
 
   private libraryGridCellBottomPadding(comicId: ComicId): number {
     const index = this.gridProjection.indexById.get(comicId) ?? 0
     const count = this.libraryGridColumnCount()
-    const lastRowStart = Math.floor((this.gridProjection.comics.length - 1) / count) * count
+    const lastRowStart = Math.floor((this.displayedComics.length - 1) / count) * count
     return index >= lastRowStart ? ThemeConstants.SPACE_LG : this.libraryGridRowGap()
   }
 
@@ -2121,13 +2069,16 @@ export struct LibraryPage {
         .padding({ bottom: ThemeConstants.SPACE_LG })
         .clip(false)
 
-      ForEach(this.gridProjection.comics, (comic: ComicCoverInfo) => {
-        GridItem() {
-          this.LibraryGridCell({ comic: this.currentGridComic(comic) })
-        }
-        .padding({ bottom: this.libraryGridCellBottomPadding(comic.id) })
-        .clip(false)
-      }, (comic: ComicCoverInfo) => this.comicRenderKey(comic))
+      Repeat<ComicCoverInfo>(this.gridProjection.comics)
+        .each((row: RepeatItem<ComicCoverInfo>) => {
+          GridItem() {
+            this.LibraryGridCell({ comic: this.currentGridComic(row.item) })
+          }
+          .padding({ bottom: this.libraryGridCellBottomPadding(row.item.id) })
+          .clip(false)
+        })
+        .key((comic: ComicCoverInfo): string => comic.id)
+        .virtualScroll()
 
       GridItem() {
         Column() {
@@ -2187,7 +2138,7 @@ export struct LibraryPage {
 
   @Builder
   private LibraryListCover(comic: ComicCoverInfo) {
-    Badge(libraryUnreadBadgeOptions(comic.unreadChapterCount, comic.accentColor)) {
+    Badge(libraryUnreadBadgeOptions(this.unreadForCover(comic.id), comic.accentColor)) {
       Stack({ alignContent: Alignment.Center }) {
         if (this.shouldShowCoverUri(
           comic.coverUri,
@@ -2232,68 +2183,78 @@ export struct LibraryPage {
 
   @Builder
   private LibraryList() {
-    Column({ space: this.libraryListSpace() }) {
-      ForEach(this.gridProjection.comics, (comic: ComicCoverInfo) => {
-        Row({ space: ThemeConstants.SPACE_SM }) {
-          ConciseListRow({
-            title: comic.title,
-            subtitle: this.listRowSubtitle(comic),
-            showChevron: false,
-            prefixActsAsLeading: true,
-            isEnabled: !this.selectionMode || this.canSelectComic(comic.id),
-            action: () => {
-              this.handleComicClick(comic.id)
-            },
-            prefixBuilderParam: () => {
-              this.LibraryListCover(this.currentGridComic(comic))
-            },
-          })
-            .layoutWeight(1)
-            .onTouch((event: TouchEvent) => {
-              this.handleComicTouch(comic.id, event)
-            })
-            .priorityGesture(GestureGroup(GestureMode.Exclusive,
-              LongPressGesture({ fingers: 1, repeat: false, duration: 500 })
-                .onAction(() => {
-                  this.enterSelectionMode(comic.id)
-                }),
-              TapGesture()
-                .onAction(() => {
-                  this.handleComicClick(comic.id)
-                })
-            ))
-
-          if (this.selectionMode) {
-            this.ComicSelectionCheckbox({ comic: comic, onCover: false })
-          } else if (this.canRemoveComic(comic.id)) {
-            KomaIconButton({
-              icon: $r('sys.symbol.ellipsis_circle'),
-              kind: 'secondary',
-              controlSize: ThemeConstants.TOUCH_TARGET_SM,
-              iconSize: ThemeConstants.FONT_SIZE_H3,
-              action: () => {
-                this.comicActionMenuKey = `list:${comic.id}`
-              },
-            })
-              .margin({ right: ThemeConstants.SPACE_SM })
-              .bindMenu(this.comicActionMenuKey === `list:${comic.id}`, this.ComicActionMenu({ comic: comic }), komaMenuOptions({
-                placement: Placement.BottomRight,
-                onDisappear: () => {
-                  if (this.comicActionMenuKey === `list:${comic.id}`) {
-                    this.comicActionMenuKey = ''
-                  }
-                },
-              }))
+    ListItemGroup({ space: this.libraryListSpace() }) {
+      Repeat<ComicCoverInfo>(this.gridProjection.comics)
+        .each((row: RepeatItem<ComicCoverInfo>) => {
+          ListItem() {
+            this.LibraryListRow(row.item)
           }
-        }
-        .width('100%')
-        .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-        .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
-        .backgroundColor(this.isComicSelected(comic.id) ? ThemeConstants.SOFT_TINT : ThemeConstants.CARD)
-        .alignItems(VerticalAlign.Center)
-      }, (comic: ComicCoverInfo) => this.listRowRenderKey(comic))
+        })
+        .key((comic: ComicCoverInfo): string => `list:${comic.id}`)
+        .virtualScroll()
     }
     .width('100%')
+  }
+
+  @Builder
+  private LibraryListRow(comic: ComicCoverInfo) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      ConciseListRow({
+        title: comic.title,
+        subtitle: this.listRowSubtitle(comic),
+        showChevron: false,
+        prefixActsAsLeading: true,
+        isEnabled: !this.selectionMode || this.canSelectComic(comic.id),
+        action: () => {
+          this.handleComicClick(comic.id)
+        },
+        prefixBuilderParam: () => {
+          this.LibraryListCover(comic)
+        },
+      })
+        .layoutWeight(1)
+        .onTouch((event: TouchEvent) => {
+          this.handleComicTouch(comic.id, event)
+        })
+        .priorityGesture(GestureGroup(GestureMode.Exclusive,
+          LongPressGesture({ fingers: 1, repeat: false, duration: 500 })
+            .onAction(() => {
+              this.enterSelectionMode(comic.id)
+            }),
+          TapGesture()
+            .onAction(() => {
+              this.handleComicClick(comic.id)
+            })
+        ))
+
+      if (this.selectionMode) {
+        this.ComicSelectionCheckbox({ comic: comic, onCover: false })
+      } else if (this.canRemoveComic(comic.id)) {
+        KomaIconButton({
+          icon: $r('sys.symbol.ellipsis_circle'),
+          kind: 'secondary',
+          controlSize: ThemeConstants.TOUCH_TARGET_SM,
+          iconSize: ThemeConstants.FONT_SIZE_H3,
+          action: () => {
+            this.comicActionMenuKey = `list:${comic.id}`
+          },
+        })
+          .margin({ right: ThemeConstants.SPACE_SM })
+          .bindMenu(this.comicActionMenuKey === `list:${comic.id}`, this.ComicActionMenu({ comic: comic }), komaMenuOptions({
+            placement: Placement.BottomRight,
+            onDisappear: () => {
+              if (this.comicActionMenuKey === `list:${comic.id}`) {
+                this.comicActionMenuKey = ''
+              }
+            },
+          }))
+      }
+    }
+    .width('100%')
+    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+    .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
+    .backgroundColor(this.isComicSelected(comic.id) ? ThemeConstants.SOFT_TINT : ThemeConstants.CARD)
+    .alignItems(VerticalAlign.Center)
   }
 
   private applyFilterPreferences(preferencesValue: LibraryFilterPreferences): void {
@@ -2393,9 +2354,7 @@ export struct LibraryPage {
           }
 
           if (this.hasVisibleLibraryContent()) {
-            ListItem() {
-              this.LibraryList()
-            }
+            this.LibraryList()
           } else if (!this.hasCategoryContents && this.filterCategory !== 'all') {
             ListItem() {
               this.EmptyCategory()

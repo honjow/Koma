@@ -41,6 +41,8 @@
     { "name": "mihon_import_history", "value": "Reading history" },
     { "name": "mihon_import_find_work", "value": "Find work" },
     { "name": "mihon_import_original_source_unmatched", "value": "Original source was not matched" },
+    { "name": "mihon_import_resume_chapter_unmatched", "value": "Original chapter was not found. Choose a chapter from the list." },
+    { "name": "mihon_import_resume_failed", "value": "Could not recover the reading position. Try again." },
     { "name": "mihon_import_merge_note", "value": "Merge shelf and reading data, including works whose sources could not be matched." },
     { "name": "mihon_import_finished", "value": "Mihon backup imported" },
     { "name": "mihon_import_unnamed_source", "value": "Mihon source %s" },

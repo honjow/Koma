@@ -1,6 +1,7 @@
 import {
   Chapter,
   Comic,
+  ComicCoverInfo,
   ComicId,
   ComicSourceKind,
   LIBRARY_CATEGORY_FAVORITE_ID,
@@ -28,20 +29,8 @@ export interface MockLibraryComic {
   readerSession?: ReaderSessionConfig
 }
 
-export interface LibraryComicCardViewModel {
-  id: ComicId
-  title: string
-  subtitle: string
-  unreadChapterCount?: number
-  coverColor: string
-  accentColor: string
+export interface LibraryComicCardViewModel extends ComicCoverInfo {
   pageCount: number
-  coverUri?: string
-  sourceRuntimeId?: string
-  sourceImageId?: string
-  sourceMangaUrl?: string
-  sourceKind?: ComicSourceKind
-  remoteServerId?: string
   categoryLabels: string[]
 }
 
@@ -356,31 +345,41 @@ function formatContinueDetail(chapterTitle: string, progress?: ReadingProgress):
     .replace('%s', chapterTitle)
 }
 
-export function createLibraryViewModelFromComics(
+export function createLibraryComicCards(
   comics: Comic[],
   sessionStore?: ReaderSessionStore,
   presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
-): LibraryViewModel {
-  const cards = comics.map((comic: Comic): LibraryComicCardViewModel => {
-    const presentation = presentationByComicId.get(comic.id) ?? createFallbackPresentation(comic)
-    return {
-      id: comic.id,
-      title: comic.title,
-      subtitle: formatLibraryChapterCount(comic),
-      unreadChapterCount: sessionStore?.unreadChapterCount(comic),
-      coverColor: presentation.coverColor,
-      accentColor: presentation.accentColor,
-      pageCount: comic.pageCount,
-      coverUri: comic.coverUri,
-      sourceRuntimeId: comic.sourceRuntimeId,
-      sourceMangaUrl: comic.sourcePath,
-      sourceImageId: comic.remoteResourceId ?? comic.id,
-      sourceKind: comic.sourceKind,
-      remoteServerId: comic.remoteServerId,
-      categoryLabels: formatCategoryLabels(comic.categoryIds),
-    }
-  })
+): LibraryComicCardViewModel[] {
+  return comics.map((comic: Comic): LibraryComicCardViewModel => createLibraryComicCard(comic,
+    presentationByComicId.get(comic.id), formatCategoryLabels(comic.categoryIds), sessionStore?.unreadChapterCount(comic)))
+}
 
+export function createLibraryComicCard(comic: Comic, customPresentation: LibraryComicPresentation | undefined,
+  categoryLabels: string[], unreadChapterCount?: number): LibraryComicCardViewModel {
+  const presentation = customPresentation ?? createFallbackPresentation(comic)
+  return {
+    id: comic.id,
+    title: comic.title,
+    subtitle: formatLibraryChapterCount(comic),
+    unreadChapterCount,
+    coverColor: presentation.coverColor,
+    accentColor: presentation.accentColor,
+    pageCount: comic.pageCount,
+    coverUri: comic.coverUri,
+    sourceRuntimeId: comic.sourceRuntimeId,
+    sourceMangaUrl: comic.sourcePath,
+    sourceImageId: comic.remoteResourceId ?? comic.id,
+    sourceKind: comic.sourceKind,
+    remoteServerId: comic.remoteServerId,
+    categoryLabels,
+  }
+}
+
+export function createLibraryContinueReadingCard(
+  comics: Comic[],
+  sessionStore?: ReaderSessionStore,
+  presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
+): ContinueReadingCardViewModel {
   let continueComicIndex: number = -1
   let continueProgress: ReadingProgress | undefined = undefined
   for (let index = 0; index < comics.length; index += 1) {
@@ -394,14 +393,11 @@ export function createLibraryViewModelFromComics(
 
   if (continueComicIndex < 0) {
     return {
-      comics: cards,
-      continueReading: {
-        comicId: '',
-        title: '',
-        detail: '',
-        progress: 0,
-        color: '#16745F',
-      },
+      comicId: '',
+      title: '',
+      detail: '',
+      progress: 0,
+      color: '#16745F',
     }
   }
 
@@ -409,20 +405,28 @@ export function createLibraryViewModelFromComics(
   const continuePresentation = presentationByComicId.get(continueComic.id) ?? createFallbackPresentation(continueComic)
   const chapterTitle = getProgressChapterTitle(continueComic, continuePresentation, continueProgress)
   return {
-    comics: cards,
-    continueReading: {
-      title: continueComic.title,
-      detail: formatContinueDetail(chapterTitle, continueProgress),
-      progress: continueProgress === undefined ? 0 : progressPercent(continueProgress),
-      color: continuePresentation.coverColor,
-      comicId: continueComic.id,
-      coverUri: continueComic.coverUri,
-      sourceRuntimeId: continueComic.sourceRuntimeId,
-      sourceMangaUrl: continueComic.sourcePath,
-      sourceImageId: continueComic.remoteResourceId ?? continueComic.id,
-      sourceKind: continueComic.sourceKind,
-      remoteServerId: continueComic.remoteServerId,
-    },
+    title: continueComic.title,
+    detail: formatContinueDetail(chapterTitle, continueProgress),
+    progress: continueProgress === undefined ? 0 : progressPercent(continueProgress),
+    color: continuePresentation.coverColor,
+    comicId: continueComic.id,
+    coverUri: continueComic.coverUri,
+    sourceRuntimeId: continueComic.sourceRuntimeId,
+    sourceMangaUrl: continueComic.sourcePath,
+    sourceImageId: continueComic.remoteResourceId ?? continueComic.id,
+    sourceKind: continueComic.sourceKind,
+    remoteServerId: continueComic.remoteServerId,
+  }
+}
+
+export function createLibraryViewModelFromComics(
+  comics: Comic[],
+  sessionStore?: ReaderSessionStore,
+  presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
+): LibraryViewModel {
+  return {
+    comics: createLibraryComicCards(comics, sessionStore, presentationByComicId),
+    continueReading: createLibraryContinueReadingCard(comics, sessionStore, presentationByComicId),
   }
 }
 

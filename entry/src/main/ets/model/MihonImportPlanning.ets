@@ -254,6 +254,15 @@ function mihonLinkedWork(comic: Comic): SourceManga | undefined {
     url: comic.sourcePath, webUrl: comic.sourceMetadata?.webUrl, coverUrl: comic.coverUri }
 }
 
+// A source-declared identity is sufficient to open the real work. Keep the
+// original reading records until its current chapter list can be matched.
+export function mihonDeclaredWork(record: MihonImportRecord, sourceId: string,
+  identity: MihonSourceIdentity | undefined): SourceManga | undefined {
+  if (identity === undefined || !identity.sourceIds.includes(record.work.sourceId)) return undefined
+  const id = mihonPathIdentity(record.work.url, identity.work)
+  return id === undefined ? undefined : { id, sourceId, title: record.work.title, coverUrl: mangaHttpUrl(record.work.coverUrl) }
+}
+
 export function importMihonWorks(backup: MihonBackup, library: LibraryStore,
   identities: Map<string, MihonSourceIdentity> = new Map<string, MihonSourceIdentity>(),
   labels?: MihonImportLabels): ResolvedMihonImport[] {

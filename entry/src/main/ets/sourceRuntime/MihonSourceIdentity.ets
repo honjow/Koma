@@ -1,6 +1,8 @@
 export interface MihonPathIdentity {
   pathPrefix: string
   pathSuffix?: string
+  pathTitleAfterId?: boolean
+  pathIdSegment?: number
   idPrefix: string
   idSuffix?: string
 }
@@ -24,6 +26,8 @@ function validPathIdentity(rule: MihonPathIdentity | undefined): boolean {
     (rule.pathPrefix === '' || rule.pathPrefix.startsWith('/') || fixedOrigin.test(rule.pathPrefix)) &&
     token.test(rule.pathPrefix) && (rule.pathSuffix === undefined ||
       typeof rule.pathSuffix === 'string' && token.test(rule.pathSuffix)) &&
+    (rule.pathTitleAfterId === undefined || typeof rule.pathTitleAfterId === 'boolean' &&
+      (!rule.pathTitleAfterId || rule.pathPrefix.endsWith('/') && rule.pathSuffix === '/')) &&
     typeof rule.idPrefix === 'string' && token.test(rule.idPrefix) &&
     (rule.idSuffix === undefined || typeof rule.idSuffix === 'string' && token.test(rule.idSuffix))
 }
@@ -32,7 +36,11 @@ export function validMihonSourceIdentity(value: MihonSourceIdentity | undefined)
   if (value === undefined) return true
   return value !== null && Array.isArray(value.sourceIds) && value.sourceIds.length > 0 &&
     value.sourceIds.every((id: string): boolean => typeof id === 'string' && /^-?\d{1,19}$/.test(id)) &&
-    validPathIdentity(value.work) && (value.chapter === undefined || (validPathIdentity(value.chapter) &&
+    validPathIdentity(value.work) && value.work.pathIdSegment === undefined &&
+    (value.chapter === undefined || (validPathIdentity(value.chapter) &&
+      value.chapter.pathTitleAfterId === undefined &&
+      (value.chapter.pathIdSegment === undefined || (Number.isInteger(value.chapter.pathIdSegment) &&
+        value.chapter.pathIdSegment >= -8 && value.chapter.pathIdSegment <= 7)) &&
       (value.chapter.targetIdSegment === undefined || (Number.isInteger(value.chapter.targetIdSegment) &&
         value.chapter.targetIdSegment >= 0 && value.chapter.targetIdSegment <= 7)))) &&
     (value.samePageOrder === undefined || value.samePageOrder === false ||
@@ -46,11 +54,28 @@ export function mihonPathIdentity(path: string, rule: MihonPathIdentity): string
   if (relative.includes('//') ||
     relative.split('/').some((segment: string): boolean => segment === '.' || segment === '..')) return undefined
   const suffix = rule.pathSuffix ?? ''
-  if (!path.startsWith(rule.pathPrefix) || !path.endsWith(suffix)) return undefined
-  const stem = path.substring(rule.pathPrefix.length, path.length - suffix.length)
+  if (!path.startsWith(rule.pathPrefix)) return undefined
+  if (rule.pathTitleAfterId === true) {
+    const remainder = path.substring(rule.pathPrefix.length)
+    const separator = remainder.indexOf('/')
+    const title = separator < 0 ? '' : remainder.substring(separator + 1)
+    const id = separator < 0 ? remainder : remainder.substring(0, separator)
+    if (!/^[A-Za-z0-9._,-]+$/.test(id) || /[/\\?#\u0000-\u001f\u007f]/.test(title)) return undefined
+    return rule.idPrefix + id + (rule.idSuffix ?? '')
+  }
+  if (!path.endsWith(suffix)) return undefined
+  let stem = path.substring(rule.pathPrefix.length, path.length - suffix.length)
+  if (rule.pathIdSegment !== undefined) {
+    if (rule.pathPrefix === '' && stem.startsWith('/')) stem = stem.substring(1)
+    if (suffix.length === 0 && stem.endsWith('/')) stem = stem.substring(0, stem.length - 1)
+  }
   if (path.length <= rule.pathPrefix.length + suffix.length ||
     !/^[A-Za-z0-9._,-]+(?:\/[A-Za-z0-9._,-]+)*$/.test(stem)) return undefined
-  return rule.idPrefix + stem + (rule.idSuffix ?? '')
+  if (rule.pathIdSegment === undefined) return rule.idPrefix + stem + (rule.idSuffix ?? '')
+  const segments = stem.split('/')
+  const index = rule.pathIdSegment < 0 ? segments.length + rule.pathIdSegment : rule.pathIdSegment
+  const id = segments[index]
+  return id === undefined ? undefined : rule.idPrefix + id + (rule.idSuffix ?? '')
 }
 
 export function mihonTargetChapterId(id: string, rule: MihonChapterIdentity): string | undefined {
