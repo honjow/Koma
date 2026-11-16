@@ -18,13 +18,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "Koma 1.4.3 已步进版本待发布；禁漫天堂 0.1.6 已发布并锚定 1.4.3，宿主短图修复已在 237 验证",
+  "state": "Mihon 书源已发布，原备份重导已验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-15T22:54:14+08:00",
+  "updatedAt": "2026-11-16T10:37:14+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "RELEASE_1_4_3",
-  "activity": "禁漫天堂 0.1.6 发布完成，公开 index 与包已核；App 1.4.3 / code16 调试包已构建，正式版待发布",
-  "nextAction": "构建 Koma 1.4.3、真机验收并发布，发布后 1.4.2 用户才能装禁漫天堂 0.1.6",
+  "activeId": "MIHON_BACKUP_IMPORT",
+  "activity": "197 自动关联 35 部。未关联作品的原记录都保留，已实测从历史续读到原章原页，设备已恢复。",
+  "nextAction": "导入修复已在开发包验证，等待正式 App 发版。",
   "proof": [
     {
       "label": "正式主仓",
@@ -85,6 +85,71 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "WEBDAV_PROBE_SYNC_409",
+      "number": 310,
+      "title": "坚果云连接测试通过后同步报 409",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-16",
+      "reportedAtSource": "用户转述最新版坚果云连接测试成功、同步时报 HTTP 409，原始时刻未核实。",
+      "updatedAt": "2026-11-16T10:37:14+08:00",
+      "status": "连接测试已覆盖正式同步路径，回归通过",
+      "result": "连接测试共用正式同步的清单读取，并在两个实际写入位置验证临时文件读写。模拟坚果云的 AncestorsNotFound 响应后，测试、保存和首次同步均成功。其他 409 原样报错。",
+      "remaining": "真实坚果云连接待复测。",
+      "relatedItems": [
+        "WEBDAV_DIRECTORY_GROWTH_20261112"
+      ]
+    },
+    {
+      "id": "SOURCE_PACKAGE_PROGRESS_AND_BATCH_TOAST",
+      "number": 309,
+      "title": "书源安装进度和批量更新提示",
+      "kind": "done",
+      "owner": "Root",
+      "reportedDate": "2026-11-16",
+      "reportedAt": null,
+      "reportedAtSource": "用户在本会话提出，原始时刻未核实。",
+      "updatedAt": "2026-11-16T10:02:50+08:00",
+      "closedAt": "2026-11-16T10:02:50+08:00",
+      "status": "197 验证通过",
+      "result": "批量更新 56 个源，完成后只提示一次。最终开发包的中文按钮为 64 vp、英文为 80 vp，浅色和深色的描边均跟随主题色。英文安装过程中完整显示 Installing，動漫戲說安装成功。设备原设置和书源已恢复。",
+      "remaining": "",
+      "relatedItems": [
+        "SOURCE_INSTALL_PIPELINE_SERIAL"
+      ]
+    },
+    {
+      "id": "MIHON_BACKUP_IMPORT",
+      "number": 308,
+      "title": "Mihon 备份导入",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-15",
+      "reportedAtSource": "用户提供真实 .tachibk，要求保留分类、章页、历史与追踪，合并已有作品。未关联时在实际阅读该作品时再说明。",
+      "updatedAt": "2026-11-16T04:47:54+08:00",
+      "status": "58 个源包已发布，197 原备份重导和旧版阅读通过",
+      "stage": "正式源已发布，客户端真机验证通过",
+      "result": "原备份保留 63 部作品、4418 条章节记录、670 条历史和 4 条追踪，导入时无须逐本确认。35 部自动关联，上一轮是 19 部，漫画屋 8 部全部关联。动漫屋在开发包和正式 1.4.5 均可从历史打开原第 1 话第 10 页。58 个正式包校验并对照旧版解析通过，197 完成数据与电源恢复。",
+      "remaining": "客户端尚未正式发布。28 部未关联记录完整保留，其中 19 部已保存对应源，主要受六漫画连接失败及其他章节接口异常影响；9 部暂无可确认的对应源。漫画屋原页已核对源端页序与设备存档，真机进入阅读的样本为动漫屋。",
+      "evidence": [
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T012815550724",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/match-status-20261116T013828146641",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T013832726822",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T014502863596",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T022021397522",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/match-status-20261116T025013185852",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/match-status-20261116T030203740900",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T030216352950",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T032652987612",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/match-status-20261116T033900894732",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T033901743357"
+      ]
+    },
     {
       "id": "ROOT_DOUBLE_BACK_EXIT",
       "number": 307,
@@ -5825,16 +5890,17 @@
       "title": "备份与恢复按记录和动作重新组织",
       "priority": "用户直接需求",
       "kind": "done",
-      "status": "197 直接导出普通和加密文件、读回预览均已复验",
+      "status": "197 已验证普通与加密 .komabk、旧 JSON 预览和按自动备份设置运行一次",
       "stage": "恢复摘要共用 Dialog 底板，校验与解密保持对话框",
       "owner": "Root：Koma 备份与恢复",
-      "result": "首页只留一个创建入口。居中系统 Dialog 用原生菜单选保存位置，只有开启加密才显示口令。已有记录仅有一个导出入口，支持复制所选历史备份。未加密文件警告内联，取消系统保存选择器回到原文件选项。刷新时不在已有记录上方插入加载行和分割线，列表仅计算文件信息，恢复冲突点开记录后计算。加密口令和恢复明细采用同一 200ms 过渡。197 实机核对保存位置的原生菜单、从创建直达系统文件选择器及取消恢复草稿。103 实机录到加密口令展开和收起时 Dialog 尺寸渐变。 首次改版中，103 实机创建普通和加密本地备份，验证口令解密和替换确认取消。将加密记录导出到系统下载目录，随后从系统选择器重新选中文件，实读加密预览。普通记录的导出加密副本入口显示口令输入。默认记录显示本地化日期，自定义名称单独保留。开启自动备份后连进两次，录屏中开关直接显示已开，未出现保存提示。主动关闭显示一次保存提示，读回原状态。自动备份与备份内容搜索均定位同页分组。删除两份本轮本地备份和外部测试副本，确认空列表，103 回书架、恢复电源并释租。 197 确认 HDS 行点击回调同步重排会触发原生 SIGSEGV，将展开动画移出该回调后，在最终包连续验证展开、收起和取消，同一进程留在备份列表。取消 Dialog 后再清理内容、打开文件选择器。两台设备的临时记录均已清理。 197 在系统文件选择器实际写出普通 JSON，从文件重新打开，确认替换范围后取消。恢复摘要去掉内层白底，保留原有布局和展开动画。真机探针确认 AdvancedDialogV2Button 会在回调后直接关闭，使空口令错误丢失，也会打断异步解密。备份表单复用 Koma 原生按钮操作行；空口令提交保留 Dialog 并显示校验提示。最终包实际写出加密文件，重选并解密后留在同一恢复预览。长明细滚动到书源条目，底部取消与恢复按钮位置保持，实机从滚动末尾进入确认并取消。测试导出已清理，设备恢复原电源状态。",
-      "remaining": "覆盖恢复只验证到确认提示与取消，未替换书架或进度。",
+      "result": "首页只留一个创建入口。居中系统 Dialog 用原生菜单选保存位置，只有开启加密才显示口令。已有记录仅有一个导出入口，支持复制所选历史备份。未加密文件警告内联，取消系统保存选择器回到原文件选项。刷新时不在已有记录上方插入加载行和分割线，列表仅计算文件信息，恢复冲突点开记录后计算。加密口令和恢复明细采用同一 200ms 过渡。197 实机核对保存位置的原生菜单、从创建直达系统文件选择器及取消恢复草稿。103 实机录到加密口令展开和收起时 Dialog 尺寸渐变。 首次改版中，103 实机创建普通和加密本地备份，验证口令解密和替换确认取消。将加密记录导出到系统下载目录，随后从系统选择器重新选中文件，实读加密预览。普通记录的导出加密副本入口显示口令输入。默认记录显示本地化日期，自定义名称单独保留。开启自动备份后连进两次，录屏中开关直接显示已开，未出现保存提示。主动关闭显示一次保存提示，读回原状态。自动备份与备份内容搜索均定位同页分组。删除两份本轮本地备份和外部测试副本，确认空列表，103 回书架、恢复电源并释租。 197 确认 HDS 行点击回调同步重排会触发原生 SIGSEGV，将展开动画移出该回调后，在最终包连续验证展开、收起和取消，同一进程留在备份列表。取消 Dialog 后再清理内容、打开文件选择器。两台设备的临时记录均已清理。 197 在系统文件选择器实际写出普通 JSON，从文件重新打开，确认替换范围后取消。恢复摘要去掉内层白底，保留原有布局和展开动画。真机探针确认 AdvancedDialogV2Button 会在回调后直接关闭，使空口令错误丢失，也会打断异步解密。备份表单复用 Koma 原生按钮操作行；空口令提交保留 Dialog 并显示校验提示。最终包实际写出加密文件，重选并解密后留在同一恢复预览。长明细滚动到书源条目，底部取消与恢复按钮位置保持，实机从滚动末尾进入确认并取消。测试导出已清理，设备恢复原电源状态。 197 新普通备份 13.11 MB，加密备份 17.49 MB，两份均从系统文件选择器重开并读出 50 个书架项目和 205 条进度。旧 JSON 仍可预览。按自动备份设置运行一次生成的本地与所选目录副本摘要一致。测试文件已清理，两处既有文件列表一致，保留份数与设备电源状态已恢复。",
+      "remaining": "新格式恢复验证到预览，未执行覆盖恢复。系统后台定时触发本轮仅有本地回归。",
       "reportedAt": null,
       "reportedDate": "2026-11-04",
       "reportedAtSource": "用户先报告自动备份每次重进都会闪回并重复提示，随后要求整套菜单重新设计。精确时刻未核实。",
       "closedAt": "2026-11-05T00:31:58+08:00",
       "evidence": [
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/compressed-backup",
         ".hvigor/outputs/backup-dialog/Koma-backup-preview-scroll-debug.hap",
         ".hvigor/outputs/backup-dialog/build-preview-scroll.log",
         ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/restore-summary-native-actions-motion/002431959714",
@@ -11113,6 +11179,139 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "webdav-connection-probe-and-sync-409-20261116",
+      "at": "2026-11-16T10:37:14+08:00",
+      "itemId": "WEBDAV_PROBE_SYNC_409",
+      "title": "补齐 WebDAV 连接测试并兼容父目录缺失响应",
+      "detail": "候选包已构建。回归覆盖首次同步、真实 409 继续报错、写入位置拒绝及临时文件补清理。尚未在反馈用户的坚果云环境复测。",
+      "kind": "verified",
+      "evidence": [
+        "scripts/test_device_sync_journal.cjs",
+        "https://github.com/qixing-jk/all-api-hub/pull/637"
+      ]
+    },
+    {
+      "id": "source-progress-theme-border-and-english-width-20261116",
+      "at": "2026-11-16T10:02:50+08:00",
+      "title": "197 复测主题色描边与英文按钮",
+      "detail": "浅色和深色下中文按钮均为 64 vp，描边随主题色。英文 80 vp 实录完整 Installing 和进度填充，动漫戏说安装成功。原主题、语言、书源、同步和电源均已恢复。",
+      "itemId": "SOURCE_PACKAGE_PROGRESS_AND_BATCH_TOAST",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-install-progress/actions-20261116T100003119267/screen.png",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-install-progress/open-source-manager-20261116T100038191749/screen.png",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-install-progress/english-final-20261116T100117604626/button-frames.png"
+      ]
+    },
+    {
+      "id": "source-progress-compact-width-native-20261116",
+      "at": "2026-11-16T09:41:31+08:00",
+      "title": "197 复测 64 vp 进度按钮",
+      "detail": "浅色更新 92 漫画，深色更新爱看漫，英文安装動漫戲說。进度填充清楚，英文 Installing 被截为 Install…。原书源、主题、语言、同步及电源状态恢复。",
+      "itemId": "SOURCE_PACKAGE_PROGRESS_AND_BATCH_TOAST",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-install-progress/light64-20261116T093502736400/fill-samples.png",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-install-progress/dark64-20261116T093834380508/fill-samples.png",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-install-progress/english64-20261116T093934770778/fill-samples.png"
+      ]
+    },
+    {
+      "id": "source-progress-batch-toast-native-20261116",
+      "at": "2026-11-16T09:35:03+08:00",
+      "title": "197 验证书源安装、单项和批量更新",
+      "detail": "单项更新录到进度前进，批量完成时只提示一次，56 项成功。用户确认把按钮从 80 vp 缩回到原来的 64 vp 并加深进度填充，候选包已构建。",
+      "itemId": "SOURCE_PACKAGE_PROGRESS_AND_BATCH_TOAST",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-install-progress/batch-update-20261116T091921036060/batch-toast.png"
+      ]
+    },
+    {
+      "id": "mihon-official-restore-and-old-client-read-20261116",
+      "title": "Mihon 原备份重导、旧版续读及设备恢复通过",
+      "detail": "35 部自动关联。六漫画 13 部请求失败，漫画柜超时，动漫屋 1 部站点不再提供目录，再漫画目录为空，zero 搬运网 2 部目录缺少数据，优酷漫画无可用章节入口。没有对应源的 9 部仍可在打开作品时处理。197 的 Koma 1.4.5 实读到原第 1 话第 10 页。设备的原数据、源、同步和电源恢复。",
+      "kind": "verified",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/actions/runs/43759011769",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-e0319f464077aa3d224f4490126b0a43ce0e2987",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T043925823630",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T044033043072",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T044411672372",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/restore-20261116T044629827104"
+      ],
+      "at": "2026-11-16T04:47:54+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT"
+    },
+    {
+      "id": "mihon-published-source-packages-197-20261116",
+      "title": "正式源包已取证，197 开始更新",
+      "detail": "公开索引摘要校验通过，书源管理触发正式更新。另发现 MANGA Plus Creators 与 NHentai.to、NHentai.xxx 的 WASM 元信息仍报旧版本，已修复；新增动漫戏说。",
+      "kind": "progress",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/actions/runs/43758471006",
+        "https://github.com/honjow/koma-sources/actions/runs/43759011769"
+      ],
+      "at": "2026-11-16T04:38:09+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT"
+    },
+    {
+      "id": "mihon-rule-actions-triggered-20261116",
+      "title": "提交书源转换规则并触发 Actions 发布",
+      "detail": "57 个书源包覆盖 58 个 Mihon 来源编号。漫画屋补已核对的同页序声明；相同语言才能直接关联。候选 App 修复书架误合并后已构建。",
+      "kind": "progress",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/commit/3cd9d9432415c0310ed014f0dbf778cbe7046376"
+      ],
+      "at": "2026-11-16T04:31:36+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT"
+    },
+    {
+      "id": "mihon-rule-verified-coverage-expanded-20261116",
+      "title": "核对备份之外的已移植书源",
+      "detail": "已取得 Mihon 扩展正式索引及原始扩展代码，核对简繁中文与其他语种的作品及章节路径。MangaDex 简繁与英文分别对应原语言，语言不明的全语种记录不自动改成某一种语言。",
+      "kind": "progress",
+      "evidence": [
+        "/private/tmp/koma-nz-mihon-rules.json"
+      ],
+      "at": "2026-11-16T04:20:54+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT"
+    },
+    {
+      "id": "mihon-rule-source-legacy-145-device-20261116",
+      "title": "旧版 Koma 真机更新两个候选源",
+      "detail": "197 的 Koma 1.4.5 更新动漫屋与瓜子漫画，实际安装状态读回通过，原设备状态已恢复。其他候选已跑过 1.4.1–1.4.5 的包解析检查。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/source-catalog-20261116T040752105984",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/restore-20261116T040800465570"
+      ],
+      "at": "2026-11-16T04:08:01+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT"
+    },
+    {
+      "id": "mihon-source-packages-legacy-client-20261116",
+      "at": "2026-11-16T04:01:02+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "Mihon 源规则完成打包，开始旧版兼容检查",
+      "detail": "15 个候选源覆盖备份中 44 部的原作品地址。旧客户端解析通过，正式旧版真机安装验证及发布后导入尚未完成。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/install-20261116T040000104174"
+      ]
+    },
+    {
+      "id": "mihon-history-original-address-20261116",
+      "at": "2026-11-16T03:39:18+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "历史续读先重试原书源",
+      "detail": "197 实测六漫画原地址和同源搜索均失败后才打开选源页。失败后书源和原进度仍保留，测试数据已恢复。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/match-status-20261116T033900894732"
+      ]
+    },
     {
       "id": "root-double-back-exit-user-acceptance-20261115",
       "at": "2026-11-15T22:54:14+08:00",
