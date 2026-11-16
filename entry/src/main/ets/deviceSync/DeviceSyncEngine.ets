@@ -352,6 +352,7 @@ export class DeviceSyncEngine {
   private generation: number = 0
   private reviewGeneration: number = 0
   private probeGeneration: number = 0
+  private readonly runningProbes: Set<string> = new Set<string>()
   private prepared?: PreparedSync
   private running?: Promise<void>
   private focusRunning?: Promise<SyncReadingWorkResult>
@@ -466,19 +467,27 @@ export class DeviceSyncEngine {
     }
     const credential = util.generateRandomUUID()
     const id = util.generateRandomUUID()
-    this.storage.update((state: SyncLocalDocument): void => { state.probes.push({ credential, id, collection: 5 }) })
-    await writeSyncCredential(credential, draft)
-    guard()
-    const provider = new DeviceSyncWebDav(draft)
+    const endpoint = endpointIdentity(draft)
+    const active = this.active()
+    const connection = active?.endpointIdentity === endpoint ? active :
+      this.storage.load().archives?.find((entry: SyncSavedConnection): boolean => entry.endpointIdentity === endpoint)
+    const provider = new DeviceSyncWebDav(draft, connection?.frontier, connection?.space, this.publicationWriter())
+    this.runningProbes.add(credential)
     try {
-      const cleaned = await provider.probe(id, guard)
+      const cleaned = await provider.probe(id, guard, async (): Promise<void> => {
+        // Keep recovery information only once the temporary files may be written.
+        this.storage.update((state: SyncLocalDocument): void => {
+          state.probes.push({ credential, id, collection: 5, includesHead: true })
+        })
+        await writeSyncCredential(credential, draft)
+      })
       if (cleaned) {
         try { await this.retireProbe(credential) } catch (_error) {}
       }
+      guard()
       this.tested = draft
-    } catch (error) {
-      // The old endpoint and exact probe path remain in private storage until cleanup succeeds.
-      throw error as Error
+    } finally {
+      this.runningProbes.delete(credential)
     }
     // A connection test authorizes only the synthetic probe, even when these
     // credentials match an unacknowledged data commit. Recover that exact
@@ -581,9 +590,10 @@ export class DeviceSyncEngine {
       }
     }
     for (const row of this.storage.load().probes) {
+      if (this.runningProbes.has(row.credential)) continue
       try {
         const provider = new DeviceSyncWebDav(await readSyncCredential(row.credential))
-        await provider.cleanProbe(row.id, guard, row.collection !== 2 && row.collection !== 5, row.collection)
+        await provider.cleanProbe(row.id, guard, row.collection !== 2 && row.collection !== 5, row.collection, row.includesHead === true)
         await this.retireProbe(row.credential)
       } catch (_error) {
       }

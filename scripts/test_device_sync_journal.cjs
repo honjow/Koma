@@ -193,7 +193,7 @@ function transportFixture(directoryUrl = 'https://local-fixture.invalid') {
       assert.equal(options.usingCache, false)
       assert.equal(options.maxRedirects, 0)
       const forced = overrideStatus(method, address)
-      if (forced !== undefined) return response(forced)
+      if (forced !== undefined) return typeof forced === 'number' ? response(forced) : forced
       if (method === 'PROPFIND') {
         if (!directories.has(address)) return response(404)
         const names = options.header.Depth === '0' ? [] : filterListing([...files.keys(), ...directories]
@@ -1382,15 +1382,61 @@ test('upgrading without local edits preserves legacy facts in a writer publicati
   assert.equal(facts.syncVisibleValue(values.find(row => row.key === pageNumber)), 'true')
 })
 
-test('connection creates the selected directory and cleans its probe without ETag or conditional-write support', async () => {
+test('connection test and first sync accept a missing old ancestor without ETag support', async () => {
   const f = transportFixture()
   f.directories.clear()
-  const id = '11111111-1111-1111-1111-111111111111'
-  await f.provider().probe(id, noop)
+  const heads = f.sharedRoot + 'heads/'
+  const legacy = f.legacy + 'manifest.json'
+  f.responseStatus((method, address) => method === 'GET' && address === legacy ?
+    response(409, '<?xml version="1.0"?><d:error><s:exception>AncestorsNotFound</s:exception></d:error>') : undefined)
+  const replica = engineFixture(f.SharedWebDav).replica(A,
+    [['reader-settings', new Map([[pageNumber, 'true']])]])
+  replica.engine.setSelection(['reader-settings'])
+  await replica.engine.testConnection(f.draft)
   assert.deepEqual(f.trace.filter(row => row.method === 'MKCOL').map(row => row.address),
-    [f.draft.directory + '/', f.sharedRoot])
-  assert.equal(f.files.has(f.sharedRoot + 'probe-' + id + '.json'), false)
+    [f.draft.directory + '/', f.sharedRoot, heads])
+  const writes = f.trace.filter(row => row.method === 'PUT').map(row => row.address)
+  const probeName = writes[0]?.slice(f.sharedRoot.length)
+  assert.match(probeName, /^probe-[0-9a-f-]{36}\.json$/)
+  assert.deepEqual(writes, [f.sharedRoot + probeName, heads + probeName])
+  assert.ok(f.trace.some(row => row.method === 'GET' && row.address === legacy))
+  assert.equal(f.files.size, 0)
+  assert.equal(replica.store.load().probes.length, 0)
+  await replica.engine.saveConfiguration(f.draft)
+  assert.equal(f.files.size, 0)
+  replica.engine.setEnabled(true)
+  await replica.engine.syncNow()
+  const remote = await new f.SharedWebDav(f.draft).readSyncState(noop)
+  assert.equal(remote.sharedHeads.length, 1)
+  assert.equal(remote.manifest.datasets[0].id, data.SYNC_READER_SETTINGS_DATASET)
   assert.equal(f.trace.some(row => row.method === 'LOCK'), false)
+})
+
+test('an unrelated 409 still blocks both the connection test and sync discovery', async () => {
+  const f = transportFixture()
+  f.responseStatus((method, address) => method === 'GET' && address === f.legacy + 'manifest.json' ?
+    response(409, '<d:error><s:exception>Conflict</s:exception></d:error>') : undefined)
+  const provider = new f.SharedWebDav(f.draft, [], undefined, A)
+  await assert.rejects(provider.probe(A, noop), /sync_server_http_409/)
+  await assert.rejects(provider.readSyncState(noop), /sync_server_http_409/)
+  assert.equal(f.trace.some(row => row.method === 'PUT'), false)
+})
+
+test('a failed head probe is reported and a later cleanup removes a probe left in heads', async () => {
+  const f = transportFixture()
+  const provider = new f.SharedWebDav(f.draft, [], undefined, A)
+  const heads = f.sharedRoot + 'heads/'
+  const headProbe = heads + 'probe-' + A + '.json'
+  f.responseStatus((method, address) => method === 'PUT' && address === headProbe ? 403 : undefined)
+  await assert.rejects(provider.probe(A, noop), /sync_permission_denied/)
+  assert.equal(f.files.size, 0)
+
+  f.responseStatus((method, address) => method === 'DELETE' && address === headProbe ? 403 : undefined)
+  assert.equal(await provider.probe(A, noop), false)
+  assert.deepEqual([...f.files.keys()], [headProbe])
+  f.responseStatus(() => undefined)
+  await provider.cleanProbe(A, noop, false, 5, true)
+  assert.equal(f.files.size, 0)
 })
 
 test('a LAN HTTP WebDAV directory completes connection and probe cleanup', async () => {
@@ -1399,7 +1445,7 @@ test('a LAN HTTP WebDAV directory completes connection and probe cleanup', async
   const id = '11111111-1111-1111-1111-111111111111'
   await f.provider().probe(id, noop)
   assert.deepEqual(f.trace.filter(row => row.method === 'MKCOL').map(row => row.address),
-    [f.draft.directory + '/', f.sharedRoot])
+    [f.draft.directory + '/', f.sharedRoot, f.sharedRoot + 'heads/'])
   assert.ok(f.trace.some(row => row.method === 'PUT' && row.address.startsWith('http://')))
   assert.equal(f.files.has(f.sharedRoot + 'probe-' + id + '.json'), false)
 })

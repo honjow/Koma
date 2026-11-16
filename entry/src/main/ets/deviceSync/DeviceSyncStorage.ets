@@ -130,6 +130,7 @@ export interface SyncProbeRecord {
   credential: string
   id: string
   collection?: number
+  includesHead?: boolean
 }
 
 // Local observations from a publication that never reached its send boundary.

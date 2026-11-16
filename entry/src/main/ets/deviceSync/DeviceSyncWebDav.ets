@@ -367,6 +367,11 @@ function conflict(status: number): boolean {
   return status === 409 || status === 412
 }
 
+function missingDavAncestor(response: SyncHttpResponse): boolean {
+  return response.status === 409 &&
+    /<(?:[\w.-]+:)?exception\b[^>]*>\s*(?:[\w.$]+\.)?AncestorsNotFound\s*<\/(?:[\w.-]+:)?exception\s*>/.test(response.body)
+}
+
 class RetryableSyncRequestError extends Error {}
 
 function syncRequestError(error: Error, method: string, namespace: string): Error {
@@ -394,6 +399,7 @@ export class DeviceSyncWebDav {
   private readonly writerRoot: string
   private readonly writerRootV4: string
   private readonly sharedRoot: string
+  private readonly sharedHeadRoot: string
   private readonly writer: string
   private readonly authorization: string
   private readonly witnesses: string[]
@@ -443,6 +449,7 @@ export class DeviceSyncWebDav {
     this.writerRoot = this.directory + 'koma-device-sync-v3/'
     this.writerRootV4 = this.directory + 'koma-device-sync-v4/'
     this.sharedRoot = this.directory + 'koma-device-sync-v5/'
+    this.sharedHeadRoot = this.sharedRoot + 'heads/'
     if (writer !== '' && !WRITER_NAME.test(writer)) throw new Error('sync_invalid_writer')
     this.writer = writer
     this.witnesses = witnesses.slice()
@@ -510,21 +517,31 @@ export class DeviceSyncWebDav {
     return { manifest, etag: response.etag, hash: syncDigest(response.body) }
   }
 
-  async probe(id: string, guard: SyncRequestGuard): Promise<boolean> {
+  async probe(id: string, guard: SyncRequestGuard, beforeWrite: () => Promise<void> =
+    async (): Promise<void> => {}): Promise<boolean> {
     if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('sync_invalid_probe')
     await this.ensureCollection(this.directory, guard)
     await this.ensureCollection(this.sharedRoot, guard)
-    const address = this.sharedRoot + 'probe-' + id + '.json'
+    // Use the same discovery as a sync round, including fallback to older catalogs.
+    // Probe the two publication locations with synthetic data before saving the draft.
+    await this.readSyncState(guard)
+    await this.ensureCollection(this.sharedHeadRoot, guard)
+    await beforeWrite()
+    guard()
+    const name = 'probe-' + id + '.json'
     const first = '{"probe":1}'
     let cleaned = false
     try {
-      requireSuccess((await this.requestAt('PUT', address, guard, first)).status)
-      const loaded = await this.requestAt('GET', address, guard)
-      requireSuccess(loaded.status)
-      if (loaded.body !== first) throw new Error('sync_response_invalid')
+      for (const directory of [this.sharedRoot, this.sharedHeadRoot]) {
+        const address = directory + name
+        requireSuccess((await this.requestAt('PUT', address, guard, first)).status)
+        const loaded = await this.requestAt('GET', address, guard)
+        requireSuccess(loaded.status)
+        if (loaded.body !== first) throw new Error('sync_response_invalid')
+      }
     } finally {
       try {
-        await this.cleanProbe(id, guard, false, 5)
+        await this.cleanProbe(id, guard, false, 5, true)
         cleaned = true
       } catch (_error) {}
     }
@@ -549,12 +566,16 @@ export class DeviceSyncWebDav {
     if (!resource.isCollection) throw new Error('sync_path_not_directory')
   }
 
-  async cleanProbe(id: string, guard: SyncRequestGuard, legacy: boolean = false, collection: number = 2): Promise<void> {
+  async cleanProbe(id: string, guard: SyncRequestGuard, legacy: boolean = false, collection: number = 2,
+    includesHead: boolean = false): Promise<void> {
     if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('sync_invalid_probe')
     const path = 'probe-' + id + '.json'
-    const address = (legacy ? this.directory + 'koma-device-sync-v1/' : collection === 5 ? this.sharedRoot : this.root) + path
-    const result = await this.requestAt('DELETE', address, guard)
-    if (result.status !== 404) requireSuccess(result.status)
+    const directory = legacy ? this.directory + 'koma-device-sync-v1/' : collection === 5 ? this.sharedRoot : this.root
+    const locations = includesHead ? [directory, this.sharedHeadRoot] : [directory]
+    for (const location of locations) {
+      const result = await this.requestAt('DELETE', location + path, guard)
+      if (result.status !== 404 && !missingDavAncestor(result)) requireSuccess(result.status)
+    }
   }
 
   private async readJournal(guard: SyncRequestGuard): Promise<SyncRemoteManifest> {
@@ -609,9 +630,11 @@ export class DeviceSyncWebDav {
       this.legacyObjects = []
     } else {
       const legacy = await this.requestAt('GET', this.directory + 'koma-device-sync-v1/manifest.json', guard)
-      if (legacy.status !== 404) requireSuccess(legacy.status)
-      if (legacy.status === 404) result = { etag: '', hash: '', frontier: [], journal: true }
+      // On a fresh directory some WebDAV servers report the absent parent as
+      // 409 with an explicit DAV exception. Only optional discovery accepts it.
+      if (legacy.status === 404 || missingDavAncestor(legacy)) result = { etag: '', hash: '', frontier: [], journal: true }
       else {
+        requireSuccess(legacy.status)
         const old = decodeSyncManifest(legacy.body)
         const manifest = copySyncManifest(old, this.space)
         manifest.schema = 2
@@ -1192,7 +1215,7 @@ export class DeviceSyncWebDav {
   }
 
   async readSharedHead(guard: SyncRequestGuard): Promise<SyncRemoteManifest> {
-    const address = this.sharedRoot + 'heads/'
+    const address = this.sharedHeadRoot
     const names = (await this.listWriterPath('', guard, address))
       .filter((item: DavResource): boolean => !item.isCollection)
       .map((item: DavResource): string => normalizedDavHref(item.href).substring(normalizedDavHref(address).length))
@@ -1251,7 +1274,7 @@ export class DeviceSyncWebDav {
   }
 
   private async readSharedCommit(name: string, guard: SyncRequestGuard): Promise<SyncJournalCommit> {
-    const address = this.sharedRoot + 'heads/' + name
+    const address = this.sharedHeadRoot + name
     const key = this.account + '\n' + address
     const cached = journalCache.find((entry: CachedJournalCommit): boolean => entry.address === key)
     if (cached !== undefined) return cached.commit
@@ -1354,7 +1377,7 @@ export class DeviceSyncWebDav {
     if (expected === '') await this.ensureCollection(this.sharedRoot, guard)
     const current = await this.readSharedHead(guard)
     if (current.sharedHash !== expected) throw new Error('sync_remote_changed')
-    const headRoot = this.sharedRoot + 'heads/'
+    const headRoot = this.sharedHeadRoot
     if (current.sharedHeads === undefined) await this.ensureCollection(headRoot, guard)
     const parents = current.sharedHeads ?? []
     const body = syncCommitBody(manifest, parents)
@@ -2239,6 +2262,15 @@ export class DeviceSyncWebDav {
     return this.requestAt(method, this.root + path, guard, body, tag, create)
   }
 
+  private requestNamespace(address: string): string {
+    if (address.startsWith(this.sharedRoot)) return 'v5'
+    if (address.startsWith(this.writerRootV4)) return 'v4'
+    if (address.startsWith(this.writerRoot)) return 'v3'
+    if (address.startsWith(this.root)) return 'v2'
+    if (address.startsWith(this.directory + 'koma-device-sync-v1/')) return 'v1'
+    return 'directory'
+  }
+
   private async requestAt(method: string, address: string, guard: SyncRequestGuard, body: string = '',
     tag: string = '', create: boolean = false, depth: string = '1'): Promise<SyncHttpResponse> {
     // Repeating reads is safe; mutating requests may have reached the server
@@ -2251,6 +2283,10 @@ export class DeviceSyncWebDav {
       try {
         const response = await this.requestOnce(method, address, guard, body, tag, create, depth)
         status = response.status
+        if (status === 409 && !missingDavAncestor(response)) {
+          const area = address.startsWith(this.sharedHeadRoot) ? 'v5-heads' : this.requestNamespace(address)
+          console.warn('[KomaSync] method=' + method + ' area=' + area + ' status=409')
+        }
         return response
       } catch (error) {
         guard()
@@ -2259,9 +2295,7 @@ export class DeviceSyncWebDav {
       } finally {
         if (metrics !== undefined) {
           try {
-            const namespace = address.startsWith(this.sharedRoot) ? 'v5' : address.startsWith(this.writerRootV4) ? 'v4' : address.startsWith(this.writerRoot) ? 'v3' :
-              address.startsWith(this.root) ? 'v2' : address.startsWith(this.directory + 'koma-device-sync-v1/') ? 'v1' : 'directory'
-            metrics.record(method, namespace, status, syncMetricUptime() - started, attempt > 0)
+            metrics.record(method, this.requestNamespace(address), status, syncMetricUptime() - started, attempt > 0)
           } catch (_error) {}
         }
       }
@@ -2290,8 +2324,7 @@ export class DeviceSyncWebDav {
     if (body.length > 0) headers['Content-Type'] = method === 'PROPFIND' ? 'application/xml' : 'application/json'
     if (tag.length > 0) headers['If-Match'] = tag
     if (create) headers['If-None-Match'] = '*'
-    const namespace = address.startsWith(this.writerRootV4) ? 'v4' : address.startsWith(this.writerRoot) ? 'v3' :
-      address.startsWith(this.root) ? 'v2' : address.startsWith(legacyRoot) ? 'v1' : 'directory'
+    const namespace = this.requestNamespace(address)
     if (method === 'PROPFIND') {
       try {
         // Listings are not single shards: stream them without imposing the
