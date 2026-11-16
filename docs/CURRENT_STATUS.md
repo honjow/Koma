@@ -189,12 +189,22 @@
       "reportedAt": null,
       "reportedDate": "2026-11-15",
       "reportedAtSource": "用户提供真实 .tachibk，要求保留分类、章页、历史与追踪，合并已有作品。未关联时在实际阅读该作品时再说明。",
-      "updatedAt": "2026-11-16T04:47:54+08:00",
-      "status": "58 个源包已发布，197 原备份重导和旧版阅读通过",
-      "stage": "正式源已发布，客户端真机验证通过",
-      "result": "原备份保留 63 部作品、4418 条章节记录、670 条历史和 4 条追踪，导入时无须逐本确认。35 部自动关联，上一轮是 19 部，漫画屋 8 部全部关联。动漫屋在开发包和正式 1.4.5 均可从历史打开原第 1 话第 10 页。58 个正式包校验并对照旧版解析通过，197 完成数据与电源恢复。",
-      "remaining": "客户端尚未正式发布。28 部未关联记录完整保留，其中 19 部已保存对应源，主要受六漫画连接失败及其他章节接口异常影响；9 部暂无可确认的对应源。漫画屋原页已核对源端页序与设备存档，真机进入阅读的样本为动漫屋。",
+      "updatedAt": "2026-11-16T20:03:14+08:00",
+      "status": "197 原大备份导入、冷启动、整库关联与返回均通过",
+      "stage": "最终开发包真机验证完成，修复待随新版发布",
+      "result": "解析、作品与进度合并、暂存文件写入都在 TaskPool 执行，回滚直接复制原文件。197 用原大备份完成导入，冷启动读回 2267 部作品和 9876 条原始历史，并在历史页看到导入的章节条目。从未匹配详情点阅读，关联到拷贝漫画，打开新详情后按一次返回原书架搜索结果。再冷启动确认关联已保存。原设备数据、同步和电源已恢复。原 63 部样本保留 4418 条章节记录、670 条历史和 4 条追踪，35 部自动关联。动漫屋已复测原第 1 话第 10 页，58 个正式书源包通过旧版解析校验。",
+      "remaining": "修复待随新版发布。原 63 部样本的 28 部未关联记录完整保留，其中 19 部保留对应书源，9 部暂无可确认的对应源。",
       "evidence": [
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T200055459348/summary.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T200158162123/screen.png",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T200225520454/screen.png",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T200230597052/summary.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/restore-20261116T200314734970",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T184315920172/summary.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/large-crash-20261116T184302985538",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/large-crash-20261116T185232388562",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T185753992421",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/restore-20261116T185909149881",
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T012815550724",
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/match-status-20261116T013828146641",
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T013832726822",
@@ -11256,6 +11266,76 @@
       "detail": "检查到初次下载的异常被添加页捕获成未保存；已区分 HTTP、网络与不支持的目录内容。移除、启停订阅提交后重新读取失败也使用读取提示。核查其他四类误报，登记 #312。",
       "kind": "verified",
       "evidence": ["entry/src/main/ets/pages/SourceSubscriptionsPage.ets", "scripts/test_image_banner_rules.cjs"]
+    },
+    {
+      "id": "mihon-large-backup-worker-verified-20261116",
+      "at": "2026-11-16T20:03:14+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "197 验证后台导入、冷启动与整库关联返回",
+      "detail": "最终签名开发包用原始大备份完成导入和冷读。合并和文件准备由 TaskPool 执行。书架打开导入作品，历史实际显示导入条目的章节。未匹配作品成功关联，按一次返回原书架搜索结果，第二次冷启动仍能读到关联。应用没有复现两次异常退出。失败恢复兼容旧版回滚文件。197 已恢复原数据、同步及电源并释租。",
+      "kind": "verified",
+      "evidence": ["entry/src/main/ets/model/MihonImportWorker.ets", ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T200230597052/summary.json"]
+    },
+    {
+      "id": "mihon-large-backup-taskpool-20261116",
+      "at": "2026-11-16T19:53:08+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "整库关联回退实测通过，按要求将重活移出 UI 线程",
+      "detail": "197 修订包使用原大备份完成导入、手动关联、一次返回原书架搜索和冷启动，历史实际显示导入条目，关联持久化读回通过。更早复现的系统日志记录到导入合并期间主线程超过三秒未响应。最终候选把解码、合并和暂存文件写入放到 TaskPool，页面直接接收提交后的书库和阅读状态，正在复验。",
+      "kind": "verified",
+      "evidence": ["entry/src/main/ets/model/MihonImportWorker.ets", ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261116T194343830453/summary.json"]
+    },
+    {
+      "id": "mihon-large-backup-checkpoint-file-copy-20261116",
+      "at": "2026-11-16T19:34:31+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "定位大书库关联退出并降低回滚快照的内存占用",
+      "detail": "197 记录了关联完成书库规划和进度合并，回滚快照未写入就退出。原快照在内存中把全量书库和历史文件再编码成 JSON。已改为备份原文件字节，只有回滚元数据保存在事务标记。本地验证提交保留、启动回滚及旧格式恢复，原备份真机复测进行中。",
+      "kind": "verified",
+      "evidence": ["entry/src/main/ets/model/BackupRestoreCheckpoint.ets", ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/large-crash-20261116T192932816989"]
+    },
+    {
+      "id": "mihon-large-backup-device-197-20261116",
+      "at": "2026-11-16T18:59:09+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "197 读回真实大备份并验证匹配返回",
+      "detail": "整份备份导入提交后进程退出。冷启动书架正常打开导入作品，历史页面打开且存档读回导入记录。整库内确认关联后进程退出，关联未落盘。单独导入同一部作品后，关联并一次返回原书架搜索结果通过。已恢复测试前数据和电源。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T184312142597",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T185743042304",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261116T185753992421"
+      ]
+    },
+    {
+      "id": "mihon-large-backup-and-match-return-20261116",
+      "at": "2026-11-16T18:32:21+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "修复大备份书库读回失败和匹配后返回旧详情",
+      "detail": "用户的大备份正常解出 2267 部作品、62209 条章节。1.5.0 本地重放在书库读回时拒绝缺地址或标题的章节。当前版本保留这些原始字段，完整恢复 2267 部记录和 1064 部收藏。从未匹配详情点阅读后匹配成功会退出失效详情，取消仍返回原详情。本地回放和 HAP 构建通过，未做本次真机复核。",
+      "kind": "verified",
+      "evidence": ["entry/src/main/ets/model/LibraryPersistence.ets", "entry/src/main/ets/pages/Index.ets"]
+    },
+    {
+      "id": "mihon-tracker-ci-build-passed-20261116",
+      "at": "2026-11-16T11:14:58+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "Mihon 导入修复的主分支构建通过",
+      "detail": "Actions 完成发布预检、Release HAP 构建和产物上传。",
+      "kind": "verified",
+      "evidence": ["https://github.com/honjow/Koma/actions/runs/43796275007"]
+    },
+    {
+      "id": "mihon-tracker-preflight-restored-20261116",
+      "at": "2026-11-16T11:10:54+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "修复 Mihon 追踪映射导致的构建预检失败",
+      "detail": "追踪映射改由追踪设置存储写入，保留导入回滚。本地发布预检与 HAP 构建通过，修复提交的新一轮 Actions 已通过同一预检。",
+      "kind": "verified",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/43794488653",
+        "https://github.com/honjow/Koma/actions/runs/43796275007"
+      ]
     },
     {
       "id": "webdav-connection-probe-and-sync-409-20261116",

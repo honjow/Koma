@@ -305,35 +305,30 @@ test('a failed Mihon import lookup remembers its source and history retries the 
  const entry = { sourceId: source.sourceId, enabled: true, mihonImport: {
   sourceIds: [record.work.sourceId], work: { pathPrefix: '/book/', pathSuffix: '/', idPrefix: 'book:' },
  } }
- const registry = { listInstalledSourceSummaries: () => [source], lookup: () => ({ entry }) }
+ const registry = { list: () => [entry], listInstalledSourceSummaries: () => [source], lookup: () => ({ entry }) }
  let stored = [record]
  let available = false
  const requests = []
  let titleSearches = 0
  class Store {
+  constructor(records = []) { this.records = records }
   listMihonImports() { return this.records.slice() }
+  replaceMihonImports(records) { this.records = records.slice() }
   listComics() { return [] }
  }
  class Persistence {
   constructor(library) { this.library = library }
-  restore() { this.library.records = JSON.parse(JSON.stringify(stored)) }
   persist() { stored = JSON.parse(JSON.stringify(this.library.records)) }
  }
  const { MihonImportService } = evaluate('MihonImportService', name => ({
-  './LibraryStore': { InMemoryLibraryStore: Store },
+  './LibraryStore': { InMemoryLibraryStore: Store,
+   libraryContents: source => source.listMihonImports(),
+   replaceLibraryContents: (target, records) => target.replaceMihonImports(records) },
   './LibraryPersistence': { LibraryStorePersistenceService: Persistence, AppFilesLibraryStorePersistenceAdapter: class {} },
   './BackupRestoreActivity': { BackupRestoreActivity: { runWrite: fn => fn() } },
   '../sourceRuntime/SourceRuntimeAppRegistry': { appSourceRuntimeRegistry: registry },
   '../sourceRuntime/MihonSourceIdentity': evaluate('../sourceRuntime/MihonSourceIdentity', () => ({})),
-  './MihonImportPlanning': {
-   mihonMatchText: value => value?.trim().toLowerCase() || '',
-   linkMihonWork: (_library, original, target, sameEdition, identity) => {
-    assert.equal(sameEdition, true)
-    assert.equal(identity, entry.mihonImport)
-    original.targetComicId = target.id
-    return { record: original, target }
-   },
-  },
+  './MihonImportPlanning': evaluate('MihonImportPlanning', () => ({})),
   './SourceMangaMigrationService': { async prepareMangaMigration(_registry, manga) {
    assert.equal(stored[0].matchedSourceId, source.sourceId)
    requests.push(manga)
@@ -346,17 +341,21 @@ test('a failed Mihon import lookup remembers its source and history retries the 
   } },
   '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { info() {} } },
  })[name] || {})
- const service = new MihonImportService({ filesDir: '/mock' })
- service.commit = async prepare => {
-  const library = new Store()
-  const persistence = new Persistence(library)
-  persistence.restore()
-  const linked = prepare(library)
-  persistence.persist()
-  return { unmatchedChapters: 0, targetComicId: linked[0]?.target.id }
+ const live = new Store(stored)
+ const service = new MihonImportService({ filesDir: '/mock' }, live)
+ service.commit = async links => {
+  assert.equal(links.length, 1)
+  assert.equal(links[0].id, record.id)
+  assert.equal(links[0].verifiedEdition, true)
+  assert.equal(links[0].identity, entry.mihonImport)
+  const targetComicId = links[0].target.id
+  live.replaceMihonImports([{ ...stored[0], targetComicId }])
+  new Persistence(live).persist()
+  return { unmatchedChapters: 0, targetComicId }
  }
  assert.equal(await service.matchUnresolved(undefined, true), false)
  assert.equal(stored[0].matchedSourceId, source.sourceId)
+ assert.equal(live.listMihonImports()[0].matchedSourceId, source.sourceId)
  assert.equal(stored[0].targetComicId, undefined)
  available = true
  await service.retryFromHistory(record.id, () => true)

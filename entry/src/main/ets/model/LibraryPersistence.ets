@@ -252,8 +252,8 @@ function persistChapter(chapter: Chapter): PersistedChapter {
   return row
 }
 
-function hydrateChapter(row: PersistedChapter): Chapter {
-  assertValidPersistedChapter(row)
+function hydrateChapter(row: PersistedChapter, isMihonPlaceholder: boolean): Chapter {
+  assertValidPersistedChapter(row, isMihonPlaceholder)
   const pages = row.pages.map((page: PersistedPage) => hydratePage(page))
   const chapter: Chapter = {
     id: row.id,
@@ -340,7 +340,8 @@ export function persistComic(comic: Comic): PersistedComic {
 
 export function hydrateComic(row: PersistedComic): Comic {
   assertValidPersistedComic(row)
-  const chapters = row.chapters.map((chapter: PersistedChapter) => hydrateChapter(chapter))
+  const isMihonPlaceholder = row.sourceRuntimeId?.startsWith('mihon:') === true
+  const chapters = row.chapters.map((chapter: PersistedChapter) => hydrateChapter(chapter, isMihonPlaceholder))
   const comic: Comic = {
     personalNotes: row.personalNotes, customCoverUri: row.customCoverUri, sourceCoverUri: row.sourceCoverUri,
     updateSchedule: row.updateSchedule,
@@ -530,11 +531,15 @@ function assertValidPersistedPage(row: PersistedPage): void {
   assertOptionalNumberField(row.byteSize, 'page.byteSize')
 }
 
-function assertValidPersistedChapter(row: PersistedChapter): void {
+function assertValidPersistedChapter(row: PersistedChapter, isMihonPlaceholder: boolean): void {
   assertPersistedObject(row as Object, 'chapter')
   assertStringField(row.id, 'chapter.id')
   assertStringField(row.comicId, 'chapter.comicId')
-  assertStringField(row.title, 'chapter.title')
+  // An unmatched Mihon chapter can have only its local ID and reading facts.
+  // Keep blank metadata as exported, including in a library saved by 1.5.0.
+  if (!isMihonPlaceholder || row.title !== '') {
+    assertStringField(row.title, 'chapter.title')
+  }
   assertNumberField(row.index, 'chapter.index')
   assertOptionalNumberField(row.chapterNumber, 'chapter.chapterNumber')
   assertOptionalStringField(row.volumeNumber, 'chapter.volumeNumber')
@@ -548,7 +553,9 @@ function assertValidPersistedChapter(row: PersistedChapter): void {
   assertOptionalStringField(row.scanlator, 'chapter.scanlator')
   assertOptionalStringField(row.language, 'chapter.language')
   assertOptionalNumberField(row.dateUpload, 'chapter.dateUpload')
-  assertStringField(row.sourcePath, 'chapter.sourcePath')
+  if (!isMihonPlaceholder || row.sourcePath !== '') {
+    assertStringField(row.sourcePath, 'chapter.sourcePath')
+  }
   assertStringField(row.sortKey, 'chapter.sortKey')
   assertOptionalStringField(row.sourceSettingsFingerprint, 'chapter.sourceSettingsFingerprint')
   if (!Array.isArray(row.pages)) {

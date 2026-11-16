@@ -11,6 +11,10 @@ import { SourceManga } from './SourceModels'
 import { migrationChapterMatch } from './SourceMangaMigration'
 import { AppStrings } from '../i18n/AppStrings'
 import { MihonSourceIdentity, mihonPathIdentity, mihonTargetChapterId } from '../sourceRuntime/MihonSourceIdentity'
+import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+import { ComicTrackerMapping, TrackerProviderId } from './TrackerModels'
+
+type MihonSourceSummary = SourceRuntimeRegistryInstalledSourceSummary
 
 export interface MihonImportSummary {
   works: number
@@ -27,6 +31,11 @@ export function mihonImportKey(work: MihonBackupWork): string {
 
 export function mihonSourceName(record: MihonImportRecord): string {
   return record.sourceName || AppStrings.format('mihon_import_unnamed_source', record.work.sourceId)
+}
+
+export interface MihonImportLabels {
+  untitled: string
+  unnamedSource: string
 }
 
 function httpIdentity(value: string | undefined): string | undefined {
@@ -122,9 +131,9 @@ export function summarizeMihonImport(backup: MihonBackup): MihonImportSummary {
   return summary
 }
 
-export function mihonPlaceholder(record: MihonImportRecord): Comic {
+export function mihonPlaceholder(record: MihonImportRecord, labels?: MihonImportLabels): Comic {
   const work = record.work
-  const title = work.title || AppStrings.get('manga_detail_title_fallback')
+  const title = work.title || (labels?.untitled ?? AppStrings.get('manga_detail_title_fallback'))
   const createdAt = work.addedAt || work.modifiedAt
   const urls = new Map<string, number>()
   work.chapters.forEach((chapter: MihonBackupChapter): void => { urls.set(chapter.url, (urls.get(chapter.url) ?? 0) + 1) })
@@ -138,7 +147,8 @@ export function mihonPlaceholder(record: MihonImportRecord): Comic {
     categoryIds: record.categoryIds.slice(), sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
     sourcePath: work.url, sourceRuntimeId: 'mihon:' + work.sourceId, remoteResourceId: work.url || record.id,
     coverUri: mangaHttpUrl(work.coverUrl), personalNotes: work.notes || undefined,
-    sourceMetadata: { sourceName: mihonSourceName(record), artist: work.artist || undefined, tags: work.genres.slice(),
+    sourceMetadata: { sourceName: record.sourceName || (labels === undefined ? mihonSourceName(record) :
+      labels.unnamedSource.replace('%s', work.sourceId)), artist: work.artist || undefined, tags: work.genres.slice(),
       status: mihonStatus(work.status),
       webUrl: mangaHttpUrl(work.url) },
     sortTitle: normalizeSortKey(title), preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
@@ -245,7 +255,8 @@ function mihonLinkedWork(comic: Comic): SourceManga | undefined {
 }
 
 export function importMihonWorks(backup: MihonBackup, library: LibraryStore,
-  identities: Map<string, MihonSourceIdentity> = new Map<string, MihonSourceIdentity>()): ResolvedMihonImport[] {
+  identities: Map<string, MihonSourceIdentity> = new Map<string, MihonSourceIdentity>(),
+  labels?: MihonImportLabels): ResolvedMihonImport[] {
   const links = categoryLinks(backup, library)
   const names = new Map<string, string>()
   for (const source of backup.sources) names.set(source.id, source.name)
@@ -276,7 +287,7 @@ export function importMihonWorks(backup: MihonBackup, library: LibraryStore,
     // A user-linked history-only work has no shelf row to rebuild here. Its
     // Koma identity remains linked and the incoming original facts are saved.
     if (previous?.targetComicId && existing === undefined) continue
-    const placeholder = mihonPlaceholder(record)
+    const placeholder = mihonPlaceholder(record, labels)
     const originalShelf = library.getComic(key)
     const current = existing ?? originalShelf
     const target = current === undefined ? placeholder : mergeComicMetadata(current, placeholder, record.categoryIds)
@@ -293,7 +304,7 @@ export function importMihonWorks(backup: MihonBackup, library: LibraryStore,
 }
 
 export function linkMihonWork(library: LibraryStore, from: MihonImportRecord, target: Comic,
-  verifiedEdition: boolean = false, identity?: MihonSourceIdentity): ResolvedMihonImport {
+  verifiedEdition: boolean = false, identity?: MihonSourceIdentity, labels?: MihonImportLabels): ResolvedMihonImport {
   const shelf = library.getComic(from.id)
   const previous = library.listComics(false).find((comic: Comic): boolean =>
     comic.sourceRuntimeId === target.sourceRuntimeId && comic.remoteResourceId === target.remoteResourceId)
@@ -312,7 +323,7 @@ export function linkMihonWork(library: LibraryStore, from: MihonImportRecord, ta
     }
     current.chapterCount = Math.max(current.chapterCount, current.chapters.length)
   }
-  const resolved = mergeComicMetadata(current, shelf ?? mihonPlaceholder(from), shelf?.categoryIds ?? from.categoryIds)
+  const resolved = mergeComicMetadata(current, shelf ?? mihonPlaceholder(from, labels), shelf?.categoryIds ?? from.categoryIds)
   if (shelf !== undefined || previous !== undefined) library.upsertComic(resolved)
   library.removeComic(from.id)
   const record: MihonImportRecord = { id: from.id, work: from.work, categoryIds: from.categoryIds,
@@ -347,7 +358,8 @@ function mihonChapterMatch(chapter: Chapter, original: Chapter[], target: Chapte
 
 /** Keep a later local position and local explicit read/bookmark changes. A matched
  * chapter on a different edition starts at its beginning; the original page is retained. */
-export function mergeMihonReading(snapshot: ReaderSessionReadingSnapshot, imports: ResolvedMihonImport[]): number {
+export function mergeMihonReading(snapshot: ReaderSessionReadingSnapshot,
+  imports: ResolvedMihonImport[], labels?: MihonImportLabels): number {
   const progress = new Map<string, ReadingProgress>()
   const histories = new Map<string, SourceReadHistoryEntry>()
   const states = new Map<string, ChapterReadingState>()
@@ -358,8 +370,8 @@ export function mergeMihonReading(snapshot: ReaderSessionReadingSnapshot, import
   for (const item of imports) {
     const work = item.record.work
     const comic = item.target
-    const placeholder = mihonPlaceholder(item.record)
     const pending = item.record.id === comic.id
+    const originalChapters = pending ? comic.chapters : mihonPlaceholder(item.record, labels).chapters
     const lastRead = new Map<string, number>()
     for (const edge of work.history) lastRead.set(edge.chapterUrl, Math.max(lastRead.get(edge.chapterUrl) ?? 0, edge.readAt))
     const latestReadAt = work.history.reduce((latest: number, edge: MihonBackupHistory): number =>
@@ -370,7 +382,7 @@ export function mergeMihonReading(snapshot: ReaderSessionReadingSnapshot, import
       const original = work.chapters[index]
       const readAt = lastRead.get(original.url) ?? 0
       if (!original.read && !original.bookmarked && original.pageIndex <= 0 && readAt <= 0) continue
-      const originalChapter = placeholder.chapters[index]
+      const originalChapter = originalChapters[index]
       const chapterRule = item.identity?.chapter
       const mappedId = chapterRule === undefined ? undefined : mihonPathIdentity(original.url, chapterRule)
       const direct = item.sameEdition ? comic.chapters.filter((chapter: Chapter): boolean =>
@@ -378,7 +390,7 @@ export function mergeMihonReading(snapshot: ReaderSessionReadingSnapshot, import
           (chapter.id === original.url || chapter.sourcePath === original.url) &&
           (chapter.scanlator ?? '') === original.scanlator) : []
       const destination = pending ? originalChapter : direct.length === 1 ? direct[0] :
-        mihonChapterMatch(originalChapter, placeholder.chapters, comic.chapters)
+        mihonChapterMatch(originalChapter, originalChapters, comic.chapters)
       if (destination === undefined) {
         unmatched++
         continue
@@ -432,4 +444,71 @@ export function mergeMihonReading(snapshot: ReaderSessionReadingSnapshot, import
   snapshot.sourceHistory = Array.from(histories.values())
   snapshot.chapterStates = Array.from(states.values())
   return unmatched
+}
+
+export function mihonSourceMatcher(sources: MihonSourceSummary[], identities: Map<string, MihonSourceIdentity>): (record: MihonImportRecord) => MihonSourceSummary | undefined {
+  const byId = new Map<string, MihonSourceSummary>()
+  const declared = new Map<string, MihonSourceSummary[]>()
+  const byName = new Map<string, MihonSourceSummary[]>()
+  for (const source of sources) {
+    const rule = identities.get(source.sourceId)
+    for (const id of new Set<string>(rule?.sourceIds ?? [])) {
+      const matches = declared.get(id) ?? []
+      matches.push(source)
+      declared.set(id, matches)
+    }
+    // A source that declares its Mihon editions must not claim other
+    // versions of the same title by sharing a provider name.
+    if (rule !== undefined) continue
+    byId.set(source.sourceId, source)
+    if (!source.capabilities.includes('search')) continue
+    const names = new Set<string>([mihonMatchText(source.displayName)])
+    const localized = source.localizedNames
+    if (localized !== undefined) {
+      for (const name of Object.keys(localized)) names.add(mihonMatchText(localized[name]))
+    }
+    names.delete('')
+    for (const name of names) {
+      const matches = byName.get(name) ?? []
+      matches.push(source)
+      byName.set(name, matches)
+    }
+  }
+  return (record: MihonImportRecord): MihonSourceSummary | undefined => {
+    const matches = declared.get(record.work.sourceId)
+    if (matches !== undefined) return matches.length === 1 ? matches[0] : undefined
+    const remembered = byId.get(record.matchedSourceId ?? '')
+    if (remembered !== undefined) return remembered
+    const named = byName.get(mihonMatchText(record.sourceName))
+    return named?.length === 1 ? named[0] : undefined
+  }
+}
+
+function trackerProvider(serviceId: number): TrackerProviderId | undefined {
+  // Mihon's TrackerManager defines these numeric identifiers.
+  switch (serviceId) {
+    case 1: return 'myanimelist'
+    case 2: return 'anilist'
+    case 3: return 'kitsu'
+    case 5: return 'bangumi'
+    case 7: return 'mangaupdates'
+    default: return undefined
+  }
+}
+
+export function withMihonTrackerCandidates(current: ComicTrackerMapping[], imported: ResolvedMihonImport[]): ComicTrackerMapping[] {
+  const mappings = current.slice()
+  for (const entry of imported) {
+    for (const track of entry.record.work.tracking ?? []) {
+      const providerId = trackerProvider(track.serviceId)
+      if (providerId === undefined || !/^\d*[1-9]\d*$/.test(track.mediaId)) continue
+      if (mappings.some((row: ComicTrackerMapping): boolean =>
+        row.comicId === entry.target.id && row.providerId === providerId)) continue
+      // Explicit binding in Koma remains account-scoped. Restoring a candidate
+      // preserves the title identity without scheduling any remote mutation.
+      mappings.push({ comicId: entry.target.id, providerId, providerTitleId: track.mediaId, providerTitle: track.title,
+        mappingState: 'candidate', userConfirmed: false, createdAt: entry.record.work.addedAt || Date.now() })
+    }
+  }
+  return mappings
 }

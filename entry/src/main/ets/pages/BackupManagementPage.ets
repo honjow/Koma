@@ -44,7 +44,7 @@ import {
   backupUnencryptedExportWarning,
 } from '../model/BackupService'
 import { MihonImportService, MihonImportSelection } from '../model/MihonImportService'
-import { MihonBackup } from '../model/MihonBackupReader'
+import { InMemoryLibraryStore, LibraryStore } from '../model/LibraryStore'
 import { MihonImportSummary } from '../model/MihonImportPlanning'
 import { BACKUP_DECRYPT_FAILURE_CODE, BACKUP_ENVELOPE_FAILURE_CODE, BACKUP_PASSPHRASE_MIN_LENGTH } from '../model/BackupEncryptionService'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -82,7 +82,8 @@ const BACKUP_SECTIONS: string[] = ['backup-actions', 'device-sync', 'backup-file
 export struct BackupManagementPage {
   @Param searchTarget: string = ''
   @Event onOpenDeviceSync: () => void = () => {}
-  @Event onMihonImported: (backup: MihonBackup) => void = (_backup: MihonBackup) => {}
+  @Param libraryStore: LibraryStore = new InMemoryLibraryStore()
+  @Event onMihonImported: () => void = () => {}
   @Param backupScroller: Scroller = new Scroller()
   @Param inModal: boolean = false
   @Provider('koma.modal.groupedCards') private modalGroupedCards: boolean = false
@@ -525,13 +526,13 @@ export struct BackupManagementPage {
   }
 
   private runMihonImport(): void {
-    const backup = this.selectedMihonBackup?.backup
+    const backup = this.selectedMihonBackup?.bytes
     if (backup === undefined || this.busy) return
     this.busy = true
-    void new MihonImportService(this.context()).importBackup(backup)
+    void new MihonImportService(this.context(), this.libraryStore).importBackup(backup)
       .then(async (): Promise<void> => {
         await this.closeBackupDialog()
-        this.onMihonImported(backup)
+        this.onMihonImported()
         this.showToast(t('mihon_import_finished'))
       })
       .catch((error: Error): void => {

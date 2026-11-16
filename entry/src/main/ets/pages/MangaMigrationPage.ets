@@ -437,8 +437,7 @@ export struct MangaMigrationPage {
           if (this.fromMihon) {
             const selection = target?.comic ?? this.cachedMihonTarget(row.target)?.id
             if (selection === undefined) throw new Error('migration_source_changed')
-            const result = await new MihonImportService(context).link(row.comic.id, selection)
-            this.persistence.restore()
+            const result = await new MihonImportService(context, this.libraryStore).link(row.comic.id, selection)
             unmatchedReadCount = result.unmatchedChapters
             targetComicId = result.targetComicId
           } else {

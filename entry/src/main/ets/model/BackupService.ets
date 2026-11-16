@@ -19,7 +19,6 @@ import { appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerC
 import { ApplicationSettingsBackup, checkedApplicationSettingsBackup, exportApplicationSettings,
   importApplicationSettings, countApplicationSettings, reloadApplicationSettingsRuntime } from './ApplicationSettingsBackup'
 import { writeAppTextFile } from './AppFileTextPersistence'
-import { readMihonBackup } from './MihonBackupReader'
 import { MihonImportService, MihonImportSelection } from './MihonImportService'
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -244,11 +243,11 @@ export interface BackupImportSelectionPreview {
   payload: string
   preview: BackupImportPreview
 }
+
 export interface BackupRestoreCompletion {
   refreshFailed: boolean
   cleanupFailed: boolean
 }
-
 
 export interface BackupFileSelection {
   koma?: BackupImportSelectionPreview
@@ -1427,8 +1426,8 @@ export class BackupService {
       // Rebuild disabled-address guards before opening the restore gate. A
       // successful restore must never expose a transient enabled subscription.
       await this.reloadSubscriptionRuntimeAfterRestore()
-      committed = true
       checkpoint.commit()
+      committed = true
       const state = this.managementState()
       state.automaticPreferences = undefined
       state.contentPreferences = undefined
@@ -1468,11 +1467,11 @@ export class BackupService {
             BackupRestoreActivity.finishRestore()
             signalDeviceSyncRestoreFinish(committed)
           }
+        }
       } catch (error) {
         if (!committed) throw error as Error
         cleanupFailed = true
         DiagnosticLogger.exception('backup', 'restore_cleanup_failed', error as Error)
-        }
       }
     }
     try {
@@ -1753,7 +1752,7 @@ export class BackupService {
     const bytes = await readBackupBytes(result[0])
     const prefix = new Uint8Array(bytes)
     if (prefix[0] === 0x1f && prefix[1] === 0x8b) {
-      return { mihon: new MihonImportService(this.context).preview(await readMihonBackup(bytes)) }
+      return { mihon: await MihonImportService.preview(bytes) }
     }
     const payload = await decodeBackupFile(bytes)
     const preview = this.preview(payload)

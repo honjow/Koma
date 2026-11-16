@@ -1,16 +1,19 @@
 import { common } from '@kit.AbilityKit'
+import { taskpool } from '@kit.ArkTS'
+import { fileIo as fs } from '@kit.CoreFileKit'
+import { AppStrings } from '../i18n/AppStrings'
 import { signalDeviceSyncChange, signalDeviceSyncRestoreStart, signalDeviceSyncRestoreFinish } from '../deviceSync/DeviceSyncSignals'
 import { beginAutomationRestore, finishAutomationRestore } from './AutomationStateEpoch'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { BackupRestoreCheckpoint } from './BackupRestoreCheckpoint'
-import { AppFilesLibraryStorePersistenceAdapter, LibraryStorePersistenceService } from './LibraryPersistence'
-import { InMemoryLibraryStore } from './LibraryStore'
-import { AppFilesReaderSessionPersistenceAdapter, ReaderSessionDocumentSnapshot, appReaderSessionStore } from './ReaderSessionStore'
-import { MihonBackup, MihonBackupTracking, MihonBackupWork, MihonImportRecord } from './MihonBackupReader'
+import { AppFilesLibraryStorePersistenceAdapter, LibraryStorePersistenceService, LIBRARY_STORE_PERSISTENCE_FILE_NAME } from './LibraryPersistence'
+import { InMemoryLibraryStore, LibraryStore, libraryContents, replaceLibraryContents } from './LibraryStore'
+import { appReaderSessionStore, ChapterReadingState, READER_PROGRESS_PERSISTENCE_FILE_NAME } from './ReaderSessionStore'
+import { MihonImportRecord } from './MihonBackupReader'
 import { Comic } from './ComicModels'
-import { importMihonWorks, linkMihonWork, mergeMihonReading, MihonImportSummary,
-  ResolvedMihonImport, summarizeMihonImport, matchingMihonShelfWork, mihonMatchText,
-  pickMihonSourceWork } from './MihonImportPlanning'
+import { MihonImportSummary, matchingMihonShelfWork, mihonMatchText, mihonSourceMatcher, pickMihonSourceWork } from './MihonImportPlanning'
+import { MihonLinkRequest, MihonPreparedTransaction, MihonTransactionRequest,
+  prepareMihonTransactionTask, previewMihonBackupTask } from './MihonImportWorker'
 import { SourceRuntimeRegistryEntry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { MihonSourceIdentity, mihonPathIdentity } from '../sourceRuntime/MihonSourceIdentity'
@@ -18,10 +21,10 @@ import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { prepareMangaMigration } from './SourceMangaMigrationService'
 import { SourceRuntimeError } from './SourceRuntimeError'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { ComicTrackerMapping, TrackerPreferencesStore, TrackerProviderId } from './TrackerModels'
+import { TrackerPreferencesStore } from './TrackerModels'
 
 export interface MihonImportSelection {
-  backup: MihonBackup
+  bytes: ArrayBuffer
   summary: MihonImportSummary
 }
 
@@ -38,108 +41,64 @@ interface MihonMatch {
 
 type MihonSourceSummary = SourceRuntimeRegistryInstalledSourceSummary
 
-function mihonSourceMatcher(sources: MihonSourceSummary[]): (record: MihonImportRecord) => MihonSourceSummary | undefined {
-  const byId = new Map<string, MihonSourceSummary>()
-  const declared = new Map<string, MihonSourceSummary[]>()
-  const byName = new Map<string, MihonSourceSummary[]>()
-  for (const source of sources) {
-    const rule = appSourceRuntimeRegistry.lookup(source.sourceId).entry?.mihonImport
-    for (const id of new Set<string>(rule?.sourceIds ?? [])) {
-      const matches = declared.get(id) ?? []
-      matches.push(source)
-      declared.set(id, matches)
-    }
-    // A source that declares its Mihon editions must not claim other
-    // versions of the same title by sharing a provider name.
-    if (rule !== undefined) continue
-    byId.set(source.sourceId, source)
-    if (!source.capabilities.includes('search')) continue
-    const names = new Set<string>([mihonMatchText(source.displayName)])
-    const localized = source.localizedNames
-    if (localized !== undefined) {
-      for (const name of Object.keys(localized)) names.add(mihonMatchText(localized[name]))
-    }
-    names.delete('')
-    for (const name of names) {
-      const matches = byName.get(name) ?? []
-      matches.push(source)
-      byName.set(name, matches)
-    }
-  }
-  return (record: MihonImportRecord): MihonSourceSummary | undefined => {
-    const matches = declared.get(record.work.sourceId)
-    if (matches !== undefined) return matches.length === 1 ? matches[0] : undefined
-    const remembered = byId.get(record.matchedSourceId ?? '')
-    if (remembered !== undefined) return remembered
-    const named = byName.get(mihonMatchText(record.sourceName))
-    return named?.length === 1 ? named[0] : undefined
-  }
-}
-
-function trackerProvider(serviceId: number): TrackerProviderId | undefined {
-  // Mihon's TrackerManager defines these numeric identifiers.
-  switch (serviceId) {
-    case 1: return 'myanimelist'
-    case 2: return 'anilist'
-    case 3: return 'kitsu'
-    case 5: return 'bangumi'
-    case 7: return 'mangaupdates'
-    default: return undefined
-  }
-}
-
-export function withMihonTrackerCandidates(current: ComicTrackerMapping[], imported: ResolvedMihonImport[]): ComicTrackerMapping[] {
-  const mappings = current.slice()
-  for (const entry of imported) {
-    for (const track of entry.record.work.tracking ?? []) {
-      const providerId = trackerProvider(track.serviceId)
-      if (providerId === undefined || !/^\d*[1-9]\d*$/.test(track.mediaId)) continue
-      if (mappings.some((row: ComicTrackerMapping): boolean =>
-        row.comicId === entry.target.id && row.providerId === providerId)) continue
-      // Explicit binding in Koma remains account-scoped. Restoring a candidate
-      // preserves the title identity without scheduling any remote mutation.
-      mappings.push({ comicId: entry.target.id, providerId, providerTitleId: track.mediaId, providerTitle: track.title,
-        mappingState: 'candidate', userConfirmed: false, createdAt: entry.record.work.addedAt || Date.now() })
-    }
-  }
-  return mappings
-}
-
 export class MihonImportService {
   private readonly context: common.UIAbilityContext
-  constructor(context: common.UIAbilityContext) { this.context = context }
-
-  preview(backup: MihonBackup): MihonImportSelection {
-    return { backup, summary: summarizeMihonImport(backup) }
+  private readonly library: LibraryStore
+  constructor(context: common.UIAbilityContext, library: LibraryStore) {
+    this.context = context
+    this.library = library
   }
 
-  async importBackup(backup: MihonBackup): Promise<MihonImportResult> {
-    return this.commit((library: InMemoryLibraryStore): ResolvedMihonImport[] => {
-      const identities = new Map<string, MihonSourceIdentity>()
-      for (const entry of appSourceRuntimeRegistry.list()) {
-        if (entry.mihonImport !== undefined) identities.set(entry.sourceId, entry.mihonImport)
-      }
-      const imported = importMihonWorks(backup, library, identities)
-      this.rememberSources(imported.map((item: ResolvedMihonImport): MihonImportRecord => item.record),
-        mihonSourceMatcher(appSourceRuntimeRegistry.listInstalledSourceSummaries()))
-      return imported
-    })
+  static async preview(bytes: ArrayBuffer): Promise<MihonImportSelection> {
+    const task = new taskpool.Task(previewMihonBackupTask, bytes)
+    task.setCloneList([bytes])
+    return { bytes, summary: await taskpool.execute(task) as MihonImportSummary }
+  }
+
+  importBackup(bytes: ArrayBuffer): Promise<MihonImportResult> {
+    return this.commit(undefined, bytes)
+  }
+
+  private sourceIdentities(): Map<string, MihonSourceIdentity> {
+    const identities = new Map<string, MihonSourceIdentity>()
+    for (const entry of appSourceRuntimeRegistry.list()) {
+      if (entry.mihonImport !== undefined) identities.set(entry.sourceId, entry.mihonImport)
+    }
+    return identities
   }
 
   /** The source and the verified edition have independent lifetimes. Keep the
    * source choice even when a request for this particular work fails. */
-  private rememberSources(records: MihonImportRecord[], matchSource: (record: MihonImportRecord) => MihonSourceSummary | undefined,
-    sourceIds?: string[]): boolean {
-    let changed = false
-    for (const record of records) {
-      if (record.targetComicId) continue
-      const source = matchSource(record)
-      if (source === undefined || record.matchedSourceId === source.sourceId ||
-        (sourceIds !== undefined && !sourceIds.includes(source.sourceId))) continue
-      record.matchedSourceId = source.sourceId
-      changed = true
-    }
-    return changed
+  private async rememberSources(matchSource: (record: MihonImportRecord) => MihonSourceSummary | undefined,
+    sourceIds?: string[], workId?: string): Promise<boolean> {
+    return BackupRestoreActivity.runWrite(async (): Promise<boolean> => {
+      let changed = false
+      const records = this.library.listMihonImports().map((record: MihonImportRecord): MihonImportRecord => {
+        if (record.targetComicId || (workId !== undefined && record.id !== workId)) return record
+        const source = matchSource(record)
+        if (source === undefined || record.matchedSourceId === source.sourceId ||
+          (sourceIds !== undefined && !sourceIds.includes(source.sourceId))) return record
+        changed = true
+        return { id: record.id, work: record.work, categoryIds: record.categoryIds, sourceName: record.sourceName,
+          matchedSourceId: source.sourceId, targetComicId: record.targetComicId, linkedWork: record.linkedWork }
+      })
+      if (!changed) return false
+      const staged = this.stageLibrary()
+      staged.replaceMihonImports(records)
+      this.persistenceFor(staged).persist()
+      this.library.replaceMihonImports(records)
+      return true
+    })
+  }
+
+  private stageLibrary(): InMemoryLibraryStore {
+    const staged = new InMemoryLibraryStore()
+    replaceLibraryContents(staged, libraryContents(this.library))
+    return staged
+  }
+
+  private persistenceFor(library: LibraryStore): LibraryStorePersistenceService {
+    return new LibraryStorePersistenceService(library, new AppFilesLibraryStorePersistenceAdapter(this.context.filesDir))
   }
 
   private async matchOriginalAddress(record: MihonImportRecord, entry: SourceRuntimeRegistryEntry,
@@ -156,20 +115,12 @@ export class MihonImportService {
   }
 
   /** Retry only this work before the history entry falls back to source selection. */
-  async retryFromHistory(id: string, isCurrent: () => boolean, onSourceSaved?: () => void): Promise<void> {
-    const library = new InMemoryLibraryStore()
-    const persistence = new LibraryStorePersistenceService(library,
-      new AppFilesLibraryStorePersistenceAdapter(this.context.filesDir))
-    const matchSource = mihonSourceMatcher(appSourceRuntimeRegistry.listInstalledSourceSummaries())
-    await BackupRestoreActivity.runWrite(async (): Promise<void> => {
-      persistence.restore()
-      if (isCurrent() && this.rememberSources(
-        library.listMihonImports().filter((row: MihonImportRecord): boolean => row.id === id), matchSource)) {
-        persistence.persist()
-        onSourceSaved?.()
-      }
-    })
-    const record = library.listMihonImports().find((row: MihonImportRecord): boolean => row.id === id)
+  async retryFromHistory(id: string, isCurrent: () => boolean): Promise<void> {
+    const matchSource = mihonSourceMatcher(appSourceRuntimeRegistry.listInstalledSourceSummaries(), this.sourceIdentities())
+    if (!isCurrent()) return
+    await this.rememberSources((record: MihonImportRecord): MihonSourceSummary | undefined =>
+      isCurrent() ? matchSource(record) : undefined, undefined, id)
+    const record = this.library.listMihonImports().find((row: MihonImportRecord): boolean => row.id === id)
     if (!isCurrent() || record === undefined || record.targetComicId) return
     const source = matchSource(record)
     if (source === undefined) return
@@ -177,7 +128,7 @@ export class MihonImportService {
     if (entry === undefined) return
     const current = (): boolean => isCurrent() && entry.enabled &&
       appSourceRuntimeRegistry.lookup(source.sourceId).entry === entry
-    const shelf = library.listComics(false)
+    const shelf = this.library.listComics(false)
     let target: MihonMatch | undefined
     try {
       target = await this.matchOriginalAddress(record, entry, shelf, current)
@@ -208,12 +159,7 @@ export class MihonImportService {
       if (current()) DiagnosticLogger.info('backup', 'mihon_history_retry', 'result=unresolved source=' + source.sourceId)
       return
     }
-    const match = target
-    const result = await this.commit((latest: InMemoryLibraryStore): ResolvedMihonImport[] => {
-      const row = latest.listMihonImports().find((item: MihonImportRecord): boolean => item.id === id)
-      return current() && row !== undefined && !row.targetComicId ?
-        [linkMihonWork(latest, row, match.comic, true, match.identity)] : []
-    })
+    const result = await this.commit([{ id, target: target.comic, verifiedEdition: true, identity: target.identity }])
     if (result.targetComicId !== undefined) {
       DiagnosticLogger.info('backup', 'mihon_history_retry', 'result=linked source=' + source.sourceId)
     }
@@ -221,45 +167,30 @@ export class MihonImportService {
 
   /** Discovery continues after the local import has finished and its Dialog has
    * closed. Opening a book never waits behind the search for other books. */
-  async matchUnresolved(sourceIds?: string[], directOnly: boolean = false, onSourcesSaved?: () => void): Promise<boolean> {
-    const library = new InMemoryLibraryStore()
-    const persistence = new LibraryStorePersistenceService(library,
-      new AppFilesLibraryStorePersistenceAdapter(this.context.filesDir))
-    const matchSource = mihonSourceMatcher(appSourceRuntimeRegistry.listInstalledSourceSummaries())
-    await BackupRestoreActivity.runWrite(async (): Promise<void> => {
-      persistence.restore()
-      if (this.rememberSources(library.listMihonImports(), matchSource, sourceIds)) {
-        persistence.persist()
-        onSourcesSaved?.()
-      }
-    })
-    const discovered = await this.discoverWorks(library, matchSource, sourceIds, directOnly)
+  async matchUnresolved(sourceIds?: string[], directOnly: boolean = false): Promise<boolean> {
+    const matchSource = mihonSourceMatcher(appSourceRuntimeRegistry.listInstalledSourceSummaries(), this.sourceIdentities())
+    await this.rememberSources(matchSource, sourceIds)
+    const discovered = await this.discoverWorks(this.library, matchSource, sourceIds, directOnly)
     if (discovered.size === 0) {
       DiagnosticLogger.info('backup', 'mihon_match_finished', 'linked=0')
       return false
     }
-    let linked = 0
-    await this.commit((current: InMemoryLibraryStore): ResolvedMihonImport[] => {
-      // Manual choices and edits made while the installed sources were being
-      // queried take precedence over this discovery pass.
-      const latest = current.listMihonImports().filter((row: MihonImportRecord): boolean =>
-        !row.targetComicId && discovered.has(row.id))
-      const byKey = new Map<string, MihonImportRecord>()
-      latest.forEach((row: MihonImportRecord): void => { byKey.set(row.id, row) })
-      const work: ResolvedMihonImport[] = []
-      discovered.forEach((target: MihonMatch, key: string): void => {
-        const record = byKey.get(key)
-        if (record !== undefined && appSourceRuntimeRegistry.lookup(target.entry.sourceId).entry === target.entry &&
-          target.entry.enabled) work.push(linkMihonWork(current, record, target.comic, true, target.identity))
-      })
-      linked = work.length
-      return work
-    })
-    DiagnosticLogger.info('backup', 'mihon_match_finished', 'linked=' + linked)
-    return linked > 0
+    const links: MihonLinkRequest[] = []
+    // A manual selection made during discovery takes precedence.
+    for (const record of this.library.listMihonImports()) {
+      const target = discovered.get(record.id)
+      if (!record.targetComicId && target !== undefined &&
+        appSourceRuntimeRegistry.lookup(target.entry.sourceId).entry === target.entry && target.entry.enabled) {
+        links.push({ id: record.id, target: target.comic, verifiedEdition: true, identity: target.identity })
+      }
+    }
+    if (links.length === 0) return false
+    await this.commit(links)
+    DiagnosticLogger.info('backup', 'mihon_match_finished', 'linked=' + links.length)
+    return true
   }
 
-  private async discoverWorks(library: InMemoryLibraryStore, matchSource: (record: MihonImportRecord) => MihonSourceSummary | undefined,
+  private async discoverWorks(library: LibraryStore, matchSource: (record: MihonImportRecord) => MihonSourceSummary | undefined,
     sourceIds: string[] | undefined,
     directOnly: boolean): Promise<Map<string, MihonMatch>> {
     const shelf = library.listComics(false)
@@ -359,17 +290,33 @@ export class MihonImportService {
     return found
   }
 
-  async link(id: string, selection: Comic | string): Promise<MihonImportResult> {
-    return this.commit((library: InMemoryLibraryStore): ResolvedMihonImport[] => {
-      const record = library.listMihonImports().find((row: MihonImportRecord): boolean => row.id === id)
-      if (record === undefined) throw new Error('mihon_import_missing_work')
-      const target = typeof selection === 'string' ? library.getComic(selection) : selection
-      if (target === undefined) throw new Error('migration_source_changed')
-      return [linkMihonWork(library, record, target)]
-    })
+  link(id: string, selection: Comic | string): Promise<MihonImportResult> {
+    return this.commit([{ id, target: selection }])
   }
 
-  private async commit(prepare: (library: InMemoryLibraryStore) => ResolvedMihonImport[]): Promise<MihonImportResult> {
+  private async prepareTransaction(staged: string, request: MihonTransactionRequest): Promise<MihonPreparedTransaction> {
+    const task = new taskpool.Task(prepareMihonTransactionTask, this.context.filesDir, staged, request)
+    if (request.bytes !== undefined) task.setCloneList([request.bytes])
+    const comics: Comic[] = []
+    const imports: MihonImportRecord[] = []
+    const chapters: ChapterReadingState[] = []
+    let receivedAll: () => void = () => {}
+    const received = new Promise<void>((resolve: () => void): void => { receivedAll = resolve })
+    task.onReceiveData((kind: string, rows?: Object[]): void => {
+      if (kind === 'complete') receivedAll()
+      else if (kind === 'comics') (rows as Comic[]).forEach((row: Comic): void => { comics.push(row) })
+      else if (kind === 'imports') (rows as MihonImportRecord[]).forEach((row: MihonImportRecord): void => { imports.push(row) })
+      else if (kind === 'chapters') (rows as ChapterReadingState[]).forEach((row: ChapterReadingState): void => { chapters.push(row) })
+    })
+    const result = await taskpool.execute(task) as MihonPreparedTransaction
+    await received
+    result.library.comics = comics
+    result.library.mihonImports = imports
+    result.reader.chapters = chapters
+    return result
+  }
+
+  private async commit(links?: MihonLinkRequest[], bytes?: ArrayBuffer): Promise<MihonImportResult> {
     BackupRestoreActivity.beginRestore()
     let checkpoint: BackupRestoreCheckpoint | undefined
     let committed = false
@@ -382,43 +329,29 @@ export class MihonImportService {
       beginAutomationRestore(context)
       automationPrepared = true
       if (!await reader.flushAsync()) throw new Error('reader_progress_save_failed')
-      const library = new InMemoryLibraryStore()
-      const persistence = new LibraryStorePersistenceService(library, new AppFilesLibraryStorePersistenceAdapter(context.filesDir))
-      persistence.restore()
-      const snapshot = reader.snapshotReadingState()
-      const entries = prepare(library)
-      for (const item of entries) {
-        const identity = appSourceRuntimeRegistry.lookup(item.target.sourceRuntimeId ?? '').entry?.mihonImport
-        if (identity !== undefined && identity.sourceIds.includes(item.record.work.sourceId) &&
-          item.target.remoteResourceId === mihonPathIdentity(item.record.work.url, identity.work)) {
-          item.sameEdition = true
-          item.identity = identity
-        }
-      }
-      const unmatchedChapters = mergeMihonReading(snapshot, entries)
       const beforeMappings = tracker.mappingSnapshot()
-      const mappings = withMihonTrackerCandidates(beforeMappings, entries)
-      const readerDocument: ReaderSessionDocumentSnapshot = {
-        progress: snapshot.progress, sourceHistory: snapshot.sourceHistory, remoteHistory: snapshot.remoteHistory,
-        chapters: snapshot.chapterStates, readingSessions: snapshot.readingSessions,
-        syncPositions: reader.pendingDeviceSyncPositions(), syncActions: reader.pendingDeviceSyncActions(),
-      }
+      const request: MihonTransactionRequest = { bytes, links, identities: this.sourceIdentities(),
+        sources: appSourceRuntimeRegistry.listInstalledSourceSummaries(), trackerMappings: beforeMappings,
+        labels: { untitled: AppStrings.get('manga_detail_title_fallback'),
+          unnamedSource: AppStrings.get('mihon_import_unnamed_source') } }
       checkpoint = await BackupRestoreCheckpoint.prepare(context)
-      persistence.persist()
-      new AppFilesReaderSessionPersistenceAdapter(context.filesDir).saveSnapshot(readerDocument)
-      if (mappings.length > beforeMappings.length) {
-        await tracker.saveComicMappingsForBackupRestore(mappings)
+      const staged = checkpoint.stagedFilesDirectory()
+      const prepared = await this.prepareTransaction(staged, request)
+      fs.renameSync(staged + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME, context.filesDir + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME)
+      fs.renameSync(staged + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME, context.filesDir + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME)
+      if (prepared.trackerMappings.length > beforeMappings.length) {
+        await tracker.saveComicMappingsForBackupRestore(prepared.trackerMappings)
       }
-      reader.reload()
       tracker.invalidateMappingSnapshot()
       checkpoint.commit()
       committed = true
-      return { unmatchedChapters, targetComicId: entries.length === 1 ? entries[0].target.id : undefined }
+      reader.applyCommittedSnapshot(prepared.reader)
+      replaceLibraryContents(this.library, prepared.library)
+      return { unmatchedChapters: prepared.unmatchedChapters, targetComicId: prepared.targetComicId }
     } catch (error) {
-      if (checkpoint !== undefined) {
+      if (checkpoint !== undefined && !committed) {
         try {
           await checkpoint.rollback()
-          reader.reload()
           tracker.invalidateMappingSnapshot()
           checkpoint.completeRollback()
         } catch (_rollbackError) {

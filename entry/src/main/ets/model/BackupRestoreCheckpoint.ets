@@ -1,5 +1,4 @@
 import { common } from '@kit.AbilityKit'
-import { buffer } from '@kit.ArkTS'
 import { preferences } from '@kit.ArkData'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { AppFilesLibraryStorePersistenceAdapter } from './LibraryPersistence'
@@ -8,6 +7,8 @@ import { APPLICATION_SETTINGS_BACKUP_STORES } from './ApplicationSettingsBackup'
 import { PUBLIC_CONTENT_QUEUE_PRIVATE_PATH } from './OfflineDownloadQueueStore'
 
 const CHECKPOINT_FILE: string = 'backup-restore-checkpoint.v1.json'
+const CHECKPOINT_FILES: string = 'backup-restore-checkpoint-files'
+const FILE_CHECKPOINT_VERSION: number = 7
 const RESTORE_FILES_V2: string[] = [
   'library-store.v1.json',
   'reader-sessions.v1.json',
@@ -49,7 +50,8 @@ type RestorePreferenceValue = string | number | boolean
 interface RestoreFileImage {
   path: string
   exists: boolean
-  content: string
+  content?: string
+  byteSize?: number
 }
 
 interface RestorePreferenceImage {
@@ -82,24 +84,16 @@ function checkedPreferenceValues(value: Object): Record<string, RestorePreferenc
   return values
 }
 
-function readExactUtf8(path: string): string {
-  const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
+function checkpointFilesPath(filesDir: string): string {
+  return `${filesDir}/${CHECKPOINT_FILES}`
+}
+
+async function copyCheckpointFile(source: string, destination: string, byteSize: number): Promise<void> {
+  await fs.copyFile(source, destination)
+  const file = fs.openSync(destination, fs.OpenMode.READ_WRITE)
   try {
-    const size = fs.statSync(file.fd).size
-    const bytes = new Uint8Array(size)
-    let offset = 0
-    while (offset < size) {
-      const chunk = new ArrayBuffer(Math.min(65536, size - offset))
-      const count = fs.readSync(file.fd, chunk)
-      if (count <= 0) throw new Error('backup_checkpoint_incomplete_read')
-      bytes.set(new Uint8Array(chunk, 0, count), offset)
-      offset += count
-    }
-    const content = buffer.from(bytes).toString('utf-8')
-    if (buffer.compare(buffer.from(content, 'utf-8'), bytes) !== 0) {
-      throw new Error('backup_checkpoint_invalid_utf8')
-    }
-    return content
+    if (fs.statSync(file.fd).size !== byteSize) throw new Error('backup_checkpoint_incomplete_copy')
+    await fs.fsync(file.fd)
   } finally {
     fs.closeSync(file)
   }
@@ -107,19 +101,24 @@ function readExactUtf8(path: string): string {
 
 function checkedDocument(payload: string): RestoreCheckpointDocument {
   const document = JSON.parse(payload) as RestoreCheckpointDocument
-  if (document === null || ![1, 2, 3, 4, 5, 6].includes(document.schemaVersion) ||
+  if (document === null || ![1, 2, 3, 4, 5, 6, FILE_CHECKPOINT_VERSION].includes(document.schemaVersion) ||
     (document.phase !== 'prepared' && document.phase !== 'committed') ||
     !Array.isArray(document.files) || !Array.isArray(document.preferences)) {
     throw new Error('backup_checkpoint_invalid_document')
   }
-  const expectedFiles = document.schemaVersion === 6 ? RESTORE_FILES : document.schemaVersion >= 4 ? RESTORE_FILES_V4 :
+  const usesFileCopies = document.schemaVersion === FILE_CHECKPOINT_VERSION
+  const expectedFiles = document.schemaVersion >= 6 ? RESTORE_FILES : document.schemaVersion >= 4 ? RESTORE_FILES_V4 :
     document.schemaVersion === 3 ? RESTORE_FILES_V3 : RESTORE_FILES_V2
   if (document.files.length !== expectedFiles.length) throw new Error('backup_checkpoint_invalid_document')
   for (let index = 0; index < expectedFiles.length; index += 1) {
     const image = document.files[index]
-    if (image === null || image.path !== expectedFiles[index] ||
-      typeof image.exists !== 'boolean' || typeof image.content !== 'string' ||
-      (!image.exists && image.content.length !== 0)) {
+    if (image === null || image.path !== expectedFiles[index] || typeof image.exists !== 'boolean') {
+      throw new Error('backup_checkpoint_invalid_file')
+    }
+    if (usesFileCopies) {
+      if (image.byteSize === undefined || !Number.isSafeInteger(image.byteSize) || image.byteSize < 0 ||
+        (!image.exists && image.byteSize !== 0)) throw new Error('backup_checkpoint_invalid_file')
+    } else if (typeof image.content !== 'string' || (!image.exists && image.content.length !== 0)) {
       throw new Error('backup_checkpoint_invalid_file')
     }
   }
@@ -151,14 +150,28 @@ export class BackupRestoreCheckpoint {
     this.document = document
   }
 
+  stagedFilesDirectory(): string {
+    return checkpointFilesPath(this.context.filesDir)
+  }
+
   static async prepare(context: common.UIAbilityContext): Promise<BackupRestoreCheckpoint> {
+    const filesDir = context.filesDir
     const adapter = new AppFilesLibraryStorePersistenceAdapter(context.filesDir, CHECKPOINT_FILE)
-    if (adapter.load() !== undefined) throw new Error('backup_checkpoint_recovery_pending')
-    const files: RestoreFileImage[] = RESTORE_FILES.map((path: string): RestoreFileImage => {
-      const absolutePath = `${context.filesDir}/${path}`
+    if (fs.accessSync(`${filesDir}/${CHECKPOINT_FILE}`)) throw new Error('backup_checkpoint_recovery_pending')
+    const copies = checkpointFilesPath(filesDir)
+    if (fs.accessSync(copies)) fs.rmdirSync(copies)
+    fs.mkdirSync(copies)
+    // Keep previous documents on disk. Encoding the live library and history
+    // inside another JSON string can exhaust the app heap before the first write.
+    const files: RestoreFileImage[] = []
+    for (let index = 0; index < RESTORE_FILES.length; index += 1) {
+      const path = RESTORE_FILES[index]
+      const absolutePath = `${filesDir}/${path}`
       const exists = fs.accessSync(absolutePath)
-      return { path, exists, content: exists ? readExactUtf8(absolutePath) : '' }
-    })
+      const byteSize = exists ? fs.statSync(absolutePath).size : 0
+      if (exists) await copyCheckpointFile(absolutePath, `${copies}/${index}`, byteSize)
+      files.push({ path, exists, byteSize })
+    }
     const images: RestorePreferenceImage[] = []
     for (let index = 0; index < RESTORE_PREFERENCES.length; index += 1) {
       const name = RESTORE_PREFERENCES[index]
@@ -167,7 +180,9 @@ export class BackupRestoreCheckpoint {
       // Freeze a copy before later put/delete operations mutate the cache.
       images.push({ name, values: JSON.parse(JSON.stringify(values)) as Record<string, RestorePreferenceValue> })
     }
-    const document: RestoreCheckpointDocument = { schemaVersion: 6, phase: 'prepared', files, preferences: images }
+    // Publish the marker only once every rollback input is complete.
+    const document: RestoreCheckpointDocument = { schemaVersion: FILE_CHECKPOINT_VERSION,
+      phase: 'prepared', files, preferences: images }
     adapter.save(JSON.stringify(document))
     console.info('[BackupRecovery] step=prepared')
     return new BackupRestoreCheckpoint(context, document)
@@ -175,7 +190,10 @@ export class BackupRestoreCheckpoint {
 
   static async recoverBeforeStartup(context: common.UIAbilityContext): Promise<void> {
     const payload = new AppFilesLibraryStorePersistenceAdapter(context.filesDir, CHECKPOINT_FILE).load()
-    if (payload === undefined) return
+    if (payload === undefined) {
+      BackupRestoreCheckpoint.discardFileCopies(context.filesDir)
+      return
+    }
     BackupRestoreActivity.beginRestore()
     try {
       const checkpoint = new BackupRestoreCheckpoint(context, checkedDocument(payload))
@@ -195,13 +213,35 @@ export class BackupRestoreCheckpoint {
   }
 
   async rollback(): Promise<void> {
+    const filesDir = this.context.filesDir
+    const copies = checkpointFilesPath(filesDir)
+    const usesFileCopies = this.document.schemaVersion === FILE_CHECKPOINT_VERSION
+    if (usesFileCopies) {
+      // Check every backup before replacing any live document.
+      for (let index = 0; index < this.document.files.length; index += 1) {
+        const image = this.document.files[index]
+        if (image.exists && fs.statSync(`${copies}/${index}`).size !== image.byteSize) {
+          throw new Error('backup_checkpoint_incomplete_copy')
+        }
+      }
+    }
     for (let index = 0; index < this.document.files.length; index += 1) {
       const image = this.document.files[index]
-      const path = `${this.context.filesDir}/${image.path}`
+      const path = `${filesDir}/${image.path}`
       if (image.exists) {
         const parent = path.substring(0, path.lastIndexOf('/'))
         if (!fs.accessSync(parent)) fs.mkdirSync(parent, true)
-        new AppFilesLibraryStorePersistenceAdapter(this.context.filesDir, image.path).save(image.content)
+        if (usesFileCopies) {
+          const staged = `${path}.backup-restore.tmp`
+          try {
+            await copyCheckpointFile(`${copies}/${index}`, staged, image.byteSize as number)
+            fs.renameSync(staged, path)
+          } finally {
+            if (fs.accessSync(staged)) fs.unlinkSync(staged)
+          }
+        } else {
+          new AppFilesLibraryStorePersistenceAdapter(filesDir, image.path).save(image.content as string)
+        }
       } else if (fs.accessSync(path)) {
         fs.unlinkSync(path)
       }
@@ -228,6 +268,7 @@ export class BackupRestoreCheckpoint {
   completeRollback(): void {
     // Call only after the existing in-process readers have reloaded old state.
     fs.unlinkSync(`${this.context.filesDir}/${CHECKPOINT_FILE}`)
+    BackupRestoreCheckpoint.discardFileCopies(this.context.filesDir)
   }
 
   commit(): void {
@@ -242,6 +283,18 @@ export class BackupRestoreCheckpoint {
       fs.unlinkSync(`${this.context.filesDir}/${CHECKPOINT_FILE}`)
     } catch (_error) {
       // A retained COMMITTED image is cleanup-only on the next startup.
+      return
+    }
+    BackupRestoreCheckpoint.discardFileCopies(this.context.filesDir)
+  }
+
+  private static discardFileCopies(filesDir: string): void {
+    const path = checkpointFilesPath(filesDir)
+    try {
+      if (fs.accessSync(path)) fs.rmdirSync(path)
+    } catch (_error) {
+      // Without the marker these copies cannot be used for recovery. Reclaim
+      // them before the next restore if the current cleanup was interrupted.
     }
   }
 }

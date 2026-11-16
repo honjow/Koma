@@ -21,7 +21,7 @@ const pageLogic = (source.slice(0, source.indexOf('  @Builder')) + '\n}')
   .replace('export struct', 'export class')
 const { BackupManagementPage } = evaluate(pageLogic, {
   Scroller: class {}, connectLayoutSafeArea: () => ({}),
-  BackupManagementState: class {},
+  BackupManagementState: class {}, InMemoryLibraryStore: class {},
   DEFAULT_BACKUP_AUTOMATIC_PREFERENCES: { enabled: false },
   DEFAULT_BACKUP_CONTENT_PREFERENCES: {}, AppStrings: { get: key => key, format: key => key },
   connectLanguageState: () => ({}),

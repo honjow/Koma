@@ -86,6 +86,32 @@ export interface LibraryStore {
   restoreJson(payload: string): void
 }
 
+export interface LibraryContents {
+  comics: Comic[]
+  customCategories: CustomLibraryCategory[]
+  smartCategories: LibrarySmartCategory[]
+  displayStrategies: LibraryCategoryDisplayStrategy[]
+  shelfMoves: SyncLocalShelfMove[]
+  mihonImports: MihonImportRecord[]
+}
+
+export function libraryContents(source: LibraryStore): LibraryContents {
+  return { comics: source.listComics(false), customCategories: source.listCustomCategories(),
+    smartCategories: source.listSmartCategories(), displayStrategies: source.listCategoryDisplayStrategies(),
+    shelfMoves: source.listSyncShelfMoves(), mihonImports: source.listMihonImports() }
+}
+
+/** Publish the collections prepared by the library transaction. */
+export function replaceLibraryContents(target: LibraryStore, source: LibraryContents): void {
+  target.clear()
+  target.replaceCustomCategories(source.customCategories)
+  target.replaceSmartCategories(source.smartCategories)
+  target.replaceCategoryDisplayStrategies(source.displayStrategies)
+  source.comics.forEach((comic: Comic): void => { target.upsertComic(comic) })
+  target.replaceSyncShelfMoves(source.shelfMoves)
+  target.replaceMihonImports(source.mihonImports)
+}
+
 export class InMemoryLibraryStore implements LibraryStore {
   private mihonImports: MihonImportRecord[] = []
   private smartCategories: LibrarySmartCategory[] = []

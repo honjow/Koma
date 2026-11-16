@@ -333,11 +333,12 @@ async function verifyCheckpoint(ports, applicationSettings, stores) {
   const activity = evaluate(read('model/BackupRestoreActivity.ets'), {})
   const checkpoint = evaluate(read('model/BackupRestoreCheckpoint.ets'), {
     ...ports,
-    '@kit.ArkTS': { buffer: Buffer },
     '@kit.CoreFileKit': { fileIo: {
-      accessSync: fs.existsSync, OpenMode: { READ_ONLY: 'r' },
-      openSync: file => ({ fd: fs.openSync(file, 'r') }), statSync: fd => fs.fstatSync(fd),
-      readSync: (fd, target) => fs.readSync(fd, new Uint8Array(target)), closeSync: file => fs.closeSync(file.fd),
+      accessSync: fs.existsSync, OpenMode: { READ_WRITE: 'r+' },
+      openSync: (file, mode) => ({ fd: fs.openSync(file, mode) }), closeSync: file => fs.closeSync(file.fd),
+      statSync: value => typeof value === 'number' ? fs.fstatSync(value) : fs.statSync(value),
+      copyFile: fs.promises.copyFile, fsync: async fd => fs.fsyncSync(fd), renameSync: fs.renameSync,
+      rmdirSync: folder => fs.rmSync(folder, { recursive: true }),
       mkdirSync: folder => fs.mkdirSync(folder, { recursive: true }), unlinkSync: fs.unlinkSync,
     } },
     './BackupRestoreActivity': activity,
@@ -382,6 +383,21 @@ async function verifyCheckpoint(ports, applicationSettings, stores) {
     for (const [name, values] of original) assert.deepEqual(stores.get(name), values)
     assert(!fs.existsSync(checkpointPath))
 
+    const libraryFile = path.join(directory, 'library-store.v1.json')
+    const oldLibrary = JSON.stringify({ title: '原书库'.repeat(256 * 1024) })
+    fs.writeFileSync(libraryFile, oldLibrary)
+    await checkpoint.prepare(context)
+    fs.writeFileSync(libraryFile, '{"title":"new"}')
+    await checkpoint.recoverBeforeStartup(context)
+    assert.equal(fs.readFileSync(libraryFile, 'utf8'), oldLibrary)
+    assert(!fs.existsSync(checkpointPath))
+    const published = await checkpoint.prepare(context)
+    fs.writeFileSync(libraryFile, '{"title":"new"}')
+    published.commit()
+    await checkpoint.recoverBeforeStartup(context)
+    assert.equal(fs.readFileSync(libraryFile, 'utf8'), '{"title":"new"}')
+    assert(!fs.existsSync(checkpointPath))
+
     // Exact domains written by released checkpoint versions, independent of
     // today's portable list. Recovery must leave the two new stores untouched.
     const first = ['koma_remote_servers_v1', 'koma_source_package_manager_v1', 'koma_tracker_preferences_v1', 'koma_reader_preferences_v1']
@@ -394,12 +410,13 @@ async function verifyCheckpoint(ports, applicationSettings, stores) {
     const v4Stores = first.concat(domains[3], base)
     const v5Stores = v4Stores.concat(applicationSettings.APPLICATION_SETTINGS_BACKUP_STORES.filter(name => !v4Stores.includes(name)))
     const versions = [[1, first], [2, first.concat(base)], ...domains.map(extra => [3, first.concat(extra, base)]),
-      [4, v4Stores], [5, v5Stores]]
+      [4, v4Stores], [5, v5Stores], [6, v5Stores]]
     for (const [version, names] of versions) {
       const recoveryFiles = files.concat(version >= 3 ? ['source-runtime/source-setting-observations.json'] : [],
-        version >= 4 ? ['image-rules.v1.json'] : [])
+        version >= 4 ? ['image-rules.v1.json'] : [], version >= 6 ? ['download-queue/queue.v1.json'] : [])
       fs.writeFileSync(checkpointPath, JSON.stringify({ schemaVersion: version, phase: 'prepared',
-        files: recoveryFiles.map(relative => ({ path: relative, exists: false, content: '' })),
+        files: recoveryFiles.map(relative => ({ path: relative, exists: relative === 'download-queue/queue.v1.json',
+          content: relative === 'download-queue/queue.v1.json' ? 'original queue' : '' })),
         preferences: names.map(name => ({ name, values: { 'historical.fixture': version } })),
       }))
       await checkpoint.recoverBeforeStartup(context)

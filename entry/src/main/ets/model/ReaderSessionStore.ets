@@ -315,7 +315,7 @@ function projectChapterCompletion(state: ChapterReadingState, progress: ReadingP
   }
 }
 
-function alignSnapshotChapterCompletion(snapshot: ReaderSessionDocumentSnapshot): ReaderSessionDocumentSnapshot {
+export function alignSnapshotChapterCompletion(snapshot: ReaderSessionDocumentSnapshot): ReaderSessionDocumentSnapshot {
   const states = new Map<string, ChapterReadingState>()
   snapshot.chapters.forEach((state: ChapterReadingState): void => {
     states.set(chapterStateKey(state.comicId, state.chapterId), state)
@@ -1059,6 +1059,11 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.flushPendingMigration()
   }
 
+  /** The restore worker already loaded and normalized the committed documents. */
+  applyCommittedSnapshot(snapshot: ReaderSessionDocumentSnapshot): void {
+    this.restoreSnapshot(true, snapshot)
+  }
+
   restoreReadingState(snapshot: ReaderSessionReadingSnapshot): void {
     this.progressByComicId.clear()
     snapshot.progress.forEach((progress: ReadingProgress): void => {
@@ -1081,8 +1086,8 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     }
   }
 
-  private restoreSnapshot(replace: boolean = false): void {
-    const snapshot = this.adapter.loadSnapshot === undefined ? undefined : this.adapter.loadSnapshot()
+  private restoreSnapshot(replace: boolean = false, prepared?: ReaderSessionDocumentSnapshot): void {
+    const snapshot = prepared ?? (this.adapter.loadSnapshot === undefined ? undefined : this.adapter.loadSnapshot())
     const progressRows = snapshot === undefined ? this.adapter.load() : snapshot.progress
     const sourceHistory = snapshot !== undefined ? snapshot.sourceHistory :
       (this.adapter.loadSourceHistory === undefined ? [] : this.adapter.loadSourceHistory())

@@ -97,7 +97,7 @@ import { SourceSearchPage } from './SourceSearchPage'
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
 import { MangaGridItem } from '../components/MangaGridItem'
 import { MangaMigrationPage } from './MangaMigrationPage'
-import { MihonBackup, MihonImportRecord } from '../model/MihonBackupReader'
+import { MihonImportRecord } from '../model/MihonBackupReader'
 import { MihonImportService } from '../model/MihonImportService'
 import { MangaMigrationPreferencesStore } from '../model/MangaMigrationPreferencesStore'
 import { MigrationCommand } from '../state/MangaMigrationRouteChromeState'
@@ -1731,8 +1731,8 @@ struct Index {
       this.selectedTab === TabIndex.HISTORY && this.rootNavigationVisible && this.appForegroundState.active
     const timer = this.startHistoryResumeLoading(current)
     try {
-      const service = new MihonImportService(getContext(this) as common.UIAbilityContext)
-      await service.retryFromHistory(comicId, current, (): void => { this.ensureLibraryPersistenceService()?.restore() })
+      const service = new MihonImportService(getContext(this) as common.UIAbilityContext, this.libraryStore)
+      await service.retryFromHistory(comicId, current)
     } catch (error) {
       DiagnosticLogger.exception('backup', 'mihon_history_retry_failed', error as Error)
     } finally {
@@ -2254,7 +2254,6 @@ struct Index {
   }
 
   private refreshMihonImport(): void {
-    this.ensureLibraryPersistenceService()?.restore()
     this.refreshLibrarySnapshot()
     this.refreshReadingPresentation()
   }
@@ -2266,9 +2265,9 @@ struct Index {
 
   private queueMihonMatching(sourceIds?: string[], directOnly: boolean = false): void {
     if (!this.libraryStore.listMihonImports().some((record: MihonImportRecord): boolean => !record.targetComicId)) return
-    const service = new MihonImportService(getContext(this) as common.UIAbilityContext)
+    const service = new MihonImportService(getContext(this) as common.UIAbilityContext, this.libraryStore)
     this.mihonMatching = this.mihonMatching.then((): Promise<boolean> =>
-      service.matchUnresolved(sourceIds, directOnly, (): void => { this.ensureLibraryPersistenceService()?.restore() }))
+      service.matchUnresolved(sourceIds, directOnly))
       .then((changed: boolean): void => {
       if (changed) this.refreshMihonImport()
     }).catch((error: Error): void => { DiagnosticLogger.exception('backup', 'mihon_background_match_failed', error) })
@@ -2585,7 +2584,7 @@ struct Index {
       if (resume && progress !== undefined && existing.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
         await this.openReader(existing.id, progress.chapterId)
       } else {
-        this.openLibraryMangaDetail(existing.id)
+        this.openLibraryMangaDetail(existing.id, !resume)
       }
     } else if (imported.linkedWork !== undefined) {
       const work = imported.linkedWork
@@ -2596,7 +2595,11 @@ struct Index {
       else RouterHelper.pushMangaDetail({ mangaId: work.id, sourceId: work.sourceId, initialManga: work }, true)
     } else {
       this.showToast(AppStrings.get('mihon_import_original_source_unmatched'))
-      await this.openMangaMigration([comicId], false, true)
+      const paths = this.appPathStack.getAllPathName()
+      // A successful match removes the placeholder from the library. Retire
+      // its detail route too when reading from it opened the matching flow.
+      const fromDetail = paths[paths.length - 1] === RouteName.MANGA_DETAIL
+      await this.openMangaMigration([comicId], fromDetail, true)
     }
     return true
   }
@@ -4014,8 +4017,8 @@ struct Index {
   @Builder
   private BackupSettingsContent(param: BackupManagementRouteParam, inModal: boolean = false) {
     BackupManagementPage({ refreshRevision: this.backupSettingsRevision, searchTarget: param.searchTarget,
-      backupScroller: param.scroller, inModal: inModal,
-      onMihonImported: (_backup: MihonBackup): void => { this.onMihonImported() },
+      backupScroller: param.scroller, inModal: inModal, libraryStore: this.libraryStore,
+      onMihonImported: (): void => { this.onMihonImported() },
       onOpenDeviceSync: (): void => { this.openDeviceSyncOverview(inModal ? this.settingsModalStack : this.appPathStack) },
       onRestoreCompleted: () => { this.onBackupRestored() } })
   }
