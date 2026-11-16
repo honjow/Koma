@@ -1,5 +1,4 @@
 import { common } from '@kit.AbilityKit'
-import { preferences } from '@kit.ArkData'
 import { signalDeviceSyncChange, signalDeviceSyncRestoreStart, signalDeviceSyncRestoreFinish } from '../deviceSync/DeviceSyncSignals'
 import { beginAutomationRestore, finishAutomationRestore } from './AutomationStateEpoch'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
@@ -19,8 +18,7 @@ import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { prepareMangaMigration } from './SourceMangaMigrationService'
 import { SourceRuntimeError } from './SourceRuntimeError'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { ComicTrackerMapping, TrackerPreferencesStore, TrackerProviderId, TRACKER_COMIC_MAPPINGS_KEY,
-  TRACKER_PREFERENCES_STORE_NAME, normalizeComicTrackerMappings } from './TrackerModels'
+import { ComicTrackerMapping, TrackerPreferencesStore, TrackerProviderId } from './TrackerModels'
 
 export interface MihonImportSelection {
   backup: MihonBackup
@@ -409,9 +407,7 @@ export class MihonImportService {
       persistence.persist()
       new AppFilesReaderSessionPersistenceAdapter(context.filesDir).saveSnapshot(readerDocument)
       if (mappings.length > beforeMappings.length) {
-        const store = await preferences.getPreferences(context, TRACKER_PREFERENCES_STORE_NAME)
-        await store.put(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify(normalizeComicTrackerMappings(mappings)))
-        await store.flush()
+        await tracker.saveComicMappingsForBackupRestore(mappings)
       }
       reader.reload()
       tracker.invalidateMappingSnapshot()

@@ -1152,6 +1152,17 @@ export class TrackerPreferencesStore {
     return this.write(() => this.saveComicMappingsCurrent(mappings))
   }
 
+  async saveComicMappingsForBackupRestore(mappings: ComicTrackerMapping[]): Promise<void> {
+    if (!BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_not_active')
+    await this.ordered(async (): Promise<void> => {
+      const store = await this.preferences()
+      await store.put(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify(normalizeComicTrackerMappings(mappings)))
+      await store.flush()
+      // The restore checkpoint owns rollback. Its caller refreshes the
+      // public mapping snapshot after the library and reader are ready.
+    })
+  }
+
   /** Local title bindings only: no account/session transfer or remote progress write.
    * Keep any destination binding selected by the user, including its rejection state. */
   async copyComicMappings(fromComicId: string, toComicId: string): Promise<TrackerPreferences> {
