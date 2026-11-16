@@ -1061,14 +1061,28 @@ export struct SourcePackageManagerPage {
     return t(update ? 'source_pkg_action_update' : 'source_pkg_install')
   }
 
-  // This is a trigger, not a second batch-state owner. Each source registers
-  // its own pending/running state through the same single-package action.
-  private updateAllAvailablePackages(): void {
+  // The install queue still owns each task. Collect only the outcomes of
+  // updates started here so that a batch reports once after its last task.
+  private async updateAllAvailablePackages(): Promise<void> {
     if (this.busy) return
-    this.availablePackageUpdates().forEach((candidate: SourcePackageUpdateCandidate): void => {
+    const updates: Promise<boolean | undefined>[] = []
+    for (const candidate of this.availablePackageUpdates()) {
       const source = this.installedPackage(candidate.entry.id)
-      if (source !== undefined) void this.updateInstalledPackage(source, candidate)
-    })
+      if (source !== undefined && !this.packageInstallPending(source.id)) {
+        updates.push(this.updateInstalledPackage(source, candidate, false))
+      }
+    }
+    if (updates.length === 0) return
+
+    const outcomes = await Promise.all(updates)
+    let updated = 0
+    let failed = 0
+    for (const outcome of outcomes) {
+      if (outcome === true) updated += 1
+      if (outcome === false) failed += 1
+    }
+    this.statusText = tf('source_pkg_batch_update_done', updated, failed, outcomes.length - updated - failed)
+    this.showToast(this.statusText)
   }
 
   private updateActionLabel(sourceId: string): string {
@@ -1122,7 +1136,7 @@ export struct SourcePackageManagerPage {
     return current.length > 0 ? current + ' · ' + failure : failure
   }
 
-  private async currentIndexUrlOrPrompt(): Promise<string> {
+  private async currentIndexUrlOrPrompt(notify: boolean = true): Promise<string> {
     let url = this.sourceIndexUrl.trim()
     if (url.length === 0) {
       try {
@@ -1134,14 +1148,14 @@ export struct SourcePackageManagerPage {
       } catch (_error) {
         this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText('unknown'))
         this.statusText = this.indexStatusText
-        this.showToast(this.indexStatusText)
+        if (notify) this.showToast(this.indexStatusText)
         return ''
       }
     }
     if (url.length === 0) {
       this.statusText = t('source_pkg_prompt_index_url')
       this.indexStatusText = t('source_pkg_prompt_index_url')
-      this.showToast(t('source_pkg_prompt_index_url'))
+      if (notify) this.showToast(t('source_pkg_prompt_index_url'))
     }
     return url
   }
@@ -1164,20 +1178,21 @@ export struct SourcePackageManagerPage {
     }
   }
 
-  private async updateInstalledPackage(source: InstalledSourcePackage, candidate?: SourcePackageUpdateCandidate): Promise<void> {
+  private async updateInstalledPackage(source: InstalledSourcePackage, candidate?: SourcePackageUpdateCandidate,
+    notify: boolean = true): Promise<boolean | undefined> {
     if (this.packageInstallPending(source.id) || this.packageInstallAdmissionBlocked()) {
-      return
+      return undefined
     }
     const entry = candidate?.entry ?? this.updateEntry(source.id)
     if (entry === undefined) {
-      return
+      return undefined
     }
     let url = candidate?.indexUrl ?? this.updateIndexUrl(source.id)
     if (url.length === 0) {
-      url = await this.currentIndexUrlOrPrompt()
+      url = await this.currentIndexUrlOrPrompt(notify)
     }
     if (url.length === 0) {
-      return
+      return undefined
     }
     const wasEnabled = source.enabled
     console.info('[SourcePackageUpdate] step=install_requested id=' + source.id)
@@ -1197,8 +1212,9 @@ export struct SourcePackageManagerPage {
           localVersion: installed?.version ?? entry.version,
         })
         this.statusText = tf('source_pkg_update_done', sourceDisplayName(source.id, source.name))
-        this.showToast(t('source_pkg_toast_updated'))
+        if (notify) this.showToast(t('source_pkg_toast_updated'))
         console.info('[SourcePackageUpdate] step=install_done id=' + source.id)
+        return true
       } else {
         this.setUpdateStatus({
           sourceId: source.id,
@@ -1212,8 +1228,9 @@ export struct SourcePackageManagerPage {
         })
         const reason = this.sourceRedactedReasonText(result.reasonCode, result.requiredAppVersion)
         this.statusText = tf('source_pkg_update_failed', reason)
-        this.showToast(result.reasonCode === 'app_version_unsupported' ? reason : t('source_pkg_toast_install_failed'))
+        if (notify) this.showToast(result.reasonCode === 'app_version_unsupported' ? reason : t('source_pkg_toast_install_failed'))
         DiagnosticLogger.error('source_package_manager_page', 'install_failed', '[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + (result.reasonCode ?? 'unknown'))
+        return false
       }
     } catch (_error) {
       this.setUpdateStatus({
@@ -1226,8 +1243,9 @@ export struct SourcePackageManagerPage {
         reasonCode: 'network_error',
       })
       this.statusText = tf('source_pkg_update_failed', this.sourceRedactedReasonText('network_error'))
-      this.showToast(t('source_pkg_toast_install_failed'))
+      if (notify) this.showToast(t('source_pkg_toast_install_failed'))
       DiagnosticLogger.error('source_package_manager_page', 'install_failed', '[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + this.sourceIndexFailureReason(_error))
+      return false
     }
   }
 
@@ -2142,6 +2160,7 @@ export struct SourcePackageManagerPage {
       actionButtonText: this.hasUpdate(entry) || !this.isSourceInstalled(entry.id)
         ? this.packageActionLabel(entry.id, this.hasUpdate(entry)) : '',
       actionButtonEnabled: !this.packageInstallAdmissionBlocked() && !this.packageInstallPending(entry.id),
+      actionButtonProgress: this.packageInstallTasks.stateFor(entry.id).downloadProgress,
       actionButtonAction: () => {
         void this.installIndexEntry(entry, this.hasUpdate(entry))
       },
@@ -2237,6 +2256,7 @@ export struct SourcePackageManagerPage {
       updateAvailable: candidate !== undefined,
       updateLabel: candidate !== undefined ? this.updateActionLabel(source.id) : '',
       updateEnabled: candidate === undefined || (!this.packageInstallAdmissionBlocked() && !this.packageInstallPending(source.id)),
+      updateProgress: candidate === undefined ? 0 : this.packageInstallTasks.stateFor(source.id).downloadProgress,
       remoteNsfw: candidate?.entry.nsfw ?? false,
       onUpdate: (selected: InstalledSourcePackage): void => {
         if (candidate !== undefined) void this.updateInstalledPackage(selected, candidate)
@@ -2555,7 +2575,7 @@ export struct SourcePackageManagerPage {
         GroupedListSection({ inModal: this.inModal,
           title: t('source_pkg_update_available'),
           actionLabel: t('source_pkg_update_all'),
-          action: () => { this.updateAllAvailablePackages() },
+          action: () => { void this.updateAllAvailablePackages() },
         }) {
           ForEach(groups.updates, (candidate: SourcePackageUpdateCandidate, index: number) => {
             this.PackageCard(this.installedPackage(candidate.entry.id)!, candidate)

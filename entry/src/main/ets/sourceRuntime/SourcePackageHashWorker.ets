@@ -1,5 +1,16 @@
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 
+@Concurrent
+export function assembleSourcePackageBytes(chunks: ArrayBuffer[], length: number): Uint8Array {
+  const bytes = new Uint8Array(length)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(new Uint8Array(chunk), offset)
+    offset += chunk.byteLength
+  }
+  return bytes
+}
+
 // TaskPool loads transitive imports on its worker. Keep this entry Crypto-only:
 // Importer and registry also own platform/UI state and must not be imported here.
 // The synchronous restore validator uses the same digest primitive directly.

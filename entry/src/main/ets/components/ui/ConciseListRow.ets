@@ -12,7 +12,9 @@ import {
   SuffixText,
   SuffixTextAndArrow,
 } from '@kit.UIDesignKit'
-import { ImageModifier, SymbolGlyphModifier, TextModifier } from '@kit.ArkUI'
+import { ColorMetrics, ImageModifier, LengthMetrics, ProgressButtonV2, ProgressButtonV2Color,
+  SymbolGlyphModifier, TextModifier } from '@kit.ArkUI'
+import { connectLanguageState } from '../../state/LanguageState'
 import { ThemeConstants } from '../../theme/ThemeConstants'
 
 @ObservedV2
@@ -37,6 +39,7 @@ export struct ConciseListRow {
   @Event trailingIconAction?: () => void
   @Param actionButtonText: ResourceStr = ''
   @Param actionButtonEnabled: boolean = true
+  @Param actionButtonProgress: number | undefined = undefined
   @Param trailingMaxLines: number = 1
   @Param trailingTextFontSize: Resource | number = ThemeConstants.FONT_SIZE_CAPTION
   @Param leadingImageUrl: string = ''
@@ -55,6 +58,7 @@ export struct ConciseListRow {
   @Param sourceIdentityFallbackColor: ResourceColor = ThemeConstants.SOURCE_WASM_COLOR
   private sourceIdentityPrefixItem: PrefixCustomBuilder | undefined = undefined
   private customSuffixItem: SuffixCustomBuilder | undefined = undefined
+  private progressSuffixItem: SuffixCustomBuilder | undefined = undefined
   @Local private decodedSourceIdentityUri: string = ''
   @Param count: number = -1
   @Param destructive: boolean = false
@@ -222,6 +226,34 @@ export struct ConciseListRow {
     .padding({ left: this.prefixPaddingLeft, right: this.prefixPaddingRight })
   }
 
+  @Builder
+  private ActionProgressSuffix() {
+    Row() {
+      ProgressButtonV2({
+        progress: this.actionButtonProgress ?? 0,
+        content: this.actionButtonText,
+        // Match the original Chinese HDS button width and fit the full English busy label.
+        progressButtonWidth: LengthMetrics.vp(connectLanguageState().effectiveLocale.startsWith('zh') ? 64 : 80),
+        isEnabled: this.isEnabled && this.actionButtonEnabled,
+        colorOptions: this.actionProgressColors(),
+        onClicked: () => {
+          if (this.isEnabled && this.actionButtonEnabled && this.actionButtonAction) this.actionButtonAction()
+        },
+      })
+    }
+    .padding({ left: ThemeConstants.SPACE_SM, right: this.suffixPaddingRight })
+  }
+
+  private actionProgressColors(): ProgressButtonV2Color {
+    const accent = ColorMetrics.resourceColor(ThemeConstants.BRAND_PRIMARY)
+    return new ProgressButtonV2Color({
+      textColor: accent,
+      borderColor: ColorMetrics.rgba(accent.red, accent.green, accent.blue, 0.2),
+      // The system dims disabled buttons during installation. Keep the fill visible through that dimming.
+      progressColor: ColorMetrics.rgba(accent.red, accent.green, accent.blue, 0.5),
+    })
+  }
+
   private suffixItem(): SuffixTextAndArrow | SuffixText | SuffixCustomBuilder | SuffixSwitch | SuffixButton | SuffixIcon | SuffixSubIcon | undefined {
     if (this.suffixBuilderParam) {
       // A suffix may own a native menu anchor. Replacing its HDS descriptor
@@ -253,6 +285,12 @@ export struct ConciseListRow {
       return new SuffixIcon(options)
     }
     if (this.actionButtonText !== '') {
+      if (this.actionButtonProgress !== undefined) {
+        if (this.progressSuffixItem === undefined) {
+          this.progressSuffixItem = new SuffixCustomBuilder(() => { this.ActionProgressSuffix() })
+        }
+        return this.progressSuffixItem
+      }
       return new SuffixButton({
         text: this.actionButtonText,
         textColor: ThemeConstants.BRAND_PRIMARY,

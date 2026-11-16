@@ -524,13 +524,54 @@ test('route settings capability hides empty and unavailable sources and ignores 
 })
 
 
-test('update-all submits merged candidates through per-source actions without a global lock or duplicate installs', async () => {
-  const lane = installLane(), calls = [], statuses = [], enabled = []
+test('a source download reports bytes on its own task and installs only after the complete stream', async () => {
+  const lane = installLane(), events = new Map(), installedBytes = []
+  const archive = productionModule('sourceRuntime/SourcePackageHashWorker.ets', {}, ['assembleSourcePackageBytes'])
+  const request = {
+    on: (name, callback) => events.set(name, callback),
+    requestInStream: async () => {
+      events.get('dataReceive')(Uint8Array.of(1, 2).buffer)
+      events.get('dataReceiveProgress')({receiveSize:2,totalSize:5})
+      return 200
+    },
+    destroy() {},
+  }
+  const service = subject('sourceRuntime/SourceIndexService.ets', 'SourceIndexService',
+    ['downloadAndInstall'], {
+      ...globals, ...archive, setTimeout, clearTimeout,
+      SOURCE_PACKAGE_DOWNLOAD_MAX_BYTES: 50 * 1024 * 1024,
+      SOURCE_PACKAGE_READ_TIMEOUT_MS: 1000,
+      appSourcePackageInstallTasks: lane,
+      safeResolvePkgUrl: () => 'https://source.test/package.koma',
+      isValidHttpUrl: () => true,
+      http: {createHttp:()=>request,RequestMethod:{GET:'GET'}},
+      computeSourcePackageSha256: () => 'digest',
+      installFromBytes: async (_context, bytes) => {
+        installedBytes.push(...bytes)
+        return {ok:true,id:'A'}
+      },
+    })
+  const result = lane.run('A', () => service.downloadAndInstall('https://source.test/index.json',
+    {id:'A',pkg:'package.koma',sha256:'digest'}, () => true, false))
+  await new Promise(setImmediate)
+  assert.equal(lane.stateFor('A').downloadProgress,40)
+  assert.equal(lane.stateFor('B').downloadProgress,0)
+  assert.deepEqual(installedBytes,[])
+  events.get('dataReceive')(Uint8Array.of(3, 4, 5).buffer)
+  events.get('dataEnd')()
+  assert.equal((await result).ok,true)
+  assert.deepEqual(installedBytes,[1,2,3,4,5])
+  assert.equal(lane.stateFor('A').downloadProgress,0)
+  assert.equal(lane.stateFor('A').phase,'idle')
+})
+
+test('update-all keeps per-source actions and shows one summary after the last update', async () => {
+  const lane = installLane(), calls = [], statuses = [], enabled = [], toasts = []
   const packages = [installed('A','1'), installed('B','1',false), installed('C','1')]
   let finishA
   const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage',
     ['updateAllAvailablePackages','updateInstalledPackage','packageInstallPending'], {
-      ...globals, t:key=>key, tf:key=>key, sourceDisplayName:(_id,name)=>name,
+      ...globals, t:key=>key, tf:(key,...args)=>[key,...args], sourceDisplayName:(_id,name)=>name,
       setEnabled:(_context,id,value)=>enabled.push([id,value]),
     })
   const candidates = ['A','B','C'].map(id=>({entry:indexed(id,'2'),indexUrl:`https://${id}.test/index.json`}))
@@ -538,7 +579,7 @@ test('update-all submits merged candidates through per-source actions without a 
     busy:false, packageInstallTasks:lane, indexInstallBusy:true, updateInstallSourceId:'other',
     availablePackageUpdates:()=>candidates,
     installedPackage:id=>packages.find(item=>item.id===id),
-    context:()=>({}), refreshInstalledPackage(){}, showToast(){},
+    context:()=>({}), refreshInstalledPackage(){}, showToast:message=>toasts.push(message),
     setUpdateStatus:status=>statuses.push([status.sourceId,status.status]),
     sourceIndexService:{installPackage:(url,item)=>lane.run(item.id,async()=>{
       calls.push([item.id,url])
@@ -549,18 +590,25 @@ test('update-all submits merged candidates through per-source actions without a 
     })},
     sourceRedactedReasonText:()=>'',
   })
-  manager.updateAllAvailablePackages()
-  manager.updateAllAvailablePackages()
-  const tasks = Array.from(lane.pending.values())
+  const batch = manager.updateAllAvailablePackages()
+  const duplicate = manager.updateAllAvailablePackages()
   assert.deepEqual(Array.from(lane.pendingIds),['A','B','C'])
   await new Promise(setImmediate)
   assert.deepEqual(calls,[['A','https://A.test/index.json'],['B','https://B.test/index.json'],['C','https://C.test/index.json']])
   assert.equal(lane.runningId,'A')
-  finishA(); await Promise.all(tasks); await new Promise(setImmediate)
+  assert.deepEqual(toasts,[])
+  finishA()
+  await Promise.all([batch, duplicate])
   assert.deepEqual(calls,[['A','https://A.test/index.json'],['B','https://B.test/index.json'],['C','https://C.test/index.json']])
   assert.deepEqual(statuses.slice().sort(),[['A','latest'],['B','latest'],['C','failed']])
   assert.deepEqual(enabled,[['B',false]])
   assert.equal(lane.pendingIds.length,0)
+  assert.deepEqual(toasts,[['source_pkg_batch_update_done',2,1,0]])
+
+  await manager.updateInstalledPackage(packages[1], candidates[1])
+  assert.equal(toasts.at(-1),'source_pkg_toast_updated')
+  await manager.updateInstalledPackage(packages[2], candidates[2])
+  assert.equal(toasts.at(-1),'source_pkg_toast_install_failed')
 })
 
 

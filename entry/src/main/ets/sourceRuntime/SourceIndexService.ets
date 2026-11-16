@@ -1,7 +1,7 @@
 import { signalDeviceSyncChange, signalDeviceSyncSubscriptionRemoved } from '../deviceSync/DeviceSyncSignals'
 import { encodeSourceIndexCacheTask, parseSourceIndexCacheTask, parseSourceIndexDocumentTask,
   prepareSourceIndexCacheRecordTask, SourceIndexMetadataParseResult } from './SourceIndexMetadataWorker'
-import { computeSourcePackageSha256 } from './SourcePackageHashWorker'
+import { assembleSourcePackageBytes, computeSourcePackageSha256 } from './SourcePackageHashWorker'
 import { taskpool } from '@kit.ArkTS'
 import {
   SourceIndexEntry, SourceIndexRepository, SourceRepositoryMetadata, parseSourceRepositoryMetadata, SourceIndexMetadataCacheRecord,
@@ -39,6 +39,8 @@ const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
 const SOURCE_INDEX_REPOSITORIES_KEY: string = 'source_index.repositories.v1'
 const SOURCE_INDEX_REPOSITORY_LIMIT: number = 12
+const SOURCE_PACKAGE_DOWNLOAD_MAX_BYTES: number = 50 * 1024 * 1024
+const SOURCE_PACKAGE_READ_TIMEOUT_MS: number = 60000
 export interface SourceIndexDeviceSyncSnapshot {
   repositories: SourceIndexRepository[]
   activeUrl: string
@@ -66,6 +68,7 @@ export interface SourceIndexInstallResult {
 @ObservedV2
 export class SourcePackageInstallState {
   @Trace phase: 'idle' | 'queued' | 'running' = 'idle'
+  @Trace downloadProgress: number = 0
 }
 
 interface SourcePackageQueuedTask {
@@ -128,6 +131,7 @@ export class SourcePackageInstallTasks {
       this.running = this.running.filter((id: string): boolean => id !== sourceId)
       this.runningId = this.running.length > 0 ? this.running[0] : ''
       if (exclusive) this.exclusiveRunning = false
+      state.downloadProgress = 0
       state.phase = 'idle'
       if (!retainState) this.states.delete(sourceId)
       this.pump()
@@ -721,30 +725,68 @@ export class SourceIndexService {
     DiagnosticLogger.info('source_index', 'download_pkg', '[SourceIndex] step=download_pkg')
 
     const httpRequest = http.createHttp()
+    const state = appSourcePackageInstallTasks.stateFor(entry.id)
+    state.downloadProgress = 0
+    const chunks: ArrayBuffer[] = []
+    let received = 0
+    let lastProgressAt = 0
+    let waitingForEnd = false
+    let endTimer = -1
+    let finishStream: () => void = (): void => {}
+    let failStream: (error: Error) => void = (_error: Error): void => {}
+    const ended = new Promise<void>((resolve) => { finishStream = resolve })
+    const failure = new Promise<never>((_resolve, reject) => { failStream = reject })
+    const armEndTimeout = (): void => {
+      if (endTimer >= 0) clearTimeout(endTimer)
+      endTimer = setTimeout((): void => { failStream(new Error('source_package_download_timeout')) },
+        SOURCE_PACKAGE_READ_TIMEOUT_MS)
+    }
     try {
-      const response = await httpRequest.request(pkgUrl, {
-        method: http.RequestMethod.GET,
-        expectDataType: http.HttpDataType.ARRAY_BUFFER,
-        usingCache: false,
-        readTimeout: 60000,
-        connectTimeout: 30000,
+      httpRequest.on('dataReceive', (chunk: ArrayBuffer): void => {
+        if (received + chunk.byteLength > SOURCE_PACKAGE_DOWNLOAD_MAX_BYTES) {
+          failStream(new Error('source_package_download_too_large'))
+          return
+        }
+        chunks.push(chunk)
+        received += chunk.byteLength
+        if (waitingForEnd) armEndTimeout()
       })
+      httpRequest.on('dataEnd', finishStream)
+      httpRequest.on('dataReceiveProgress', (info: http.DataReceiveProgressInfo): void => {
+        if (info === undefined || info.totalSize <= 0 || !isCurrent()) return
+        const percent = Math.floor(100 * info.receiveSize / info.totalSize)
+        const now = Date.now()
+        if (!Number.isFinite(percent) || percent <= state.downloadProgress || percent >= 100 ||
+          now - lastProgressAt < 100) return
+        state.downloadProgress = percent
+        lastProgressAt = now
+      })
+      const status = await Promise.race([httpRequest.requestInStream(pkgUrl, {
+        method: http.RequestMethod.GET,
+        usingCache: false,
+        readTimeout: SOURCE_PACKAGE_READ_TIMEOUT_MS,
+        connectTimeout: 30000,
+      }), failure])
 
-      if (response.responseCode !== 200) {
-        DiagnosticLogger.error('source_index_service', 'download_fail', '[SourceIndex] step=download_fail status=' + response.responseCode)
+      if (status !== 200) {
+        DiagnosticLogger.error('source_index_service', 'download_fail', '[SourceIndex] step=download_fail status=' + status)
         return { ok: false, reasonCode: 'http_error' }
       }
 
-      let archiveBytes: Uint8Array
-      if (response.result instanceof ArrayBuffer) {
-        archiveBytes = new Uint8Array(response.result)
-      } else {
-        return { ok: false, reasonCode: 'invalid_response' }
-      }
-
-      if (archiveBytes.byteLength === 0) {
+      waitingForEnd = true
+      armEndTimeout()
+      await Promise.race([ended, failure])
+      waitingForEnd = false
+      clearTimeout(endTimer)
+      if (received === 0) {
         return { ok: false, reasonCode: 'empty_package' }
       }
+      // A full bar belongs to a completed download. Validation and install
+      // still run before the queue marks this source idle.
+      state.downloadProgress = 100
+      const archiveBytes = chunks.length === 1 ? new Uint8Array(chunks[0])
+        : await taskpool.execute(assembleSourcePackageBytes, chunks, received) as Uint8Array
+      chunks.length = 0
       if (entry.sha256.length > 0) {
         // Keep the downloaded bytes owned by the installer while TaskPool hashes
         // its copy; a failed or incomplete digest must never publish the package.
@@ -772,6 +814,7 @@ export class SourceIndexService {
       DiagnosticLogger.error('source_index_service', 'download_error', '[SourceIndex] step=download_error code=' + e.code)
       return { ok: false, reasonCode: 'network_error' }
     } finally {
+      if (endTimer >= 0) clearTimeout(endTimer)
       httpRequest.destroy()
     }
   }

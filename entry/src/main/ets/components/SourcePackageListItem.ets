@@ -12,6 +12,7 @@ export struct SourcePackageListItem {
   @Param updateAvailable: boolean = false
   @Param updateLabel: string = ''
   @Param updateEnabled: boolean = true
+  @Param updateProgress: number = 0
   @Param remoteNsfw: boolean = false
   @Event onOpen: (source: InstalledSourcePackage) => void = () => {}
   @Event onUpdate: (source: InstalledSourcePackage) => void = () => {}
@@ -24,6 +25,7 @@ export struct SourcePackageListItem {
       trailingText: this.updateAvailable ? '' : AppStrings.get(this.source.enabled ? 'source_pkg_enabled' : 'source_pkg_disabled'),
       actionButtonText: this.updateAvailable ? this.updateLabel : '',
       actionButtonEnabled: this.updateEnabled,
+      actionButtonProgress: this.updateAvailable ? this.updateProgress : undefined,
       actionButtonAction: () => { this.onUpdate(this.source) },
       hasSourceIdentityPrefix: true,
       sourceIdentityIconUri: this.source.icon,
