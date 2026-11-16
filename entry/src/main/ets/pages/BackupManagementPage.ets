@@ -28,6 +28,7 @@ import {
   BackupLocalFilePreview,
   BackupLocalFileRecord,
   BackupManagementState,
+  BackupRestoreCompletion,
   BackupService,
   BackupAutomaticPreferencesPatch,
   DEFAULT_BACKUP_AUTOMATIC_PREFERENCES,
@@ -45,7 +46,7 @@ import {
 import { MihonImportService, MihonImportSelection } from '../model/MihonImportService'
 import { MihonBackup } from '../model/MihonBackupReader'
 import { MihonImportSummary } from '../model/MihonImportPlanning'
-import { BACKUP_PASSPHRASE_MIN_LENGTH } from '../model/BackupEncryptionService'
+import { BACKUP_DECRYPT_FAILURE_CODE, BACKUP_ENVELOPE_FAILURE_CODE, BACKUP_PASSPHRASE_MIN_LENGTH } from '../model/BackupEncryptionService'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
@@ -657,9 +658,17 @@ export struct BackupManagementPage {
         this.selectedEncryptedBackupPayload = ''
         this.importPassphrase = ''
       })
-      .catch((_error: Error) => {
-        DiagnosticLogger.error('backup_management_page', 'decrypt_preview_failed', '[BackupManagement] step=decrypt_preview_failed code=backup_decrypt_failed')
-        this.showInfoDialog(t('backup_dialog_decrypt_failed_title'), t('backup_decrypt_failed_message'))
+      .catch((error: Error) => {
+        const code = error.message
+        if (code === BACKUP_DECRYPT_FAILURE_CODE) {
+          DiagnosticLogger.warn('backup_management_page', code, 'step=decrypt')
+          this.showInfoDialog(t('backup_dialog_decrypt_failed_title'), t('backup_decrypt_failed_message'))
+          return
+        }
+        const reason = code === 'backup_version_unsupported' || code === 'backup_current_data_read_failed' ? code :
+          (code === BACKUP_ENVELOPE_FAILURE_CODE ? 'backup_encrypted_file_invalid' : 'backup_content_invalid')
+        DiagnosticLogger.warn('backup_management_page', reason, 'step=preview')
+        this.showInfoDialog(t('backup_dialog_preview_failed_title'), t(reason))
       })
       .finally(() => {
         this.busy = false
@@ -709,13 +718,22 @@ export struct BackupManagementPage {
       this.backupService().importDecrypted(this.selectedBackupPayload) :
       this.backupService().import(this.selectedBackupPayload)
     void importPromise
-      .then(async (): Promise<void> => {
-        this.onRefreshRevision()
-        this.onRestoreCompleted()
-        await this.closeBackupDialog()
-        this.showInfoDialog(t('backup_dialog_imported_title'), t('backup_imported_message'))
-      })
-      .catch((_error: Error) => {
+      .then(async (result: BackupRestoreCompletion): Promise<void> => {
+        let refreshFailed = result.refreshFailed
+        try {
+          this.onRefreshRevision()
+          this.onRestoreCompleted()
+        } catch (error) {
+          refreshFailed = true
+          DiagnosticLogger.exception('backup_management_page', 'restore_refresh_failed', error as Error)
+        }
+        let message = t(refreshFailed ? 'backup_imported_refresh_failed' : 'backup_imported_message')
+        if (result.cleanupFailed) message += '\n\n' + t('backup_imported_cleanup_failed')
+        try {
+          await this.closeBackupDialog()
+          this.showInfoDialog(t('backup_dialog_imported_title'), message)
+        } catch (_error) { this.showToast(message) }
+      }, (_error: Error): void => {
         DiagnosticLogger.error('backup_management_page', 'import_failed', '[BackupManagement] step=import_failed code=backup_import_failed')
         this.showInfoDialog(t('backup_dialog_import_failed_title'), this.backupFailureMessage('backup_import_failed'))
       })

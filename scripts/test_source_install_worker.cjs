@@ -56,7 +56,7 @@ test('Browse source publication keeps unchanged row inputs while retaining metad
 })
 function installFixture(appVersionSupported = true, minAppVersion = '0', installed = {}, manifest = {}, archivedBytes) {
   const probe = deferred(), events = [], old = {sourceId:'one',enabled:false,archivePath:'/packages/old/source.koma', ...installed}, other = {sourceId:'other'}
-  let entries=[other,old], persistFails=false, registerFails=false, next
+  let entries=[other,old], persistFails=false, registerFails=false, notifyFails=false, next
   const registry={ list:()=>entries.slice(), lookup:id=>({entry:entries.find(e=>e.sourceId===id)}),
     remove:id=>{const e=entries.find(e=>e.sourceId===id);events.push('remove:'+id);entries=entries.filter(e=>e.sourceId!==id);return e},
     register:(entry,index)=>{events.push('register');next=entry;if(registerFails)return {ok:false,reasonCode:'register_failed'};entries.splice(index,0,entry);return {ok:true}} }
@@ -64,11 +64,11 @@ function installFixture(appVersionSupported = true, minAppVersion = '0', install
     importLocalSourceArchive:async()=>({ok:true,manifest:{package:{id:'one',name:'One',minAppVersion},...manifest},wasmBytes:new Uint8Array([1,2]),hashOk:true}),
     removeAppSourcePackageDir:async(_c,p)=>{events.push('delete:'+p)},isSourcePackageMinAppVersionSatisfied:()=>appVersionSupported,
     runSourceOperationFromValidatedBytesAsync:async(request,bytes)=>{const r=JSON.parse(request);assert.equal(r.operation,'source_info');assert.deepEqual(r.settings,{});assert.equal(r.hostHints.network,false);assert.equal(registry.lookup('one').entry,old);events.push('probe');return probe.promise},
-    IMPORTED_SOURCE_ROUTE:'imported', DiagnosticLogger:{error(){},info(){}},persistInstalledSources:()=>{events.push('persist');if(persistFails)throw Error('disk')},
+    IMPORTED_SOURCE_ROUTE:'imported', DiagnosticLogger:{error(){},info(){},exception(){}},persistInstalledSources:()=>{events.push('persist');if(persistFails)throw Error('disk')},
     restoreRuntimeRegistryEntry:(entry,index)=>{events.push('restore');if(entry&&!entries.some(e=>e.sourceId===entry.sourceId))entries.splice(index,0,entry)},
     appSourceSettingsStore:{sourcePackageChanged(){}},
     fs:{accessSync:()=>true},readInstalledSourcePackageManifest:()=>manifest,
-    SourceRuntimeStateBridge:{notifyChanged:()=>events.push('notify')},newSourceImportDirectory:()=>'/packages/new',Date,
+    SourceRuntimeStateBridge:{notifyChanged:()=>{ events.push('notify'); if (notifyFails) throw Error('refresh'); }},newSourceImportDirectory:()=>'/packages/new',Date,
     readImportBytes:async()=>archivedBytes, buffer:{from:bytes=>Buffer.from(bytes)},
     util:{generateRandomUUID:()=> 'fresh-storage'},
     cryptoFramework:{createMd:()=>{
@@ -81,8 +81,20 @@ function installFixture(appVersionSupported = true, minAppVersion = '0', install
   const api=functions(registryFile,['sourceInfoCapabilityToken','detectSourceRuntimeCapabilities','sourceLoginScope',
     'sourceArchiveMatches','installedSourceManifestMatches','registerSourcePackageFromBytes','installFromBytes'],
     {...globals,BackupRestoreActivity:{runWrite:async work=>work()}})
-  return {api,probe,events,old,registry,set persistFails(v){persistFails=v},set registerFails(v){registerFails=v},get next(){return next}}
+  return {api,probe,events,old,registry,set persistFails(v){persistFails=v},set registerFails(v){registerFails=v},set notifyFails(v){notifyFails=v},get next(){return next}}
 }
+test('a registry notification error keeps the saved source and its archive', async () => {
+  const f=installFixture()
+  f.notifyFails=true
+  const installing=f.api.registerSourcePackageFromBytes({},new Uint8Array([1]),'source.koma','one','/packages/new')
+  f.probe.resolve(response)
+  const result=await installing
+  assert.equal(result.ok,true)
+  assert.equal(result.refreshFailed,true)
+  assert.equal(f.registry.lookup('one').entry,f.next)
+  assert.equal(f.next.enabled,false)
+  assert.equal(f.events.includes('delete:/packages/new'),false)
+})
 test('identical local archives retain the installed entry and incompatible updates cannot inherit its session', async () => {
   const catalog = 'https://catalog.example/index.json'
   const auth = {kind:'credentials',loginUrl:'https://account.example/login',credentialStorage:'memory'}
@@ -426,26 +438,26 @@ function localImportMethod(globals, methodName='importPackage') {
   const source=fs.readFileSync(path.join(root,'pages/SourcePackageManagerPage.ets'),'utf8')
   const tree=ts.createSourceFile('manager',source.replace('export struct SourcePackageManagerPage','export class SourcePackageManagerPage'),ts.ScriptTarget.Latest,true)
   const owner=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='SourcePackageManagerPage')
-  const method=owner.members.find(n=>ts.isMethodDeclaration(n)&&n.name.getText(tree)===methodName)
-  assert.ok(method)
-  const code=ts.transpileModule('class Manager {'+method.getText(tree)+'} exports.Manager=Manager',{
+  const methods=owner.members.filter(n=>ts.isMethodDeclaration(n)&&[methodName,'refreshCommittedPackage','packageInstallFailureReason'].includes(n.name.getText(tree)))
+  assert.ok(methods.length)
+  const code=ts.transpileModule('class Manager {'+methods.map(n=>n.getText(tree)).join('\n')+'} exports.Manager=Manager',{
     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
   const exports={};new Function('exports',...Object.keys(globals),code)(exports,...Object.values(globals))
   return exports.Manager
 }
 test('checked batch updates publish the installed DTO version and refresh only successful rows before final reconciliation',async()=>{
-  const calls=[],statuses=[],disabled=[]
+  const calls=[],statuses=[]
   const Manager=localImportMethod({t:k=>k,tf:(k,...values)=>[k,...values],
-    setEnabled:(_context,id,enabled)=>disabled.push([id,enabled]),DiagnosticLogger:{error(){}}},'updateCheckedPackages')
+    DiagnosticLogger:{error(){},exception(){}}},'updateCheckedPackages')
   const manager=new Manager()
   const one={id:'one',version:'1',enabled:false},two={id:'two',version:'1',enabled:true}
   // A retained Computed index describes the current frame until ArkUI renders.
   // The registry transaction has already committed the new DTO at completion.
   manager.installedPackage=id=>id==='one'?one:id==='two'?two:undefined
   manager.sourceIndexBatchBusy=()=>false
-  manager.checkedUpdateStatuses=()=>['one','two','removed'].map(sourceId=>({sourceId,
+  manager.checkedUpdateStatuses=['one','two','removed'].map(sourceId=>({sourceId,
     remoteEntry:{id:sourceId,version:'2'},remoteIndexUrl:'https://index.example/index.json'}))
-  manager.updateAvailableFor=()=>true;manager.context=()=>({});manager.showToast=()=>{}
+  manager.updateAvailableFor=()=>true;manager.context=()=>({});manager.showToast=()=>{};manager.sourceReasonText=reason=>reason
   manager.sourceIndexService={installPackage:async(_url,entry)=>{
     calls.push('install:'+entry.id);return entry.id==='one'?{ok:true}:{ok:false,reasonCode:'network_error'}
   }}
@@ -456,9 +468,8 @@ test('checked batch updates publish the installed DTO version and refresh only s
   assert.equal(statuses.find(s=>s.sourceId==='one').localVersion,'2','use the committed DTO, not the previous frame')
   assert.equal(statuses.find(s=>s.sourceId==='two').status,'failed')
   assert.equal(statuses.find(s=>s.sourceId==='two').localVersion,'1')
-  assert.deepEqual(disabled,[['one',false]])
   assert.deepEqual(calls,['install:one','row:one','install:two','reconcile'])
-  assert.deepEqual(manager.statusText,['source_pkg_batch_update_done',1,1,1])
+  assert.equal(manager.statusText,'source_pkg_batch_update_done,1,1,1 · network_error')
   assert.equal(manager.indexInstallBusy,false);assert.equal(manager.updateInstallSourceId,'')
 })
 test('single installed-row refresh preserves localized ordering, fallback and neighboring row identities',()=>{
@@ -533,13 +544,14 @@ for(const outcome of ['installed','cancelled','failed','exception'])test('local 
       installLocalArchive(uri) { assert.equal(uri,'picked.koma');return pending.promise }
     } }
     if (name === '../viewmodel/SourcePackageManagerCache') return { appSourcePackageManagerCache: { recordInstalledPackage(){} } }
+    if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { exception(){} } }
     throw Error('unexpected local archive dependency ' + name)
   }, { ObservedV2: klass => klass, Trace: () => {} })
   const Manager=localImportMethod({t:k=>k,tf:(k,r)=>k+':'+r})
   const manager=new Manager();manager.busy=false;manager.context=()=>({});manager.showToast=()=>{}
   manager.localImport=new SourcePackageLocalImport()
   manager.sourceReasonText=x=>x;manager.reload=()=>events.push('reload')
-  manager.refreshInstalledPackage=id=>events.push('single:'+id)
+  manager.refreshInstalledPackage=id=>{events.push('single:'+id);return {id}}
   const work=manager.importPackage();await new Promise(setImmediate)
   if(outcome!=='cancelled'){
     assert.equal(manager.busy,true);assert.deepEqual(events,[])

@@ -34,7 +34,7 @@ import { trackerChapterProgress } from '../model/TrackerReadingProgress'
 import { mangaHttpUrl } from '../model/MangaWebLink'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { CachedCoverImage } from '../components/CachedCoverImage'
-import { ChapterArchiveActions, CHAPTER_ARCHIVE_SAVE_FAILED } from '../model/ChapterArchiveExport'
+import { ChapterArchiveActions, chapterArchiveFailureText } from '../model/ChapterArchiveExport'
 import { selectComicCover, saveComicPersonalization, discardUncommittedComicCover } from '../model/ComicPersonalization'
 import { ColorMetrics, ComponentContent, LengthMetrics, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
@@ -639,8 +639,7 @@ export struct MangaDetailPage {
         this.manga?.title ?? '', chapter.title, share, () => this.chrome.visible && this.currentComicId() === comicId)
     } catch (error) {
       DiagnosticLogger.exception('chapters', 'archive_export_failed', error as Error)
-      if (this.chrome.visible) this.showToast(s(
-        (error as Error).message === CHAPTER_ARCHIVE_SAVE_FAILED ? CHAPTER_ARCHIVE_SAVE_FAILED : 'chapter_archive_failed'))
+      if (this.chrome.visible) this.showToast(chapterArchiveFailureText(error as Error))
     } finally { this.chapterArchiveBusy = false }
   }
 

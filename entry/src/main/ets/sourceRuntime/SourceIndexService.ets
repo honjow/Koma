@@ -731,6 +731,7 @@ export class SourceIndexService {
     let received = 0
     let lastProgressAt = 0
     let waitingForEnd = false
+    let failureReason = 'network_error'
     let endTimer = -1
     let finishStream: () => void = (): void => {}
     let failStream: (error: Error) => void = (_error: Error): void => {}
@@ -778,6 +779,7 @@ export class SourceIndexService {
       await Promise.race([ended, failure])
       waitingForEnd = false
       clearTimeout(endTimer)
+      failureReason = 'invalid_response'
       if (received === 0) {
         return { ok: false, reasonCode: 'empty_package' }
       }
@@ -788,6 +790,7 @@ export class SourceIndexService {
         : await taskpool.execute(assembleSourcePackageBytes, chunks, received) as Uint8Array
       chunks.length = 0
       if (entry.sha256.length > 0) {
+        failureReason = 'validation_failed'
         // Keep the downloaded bytes owned by the installer while TaskPool hashes
         // its copy; a failed or incomplete digest must never publish the package.
         const hashBytes = new Uint8Array(archiveBytes.byteLength)
@@ -800,6 +803,7 @@ export class SourceIndexService {
       }
 
       if (!isCurrent()) return { ok: false, reasonCode: 'subscription_unavailable' }
+      failureReason = 'import_failed'
       const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id, indexUrl, isCurrent, preserveSessionOnUpdate)
       if (!install.ok) {
         DiagnosticLogger.error('source_index_service', 'install_fail', '[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
@@ -811,11 +815,13 @@ export class SourceIndexService {
       return { ok: true, install }
     } catch (error) {
       const e = error as BusinessError
-      DiagnosticLogger.error('source_index_service', 'download_error', '[SourceIndex] step=download_error code=' + e.code)
-      return { ok: false, reasonCode: 'network_error' }
+      if (e.message === 'source_package_download_timeout') failureReason = 'download_timeout'
+      if (e.message === 'source_package_download_too_large') failureReason = 'package_too_large'
+      DiagnosticLogger.error('source_index_service', 'install_error', '[SourceIndex] step=install_error reason=' + failureReason + ' code=' + e.code)
+      return { ok: false, reasonCode: failureReason }
     } finally {
       if (endTimer >= 0) clearTimeout(endTimer)
-      httpRequest.destroy()
+      try { httpRequest.destroy() } catch (_error) {}
     }
   }
 }

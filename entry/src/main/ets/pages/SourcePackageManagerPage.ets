@@ -1065,7 +1065,7 @@ export struct SourcePackageManagerPage {
   // updates started here so that a batch reports once after its last task.
   private async updateAllAvailablePackages(): Promise<void> {
     if (this.busy) return
-    const updates: Promise<boolean | undefined>[] = []
+    const updates: Promise<boolean | 'refresh_failed' | undefined>[] = []
     for (const candidate of this.availablePackageUpdates()) {
       const source = this.installedPackage(candidate.entry.id)
       if (source !== undefined && !this.packageInstallPending(source.id)) {
@@ -1077,11 +1077,14 @@ export struct SourcePackageManagerPage {
     const outcomes = await Promise.all(updates)
     let updated = 0
     let failed = 0
+    let refreshFailed = false
     for (const outcome of outcomes) {
-      if (outcome === true) updated += 1
+      if (outcome === true || outcome === 'refresh_failed') updated += 1
+      if (outcome === 'refresh_failed') refreshFailed = true
       if (outcome === false) failed += 1
     }
     this.statusText = tf('source_pkg_batch_update_done', updated, failed, outcomes.length - updated - failed)
+    if (refreshFailed) this.statusText += ' · ' + t('source_pkg_committed_refresh_failed')
     this.showToast(this.statusText)
   }
 
@@ -1116,6 +1119,26 @@ export struct SourcePackageManagerPage {
 
   private sourceIndexFailureReason(error: Object): string {
     return (error as Error)?.message?.startsWith('source_index_preferences_') ? 'unknown' : 'network_error'
+  }
+
+  private packageInstallFailureReason(error: Error): string {
+    return error.message?.startsWith('source_index_preferences_') ? 'subscription_read_failed' : 'unknown'
+  }
+
+  private refreshCommittedPackage(sourceId?: string, publish?: (source: InstalledSourcePackage) => void): boolean {
+    try {
+      if (sourceId === undefined) {
+        this.reload()
+      } else {
+        const source = this.refreshInstalledPackage(sourceId)
+        if (source === undefined) return false
+        publish?.(source)
+      }
+      return true
+    } catch (error) {
+      DiagnosticLogger.exception('source_package_manager_page', 'install_refresh_failed', error as Error)
+      return false
+    }
   }
 
   private setSavedIndexFailure(indexUrl: string, reason?: string): void {
@@ -1179,7 +1202,7 @@ export struct SourcePackageManagerPage {
   }
 
   private async updateInstalledPackage(source: InstalledSourcePackage, candidate?: SourcePackageUpdateCandidate,
-    notify: boolean = true): Promise<boolean | undefined> {
+    notify: boolean = true): Promise<boolean | 'refresh_failed' | undefined> {
     if (this.packageInstallPending(source.id) || this.packageInstallAdmissionBlocked()) {
       return undefined
     }
@@ -1194,27 +1217,23 @@ export struct SourcePackageManagerPage {
     if (url.length === 0) {
       return undefined
     }
-    const wasEnabled = source.enabled
     console.info('[SourcePackageUpdate] step=install_requested id=' + source.id)
     try {
       const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry, true)
       if (result.ok) {
-        if (!wasEnabled) {
-          setEnabled(this.context(), source.id, false)
-        }
-        const installed = this.refreshInstalledPackage(source.id)
-        this.setUpdateStatus({
+        const refreshed = this.refreshCommittedPackage(source.id, (installed: InstalledSourcePackage): void => this.setUpdateStatus({
           sourceId: source.id,
           status: 'latest',
           remoteEntry: entry,
           remoteIndexUrl: url,
           remoteVersion: entry.version,
-          localVersion: installed?.version ?? entry.version,
-        })
-        this.statusText = tf('source_pkg_update_done', sourceDisplayName(source.id, source.name))
-        if (notify) this.showToast(t('source_pkg_toast_updated'))
+          localVersion: installed.version,
+        })) && result.install?.refreshFailed !== true
+        this.statusText = refreshed ? tf('source_pkg_update_done', sourceDisplayName(source.id, source.name)) :
+          t('source_pkg_committed_refresh_failed')
+        if (notify) this.showToast(refreshed ? t('source_pkg_toast_updated') : this.statusText)
         console.info('[SourcePackageUpdate] step=install_done id=' + source.id)
-        return true
+        return refreshed ? true : 'refresh_failed'
       } else {
         this.setUpdateStatus({
           sourceId: source.id,
@@ -1228,11 +1247,12 @@ export struct SourcePackageManagerPage {
         })
         const reason = this.sourceRedactedReasonText(result.reasonCode, result.requiredAppVersion)
         this.statusText = tf('source_pkg_update_failed', reason)
-        if (notify) this.showToast(result.reasonCode === 'app_version_unsupported' ? reason : t('source_pkg_toast_install_failed'))
+        if (notify) this.showToast(this.statusText)
         DiagnosticLogger.error('source_package_manager_page', 'install_failed', '[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + (result.reasonCode ?? 'unknown'))
         return false
       }
-    } catch (_error) {
+    } catch (error) {
+      const reason = this.packageInstallFailureReason(error as Error)
       this.setUpdateStatus({
         sourceId: source.id,
         status: 'failed',
@@ -1240,11 +1260,11 @@ export struct SourcePackageManagerPage {
         remoteIndexUrl: url,
         remoteVersion: entry.version,
         localVersion: source.version,
-        reasonCode: 'network_error',
+        reasonCode: reason,
       })
-      this.statusText = tf('source_pkg_update_failed', this.sourceRedactedReasonText('network_error'))
-      if (notify) this.showToast(t('source_pkg_toast_install_failed'))
-      DiagnosticLogger.error('source_package_manager_page', 'install_failed', '[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + this.sourceIndexFailureReason(_error))
+      this.statusText = tf('source_pkg_update_failed', this.sourceRedactedReasonText(reason))
+      if (notify) this.showToast(this.statusText)
+      DiagnosticLogger.error('source_package_manager_page', 'install_failed', '[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + reason)
       return false
     }
   }
@@ -1268,6 +1288,12 @@ export struct SourcePackageManagerPage {
         return t('source_pkg_reason_network_error')
       case 'http_error':
         return t('source_pkg_reason_http_error')
+      case 'download_timeout':
+        return t('source_pkg_reason_download_timeout')
+      case 'package_too_large':
+        return t('source_pkg_reason_package_too_large')
+      case 'subscription_read_failed':
+        return t('source_catalog_subscription_read_failed')
       case 'invalid_index_format':
         return t('source_pkg_reason_invalid_index_format')
       case 'invalid_json':
@@ -1287,6 +1313,8 @@ export struct SourcePackageManagerPage {
         return t('source_pkg_reason_network_not_allowed')
       case 'unsafe_archive_entry':
         return t('source_pkg_reason_unsafe_archive_entry')
+      case 'invalid_archive':
+        return t('source_pkg_reason_invalid_archive')
       case 'missing_icon':
         return t('source_pkg_reason_missing_icon')
       case 'invalid_icon':
@@ -1352,6 +1380,10 @@ export struct SourcePackageManagerPage {
       case 'invalid_url':
       case 'network_error':
       case 'http_error':
+      case 'download_timeout':
+      case 'package_too_large':
+      case 'subscription_read_failed':
+      case 'subscription_unavailable':
       case 'invalid_index_format':
       case 'invalid_json':
       case 'invalid_pkg_url':
@@ -1361,6 +1393,7 @@ export struct SourcePackageManagerPage {
       case 'checksum_mismatch':
       case 'network_not_allowed':
       case 'unsafe_archive_entry':
+      case 'invalid_archive':
       case 'invalid_icon':
       case 'missing_manifest':
       case 'missing_wasm':
@@ -1410,15 +1443,14 @@ export struct SourcePackageManagerPage {
       const result = await this.localImport.run(this.context())
       if (result === undefined) { this.statusText = ''; return }
       if (result.ok) {
-        this.statusText = t('source_pkg_import_done')
-        this.showToast(t('source_pkg_toast_imported'))
         // A successful archive import changes one package, just like an index install.
-        if (result.id !== undefined) this.refreshInstalledPackage(result.id)
-        else this.reload()
+        const refreshed = this.refreshCommittedPackage(result.id) && result.refreshFailed !== true
+        this.statusText = t(refreshed ? 'source_pkg_import_done' : 'source_pkg_committed_refresh_failed')
+        this.showToast(refreshed ? t('source_pkg_toast_imported') : this.statusText)
       } else {
         const reason = this.sourceReasonText(result.reasonCode, result.requiredAppVersion)
         this.statusText = tf('source_pkg_import_failed', reason)
-        this.showToast(result.reasonCode === 'app_version_unsupported' ? reason : t('source_pkg_toast_validation_failed'))
+        this.showToast(this.statusText)
         this.reload()
       }
     } catch (_error) {
@@ -1526,24 +1558,23 @@ export struct SourcePackageManagerPage {
         true,
       )
       if (result.ok) {
-        if (existing !== undefined && !existing.enabled) {
-          setEnabled(this.context(), existing.id, false)
-        }
-        this.indexStatusText = replaceExisting ? tf('source_pkg_update_done', this.indexDisplayName(entry)) : tf('source_pkg_install_done', this.indexDisplayName(entry))
-        this.showToast(replaceExisting ? t('source_pkg_toast_updated') : t('source_pkg_toast_install_success'))
-        this.refreshInstalledPackage(entry.id)
+        const refreshed = this.refreshCommittedPackage(entry.id) && result.install?.refreshFailed !== true
+        this.indexStatusText = refreshed ? (replaceExisting ? tf('source_pkg_update_done', this.indexDisplayName(entry)) :
+          tf('source_pkg_install_done', this.indexDisplayName(entry))) : t('source_pkg_committed_refresh_failed')
+        this.showToast(refreshed ? t(replaceExisting ? 'source_pkg_toast_updated' : 'source_pkg_toast_install_success') : this.indexStatusText)
       } else {
         const reason = this.sourceReasonText(result.reasonCode, result.requiredAppVersion)
         this.indexStatusText = replaceExisting
           ? tf('source_pkg_update_failed', reason)
           : tf('source_pkg_install_failed', reason)
-        this.showToast(result.reasonCode === 'app_version_unsupported' ? reason : t('source_pkg_toast_install_failed'))
+        this.showToast(this.indexStatusText)
       }
-    } catch (_error) {
+    } catch (error) {
+      const reason = this.sourceReasonText(this.packageInstallFailureReason(error as Error))
       this.indexStatusText = replaceExisting
-        ? tf('source_pkg_update_failed', this.sourceReasonText('network_error'))
-        : tf('source_pkg_install_failed', this.sourceReasonText('network_error'))
-      this.showToast(t('source_pkg_toast_install_failed'))
+        ? tf('source_pkg_update_failed', reason)
+        : tf('source_pkg_install_failed', reason)
+      this.showToast(this.indexStatusText)
     }
   }
 
@@ -1567,12 +1598,16 @@ export struct SourcePackageManagerPage {
     let failedCount = 0
     let skippedCount = 0
     let requiredAppVersion = ''
+    let refreshFailed = false
+    let subscriptionSaved = false
+    const failureReasons = new Set<string>()
     this.indexStatusText = replaceExisting
       ? tf('source_pkg_batch_update_running', entries.length)
       : tf('source_pkg_batch_install_running', entries.length)
     console.info('[SourcePackageBatch] step=start mode=' + (replaceExisting ? 'update' : 'install') + ' count=' + entries.length)
     try {
       await this.sourceIndexService.saveUrl(url)
+      subscriptionSaved = true
       this.managerCache.rememberSavedIndex(url)
       if (this.sourceIndexUrl.trim() === url) this.sourceIndexUrlEdited = false
       for (let index = 0; index < entries.length; index += 1) {
@@ -1592,21 +1627,21 @@ export struct SourcePackageManagerPage {
         const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry, true)
         if (result.ok) {
           successCount += 1
-          if (existing !== undefined && !existing.enabled) {
-            setEnabled(this.context(), existing.id, false)
-          }
-          if (replaceExisting) {
+          const refreshed = this.refreshCommittedPackage(entry.id, (installed: InstalledSourcePackage): void => {
+            if (!replaceExisting) return
             this.setUpdateStatus({
               sourceId: entry.id,
               status: 'latest',
               remoteEntry: entry,
               remoteIndexUrl: entry.repositoryUrl ?? url,
               remoteVersion: entry.version,
-              localVersion: entry.version,
+              localVersion: installed.version,
             })
-          }
+          })
+          refreshFailed = !refreshed || result.install?.refreshFailed === true || refreshFailed
         } else {
           failedCount += 1
+          failureReasons.add(this.sourceReasonText(result.reasonCode, result.requiredAppVersion))
           if (result.requiredAppVersion !== undefined) {
             requiredAppVersion = this.highestFailedAppVersion(requiredAppVersion, result)
           }
@@ -1623,25 +1658,28 @@ export struct SourcePackageManagerPage {
             })
           }
         }
-        this.reload()
       }
       this.indexStatusText = replaceExisting
         ? tf('source_pkg_batch_update_done', successCount, failedCount, skippedCount)
         : tf('source_pkg_batch_install_done', successCount, failedCount, skippedCount)
+      if (failureReasons.size > 0) this.indexStatusText += ' · ' + Array.from(failureReasons).join(' · ')
       if (requiredAppVersion.length > 0) {
         this.indexStatusText += ' · ' + tf('source_pkg_batch_min_app_version', requiredAppVersion)
       }
-      this.showToast(replaceExisting ? t('source_pkg_batch_update_toast') : t('source_pkg_batch_install_toast'))
+      if (!this.refreshCommittedPackage() && successCount > 0) refreshFailed = true
+      if (refreshFailed) this.indexStatusText += ' · ' + t('source_pkg_committed_refresh_failed')
+      this.showToast(refreshFailed || failureReasons.size > 0 ? this.indexStatusText :
+        t(replaceExisting ? 'source_pkg_batch_update_toast' : 'source_pkg_batch_install_toast'))
       console.info('[SourcePackageBatch] step=done mode=' + (replaceExisting ? 'update' : 'install') +
         ' success=' + successCount + ' failed=' + failedCount + ' skipped=' + skippedCount)
-    } catch (_error) {
-      this.indexStatusText = replaceExisting
-        ? tf('source_pkg_batch_update_failed', this.sourceReasonText(this.sourceIndexFailureReason(_error)))
-        : tf('source_pkg_batch_install_failed', this.sourceReasonText(this.sourceIndexFailureReason(_error)))
-      this.showToast(t('source_pkg_toast_install_failed'))
-      DiagnosticLogger.error('source_package_manager_page', 'failed', '[SourcePackageBatch] step=failed mode=' + (replaceExisting ? 'update' : 'install') + ' reason=network_error')
+    } catch (error) {
+      const reason = subscriptionSaved ? this.sourceReasonText(this.packageInstallFailureReason(error as Error)) :
+        t('source_catalog_subscription_save_failed')
+      this.indexStatusText = successCount > 0 ? tf('source_pkg_batch_interrupted', successCount, reason) :
+        tf(replaceExisting ? 'source_pkg_batch_update_failed' : 'source_pkg_batch_install_failed', reason)
+      this.showToast(this.indexStatusText)
+      DiagnosticLogger.exception('source_package_manager_page', 'batch_interrupted', error as Error)
     } finally {
-      this.reload()
       this.indexInstallBusy = false
     }
   }
@@ -1675,6 +1713,8 @@ export struct SourcePackageManagerPage {
     let failedCount = 0
     let skippedCount = 0
     let requiredAppVersion = ''
+    let refreshFailed = false
+    const failureReasons = new Set<string>()
     this.statusText = tf('source_pkg_batch_update_running', statuses.length)
     console.info('[SourcePackageUpdateBatch] step=start count=' + statuses.length)
     try {
@@ -1688,27 +1728,24 @@ export struct SourcePackageManagerPage {
           continue
         }
         this.statusText = tf('source_pkg_batch_update_progress', index + 1, statuses.length)
-        const wasEnabled = source.enabled
         const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry, true)
         if (result.ok) {
           successCount += 1
-          if (!wasEnabled) {
-            setEnabled(this.context(), source.id, false)
-          }
           // As in a single update, publish only this committed package here.
-          // Reconcile the full batch once in finally; a render cache can still
+          // Reconcile the full batch at the end; a render cache can still
           // describe the previous frame when recording the installed version.
-          const installed = this.refreshInstalledPackage(status.sourceId)
-          this.setUpdateStatus({
+          const refreshed = this.refreshCommittedPackage(status.sourceId, (installed: InstalledSourcePackage): void => this.setUpdateStatus({
             sourceId: status.sourceId,
             status: 'latest',
             remoteEntry: entry,
             remoteIndexUrl: url,
             remoteVersion: entry.version,
-            localVersion: installed?.version ?? entry.version,
-          })
+            localVersion: installed.version,
+          }))
+          refreshFailed = !refreshed || result.install?.refreshFailed === true || refreshFailed
         } else {
           failedCount += 1
+          failureReasons.add(this.sourceReasonText(result.reasonCode, result.requiredAppVersion))
           if (result.requiredAppVersion !== undefined) {
             requiredAppVersion = this.highestFailedAppVersion(requiredAppVersion, result)
           }
@@ -1725,17 +1762,21 @@ export struct SourcePackageManagerPage {
         }
       }
       this.statusText = tf('source_pkg_batch_update_done', successCount, failedCount, skippedCount)
+      if (failureReasons.size > 0) this.statusText += ' · ' + Array.from(failureReasons).join(' · ')
       if (requiredAppVersion.length > 0) {
         this.statusText += ' · ' + tf('source_pkg_batch_min_app_version', requiredAppVersion)
       }
-      this.showToast(t('source_pkg_batch_update_toast'))
+      if (!this.refreshCommittedPackage() && successCount > 0) refreshFailed = true
+      if (refreshFailed) this.statusText += ' · ' + t('source_pkg_committed_refresh_failed')
+      this.showToast(refreshFailed || failureReasons.size > 0 ? this.statusText : t('source_pkg_batch_update_toast'))
       console.info('[SourcePackageUpdateBatch] step=done success=' + successCount + ' failed=' + failedCount + ' skipped=' + skippedCount)
-    } catch (_error) {
-      this.statusText = tf('source_pkg_batch_update_failed', this.sourceReasonText('network_error'))
-      this.showToast(t('source_pkg_toast_install_failed'))
-      DiagnosticLogger.error('source_package_manager_page', 'failed', '[SourcePackageUpdateBatch] step=failed reason=network_error')
+    } catch (error) {
+      const reason = this.sourceReasonText(this.packageInstallFailureReason(error as Error))
+      this.statusText = successCount > 0 ? tf('source_pkg_batch_interrupted', successCount, reason) :
+        tf('source_pkg_batch_update_failed', reason)
+      this.showToast(this.statusText)
+      DiagnosticLogger.exception('source_package_manager_page', 'batch_interrupted', error as Error)
     } finally {
-      this.reload()
       this.updateInstallSourceId = ''
       this.indexInstallBusy = false
     }

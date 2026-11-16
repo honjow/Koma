@@ -1,7 +1,7 @@
 import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
-import { ImageRuleStore, subscriptionDocumentKind } from '../model/ImageRuleStore'
+import { ImageRuleStore, SubscriptionReadError, subscriptionDocumentKind } from '../model/ImageRuleStore'
 import { ImageRuleSubscription, imageRuleSubscriptionName } from '../model/ImageBannerRules'
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
 import { pasteboard } from '@kit.BasicServicesKit'
@@ -60,8 +60,10 @@ export struct SourceSubscriptionsPage {
     this.error = ''
     void this.getUIContext().getPromptAction().openCustomDialog({ systemMaterial: komaDialogMaterial(),
       builder: () => { this.AddDialog() }, alignment: DialogAlignment.Center, autoCancel: true,
-      onWillDismiss: (action: DismissDialogAction): void => { if (!this.busy) action.dismiss() },
-      onDidDisappear: (): void => { this.dialogId = -1; this.error = '' },
+      onWillDismiss: (action: DismissDialogAction): void => {
+        if (!this.busy) { this.error = ''; action.dismiss() }
+      },
+      onDidDisappear: (): void => { this.dialogId = -1 },
     }).then((id: number): void => { this.dialogId = id })
   }
 
@@ -78,16 +80,20 @@ export struct SourceSubscriptionsPage {
 
   private context(): common.UIAbilityContext { return getContext(this) as common.UIAbilityContext }
 
-  private readFailure(reason?: string): string {
-    const code = ['invalid_url', 'network_error', 'http_error', 'invalid_json', 'invalid_index_format'].includes(reason ?? '')
+  private readFailure(reason?: string, httpStatus?: number): string {
+    if (reason === 'subscription_unavailable') return AppStrings.get('source_subscription_unavailable')
+    const code = ['invalid_url', 'network_error', 'http_error', 'invalid_json', 'invalid_index_format', 'missing_icon', 'invalid_icon'].includes(reason ?? '')
       ? reason! : 'unknown'
-    return AppStrings.format('source_pkg_index_load_failed', AppStrings.get(`source_pkg_reason_${code}`))
+    const detail = AppStrings.get(`source_pkg_reason_${code}`)
+    return AppStrings.format('source_pkg_index_load_failed', httpStatus === undefined ? detail :
+      AppStrings.format('source_failure_http', detail, httpStatus))
   }
 
   private async add(): Promise<void> {
     if (this.busy || !isValidHttpUrl(this.url.trim())) return
     this.busy = true
     this.error = ''
+    let failureKey = 'source_catalog_subscription_read_failed'
     try {
       const service = new SourceIndexService(this.context())
       const current = service.restoreGuard()
@@ -102,6 +108,7 @@ export struct SourceSubscriptionsPage {
         this.error = AppStrings.get('source_catalog_subscription_exists'); return
       }
       if (this.editingRuleUrl && resolveIndexDocumentUrl(this.editingRuleUrl) === resolveIndexDocumentUrl(url)) {
+        failureKey = 'source_catalog_subscription_save_failed'
         await ruleStore.rename(this.editingRuleUrl, this.name)
         this.closeDialog(); return
       }
@@ -110,6 +117,7 @@ export struct SourceSubscriptionsPage {
       const kind = document === undefined ? 'source' : await taskpool.execute(subscriptionDocumentKind, document) as string
       if (kind === 'image_rules') {
         if (this.editingUrl) { this.error = AppStrings.get('subscription_type_changed'); return }
+        failureKey = 'source_catalog_subscription_save_failed'
         await ruleStore.add(url, this.name, document, this.editingRuleUrl || undefined)
         this.closeDialog(); return
       }
@@ -124,15 +132,25 @@ export struct SourceSubscriptionsPage {
         metadata = result.metadata ?? await service.fetchRepositoryMetadata(url)
       }
       current()
+      failureKey = 'source_catalog_subscription_save_failed'
       const repositories = await service.saveRepository(url, this.name, metadata, this.editingUrl || undefined)
+      // The write has committed. A later reload failure cannot undo it.
+      failureKey = 'source_catalog_subscription_read_failed'
+      this.cache.rememberSavedIndex(this.cache.sourceIndexUrl, repositories)
+      this.url = ''
+      this.closeDialog()
       const active = await service.loadSavedUrl()
       this.cache.rememberSavedIndex(active)
       this.cache.rememberSavedIndex(active, repositories)
       if (addressChanged) await this.cache.reloadSavedCatalog(this.context(), true)
-      this.url = ''
-      this.closeDialog()
-    } catch (error) { this.error = (error as Error).message === 'image_rule_subscription_exists'
-      ? AppStrings.get('source_catalog_subscription_exists') : AppStrings.get('source_catalog_subscription_save_failed') }
+    } catch (error) {
+      const code = (error as Error).message
+      if (error instanceof SubscriptionReadError) this.error = error.reason === 'invalid_index_format'
+        ? AppStrings.get('subscription_format_invalid') : this.readFailure(error.reason, error.httpStatus)
+      else if (code === 'image_rule_subscription_exists' || code === 'repository_exists')
+        this.error = AppStrings.get('source_catalog_subscription_exists')
+      else this.error = AppStrings.get(failureKey)
+    }
     finally { this.busy = false }
   }
 
@@ -140,14 +158,17 @@ export struct SourceSubscriptionsPage {
     if (this.busy) return
     this.busy = true
     this.error = ''
+    let failureKey = 'source_pkg_saved_index_remove_failed'
     try {
       const service = new SourceIndexService(this.context())
       const repositories = await service.removeSavedRepository(repository.url)
+      failureKey = 'source_catalog_subscription_read_failed'
+      this.cache.rememberSavedIndex(this.cache.sourceIndexUrl, repositories)
       const active = await service.loadSavedUrl()
       this.cache.rememberSavedIndex(active)
       this.cache.rememberSavedIndex(active, repositories)
       await this.cache.reloadSavedCatalog(this.context())
-    } catch (_error) { this.error = AppStrings.get('source_pkg_saved_index_remove_failed') }
+    } catch (_error) { this.error = AppStrings.get(failureKey) }
     finally { this.busy = false }
   }
 
@@ -170,6 +191,7 @@ export struct SourceSubscriptionsPage {
     if (this.busy) return
     this.busy = true
     this.error = ''
+    let failureKey = 'source_catalog_subscription_save_failed'
     try {
       if (imagePlugin) {
         await ImageRuleStore.forContext(this.context()).setSubscriptionDisabled(url, disabled)
@@ -177,12 +199,13 @@ export struct SourceSubscriptionsPage {
       } else {
         const service = new SourceIndexService(this.context())
         const repositories = await service.setSubscriptionDisabled(url, disabled)
+        failureKey = 'source_catalog_subscription_read_failed'
         this.cache.rememberSavedIndex(this.cache.sourceIndexUrl, repositories)
         await this.cache.reloadSavedCatalog(this.context())
         if (!disabled) void this.cache.check(this.context())
       }
     } catch (_error) {
-      this.error = AppStrings.get('source_catalog_subscription_save_failed')
+      this.error = AppStrings.get(failureKey)
     } finally { this.busy = false }
   }
 
@@ -278,7 +301,7 @@ export struct SourceSubscriptionsPage {
       error: this.error, busy: this.busy, confirmLabel: AppStrings.get(this.editingUrl || this.editingRuleUrl ? 'common_save' : 'source_pkg_add_subscription'),
       confirmEnabled: isValidHttpUrl(this.url.trim()),
       change: (value: string): void => { this.url = value; this.error = '' },
-      confirm: (): void => { void this.add() }, cancel: (): void => { this.closeDialog() } })
+      confirm: (): void => { void this.add() }, cancel: (): void => { this.error = ''; this.closeDialog() } })
   }
 
   build() {

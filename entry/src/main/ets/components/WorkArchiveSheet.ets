@@ -5,7 +5,7 @@ import { Chapter, Comic } from '../model/ComicModels'
 import { continuationChapterIds } from '../model/ReaderChapterSequence'
 import { OfflineDownloadQueueEntry } from '../model/OfflineDownloadQueueStore'
 import {
-  ArchiveChapter, ChapterArchiveFile, CHAPTER_ARCHIVE_CANCELED, CHAPTER_ARCHIVE_INCOMPLETE, CHAPTER_ARCHIVE_SAVE_FAILED,
+  ArchiveChapter, ChapterArchiveFile, CHAPTER_ARCHIVE_CANCELED, chapterArchiveFailureText,
   discardPreparedArchive, prepareWorkArchive, saveChapterArchive,
 } from '../model/ChapterArchiveExport'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -124,9 +124,7 @@ export struct WorkArchiveSheet {
     } catch (error) {
       const message = (error as Error).message ?? ''
       if (!this.canceled && message !== CHAPTER_ARCHIVE_CANCELED) {
-        this.errorText = message.startsWith(CHAPTER_ARCHIVE_INCOMPLETE) ?
-          s('downloads_archive_missing_chapter').replace('%s', message.substring(CHAPTER_ARCHIVE_INCOMPLETE.length)) :
-          s(message === CHAPTER_ARCHIVE_SAVE_FAILED ? CHAPTER_ARCHIVE_SAVE_FAILED : 'chapter_archive_failed')
+        this.errorText = chapterArchiveFailureText(error as Error)
       }
     } finally {
       if (file !== undefined) await discardPreparedArchive(file)

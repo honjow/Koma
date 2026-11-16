@@ -114,7 +114,7 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  const {ImageRuleStore,subscriptionDocumentKind}=load('ImageRuleStore',{
   '@kit.ArkTS':{taskpool:{execute:async(fn,...args)=>fn(...args)},util:{TextDecoder:{create:()=>({decodeToString:bytes=>Buffer.from(bytes).toString('utf8')})},Base64Helper:class{encodeToStringSync(v){return Buffer.from(v).toString('base64')}}}},
   '@kit.CoreFileKit':{fileIo:{accessSync:p=>files.has(p),statSync:p=>({size:files.get(p).length}),readTextSync:p=>files.get(p)}},
-  '@kit.NetworkKit':{http:{RequestMethod:{GET:0},HttpDataType:{ARRAY_BUFFER:0},createHttp:()=>({request:async url=>{requestedUrls.push(url);networkCalls++;if(waitForIndex&&url===indexUrl)await new Promise(resolve=>{gate=resolve});if(waitForModule&&url.endsWith('.wasm'))await new Promise(resolve=>{moduleGate=resolve});const b=requests.get(url);return {responseCode:b?200:500,result:b?Uint8Array.from(b).buffer:new ArrayBuffer(0)}},destroy(){}})}},
+  '@kit.NetworkKit':{http:{RequestMethod:{GET:0},HttpDataType:{ARRAY_BUFFER:0},createHttp:()=>({request:async url=>{requestedUrls.push(url);networkCalls++;if(waitForIndex&&url===indexUrl)await new Promise(resolve=>{gate=resolve});if(waitForModule&&url.endsWith('.wasm'))await new Promise(resolve=>{moduleGate=resolve});const b=requests.get(url);if(b instanceof Error)throw b;return {responseCode:b?200:500,result:b?Uint8Array.from(b).buffer:new ArrayBuffer(0)}},destroy(){}})}},
   '@kit.CryptoArchitectureKit':{cryptoFramework:{createMd:()=>{const h=crypto.createHash('sha256');return {updateSync:v=>h.update(v.data),digestSync:()=>({data:new Uint8Array(h.digest())})}}}},
   './AppFileTextPersistence':{writeAppTextFile:(p,s)=>{if(failWrite)throw Error('disk full');files.set(p,s)}},
   './BackupRestoreActivity':{BackupRestoreActivity:{runWrite:async f=>f()}},'./ImageBannerRules':rules,'./ImageProcessingPlugins':plugins,
@@ -125,7 +125,16 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  const ctx={filesDir:'/fixture',resourceManager:{getRawFileContent:async()=>{throw Error('must not read bundled rules')}}};
  const store=ImageRuleStore.forContext(ctx);assert.deepEqual(await store.list(),[]);assert.deepEqual((await store.pinned()).records,[]);assert.equal(networkCalls,0);
  assert.equal(subscriptionDocumentKind('[]'),'source');assert.equal(subscriptionDocumentKind('{"sources":[]}'),'source');assert.equal(subscriptionDocumentKind(JSON.stringify(index)),'image_rules');assert.equal(subscriptionDocumentKind('{}'),'unknown');
+ assert.equal(subscriptionDocumentKind('<html>Gateway error</html>'),'unknown');
  await store.add(indexUrl,'');assert.equal(networkCalls,2);assert.equal(state.enabledRuleCount,0,'adding a subscription only adds catalog information');
+ await assert.rejects(store.fetchDocument('https://rules.test/missing.json'),
+  error=>error.reason==='http_error'&&error.httpStatus===500);
+ const unavailable='https://rules.test/unavailable.json';requests.set(unavailable,Error('timeout'));
+ await assert.rejects(store.fetchDocument(unavailable),error=>error.reason==='network_error');
+ requests.delete(packUrl);
+ await assert.rejects(store.add(indexUrl,'',JSON.stringify(index)),error=>error.reason==='http_error'&&error.httpStatus===500);
+ assert.equal((await store.list()).length,1,'a failed manifest read leaves the saved subscription intact');
+ requests.set(packUrl,resource);
  await store.installRulePack(indexUrl,pack.id);assert.equal(state.enabledRuleCount,0,'legacy rules also require explicit installation and activation');
  for(const rule of subscribedPack.rules)await store.setRuleEnabled(indexUrl,pack.id,rule.id,true);
  const initial=await store.pinned();assert.equal(initial.records[0].origin,indexUrl);assert.equal((await store.list())[0].name,'Visible rules');

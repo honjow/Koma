@@ -86,6 +86,64 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "SUBSCRIPTION_FAILURE_MESSAGES",
+      "number": 311,
+      "title": "添加订阅时读取失败误报为未保存",
+      "kind": "done",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-16",
+      "reportedAtSource": "用户转述添加订阅时反复提示「订阅地址未保存」。",
+      "updatedAt": "2026-11-16T21:05:52+08:00",
+      "status": "197 已验证 HTTP 503、目录格式错误、添加和移除",
+      "result": "HTTP 503 显示状态码，HTML 显示格式错误，有效目录可添加并移除。添加、移除和启停订阅提交后的目录刷新异常按读取失败提示。",
+      "remaining": "原反馈用户的具体地址和日志未取得。",
+      "evidence": [
+        "entry/src/main/ets/pages/SourceSubscriptionsPage.ets",
+        "entry/src/main/ets/model/ImageRuleStore.ets",
+        "scripts/test_image_banner_rules.cjs",
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T204425981321",
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T204447884188",
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T204720506423"
+      ],
+      "relatedItems": [
+        "ERROR_MESSAGE_PHASE_AUDIT"
+      ],
+      "closedAt": "2026-11-16T21:05:52+08:00"
+    },
+    {
+      "id": "ERROR_MESSAGE_PHASE_AUDIT",
+      "number": 312,
+      "title": "书源安装、CBZ 与备份错误提示核查",
+      "kind": "done",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-16",
+      "reportedAtSource": "用户要求核查其他错误文案和实际失败不一致的地方。",
+      "updatedAt": "2026-11-16T21:05:52+08:00",
+      "status": "四类已修，197 已验证主要失败和成功路径",
+      "result": "书源显示下载响应、无效 ZIP 与写入后刷新失败，已装测试源在本地列表可见。正常 CBZ 到达系统保存选择器，临时验证包模拟打包失败并显示打包提示。正确口令解密版本不支持的备份后提示版本，实际恢复同机刚创建的快照后模拟刷新失败，明确提示备份已恢复。测试备份、书源和订阅已清理。",
+      "remaining": "具名失败分支用受控响应或临时故障注入验证。修复待随新版发布。",
+      "evidence": [
+        "entry/src/main/ets/pages/SourcePackageManagerPage.ets",
+        "entry/src/main/ets/model/ChapterArchiveExport.ets",
+        "entry/src/main/ets/pages/BackupManagementPage.ets",
+        "entry/src/main/ets/model/BackupService.ets",
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T204858173108",
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T210128503572",
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T210132664910",
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T210259343783",
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T205602879217",
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T205127685634",
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T205705455817",
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages/actions-20261116T210433317432"
+      ],
+      "relatedItems": [
+        "SUBSCRIPTION_FAILURE_MESSAGES"
+      ],
+      "closedAt": "2026-11-16T21:05:52+08:00"
+    },
+    {
       "id": "WEBDAV_PROBE_SYNC_409",
       "number": 310,
       "title": "坚果云连接测试通过后同步报 409",
@@ -11179,6 +11237,26 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "error-message-device-197-20261116",
+      "at": "2026-11-16T21:05:52+08:00",
+      "itemId": "ERROR_MESSAGE_PHASE_AUDIT",
+      "title": "197 验证订阅、安装、CBZ 和恢复提示",
+      "detail": "临时包模拟书源写入后刷新、CBZ 打包及恢复后刷新。197 验证对应反馈，移除测试文件、订阅、书源并安装最终开发包。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/error-phase-20261116/device197__ALN-AL80/not-applicable/portrait-1260x2720/error-messages"
+      ]
+    },
+    {
+      "id": "subscription-error-classification-20261116",
+      "at": "2026-11-16T20:18:18+08:00",
+      "itemId": "SUBSCRIPTION_FAILURE_MESSAGES",
+      "title": "按请求、格式及持久化阶段报告订阅失败",
+      "detail": "检查到初次下载的异常被添加页捕获成未保存；已区分 HTTP、网络与不支持的目录内容。移除、启停订阅提交后重新读取失败也使用读取提示。核查其他四类误报，登记 #312。",
+      "kind": "verified",
+      "evidence": ["entry/src/main/ets/pages/SourceSubscriptionsPage.ets", "scripts/test_image_banner_rules.cjs"]
+    },
     {
       "id": "webdav-connection-probe-and-sync-409-20261116",
       "at": "2026-11-16T10:37:14+08:00",

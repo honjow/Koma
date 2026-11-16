@@ -1,4 +1,4 @@
-import { ChapterArchiveActions, CHAPTER_ARCHIVE_SAVE_FAILED } from '../model/ChapterArchiveExport'
+import { ChapterArchiveActions, chapterArchiveFailureText } from '../model/ChapterArchiveExport'
 import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
@@ -161,8 +161,7 @@ export struct DownloadsPage {
         share, () => this.queueVisible)
     } catch (error) {
       DiagnosticLogger.exception('downloads', 'archive_export_failed', error as Error)
-      if (this.queueVisible) this.showToast(s(
-        (error as Error).message === CHAPTER_ARCHIVE_SAVE_FAILED ? CHAPTER_ARCHIVE_SAVE_FAILED : 'chapter_archive_failed'))
+      if (this.queueVisible) this.showToast(chapterArchiveFailureText(error as Error))
     } finally { this.chapterArchiveBusy = false }
   }
 

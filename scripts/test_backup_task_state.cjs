@@ -25,9 +25,11 @@ const { BackupManagementPage } = evaluate(pageLogic, {
   DEFAULT_BACKUP_AUTOMATIC_PREFERENCES: { enabled: false },
   DEFAULT_BACKUP_CONTENT_PREFERENCES: {}, AppStrings: { get: key => key, format: key => key },
   connectLanguageState: () => ({}),
-  DiagnosticLogger: { error() {}, warn() {} },
+  DiagnosticLogger: { error() {}, warn() {}, exception() {} },
   synchronizeBackgroundMaintenance: async () => {},
-  BACKUP_PASSPHRASE_MIN_LENGTH: 8, komaDialogMaterial: () => undefined, DialogAlignment: { Center: 0 },
+  BACKUP_PASSPHRASE_MIN_LENGTH: 8, BACKUP_DECRYPT_FAILURE_CODE: 'backup_decrypt_failed',
+  BACKUP_ENVELOPE_FAILURE_CODE: 'backup_invalid_encrypted_envelope',
+  komaDialogMaterial: () => undefined, DialogAlignment: { Center: 0 },
   backupUnencryptedExportWarning: () => "Unencrypted export",
   $r: () => ({}),
   console: { info() {} },
@@ -52,7 +54,10 @@ function fixture() {
       return { payload: 'encrypted fixture', preview: { encrypted: true, decrypted: false } }
     },
     decryptPreview: async () => ({ payload: 'decrypted fixture', preview: { encrypted: true, decrypted: true } }),
-    importDecrypted: async payload => { calls.push(['restore decrypted', payload]) },
+    importDecrypted: async payload => {
+      calls.push(['restore decrypted', payload])
+      return { refreshFailed: false, cleanupFailed: false }
+    },
   }
   page.active = true
   page.context = () => ({})
@@ -137,6 +142,20 @@ async function run() {
   assert.deepEqual(calls.splice(0), [['restore decrypted', 'decrypted fixture'], 'backup_dialog_imported_title'])
   assert.equal(page.backupDialogShown, false)
   assert.equal(page.selectedBackupPayload, '')
+
+  page.selectLocalBackup({ fileName: 'local.koma-backup', displayName: 'Local', preview: { exportedAt: 1 } })
+  await drain()
+  page.importPassphrase = 'secure test value'
+  page.decryptSelectedBackup()
+  await drain()
+  calls.splice(0)
+  page.onRestoreCompleted = () => { throw Error('read library after commit') }
+  page.showInfoDialog = (title, message) => calls.push([title, message])
+  page.runRestoreSelectedBackup()
+  await drain()
+  assert.deepEqual(calls.splice(0), [['restore decrypted', 'decrypted fixture'],
+    ['backup_dialog_imported_title', 'backup_imported_refresh_failed']])
+  assert.equal(page.backupDialogShown, false)
 
   const saved = []
   const backupSource = read('model/BackupService.ets')

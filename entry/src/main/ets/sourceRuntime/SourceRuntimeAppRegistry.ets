@@ -114,6 +114,7 @@ export interface InstalledSourcePackage {
 
 export interface SourcePackageInstallResult {
   ok: boolean
+  refreshFailed?: boolean
   id?: string
   name?: string
   reasonCode?: string
@@ -1229,6 +1230,7 @@ async function registerSourcePackageFromBytes(
   let removedExisting: SourceRuntimeRegistryEntry | undefined = undefined
   let removedExistingPosition: number = -1
   let registeredReplacementSourceId: string = ''
+  let committed: SourcePackageInstallResult | undefined
   try {
     ensureDirSync(packageDir)
     // The importer writes the same archive before extraction. Writing it here
@@ -1309,6 +1311,7 @@ async function registerSourcePackageFromBytes(
     registeredReplacementSourceId = sourceId
     const persistStartedAt = Date.now()
     persistInstalledSources(context)
+    committed = { ok: true, id: sourceId, name: imported.manifest.package.name }
     if (inheritedSession !== undefined && removedExisting !== undefined) {
       SourcePrivateSessionHost.retirePackageCalls(sourceId, sourceWebPackageIdentity(removedExisting))
     }
@@ -1328,8 +1331,15 @@ async function registerSourcePackageFromBytes(
     DiagnosticLogger.info('source_package', 'import_ok', '[SourceManager] step=import_ok id=' + sourceId +
       ' persistSyncMs=' + persistSyncMs + ' cleanupAwaitMs=' + cleanupAwaitMs +
       ' publishSyncMs=' + Math.max(0, Date.now() - publishStartedAt))
-    return { ok: true, id: sourceId, name: imported.manifest.package.name }
-  } catch (_error) {
+    return committed
+  } catch (error) {
+    // The registry on disk already points to the replacement. A refresh
+    // error cannot roll back the committed entry or delete its files.
+    if (committed !== undefined) {
+      DiagnosticLogger.exception('source_package', 'install_refresh_failed', error as Error)
+      committed.refreshFailed = true
+      return committed
+    }
     if (registeredReplacementSourceId.length > 0) {
       appSourceRuntimeRegistry.remove(registeredReplacementSourceId)
     }

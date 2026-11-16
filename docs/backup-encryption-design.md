@@ -71,6 +71,8 @@ Encrypted envelope v1:
 - Before decryption, preview must not show library item counts, reading progress counts, source package counts, source settings counts, server URLs, source index URL, titles, paths, or any settings derived from the encrypted payload.
 - After passphrase entry and successful authentication, the app may build the same safe counts preview from the decrypted schema v4 payload.
 - If decryption or authentication fails, no decrypted preview is available and no restore action is enabled.
+- After successful authentication, report unsupported backup versions, damaged contents, and failures reading the local data for preview at their respective stages.
+- Once the restore checkpoint commits, report the restore as completed. A subsequent reload or cleanup error can qualify that result, while the committed backup remains in place.
 
 ## Exclusion And Redaction
 

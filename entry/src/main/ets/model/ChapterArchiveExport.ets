@@ -23,9 +23,25 @@ export interface WorkArchiveProgress {
 }
 
 export const CHAPTER_ARCHIVE_CANCELED: string = 'chapter_archive_canceled'
-export const CHAPTER_ARCHIVE_INCOMPLETE: string = 'chapter_archive_incomplete:'
-export const CHAPTER_ARCHIVE_SAVE_FAILED: string = 'chapter_archive_save_failed'
+const CHAPTER_ARCHIVE_INCOMPLETE: string = 'chapter_archive_incomplete:'
+const CHAPTER_ARCHIVE_SAVE_FAILED: string = 'chapter_archive_save_failed'
+const CHAPTER_ARCHIVE_FORMAT: string = 'chapter_archive_unsupported_image'
+const CHAPTER_ARCHIVE_READ: string = 'chapter_archive_read_failed'
+const CHAPTER_ARCHIVE_TEMP: string = 'chapter_archive_temp_failed'
+const CHAPTER_ARCHIVE_PACK: string = 'chapter_archive_pack_failed'
 interface ArchivePage { path: string; name: string; pageId?: string; sourceId?: string; overlay?: SourceTextOverlay }
+
+export function chapterArchiveFailureText(error: Error): string {
+  const code = error.message ?? ''
+  if (code.startsWith(CHAPTER_ARCHIVE_INCOMPLETE)) {
+    const title = code.substring(CHAPTER_ARCHIVE_INCOMPLETE.length)
+    return title.length > 0 ? AppStrings.format('downloads_archive_missing_chapter', title) :
+      AppStrings.get('chapter_archive_download_incomplete')
+  }
+  if ([CHAPTER_ARCHIVE_FORMAT, CHAPTER_ARCHIVE_READ, CHAPTER_ARCHIVE_TEMP, CHAPTER_ARCHIVE_PACK,
+    CHAPTER_ARCHIVE_SAVE_FAILED].includes(code)) return AppStrings.get(code)
+  return AppStrings.get('chapter_archive_failed')
+}
 
 
 @Concurrent
@@ -87,26 +103,36 @@ async function prepareArchive(context: common.UIAbilityContext, comicId: string,
   }
   if (chapters.length === 0) throw new Error('chapter_archive_empty')
   checkCanceled()
-  const storageBase = await ensureKomaContentStorageBase(context)
-  const directory = await fs.mkdtemp(`${context.cacheDir}/chapter-export-XXXXXX`)
-  const staging = `${directory}/pages`
   const title = singleChapterTitle === undefined ? comicTitle : `${comicTitle} - ${singleChapterTitle}`
   const fileName = title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 140) + '.cbz'
-  const path = `${directory}/${fileName}`
-  await fs.mkdir(staging)
+  let directory = ''
+  let staging = ''
+  let path = ''
   const copied: string[] = []
   const chapterBookmarks: string[] = []
   let pageCount = 0
   let ready = false
+  let stage = CHAPTER_ARCHIVE_READ
   try {
+    const storageBase = await ensureKomaContentStorageBase(context)
+    stage = CHAPTER_ARCHIVE_TEMP
+    directory = await fs.mkdtemp(`${context.cacheDir}/chapter-export-XXXXXX`)
+    staging = `${directory}/pages`
+    path = `${directory}/${fileName}`
+    await fs.mkdir(staging)
     for (let index = 0; index < chapters.length; index += 1) {
       checkCanceled()
+      stage = CHAPTER_ARCHIVE_READ
       const chapter = chapters[index]
       let plan: string
       try {
         plan = await taskpool.execute(chapterArchivePagesWorker, storageBase, context.filesDir, comicId, chapter.id) as string
       } catch (error) {
-        if (progress !== undefined) throw new Error(CHAPTER_ARCHIVE_INCOMPLETE + chapter.title)
+        const code = (error as Error).message
+        if (code === 'chapter_export_download_incomplete') {
+          throw new Error(CHAPTER_ARCHIVE_INCOMPLETE + (progress === undefined ? '' : chapter.title))
+        }
+        if (code === 'chapter_export_image_format_unknown') throw new Error(CHAPTER_ARCHIVE_FORMAT)
         throw error as Error
       }
       const pages = JSON.parse(plan) as ArchivePage[]
@@ -117,6 +143,7 @@ async function prepareArchive(context: common.UIAbilityContext, comicId: string,
       }
       for (const page of pages) {
         checkCanceled()
+        stage = CHAPTER_ARCHIVE_READ
         // A CBZ cannot carry the local overlay descriptor. Export the Reader
         // presentation while retaining original download bytes and hash.
         const sourcePath = page.overlay === undefined ? page.path : await fetchAndCacheReaderRemoteSource({
@@ -127,18 +154,18 @@ async function prepareArchive(context: common.UIAbilityContext, comicId: string,
         const name = progress === undefined ? page.name :
           `${String(pageCount).padStart(8, '0')}${page.name.substring(page.name.lastIndexOf('.'))}`
         copied.push(`${staging}/${name}`)
+        stage = CHAPTER_ARCHIVE_TEMP
         try {
           await fs.copyFile(sourcePath, copied[copied.length - 1])
         } catch (error) {
-          if (progress !== undefined && !fs.accessSync(sourcePath)) {
-            throw new Error(CHAPTER_ARCHIVE_INCOMPLETE + chapter.title)
-          }
+          if (!fs.accessSync(sourcePath)) stage = CHAPTER_ARCHIVE_READ
           throw error as Error
         }
       }
       progress?.onChapterPrepared(index + 1)
     }
     checkCanceled()
+    stage = CHAPTER_ARCHIVE_TEMP
     const metadataPath = `${staging}/ComicInfo.xml`
     copied.push(metadataPath)
     const metadata = await fs.open(metadataPath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY)
@@ -147,19 +174,29 @@ async function prepareArchive(context: common.UIAbilityContext, comicId: string,
         `<Series>${xml(comicTitle)}</Series><PageCount>${pageCount}</PageCount>` +
         `${chapterBookmarks.length > 0 ? `<Pages>${chapterBookmarks.join('')}</Pages>` : ''}</ComicInfo>`)
     } finally { await fs.close(metadata) }
+    stage = CHAPTER_ARCHIVE_PACK
     await zlib.compressFile(staging, path + '.zip', { level: zlib.CompressLevel.COMPRESS_LEVEL_NO_COMPRESSION })
     checkCanceled()
     await fs.rename(path + '.zip', path)
-    ready = true
     // Keep this immutable cache file for the receiving app after the panel closes.
-    return { path, uri: fileUri.getUriFromPath(path), fileName }
+    const uri = fileUri.getUriFromPath(path)
+    ready = true
+    return { path, uri, fileName }
   } catch (error) {
-    try { await fs.unlink(path + '.zip') } catch (_) {}
-    throw error as Error
+    if (path.length > 0) {
+      try { await fs.unlink(path + '.zip') } catch (_) {}
+      try { await fs.unlink(path) } catch (_) {}
+    }
+    const code = (error as Error).message ?? ''
+    if (code === CHAPTER_ARCHIVE_CANCELED || code === CHAPTER_ARCHIVE_FORMAT || code.startsWith(CHAPTER_ARCHIVE_INCOMPLETE)) {
+      throw error as Error
+    }
+    DiagnosticLogger.warn('downloads', stage, 'code=' + String((error as BusinessError).code ?? 0))
+    throw new Error(stage)
   } finally {
     for (const copiedPath of copied) { try { await fs.unlink(copiedPath) } catch (_) {} }
-    try { await fs.rmdir(staging) } catch (_) {}
-    if (!ready) { try { await fs.rmdir(directory) } catch (_) {} }
+    if (staging.length > 0) { try { await fs.rmdir(staging) } catch (_) {} }
+    if (!ready && directory.length > 0) { try { await fs.rmdir(directory) } catch (_) {} }
   }
 }
 
@@ -183,7 +220,7 @@ export async function saveChapterArchive(context: common.UIAbilityContext, file:
   } catch (error) {
     DiagnosticLogger.warn('downloads', CHAPTER_ARCHIVE_SAVE_FAILED,
       'stage=' + stage + ' code=' + String((error as BusinessError).code ?? 0))
-    throw new Error(CHAPTER_ARCHIVE_SAVE_FAILED)
+    throw new Error(stage === 'source' ? CHAPTER_ARCHIVE_READ : CHAPTER_ARCHIVE_SAVE_FAILED)
   } finally {
     if (target !== undefined) { try { await fs.close(target) } catch (_) {} }
     if (source !== undefined) { try { await fs.close(source) } catch (_) {} }

@@ -6,7 +6,7 @@ const vm = require('node:vm')
 const ts = require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const root = path.join(__dirname, '../entry/src/main/ets')
 function subject(file, owner, methods, globals) {
-  if (owner === 'SourcePackageManagerPage') methods = methods.concat('packageInstallAdmissionBlocked')
+  if (owner === 'SourcePackageManagerPage') methods = methods.concat('packageInstallAdmissionBlocked', 'refreshCommittedPackage', 'packageInstallFailureReason')
   if (owner === 'SourceIndexService') methods = methods.concat('subscriptionEpoch')
   const source = fs.readFileSync(path.join(root, file), 'utf8').replace(/\bstruct /g, 'class ')
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
@@ -365,17 +365,16 @@ test('group update uses its repository and preserves a disabled source through t
   const calls = []
   const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', ['updateInstalledPackage', 'packageInstallPending'], {
     ...globals, tf: key => key, t: key => key, sourceDisplayName: (_id, name) => name,
-    setEnabled: (_context, id, value) => calls.push(['enabled', id, value]),
   })
   Object.assign(manager, { updateInstallSourceId:'', indexInstallBusy:false, busy:false, packageInstallTasks:installLane(),
-    context: () => ({}), refreshInstalledPackage() {}, installedPackage: () => installed('A','1.1',false),
+    context: () => ({}), refreshInstalledPackage: () => installed('A','1.1',false), installedPackage: () => installed('A','1.1',false),
     setUpdateStatus: status => calls.push(['status', status.status]), showToast() {},
     sourceIndexService: { installPackage: async (url, entry) => { calls.push(['install',url,entry.id]); return {ok:true} } },
   })
   await manager.updateInstalledPackage(installed('A','1.0',false), {
     entry:indexed('A','1.1'), indexUrl:'https://other.test/index.json',
   })
-  assert.deepEqual(calls, [['install','https://other.test/index.json','A'],['enabled','A',false],['status','latest']])
+  assert.deepEqual(calls, [['install','https://other.test/index.json','A'],['status','latest']])
   assert.equal(manager.updateInstallSourceId, '')
 })
 
@@ -566,20 +565,19 @@ test('a source download reports bytes on its own task and installs only after th
 })
 
 test('update-all keeps per-source actions and shows one summary after the last update', async () => {
-  const lane = installLane(), calls = [], statuses = [], enabled = [], toasts = []
+  const lane = installLane(), calls = [], statuses = [], toasts = []
   const packages = [installed('A','1'), installed('B','1',false), installed('C','1')]
   let finishA
   const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage',
     ['updateAllAvailablePackages','updateInstalledPackage','packageInstallPending'], {
       ...globals, t:key=>key, tf:(key,...args)=>[key,...args], sourceDisplayName:(_id,name)=>name,
-      setEnabled:(_context,id,value)=>enabled.push([id,value]),
     })
   const candidates = ['A','B','C'].map(id=>({entry:indexed(id,'2'),indexUrl:`https://${id}.test/index.json`}))
   Object.assign(manager, {
     busy:false, packageInstallTasks:lane, indexInstallBusy:true, updateInstallSourceId:'other',
     availablePackageUpdates:()=>candidates,
     installedPackage:id=>packages.find(item=>item.id===id),
-    context:()=>({}), refreshInstalledPackage(){}, showToast:message=>toasts.push(message),
+    context:()=>({}), refreshInstalledPackage:id=>packages.find(item=>item.id===id), showToast:message=>toasts.push(message),
     setUpdateStatus:status=>statuses.push([status.sourceId,status.status]),
     sourceIndexService:{installPackage:(url,item)=>lane.run(item.id,async()=>{
       calls.push([item.id,url])
@@ -601,14 +599,14 @@ test('update-all keeps per-source actions and shows one summary after the last u
   await Promise.all([batch, duplicate])
   assert.deepEqual(calls,[['A','https://A.test/index.json'],['B','https://B.test/index.json'],['C','https://C.test/index.json']])
   assert.deepEqual(statuses.slice().sort(),[['A','latest'],['B','latest'],['C','failed']])
-  assert.deepEqual(enabled,[['B',false]])
+  assert.equal(packages.find(p=>p.id==='B').enabled,false)
   assert.equal(lane.pendingIds.length,0)
   assert.deepEqual(toasts,[['source_pkg_batch_update_done',2,1,0]])
 
   await manager.updateInstalledPackage(packages[1], candidates[1])
   assert.equal(toasts.at(-1),'source_pkg_toast_updated')
   await manager.updateInstalledPackage(packages[2], candidates[2])
-  assert.equal(toasts.at(-1),'source_pkg_toast_install_failed')
+  assert.deepEqual(toasts.at(-1),['source_pkg_update_failed',''])
 })
 
 

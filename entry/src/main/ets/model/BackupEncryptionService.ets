@@ -214,6 +214,7 @@ export class BackupEncryptionService {
   async decrypt(envelopeJson: string, passphrase: string): Promise<string> {
     validatePassphrase(passphrase)
     let envelope: BackupEncryptedEnvelopeV1
+    let plaintext: Uint8Array
     try {
       envelope = JSON.parse(envelopeJson) as BackupEncryptedEnvelopeV1
       validateEnvelopeShape(envelope)
@@ -230,14 +231,17 @@ export class BackupEncryptionService {
         throw new Error(BACKUP_ENVELOPE_FAILURE_CODE)
       }
       const key = await this.deriveKey(passphrase, salt, envelope.kdf.iterations)
-      const plaintext = await this.decryptBytes(key, nonce, utf8Encode(canonicalBackupJson(envelope.aad as Object)), ciphertext, tag)
+      plaintext = await this.decryptBytes(key, nonce, utf8Encode(canonicalBackupJson(envelope.aad as Object)), ciphertext, tag)
+    } catch (error) {
+      if ((error as Error).message === BACKUP_ENVELOPE_FAILURE_CODE) throw error as Error
+      throw new Error(BACKUP_DECRYPT_FAILURE_CODE)
+    }
+    try {
       const document = envelope.envelopeVersion === BACKUP_COMPRESSED_ENVELOPE_VERSION
         ? await decompressBackupJson(bytesToExactArrayBuffer(plaintext)) : utf8Decode(plaintext)
       console.info('[BackupEncryption] step=decrypt ok=true')
       return document
-    } catch (_err) {
-      throw new Error(BACKUP_DECRYPT_FAILURE_CODE)
-    }
+    } catch (_error) { throw new Error('backup_content_invalid') }
   }
 
   private randomBytes(length: number): Uint8Array {

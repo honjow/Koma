@@ -244,6 +244,11 @@ export interface BackupImportSelectionPreview {
   payload: string
   preview: BackupImportPreview
 }
+export interface BackupRestoreCompletion {
+  refreshFailed: boolean
+  cleanupFailed: boolean
+}
+
 
 export interface BackupFileSelection {
   koma?: BackupImportSelectionPreview
@@ -1349,22 +1354,25 @@ export class BackupService {
     })
   }
 
-  async import(json: string): Promise<void> {
-    await this.importDocument(json, false)
+  async import(json: string): Promise<BackupRestoreCompletion> {
+    return await this.importDocument(json, false)
   }
 
-  async importDecrypted(json: string): Promise<void> {
-    await this.importDocument(json, true)
+  async importDecrypted(json: string): Promise<BackupRestoreCompletion> {
+    return await this.importDocument(json, true)
   }
 
-  private async importDocument(json: string, allowEncryptedContentSchema: boolean): Promise<void> {
+  /** The restore is durable after commit. Report subsequent reload and cleanup errors independently. */
+  private async importDocument(json: string, allowEncryptedContentSchema: boolean): Promise<BackupRestoreCompletion> {
     const document = prepareBackupRestoreDocument(json, allowEncryptedContentSchema)
     BackupRestoreActivity.beginRestore()
     appSourceSettingObservationStore.invalidateCachedDocument()
     let sourcePlan: PreparedSourcePackageRestore | undefined
     let checkpoint: BackupRestoreCheckpoint | undefined
     let coverPlan: PreparedComicCovers | undefined
-    let coversCommitted: boolean = false
+    let committed = false
+    let refreshFailed = false
+    let cleanupFailed = false
     try {
       // Retire in-flight results before restoring durable subscription choices.
       // Keep construction inside cleanup: its cache directory may fail to open.
@@ -1419,14 +1427,17 @@ export class BackupService {
       // Rebuild disabled-address guards before opening the restore gate. A
       // successful restore must never expose a transient enabled subscription.
       await this.reloadSubscriptionRuntimeAfterRestore()
+      committed = true
       checkpoint.commit()
       const state = this.managementState()
       state.automaticPreferences = undefined
       state.contentPreferences = undefined
-      coversCommitted = true
       DiagnosticLogger.info('backup', 'import_json', '[Backup] step=import_json')
     } catch (error) {
-      if (checkpoint !== undefined) {
+      if (committed) {
+        refreshFailed = true
+        DiagnosticLogger.exception('backup', 'restore_reload_failed', error as Error)
+      } else if (checkpoint !== undefined) {
         try {
           await checkpoint.rollback()
           await ImageRuleStore.forContext(this.context).reload()
@@ -1446,19 +1457,31 @@ export class BackupService {
           throw new Error('backup_recovery_pending')
         }
       }
-      throw error as Error
+      if (!committed) throw error as Error
     } finally {
       try {
-        await sourcePlan?.discard()
-      } finally {
-        if (!coversCommitted && coverPlan !== undefined) await discardPreparedComicCovers(coverPlan.files)
-        try { finishAutomationRestore(this.context) } finally {
-          BackupRestoreActivity.finishRestore()
-          signalDeviceSyncRestoreFinish(coversCommitted)
+        try {
+          await sourcePlan?.discard()
+        } finally {
+          if (!committed && coverPlan !== undefined) await discardPreparedComicCovers(coverPlan.files)
+          try { finishAutomationRestore(this.context) } finally {
+            BackupRestoreActivity.finishRestore()
+            signalDeviceSyncRestoreFinish(committed)
+          }
+      } catch (error) {
+        if (!committed) throw error as Error
+        cleanupFailed = true
+        DiagnosticLogger.exception('backup', 'restore_cleanup_failed', error as Error)
         }
       }
     }
-    await reloadApplicationSettingsRuntime(this.context)
+    try {
+      await reloadApplicationSettingsRuntime(this.context)
+    } catch (error) {
+      refreshFailed = true
+      DiagnosticLogger.exception('backup', 'restore_reload_failed', error as Error)
+    }
+    return { refreshFailed, cleanupFailed }
   }
 
   private async reloadSubscriptionRuntimeAfterRestore(): Promise<void> {
@@ -1474,7 +1497,12 @@ export class BackupService {
   }
 
   private previewDecrypted(json: string): BackupImportPreview {
-    return this.previewDocument(json, true)
+    try { return this.previewDocument(json, true) }
+    catch (error) {
+      const code = (error as Error).message
+      if (code === 'backup_version_unsupported' || code === 'backup_current_data_read_failed') throw error as Error
+      throw new Error('backup_content_invalid')
+    }
   }
 
   private previewDocument(json: string, allowEncryptedContentSchema: boolean): BackupImportPreview {
@@ -1485,7 +1513,7 @@ export class BackupService {
       isAcceptedDecryptedSchemaVersion(document.schemaVersion) :
       isAcceptedPlaintextSchemaVersion(document.schemaVersion)
     if (!accepted) {
-      throw new Error(`Unsupported backup schema version: ${document.schemaVersion}`)
+      throw new Error(typeof document.schemaVersion === 'number' ? 'backup_version_unsupported' : 'backup_content_invalid')
     }
     if (typeof document.libraryStore !== 'string' || typeof document.readingProgress !== 'string') {
       throw new Error('Invalid backup payload')
@@ -1493,10 +1521,15 @@ export class BackupService {
     assertValidLibraryStoreJson(document.libraryStore)
     const libraryStore = asJsonObject(JSON.parse(document.libraryStore) as Object, 'library')
     const readingProgress = asJsonObject(JSON.parse(document.readingProgress) as Object, 'progress')
-    const currentLibraryPayload = readTextIfExists(this.libraryPath(), emptyLibraryStorePayload())
-    assertValidLibraryStoreJson(currentLibraryPayload)
-    const currentLibraryStore = asJsonObject(JSON.parse(currentLibraryPayload) as Object, 'current library')
-    const currentReadingProgress = asJsonObject(JSON.parse(readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload())) as Object, 'current progress')
+    let currentLibraryStore: Record<string, Object>
+    let currentReadingProgress: Record<string, Object>
+    try {
+      const currentLibraryPayload = readTextIfExists(this.libraryPath(), emptyLibraryStorePayload())
+      assertValidLibraryStoreJson(currentLibraryPayload)
+      currentLibraryStore = asJsonObject(JSON.parse(currentLibraryPayload) as Object, 'current library')
+      const currentProgressPayload = readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload())
+      currentReadingProgress = asJsonObject(JSON.parse(currentProgressPayload) as Object, 'current progress')
+    } catch (_error) { throw new Error('backup_current_data_read_failed') }
     const backupComicIds = stringFieldSet(libraryStore, 'comics', 'id')
     const backupProgressComicIds = stringFieldSet(readingProgress, 'progress', 'comicId')
     const currentComicIds = stringFieldSet(currentLibraryStore, 'comics', 'id')

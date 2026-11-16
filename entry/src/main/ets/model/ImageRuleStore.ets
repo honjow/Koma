@@ -16,6 +16,17 @@ import { isValidHttpUrl, resolveIndexDocumentUrl, safeResolveIndexRelativeUrl, p
 
 const LIMIT = 4 * 1024 * 1024
 
+export class SubscriptionReadError extends Error {
+  readonly reason: string
+  readonly httpStatus?: number
+
+  constructor(reason: string, message: string, httpStatus?: number) {
+    super(message)
+    this.reason = reason
+    this.httpStatus = httpStatus
+  }
+}
+
 @Concurrent
 function readImageRules(path: string): string {
   if (!fs.accessSync(path)) return ''
@@ -65,9 +76,11 @@ function validateImageProcessorModule(bytes: ArrayBuffer, expected: string): str
 }
 @Concurrent
 export function subscriptionDocumentKind(payload: string): string {
-  const value = JSON.parse(payload) as Object
-  if (!Array.isArray(value) && ['image_rules', 'image_plugins'].includes((value as ImageRuleIndex)?.kind ?? '')) return 'image_rules'
-  return parseIndexEntriesDocument(value) !== undefined ? 'source' : 'unknown'
+  try {
+    const value = JSON.parse(payload) as Object
+    if (!Array.isArray(value) && ['image_rules', 'image_plugins'].includes((value as ImageRuleIndex)?.kind ?? '')) return 'image_rules'
+    return parseIndexEntriesDocument(value) !== undefined ? 'source' : 'unknown'
+  } catch (_error) { return 'unknown' }
 }
 
 /** Explicit rule subscriptions only. There is no bundled rule data or source-repository discovery.
@@ -172,18 +185,25 @@ export class ImageRuleStore {
   }
   async fetchDocument(url: string): Promise<string> {
     const bytes = await this.resource(resolveIndexDocumentUrl(url))
-    return util.TextDecoder.create('utf-8', { fatal: true }).decodeToString(new Uint8Array(bytes))
+    try {
+      return util.TextDecoder.create('utf-8', { fatal: true }).decodeToString(new Uint8Array(bytes))
+    } catch (_error) { throw new SubscriptionReadError('invalid_json', 'invalid_image_rule_encoding') }
   }
   private async resource(url: string): Promise<ArrayBuffer> {
-    if (!isValidHttpUrl(url)) throw new Error('invalid_image_rule_url')
+    if (!isValidHttpUrl(url)) throw new SubscriptionReadError('invalid_url', 'invalid_image_rule_url')
     const request = http.createHttp()
     try {
       const response = await request.request(url, { method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.ARRAY_BUFFER, usingCache: false, connectTimeout: 10000, readTimeout: 15000,
         maxLimit: LIMIT })
-      if (response.responseCode !== 200) throw new Error('image_rule_http_' + response.responseCode)
-      if (!(response.result instanceof ArrayBuffer) || response.result.byteLength > LIMIT) throw new Error('invalid_image_rule_index')
+      if (response.responseCode !== 200) throw new SubscriptionReadError('http_error',
+        'image_rule_http_' + response.responseCode, response.responseCode)
+      if (!(response.result instanceof ArrayBuffer) || response.result.byteLength > LIMIT)
+        throw new SubscriptionReadError('invalid_json', 'invalid_image_rule_index')
       return response.result
+    } catch (error) {
+      if (error instanceof SubscriptionReadError) throw error
+      throw new SubscriptionReadError('network_error', 'image_rule_network_error')
     } finally { request.destroy() }
   }
   private async download(url: string, document?: string, isCurrent: () => boolean = (): boolean => true): Promise<ImageRuleSubscription> {
@@ -224,7 +244,13 @@ export class ImageRuleStore {
     const epoch = (this.epochs.get(normalized) ?? 0) + 1
     this.epochs.set(normalized, epoch)
     const generation = this.generation
-    const downloaded = await this.download(normalized, document)
+    // The directory and all referenced manifests must be read before the local write.
+    const downloaded = await this.download(normalized, document).catch((error: Error): ImageRuleSubscription => {
+      if (error instanceof SubscriptionReadError) throw error
+      const reason = error.message === 'invalid_image_rule_index' || error.message === 'invalid_image_rule_reference'
+        ? 'invalid_index_format' : 'unknown'
+      throw new SubscriptionReadError(reason, error.message)
+    })
     await BackupRestoreActivity.runWrite(() => this.change((draft: ImageRuleConfiguration): void => {
       if (generation !== this.generation || this.epochs.get(normalized) !== epoch) throw new Error('image_rule_request_cancelled')
       if (draft.subscriptions.some((s: ImageRuleSubscription): boolean => s.url === normalized && s.url !== previousUrl))

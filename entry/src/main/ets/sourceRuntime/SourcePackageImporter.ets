@@ -39,6 +39,7 @@ export type SourceArchiveValidationReason =
   'checksum_mismatch' |
   'network_not_allowed' |
   'unsafe_archive_entry' |
+  'invalid_archive' |
   'missing_manifest' |
   'missing_wasm' |
   'manifest_invalid' |
@@ -416,7 +417,7 @@ function validateArchiveEntries(archiveBytes: Uint8Array): SourceArchiveValidati
   try {
     entries = readArchiveEntries(archiveBytes)
   } catch (_err) {
-    return 'unsafe_archive_entry'
+    return 'invalid_archive'
   }
   let hasInternalManifest = false
   let hasSourceRepoManifest = false
