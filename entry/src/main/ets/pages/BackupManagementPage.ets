@@ -24,6 +24,7 @@ import {
   BackupContentPreferences,
   BackupImportPreview,
   BackupImportSelectionPreview,
+  BackupFileSelection,
   BackupLocalFilePreview,
   BackupLocalFileRecord,
   BackupManagementState,
@@ -41,6 +42,9 @@ import {
   backupManagementStorageNote,
   backupUnencryptedExportWarning,
 } from '../model/BackupService'
+import { MihonImportService, MihonImportSelection } from '../model/MihonImportService'
+import { MihonBackup } from '../model/MihonBackupReader'
+import { MihonImportSummary } from '../model/MihonImportPlanning'
 import { BACKUP_PASSPHRASE_MIN_LENGTH } from '../model/BackupEncryptionService'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -77,6 +81,7 @@ const BACKUP_SECTIONS: string[] = ['backup-actions', 'device-sync', 'backup-file
 export struct BackupManagementPage {
   @Param searchTarget: string = ''
   @Event onOpenDeviceSync: () => void = () => {}
+  @Event onMihonImported: (backup: MihonBackup) => void = (_backup: MihonBackup) => {}
   @Param backupScroller: Scroller = new Scroller()
   @Param inModal: boolean = false
   @Provider('koma.modal.groupedCards') private modalGroupedCards: boolean = false
@@ -101,6 +106,7 @@ export struct BackupManagementPage {
   @Local private selectedBackupPayload: string = ''
   @Local private selectedEncryptedBackupPayload: string = ''
   @Local private selectedBackupPreview: BackupImportPreview | undefined = undefined
+  @Local private selectedMihonBackup: MihonImportSelection | undefined = undefined
   @Local private backupState: BackupManagementState = new BackupManagementState()
   @Local private localFileActionMenuKey: string = ''
   @Local private autoPreferences: BackupAutomaticPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
@@ -493,6 +499,7 @@ export struct BackupManagementPage {
     this.selectedBackupPayload = ''
     this.selectedEncryptedBackupPayload = ''
     this.selectedBackupPreview = undefined
+    this.selectedMihonBackup = undefined
     this.selectedBackupName = ''
     this.showPreviewDetails = false
     this.importPassphrase = ''
@@ -502,14 +509,35 @@ export struct BackupManagementPage {
     if (this.busy) return
     this.busy = true
     void this.backupService().selectImportPreviewFromPicker()
-      .then((selection: BackupImportSelectionPreview | undefined) => {
-        if (selection !== undefined) this.openRestorePreview(selection, '')
+      .then((selection: BackupFileSelection | undefined) => {
+        if (selection?.mihon !== undefined) {
+          this.clearRestorePreview()
+          this.selectedMihonBackup = selection.mihon
+          this.openBackupDialog('restore')
+        } else if (selection?.koma !== undefined) this.openRestorePreview(selection.koma, '')
       })
       .catch((_error: Error) => {
         DiagnosticLogger.error('backup_management_page', 'preview_failed', '[BackupManagement] step=preview_failed code=backup_preview_failed')
         this.showInfoDialog(t('backup_dialog_preview_failed_title'), this.backupFailureMessage('backup_preview_failed'))
       })
       .finally(() => { this.busy = false })
+  }
+
+  private runMihonImport(): void {
+    const backup = this.selectedMihonBackup?.backup
+    if (backup === undefined || this.busy) return
+    this.busy = true
+    void new MihonImportService(this.context()).importBackup(backup)
+      .then(async (): Promise<void> => {
+        await this.closeBackupDialog()
+        this.onMihonImported(backup)
+        this.showToast(t('mihon_import_finished'))
+      })
+      .catch((error: Error): void => {
+        DiagnosticLogger.exception('backup', 'mihon_import_failed', error)
+        this.showInfoDialog(t('backup_dialog_import_failed_title'), this.backupFailureMessage('mihon_import_failed'))
+      })
+      .finally((): void => { this.busy = false })
   }
 
   private isGeneratedBackupName(record: BackupLocalFileRecord): boolean {
@@ -900,6 +928,7 @@ export struct BackupManagementPage {
   @Builder
   private RestorePreviewContent() {
     Column({ space: ThemeConstants.SPACE_MD }) {
+      if (this.selectedMihonBackup !== undefined) this.MihonPreview(this.selectedMihonBackup.summary)
       if (this.selectedBackupPreview !== undefined) {
         this.SelectedPreviewCard({ preview: this.selectedBackupPreview })
       }
@@ -910,9 +939,22 @@ export struct BackupManagementPage {
   }
 
   @Builder
+  private MihonPreview(summary: MihonImportSummary) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      this.PreviewRow({ label: t('mihon_import_works'), value: summary.works.toString() })
+      this.PreviewRow({ label: t('backup_preview_library_items'), value: summary.favorites.toString() })
+      this.PreviewRow({ label: t('backup_preview_categories'), value: summary.categories.toString() })
+      this.PreviewRow({ label: t('mihon_import_chapters'), value: summary.chapters.toString() })
+      this.PreviewRow({ label: t('mihon_import_history'), value: summary.history.toString() })
+      this.PreviewRow({ label: t('backup_preview_tracker_mappings'), value: summary.tracking.toString() })
+      Text(t('mihon_import_merge_note')).fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+    }.width('100%').padding(ThemeConstants.SPACE_MD)
+  }
+
+  @Builder
   private RestorePreviewDialog() {
     CustomContentDialogV2({
-      primaryTitle: t('backup_restore_preview'),
+      primaryTitle: t(this.selectedMihonBackup === undefined ? 'backup_restore_preview' : 'mihon_import_title'),
       secondaryTitle: this.selectedBackupName,
       contentBuilder: () => { this.RestorePreviewDialogContent() },
     })
@@ -930,12 +972,14 @@ export struct BackupManagementPage {
       .edgeEffect(EdgeEffect.None)
       KomaDialogActionRow({
         busy: this.busy,
-        confirmEnabled: this.selectedBackupPayload.length > 0 || this.importPassphrase.length > 0,
-        confirmLabel: t(this.busy ? 'backup_processing' : this.selectedEncryptedBackupPayload.length > 0 ?
+        confirmEnabled: this.selectedMihonBackup !== undefined || this.selectedBackupPayload.length > 0 || this.importPassphrase.length > 0,
+        confirmLabel: t(this.busy ? 'backup_processing' : this.selectedMihonBackup !== undefined ? 'mihon_import_confirm' :
+          this.selectedEncryptedBackupPayload.length > 0 ?
           'backup_decrypt_preview_action' : 'backup_restore_selected_action'),
         cancel: () => { void this.closeBackupDialog() },
         confirm: () => {
-          if (this.selectedEncryptedBackupPayload.length > 0) this.decryptSelectedBackup()
+          if (this.selectedMihonBackup !== undefined) this.runMihonImport()
+          else if (this.selectedEncryptedBackupPayload.length > 0) this.decryptSelectedBackup()
           else this.restoreSelectedBackup()
         },
       }).flexShrink(0)

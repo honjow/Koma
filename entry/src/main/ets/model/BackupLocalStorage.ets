@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs, hash } from '@kit.CoreFileKit'
 import { ensureKomaContentStorageBase, hasKomaPublicContentStorage } from './KomaContentStorage'
+import { backupFileExtension } from './BackupFileFormat'
 
 const activeDirectories = new Map<string, string>()
 const pendingDirectories = new Map<string, Promise<string>>()
@@ -8,7 +9,7 @@ interface MigratedBackup { path: string; digest: string }
 
 function backupName(name: string): boolean {
   return name.length > 0 && !name.includes('/') && !name.includes('\\') &&
-    (name.endsWith('.json') || name.endsWith('.koma-backup'))
+    backupFileExtension(name).length > 0
 }
 
 /** Copy and verify every legacy file before removing any original. On failure the
@@ -28,7 +29,7 @@ export async function migrateLocalBackups(privateBase: string, publicBase: strin
     const original = `${source}/${name}`
     if (!(await fs.stat(original)).isFile()) continue
     const originalHash = await hash.hash(original, 'sha256')
-    const extension = name.endsWith('.koma-backup') ? '.koma-backup' : '.json'
+    const extension = backupFileExtension(name)
     const stem = name.substring(0, name.length - extension.length)
     let destination = `${target}/${name}`
     let suffix = 2

@@ -10,13 +10,19 @@ import { ReaderSessionStore, InMemoryReaderSessionStore } from '../model/ReaderS
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { PreparedMangaMigration, prepareMangaMigration, commitMangaMigration } from '../model/SourceMangaMigrationService'
 import { SourceRuntimeError } from '../model/SourceRuntimeError'
-import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+import { MihonImportRecord } from '../model/MihonBackupReader'
+import { MihonImportService } from '../model/MihonImportService'
+import { mihonMatchText, mihonPlaceholder, suggestedMihonShelfWorks } from '../model/MihonImportPlanning'
+import { CrossSearchResultItem, CrossSearchSection } from '../model/CrossSearchService'
+import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary,
+  sourceRuntimeEntryEnabled } from '../sourceRuntime/SourceRuntimeRegistry'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { RouterHelper } from '../common/RouterHelper'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
+import { KomaDialogActionRow } from '../components/ui/KomaTextInputDialog'
 import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { MangaGridItem } from '../components/MangaGridItem'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -59,6 +65,7 @@ class MigrationRow {
 @ComponentV2
 export struct MangaMigrationPage {
   @Param comicIds: string[] = []
+  @Param fromMihon: boolean = false
   @Param initialSources: string[] = []
   @Param initialMatchOptions: MigrationMatchOptions = { deepSearch: false, prioritizeChapters: false }
   @Param chrome: MangaMigrationRouteChromeState = new MangaMigrationRouteChromeState()
@@ -98,13 +105,30 @@ export struct MangaMigrationPage {
     this.initialized = true
     this.sources = this.registry.listInstalledSourceSummaries().filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean =>
       source.enabled && source.capabilities.includes('search'))
-    this.rows = this.comicIds.map((id: string): Comic | undefined => this.libraryStore.getComic(id))
+    this.rows = this.comicIds.map((id: string): Comic | undefined => {
+      const comic = this.libraryStore.getComic(id)
+      if (comic !== undefined || !this.fromMihon) return comic
+      const original = this.libraryStore.listMihonImports().find((record: MihonImportRecord): boolean => record.id === id)
+      return original === undefined ? undefined : mihonPlaceholder(original)
+    })
       .filter((comic: Comic | undefined): boolean => canMigrateLibraryComic(comic))
       .map((comic: Comic | undefined): MigrationRow => new MigrationRow(comic as Comic))
     this.selectedSources = this.initialSources.filter((id: string): boolean =>
       this.sources.some((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.sourceId === id))
+    if (this.fromMihon && this.rows.length === 1) {
+      const originalName = this.rows[0].comic.sourceMetadata?.sourceName?.trim()
+      const suggested = this.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean =>
+        source.displayName === originalName || resolveSourceLocalizedName(source.displayName, source.localizedNames,
+          this.languageState.effectiveLocale) === originalName)
+      if (suggested.length === 1) this.selectedSources = [suggested[0].sourceId]
+    }
     this.deepSearch = this.initialMatchOptions.deepSearch
     this.prioritizeChapters = this.initialMatchOptions.prioritizeChapters
+    if (this.fromMihon && this.rows.length === 1 &&
+      (this.selectedSources.length > 0 || this.mihonShelfMatches(this.rows[0].comic).length > 0)) {
+      this.searchManually(this.rows[0])
+      return
+    }
     this.syncChrome()
   }
 
@@ -149,6 +173,7 @@ export struct MangaMigrationPage {
   }
 
   private saveSelectedSources(): Promise<void> {
+    if (this.fromMihon) return Promise.resolve()
     return new MangaMigrationPreferencesStore(getContext(this) as common.UIAbilityContext).save(this.selectedSources)
   }
 
@@ -210,6 +235,36 @@ export struct MangaMigrationPage {
   private originalManga(comic: Comic): SourceManga {
     return { id: comic.remoteResourceId ?? comic.id, sourceId: comic.sourceRuntimeId ?? '', title: comic.title,
       coverUrl: comic.coverUri, url: comic.sourcePath }
+  }
+
+  private mihonShelfMatches(comic: Comic): Comic[] {
+    const record = this.libraryStore.listMihonImports().find((value: MihonImportRecord): boolean => value.id === comic.id)
+    if (record === undefined) return []
+    return suggestedMihonShelfWorks(record.work, this.libraryStore.listComics(false)).filter((candidate: Comic): boolean =>
+      sourceRuntimeEntryEnabled(this.registry.lookup(candidate.sourceRuntimeId ?? '').entry))
+  }
+
+  private mihonShelfResults(query: string): CrossSearchSection | undefined {
+    if (!this.fromMihon) return undefined
+    const row = this.rows.find((item: MigrationRow): boolean => item.comic.id === this.searchComicId)
+    if (row === undefined || mihonMatchText(query) !== mihonMatchText(row.comic.title)) return undefined
+    const matches = this.mihonShelfMatches(row.comic)
+    if (matches.length === 0) return undefined
+    const title = s('tab_library')
+    const items = matches.map((comic: Comic): CrossSearchResultItem => ({
+      id: comic.id, title: comic.title, subtitle: '', sourceKind: 'local', sourceLabel: title,
+      coverUri: comic.coverUri, localComicId: comic.id,
+      sourceId: comic.sourceRuntimeId, sourceMangaId: comic.remoteResourceId, sourceMangaUrl: comic.sourcePath,
+    }))
+    return { id: 'migration-shelf', title, sourceKind: 'local', loading: false,
+      state: 'ready', resultCount: items.length, diagnosticCode: '', errorText: '', items }
+  }
+
+  private cachedMihonTarget(manga: SourceManga | undefined): Comic | undefined {
+    if (!this.fromMihon || manga === undefined ||
+      !sourceRuntimeEntryEnabled(this.registry.lookup(manga.sourceId).entry)) return undefined
+    return this.libraryStore.listComics(false).find((comic: Comic): boolean =>
+      comic.sourceRuntimeId === manga.sourceId && comic.remoteResourceId === manga.id && comic.chapters.length > 0)
   }
 
   private failureText(error: Object): string {
@@ -281,6 +336,7 @@ export struct MangaMigrationPage {
     this.stage = 'matches'
     this.syncChrome()
     if (this.rows.length === 1) { this.searchManually(this.rows[0]); return }
+    if (this.fromMihon) return
     const pending = this.rows.filter((row: MigrationRow): boolean => row.state !== 'done' && row.state !== 'skipped')
     await this.runMatches(pending)
   }
@@ -331,6 +387,10 @@ export struct MangaMigrationPage {
     }
     try {
       if (comic.sourceRuntimeId === manga.sourceId && comic.remoteResourceId === manga.id) throw new Error('migration_same_manga')
+      if (this.cachedMihonTarget(manga) !== undefined) {
+        this.updateRow(id, { comic, target: manga, state: 'ready' })
+        return
+      }
       const prepared = await prepareMangaMigration(this.registry, manga, current)
       if (!current()) return
       this.prepared.set(id, prepared)
@@ -350,11 +410,13 @@ export struct MangaMigrationPage {
   private readyCount(): number { return this.rows.filter((row: MigrationRow): boolean => row.state === 'ready').length }
 
   private confirm(copy: boolean): void {
-    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(), title: s(copy ? 'migration_copy' : 'migration_move'),
-      message: s(copy ? 'migration_copy_confirm' : 'migration_move_confirm').replace('%s', `${this.readyCount()}`),
+    const action = s(this.fromMihon ? 'mihon_import_match_action' : copy ? 'migration_copy' : 'migration_move')
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(), title: action,
+      message: s(this.fromMihon ? 'mihon_import_link_confirm' :
+        copy ? 'migration_copy_confirm' : 'migration_move_confirm').replace('%s', `${this.readyCount()}`),
       autoCancel: true,
       primaryButton: { value: s('common_cancel'), action: () => {} },
-      secondaryButton: { value: s(copy ? 'migration_copy' : 'migration_move'), action: () => { void this.commit(copy) } },
+      secondaryButton: { value: action, action: () => { void this.commit(copy) } },
     })
   }
 
@@ -367,13 +429,27 @@ export struct MangaMigrationPage {
       const pending = this.rows.filter((row: MigrationRow): boolean => row.state === 'ready')
       for (const row of pending) {
         const target = this.prepared.get(row.comic.id)
-        if (!this.active || target === undefined) break
+        if (!this.active) break
         try {
-          const result = await commitMangaMigration(getContext(this) as common.UIAbilityContext, this.registry,
-            this.libraryStore, this.persistence, this.readerStore, row.comic.id, target,
-            { copy, readProgress: this.readProgress, categories: this.categories })
+          const context = getContext(this) as common.UIAbilityContext
+          let unmatchedReadCount = 0
+          let targetComicId: string | undefined
+          if (this.fromMihon) {
+            const selection = target?.comic ?? this.cachedMihonTarget(row.target)?.id
+            if (selection === undefined) throw new Error('migration_source_changed')
+            const result = await new MihonImportService(context).link(row.comic.id, selection)
+            this.persistence.restore()
+            unmatchedReadCount = result.unmatchedChapters
+            targetComicId = result.targetComicId
+          } else {
+            if (target === undefined) throw new Error('migration_source_changed')
+            const result = await commitMangaMigration(context, this.registry, this.libraryStore, this.persistence,
+              this.readerStore, row.comic.id, target, { copy, readProgress: this.readProgress, categories: this.categories })
+            unmatchedReadCount = result.unmatchedReadCount
+            targetComicId = result.targetComicId
+          }
           this.updateRow(row.comic.id, { comic: row.comic, target: row.target, state: 'done',
-            unmatchedReadCount: result.unmatchedReadCount, targetComicId: result.targetComicId })
+            unmatchedReadCount, targetComicId })
           this.onLibraryChanged()
         } catch (error) {
           this.updateRow(row.comic.id, { comic: row.comic, target: row.target, state: 'failed', error: this.failureText(error as Object) })
@@ -451,12 +527,18 @@ export struct MangaMigrationPage {
   }
 
   private targetChapterSummary(row: MigrationRow): string {
-    const prepared = this.prepared.get(row.comic.id)
-    return prepared === undefined ? '' : this.chapterSummary(prepared.chapters.length, latestMigrationChapter(prepared.chapters))
+    const chapters = this.prepared.get(row.comic.id)?.chapters ?? this.cachedMihonTarget(row.target)?.chapters
+    return chapters === undefined ? '' : this.chapterSummary(chapters.length, latestMigrationChapter(chapters))
   }
 
   @Builder
   private MatchRow(row: MigrationRow) {
+    if (this.fromMihon && row.state === 'idle') {
+      GroupedListSection() {
+        ConciseListRow({ title: row.comic.title, subtitle: row.comic.sourceMetadata?.sourceName,
+          action: (): void => { this.searchManually(row) } })
+      }
+    } else {
     GroupedListSection() {
       this.MatchComparison(row)
       if (row.state === 'failed') {
@@ -464,6 +546,7 @@ export struct MangaMigrationPage {
           isEnabled: !this.committing,
           actionButtonText: s('common_retry'), actionButtonAction: (): void => {
             if (row.target !== undefined) void this.selectTarget(row.comic, row.target)
+            else if (this.fromMihon) this.searchManually(row)
             else void this.match(row)
           } })
         if ((this.registry.lookup(row.errorSourceId ?? '').entry?.webSessionOrigins?.length ?? 0) > 0) {
@@ -477,14 +560,18 @@ export struct MangaMigrationPage {
             ? s('migration_unmatched_read').replace('%s', `${row.unmatchedReadCount}`) : '' })
       } else if (row.state === 'skipped') {
         ConciseListRow({ title: s('migration_skipped'), showChevron: false, isEnabled: !this.committing,
-          actionButtonText: s('common_retry'), actionButtonAction: (): void => { void this.match(row) } })
+          actionButtonText: s('common_retry'), actionButtonAction: (): void => {
+            if (this.fromMihon) this.searchManually(row)
+            else void this.match(row)
+          } })
       } else {
-        ConciseListRow({ title: s('migration_change_match'), isEnabled: !this.committing,
+        ConciseListRow({ title: s(this.fromMihon ? 'mihon_import_choose_match' : 'migration_change_match'), isEnabled: !this.committing,
           action: (): void => { this.searchManually(row) } })
         ListDivider()
         ConciseListRow({ title: s('migration_skip'), showChevron: false, isEnabled: !this.committing,
           action: (): void => { this.skip(row) } })
       }
+    }
     }
   }
 
@@ -559,7 +646,7 @@ export struct MangaMigrationPage {
   }
 
   @Builder
-  private SingleConfirmationContent() {
+  private SingleConfirmationContent(hideTransferOptions: boolean = false) {
         Column({ space: ThemeConstants.SPACE_SM }) {
           if (this.rows.length === 1) {
             // Loading, failure and retry share this fixed summary row. Never
@@ -588,25 +675,32 @@ export struct MangaMigrationPage {
                   .visibility(this.rows[0].state === 'searching' || this.committing ? Visibility.Visible : Visibility.Hidden)
               }
             }.width('100%').constraintSize({ minHeight: 24 })
-            Row({ space: ThemeConstants.SPACE_SM }) {
-              Checkbox({ name: 'migrationReadProgress' }).select(this.readProgress).enabled(!this.committing)
-                .onChange((checked: boolean): void => { this.readProgress = checked })
-              Text(s('migration_read_progress')).layoutWeight(1).fontColor(ThemeConstants.TEXT_PRIMARY)
-                .onClick((): void => { if (!this.committing) this.readProgress = !this.readProgress })
-            }.width('100%')
-            Row({ space: ThemeConstants.SPACE_SM }) {
-              Checkbox({ name: 'migrationCategories' }).select(this.categories).enabled(!this.committing)
-                .onChange((checked: boolean): void => { this.categories = checked })
-              Text(s('migration_categories')).layoutWeight(1).fontColor(ThemeConstants.TEXT_PRIMARY)
-                .onClick((): void => { if (!this.committing) this.categories = !this.categories })
-            }.width('100%')
+            if (!hideTransferOptions) {
+              Row({ space: ThemeConstants.SPACE_SM }) {
+                Checkbox({ name: 'migrationReadProgress' }).select(this.readProgress).enabled(!this.committing)
+                  .onChange((checked: boolean): void => { this.readProgress = checked })
+                Text(s('migration_read_progress')).layoutWeight(1).fontColor(ThemeConstants.TEXT_PRIMARY)
+                  .onClick((): void => { if (!this.committing) this.readProgress = !this.readProgress })
+              }.width('100%')
+              Row({ space: ThemeConstants.SPACE_SM }) {
+                Checkbox({ name: 'migrationCategories' }).select(this.categories).enabled(!this.committing)
+                  .onChange((checked: boolean): void => { this.categories = checked })
+                Text(s('migration_categories')).layoutWeight(1).fontColor(ThemeConstants.TEXT_PRIMARY)
+                  .onClick((): void => { if (!this.committing) this.categories = !this.categories })
+              }.width('100%')
+            }
           }
         }.width('100%').alignItems(HorizontalAlign.Start)
   }
 
   @Builder
   private SingleConfirmation() {
-    CustomContentDialogV2({
+    if (this.fromMihon) {
+      CustomContentDialogV2({
+        primaryTitle: this.rows[0]?.target?.title ?? s('mihon_import_match_action'),
+        contentBuilder: () => { this.MihonSingleConfirmationContent() },
+      })
+    } else CustomContentDialogV2({
       primaryTitle: this.rows[0]?.target?.title ?? s('migration_include'),
       contentBuilder: () => { this.SingleConfirmationContent() },
       buttons: [
@@ -620,10 +714,22 @@ export struct MangaMigrationPage {
     })
   }
 
+  @Builder
+  private MihonSingleConfirmationContent() {
+    Column() {
+      this.SingleConfirmationContent(true)
+      KomaDialogActionRow({ busy: this.committing, confirmEnabled: this.readyCount() > 0,
+        confirmLabel: s('mihon_import_match_action'), cancel: (): void => { this.closeSingleConfirmation() },
+        confirm: (): void => { void this.commit(false) } })
+    }.width('100%')
+  }
+
   build() {
     Stack() {
     if (this.stage === 'search') {
       SearchPage({ chrome: this.chrome.search, migrationSources: this.selectedSources,
+        onMigrationShelfResults: (query: string): CrossSearchSection | undefined => this.mihonShelfResults(query),
+        automaticallyOpenWebChallenge: !this.fromMihon,
         libraryStore: this.libraryStore, libraryPersistenceService: this.persistence,
         onMangaSelected: (manga: SourceManga): void => { this.selectSearchTarget(manga) } })
     } else {
@@ -652,7 +758,7 @@ export struct MangaMigrationPage {
           }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
           .onMove((from: number, to: number): void => { this.moveSource(from, to) })
         }
-        if (this.rows.length > 1) {
+        if (this.rows.length > 1 && !this.fromMihon) {
           ListItem() {
             GroupedListSection({ title: s('migration_matching_options') }) {
               ConciseListRow({ title: s('migration_deep_search'), hasSwitch: true, checked: this.deepSearch,
@@ -676,18 +782,22 @@ export struct MangaMigrationPage {
         }.margin({ top: this.selectedSources.length > 0 || this.rows.length > 1 ? ThemeConstants.SPACE_SM - 2 : 0 })
 
       } else {
-        ListItem() {
-          ConciseListRow({ title: s('migration_matching_progress')
-            .replace('%s', `${this.rows.filter((row: MigrationRow): boolean => row.state !== 'searching' && row.state !== 'idle').length}`)
-            .replace('%s', `${this.rows.length}`),
-            subtitle: s('migration_ready_progress').replace('%s', `${this.readyCount()}`)
-              .replace('%s', `${this.chrome.failedCount}`), showChevron: false })
+        if (!this.fromMihon) {
+          ListItem() {
+            ConciseListRow({ title: s('migration_matching_progress')
+              .replace('%s', `${this.rows.filter((row: MigrationRow): boolean => row.state !== 'searching' && row.state !== 'idle').length}`)
+              .replace('%s', `${this.rows.length}`),
+              subtitle: s('migration_ready_progress').replace('%s', `${this.readyCount()}`)
+                .replace('%s', `${this.chrome.failedCount}`), showChevron: false })
+          }
         }
         ForEach(this.rows, (row: MigrationRow) => {
           ListItem() { this.MatchRow(row) }
         }, (row: MigrationRow) => row.comic.id)
-        ListItem() {
-          this.TransferOptions()
+        if (!this.fromMihon) {
+          ListItem() {
+            this.TransferOptions()
+          }
         }
       }
     }

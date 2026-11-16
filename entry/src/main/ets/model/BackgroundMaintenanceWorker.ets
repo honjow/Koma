@@ -16,6 +16,8 @@ import { automaticUpdateConditionsSatisfied } from './AutomaticUpdateConditions'
 import { LibraryUpdateService, summarizeResults } from './LibraryUpdateService'
 import { publishLibraryUpdateNotification } from './LibraryUpdateResultStore'
 import { writeAutomaticBackupToDirectory } from './BackupAutomaticDirectory'
+import { BACKUP_FILE_EXTENSION, BACKUP_FILE_HEADER_BYTES, encodeBackupFile, publishBackupFile,
+  readBackupBytes, readBackupFileHeader } from './BackupFileFormat'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { ensureKomaBackgroundContentStorageBase, hasKomaPublicContentStorage } from './KomaContentStorage'
 import { migrateLocalBackups } from './BackupLocalStorage'
@@ -79,25 +81,40 @@ export async function executeBackgroundMaintenance(context: common.Context, work
     document['sourcePackages'] = exportInstalledSourcePackages()
     document['customCovers'] = await exportComicCovers(context, document['libraryStore'] as string)
     document['localLibraryMetadata'] = exportLocalLibraryMetadataBackupEntries(document['libraryStore'] as string)
-    document['exportedAt'] = Date.now()
-    const payload = JSON.stringify(document)
+    const exportedAt = Date.now()
+    document['exportedAt'] = exportedAt
     if (stopped()) return
     // This snapshot is refreshed at background entry after progress commits. It is not an invented fresh export.
     try {
-    if (config.backup.directoryUri) {
-      await writeAutomaticBackupToDirectory(config.backup.directoryUri, payload, config.backup.retentionCount)
-    } else {
-      if (contentBase === context.filesDir && hasKomaPublicContentStorage(context)) {
-        throw new Error('backup_public_storage_unavailable')
+      const payload = await encodeBackupFile(JSON.stringify(document), { exportedAt, encrypted: false })
+      if (stopped()) return
+      if (config.backup.directoryUri) {
+        await writeAutomaticBackupToDirectory(config.backup.directoryUri, payload, config.backup.retentionCount, exportedAt)
+      } else {
+        if (contentBase === context.filesDir && hasKomaPublicContentStorage(context)) {
+          throw new Error('backup_public_storage_unavailable')
+        }
+        const directory = await migrateLocalBackups(context.filesDir, contentBase)
+        if (!await fs.access(directory)) await fs.mkdir(directory)
+        await publishBackupFile(`${directory}/koma-backup-${exportedAt}${BACKUP_FILE_EXTENSION}`, payload)
+        try {
+          const names = (await fs.listFile(directory)).filter((name: string): boolean =>
+            /^koma-backup-\d+\.(json|komabk)$/.test(name)).sort().reverse()
+          const automatic: string[] = []
+          for (const name of names) {
+            const path = `${directory}/${name}`
+            if (name.endsWith('.json') ||
+              readBackupFileHeader(await readBackupBytes(path, BACKUP_FILE_HEADER_BYTES))?.encrypted === false) {
+              automatic.push(path)
+            }
+          }
+          for (const path of automatic.slice(config.backup.retentionCount)) await fs.unlink(path)
+        } catch (error) {
+          DiagnosticLogger.exception('maintenance', 'background_backup_retention_failed', error as Error)
+        }
       }
-      const directory = await migrateLocalBackups(context.filesDir, contentBase)
-      if (!await fs.access(directory)) await fs.mkdir(directory)
-      writeAppTextFile(`${directory}/koma-backup-${Date.now()}.json`, payload)
-      const names = (await fs.listFile(directory)).filter((name: string): boolean => /^koma-backup-\d+\.json$/.test(name)).sort().reverse()
-      for (const name of names.slice(config.backup.retentionCount)) await fs.unlink(`${directory}/${name}`)
-    }
-    const result: BackgroundBackupResult = { at: Date.now(), lastRunAt: Date.now(), failureCode: '' }
-    writeAppTextFile(resultPath, JSON.stringify(result))
+      const result: BackgroundBackupResult = { at: Date.now(), lastRunAt: Date.now(), failureCode: '' }
+      writeAppTextFile(resultPath, JSON.stringify(result))
     } catch (error) {
       const failed: BackgroundBackupResult = { at: Date.now(), lastRunAt: previous.lastRunAt, failureCode: 'backup_auto_export_failed' }
       writeAppTextFile(resultPath, JSON.stringify(failed))

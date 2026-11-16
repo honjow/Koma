@@ -1,8 +1,8 @@
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs, fileShare, fileUri, picker } from '@kit.CoreFileKit'
-import { buffer } from '@kit.ArkTS'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { BACKUP_FILE_EXTENSION, publishBackupFile } from './BackupFileFormat'
 
 export async function activateBackupDirectory(uri: string): Promise<void> {
   const policies: fileShare.PolicyInfo[] = [{ uri, operationMode:
@@ -108,23 +108,16 @@ export async function releaseAutomaticBackupDirectory(uri: string, ownedModes: n
 
 /** Only Koma's dedicated auto-backup files participate in retention; other selected-directory files are untouched. */
 export async function writeAutomaticBackupToDirectory(
-  uri: string, payload: string, retention: number, at: number = Date.now(),
+  uri: string, payload: ArrayBuffer, retention: number, at: number = Date.now(),
 ): Promise<string> {
   await activateBackupDirectory(uri)
   const directory = `${new fileUri.FileUri(uri).path}/Koma-Backups`
   if (!await fs.access(directory)) await fs.mkdir(directory)
-  const path = `${directory}/koma-auto-${at}-${Date.now()}.json`
-  const temporary = `${path}.tmp`
-  const file = await fs.open(temporary, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC)
-  try {
-    const size = buffer.byteLength(payload, 'utf-8')
-    if (await fs.write(file.fd, payload, { encoding: 'utf-8' }) !== size) throw new Error('backup_file_write_incomplete')
-    await fs.fsync(file.fd)
-  } finally { await fs.close(file) }
-  await fs.rename(temporary, path)
+  const path = `${directory}/koma-auto-${at}-${Date.now()}${BACKUP_FILE_EXTENSION}`
+  await publishBackupFile(path, payload)
   try {
     const names = (await fs.listFile(directory)).filter((name: string): boolean =>
-      /^koma-auto-\d+-\d+\.json$/.test(name)).sort().reverse()
+      /^koma-auto-\d+-\d+\.(json|komabk)$/.test(name)).sort().reverse()
     for (const name of names.slice(retention)) await fs.unlink(`${directory}/${name}`)
   } catch (error) {
     // The new backup is already durable. A retention cleanup failure must not turn it into a false failure.

@@ -22,6 +22,7 @@ import {
 } from './SourcePackageImporter'
 
 import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
+import { MihonSourceIdentity } from './MihonSourceIdentity'
 
 export type SourceRuntimeRegistryRouteStatus = 'staged' | 'imported'
 
@@ -57,6 +58,7 @@ export interface SourceRuntimeRegistryEntryInput {
 }
 
 export interface SourceRuntimeRegistryEntry {
+  mihonImport?: MihonSourceIdentity
   chapterOrder?: SourceChapterOrder
   sourceId: string
   manifestId: string
@@ -391,6 +393,7 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry,
       description: entry.packageDescription ?? '',
       contentRating: entry.packageContentRating ?? '',
       minAppVersion: entry.packageMinAppVersion ?? '',
+      mihonImport: installedManifest?.package.mihonImport,
     },
     runtime: {
       abi: 'koma-source-abi-v0.1',
@@ -620,6 +623,7 @@ export class SourceRuntimeRegistry {
       packageDescription: normalizePresentationText(input.manifest.package.description),
       packageContentRating: normalizePresentationText(input.manifest.package.contentRating),
       packageMinAppVersion: normalizePresentationText(input.manifest.package.minAppVersion),
+      mihonImport: input.manifest.package.mihonImport,
       webSessionOrigins: input.manifest.permissions.webSessionOrigins ?? [],
       authentication: sourceAuthenticationDescriptor(input.manifest.permissions.authentication),
       requiredImageDecodes: sourceRequiredImageDecodes(input.manifest.permissions.requiredImageDecodes),

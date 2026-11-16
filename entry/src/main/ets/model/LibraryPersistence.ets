@@ -11,6 +11,7 @@ import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRe
 import { MangaChapterItem, MangaDetail } from './MangaDetailModels'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ComicUpdateSchedule } from './ComicReleaseSchedule'
+import { MihonImportRecord } from './MihonBackupReader'
 import { LibrarySmartCategory, validateLibrarySmartCategories } from './LibrarySmartCategory'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import {
@@ -69,6 +70,7 @@ export const LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1
 export const LIBRARY_STORE_PERSISTENCE_FILE_NAME = 'library-store.v1.json'
 
 export interface PersistedLibraryStoreDocument {
+  mihonImports?: MihonImportRecord[]
   syncShelfMoves?: SyncLocalShelfMove[]
   smartCategories?: LibrarySmartCategory[]
   schemaVersion: number
@@ -410,6 +412,8 @@ export function createLibraryStorePersistenceDocument(libraryStore: LibraryStore
   }
   const moves = libraryStore.listSyncShelfMoves()
   if (moves.length > 0) document.syncShelfMoves = moves
+  const mihonImports = libraryStore.listMihonImports()
+  if (mihonImports.length > 0) document.mihonImports = mihonImports
   return document
 }
 
@@ -757,6 +761,17 @@ function parseValidatedLibraryStoreDocument(payload: string): PersistedLibrarySt
         move.source === move.target.toSource && move.work === move.target.toWork))))) {
     throw new Error('Invalid library store persistence syncShelfMoves')
   }
+  if (document.mihonImports !== undefined && (!Array.isArray(document.mihonImports) ||
+    document.mihonImports.some((row: MihonImportRecord): boolean => !row || typeof row.id !== 'string' ||
+      typeof row.sourceName !== 'string' || !row.work || typeof row.work.sourceId !== 'string' ||
+      typeof row.work.url !== 'string' || !Array.isArray(row.categoryIds) ||
+      (row.matchedSourceId !== undefined && typeof row.matchedSourceId !== 'string') ||
+      (row.linkedWork !== undefined && (!row.linkedWork || typeof row.linkedWork.id !== 'string' ||
+        typeof row.linkedWork.sourceId !== 'string' || typeof row.linkedWork.title !== 'string')) ||
+      !Array.isArray(row.work.chapters) || !Array.isArray(row.work.history) ||
+      !Array.isArray(row.work.tracking) || !Array.isArray(row.work.genres) || !Array.isArray(row.work.categoryIds)))) {
+    throw new Error('Invalid library store persistence mihonImports')
+  }
   return document
 }
 
@@ -819,6 +834,7 @@ export function hydrateLibraryStoreFromJson(libraryStore: LibraryStore, payload:
     libraryStore.upsertComic(comic)
   })
   libraryStore.replaceSyncShelfMoves(document.syncShelfMoves ?? [])
+  libraryStore.replaceMihonImports(document.mihonImports ?? [])
 }
 
 export interface LibraryStorePersistenceAdapter {

@@ -18,6 +18,30 @@
 
 源索引与包声明的 `minAppVersion` 使用 `MAJOR.MINOR.PATCH`。宿主按已安装 App 的版本名逐段比较，兼容现有 `-pre` 规则。安装前可按索引拦截，归档解析后仍独立核包声明；安装失败显示实际拦截所需的最低 App 版本。
 
+## 扩展与兼容
+
+源作者的声明由打包器投影为客户端协议。同一资料只维护一份，发布时分别生成安装包清单和订阅索引。索引提供显示资料、包和图标地址、包摘要及最低版本等发现和安装信息。实际行为读取已安装包以及源操作返回值。
+
+| 扩展内容 | 接入位置 |
+| --- | --- |
+| 镜像、网络、验证与会话 | 源实现或包内访问声明。请求和授权继续由宿主执行。 |
+| 作品、章节及外部标识 | [作品与章节身份](#作品与章节身份)。标识规则和书库中的进度合并分别由源与宿主管理。 |
+| 目录、页表和运行时行为 | 现有操作及 SDK 类型优先。需要新版宿主消费的结果，沿用 `hostFeatures` 协商。 |
+
+可选包扩展按职责放在独立字段，定义本扩展的版本、字段语义和缺省行为。宿主跳过无法识别的可选扩展，基础操作沿用现有格式。可选运行时能力使用已有请求信封和能力协商。仅当已有浏览或阅读路径确实依赖新版宿主能力时，才提高 `minAppVersion`。
+
+新增协议先核对包生成、导入、重载及实际消费方。需要兼容旧宿主的字段由打包器从作者声明生成，旧包按原声明解释。发布验证按源的最低支持客户端安装同一份包，并核对使用扩展的新客户端结果。
+
+## 作品与章节身份
+
+书源负责提供稳定的作品和章节标识。身份声明按所属书源、作品及可区分的章节版本解释。外部平台的标识接入复用这一职责，外部备份的解析、书库合并和续读位置由宿主功能处理。
+
+现有旧章规则在作者侧声明为 `metadata.json` 的 `identity.chapter`。打包器仍输出为已发布客户端消费的 `websitePolicy.chapterIdentity`，保留现行匹配语义。按 `workPrefix/workSuffix`、`chapterPrefix/chapterSeparator/chapterSuffix` 拆分作品和章节槽位，再由 `titleSeparator` 或 `encodedLegacy` 处理完整标题或旧编码。旧 ID 匹配继续保护已有页表、下载和阅读进度。缺标题或存在歧义时保留原目录。
+
+作者可在 `identity.mihon` 声明可兼容的 Mihon 来源编号及作品和章节地址规则。打包器将其写入根清单的可选 `mihonImport`。编号按字符串保存。宿主按唯一声明的来源及转换后的作品 ID 关联书架，防止不同语种的版本因同名或共用封面被合并。联网匹配只在已启用的对应书源进行。转换规则可以处理裸 ID、站内路径或固定 HTTPS 前缀，宿主只把转换后的标识交给现有源接口。章节规则默认对照完整 ID，源还可用 `targetIdSegment` 指定按冒号拆分后从 0 开始的稳定标识位置，例如章节 ID 附带可变页数时。只采用同一作品目录内唯一的匹配。只有书源同时声明 `samePageOrder: true` 且章节通过明确规则匹配时才恢复原页。规则随安装包加载，旧安装包及旧客户端继续使用已有接口。
+
+宿主独立保存已确认的书源对应关系，便于查询失败后按原地址重试。历史续读优先用已确认书源的地址规则。缺少规则或直查失败时，仅在该源内核对候选身份。确认作品及可用目录后再写入作品关联。
+
 ## 调用路径和操作
 
 SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，Worker 调用 NativeSourceRuntime.runJsonCallFromBytes，WAMR 按 operation 选择导出。请求/响应为 JSON，当前导出映射来自 wasm_runtime_adapter.cpp 的 ExportForOperation：
@@ -88,7 +112,6 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 - `httpProfiles[{origin,pathPrefix?,profile}]` 对当前包的精确HTTPS origin选择 `firefox133`、`chrome145` 或 `fresh_http11`。前两者用于空正文GET并保留系统代理和TLS校验。系统代理存在或原生依赖不可用时按原网络预算回退。兼容库的版本与构建见[固定构建配方](../scripts/prepare-source-browser-http.sh)。`source_http_profiles_v1` 表示系统支持 `fresh_http11`（API 26起），该模式要求无正文、Cookie及授权头的GET，使用系统代理、证书验证和HTTP/1.1，禁止连接复用及缓存，仅跟随合法HTTPS重定向，继续使用同传输限制。
 - `source_anonymous_http_v1` 使用 `websitePolicy.guestHttp` 和 `guestSearch:true`。仅该精确HTTPS origin可访问声明的 `exactPaths`、`numberedPaths` 或只允许重定向的 `redirectNumberedPaths`。数字路径声明 `prefix`、`suffix` 及可选 `numberSeparator`，数字必须为正整数。该模式只发送声明的公共Cookie，不使用账号头或系统Web会话。仅声明的响应路径可通过 `guestSearchCookie` 回传指定的公共Cookie，`guestSearchUrl` 返回实际到达地址。
 - `source_dns_bootstrap_v1` 仅能由具备凭据声明的已安装包在网络操作中使用。按 `websitePolicy.dnsBootstrap` 选择域名、已提交的模式/地址设置、默认URL、公共UA和响应字段。独立请求 `{type:"source_dns_bootstrap",version:1,timeoutMs?}` 不接收源提供的任意URL、头、正文或账号材料。最多20次重定向，响应限64 KiB，取消、包替换、设置变化或精确凭据授权失效时停止。成功返回进程内 `dnsOverride:{kind:"dns_bootstrap_v1",proof:"…"}`。API和图片只可用同安装的有效proof为声明的HTTPS域及子域选首地址，保留原URL、SNI、系统证书验证和代理。不同安装不能复用proof。proof不写普通设置、备份或日志。
-- `chapterIdentity` 描述同作品的旧章节ID与当前ID格式。按 `workPrefix/workSuffix`、`chapterPrefix/chapterSeparator/chapterSuffix` 拆分作品和章节槽位，再由 `titleSeparator` 或 `encodedLegacy` 处理完整标题或旧编码。旧ID匹配继续保护已有页表、下载和阅读进度。缺标题或存在歧义时保留原目录。
 - `preserveRouteCover` 允许详情沿用进入时的有效封面，`routeCoverPlaceholderSuffix` 排除占位图。`publicWorkUrlDomains` 仅用于下载记录公开来源地址，继续过滤账号信息、查询和片段。
 
 生产App按声明执行站点规则。缺少所需宿主能力时，源可返回 `host_feature_required`，宿主统一提示在书源管理检查更新。普通的 `unsupported` 继续表示当前操作不受支持。

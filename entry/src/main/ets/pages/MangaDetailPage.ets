@@ -2535,7 +2535,8 @@ export struct MangaDetailPage {
   @Computed
   private get trackingVisibleProviders(): TrackerProviderConfig[] {
     return TRACKER_PROVIDER_CONFIGS.filter((provider: TrackerProviderConfig): boolean =>
-      this.trackingProviderConnected(provider.providerId) || this.trackingMapping(provider.providerId)?.mappingState === 'confirmed')
+      this.trackingProviderConnected(provider.providerId) || this.trackingMapping(provider.providerId)?.mappingState === 'confirmed' ||
+      this.trackingMapping(provider.providerId)?.mappingState === 'candidate')
       .sort((left: TrackerProviderConfig, right: TrackerProviderConfig): number =>
         Number(this.trackingMapping(right.providerId)?.mappingState === 'confirmed') -
         Number(this.trackingMapping(left.providerId)?.mappingState === 'confirmed'))
@@ -2696,8 +2697,19 @@ export struct MangaDetailPage {
       this.trackingSearchContent = new ComponentContent<SearchRouteChromeState>(this.getUIContext(),
         wrapBuilder<[SearchRouteChromeState]>(TrackerSearchTitleFieldContentBuilder), this.trackingSearchChrome)
     }
-    this.trackingSearchChrome.query = this.trackingMapping(provider.providerId)?.providerTitle ?? this.manga?.title ?? ''
+    const mapping = this.trackingMapping(provider.providerId)
+    this.trackingSearchChrome.query = mapping?.providerTitle ?? this.manga?.title ?? ''
     this.trackingSearchProvider = provider
+    if (mapping?.mappingState === 'candidate') {
+      const candidate: TrackerTitleSearchCandidate = {
+        providerId: provider.providerId, providerTitleId: mapping.providerTitleId,
+        title: mapping.providerTitle || this.manga?.title || provider.displayName,
+      }
+      this.trackingSearchMessage = ''
+      this.trackingResults = [candidate]
+      this.trackingSelection = candidate
+      return
+    }
     void this.searchTrackingTitles()
   }
 
@@ -3375,6 +3387,16 @@ export struct MangaDetailPage {
           }))
         if (this.trackingStatusLabel(provider.providerId).length > 0) this.TrackingProgressControls(provider)
       }
+    } else if (this.trackingMapping(provider.providerId)?.mappingState === 'candidate') {
+      ConciseListRow({
+        title: this.trackingMapping(provider.providerId)?.providerTitle || provider.displayName,
+        subtitle: provider.displayName,
+        leadingImage: TRACKER_BRAND_IMAGES[provider.providerId],
+        leadingImageSize: ThemeConstants.SOURCE_LIST_ICON_SIZE,
+        leadingImageRadius: ThemeConstants.SOURCE_LIST_ICON_RADIUS,
+        showChevron: this.trackingProviderConnected(provider.providerId),
+        action: this.trackingProviderConnected(provider.providerId) ? () => { this.startTrackingSearch(provider) } : undefined,
+      })
     } else {
       ConciseListRow({
         title: provider.displayName,

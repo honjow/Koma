@@ -19,13 +19,16 @@ import { appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerC
 import { ApplicationSettingsBackup, checkedApplicationSettingsBackup, exportApplicationSettings,
   importApplicationSettings, countApplicationSettings, reloadApplicationSettingsRuntime } from './ApplicationSettingsBackup'
 import { writeAppTextFile } from './AppFileTextPersistence'
+import { readMihonBackup } from './MihonBackupReader'
+import { MihonImportService, MihonImportSelection } from './MihonImportService'
 import { common } from '@kit.AbilityKit'
-import { buffer } from '@kit.ArkTS'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { preferences } from '@kit.ArkData'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
+import { BACKUP_FILE_EXTENSION, BACKUP_FILE_HEADER_BYTES, BackupFileSummary, backupFileExtension, decodeBackupFile, encodeBackupFile,
+  publishBackupFile, readBackupBytes, readBackupFileHeader, writeBackupBytes } from './BackupFileFormat'
 import { beginAutomationRestore, finishAutomationRestore, resetGeneratedAutomationWork } from './AutomationStateEpoch'
 import { connectAppForegroundState } from '../state/AppForegroundState'
 import { RemoteServerStore, REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, parseRemoteServerEndpointIdentities, rememberRemoteServerEndpointIdentity } from './RemoteServerStore'
@@ -201,10 +204,8 @@ interface BackupTrackerSyncPreferences {
   updateStrategy: TrackerUpdateStrategy
 }
 
-export interface BackupLocalFilePreview {
-  exportedAt: number
+export interface BackupLocalFilePreview extends BackupFileSummary {
   exportedAtText: string
-  encrypted: boolean
 }
 
 interface BackupFileHeader {
@@ -244,6 +245,11 @@ export interface BackupImportSelectionPreview {
   preview: BackupImportPreview
 }
 
+export interface BackupFileSelection {
+  koma?: BackupImportSelectionPreview
+  mihon?: MihonImportSelection
+}
+
 export interface BackupLocalFileRecord {
   fileName: string
   displayName: string
@@ -268,6 +274,7 @@ export class BackupManagementState {
 }
 
 const backupManagementStates: Map<string, BackupManagementState> = new Map()
+const pendingLocalBackupPaths: Set<string> = new Set()
 const BACKUP_FILE_NOT_FOUND: number = 13900002
 
 export interface BackupAutomaticPreferences {
@@ -399,43 +406,6 @@ function readTextIfExists(path: string, fallback: string): string {
   return fs.readTextSync(path, { encoding: 'utf-8' })
 }
 
-// DocumentViewPicker grants a URI. readTextSync only accepts sandbox paths;
-// openSync can consume the grant and the descriptor keeps partial reads exact.
-function readPickedBackupText(uri: string): string {
-  const file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-  try {
-    const size = fs.statSync(file.fd).size
-    const bytes = new Uint8Array(size)
-    let offset = 0
-    while (offset < size) {
-      const chunk = new ArrayBuffer(Math.min(65536, size - offset))
-      const count = fs.readSync(file.fd, chunk)
-      if (count <= 0) throw new Error('Incomplete backup file')
-      bytes.set(new Uint8Array(chunk, 0, count), offset)
-      offset += count
-    }
-    return buffer.from(bytes.buffer).toString('utf-8')
-  } finally {
-    fs.closeSync(file)
-  }
-}
-
-function writePickedBackupText(path: string, payload: string): void {
-  let file: fs.File | undefined = undefined
-  try {
-    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    const written = fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
-    if (written !== buffer.byteLength(payload, 'utf-8')) {
-      throw new Error('backup_file_write_incomplete')
-    }
-    fs.fsyncSync(file.fd)
-  } finally {
-    if (file !== undefined) {
-      fs.closeSync(file)
-    }
-  }
-}
-
 function ensureDir(path: string): void {
   if (!fs.accessSync(path)) {
     fs.mkdirSync(path, true)
@@ -497,25 +467,16 @@ function normalizeLocalBackupName(value: string, fallback: string): string {
   return normalized
 }
 
-function backupFileExtension(fileName: string): string {
-  return fileName.endsWith('.koma-backup') ? '.koma-backup' : '.json'
-}
-
 function normalizeLocalBackupFileName(value: string, fallback: string, extension: string): string {
-  let normalized = normalizeLocalBackupName(value, fallback)
-  if (!normalized.endsWith('.json') && !normalized.endsWith('.koma-backup')) {
-    normalized = `${normalized}${extension}`
-  }
-  return normalized
+  const normalized = normalizeLocalBackupName(value, fallback)
+  return normalized.slice(0, normalized.length - backupFileExtension(normalized).length) + extension
 }
 
 function isLocalBackupFileName(fileName: string): boolean {
   return fileName.length > 0 &&
     !fileName.includes('/') &&
     !fileName.includes('\\') &&
-    fileName !== '.' &&
-    fileName !== '..' &&
-    (fileName.endsWith('.json') || fileName.endsWith('.koma-backup'))
+    backupFileExtension(fileName).length > 0
 }
 
 function normalizeBackupAutomaticIntervalHours(value: number): number {
@@ -964,8 +925,8 @@ export class BackupService {
   async exportLocal(content?: BackupContentPreferences): Promise<BackupLocalFileRecord> {
     await ensureLocalBackupDirectory(this.context)
     const payload = await this.export(content)
-    const fileName = `koma-backup-${Date.now()}.json`
-    const record = this.writeLocalBackup(fileName, payload)
+    const fileName = `koma-backup-${Date.now()}${BACKUP_FILE_EXTENSION}`
+    const record = await this.writeLocalBackup(fileName, payload)
     DiagnosticLogger.info('backup', 'local_export', '[Backup] step=local_export')
     return record
   }
@@ -973,8 +934,8 @@ export class BackupService {
   async exportEncryptedLocal(passphrase: string, content?: BackupContentPreferences): Promise<BackupLocalFileRecord> {
     await ensureLocalBackupDirectory(this.context)
     const payload = await this.exportEncrypted(passphrase, content)
-    const fileName = `koma-backup-${Date.now()}.koma-backup`
-    const record = this.writeLocalBackup(fileName, payload)
+    const fileName = `koma-backup-${Date.now()}${BACKUP_FILE_EXTENSION}`
+    const record = await this.writeLocalBackup(fileName, payload)
     DiagnosticLogger.info('backup', 'local_export_encrypted', '[Backup] step=local_export_encrypted')
     return record
   }
@@ -1259,8 +1220,7 @@ export class BackupService {
       const stat = await fs.stat(path)
       const fingerprint = `${stat.ino}:${stat.size}:${stat.mtimeNs ?? stat.mtime}:${stat.ctimeNs ?? stat.ctime}`
       if (cached?.fingerprint === fingerprint) return cached
-      const payload = await fs.readText(path, { encoding: 'utf-8' })
-      return { fingerprint, record: this.localBackupRecord(fileName, stat.size, this.localBackupFilePreview(payload)) }
+      return { fingerprint, record: this.localBackupRecord(fileName, stat.size, await this.previewBackupFile(path)) }
     } catch (error) {
       if ((error as BusinessError).code === BACKUP_FILE_NOT_FOUND) return undefined
       throw error as Error
@@ -1328,7 +1288,7 @@ export class BackupService {
   async selectLocalBackup(fileName: string): Promise<BackupImportSelectionPreview> {
     await ensureLocalBackupDirectory(this.context)
     const safeName = this.requireLocalBackupFileName(fileName)
-    const payload = await fs.readText(this.localBackupPath(safeName), { encoding: 'utf-8' })
+    const payload = await decodeBackupFile(await readBackupBytes(this.localBackupPath(safeName)))
     const preview = this.preview(payload)
     DiagnosticLogger.info('backup', 'local_select', '[Backup] step=local_select')
     return {
@@ -1608,28 +1568,33 @@ export class BackupService {
 
   async exportToPicker(content?: BackupContentPreferences): Promise<string | undefined> {
     const payload = await this.export(content)
-    return this.saveBackupToPicker(payload, `koma-backup-${Date.now()}.json`, false)
+    return this.saveBackupToPicker(await encodeBackupFile(payload, this.localBackupFilePreview(payload)),
+      `koma-backup-${Date.now()}${BACKUP_FILE_EXTENSION}`, false)
   }
 
   async exportLocalCopyToPicker(fileName: string, passphrase?: string): Promise<string | undefined> {
+    await ensureLocalBackupDirectory(this.context)
     const safeName = this.requireLocalBackupFileName(fileName)
-    const selection = await this.selectLocalBackup(safeName)
+    const bytes = await readBackupBytes(this.localBackupPath(safeName))
+    const original = await decodeBackupFile(bytes)
+    const preview = this.preview(original)
     const baseName = safeName.slice(0, -backupFileExtension(safeName).length)
     if (passphrase === undefined) {
-      const encrypted = selection.preview.encrypted
-      return this.saveBackupToPicker(selection.payload, baseName + (encrypted ? '.koma-backup' : '.json'), encrypted)
+      const header = readBackupFileHeader(bytes)
+      const extension = header !== undefined ? BACKUP_FILE_EXTENSION : (preview.encrypted ? '.koma-backup' : '.json')
+      return this.saveBackupToPicker(bytes, baseName + extension, preview.encrypted)
     }
-    if (selection.preview.encrypted) throw new Error('backup_already_encrypted')
-    // Protect the selected snapshot itself, preserving its original schema and data.
-    // Decryption accepts the existing plaintext schemas as well as the encrypted schema.
-    const payload = await new BackupEncryptionService().encrypt(selection.payload, passphrase)
-    return this.saveBackupToPicker(payload, baseName + '.koma-backup', true)
+    if (preview.encrypted) throw new Error('backup_already_encrypted')
+    // The selected snapshot supplies the data, including its original schema.
+    const payload = await new BackupEncryptionService().encrypt(original, passphrase)
+    return this.saveBackupToPicker(await encodeBackupFile(payload, this.localBackupFilePreview(payload)),
+      baseName + BACKUP_FILE_EXTENSION, true)
   }
 
-  private async saveBackupToPicker(payload: string, fileName: string, encrypted: boolean): Promise<string | undefined> {
+  private async saveBackupToPicker(bytes: ArrayBuffer, fileName: string, encrypted: boolean): Promise<string | undefined> {
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [fileName]
-    options.fileSuffixChoices = [AppStrings.get(encrypted ? 'backup_file_choice_encrypted' : 'backup_file_choice_json')]
+    options.fileSuffixChoices = [AppStrings.format('backup_file_choice', backupFileExtension(fileName))]
     const documentPicker = new picker.DocumentViewPicker(this.context)
     const result = await documentPicker.save(options)
     const step = encrypted ? 'export_encrypted' : 'export'
@@ -1637,19 +1602,33 @@ export class BackupService {
       DiagnosticLogger.info('backup', step + '_cancel', '[Backup] step=' + step + '_cancel')
       return undefined
     }
-    writePickedBackupText(result[0], payload)
+    await writeBackupBytes(result[0], bytes)
     DiagnosticLogger.info('backup', step + '_save', '[Backup] step=' + step + '_save')
     return result[0]
   }
 
-  private writeLocalBackup(fileName: string, payload: string): BackupLocalFileRecord {
-    // Validate the payload before creating the file. Re-reading a large completed file here
-    // would report "export failed" after the backup already exists.
+  private async writeLocalBackup(fileName: string, payload: string): Promise<BackupLocalFileRecord> {
     const preview = this.localBackupFilePreview(payload)
+    const bytes = await encodeBackupFile(payload, preview)
     ensureDir(this.localBackupsDir())
     const targetName = this.uniqueLocalBackupFileName(fileName)
-    writeAppTextFile(this.localBackupPath(targetName), payload)
-    return this.localBackupRecord(targetName, buffer.byteLength(payload, 'utf-8'), preview)
+    const targetPath = this.localBackupPath(targetName)
+    pendingLocalBackupPaths.add(targetPath)
+    try {
+      await publishBackupFile(targetPath, bytes)
+    } finally {
+      pendingLocalBackupPaths.delete(targetPath)
+    }
+    return this.localBackupRecord(targetName, bytes.byteLength, preview)
+  }
+
+  private async previewBackupFile(path: string): Promise<BackupLocalFilePreview> {
+    const header = readBackupFileHeader(await readBackupBytes(path, BACKUP_FILE_HEADER_BYTES))
+    if (header !== undefined) {
+      return { exportedAt: header.exportedAt, exportedAtText: formatBackupExportedAt(header.exportedAt),
+        encrypted: header.encrypted }
+    }
+    return this.localBackupFilePreview(await fs.readText(path, { encoding: 'utf-8' }))
   }
 
   private localBackupFilePreview(payload: string): BackupLocalFilePreview {
@@ -1669,26 +1648,9 @@ export class BackupService {
   private localBackupRecord(fileName: string, sizeBytes: number, preview: BackupLocalFilePreview): BackupLocalFileRecord {
     return {
       fileName,
-      displayName: fileName.replace(/\.koma-backup$/, '').replace(/\.json$/, ''),
+      displayName: fileName.slice(0, fileName.length - backupFileExtension(fileName).length),
       sizeBytes,
       preview,
-    }
-  }
-
-  private readLocalBackupRecord(fileName: string, strictRead: boolean = false): BackupLocalFileRecord | undefined {
-    const safeName = this.requireLocalBackupFileName(fileName)
-    const path = this.localBackupPath(safeName)
-    if (!fs.accessSync(path)) {
-      return undefined
-    }
-    try {
-      const payload = fs.readTextSync(path, { encoding: 'utf-8' })
-      return this.localBackupRecord(safeName, fs.statSync(path).size, this.preview(payload))
-    } catch (_error) {
-      if (strictRead) {
-        throw new Error('backup_local_read_failed')
-      }
-      return undefined
     }
   }
 
@@ -1701,8 +1663,7 @@ export class BackupService {
     }
     try {
       const stat = await fs.stat(path)
-      const payload = await fs.readText(path, { encoding: 'utf-8' })
-      return this.localBackupRecord(safeName, stat.size, this.preview(payload))
+      return this.localBackupRecord(safeName, stat.size, await this.previewBackupFile(path))
     } catch (_error) {
       if (strictRead) {
         throw new Error('backup_local_read_failed')
@@ -1725,7 +1686,8 @@ export class BackupService {
     const baseName = safeName.substring(0, safeName.length - extension.length)
     let candidate = safeName
     let index = 2
-    while (fs.accessSync(this.localBackupPath(candidate)) && candidate !== existingName) {
+    while (candidate !== existingName &&
+      (pendingLocalBackupPaths.has(this.localBackupPath(candidate)) || fs.accessSync(this.localBackupPath(candidate)))) {
       candidate = `${baseName}-${index}${extension}`
       index += 1
     }
@@ -1734,25 +1696,19 @@ export class BackupService {
 
   async exportEncryptedToPicker(passphrase: string, content?: BackupContentPreferences): Promise<string | undefined> {
     const payload = await this.exportEncrypted(passphrase, content)
-    return this.saveBackupToPicker(payload, `koma-backup-${Date.now()}.koma-backup`, true)
+    return this.saveBackupToPicker(await encodeBackupFile(payload, this.localBackupFilePreview(payload)),
+      `koma-backup-${Date.now()}${BACKUP_FILE_EXTENSION}`, true)
   }
 
   async importFromPicker(): Promise<boolean> {
-    const options = new picker.DocumentSelectOptions()
-    options.maxSelectNumber = 1
-    const documentPicker = new picker.DocumentViewPicker(this.context)
-    const result = await documentPicker.select(options)
-    if (result.length === 0) {
-      DiagnosticLogger.info('backup', 'import_cancel', '[Backup] step=import_cancel')
-      return false
-    }
-    const payload = readPickedBackupText(result[0])
-    await this.import(payload)
+    const selection = await this.selectImportPreviewFromPicker()
+    if (selection?.koma === undefined) return false
+    await this.import(selection.koma.payload)
     DiagnosticLogger.info('backup', 'import_select', '[Backup] step=import_select')
     return true
   }
 
-  async selectImportPreviewFromPicker(): Promise<BackupImportSelectionPreview | undefined> {
+  async selectImportPreviewFromPicker(): Promise<BackupFileSelection | undefined> {
     const options = new picker.DocumentSelectOptions()
     options.maxSelectNumber = 1
     const documentPicker = new picker.DocumentViewPicker(this.context)
@@ -1761,13 +1717,15 @@ export class BackupService {
       DiagnosticLogger.info('backup', 'preview_cancel', '[Backup] step=preview_cancel')
       return undefined
     }
-    const payload = readPickedBackupText(result[0])
+    const bytes = await readBackupBytes(result[0])
+    const prefix = new Uint8Array(bytes)
+    if (prefix[0] === 0x1f && prefix[1] === 0x8b) {
+      return { mihon: new MihonImportService(this.context).preview(await readMihonBackup(bytes)) }
+    }
+    const payload = await decodeBackupFile(bytes)
     const preview = this.preview(payload)
     DiagnosticLogger.info('backup', 'preview_select', '[Backup] step=preview_select')
-    return {
-      payload,
-      preview,
-    }
+    return { koma: { payload, preview } }
   }
 
   private libraryPath(): string {
@@ -1921,7 +1879,7 @@ export class BackupService {
         if (current.directoryUri !== undefined && current.directoryUri.length > 0) {
           try {
             await writeAutomaticBackupToDirectory(current.directoryUri,
-              await fs.readText(this.localBackupPath(created!.fileName)), current.retentionCount, now)
+              await readBackupBytes(this.localBackupPath(created!.fileName)), current.retentionCount, now)
           } catch (error) {
             // The local backup is already durable. An unavailable external copy is a warning,
             // not a failed export of the backup the user can see.

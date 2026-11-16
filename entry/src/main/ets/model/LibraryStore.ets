@@ -18,6 +18,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { ReaderSessionStore } from './ReaderSessionStore'
 import { LibrarySmartCategory, copyLibrarySmartCategory, validateLibrarySmartCategories } from './LibrarySmartCategory'
 import { SyncLocalShelfMove } from '../deviceSync/DeviceSyncSignals'
+import { MihonImportRecord } from './MihonBackupReader'
 
 export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source' | 'lastUpdate' | 'latestChapter' | 'unreadCount' | 'chapterCount'
 export type LibrarySortDirection = 'asc' | 'desc'
@@ -57,6 +58,8 @@ export interface LibraryListOptions {
 }
 
 export interface LibraryStore {
+  listMihonImports(): MihonImportRecord[]
+  replaceMihonImports(records: MihonImportRecord[]): void
   listSyncShelfMoves(): SyncLocalShelfMove[]
   replaceSyncShelfMoves(moves: SyncLocalShelfMove[]): void
   listSmartCategories(): LibrarySmartCategory[]
@@ -84,8 +87,13 @@ export interface LibraryStore {
 }
 
 export class InMemoryLibraryStore implements LibraryStore {
+  private mihonImports: MihonImportRecord[] = []
   private smartCategories: LibrarySmartCategory[] = []
   private syncShelfMoves: SyncLocalShelfMove[] = []
+
+  listMihonImports(): MihonImportRecord[] { return this.mihonImports.slice() }
+
+  replaceMihonImports(records: MihonImportRecord[]): void { this.mihonImports = records.slice() }
 
   listSyncShelfMoves(): SyncLocalShelfMove[] { return this.syncShelfMoves.slice() }
 
@@ -370,6 +378,7 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   clear(): void {
+    this.mihonImports = []
     this.smartCategories = []
     this.syncShelfMoves = []
     this.comics.clear()
@@ -379,6 +388,7 @@ export class InMemoryLibraryStore implements LibraryStore {
 
   dumpJson(): string {
     return JSON.stringify({
+      mihonImports: this.listMihonImports(),
       smartCategories: this.listSmartCategories(),
       comics: this.listComics(),
       customCategories: this.listCustomCategories(),
@@ -387,12 +397,16 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   restoreJson(payload: string): void {
+    this.mihonImports = []
     this.smartCategories = []
     this.syncShelfMoves = []
     this.comics.clear()
     this.customCategories.clear()
     this.categoryDisplayStrategies.clear()
     const parsed = JSON.parse(payload) as Record<string, Object>
+    if (!Array.isArray(parsed) && Array.isArray(parsed['mihonImports'])) {
+      this.replaceMihonImports(parsed['mihonImports'] as MihonImportRecord[])
+    }
     const rows = Array.isArray(parsed) ? parsed as Comic[] : parsed['comics'] as Comic[]
     rows.forEach((comic: Comic) => {
       this.comics.set(comic.id, comic)

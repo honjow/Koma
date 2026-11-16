@@ -640,6 +640,7 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
       description: entry.packageDescription,
       contentRating: entry.packageContentRating,
       minAppVersion: entry.packageMinAppVersion,
+      mihonImport: entry.mihonImport,
     },
     runtime: {
       abi: 'koma-source-abi-v0.1',
@@ -1051,6 +1052,7 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
           description: entry.packageDescription,
           contentRating: entry.packageContentRating,
           minAppVersion: entry.packageMinAppVersion,
+          mihonImport: entry.mihonImport,
         },
         runtime: {
           abi: 'koma-source-abi-v0.1',

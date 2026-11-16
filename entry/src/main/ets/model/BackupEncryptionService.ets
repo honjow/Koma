@@ -1,10 +1,12 @@
 import { buffer, util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { AppStrings } from '../i18n/AppStrings'
+import { compressBackupJson, decompressBackupJson } from './BackupFileFormat'
 
 export const BACKUP_ENCRYPTED_KIND: string = 'koma.backup.encrypted'
 export const BACKUP_ENCRYPTED_KIND_V1: string = 'koma.backup.encrypted.v1'
 export const BACKUP_ENVELOPE_VERSION: number = 1
+const BACKUP_COMPRESSED_ENVELOPE_VERSION: number = 2
 export const BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION: number = 4
 export const BACKUP_ENCRYPTION_ALGORITHM: string = 'AES-256-GCM'
 export const BACKUP_ENCRYPTION_NATIVE_CIPHER: string = 'AES256|GCM|PKCS7'
@@ -104,10 +106,11 @@ export function canonicalBackupJson(value: Object): string {
   return `{${fields.join(',')}}`
 }
 
-export function backupEncryptedAad(contentSchemaVersion: number): BackupEncryptedAad {
+export function backupEncryptedAad(contentSchemaVersion: number,
+  envelopeVersion: number = BACKUP_ENVELOPE_VERSION): BackupEncryptedAad {
   return {
     kind: BACKUP_ENCRYPTED_KIND,
-    envelopeVersion: BACKUP_ENVELOPE_VERSION,
+    envelopeVersion,
     contentSchemaVersion,
     algorithm: BACKUP_ENCRYPTION_ALGORITHM,
     kdfId: BACKUP_KDF_ID,
@@ -131,7 +134,8 @@ function validateEnvelopeShape(envelope: BackupEncryptedEnvelopeV1): void {
   if (envelope.kind !== BACKUP_ENCRYPTED_KIND && envelope.kind !== BACKUP_ENCRYPTED_KIND_V1) {
     throw new Error(BACKUP_ENVELOPE_FAILURE_CODE)
   }
-  if (envelope.envelopeVersion !== BACKUP_ENVELOPE_VERSION ||
+  if ((envelope.envelopeVersion !== BACKUP_ENVELOPE_VERSION &&
+    envelope.envelopeVersion !== BACKUP_COMPRESSED_ENVELOPE_VERSION) ||
     envelope.contentSchemaVersion !== BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION ||
     envelope.algorithm !== BACKUP_ENCRYPTION_ALGORITHM) {
     throw new Error(BACKUP_ENVELOPE_FAILURE_CODE)
@@ -144,7 +148,7 @@ function validateEnvelopeShape(envelope: BackupEncryptedEnvelopeV1): void {
     typeof envelope.tag !== 'string' || typeof envelope.payload !== 'string') {
     throw new Error(BACKUP_ENVELOPE_FAILURE_CODE)
   }
-  const expectedAad = backupEncryptedAad(envelope.contentSchemaVersion)
+  const expectedAad = backupEncryptedAad(envelope.contentSchemaVersion, envelope.envelopeVersion)
   if (canonicalBackupJson(envelope.aad as Object) !== canonicalBackupJson(expectedAad as Object)) {
     throw new Error(BACKUP_ENVELOPE_FAILURE_CODE)
   }
@@ -180,14 +184,16 @@ export class BackupEncryptionService {
     const salt = this.randomBytes(BACKUP_KDF_SALT_BYTES)
     const nonce = this.randomBytes(BACKUP_GCM_NONCE_BYTES)
     const key = await this.deriveKey(passphrase, salt, BACKUP_KDF_ITERATIONS)
-    const aad = backupEncryptedAad(BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION)
-    const cipherWithTag = await this.encryptBytes(key, nonce, utf8Encode(canonicalBackupJson(aad as Object)), utf8Encode(plaintextBackupJson))
+    const aad = backupEncryptedAad(BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION, BACKUP_COMPRESSED_ENVELOPE_VERSION)
+    const compressed = await compressBackupJson(plaintextBackupJson)
+    const cipherWithTag = await this.encryptBytes(key, nonce, utf8Encode(canonicalBackupJson(aad as Object)),
+      new Uint8Array(compressed))
     const tagOffset = cipherWithTag.length - BACKUP_GCM_TAG_BYTES
     const ciphertext = cipherWithTag.slice(0, tagOffset)
     const tag = cipherWithTag.slice(tagOffset)
     const envelope: BackupEncryptedEnvelopeV1 = {
       kind: BACKUP_ENCRYPTED_KIND,
-      envelopeVersion: BACKUP_ENVELOPE_VERSION,
+      envelopeVersion: BACKUP_COMPRESSED_ENVELOPE_VERSION,
       contentSchemaVersion: BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION,
       createdAt: Date.now(),
       algorithm: BACKUP_ENCRYPTION_ALGORITHM,
@@ -225,8 +231,10 @@ export class BackupEncryptionService {
       }
       const key = await this.deriveKey(passphrase, salt, envelope.kdf.iterations)
       const plaintext = await this.decryptBytes(key, nonce, utf8Encode(canonicalBackupJson(envelope.aad as Object)), ciphertext, tag)
+      const document = envelope.envelopeVersion === BACKUP_COMPRESSED_ENVELOPE_VERSION
+        ? await decompressBackupJson(bytesToExactArrayBuffer(plaintext)) : utf8Decode(plaintext)
       console.info('[BackupEncryption] step=decrypt ok=true')
-      return utf8Decode(plaintext)
+      return document
     } catch (_err) {
       throw new Error(BACKUP_DECRYPT_FAILURE_CODE)
     }

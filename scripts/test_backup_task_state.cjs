@@ -17,7 +17,7 @@ function evaluate(source, globals) {
 const source = read('pages/BackupManagementPage.ets')
 const pageLogic = (source.slice(0, source.indexOf('  @Builder')) + '\n}')
   .replace(/^import[\s\S]*?from '[^']+'\n/gm, '').replace('@ComponentV2', '')
-  .replace(/@(Local|Param|Event) /g, '').replace(/@Monitor\('[^']+'\)/g, '')
+  .replace(/@(Local|Param|Event) /g, '').replace(/@(Monitor|Provider)\('[^']+'\)/g, '')
   .replace('export struct', 'export class')
 const { BackupManagementPage } = evaluate(pageLogic, {
   Scroller: class {}, connectLayoutSafeArea: () => ({}),
@@ -142,20 +142,28 @@ async function run() {
   const backupSource = read('model/BackupService.ets')
   const copy = backupSource.slice(backupSource.indexOf('  async exportLocalCopyToPicker('),
     backupSource.indexOf('  private async saveBackupToPicker('))
+  let original = 'earlier snapshot'
+  let encrypted = false
   const { CopyService } = evaluate('export class CopyService { ' + copy + ' }', {
+    BACKUP_FILE_EXTENSION: '.komabk',
+    ensureLocalBackupDirectory: async () => {},
     backupFileExtension: name => name.endsWith('.json') ? '.json' : '.koma-backup',
+    readBackupBytes: async name => { saved.push(name); return original },
+    readBackupFileHeader: () => undefined,
+    decodeBackupFile: async bytes => bytes,
+    encodeBackupFile: async payload => payload,
     BackupEncryptionService: class { async encrypt(payload, password) { return [payload, password] } },
   })
   const copyService = new CopyService()
   copyService.requireLocalBackupFileName = name => name
-  copyService.selectLocalBackup = async fileName => {
-    saved.push(fileName)
-    return { payload: 'earlier snapshot', preview: { encrypted: false } }
-  }
+  copyService.localBackupPath = name => name
+  copyService.preview = () => ({ encrypted })
+  copyService.localBackupFilePreview = copyService.preview
   copyService.saveBackupToPicker = async (...args) => { saved.push(args); return 'saved' }
   assert.equal(await copyService.exportLocalCopyToPicker('earlier.json', 'test secret'), 'saved')
-  assert.deepEqual(saved, ['earlier.json', [['earlier snapshot', 'test secret'], 'earlier.koma-backup', true]])
-  copyService.selectLocalBackup = async () => ({ payload: 'existing envelope', preview: { encrypted: true } })
+  assert.deepEqual(saved, ['earlier.json', [['earlier snapshot', 'test secret'], 'earlier.komabk', true]])
+  original = 'existing envelope'
+  encrypted = true
   await copyService.exportLocalCopyToPicker('renamed.json')
   assert.deepEqual(saved.at(-1), ['existing envelope', 'renamed.koma-backup', true])
   await assert.rejects(copyService.exportLocalCopyToPicker('renamed.json', 'test secret'), /backup_already_encrypted/)
@@ -187,7 +195,7 @@ async function testLocalListSnapshot() {
     service.context = { filesDir: directory }
     service.localBackupsDir = () => directory
     service.localBackupPath = fileName => fileName
-    service.localBackupFilePreview = JSON.parse
+    service.previewBackupFile = async name => { reads.push(name); return JSON.parse(files.get(name).payload) }
     service.localBackupRecord = (fileName, sizeBytes, preview) => ({ fileName, sizeBytes, preview })
     return service
   }

@@ -3,6 +3,7 @@ import { sourceRequiredImageDecodes, validSourceRequiredImageDecodes } from './S
 import { SourceAuthenticationDescriptor, sourceAuthenticationDescriptor, validSourceAuthentication } from './SourceAuthenticationDescriptor'
 import { SourceRateLimitRule, validSourceRequestLimits } from './SourceRequestPolicy'
 import { SOURCE_REPO_PACKAGE_ICON_FILES, isValidSourcePackageMinAppVersion, normalizeSourceHomepage } from './SourcePackageMetadata'
+import { MihonSourceIdentity, validMihonSourceIdentity } from './MihonSourceIdentity'
 import { SourceChapterOrder, isValidSourceChapterOrder } from './SourceChapterOrder'
 import { taskpool, url } from '@kit.ArkTS'
 import { computeSourcePackageSha256 } from './SourcePackageHashWorker'
@@ -77,6 +78,7 @@ export interface LocalSourcePackageInfo {
   description?: string
   contentRating?: string
   minAppVersion?: string
+  mihonImport?: MihonSourceIdentity
 }
 
 export interface LocalSourcePackageRuntime {
@@ -115,6 +117,7 @@ export interface LocalSourcePackageManifest {
 }
 
 interface SourceRepoPackageManifest {
+  mihonImport?: MihonSourceIdentity
   chapterOrder?: SourceChapterOrder
   webSessionOrigins?: string[]
   authentication?: SourceAuthenticationDescriptor
@@ -175,6 +178,7 @@ export function sourceRepoManifestForShare(manifest: LocalSourcePackageManifest,
     homepage: manifest.package.homepage, author: manifest.package.author,
     description: manifest.package.description, contentRating: manifest.package.contentRating,
     minAppVersion: manifest.package.minAppVersion, icon: iconName,
+    mihonImport: manifest.package.mihonImport,
     wasmSha256: manifest.runtime.wasmSha256, maxWasmBytes: manifest.runtime.maxWasmBytes,
     webSessionOrigins: manifest.permissions.webSessionOrigins,
     authentication: manifest.permissions.authentication,
@@ -650,7 +654,8 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
   if (id === undefined || name === undefined || version === undefined || id.length > 96) {
     return undefined
   }
-  if (!isValidSourceChapterOrder(parsed.chapterOrder) || isInvalidSourceLocalizedNames(parsed.localizedNames)) {
+  if (!isValidSourceChapterOrder(parsed.chapterOrder) || isInvalidSourceLocalizedNames(parsed.localizedNames) ||
+    (parsed.mihonImport !== undefined && !validMihonSourceIdentity(parsed.mihonImport))) {
     return undefined
   }
   if (packageMetadataValueInvalid(parsed.author) || packageMetadataValueInvalid(parsed.description) ||
@@ -685,6 +690,7 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
       description: optionalPackageMetadataText(parsed.description),
       contentRating: optionalPackageMetadataText(parsed.contentRating),
       minAppVersion: optionalPackageMetadataText(parsed.minAppVersion),
+      mihonImport: parsed.mihonImport,
     },
     runtime: {
       abi: 'koma-source-abi-v0.1',
@@ -738,7 +744,8 @@ export function validateNormalizedManifest(manifest: LocalSourcePackageManifest)
   if (manifest.runtime.wasmPath !== SOURCE_PACKAGE_WASM_FILE && manifest.runtime.wasmPath !== SOURCE_REPO_PACKAGE_WASM_FILE) {
     return 'manifest_invalid'
   }
-  if (!isValidSourceChapterOrder(manifest.package.chapterOrder) || isInvalidSourceLocalizedNames(manifest.package.localizedNames)) {
+  if (!isValidSourceChapterOrder(manifest.package.chapterOrder) || isInvalidSourceLocalizedNames(manifest.package.localizedNames) ||
+    (manifest.package.mihonImport !== undefined && !validMihonSourceIdentity(manifest.package.mihonImport))) {
     return 'manifest_invalid'
   }
   if (packageMetadataValueInvalid(manifest.package.author) || packageMetadataValueInvalid(manifest.package.description) ||

@@ -68,6 +68,8 @@ function s(name: string): string {
 @ComponentV2
 export struct SearchPage {
   @Param migrationSources: string[] | undefined = undefined
+  @Event onMigrationShelfResults: (query: string) => CrossSearchSection | undefined = (_query: string) => undefined
+  @Param automaticallyOpenWebChallenge: boolean = true
   @Event onMangaSelected: (manga: SourceManga) => void = (_manga: SourceManga) => {}
   @Param chrome: SearchRouteChromeState = new SearchRouteChromeState()
   @Param initialLibrarySource: LibrarySearchSource | undefined = undefined
@@ -215,7 +217,7 @@ export struct SearchPage {
 
   private handleWebChallenges(): void {
     const service = this.service
-    if (!this.routeActive || !this.chrome.visible || service === undefined ||
+    if (!this.automaticallyOpenWebChallenge || !this.routeActive || !this.chrome.visible || service === undefined ||
       this.webChallengeShown || this.webChallengeClosing || this.webChallengeRetryPending) return
     for (const section of this.sections) {
       const receipt = section.webChallenge
@@ -345,7 +347,9 @@ export struct SearchPage {
     const replayKey = this.replaySources?.join(',') ?? ''
     const sameSearch = this.resultsQuery === query && this.resultsSourceFilter === sourceFilter &&
       this.resultsLibrarySourceKey === sourceKey && this.resultsReplayKey === replayKey
+    const shelf = this.onMigrationShelfResults(query)
     const pending = service.pendingSections(sourceFilter, this.migrationSources ?? this.replaySources)
+    if (shelf !== undefined) pending.unshift(shelf)
     // A refresh keeps results owned by this same query/filter until replacement
     // data arrives. A changed query/filter starts with its existing pending UI.
     this.sections = sameSearch ? pending.map((section: CrossSearchSection): CrossSearchSection => {
@@ -378,6 +382,7 @@ export struct SearchPage {
       return
     }
     const sourceFilter = this.effectiveSourceFilter(query)
+    const shelf = this.sections.find((section: CrossSearchSection): boolean => section.id === 'migration-shelf')
     if (this.migrationSources === undefined) this.recordHistory(query)
     console.info(`[Search] step=ui_search_start serial=${serial}`)
     try {
@@ -403,8 +408,9 @@ export struct SearchPage {
       }
       // A verified source may already have retried while the other original
       // tasks were still pending. Their final aggregate must retain that result.
-      this.sections = result.map((section: CrossSearchSection): CrossSearchSection =>
+      const resolved = result.map((section: CrossSearchSection): CrossSearchSection =>
         this.sections.find((current: CrossSearchSection): boolean => current.id === section.id) ?? section)
+      this.sections = shelf === undefined ? resolved : [shelf].concat(resolved)
       this.handleWebChallenges()
       this.feedbackText = ''
       console.info(`[Search] step=ui_search_done serial=${serial} sections=${result.length}`)
@@ -414,7 +420,7 @@ export struct SearchPage {
         return
       }
       this.invalidateWebChallenges()
-      this.sections = []
+      this.sections = shelf === undefined ? [] : [shelf]
       const diagnostic = safeSearchDiagnostic(e)
       this.feedbackText = diagnostic.userText
       DiagnosticLogger.error('search_page', 'ui_search_failed', '[Search] step=ui_search_failed code=' + diagnostic.code)

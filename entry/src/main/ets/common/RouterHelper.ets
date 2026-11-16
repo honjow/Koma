@@ -76,6 +76,7 @@ export interface SourceRelatedRouteParam {
 export interface MangaMigrationRouteParam {
   comicIds: string[]
   fromDetail: boolean
+  fromMihon?: boolean
   committing?: boolean
   selectedSources?: string[]
   matchOptions?: MigrationMatchOptions
