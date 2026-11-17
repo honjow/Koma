@@ -18,9 +18,9 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "Koma 1.5.1 已发布",
+  "state": "Koma 1.5.2 已重新发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-18T03:39:40+08:00",
+  "updatedAt": "2026-11-18T03:49:01+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -96,12 +96,15 @@
       "reportedAt": null,
       "reportedDate": "2026-11-18",
       "reportedAtSource": "用户报告同章翻页后返回原详情，继续阅读按钮只有退出详情再重进才更新。",
-      "updatedAt": "2026-11-18T03:39:40+08:00",
-      "status": "237 已复测续读与改名，补齐书架下载筛选实时更新",
+      "updatedAt": "2026-11-18T03:49:01+08:00",
+      "status": "修复已随 1.5.2 重新发布，公开包已核对",
       "result": "逐笔核对 v1.5.1 到 v1.5.2。4a335e90 把继续阅读参数按值传入 Builder，页码无法随同章进度发布更新。也引入了会被旧作品数据填充的书架卡片缓存，并跳过下载等独立状态改变后的筛选刷新。5b876edc 的书架虚拟列表在复用行时按值传递作品。续读、列表及卡片缓存读取当前数据，需要下载等独立数据的筛选与排序在返回书架时刷新。237 签名包用同一临时本地漫画从第 4/4 页翻回第 3/4 页，关闭阅读器回到原详情显示第 3/4 页，再点继续阅读仍为第 3/4 页。书架实际列表行打开同一详情，修改标题后返回原列表立即显示新标题。已移出临时漫画并恢复网格、10 秒超时和休眠，237 保留修复包，租约已释放。旧源码上能复现卡片与下载筛选的本地用例失败，修复后均通过。",
-      "remaining": "普通书架打开下载筛选时，后台完成或移除下载后的即时刷新已本地回归并构建签名候选。追踪、来源排序及实际下载完成后的筛选刷新尚未逐项真机核验。候选未发布。",
+      "remaining": "普通书架打开下载筛选时，后台完成或移除下载后的即时刷新已通过本地回归。追踪、来源排序及实际下载完成后的筛选刷新尚未逐项真机核验。",
       "relatedItems": ["MIHON_BACKUP_IMPORT", "LIBRARY_SMART_CATEGORY_SWITCH_CRASH"],
       "evidence": [
+        "https://github.com/honjow/Koma/releases/tag/v1.5.2",
+        "https://github.com/honjow/Koma/actions/runs/44161685918",
+        ".hvigor/outputs/release-152-regression/published-44161685918/build-manifest.json",
         ".hvigor/outputs/release-152-regression/Koma-1.5.2-download-filter-debug-signed.hap",
         ".hvigor/outputs/release-152-regression/download-filter-tests.log",
         ".hvigor/outputs/release-152-regression/download-filter-v1.5.1-baseline.log",
@@ -11702,6 +11705,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "detail-resume-and-shelf-refresh-republished-152-20261118",
+      "at": "2026-11-18T03:49:01+08:00",
+      "itemId": "DETAIL_RESUME_AND_SHELF_REFRESH",
+      "title": "#318 Koma 1.5.2 重新发布",
+      "detail": "通过 v1.5.2 标签 CI 构建并更新原 Release。公开下载的 HAP 和清单已核对哈希、版本 1.5.2（21）、构建提交 5d5d7306 与阅读器依赖 3ac18f2。发布包为未签名正式 HAP。",
+      "kind": "release",
+      "evidence": "https://github.com/honjow/Koma/actions/runs/44161685918"
+    },
     {
       "id": "shelf-download-filter-live-refresh-20261118",
       "at": "2026-11-18T03:39:40+08:00",
