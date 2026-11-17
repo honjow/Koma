@@ -15,7 +15,15 @@ function evaluate(source, globals) {
 }
 
 const source = read('pages/BackupManagementPage.ets')
-const pageLogic = (source.slice(0, source.indexOf('  @Builder')) + '\n}')
+const firstBuilder = source.indexOf('  @Builder')
+const restoreLogicStart = source.indexOf('  private async closeReadingBackup(): Promise<void> {')
+const restoreLogicEnd = source.indexOf('  @Builder\n  private BackupActions()', restoreLogicStart)
+if (firstBuilder < 0 || restoreLogicStart < 0 || restoreLogicEnd < 0) {
+  throw new Error('BackupManagementPage import logic boundaries were not found')
+}
+// Restore state logic lives after the ArkUI builders. Include its real methods in this
+// state harness instead of silently testing a class excerpt without that behavior.
+const pageLogic = (source.slice(0, firstBuilder) + source.slice(restoreLogicStart, restoreLogicEnd) + '\n}')
   .replace(/^import[\s\S]*?from '[^']+'\n/gm, '').replace('@ComponentV2', '')
   .replace(/@(Local|Param|Event) /g, '').replace(/@(Monitor|Provider)\('[^']+'\)/g, '')
   .replace('export struct', 'export class')
