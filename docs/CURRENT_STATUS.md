@@ -208,6 +208,33 @@
       ]
     },
     {
+      "id": "WEBDAV_MERGE_TASKPOOL_PROXY",
+      "number": 313,
+      "title": "WebDAV 确认合并失败",
+      "kind": "done",
+      "progressPhase": "completed",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-16",
+      "reportedAtSource": "用户报告 197 反复无法合并 WebDAV 数据，原始时刻未核实。",
+      "registeredAt": "2026-11-16T23:49:05+08:00",
+      "updatedAt": "2026-11-17T00:18:33+08:00",
+      "status": "197 原待核对合并已通过",
+      "result": "确认时复制普通选项后，由原后台任务计算。197 同签候选用原 WebDAV 和待核对数据点确认，返回 WebDAV 设置，成功时间更新，待核对清除，本机提交回执已落盘。读回 20 条搜索历史与同步记录相符，书架文件字节未变；本次未证明新增作品或新增搜索条目。原息屏超时已恢复并释租。",
+      "remaining": "修复未随正式版本发布。",
+      "evidence": [
+        ".hvigor/outputs/webdav-merge-197-diagnosis/confirm-awake/koma.log",
+        ".hvigor/outputs/webdav-merge-197-diagnosis/confirm-awake/result.json",
+        "entry/src/main/ets/pages/DeviceSyncPages.ets",
+        "entry/src/main/ets/deviceSync/DeviceSyncEngine.ets",
+        ".hvigor/outputs/webdav-merge-197-diagnosis/patch-tests.log",
+        ".hvigor/outputs/webdav-merge-197-diagnosis/patched-real-197/merge-result.json",
+        ".hvigor/outputs/webdav-merge-197-diagnosis/patched-readback-197/persisted-summary.json"
+      ],
+      "closedAt": "2026-11-17T00:18:33+08:00"
+    },
+    {
       "id": "MIHON_BACKUP_IMPORT",
       "number": 308,
       "title": "Mihon 备份导入",
@@ -11522,6 +11549,41 @@
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/source-catalog-20261116T095957653146/registry.json",
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/large-cold-20261116T200042390862/run-metadata.json",
         "https://github.com/honjow/koma-sources/releases/latest/download/index.json"
+      ]
+    },
+    {
+      "id": "webdav-confirm-merge-plain-choices-197-20261117",
+      "at": "2026-11-17T00:18:33+08:00",
+      "itemId": "WEBDAV_MERGE_TASKPOOL_PROXY",
+      "title": "#313 197 原 WebDAV 确认合并通过",
+      "detail": "在原待核对状态点确认，回到 WebDAV 设置，并读回成功时间、合并回执和搜索历史。书架文件没有变化，不把预览项计作新增作品。原息屏超时已恢复。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/webdav-merge-197-diagnosis/patched-real-197/merge-result.json",
+        ".hvigor/outputs/webdav-merge-197-diagnosis/patched-readback-197/persisted-summary.json"
+      ]
+    },
+    {
+      "id": "webdav-confirm-merge-plain-choices-candidate-20261117",
+      "at": "2026-11-17T00:14:31+08:00",
+      "itemId": "WEBDAV_MERGE_TASKPOOL_PROXY",
+      "title": "#313 已修正后台任务参数",
+      "detail": "确认时复制普通数据，回归覆盖空选择和手动选择。签名包已构建，真机写入尚在复验。",
+      "kind": "active",
+      "evidence": [
+        ".hvigor/outputs/webdav-merge-197-diagnosis/patch-tests.log"
+      ]
+    },
+    {
+      "id": "webdav-confirm-merge-proxy-197-20261116",
+      "at": "2026-11-16T23:49:05+08:00",
+      "itemId": "WEBDAV_MERGE_TASKPOOL_PROXY",
+      "title": "#313 197 定位 WebDAV 合并失败",
+      "detail": "查得 WebDAV 目录返回 207，随后 TaskPool 拒绝序列化 Proxy。失败发生在合并写入前，设备仍保留待核对状态。息屏设置恢复并释租。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/webdav-merge-197-diagnosis/confirm-awake/koma.log",
+        ".hvigor/outputs/webdav-merge-197-diagnosis/confirm-awake/result.json"
       ]
     },
     {

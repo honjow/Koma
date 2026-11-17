@@ -363,7 +363,7 @@ function engineFixture(providerOverride, shardCache) {
     './DeviceSyncMetrics': metrics,
     '@kit.ArkTS': {
       util: { generateRandomUUID: randomUUID },
-      taskpool: { execute: async (fn, ...args) => fn(...args) },
+      taskpool: { execute: async (fn, ...args) => fn(...structuredClone(args)) },
     },
   }, { setTimeout: (fn, ms) => setTimeout(fn, ms === 15000 ? 1 : ms) })
   const draft = { directory: 'https://local-fixture.invalid', username: '', password: '' }
@@ -719,10 +719,11 @@ test('a pre-restore action stays local until explicitly selected in the merge pr
   first.snapshotExtras.set('reading', { restoreEdits: [{ key, kind: 'set', value: position(6) }] })
   const preview = await first.engine.prepare(draft, ['reading'])
   assert.equal(preview.beforeRestore[0].local, position(6))
-  await first.engine.confirm(preview.token, [])
+  await first.engine.confirm(preview.token, new Proxy([], {}))
   assert.deepEqual(servers.get(draft.directory).head, before)
   const explicit = await first.engine.prepare(draft, ['reading'])
-  await first.engine.confirm(explicit.token, [{ group: 'reading', key, useLocal: true, useBeforeRestore: true }])
+  const selection = new Proxy({ group: 'reading', key, useLocal: true, useBeforeRestore: true }, {})
+  await first.engine.confirm(explicit.token, new Proxy([selection], {}))
   assert.equal(first.values.get('reading').get(key), position(6))
 })
 

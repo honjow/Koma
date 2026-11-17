@@ -763,7 +763,14 @@ export class DeviceSyncEngine {
     const prepared = this.prepared
     this.prepared = undefined
     if (prepared === undefined || prepared.preview.token !== token) return Promise.reject(new Error('sync_preview_changed'))
-    return this.start((): Promise<void> => this.confirmPrepared(prepared, choices))
+    // ArkUI observes the selection array and its items. Capture plain values
+    // at confirmation so TaskPool can serialize them after the remote checks.
+    const confirmedChoices: SyncMergeChoice[] = []
+    for (const choice of choices) {
+      confirmedChoices.push({ group: choice.group, key: choice.key, useLocal: choice.useLocal,
+        useBeforeRestore: choice.useBeforeRestore })
+    }
+    return this.start((): Promise<void> => this.confirmPrepared(prepared, confirmedChoices))
   }
 
   private async confirmPrepared(prepared: PreparedSync, choices: SyncMergeChoice[]): Promise<void> {
