@@ -4,6 +4,7 @@ export type ReaderFilterBlendMode = 'default' | 'multiply' | 'screen' | 'overlay
 export class ReaderDisplaySettings {
   brightnessEnabled: boolean = false
   brightness: number = 0
+  hdrBrightnessEnabled: boolean = false
   filterEnabled: boolean = false
   red: number = 0
   green: number = 0
@@ -23,6 +24,7 @@ export function normalizeReaderDisplaySettings(value?: ReaderDisplaySettings): R
   if (value === undefined || value === null) return next
   next.brightnessEnabled = value.brightnessEnabled === true
   next.brightness = bounded(value.brightness, -75, 100)
+  next.hdrBrightnessEnabled = value.hdrBrightnessEnabled === true
   next.filterEnabled = value.filterEnabled === true
   next.red = bounded(value.red, 0, 255)
   next.green = bounded(value.green, 0, 255)
@@ -46,6 +48,7 @@ export function rebaseReaderDisplaySettings(base: ReaderDisplaySettings, before:
   const next = normalizeReaderDisplaySettings(base)
   if (before.brightnessEnabled !== after.brightnessEnabled) next.brightnessEnabled = after.brightnessEnabled
   if (before.brightness !== after.brightness) next.brightness = after.brightness
+  if (before.hdrBrightnessEnabled !== after.hdrBrightnessEnabled) next.hdrBrightnessEnabled = after.hdrBrightnessEnabled
   if (before.filterEnabled !== after.filterEnabled) next.filterEnabled = after.filterEnabled
   if (before.red !== after.red) next.red = after.red
   if (before.green !== after.green) next.green = after.green

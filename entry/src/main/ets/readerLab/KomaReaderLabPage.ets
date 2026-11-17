@@ -6,6 +6,7 @@ import { ReaderSourceWebChallenge } from './ReaderSourceWebChallenge'
 import { effectiveBannerFilter } from '../model/ImageBannerRules'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
 import { komaReaderImageEffects } from './KomaReaderDisplayEffects'
+import { readerHdrBrightnessAvailable } from '@reader-kit/ui'
 import { util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { KomaReaderTranslationConfiguration, KomaReaderTranslationProvider } from './KomaReaderTranslationProvider'
@@ -231,6 +232,7 @@ export struct KomaReaderLabPage {
   @Local private filterSheetHeight: number = 0
   @Local private readerFilterPreview: boolean = false
   @Local private hostPreferences: ReaderPreferences | null = null
+  private hdrAvailable: boolean = false
   @Local private tapZonePreviewRevision: number = 0
   @Local private chapterPickerShown: boolean = false
   @Local private chapterChoices: KomaReaderLabChapterChoice[] = []
@@ -347,6 +349,7 @@ export struct KomaReaderLabPage {
   }
 
   aboutToAppear(): void {
+    this.hdrAvailable = readerHdrBrightnessAvailable(this.getUIContext().getHostContext())
     this.volumeInputConnection = this.volumeInput.connect((intent: ReaderMoveIntent): boolean => this.moveFromVolumeKey(intent))
     // Warm the automation policy cache here so the first post-read cleanup
     // never performs its two native preference calls inside a scroll window.
@@ -1522,7 +1525,9 @@ export struct KomaReaderLabPage {
                 ? ImageInterpolation.Low :
                 (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'
                   ? ImageInterpolation.High : ImageInterpolation.Medium,
-              imageEffects: komaReaderImageEffects(this.displayPreview.settings ?? this.hostPreferences?.displaySettings ?? this.readerMode.displaySettings),
+              imageEffects: komaReaderImageEffects(
+                this.displayPreview.settings ?? this.hostPreferences?.displaySettings ?? this.readerMode.displaySettings,
+                this.hdrAvailable),
               canvasBackground: this.readerCanvasBackground(), canvasForeground: this.readerCanvasForeground(),
               loadingInk: this.readerLoadingInk(),
               input: this.input, mediaActions: new ReaderMediaActions(this.imageShare, this.imageSave),

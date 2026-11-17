@@ -1,8 +1,9 @@
 import { ReaderImageEffects } from '@reader-kit/ui'
 import { ReaderDisplaySettings, readerDisplayDimOpacity } from '../model/ReaderDisplaySettings'
 
-export function komaReaderImageEffects(settings: ReaderDisplaySettings): ReaderImageEffects {
+export function komaReaderImageEffects(settings: ReaderDisplaySettings, hdrAvailable: boolean): ReaderImageEffects {
   const effects = new ReaderImageEffects()
+  effects.hdrBrightness = hdrAvailable && settings.hdrBrightnessEnabled
   effects.grayscale = settings.grayscale
   effects.inverted = settings.inverted
   effects.tint = settings.filterEnabled && settings.alpha > 0

@@ -2262,6 +2262,7 @@
     {"name": "reader_display_detail", "value": "亮度、颜色与图像效果"},
     {"name": "reader_display_brightness_enabled", "value": "独立亮度"},
     {"name": "reader_display_brightness", "value": "亮度"},
+    {"name": "reader_display_hdr_brightness", "value": "自动HDR"},
     {"name": "reader_display_filter_enabled", "value": "颜色滤镜"},
     {"name": "reader_display_red", "value": "红色"},
     {"name": "reader_display_green", "value": "绿色"},

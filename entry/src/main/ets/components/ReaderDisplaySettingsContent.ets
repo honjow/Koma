@@ -1,4 +1,5 @@
 import { SymbolGlyphModifier } from '@kit.ArkUI'
+import { readerHdrBrightnessAvailable } from '@reader-kit/ui'
 import { ReaderDisplaySettings, ReaderFilterBlendMode, normalizeReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
 import { AppStrings } from '../i18n/AppStrings'
@@ -14,9 +15,14 @@ export struct ReaderDisplaySettingsContent {
   @Event onChange: (settings: ReaderDisplaySettings) => void = () => {}
   @Event onClose: () => void = () => {}
   @Local private draft: ReaderDisplaySettings = new ReaderDisplaySettings()
+  @Local private hdrAvailable: boolean = false
   private preview: ReaderDisplayPreviewState = connectReaderDisplayPreview()
 
-  aboutToAppear(): void { this.draft = normalizeReaderDisplaySettings(this.settings); this.preview.set(this.draft) }
+  aboutToAppear(): void {
+    this.hdrAvailable = readerHdrBrightnessAvailable(this.getUIContext().getHostContext())
+    this.draft = normalizeReaderDisplaySettings(this.settings)
+    this.preview.set(this.draft)
+  }
   aboutToDisappear(): void { this.preview.set(null) }
 
   private change(edit: (settings: ReaderDisplaySettings) => void, commit: boolean = true): void {
@@ -57,6 +63,12 @@ export struct ReaderDisplaySettingsContent {
           switchAction: (value: boolean): void => { this.change((next): void => { next.brightnessEnabled = value }) } })
         if (this.draft.brightnessEnabled) ReaderDisplayValueSlider({ field: 'brightness', value: this.draft.brightness, min: -75, max: 100,
             onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('brightness', value, mode) } })
+        if (this.hdrAvailable) {
+          ListDivider()
+          ConciseListRow({ title: AppStrings.get('reader_display_hdr_brightness'), hasSwitch: true,
+            checked: this.draft.hdrBrightnessEnabled, showChevron: false,
+            switchAction: (value: boolean): void => { this.change((next): void => { next.hdrBrightnessEnabled = value }) } })
+        }
       }
       GroupedListSection({ inModal: true }) {
         ConciseListRow({ title: AppStrings.get('reader_display_filter_enabled'), hasSwitch: true,
