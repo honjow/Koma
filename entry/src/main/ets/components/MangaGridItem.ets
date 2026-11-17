@@ -1,4 +1,5 @@
-import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
+import { CachedCoverImage, NativeCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
+import { ComicSourceKind } from '../model/ComicModels'
 import { SourceManga } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ConciseListRow } from './ui/ConciseListRow'
@@ -6,11 +7,20 @@ import { ConciseListRow } from './ui/ConciseListRow'
 const SOURCE_LIST_COVER_WIDTH = 56
 const SOURCE_LIST_COVER_HEIGHT = 78
 
+export interface MangaGridCoverOptions {
+  nativeImage: boolean
+  imageId: string
+  sourceKind?: ComicSourceKind
+  remoteServerId?: string
+}
+
 @ComponentV2
 export struct MangaGridItem {
   @Param reserveTitleSpace: boolean = false
   @Param listLayout: boolean = false
   @Param deferOffscreenCover: boolean = false
+  @Param subtitle: string | undefined = undefined
+  @Param coverOptions: MangaGridCoverOptions | undefined = undefined
   @Param manga: SourceManga = {
     id: '',
     sourceId: '',
@@ -39,8 +49,8 @@ export struct MangaGridItem {
   }
 
   private coverFailureKey(): string {
-    return cachedCoverFailureKey(this.manga.coverUrl, this.manga.sourceId, this.manga.id, undefined, undefined,
-      this.manga.url, this.manga.coverHeaders)
+    return cachedCoverFailureKey(this.manga.coverUrl, this.manga.sourceId, this.coverOptions?.imageId ?? this.manga.id,
+      this.coverOptions?.sourceKind, this.coverOptions?.remoteServerId, this.manga.url, this.manga.coverHeaders)
   }
 
   @Builder
@@ -64,15 +74,25 @@ export struct MangaGridItem {
     // ArkUI can pre-layout several screenfuls. A card can keep its measured
     // size without admitting a network request before it enters the viewport.
     if ((!this.deferOffscreenCover || this.coverWasVisible) && this.hasCover()) {
-      CachedCoverImage({
-        uri: this.manga.coverUrl ?? '',
-        objectFit: ImageFit.Cover,
-        sourceRuntimeId: this.manga.sourceId,
-        sourceImageId: this.manga.id,
-        sourceMangaUrl: this.manga.url ?? '',
-        sourceCoverHeaders: this.manga.coverHeaders,
-        onError: () => { this.failedCoverUrl = this.coverFailureKey() },
-      })
+      if (this.coverOptions?.nativeImage === true) {
+        NativeCoverImage({
+          uri: this.manga.coverUrl ?? '',
+          onError: () => { this.failedCoverUrl = this.coverFailureKey() },
+        })
+      } else {
+        CachedCoverImage({
+          uri: this.manga.coverUrl ?? '',
+          coverOwnerId: this.coverOptions === undefined ? '' : this.manga.id,
+          objectFit: ImageFit.Cover,
+          sourceRuntimeId: this.manga.sourceId,
+          sourceImageId: this.coverOptions?.imageId ?? this.manga.id,
+          sourceMangaUrl: this.manga.url ?? '',
+          sourceCoverHeaders: this.manga.coverHeaders,
+          sourceKind: this.coverOptions?.sourceKind,
+          remoteServerId: this.coverOptions?.remoteServerId ?? '',
+          onError: () => { this.failedCoverUrl = this.coverFailureKey() },
+        })
+      }
     }
   }
 
@@ -107,7 +127,17 @@ export struct MangaGridItem {
         .maxLines(2)
         .lineHeight(18)
         .constraintSize({ minHeight: this.reserveTitleSpace ? 36 : 0 })
+        .align(this.subtitle !== undefined ? Alignment.TopStart : Alignment.Center)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+      if (this.subtitle !== undefined) {
+        Text(this.subtitle)
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .maxLines(1)
+          .constraintSize({ minHeight: ThemeConstants.LINE_HEIGHT_BODY })
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)

@@ -1,4 +1,4 @@
-import { CrossSearchResultItem, CrossSearchSection } from './CrossSearchService'
+import { CrossSearchSection } from './CrossSearchService'
 
 // LazyForEach keeps a component when its key is unchanged. Keep each row
 // observable so running -> empty/failed and changing counts repaint in place,
@@ -6,20 +6,17 @@ import { CrossSearchResultItem, CrossSearchSection } from './CrossSearchService'
 @ObservedV2
 export class SearchResultRow {
   key: string
-  kind: 'status' | 'header' | 'result' | 'migration'
+  kind: 'status' | 'header' | 'results'
   @Trace section: CrossSearchSection
-  @Trace item?: CrossSearchResultItem
 
-  constructor(key: string, kind: 'status' | 'header' | 'result' | 'migration',
-    section: CrossSearchSection, item?: CrossSearchResultItem) {
+  constructor(key: string, kind: 'status' | 'header' | 'results', section: CrossSearchSection) {
     this.key = key
     this.kind = kind
     this.section = section
-    this.item = item
   }
 }
 
-/** A flat List source keeps native creation/cover work limited to visible rows. */
+/** The vertical List creates source rows lazily. Each regular result row virtualizes its cards horizontally. */
 export class SearchResultRowSource implements IDataSource {
   private rows: SearchResultRow[] = []
   private listeners: DataChangeListener[] = []
@@ -33,7 +30,7 @@ export class SearchResultRowSource implements IDataSource {
     this.listeners = this.listeners.filter((value: DataChangeListener): boolean => value !== listener)
   }
 
-  update(sections: CrossSearchSection[], migration: boolean, resultsOnly: boolean = false): void {
+  update(sections: CrossSearchSection[], resultsOnly: boolean = false): void {
     const next: SearchResultRow[] = []
     for (const section of sections) {
       if (section.diagnosticCode === 'configuration_loading') continue
@@ -44,10 +41,7 @@ export class SearchResultRowSource implements IDataSource {
         (section.state !== 'ready' || section.items.length === 0)) continue
       if (section.state === 'ready' && section.items.length > 0) {
         next.push(new SearchResultRow(`${section.id}:header`, 'header', section))
-        if (migration) next.push(new SearchResultRow(`${section.id}:migration`, 'migration', section))
-        else section.items.forEach((item: CrossSearchResultItem): void => {
-          next.push(new SearchResultRow(`${section.id}:${item.id}`, 'result', section, item))
-        })
+        next.push(new SearchResultRow(`${section.id}:results`, 'results', section))
       } else {
         next.push(new SearchResultRow(`${section.id}:status`, 'status', section))
       }
@@ -68,9 +62,8 @@ export class SearchResultRowSource implements IDataSource {
         }
         this.rows.splice(index, 0, row)
         this.listeners.forEach((listener: DataChangeListener): void => listener.onDataAdd(index))
-      } else if (previous.section !== row.section || previous.item !== row.item) {
+      } else if (previous.section !== row.section) {
         previous.section = row.section
-        previous.item = row.item
         this.listeners.forEach((listener: DataChangeListener): void => listener.onDataChange(index))
       }
     })

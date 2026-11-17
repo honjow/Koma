@@ -15,11 +15,9 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
-import { CachedCoverImage, NativeCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT } from '../components/SearchTitleField'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import {
-  CrossSearchMatchQuality,
   CrossSearchResultItem,
   CrossSearchSection,
   CrossSearchService,
@@ -51,9 +49,12 @@ import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceManga } from '../model/SourceModels'
-import { MangaGridItem } from '../components/MangaGridItem'
+import { MangaGridCoverOptions, MangaGridItem } from '../components/MangaGridItem'
 
 const SEARCH_DEBOUNCE_MS: number = 400
+const SEARCH_RESULT_CARD_WIDTH: number = 92
+const SEARCH_SIDE_INSET: number = ThemeConstants.SPACE_MD
+const SEARCH_SIDE_PADDING: Padding = { left: SEARCH_SIDE_INSET, right: SEARCH_SIDE_INSET }
 
 enum SearchHistoryLoadState {
   LOADING = 'loading',
@@ -102,7 +103,6 @@ export struct SearchPage {
   @Local private resultRowCount: number = 0
   private resultModeMutationEpoch: number = 0
   private filterMenu: KomaMenuController = new KomaMenuController()
-  @Local private failedCoverUris: string[] = []
   @Local private webChallengeShown: boolean = false
   @Local private webChallengeParams: MangaWebRouteParam = { url: '', title: '' }
   private webChallengeReceipt: SourceWebChallengeReceipt | undefined = undefined
@@ -143,7 +143,7 @@ export struct SearchPage {
 
   @Monitor('sections', 'migrationSources', 'chrome.resultsOnly')
   private updateResultRows(): void {
-    this.resultRows.update(this.sections, this.migrationSources !== undefined, this.chrome.resultsOnly)
+    this.resultRows.update(this.sections, this.chrome.resultsOnly)
     this.resultRowCount = this.resultRows.totalCount()
   }
 
@@ -850,17 +850,19 @@ export struct SearchPage {
     return section.resultCount === 0 ? title : `${title} · ${section.resultCount}`
   }
 
-  private resultSubtitle(item: CrossSearchResultItem): string {
-    if (item.sourceKind === 'wasm' && item.sourceId !== undefined &&
-      (item.subtitle.length === 0 || item.subtitle === item.sourceLabel)) {
-      return sourceDisplayName(item.sourceId, item.sourceLabel)
-    }
-    const subtitle = item.subtitle.length === 0 ? item.sourceLabel : item.subtitle
+  private resultSubtitle(section: CrossSearchSection, item: CrossSearchResultItem): string {
+    const sectionName = this.sourceSectionTitle(section)
+    const detail = item.subtitle.trim()
+    const subtitle = detail === sectionName || detail === item.sourceLabel ? '' : detail
+    // When a chapter name or author is the match, show that clue in the card
+    // so a result with an unrelated title still makes sense.
+    if (subtitle.length > 0 && (item.matchQuality === 'metadata_prefix' ||
+      item.matchQuality === 'metadata_contains')) return subtitle
     const comic = item.sourceKind === 'local' && item.localComicId !== undefined
       ? this.libraryStore.getComic(item.localComicId) : undefined
     const sourceId = comic?.sourceRuntimeId
     const sourceName = sourceId === undefined ? '' : sourceDisplayName(sourceId, comic?.sourceMetadata?.sourceName)
-    return sourceName.length === 0 ? subtitle : `${sourceName} · ${subtitle}`
+    return sourceName.length > 0 && sourceName !== sectionName ? sourceName : subtitle
   }
 
   private sourceFilterLabel(): string {
@@ -1054,126 +1056,57 @@ export struct SearchPage {
     return searchStateUserText(section.state, section.diagnosticCode)
   }
 
-  private matchQualityLabel(matchQuality: CrossSearchMatchQuality | undefined): string {
-    if (matchQuality === 'title_exact') {
-      return s('search_match_title_exact')
-    }
-    if (matchQuality === 'title_prefix') {
-      return s('search_match_title_prefix')
-    }
-    if (matchQuality === 'title_contains') {
-      return s('search_match_title_contains')
-    }
-    if (matchQuality === 'metadata_prefix') {
-      return s('search_match_metadata_prefix')
-    }
-    if (matchQuality === 'metadata_contains') {
-      return s('search_match_metadata_contains')
-    }
-    return s('search_match_weak')
+  private resultCard(item: CrossSearchResultItem): SourceManga {
+    return { id: item.id, sourceId: item.sourceId ?? '', title: item.title,
+      coverUrl: item.coverUri, url: item.sourceMangaUrl }
   }
 
-  private shouldShowCoverUri(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string, sourceMangaUrl?: string): boolean {
-    const normalized = coverUri ?? ''
-    return normalized.length > 0 && this.failedCoverUris.indexOf(cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, undefined, undefined, sourceMangaUrl)) < 0
-  }
-
-  private markCoverUriFailed(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string, sourceMangaUrl?: string): void {
-    const normalized = coverUri ?? ''
-    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, undefined, undefined, sourceMangaUrl)
-    if (normalized.length > 0 && this.failedCoverUris.indexOf(failureKey) < 0) {
-      this.failedCoverUris = this.failedCoverUris.concat([failureKey])
+  private resultCoverOptions(item: CrossSearchResultItem): MangaGridCoverOptions {
+    return {
+      nativeImage: item.sourceKind !== 'kavita' &&
+        (item.sourceKind !== 'wasm' || (item.sourceId?.trim() ?? '').length === 0),
+      imageId: item.kavitaSeriesId ?? item.sourceMangaId ?? item.id,
+      sourceKind: item.sourceKind === 'kavita' ? ComicSourceKind.KAVITA_REMOTE : undefined,
+      remoteServerId: item.remoteServerId,
     }
   }
 
-  private isSourceAwareCover(item: CrossSearchResultItem): boolean {
-    const coverUri = item.coverUri?.trim() ?? ''
-    const sourceId = item.sourceId?.trim() ?? ''
-    return item.sourceKind === 'wasm' && sourceId.length > 0 && coverUri.length > 0
+  private openResultCard(section: CrossSearchSection, id: string): void {
+    const item = section.items.find((value: CrossSearchResultItem): boolean => value.id === id)
+    if (item !== undefined) void this.openResult(item)
   }
 
   @Builder
-  private ResultRow(item: CrossSearchResultItem) {
-    Row({ space: ThemeConstants.SPACE_MD }) {
-      Stack({ alignContent: Alignment.Center }) {
-        if (this.shouldShowCoverUri(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id, item.sourceMangaUrl)) {
-          if (this.isSourceAwareCover(item) || item.sourceKind === 'kavita') {
-            CachedCoverImage({
-              uri: item.coverUri ?? '',
-              objectFit: ImageFit.Cover,
-              sourceRuntimeId: item.sourceId ?? '',
-              sourceImageId: item.kavitaSeriesId ?? item.sourceMangaId ?? item.id,
-              sourceMangaUrl: item.sourceMangaUrl ?? '',
-              sourceKind: item.sourceKind === 'kavita' ? ComicSourceKind.KAVITA_REMOTE : undefined,
-              remoteServerId: item.remoteServerId ?? '',
-              onError: () => {
-                this.markCoverUriFailed(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id, item.sourceMangaUrl)
-              },
-            })
-          } else {
-            NativeCoverImage({
-              uri: item.coverUri ?? '',
-              onError: () => {
-                this.markCoverUriFailed(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id, item.sourceMangaUrl)
-              },
+  private HorizontalResults(row: SearchResultRow) {
+    // Reuse the migration tile. Virtualize both axes of regular search so a
+    // large local result set admits covers only as its cards become visible.
+    List({ space: ThemeConstants.SPACE_SM }) {
+      Repeat<CrossSearchResultItem>(row.section.items)
+        .each((result: RepeatItem<CrossSearchResultItem>) => {
+          ListItem() {
+            MangaGridItem({
+              manga: this.resultCard(result.item),
+              reserveTitleSpace: true,
+              subtitle: this.resultSubtitle(row.section, result.item),
+              deferOffscreenCover: true,
+              coverOptions: this.resultCoverOptions(result.item),
+              // Repeat may recycle this node. Resolve a tap from the current
+              // card identity, never from a closure bound to a previous item.
+              onMangaTap: (manga: SourceManga): void => { this.openResultCard(row.section, manga.id) },
             })
           }
-        } else {
-          SymbolGlyph($r('sys.symbol.book'))
-            .fontSize(ThemeConstants.FONT_SIZE_H2)
-            .fontColor([ThemeConstants.TEXT_TERTIARY])
-        }
-      }
-      .width(64)
-      .height(88)
-      .borderRadius(ThemeConstants.RADIUS_COVER)
-      .clip(true)
-      .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
-
-      Column({ space: ThemeConstants.SPACE_SM }) {
-        Text(item.title)
-          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .maxLines(2)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .width('100%')
-        Text(this.resultSubtitle(item))
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .width('100%')
-        if (item.matchQuality !== undefined) {
-          Text(this.matchQualityLabel(item.matchQuality))
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .width('100%')
-        }
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-
-      if (item.sourceKind === 'webdav') {
-        Text(s('search_result_action_read'))
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
-      } else {
-        SymbolGlyph($r('sys.symbol.chevron_right'))
-          .fontSize(ThemeConstants.FONT_SIZE_H2)
-          .fontColor([ThemeConstants.BRAND_PRIMARY])
-      }
+          .width(SEARCH_RESULT_CARD_WIDTH)
+        })
+        .key((item: CrossSearchResultItem): string => item.id)
+        .virtualScroll()
     }
     .width('100%')
-    .padding(ThemeConstants.SPACE_MD)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
-    .onClick(() => {
-      void this.openResult(item)
-    })
+    .listDirection(Axis.Horizontal)
+    .scrollBar(BarState.Off)
+    .contentStartOffset(SEARCH_SIDE_INSET)
+    .contentEndOffset(SEARCH_SIDE_INSET)
+    .alignListItem(ListItemAlign.Start)
+    .cachedCount(0)
   }
 
   @Builder
@@ -1226,6 +1159,7 @@ export struct SearchPage {
       .alignItems(VerticalAlign.Top)
       .justifyContent(FlexAlign.Start)
       .constraintSize({ minWidth: '100%' })
+      .padding(SEARCH_SIDE_PADDING)
     }
     .scrollable(ScrollDirection.Horizontal)
     .scrollBar(BarState.Off)
@@ -1264,10 +1198,12 @@ export struct SearchPage {
   private SearchResultContent(row: SearchResultRow) {
     if (row.kind === 'header') {
       this.ResultsSectionHeader(row.section)
-    } else if (row.kind === 'result') {
-      this.ResultRow(row.item!)
-    } else if (row.kind === 'migration') {
-      this.MigrationResults(row.section)
+    } else if (row.kind === 'results') {
+      if (this.migrationSources === undefined) {
+        this.HorizontalResults(row)
+      } else {
+        this.MigrationResults(row.section)
+      }
     } else {
       Column({ space: ThemeConstants.SPACE_SM }) {
         this.SectionHeader(this.sourceSectionTitle(row.section))
@@ -1310,6 +1246,9 @@ export struct SearchPage {
       SourceAuthenticationSheetHost({ request: this.authentication, active: this.routeActive && this.chrome.visible })
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
+        // Horizontal result rows own their end insets inside the scrollable
+        // content. Inset other rows individually to keep the full viewport.
+        horizontalPadding: 0,
         pinnedOverlayHeight: SEARCH_TITLE_BOTTOM_HEIGHT,
         bottomPadding: ThemeConstants.SPACE_XL,
         floatingTabTailPadding: this.migrationSources === undefined ? ThemeConstants.FLOATING_TAB_BAR_CLEARANCE : 0,
@@ -1319,6 +1258,7 @@ export struct SearchPage {
             ListItem() {
               this.ActiveFilterBadge()
             }
+            .padding(SEARCH_SIDE_PADDING)
           }
           if (this.feedbackText.length > 0) {
             ListItem() {
@@ -1330,16 +1270,19 @@ export struct SearchPage {
                 .borderRadius(ThemeConstants.RADIUS_CARD)
                 .backgroundColor(ThemeConstants.CARD)
             }
+            .padding(SEARCH_SIDE_PADDING)
           }
           if (!this.loading && this.hasMeaningfulSearchQuery() && this.resultRowCount === 0 && this.totalResultCount() === 0 && this.feedbackText.length === 0) {
             ListItem() {
               this.EmptyResults()
             }
+            .padding(SEARCH_SIDE_PADDING)
           }
           if (!this.loading && !this.hasMeaningfulSearchQuery() && this.feedbackText.length === 0) {
             ListItem() {
               this.HistoryPanel()
             }
+            .padding(SEARCH_SIDE_PADDING)
           }
           if (this.chrome.resultsOnly && this.loading && this.resultRowCount === 0) {
             ListItem() {
@@ -1351,9 +1294,11 @@ export struct SearchPage {
               }.width('100%').padding(ThemeConstants.SPACE_LG)
                 .borderRadius(ThemeConstants.RADIUS_CARD).backgroundColor(ThemeConstants.CARD)
             }
+            .padding(SEARCH_SIDE_PADDING)
           }
           LazyForEach(this.resultRows, (row: SearchResultRow) => {
             ListItem() { this.SearchResultContent(row) }
+              .padding(row.kind === 'results' ? 0 : SEARCH_SIDE_PADDING)
           }, (row: SearchResultRow): string => row.key)
       }
 

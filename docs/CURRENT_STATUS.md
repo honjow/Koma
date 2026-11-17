@@ -86,6 +86,32 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "CROSS_SEARCH_HORIZONTAL_RESULTS",
+      "number": 315,
+      "title": "跨源搜索结果横排与迁移结果贴边",
+      "kind": "pending_verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-17",
+      "reportedAtSource": "本会话用户反馈空间利用率，并要求普通搜索和迁移搜索横排在首尾留白。",
+      "registeredAt": "2026-11-17T20:26:25+08:00",
+      "updatedAt": "2026-11-17T20:26:25+08:00",
+      "status": "237 展开竖屏已完成两个入口实测",
+      "result": "普通搜索按来源横滑，卡片保留封面、两行标题和一行来源或实际命中信息。两处横排视口覆盖 1320px，首尾各留 12vp。237 搜索「海」，同四个书架结果高度 1452→622px，首屏可见线上源分组。修复回收卡片串封面后，尾部点击进入对应详情，返回仍在原位置。迁移使用 Komiic 的 20 张结果验证首、中、末，末端重复滑动位置相同，长按预览后返回保留位置。保留签名候选 4bf0c3716543，原休眠与 10s 超时复核并释租。",
+      "remaining": "验收范围为 237 展开竖屏普通搜索与迁移预览。横屏、外屏、私库搜索和实际迁移写入未走查。",
+      "evidence": [
+        ".hvigor/outputs/search-horizontal-20261117/koma-search-horizontal-final-signed.hap",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/search-horizontal-20261117/04-baseline-results/results.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/search-horizontal-20261117/13-final-search-start/start.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/search-horizontal-20261117/14-final-search-journey/tail.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/search-horizontal-20261117/20-migration-long-results/migration-start.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/search-horizontal-20261117/22-migration-tail-preview/preview.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/search-horizontal-20261117/23-migration-end-confirmed/end.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/search-horizontal-20261117/24-final-power/run-metadata.json"
+      ]
+    },
+    {
       "id": "SUBSCRIPTION_FAILURE_MESSAGES",
       "number": 311,
       "title": "添加订阅时读取失败误报为未保存",
@@ -11294,6 +11320,19 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "cross-search-horizontal-237-20261117",
+      "at": "2026-11-17T20:26:25+08:00",
+      "itemId": "CROSS_SEARCH_HORIZONTAL_RESULTS",
+      "title": "#315 237 核对跨源和迁移搜索首尾留白",
+      "detail": "相同查询「海」的四项书架结果缩为一排。两处横排中段可贴边，首尾各留 12vp。普通结果覆盖滑动到末端、标题封面一致和详情返回。迁移结果覆盖 20 项的末端以及长按预览返回。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/search-horizontal-20261117/13-final-search-start/start.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/search-horizontal-20261117/14-final-search-journey/tail.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/search-horizontal-20261117/23-migration-end-confirmed/end.png"
+      ]
+    },
     {
       "id": "mihon-shelf-native-chapter-row-197-20261117",
       "at": "2026-11-17T20:13:30+08:00",
