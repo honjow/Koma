@@ -2535,7 +2535,13 @@ export struct LibraryPage {
   aboutToAppear(): void {
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext
     const refreshSmart = (): void => { if (this.selectedSmartCategory() !== undefined) this.refreshDisplayedSnapshotFromStore() }
-    this.smartSubscriptions = [OfflineDownloadRuntime.subscribe(context.filesDir, refreshSmart),
+    this.smartSubscriptions = [OfflineDownloadRuntime.subscribe(komaRuntimeStorageKey(context), (signal) => {
+      if (signal !== 'change' || !this.active || !this.rootNavigation.visible) return
+      // Completion and removal can change membership without a shelf edit.
+      // A page-by-page progress notification cannot change availability.
+      if (this.filterAvailability !== 'all') this.refreshDisplayedSnapshotFromStore()
+      else refreshSmart()
+    }),
       new TrackerPreferencesStore(context).subscribeMappings(refreshSmart)]
     this.restoreInitialFilterPreferences()
     this.syncDisplayedSnapshotFromProps()

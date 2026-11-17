@@ -31,6 +31,18 @@ function book(id,source=id){return {id,title:id,sortTitle:id,sourceKind:models.C
  chapters:[0,1].map(index=>({id:id+index,comicId:id,title:''+index,index,pageCount:1,pages:[],createdAt:1,updatedAt:1,sortKey:''+index,sourcePath:''+index}))}}
 const rule=(method,value,exclude=false)=>({method,value,exclude})
 const group=filters=>({id:'smart:1',name:'Smart',sortOrder:0,createdAt:1,updatedAt:1,filters})
+function shelfSubject(names, globals = {}) {
+ const file = path.join(root, 'pages/LibraryPage.ets')
+ const source = fs.readFileSync(file, 'utf8').replace(/\bstruct LibraryPage\b/, 'class LibraryPage')
+ const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
+ const owner = tree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'LibraryPage')
+ const members = names.map(name => owner.members.find(node => node.name?.text === name)).filter(Boolean)
+  .map(method => source.slice(ts.getDecorators(method)?.at(-1)?.end ?? method.getStart(tree), method.end))
+ const code = ts.transpileModule(`class Shelf { ${members.join('\n')} }; Shelf`, {
+  compilerOptions: { target: ts.ScriptTarget.ES2020 },
+ }).outputText
+ return vm.runInNewContext(code, globals)
+}
 test('positive source/category values are OR, methods are AND and exclusions do not rewrite manual membership',()=>{
  const a=book('a'),b=book('b'),c=book('c');a.categoryIds=['favorite'];b.categoryIds=['read_later']
  const context={reader:new InMemoryReaderSessionStore(),downloaded:new Set(),tracked:new Set()}
@@ -52,17 +64,7 @@ test('reading/download/tracking facts dynamically change membership, publication
  assert.equal(smart.comicMatchesSmartCategory(a,selected,context),false)
 })
 test('returning to the shelf picks up new download facts with unchanged book and progress revisions', () => {
- const file = path.join(root, 'pages/LibraryPage.ets')
- const source = fs.readFileSync(file, 'utf8').replace(/\bstruct LibraryPage\b/, 'class LibraryPage')
- const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
- const owner = tree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'LibraryPage')
- const names = ['syncDisplayedSnapshotFromProps', 'usesLiveShelfFiltersOrSort', 'selectedSmartCategory']
- const members = names.map(name => owner.members.find(node => node.name?.text === name))
-  .filter(Boolean).map(method => method.getText(tree).slice(method.getText(tree).indexOf('private ')))
- const code = ts.transpileModule(`class Shelf { ${members.join('\n')} }; Shelf`, {
-  compilerOptions: { target: ts.ScriptTarget.ES2020 },
- }).outputText
- const Shelf = vm.runInNewContext(code)
+ const Shelf = shelfSubject(['syncDisplayedSnapshotFromProps', 'usesLiveShelfFiltersOrSort', 'selectedSmartCategory'])
  const shelf = new Shelf(), library = new InMemoryLibraryStore(), reader = new InMemoryReaderSessionStore()
  const comic = book('offline'), downloaded = new Set()
  library.replaceSmartCategories([group([rule('downloaded')])])
@@ -84,6 +86,36 @@ test('returning to the shelf picks up new download facts with unchanged book and
  downloaded.delete(comic.id)
  shelf.syncDisplayedSnapshotFromProps()
  assert.deepEqual(shelf.visibleIds, [])
+})
+test('a visible ordinary shelf updates its download filter on completion and removal', () => {
+ const { OfflineDownloadRuntime } = load('model/OfflineDownloadRuntime')
+ const filesDir = '/visible-shelf-download-filter'
+ const Shelf = shelfSubject(['aboutToAppear', 'filterAvailabilityComics'], {
+  OfflineDownloadRuntime, TrackerPreferencesStore, komaRuntimeStorageKey: context => context.filesDir,
+ })
+ const shelf = new Shelf(), comic = book('offline'), availability = new Map()
+ Object.assign(shelf, {
+  active: true, rootNavigation: { visible: true }, filterAvailability: 'downloaded',
+  getUIContext: () => ({ getHostContext: () => ({ filesDir }) }), selectedSmartCategory: () => undefined,
+  restoreInitialFilterPreferences() {}, syncDisplayedSnapshotFromProps() {}, updateGridRows() {}, publishTitleBar() {},
+  downloadedComicAvailability: () => availability,
+  refreshDisplayedSnapshotFromStore() { this.visibleIds = Array.from(this.filterAvailabilityComics([comic]), row => row.id) },
+ })
+ shelf.aboutToAppear()
+ try {
+  shelf.refreshDisplayedSnapshotFromStore()
+  const initialResults = shelf.visibleIds
+  OfflineDownloadRuntime.publishProgress(filesDir)
+  assert.equal(shelf.visibleIds, initialResults)
+  availability.set(comic.id, 'downloaded')
+  OfflineDownloadRuntime.publish(filesDir)
+  assert.deepEqual(shelf.visibleIds, [comic.id])
+  availability.delete(comic.id)
+  OfflineDownloadRuntime.publish(filesDir)
+  assert.deepEqual(shelf.visibleIds, [])
+ } finally {
+  shelf.smartSubscriptions.forEach(unsubscribe => unsubscribe())
+ }
 })
 test('rules and work rating survive library/backup serialization; failed persistence retains the original groups',()=>{
  const library=new InMemoryLibraryStore(),a=book('a');a.sourceMetadata={contentRating:'safe'};library.addComic(a)
