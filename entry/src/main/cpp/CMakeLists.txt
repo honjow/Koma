@@ -71,6 +71,10 @@ target_link_options(koma_reader_avif PRIVATE "-Wl,--exclude-libs,ALL")
 target_link_libraries(koma_reader_avif PRIVATE libace_napi.z.so libimage_packer.so libpixelmap.so
     "${KOMA_AVIF_ROOT}/lib/libavif.a" "${KOMA_AVIF_ROOT}/lib/libaom.a" lcms2 m)
 
+add_library(koma_reader_vsync SHARED reader_vsync_module.cpp)
+target_compile_features(koma_reader_vsync PRIVATE cxx_std_17)
+target_link_libraries(koma_reader_vsync PRIVATE libace_napi.z.so libnative_vsync.so)
+
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${KOMA_PROJECT_ROOT}/scripts/prepare-comic-archive.sh")
 execute_process(COMMAND bash "${KOMA_PROJECT_ROOT}/scripts/prepare-comic-archive.sh"

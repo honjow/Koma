@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.1 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-17T21:28:46+08:00",
+  "updatedAt": "2026-11-18T00:15:26+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -85,6 +85,51 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "READER_PAGED_IDLE_VOLUME",
+      "number": 317,
+      "title": "分页阅读停留后首个音量键翻页卡顿",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": "2026-11-17T23:12:26.486+08:00",
+      "reportedAtSource": "本会话原始用户反馈时间（北京时间）。",
+      "registeredAt": "2026-11-17T23:26:41+08:00",
+      "updatedAt": "2026-11-18T00:15:26+08:00",
+      "closedAt": null,
+      "status": "NativeVSync 候选在 200 验证通过",
+      "result": "200 上 Koma 1.5.2（21），书架最近阅读首作第 51 话，停留 30 秒后从第 9 页按音量键翻到第 10 页。系统 VSync 在短暂到 120 Hz 后回到 60 Hz，动画渲染间隔中位数 16.68 ms。相同两页短间隔再次按键为 8.36 ms，停留 30 秒后点按为 8.31 ms，均主要运行在 120 Hz。另一次停留后向右滑在原生翻页动画开始前已进入 120 Hz。音量键回调到动画启动为 25 ms 和 16 ms。录屏核对了同页三种动作，录屏约 60 fps，帧率对照以系统 trace 为准。 同一作品同一页的因果对照依次为静置后直接按键、静置后先在页面内竖滑但未翻页再按键、再次静置后直接按键。两次直接按键都在动画启动约 27 ms 后记录 COMPONENT_ASSURANCE[SWIPER_FLING]，rsCurrRange 从 (0,144,120) 收窄到 (0,60,60)，帧间隔中位数 16.79／16.57 ms。竖滑使系统退出触摸空闲，下一次按键走同一个原生动画，未记录该限帧，帧间隔 8.32 ms。公开图形栈的组件省电函数在触摸空闲时按配置收窄 Swiper 动画帧率范围。 200 实测同页静置 30 秒后，DisplaySync 在原生动画启动前 21／30 ms 提交 120 Hz 请求，结束即撤销，trace 证实 OTHER_DISPLAY_SYNC 进入决策。两次首翻仍分别为 16.64／16.54 ms 一帧，均触发 SWIPER_FLING 组件限帧，随后 DisplaySync 本身也被系统省电策略限制为 60 Hz。对照点按约 8.30 ms，未启用请求。首个候选未发出请求的样本保留为试验记录，结论依据直接发出请求的候选。DisplaySync 试验代码已撤回，原实现重新构建通过。 NativeVSync 签名候选 1.5.2（21）经书架最近阅读首作走到原第 51 话第 9 页，两次静置 30 秒后注入音量键并翻到第 10 页。Swiper 自身仍被限制为 (0,60,60)，系统合并 NativeVSync 后实际主要为 120 Hz，渲染间隔中位数 8.250／8.254 ms，首段仍各有一次约 15 ms。点按为 8.318／8.281 ms，且未发出 NativeVSync 请求。录屏核对音量键、点按和滑动的原生过渡，日志核对动画自然结束或用户返回书架均撤销请求。200 留装候选，读回原续读第 9 页、10 秒超时和休眠，设备租约已释放。",
+      "remaining": "当前结论覆盖 200 同话同页、系统注入音量键的真机对照。实体键、其他设备和发布包未验，候选未发布。",
+      "relatedItems": [
+        "CONTINUOUS_PERFORMANCE"
+      ],
+      "evidence": [
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/comparison-trace-004/audit/cadence.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/comparison-trace-004/run-metadata.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/matched-video-005/recording/summary.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/restore-shelf-006/run-metadata.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/touch-precondition-cause-008/causality.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/touch-precondition-cause-008/run-metadata.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/restore-after-cause-009/run-metadata.json",
+        "https://github.com/openharmony/graphic_graphic_2d/blob/edeb946146f196a5270c7023743fbd96e0e8b9e0/rosen/modules/render_service/core/feature/hyper_graphic_manager/hgm_rp_energy.cpp#L67-L84",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/display-sync-candidate-011/displaysync-comparison.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/display-sync-direct-012/displaysync-comparison.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/display-sync-direct-012/run-metadata.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/restore-original-after-displaysync-013/run-metadata.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/display-sync-reverted-build.log",
+        ".hvigor/outputs/paged-idle-volume-20261117/display-sync-trial.patch",
+        "https://developer.huawei.com/consumer/cn/doc/harmonyos-references/capi-native-vsync-h",
+        "https://github.com/openharmony/graphic_graphic_2d/blob/edeb946146f196a5270c7023743fbd96e0e8b9e0/rosen/modules/hyper_graphic_manager/core/frame_rate_manager/hgm_energy_consumption_policy.cpp#L33-L38",
+        "https://github.com/openharmony/graphic_graphic_2d/blob/edeb946146f196a5270c7023743fbd96e0e8b9e0/rosen/modules/hyper_graphic_manager/core/frame_rate_manager/hgm_frame_rate_manager.cpp#L460-L492",
+        ".hvigor/outputs/paged-idle-volume-20261117/native-vsync-debug-build.log",
+        ".hvigor/outputs/paged-idle-volume-20261117/Koma-1.5.2-native-vsync-debug-signed.hap",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/native-vsync-candidate-014/native-vsync-comparison.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/native-vsync-candidate-014/run-metadata.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/native-vsync-visual-and-exit-015/recording/motion-windows.json",
+        ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/native-vsync-visual-and-exit-015/run-metadata.json"
+      ]
+    },
     {
       "id": "LIBRARY_SMART_CATEGORY_SWITCH_CRASH",
       "number": 316,
@@ -11604,6 +11649,51 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-paged-idle-volume-200-native-vsync-result-20261118",
+      "at": "2026-11-18T00:15:26+08:00",
+      "itemId": "READER_PAGED_IDLE_VOLUME",
+      "title": "#317 NativeVSync 恢复 200 静置首翻至 120 Hz",
+      "detail": "同签候选 1.5.2（21）从书架最近阅读首作进入第 51 话第 9 页，两次静置 30 秒后用系统注入音量键翻到第 10 页。原生 Swiper 渲染间隔中位数由 16.79／16.57 ms 降到 8.250／8.254 ms。首段仍有一次约 15 ms 的间隔，随后系统合并 NativeVSync 请求与动画帧率，实际为 120 Hz。录屏核对音量键、点按、滑动和动画中返回。自然结束和返回均撤销请求。200 留装候选，读回书架原续读位置、10 秒超时和休眠，租约已释。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/native-vsync-candidate-014/native-vsync-comparison.json"
+    },
+    {
+      "id": "reader-paged-idle-volume-native-vsync-research-20261118",
+      "at": "2026-11-18T00:01:41+08:00",
+      "itemId": "READER_PAGED_IDLE_VOLUME",
+      "title": "#317 核对 NativeVSync 的独立帧率请求",
+      "detail": "本机 SDK 已确认公开 API 20。公开图形栈将 NativeVSync 归为独立类型，类型位不与 DisplaySync 或 DisplaySoloist 重合，未超时的请求参与屏幕帧率决策。依赖持续请求帧信号防止投票超时，实际 Swiper 动画收益待同页真机实验。",
+      "kind": "checkpoint",
+      "evidence": "https://github.com/openharmony/graphic_graphic_2d/blob/edeb946146f196a5270c7023743fbd96e0e8b9e0/rosen/modules/hyper_graphic_manager/core/frame_rate_manager/hgm_frame_rate_manager.cpp#L460-L492"
+    },
+    {
+      "id": "reader-paged-idle-volume-200-displaysync-result-20261117",
+      "at": "2026-11-17T23:57:31+08:00",
+      "itemId": "READER_PAGED_IDLE_VOLUME",
+      "title": "#317 DisplaySync 独立申请高帧率的试验无改善",
+      "detail": "200 同页对照确认 120 Hz 申请有效进入系统，首翻仍以约 16.6 ms 渲染，记录组件以及 DisplaySync 的省电限帧。撤回试验并回装原同签测试包，已读回书架第 51 话第 9 页、10 秒超时和休眠，释放租约。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/display-sync-direct-012/displaysync-comparison.json"
+    },
+    {
+      "id": "reader-paged-idle-volume-200-power-policy-cause-20261117",
+      "at": "2026-11-17T23:36:05+08:00",
+      "itemId": "READER_PAGED_IDLE_VOLUME",
+      "title": "#317 定位静置首翻触发系统组件省电限帧",
+      "detail": "200 同一页静置后直接按键两次均命中 SWIPER_FLING 省电标记并降到 60 Hz。中间一轮只先触摸原页，随后相同按键动画保持 120 Hz。已用公开图形栈核对组件限帧分支。200 回到原书架第 51 话第 9 页续读位置，恢复休眠、10 秒超时并释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/touch-precondition-cause-008/causality.json"
+    },
+    {
+      "id": "reader-paged-idle-volume-200-20261117",
+      "at": "2026-11-17T23:26:41+08:00",
+      "itemId": "READER_PAGED_IDLE_VOLUME",
+      "title": "#317 在 200 复现静置后音量键翻页卡顿",
+      "detail": "同页音量键静置样本约 60 Hz，短间隔音量键及静置后的点按约 120 Hz。录屏核对三种入口都完成翻页。已回到原书架，续读第 51 话第 9 页，读回 10 秒超时和休眠，释放 200 租约。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/paged-idle-volume-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-first-paged-idle-volume/comparison-trace-004/audit/cadence.json"
+    },
     {
       "id": "library-smart-category-switch-device200-verified-20261117",
       "at": "2026-11-17T21:28:46+08:00",

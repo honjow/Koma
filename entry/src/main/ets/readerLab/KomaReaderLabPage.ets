@@ -19,13 +19,14 @@ import { ReadingDirection } from '../model/ComicModels'
 import { LibraryAutomationPreferencesStore } from '../model/LibraryAutomationPreferencesStore'
 import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort,
+import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort, ReaderMoveIntent,
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout, ReaderVariantPreference, ReaderAsset, ReaderPage, ReaderPagedFrame,
   ReaderProcessingState } from '@reader-kit/core'
 import { ReaderActivitySink, ReaderAutoReadControlParams, ReaderAutoReadPolicy, ReaderCenterAction, ReaderCropPolicy, ReaderChapterNavigation, ReaderHostAction, ReaderHostSettings, ReaderObservationSink, ReaderPreferenceSink, ReaderHostActions, ReaderMediaActions, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion, ReaderModeControlParams, ReaderTitleParams, ReaderChromeAppearance, ReaderRouteTransition, ReaderVariantPolicy, ReaderTemporaryVariantControl, ReaderHostStatus } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
+import { KomaReaderTurnVSync } from './KomaReaderTurnVSync'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -251,7 +252,10 @@ export struct KomaReaderLabPage {
   private readerClosed: boolean = false
   private initialization: ReaderCancellation | null = null
   private input: ReaderInputPort = new ReaderInputPort()
-  private volumeKeys: ReaderVolumeKeys = new ReaderVolumeKeys(this.input)
+  private volumeInput: ReaderInputPort = new ReaderInputPort()
+  private volumeInputConnection: number = 0
+  private volumeKeys: ReaderVolumeKeys = new ReaderVolumeKeys(this.volumeInput)
+  private volumeTurnVSync: KomaReaderTurnVSync = new KomaReaderTurnVSync()
   private smartKey: ReaderSmartKeyNavigation = new ReaderSmartKeyNavigation((next: boolean): void => {
     if (this.smartKeyAdmitted()) this.input.move(next ? 'next' : 'previous')
   })
@@ -343,6 +347,7 @@ export struct KomaReaderLabPage {
   }
 
   aboutToAppear(): void {
+    this.volumeInputConnection = this.volumeInput.connect((intent: ReaderMoveIntent): boolean => this.moveFromVolumeKey(intent))
     // Warm the automation policy cache here so the first post-read cleanup
     // never performs its two native preference calls inside a scroll window.
     void new LibraryAutomationPreferencesStore(
@@ -358,6 +363,7 @@ export struct KomaReaderLabPage {
   @Monitor('request')
   private onEntryRequestChanged(): void {
     if (!this.productionEntry) return
+    this.volumeTurnVSync.close()
     this.initialization?.cancel()
     this.session?.close()
     this.adapter?.close()
@@ -519,6 +525,7 @@ export struct KomaReaderLabPage {
     this.chapterPickerTarget = null
     this.initialization?.cancel()
     this.volumeKeys.close()
+    this.volumeInput.disconnect(this.volumeInputConnection)
     this.smartKey.close()
     this.gazePageTurn.dispose()
     this.cancelChapterRequest()
@@ -611,10 +618,26 @@ export struct KomaReaderLabPage {
   syncVolumeKeys(): void {
     const enabled = this.request.volumeKeysOverride ??
       (this.hostPreferences?.volumeKeyNavigationEnabled ?? this.readerMode.volumeKeyNavigationEnabled)
-    this.volumeKeys.setActive(!this.readerClosed && this.request.readingChrome && this.session !== null &&
+    const active = this.volumeKeys.setActive(!this.readerClosed && this.request.readingChrome && this.session !== null &&
       this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated &&
       !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && enabled,
       (this.hostPreferences?.volumeKeyBehavior ?? this.readerMode.volumeKeyBehavior) === 'up_next_down_previous')
+    if (active) {
+      this.volumeTurnVSync.prepare()
+    } else {
+      this.volumeTurnVSync.close()
+    }
+  }
+
+  private moveFromVolumeKey(intent: ReaderMoveIntent): boolean {
+    if (!this.input.move(intent)) return false
+    const animated = this.request.pageTurnAnimationOverride ??
+      (this.hostPreferences?.pageTurnAnimation ?? this.readerMode.pageTurnAnimation)
+    if (!animated) return true
+    const layout = this.session?.displayPolicyForUnit(this.observedCatalogUnit ?? this.unitKey)?.layout ??
+      this.session?.snapshot().policy.layout
+    if (layout !== undefined && layout !== 'continuous') this.volumeTurnVSync.start()
+    return true
   }
 
   private gazeRequested(): boolean {
@@ -1213,6 +1236,7 @@ export struct KomaReaderLabPage {
   private cacheSettleTimer: number = -1
 
   private setEnhancementInteractionBusy(busy: boolean): void {
+    if (!busy) this.volumeTurnVSync.stop()
     if (this.enhancementInteractionTimer >= 0) clearTimeout(this.enhancementInteractionTimer)
     this.enhancementInteractionTimer = -1
     if (this.cacheSettleTimer >= 0) clearTimeout(this.cacheSettleTimer)
@@ -1236,6 +1260,7 @@ export struct KomaReaderLabPage {
   }
 
   private releaseEnhancementInteraction(): void {
+    this.volumeTurnVSync.close()
     if (this.enhancementInteractionTimer >= 0) clearTimeout(this.enhancementInteractionTimer)
     this.enhancementInteractionTimer = -1
     if (this.cacheSettleTimer >= 0) clearTimeout(this.cacheSettleTimer)
