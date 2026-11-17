@@ -75,6 +75,7 @@ export function cachedCoverFailureKey(
 @ComponentV2
 export struct CachedCoverImage {
   @Param uri: string = ''
+  @Param coverOwnerId: string = ''
   @Param objectFit: ImageFit = ImageFit.Cover
   @Param sourceRuntimeId: string = ''
   @Param sourceImageId: string = ''
@@ -85,6 +86,7 @@ export struct CachedCoverImage {
   @Param decodeMaxEdge: number = COVER_DECODE_MAX_EDGE
   @Event onError: () => void = () => {}
   @Local private pixelMap: image.PixelMap | undefined = undefined
+  @Local private displayedOwnerId: string = ''
   @Local private animatedCover: AnimatedCover | undefined = undefined
   @Local private animatedCoverVisible: boolean = false
   @Local private fadeStaticCover: boolean = false
@@ -92,6 +94,7 @@ export struct CachedCoverImage {
   @Local private failedSignature: string = ''
   private disposed: boolean = false
   private sourceSignature: string = ''
+  private requestedOwnerId: string = ''
   // This is deliberately separate from sourceSignature. During a source
   // change, sourceSignature describes the requested cover while the current
   // PixelMap may still be the previously rendered cover until the replacement
@@ -199,6 +202,7 @@ export struct CachedCoverImage {
     this.pixelMap = lease.pixelMap
     this.animatedCover = undefined
     this.displayedSignature = signature
+    this.displayedOwnerId = this.requestedOwnerId
     this.failedSignature = ''
     this.completedAutomaticRetries = 0
     this.cancelAutomaticRetry()
@@ -342,6 +346,7 @@ export struct CachedCoverImage {
           this.animatedCoverVisible = false
           this.animatedCover = { uri: displayUri, signature, generation }
           this.displayedSignature = signature
+          this.displayedOwnerId = this.requestedOwnerId
           this.failedSignature = ''
           return
         }
@@ -418,7 +423,8 @@ export struct CachedCoverImage {
       nextRemoteServerId,
       nextSourceMangaUrl,
     )
-    if (this.sourceSignature === nextSignature &&
+    const ownerChanged = this.requestedOwnerId !== this.coverOwnerId
+    if (!ownerChanged && this.sourceSignature === nextSignature &&
       (this.displayedSignature === nextSignature ||
         (this.loading && this.loadingSignature === nextSignature && this.loadingGeneration === this.decodeGeneration))) {
       return
@@ -431,12 +437,19 @@ export struct CachedCoverImage {
     this.loading = false
     this.loadingSignature = ''
     this.loadingGeneration = 0
+    this.requestedOwnerId = this.coverOwnerId
     // A removed cover has no replacement to resolve, so the old lease can be
     // returned immediately. For a non-empty replacement, retain it until
     // decodeImage installs the new lease through replacePixelMap().
     if (nextUri.length === 0) {
       await this.releasePixelMap()
       return
+    }
+    // Reused shelf slots can keep the image node. Previous work leases must
+    // disappear immediately, even if the replacement still needs decoding.
+    if (ownerChanged) {
+      this.failedSignature = ''
+      void this.releasePixelMap()
     }
     if (!this.disposed && this.sourceSignature === nextSignature && this.decodeGeneration === generation) {
       await this.decodeImage(
@@ -452,7 +465,7 @@ export struct CachedCoverImage {
     }
   }
 
-  @Monitor('uri', 'sourceRuntimeId', 'sourceImageId', 'sourceKind', 'remoteServerId', 'sourceMangaUrl', 'sourceCoverHeaders', 'decodeMaxEdge')
+  @Monitor('uri', 'coverOwnerId', 'sourceRuntimeId', 'sourceImageId', 'sourceKind', 'remoteServerId', 'sourceMangaUrl', 'sourceCoverHeaders', 'decodeMaxEdge')
   onSourceChanged(): void {
     this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId, this.sourceKind, this.remoteServerId, this.sourceMangaUrl)
   }
@@ -471,7 +484,7 @@ export struct CachedCoverImage {
 
   build() {
     Stack() {
-      if (this.pixelMap !== undefined) {
+      if (this.pixelMap !== undefined && this.displayedOwnerId === this.coverOwnerId) {
         Image(this.pixelMap)
           .width('100%')
           .height('100%')
@@ -481,7 +494,7 @@ export struct CachedCoverImage {
             ? TransitionEffect.asymmetric(TransitionEffect.OPACITY.animation({ duration: COVER_FADE_DURATION_MS, curve: Curve.EaseOut }), TransitionEffect.IDENTITY)
             : TransitionEffect.IDENTITY)
       }
-      if (this.animatedCover !== undefined) {
+      if (this.animatedCover !== undefined && this.displayedOwnerId === this.coverOwnerId) {
         this.AnimatedCoverImage(this.animatedCover)
       }
     }

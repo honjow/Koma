@@ -6,7 +6,7 @@ const path = require('node:path')
 const ts = require(process.env.KOMA_TYPESCRIPT || '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/LibraryPersistence.ets'), 'utf8')
 const tree = ts.createSourceFile('persistence.ts', source, ts.ScriptTarget.Latest, true)
-const names = ['upsertComicAndPersistLibraryStore', 'retainLibrarySourceNameAndPersist', 'refreshSourceComicCoverAndPersistLibraryStore', 'refreshSourceChapterMetadataAndPersistLibraryStore', 'refreshSourceMangaDetailAndPersistLibraryStore']
+const names = ['upsertComicAndPersistLibraryStore', 'retainLibrarySourceNameAndPersist', 'refreshSourceComicCoverAndPersistLibraryStore', 'refreshSourceChapterMetadataAndPersistLibraryStore', 'refreshSourceMangaDetailAndPersistLibraryStore', 'updatedSourceMangaDetail']
 function productionFunctions(name) {
   const text = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/', name + '.ets'), 'utf8')
   const file = ts.createSourceFile(name + '.ts', text, ts.ScriptTarget.Latest, true)
@@ -160,23 +160,28 @@ test('metadata save failure rolls back all stored comics and preserves held owne
 const pageSource = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/pages/MangaDetailPage.ets'), 'utf8').replace(/\bstruct (\w+)/g, 'class $1')
 const pageTree = ts.createSourceFile('page.ts', pageSource, ts.ScriptTarget.Latest, true)
 const pageOwner = pageTree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'MangaDetailPage')
-const pageMethods = ['refreshSourceLibraryDetail', 'applySourceMangaDetail'].map(name => pageOwner.members.find(node => node.name?.text === name).getText(pageTree)).join('\n')
+const pageMethods = ['refreshSourceLibraryDetail', 'applySourceMangaDetail', 'shouldRenderChapterList']
+  .map(name => pageOwner.members.find(node => node.name?.text === name).getText(pageTree)).join('\n')
 const sameChapterRow = pageTree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'sameDetailChapterRow').getText(pageTree)
+const detailFrame = pageTree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'DetailBodyAfterFrame').getText(pageTree)
 function detailFixture() {
-  const f = chapterFixture(), out = {}, notifications = [], errors = []
-  const compiled = ts.transpileModule(sameChapterRow + '\nexport class Page { ' + pageMethods + ' }', { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
+  const f = chapterFixture(), out = {}, notifications = [], errors = [], frames = []
+  const compiled = ts.transpileModule(sameChapterRow + '\n' + detailFrame + '\nexport class Page { ' + pageMethods + ' }',
+    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
   new Function('exports', 'refreshSourceMangaDetailAndPersistLibraryStore', 'DiagnosticLogger', 'SourceDetailContentState',
     'reconcileSourceChapterIdentity', 'protectedSourceChapterIds', 'getContext', 'mangaChapterItemFromComicChapter',
-    'sourceChapterDisplayRows', 'appSourceRuntimeRegistry', 'UIUtils', compiled)(
-    out, exportsForTest.refreshSourceMangaDetailAndPersistLibraryStore, { exception: (...args) => errors.push(args) }, { READY: 'ready' },
+    'sourceChapterDisplayRows', 'appSourceRuntimeRegistry', 'UIUtils', 'komaContentStorageBase', 'komaRuntimeStorageKey', 'FrameCallback', compiled)(
+    out, exportsForTest.refreshSourceMangaDetailAndPersistLibraryStore, { exception: (...args) => errors.push(args) }, { READY: 'ready', LOCAL: 'local' },
     (_comic, _id, chapters) => ({ chapters, storedChapters: f.store.getComic('owned-work').chapters }), () => [], () => ({ filesDir: 'unused' }),
-    chapter => clone(chapter), exportsForTest.sourceChapterDisplayRows, { lookup: () => ({}) }, { getTarget: value => value })
+    chapter => clone(chapter), exportsForTest.sourceChapterDisplayRows, { lookup: () => ({}) }, { getTarget: value => value },
+    context => context.filesDir, context => context.filesDir, class {})
   const page = new out.Page()
   Object.assign(page, { chapters: [], sourceChaptersResolved: true, sourceDetailSettingsFingerprint: '', libraryStore: f.store, libraryPersistenceService: f.service,
     isCurrentSourceDetailRequest: () => true, sourceDetailWithRouteIdentity: detail => ({ ...detail }),
     sourceComicId: () => 'owned-work', findSourceRuntimeComic: () => f.store.getComic('owned-work'),
-    onLibraryChanged: () => notifications.push(true), decorateChapterStates: chapters => chapters, refreshDownloadStatus: () => {} })
-  return { ...f, page, notifications, errors }
+    onLibraryChanged: () => notifications.push(true), decorateChapterStates: chapters => chapters,
+    getUIContext: () => ({ postFrameCallback: callback => frames.push(callback) }) })
+  return { ...f, page, notifications, errors, frames }
 }
 test('detail publication persists only the explicitly resolved snapshot, not pending data with an old resolved state', () => {
   const f = detailFixture(), entry = { manifestName: 'Owned' }
@@ -205,6 +210,20 @@ test('stale detail epoch and unresolved directories cannot write sequence metada
   assert.equal(f.page.applySourceMangaDetail(1, {}, 'owned-source', 'owned-remote', { title: 'Owned title' }, f.remote, '', 'ready', true), true)
   assert.equal(f.saves(), 0); assert.equal(f.notifications.length, 0)
   assert.deepEqual(f.store.getComic('owned-work'), f.before)
+})
+test('a Mihon catalog already saved with its reading state shows without a second library write', () => {
+  const f = detailFixture()
+  const detail = { title: 'Linked work', coverUrl: 'https://owned.invalid/new' }
+  assert.equal(f.page.applySourceMangaDetail(1, {}, 'owned-source', 'owned-remote', detail, f.remote, '', 'ready', true, [], true), true)
+  assert.equal(f.page.manga.title, detail.title)
+  assert.ok(f.page.chapters.some(chapter => chapter.id === 'new-remote-only'))
+  assert.equal(f.page.detailChaptersReady, false)
+  f.frames.shift().onFrame(0)
+  assert.equal(f.page.detailChaptersReady, false)
+  f.frames.shift().onFrame(1)
+  assert.equal(f.page.detailChaptersReady, true)
+  assert.equal(f.saves(), 0)
+  assert.equal(f.notifications.length, 0)
 })
 test('detail persistence failure keeps readable detail and catalog without publishing a false library change', () => {
   const f = detailFixture()

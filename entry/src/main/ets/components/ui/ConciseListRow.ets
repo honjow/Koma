@@ -1,6 +1,7 @@
 import { komaMenuOptions } from '../../theme/KomaPopupOptions'
 import {
   HdsListItemCard,
+  HdsListItemCardOptions,
   PrefixCustomBuilder,
   PrefixImage,
   SuffixCustomBuilder,
@@ -20,6 +21,16 @@ import { ThemeConstants } from '../../theme/ThemeConstants'
 @ObservedV2
 export class SourceIdentityIconState {
   @Trace uri: string = ''
+}
+
+export function conciseCardOptions(options: HdsListItemCardOptions,
+  radius: number = ThemeConstants.LIST_ROW_RADIUS): HdsListItemCardOptions {
+  options.cardPrefixMargin = 0
+  options.cardSuffixMargin = 0
+  options.cardBackgroundColor = Color.Transparent
+  options.cardBorderRadius = radius
+  options.hoverBorderRadius = radius
+  return options
 }
 
 @ComponentV2
@@ -574,7 +585,7 @@ export struct ConciseListRow {
 
   @Builder
   private RowContent() {
-    HdsListItemCard({
+    HdsListItemCard(conciseCardOptions({
       textItem: {
         customBuilder: this.textBuilderParam ? () => { this.WrappedTextBuilder() }
           : (this.subtitleContentRating ? () => { this.ContentRatedText() } : undefined),
@@ -587,13 +598,8 @@ export struct ConciseListRow {
           modifier: this.secondaryTextModifier(),
         } : undefined,
       },
-      cardPrefixMargin: 0,
-      cardSuffixMargin: 0,
       prefixItem: this.prefixItem(),
       suffixItem: this.suffixItem(),
-      cardBackgroundColor: Color.Transparent,
-      cardBorderRadius: this.resolvedSurfaceRadius(),
-      hoverBorderRadius: this.resolvedSurfaceRadius(),
       enable: this.hasSwitch ? true : this.isEnabled,
       onClick: () => {
         if (this.isEnabled) {
@@ -605,7 +611,7 @@ export struct ConciseListRow {
           }
         }
       },
-    })
+    }, this.resolvedSurfaceRadius()))
   }
 
   build() {

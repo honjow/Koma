@@ -14,8 +14,8 @@ export interface SyncReadingSource {
   work: string
 }
 
-let restoreStarted: (() => void) | undefined
-let restoreFinished: ((committed: boolean) => void) | undefined
+let restoreStarted: ((catalogMerge: boolean) => void) | undefined
+let restoreFinished: ((committed: boolean, additive: boolean) => void) | undefined
 let changed: ((group: SyncGroup) => void) | undefined
 let searchHistoryRemoved: ((query?: string) => void) | undefined
 
@@ -35,17 +35,18 @@ export function signalDeviceSyncSearchRemoved(query?: string): void {
   searchHistoryRemoved?.(query)
 }
 
-export function connectDeviceSyncRestore(onStart: () => void, onFinish: (committed: boolean) => void): void {
+export function connectDeviceSyncRestore(onStart: (catalogMerge: boolean) => void,
+  onFinish: (committed: boolean, catalogMerge: boolean) => void): void {
   restoreStarted = onStart
   restoreFinished = onFinish
 }
 
-export function signalDeviceSyncRestoreStart(): void {
-  restoreStarted?.()
+export function signalDeviceSyncRestoreStart(catalogMerge: boolean = false): void {
+  restoreStarted?.(catalogMerge)
 }
 
-export function signalDeviceSyncRestoreFinish(committed: boolean): void {
-  restoreFinished?.(committed)
+export function signalDeviceSyncRestoreFinish(committed: boolean, catalogMerge: boolean = false): void {
+  restoreFinished?.(committed, catalogMerge)
 }
 
 let allowProgress: ((progress: ReadingProgress) => boolean) | undefined

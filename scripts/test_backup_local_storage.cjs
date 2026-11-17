@@ -263,11 +263,22 @@ test('Mihon import merges an existing edition and keeps a newer local reading po
  const exactChapter = { ...shelfChapter, id: 'chapter:example:17:20' }
  const samePage = { ...shelfEdition, chapters: [exactChapter] }
  const exact = { progress: [], sourceHistory: [], chapterStates: [] }
- planning.mergeMihonReading(exact, [{ record: from, target: samePage, sameEdition: true,
+ const exactImport = { record: from, target: samePage, sameEdition: true,
   identity: { sourceIds: [work.sourceId], work: { pathPrefix: '/', idPrefix: '/' }, samePageOrder: true,
-   chapter: { pathPrefix: '/work/', pathSuffix: '/chapter/6', idPrefix: '', targetIdSegment: 2 } } }])
+   chapter: { pathPrefix: '/work/', pathSuffix: '/chapter/6', idPrefix: '', targetIdSegment: 2 } } }
+ planning.mergeMihonReading(exact, [exactImport])
  assert.equal(exact.progress[0].chapterId, exactChapter.id)
  assert.equal(exact.progress[0].pageIndex, 4)
+ const fallback = { ...exact.progress[0], pageIndex: 0, pageId: undefined, totalPages: 0 }
+ exact.progress = [fallback]
+ exact.chapterStates[0].position = fallback
+ planning.mergeMihonReading(exact, [exactImport])
+ assert.equal(exact.progress[0].pageIndex, 4)
+ const later = { ...fallback, updatedAt: fallback.updatedAt + 1, pageIndex: 1, totalPages: 17 }
+ exact.progress = [later]
+ exact.chapterStates[0].position = later
+ planning.mergeMihonReading(exact, [exactImport])
+ assert.equal(exact.progress[0].pageIndex, 1)
 })
 
 test('Mihon package rules map the saved path and reject foreign addresses or traversal', () => {
@@ -296,6 +307,16 @@ test('Mihon package rules map the saved path and reject foreign addresses or tra
  const photo = {pathPrefix: '/photo/', idPrefix: '', pathIdSegment: 0, targetIdSegment: 2}
  assert.equal(identity.mihonPathIdentity('/photo/1478353', photo), '1478353')
  assert.equal(identity.mihonPathIdentity('/photo/1478353/', photo), '1478353')
+ const catalog = { sourceIds: ['5724751873601868259'], work: { pathPrefix: '/comic/', idPrefix: 'manga:' },
+  chapter: { pathPrefix: '/user/page_direct?comic_id=', pathWorkIdSeparator: '&section_slot=0&chapter_slot=',
+   idPrefix: '', targetIdSegment: 2 }, samePageOrder: true }
+ const address = '/user/page_direct?comic_id=book&section_slot=0&chapter_slot=1242#最终章：再见'
+ assert.equal(identity.validMihonSourceIdentity(catalog), true)
+ assert.equal(identity.mihonChapterPathIdentity(address, 'manga:book', catalog), '1242')
+ assert.equal(identity.mihonTargetChapterId('chapter:book:1242#最終章：再見', catalog.chapter), '1242')
+ assert.equal(identity.mihonChapterPathIdentity(address, 'manga:another-book', catalog), undefined)
+ assert.equal(identity.mihonChapterPathIdentity(address.replace('section_slot=0', 'section_slot=1'),
+  'manga:book', catalog), undefined)
  for (const input of ['https://other.example/detail/917.html', '/detail/../917.html', '/detail/.html']) {
   assert.equal(identity.mihonPathIdentity(input, source.work), undefined)
  }

@@ -1,9 +1,10 @@
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
 import { fileIo as fs } from '@kit.CoreFileKit'
+import { hiTraceMeter } from '@kit.PerformanceAnalysisKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { signalDeviceSyncChange, signalDeviceSyncRestoreStart, signalDeviceSyncRestoreFinish } from '../deviceSync/DeviceSyncSignals'
-import { beginAutomationRestore, finishAutomationRestore } from './AutomationStateEpoch'
+import { beginAutomationRestore } from './AutomationStateEpoch'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { BackupRestoreCheckpoint } from './BackupRestoreCheckpoint'
 import { LIBRARY_STORE_PERSISTENCE_FILE_NAME } from './LibraryPersistence'
@@ -12,13 +13,13 @@ import { appReaderSessionStore, ChapterReadingState, READER_PROGRESS_PERSISTENCE
 import { MihonImportRecord } from './MihonBackupReader'
 import { Comic } from './ComicModels'
 import { MihonImportSummary, matchingMihonShelfWork, mihonDeclaredWork, mihonMatchText, mihonSourceMatcher, pickMihonSourceWork } from './MihonImportPlanning'
-import { MihonLinkRequest, MihonPreparedTransaction, MihonSourceMatch, MihonTransactionRequest,
-  prepareMihonTransactionTask, previewMihonBackupTask } from './MihonImportWorker'
+import { MihonCatalogLink, MihonLinkRequest, MihonPreparedTransaction, MihonSourceMatch, MihonTransactionRequest,
+  finishMihonAutomationRestoreTask, prepareMihonTransactionTask, previewMihonBackupTask } from './MihonImportWorker'
 import { SourceRuntimeRegistryEntry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { MihonSourceIdentity } from '../sourceRuntime/MihonSourceIdentity'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
-import { mangaMigrationComicFromCatalog, prepareMangaMigration } from './SourceMangaMigrationService'
+import { prepareMangaMigration } from './SourceMangaMigrationService'
 import { SourceMangaDetailSnapshot } from './SourceMangaDetailSnapshotCache'
 import { SourceRuntimeError } from './SourceRuntimeError'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -111,13 +112,13 @@ export class MihonImportService {
       work.id !== snapshot.detail.id) return false
     const entry = appSourceRuntimeRegistry.lookup(work.sourceId).entry
     if (entry === undefined || !entry.enabled) return false
-    const comic = mangaMigrationComicFromCatalog(work.sourceId, work.id, snapshot, settingsFingerprint)
     const current = (): boolean => isCurrent() && entry.enabled &&
       appSourceRuntimeRegistry.lookup(work.sourceId).entry === entry
-    const result = await this.commit([{ id, target: comic, verifiedEdition: true, identity: entry.mihonImport }],
-      undefined, undefined, current)
-    return result.targetComicId !== undefined || this.library.listMihonImports()
-      .some((row: MihonImportRecord): boolean => row.id === id && row.targetComicId !== undefined)
+    const catalog: MihonCatalogLink = { id, detail: snapshot.detail, chapters: snapshot.chapters,
+      excludedChapterIds: snapshot.excludedChapterIds ?? [], settingsFingerprint, identity: entry.mihonImport,
+      chapterPolicy: entry.websitePolicy?.chapterIdentity }
+    const result = await this.commit(undefined, undefined, undefined, current, catalog)
+    return result.targetComicId !== undefined
   }
 
   /** Retry only this work before the history entry falls back to source selection. */
@@ -295,7 +296,10 @@ export class MihonImportService {
       else if (kind === 'imports') (rows as MihonImportRecord[]).forEach((row: MihonImportRecord): void => { imports.push(row) })
       else if (kind === 'chapters') (rows as ChapterReadingState[]).forEach((row: ChapterReadingState): void => { chapters.push(row) })
     })
-    const result = await taskpool.execute(task) as MihonPreparedTransaction
+    hiTraceMeter.startTrace('KomaMihonQueueMerge', 0)
+    const execution = taskpool.execute(task)
+    hiTraceMeter.finishTrace('KomaMihonQueueMerge', 0)
+    const result = await execution as MihonPreparedTransaction
     await received
     result.library.comics = comics
     result.library.mihonImports = imports
@@ -304,7 +308,7 @@ export class MihonImportService {
   }
 
   private async commit(links?: MihonLinkRequest[], bytes?: ArrayBuffer,
-    sourceMatches?: MihonSourceMatch[], isCurrent?: () => boolean): Promise<MihonImportResult> {
+    sourceMatches?: MihonSourceMatch[], isCurrent?: () => boolean, catalogLink?: MihonCatalogLink): Promise<MihonImportResult> {
     if (bytes !== undefined) {
       BackupRestoreActivity.beginRestore()
     } else if (!await BackupRestoreActivity.beginRestoreWhenIdle(isCurrent)) {
@@ -317,25 +321,31 @@ export class MihonImportService {
     const reader = appReaderSessionStore(context.filesDir)
     const tracker = new TrackerPreferencesStore(context)
     try {
-      signalDeviceSyncRestoreStart()
+      signalDeviceSyncRestoreStart(catalogLink !== undefined)
       beginAutomationRestore(context)
       automationPrepared = true
       if (!await reader.flushAsync()) throw new Error('reader_progress_save_failed')
       const beforeMappings = tracker.mappingSnapshot()
-      const request: MihonTransactionRequest = { bytes, links, sourceMatches, identities: this.sourceIdentities(),
-        sources: appSourceRuntimeRegistry.listInstalledSourceSummaries(), trackerMappings: beforeMappings,
+      // The detail may reference ArkUI-observed tags or chapter rows. Send
+      // only one work's plain data across the TaskPool boundary.
+      const catalogLinkJson = catalogLink === undefined ? undefined : JSON.stringify(catalogLink)
+      const identities = catalogLink === undefined ? this.sourceIdentities() : new Map<string, MihonSourceIdentity>()
+      if (catalogLink?.identity !== undefined && catalogLink.detail.sourceId !== undefined) {
+        identities.set(catalogLink.detail.sourceId, catalogLink.identity)
+      }
+      const request: MihonTransactionRequest = { bytes, links, sourceMatches, catalogLinkJson, identities,
+        sources: bytes === undefined ? [] : appSourceRuntimeRegistry.listInstalledSourceSummaries(), trackerMappings: beforeMappings,
         labels: { untitled: AppStrings.get('manga_detail_title_fallback'),
           unnamedSource: AppStrings.get('mihon_import_unnamed_source') } }
-      checkpoint = await BackupRestoreCheckpoint.prepare(context)
+      checkpoint = await BackupRestoreCheckpoint.prepare(context, true)
       const staged = checkpoint.stagedFilesDirectory()
       const prepared = await this.prepareTransaction(staged, request)
-      fs.renameSync(staged + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME, context.filesDir + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME)
-      fs.renameSync(staged + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME, context.filesDir + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME)
+      await fs.rename(staged + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME, context.filesDir + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME)
+      await fs.rename(staged + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME, context.filesDir + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME)
       if (prepared.trackerMappings.length > beforeMappings.length) {
         await tracker.saveComicMappingsForBackupRestore(prepared.trackerMappings)
       }
-      tracker.invalidateMappingSnapshot()
-      checkpoint.commit()
+      await checkpoint.commitAsync()
       committed = true
       const linked = prepared.linkedComicIds
       if (linked === undefined) {
@@ -347,6 +357,7 @@ export class MihonImportService {
         for (const comic of prepared.library.comics) this.library.upsertComic(comic)
         this.library.updateMihonImports(prepared.library.mihonImports)
       }
+      if (prepared.trackerMappings.length > beforeMappings.length) tracker.invalidateMappingSnapshot()
       return { unmatchedChapters: prepared.unmatchedChapters, targetComicId: prepared.targetComicId }
     } catch (error) {
       if (checkpoint !== undefined && !committed) {
@@ -363,14 +374,19 @@ export class MihonImportService {
       throw error as Error
     } finally {
       try {
-        if (automationPrepared) finishAutomationRestore(context)
+        if (automationPrepared) await taskpool.execute(finishMihonAutomationRestoreTask, context.filesDir)
       } finally {
         BackupRestoreActivity.finishRestore()
-        // An additive import preserves the current connection and sync policy.
-        signalDeviceSyncRestoreFinish(false)
-        if (committed && sourceMatches === undefined) {
-          signalDeviceSyncChange('shelf')
-          signalDeviceSyncChange('reading')
+        hiTraceMeter.startTrace('KomaMihonResumeSync', 0)
+        try {
+          // An additive import preserves the current connection and sync policy.
+          signalDeviceSyncRestoreFinish(false, catalogLink !== undefined)
+          if (committed && sourceMatches === undefined) {
+            signalDeviceSyncChange('shelf')
+            signalDeviceSyncChange('reading')
+          }
+        } finally {
+          hiTraceMeter.finishTrace('KomaMihonResumeSync', 0)
         }
       }
     }

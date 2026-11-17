@@ -1017,6 +1017,16 @@ export function refreshSourceMangaDetailAndPersistLibraryStore(
   const previous = libraryStore.getComic(comicId)
   if (previous === undefined || previous.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY ||
     previous.sourceRuntimeId !== sourceId || previous.remoteResourceId !== mangaId) return false
+  const next = updatedSourceMangaDetail(previous, detail, chapters, chaptersResolved, excludedChapterIds,
+    settingsFingerprint)
+  if (JSON.stringify(next) === JSON.stringify(previous)) return false
+  upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)
+  return true
+}
+
+/** Also used by the Mihon worker to write a freshly linked catalog in its existing transaction. */
+export function updatedSourceMangaDetail(previous: Comic, detail: MangaDetail, chapters: MangaChapterItem[],
+  chaptersResolved: boolean, excludedChapterIds: string[], settingsFingerprint: string): Comic {
   const next = JSON.parse(JSON.stringify(previous)) as Comic
   if (detail.title.trim().length > 0) {
     next.title = detail.title
@@ -1054,9 +1064,7 @@ export function refreshSourceMangaDetailAndPersistLibraryStore(
     enrichSourceChapterMetadata(next, chapters)
     setCompleteSourceChapterCatalog(next, chapters.map((chapter: MangaChapterItem): string => chapter.id), now)
   }
-  if (JSON.stringify(next) === JSON.stringify(previous)) return false
-  upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)
-  return true
+  return next
 }
 
 /** Persist metadata for matching stored chapters only, without adding/removing chapters or replacing reading state. */

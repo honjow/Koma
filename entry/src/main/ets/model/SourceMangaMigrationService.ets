@@ -1,7 +1,6 @@
 import { ReaderPreferencesStore } from './ReaderPreferencesStore'
 import { common } from '@kit.AbilityKit'
-import { Comic, Chapter, sameComicIdentity, copyComicPersonalFields, copyComicUpdateSchedule,
-  setCompleteSourceChapterCatalog } from './ComicModels'
+import { Comic, Chapter, sameComicIdentity, copyComicPersonalFields, copyComicUpdateSchedule } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import { LibraryStorePersistenceService, upsertComicAndPersistLibraryStore,
   removeComicRecordAndPersistLibraryStore } from './LibraryPersistence'
@@ -10,7 +9,7 @@ import { TrackerPreferencesStore } from './TrackerModels'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { MangaDetail, MangaChapterItem } from './MangaDetailModels'
 import { SourceManga } from './SourceModels'
-import { comicFromSourceManga, sourceLibraryComicId } from './SourceLibraryComic'
+import { comicWithCompleteSourceCatalog } from './SourceLibraryComic'
 import { resolveSourceChapterList } from './SourceChapterListResolver'
 import { fetchSourceMangaDetail } from './SourceMangaDetailRequest'
 import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
@@ -35,14 +34,8 @@ export interface PreparedMangaMigration {
 
 export function mangaMigrationComicFromCatalog(sourceId: string, mangaId: string,
   snapshot: SourceMangaDetailSnapshot, settingsFingerprint: string): Comic {
-  const detail = snapshot.detail
-  const comic = comicFromSourceManga(detail, snapshot.chapters, sourceLibraryComicId(sourceId, mangaId))
-  setCompleteSourceChapterCatalog(comic, snapshot.chapters.map((chapter: MangaChapterItem): string => chapter.id), Date.now())
-  if (comic.sourceMetadata !== undefined) {
-    comic.sourceMetadata.excludedChapterIds = snapshot.excludedChapterIds
-    comic.sourceMetadata.settingsFingerprint = settingsFingerprint
-  }
-  return comic
+  return comicWithCompleteSourceCatalog(sourceId, mangaId, snapshot.detail, snapshot.chapters,
+    snapshot.excludedChapterIds, settingsFingerprint)
 }
 
 function preparedMigrationFromSnapshot(

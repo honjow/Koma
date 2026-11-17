@@ -6,10 +6,12 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaEmptyState } from './ui/KomaEmptyState'
 import { KomaMenuChip } from './ui/KomaMenuChip'
-import { ConciseListRow } from './ui/ConciseListRow'
+import { conciseCardOptions } from './ui/ConciseListRow'
 import { ChapterSortBasis, ChapterSortDirection, MangaChapterDownloadStatus, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { common } from '@kit.AbilityKit'
+import { UIUtils } from '@kit.ArkUI'
+import { HdsListItemCard, SuffixCustomBuilder } from '@kit.UIDesignKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ChapterListPreferencesStore, ChapterReadFilter } from '../model/ChapterListPreferencesStore'
 import { previousUnreadChapterIds } from '../model/ReaderChapterSequence'
@@ -21,6 +23,11 @@ const CHAPTER_MENU_HAPTIC_FALLBACK_MS: number = 8
 
 function s(name: string): string {
   return AppStrings.get(name)
+}
+
+interface ChapterVariantOptions {
+  languages: string[]
+  groups: string[]
 }
 
 export enum ChapterBatchDownloadMode {
@@ -63,9 +70,8 @@ export struct ChapterListSection {
   @Param presentation: ChapterListPresentation = new ChapterListPresentation()
   @Local private readStateMenuChapterId: string = ''
   @Local private downloadMenuChapterId: string = ''
-  private lastReportedChapterIds: string[] = []
   @Param downloadActionsAvailable: boolean = true
-  @Event onDisplayOrderChange: (chapterIds: string[]) => void = (_chapterIds: string[]) => {}
+  @Event onDisplayOrderChange: (chapters: MangaChapterItem[]) => void = (_chapters: MangaChapterItem[]) => {}
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onRemoveChapterDownload: (chapterId: string, cancel: boolean) => void = (_id: string, _cancel: boolean) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
@@ -93,21 +99,17 @@ export struct ChapterListSection {
 
   @Monitor('sortedChapters')
   private reportDisplayOrder(): void {
-    const ids = this.sortedChapterIds
-    // Chapter state updates can replace the array without changing its order.
-    // Do not invalidate the title/chapter selection consumers in that case.
-    if (ids.length === this.lastReportedChapterIds.length &&
-      ids.every((id: string, index: number): boolean => id === this.lastReportedChapterIds[index])) {
-      return
-    }
-    this.lastReportedChapterIds = ids
-    this.onDisplayOrderChange(ids)
+    // Share the list's own ordering with the route. Selection operations can
+    // derive IDs on demand without copying the whole catalog on first layout.
+    this.onDisplayOrderChange(this.sortedChapters)
   }
 
   @Monitor('chapters')
   private rebuildDataSource(): void {
     this.ensureMetadataFiltersAvailable()
-    this.presentation.selectedChapterIds = new Set<string>(this.selectedIdsInFilter())
+    if (this.presentation.selectedChapterIds.size > 0) {
+      this.presentation.selectedChapterIds = new Set<string>(this.selectedIdsInFilter())
+    }
   }
 
   private selectedIdsInFilter(): string[] {
@@ -129,7 +131,10 @@ export struct ChapterListSection {
   }
 
   private sortedChapterList(): MangaChapterItem[] {
-    const sorted = this.filteredChapterList()
+    const filtered = this.filteredChapterList()
+    if (this.presentation.sortBasis === ChapterSortBasis.SOURCE_ORDER &&
+      this.presentation.sortDirection === ChapterSortDirection.FORWARD) return filtered
+    const sorted = filtered === this.chapters ? filtered.slice() : filtered
     if (this.presentation.sortBasis === ChapterSortBasis.CHAPTER_NUMBER) {
       // Source position and optional chapter numbers are distinct inputs.
       // Equal/missing numbers retain source order in this fixed baseline.
@@ -142,7 +147,7 @@ export struct ChapterListSection {
   }
 
   private filteredChapterList(): MangaChapterItem[] {
-    let filtered = this.chapters.slice()
+    let filtered = this.chapters
     if (this.presentation.bookmarkFilter !== 'all') {
       filtered = filtered.filter((chapter: MangaChapterItem): boolean =>
         (chapter.isBookmarked === true) === (this.presentation.bookmarkFilter === 'bookmarked'))
@@ -248,11 +253,11 @@ export struct ChapterListSection {
   }
 
   private shouldShowLanguageFilter(): boolean {
-    return this.presentation.languageFilter.length > 0 || this.languageOptions.length > 1
+    return this.presentation.languageFilter.length > 0 || this.chapterVariantOptions.languages.length > 1
   }
 
   private shouldShowGroupFilter(): boolean {
-    return this.presentation.groupFilter.length > 0 || this.groupOptions.length > 1
+    return this.presentation.groupFilter.length > 0 || this.chapterVariantOptions.groups.length > 1
   }
 
   private resetFilters(): void {
@@ -270,38 +275,27 @@ export struct ChapterListSection {
   }
 
   private ensureMetadataFiltersAvailable(): void {
-    if (this.presentation.languageFilter.length > 0 && !this.languageOptions.includes(this.presentation.languageFilter)) {
+    if (this.presentation.languageFilter.length > 0 && !this.chapterVariantOptions.languages.includes(this.presentation.languageFilter)) {
       this.presentation.languageFilter = ''
     }
-    if (this.presentation.groupFilter.length > 0 && !this.groupOptions.includes(this.presentation.groupFilter)) {
+    if (this.presentation.groupFilter.length > 0 && !this.chapterVariantOptions.groups.includes(this.presentation.groupFilter)) {
       this.presentation.groupFilter = ''
     }
   }
 
   @Computed
-  private get languageOptions(): string[] {
-    const values: string[] = []
-    this.chapters.forEach((chapter: MangaChapterItem) => {
-      const value = this.normalizeMetadataValue(chapter.language)
-      if (value.length > 0 && !values.includes(value)) {
-        values.push(value)
-      }
-    })
-    values.sort()
-    return values
-  }
-
-  @Computed
-  private get groupOptions(): string[] {
-    const values: string[] = []
-    this.chapters.forEach((chapter: MangaChapterItem) => {
-      const value = this.normalizeMetadataValue(chapter.scanlator)
-      if (value.length > 0 && !values.includes(value)) {
-        values.push(value)
-      }
-    })
-    values.sort()
-    return values
+  private get chapterVariantOptions(): ChapterVariantOptions {
+    const languages = new Set<string>()
+    const groups = new Set<string>()
+    // Detail publishes chapter changes by replacing the catalog array.
+    // Observe that replacement once instead of tracking two fields per row.
+    for (const chapter of UIUtils.getTarget(this.chapters)) {
+      const language = this.normalizeMetadataValue(chapter.language)
+      const group = this.normalizeMetadataValue(chapter.scanlator)
+      if (language.length > 0) languages.add(language)
+      if (group.length > 0) groups.add(group)
+    }
+    return { languages: Array.from(languages).sort(), groups: Array.from(groups).sort() }
   }
 
   private normalizeMetadataValue(value: string | undefined): string {
@@ -472,7 +466,7 @@ export struct ChapterListSection {
         .onClick(() => {
           this.setLanguageFilter('')
         })
-      ForEach(this.languageOptions, (language: string) => {
+      ForEach(this.chapterVariantOptions.languages, (language: string) => {
         MenuItem({ content: this.formatLanguage(language) })
           .onClick(() => {
             this.setLanguageFilter(language)
@@ -488,7 +482,7 @@ export struct ChapterListSection {
         .onClick(() => {
           this.setGroupFilter('')
         })
-      ForEach(this.groupOptions, (group: string) => {
+      ForEach(this.chapterVariantOptions.groups, (group: string) => {
         MenuItem({ content: group })
           .onClick(() => {
             this.setGroupFilter(group)
@@ -635,6 +629,7 @@ export struct ChapterListSection {
       }))
       this.ChapterDownloadAction(ri)
     }
+    .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
   }
 
   private isPendingDownload(status: MangaChapterDownloadStatus): boolean {
@@ -751,17 +746,18 @@ export struct ChapterListSection {
 
   @Builder
   private ChapterRow(ri: RepeatItem<MangaChapterItem>) {
-    // The inset HDS surface owns press feedback. ChapterText supplies the
-    // text, so a row entering the viewport need not format unused defaults.
-    ConciseListRow({
-      showChevron: false,
-      textBuilderParam: () => { this.ChapterText(ri) },
-      suffixPaddingRight: ThemeConstants.SPACE_SM,
-      suffixBuilderParam: () => { this.ChapterRowActions(ri) },
-      action: () => {
-        if (this.readStateMenuChapterId !== ri.item.id) this.onOpenChapter(ri.item.id)
-      },
-    })
+    // Repeat owns the row lifetime. Use the shared HDS press surface with
+    // the two slots already owned by this list.
+    Column() {
+      HdsListItemCard(conciseCardOptions({
+        textItem: { customBuilder: () => { this.ChapterText(ri) } },
+        suffixItem: new SuffixCustomBuilder(() => { this.ChapterRowActions(ri) }),
+        onClick: () => {
+          if (this.readStateMenuChapterId !== ri.item.id) this.onOpenChapter(ri.item.id)
+        },
+      }))
+    }
+    .width('100%')
     // Claim a held touch before the card can interpret its release as a tap.
     // Only the recognized long press requests a light pulse. Opening the same menu by tapping is quiet.
     .priorityGesture(LongPressGesture({ duration: CHAPTER_MENU_HOLD_MS })
@@ -827,15 +823,11 @@ export struct ChapterListSection {
   @Builder
   private SectionHeader() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        Text(this.formatString('chapter_list_title', [this.sortedChapters.length, this.chapters.length]))
-          .fontSize(ThemeConstants.FONT_SIZE_H3)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .layoutWeight(1)
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
+      Text(this.formatString('chapter_list_title', [this.sortedChapters.length, this.chapters.length]))
+        .fontSize(ThemeConstants.FONT_SIZE_H3)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .width('100%')
 
       Flex({ wrap: FlexWrap.Wrap }) {
         Row() {
@@ -900,31 +892,29 @@ export struct ChapterListSection {
         Repeat<MangaChapterItem>(this.sortedChapters)
           .each((ri: RepeatItem<MangaChapterItem>) => {
             ListItem() {
-              Column() {
-                if (this.presentation.selectionMode) {
-                  this.SelectedChapterRow(ri)
-                } else {
-                  this.ChapterRow(ri)
-                }
+              if (this.presentation.selectionMode) {
+                this.SelectedChapterRow(ri)
+              } else {
+                this.ChapterRow(ri)
               }
-              .width('100%')
-              .padding({
-                left: ThemeConstants.LIST_SECTION_INSET,
-                right: ThemeConstants.LIST_SECTION_INSET,
-                top: ri.index === 0 ? ThemeConstants.LIST_SECTION_INSET : 0,
-                // The native group reserves the separator's own stroke height;
-                // a second per-cell spacer would increase every row.
-                bottom: ri.index === this.sortedChapters.length - 1 ? ThemeConstants.LIST_SECTION_INSET : 0,
-              })
-              .backgroundColor(ThemeConstants.CARD)
-              .borderRadius({
-                topLeft: ri.index === 0 ? ThemeConstants.RADIUS_CARD : 0,
-                topRight: ri.index === 0 ? ThemeConstants.RADIUS_CARD : 0,
-                bottomLeft: ri.index === this.sortedChapters.length - 1 ? ThemeConstants.RADIUS_CARD : 0,
-                bottomRight: ri.index === this.sortedChapters.length - 1 ? ThemeConstants.RADIUS_CARD : 0,
-              })
-              .clip(true)
             }
+            .width('100%')
+            .padding({
+              left: ThemeConstants.LIST_SECTION_INSET,
+              right: ThemeConstants.LIST_SECTION_INSET,
+              top: ri.index === 0 ? ThemeConstants.LIST_SECTION_INSET : 0,
+              // The native group reserves the separator's own stroke height;
+              // a second per-cell spacer would increase every row.
+              bottom: ri.index === this.sortedChapters.length - 1 ? ThemeConstants.LIST_SECTION_INSET : 0,
+            })
+            .backgroundColor(ThemeConstants.CARD)
+            .borderRadius({
+              topLeft: ri.index === 0 ? ThemeConstants.RADIUS_CARD : 0,
+              topRight: ri.index === 0 ? ThemeConstants.RADIUS_CARD : 0,
+              bottomLeft: ri.index === this.sortedChapters.length - 1 ? ThemeConstants.RADIUS_CARD : 0,
+              bottomRight: ri.index === this.sortedChapters.length - 1 ? ThemeConstants.RADIUS_CARD : 0,
+            })
+            .clip(true)
           })
           .key((chapter: MangaChapterItem): string => chapter.id)
           .virtualScroll()

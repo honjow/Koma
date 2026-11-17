@@ -19,6 +19,18 @@ export interface ChapterListPreferences {
 const STORE: string = 'koma_chapter_list_preferences_v1'
 const KEY: string = 'chapterList.overrides.v1'
 let writes: Promise<void> = Promise.resolve()
+let decodedPayload: string = '{}'
+let decodedPreferences: Record<string, ChapterListPreferences> = {}
+
+function decodeChapterListPreferences(payload: string): Record<string, ChapterListPreferences> {
+  // Compare the persisted value so restoring a backup invalidates the same
+  // cache as a normal save. Opening a work only reads its own preferences.
+  if (payload !== decodedPayload) {
+    decodedPreferences = JSON.parse(payload) as Record<string, ChapterListPreferences>
+    decodedPayload = payload
+  }
+  return decodedPreferences
+}
 
 export function normalizeChapterListPreferences(value?: ChapterListPreferences): ChapterListPreferences {
   return {
@@ -38,12 +50,15 @@ export class ChapterListPreferencesStore {
   private context: common.Context
   constructor(context: common.Context) { this.context = context }
 
-  async prepare(): Promise<void> { await preferences.getPreferences(this.context, STORE) }
+  async prepare(): Promise<void> {
+    const store = await preferences.getPreferences(this.context, STORE)
+    decodeChapterListPreferences(await store.get(KEY, '{}') as string)
+  }
 
   load(comicId: string): ChapterListPreferences {
     const store = preferences.getPreferencesSync(this.context, { name: STORE })
     const payload = store.getSync(KEY, '{}') as string
-    const all = JSON.parse(payload) as Record<string, ChapterListPreferences>
+    const all = decodeChapterListPreferences(payload)
     return normalizeChapterListPreferences(all[comicId])
   }
 

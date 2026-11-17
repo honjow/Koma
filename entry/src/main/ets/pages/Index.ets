@@ -241,6 +241,7 @@ import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../s
 import { SourceBrowseLayout, SourceBrowseLayoutPreferences } from '../model/SourceBrowseLayoutPreferences'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
+import { RootNavigationState } from '../state/RootNavigationState'
 import { shouldSuppressKomaDeviceVerificationBackgroundSideEffects } from '../state/KomaDeviceVerificationIsolation'
 import { LibraryUpdateState, connectLibraryUpdateState } from '../state/LibraryUpdateState'
 import { LibraryUpdateCheckResult, pendingLibraryUpdateCheck, requestLibraryUpdateCheck } from '../model/LibraryUpdateCoordinator'
@@ -344,7 +345,7 @@ struct Index {
     if (request !== null) this.appPathStack.pushPath({ name: 'ReaderLab', param: request })
   }
   @Local selectedTab: number = TabIndex.LIBRARY
-  @Local private rootNavigationVisible: boolean = true
+  @Local private rootNavigation: RootNavigationState = new RootNavigationState()
   private lastRootBackAt: number | undefined = undefined
   @Local private settingsModalShown: boolean = false
   private settingsModalStack: NavPathStack = new NavPathStack()
@@ -1712,7 +1713,7 @@ struct Index {
     this.closeHistoryResumeLoading()
     const generation = ++this.sourceReaderOpenRequest
     const isCurrent = (): boolean => generation === this.sourceReaderOpenRequest &&
-      this.selectedTab === TabIndex.HISTORY && this.rootNavigationVisible && this.appForegroundState.active
+      this.selectedTab === TabIndex.HISTORY && this.rootNavigation.visible && this.appForegroundState.active
     const timer = this.startHistoryResumeLoading(isCurrent)
     let conflict: SyncReadingWorkConflict | undefined
     try {
@@ -1824,7 +1825,7 @@ struct Index {
     this.closeHistoryResumeLoading()
   }
 
-  @Monitor('selectedTab', 'rootNavigationVisible', 'appForegroundState.active')
+  @Monitor('selectedTab', 'rootNavigation.visible', 'appForegroundState.active')
   private cancelHistoryResumeWhenCovered(): void {
     if (this.historyResumeCanContinue?.() === false) {
       this.cancelHistoryResume()
@@ -2590,7 +2591,7 @@ struct Index {
       const route = this.appPathStack.getAllPathName().join('/')
       const current = (): boolean => generation === this.sourceReaderOpenRequest && this.selectedTab === tab &&
         this.appPathStack.getAllPathName().join('/') === route && this.appForegroundState.active &&
-        (!fromHistory || this.rootNavigationVisible)
+        (!fromHistory || this.rootNavigation.visible)
       const timer = this.startHistoryResumeLoading(current,
         resume ? $r('app.string.history_resume_loading') : $r('app.string.manga_detail_loading_source'))
       try {
@@ -3535,7 +3536,11 @@ struct Index {
             try {
               const service = new MihonImportService(getContext(this) as common.UIAbilityContext, this.libraryStore)
               if (!await service.linkOpenedCatalog(importedId, snapshot, fingerprint, isCurrent)) return false
-              this.refreshMihonImport()
+              // The detail reads the committed live stores. Reproject the
+              // covered shelf and history when the root becomes visible.
+              this.libraryPresentationPending = true
+              this.readingPresentationPending = true
+              if (this.rootNavigation.visible) this.publishDeferredReaderBackgroundPresentation()
               return true
             } catch (error) {
               DiagnosticLogger.exception('backup', 'mihon_detail_restore_failed', error as Error)
@@ -3563,7 +3568,6 @@ struct Index {
       })
       .onShown(() => {
         RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam).visible = true
-        this.readerProgressRevision += 1
       })
       .onHidden(() => {
         RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam).visible = false
@@ -4267,7 +4271,8 @@ struct Index {
               LibraryPage({
                 libraryScroller: this.rootTabScrollers[TabIndex.LIBRARY],
                 onRootScroll: (offset: number, state: ScrollState): void => { this.onRootTabScroll(TabIndex.LIBRARY, offset, state) },
-                active: this.selectedTab === TabIndex.LIBRARY && this.rootNavigationVisible,
+                active: this.selectedTab === TabIndex.LIBRARY,
+                rootNavigation: this.rootNavigation,
                 libraryStore: this.libraryStore,
                 libraryPreferencesRevision: this.libraryPreferencesRevision,
                 libraryRevision: this.libraryRevision,
@@ -4327,7 +4332,7 @@ struct Index {
                 browseScroller: this.rootTabScrollers[TabIndex.BROWSE],
                 onRootScroll: (offset: number, state: ScrollState): void => { this.onRootTabScroll(TabIndex.BROWSE, offset, state) },
                 active: this.selectedTab === TabIndex.BROWSE,
-                navigationVisible: this.rootNavigationVisible,
+                rootNavigation: this.rootNavigation,
                 sourceRegistry: this.sourceRegistry,
                 libraryStore: this.libraryStore,
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
@@ -4361,7 +4366,8 @@ struct Index {
                 scroller: this.rootTabScrollers[TabIndex.HISTORY],
                 onRootScroll: (offset: number, state: ScrollState): void => { this.onRootTabScroll(TabIndex.HISTORY, offset, state) },
                 libraryStore: this.libraryStore,
-                active: this.selectedTab === TabIndex.HISTORY && this.rootNavigationVisible,
+                active: this.selectedTab === TabIndex.HISTORY,
+                rootNavigation: this.rootNavigation,
                 readerSessionStore: this.readerSessionStore,
                 readerProgressRevision: this.readerProgressRevision,
                 onRefresh: async (): Promise<void> => { await this.syncFromRootRefresh() },
@@ -4481,7 +4487,7 @@ struct Index {
           this.readerOrdinaryNavTransition(from, to, operation))
         .mode(NavigationMode.Stack)
         .onNavBarStateChange((visible: boolean) => {
-          this.rootNavigationVisible = visible
+          this.rootNavigation.visible = visible
           if (visible) {
             this.publishDeferredReaderBackgroundPresentation()
             const comicId = this.pendingMihonResume
@@ -5066,8 +5072,7 @@ struct Index {
     const sourceId = param.sourceId?.trim() ?? ''
     const mangaId = param.mangaId.trim()
     const comic = sourceId.length > 0
-      ? this.libraryStore.listComics().find((item: Comic): boolean =>
-        item.sourceRuntimeId === sourceId && item.remoteResourceId === mangaId)
+      ? this.libraryStore.findBySourceManga(sourceId, mangaId)
       : this.libraryStore.getComic(param.mangaId)
     const comicTitle = comic?.title?.trim() ?? ''
     if (comicTitle.length > 0) {
@@ -5110,7 +5115,7 @@ struct Index {
         'manga_detail_menu_check_local_refresh', MangaDetailTitleAction.CHECK_LOCAL_LIBRARY_REFRESH, !chrome.localRefreshBusy)
     }
     const chapters: KomaMenuAction[] = []
-    if (chrome.filteredChapterIds.length > 0) {
+    if (chrome.hasDisplayedChapters) {
       add(chapters, 'chapter_list_menu_enter_selection', MangaDetailTitleAction.SELECT_CHAPTERS)
       if (chrome.chapterDownloadAvailable) {
         const downloads: KomaMenuAction[] = []
@@ -5149,7 +5154,7 @@ struct Index {
       const selectAllContent: Record<string, Object> = {
         'label': AppStrings.get(allSelected ? 'chapter_list_menu_deselect_all_filtered' : 'chapter_list_menu_select_all_filtered'),
         'icon': allSelected ? $r('sys.symbol.square') : $r('sys.symbol.checkmark_square'),
-        'isEnabled': chrome.filteredChapterIds.length > 0,
+        'isEnabled': chrome.hasDisplayedChapters,
         'action': (): void => { chrome.requestAction(MangaDetailTitleAction.SELECT_ALL_CHAPTERS) },
       }
       const selectionMenu: Record<string, Object>[] = [{ 'content': selectAllContent }, this.mangaDetailOverflow(chrome)]
@@ -5183,7 +5188,7 @@ struct Index {
         'action': (): void => { chrome.requestAction(MangaDetailTitleAction.SHARE_LINK) },
       } as Record<string, Object> })
     }
-    if (chrome.pageActionsAvailable || chrome.sourceReloadAvailable || chrome.filteredChapterIds.length > 0) {
+    if (chrome.pageActionsAvailable || chrome.sourceReloadAvailable || chrome.hasDisplayedChapters) {
       items.push(this.mangaDetailOverflow(chrome))
     }
     if (items.length > 0) content['menu'] = { 'value': items, 'maxCount': 3 } as Record<string, Object>

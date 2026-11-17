@@ -56,6 +56,7 @@
     { "name": "backup_export_copy", "value": "Export copy" },
     { "name": "backup_export_protected_copy", "value": "Export encrypted copy" },
     { "name": "backup_restore_preview", "value": "Restore preview" },
+    { "name": "backup_reading_file", "value": "Reading backup…" },
     { "name": "backup_auto_retention_detail", "value": "Local manual and automatic backups count together during automatic cleanup." },
     { "name": "backup_record_plain", "value": "Unencrypted" },
     { "name": "backup_record_encrypted", "value": "Encrypted" },

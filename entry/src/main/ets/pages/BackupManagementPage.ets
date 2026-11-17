@@ -4,7 +4,7 @@ import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance
 import { selectAutomaticBackupDirectory, AutomaticBackupDirectorySelection } from '../model/BackupAutomaticDirectory'
 import { komaMenuOptions, komaToastOptions, komaDialogMaterial, komaModalCardSurface } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { Binding, CustomContentDialogV2, LengthMetrics, UIUtils } from '@kit.ArkUI'
+import { Binding, CustomContentDialogV2, LengthMetrics, LoadingDialogV2, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -95,6 +95,7 @@ export struct BackupManagementPage {
   private active: boolean = false
   private backupDialogRequest: number = 0
   private finishBackupDialogClose?: () => void = undefined
+  private finishReadingBackup?: () => Promise<void> = undefined
   @Local private backupDialog: 'save' | 'restore' = 'save'
   @Local private exportFileName: string = ''
   @Local private saveToFile: boolean = false
@@ -507,22 +508,60 @@ export struct BackupManagementPage {
     this.importPassphrase = ''
   }
 
-  private importBackup(): void {
+  @Builder
+  private ReadingBackup() {
+    LoadingDialogV2({ content: $r('app.string.backup_reading_file') })
+  }
+
+  private async showReadingBackup(): Promise<void> {
+    if (!this.active) return
+    const prompt = this.getUIContext().getPromptAction()
+    let didDisappear: () => void = () => {}
+    const dismissed = new Promise<void>((resolve: () => void) => { didDisappear = resolve })
+    try {
+      const id = await prompt.openCustomDialog({
+        alignment: DialogAlignment.Center,
+        autoCancel: false,
+        onWillDismiss: (_action: DismissDialogAction): void => {},
+        onDidDisappear: (): void => { didDisappear() },
+        builder: () => { this.ReadingBackup() },
+      })
+      this.finishReadingBackup = (): Promise<void> => {
+        prompt.closeCustomDialog(id)
+        return dismissed
+      }
+      if (!this.active) await this.closeReadingBackup()
+    } catch (_error) {
+      // The file can still be read if the system cannot present the indicator.
+    }
+  }
+
+  private async closeReadingBackup(): Promise<void> {
+    const finish = this.finishReadingBackup
+    this.finishReadingBackup = undefined
+    await finish?.()
+  }
+
+  private async importBackup(): Promise<void> {
     if (this.busy) return
     this.busy = true
-    void this.backupService().selectImportPreviewFromPicker()
-      .then((selection: BackupFileSelection | undefined) => {
-        if (selection?.mihon !== undefined) {
-          this.clearRestorePreview()
-          this.selectedMihonBackup = selection.mihon
-          this.openBackupDialog('restore')
-        } else if (selection?.koma !== undefined) this.openRestorePreview(selection.koma, '')
-      })
-      .catch((_error: Error) => {
-        DiagnosticLogger.error('backup_management_page', 'preview_failed', '[BackupManagement] step=preview_failed code=backup_preview_failed')
-        this.showInfoDialog(t('backup_dialog_preview_failed_title'), this.backupFailureMessage('backup_preview_failed'))
-      })
-      .finally(() => { this.busy = false })
+    try {
+      const selection: BackupFileSelection | undefined = await this.backupService()
+        .selectImportPreviewFromPicker((): Promise<void> => this.showReadingBackup())
+      await this.closeReadingBackup()
+      if (!this.active) return
+      if (selection?.mihon !== undefined) {
+        this.clearRestorePreview()
+        this.selectedMihonBackup = selection.mihon
+        this.openBackupDialog('restore')
+      } else if (selection?.koma !== undefined) this.openRestorePreview(selection.koma, '')
+    } catch (_error) {
+      await this.closeReadingBackup()
+      DiagnosticLogger.error('backup_management_page', 'preview_failed', '[BackupManagement] step=preview_failed code=backup_preview_failed')
+      if (this.active) this.showInfoDialog(t('backup_dialog_preview_failed_title'), this.backupFailureMessage('backup_preview_failed'))
+    } finally {
+      this.busy = false
+    }
   }
 
   private runMihonImport(): void {
@@ -750,7 +789,7 @@ export struct BackupManagementPage {
         isEnabled: !this.busy && !this.contentPreferencesSaving, action: () => { this.openSaveDialog() } })
       ListDivider()
       ConciseListRow({ title: t('backup_restore_from_file'), leadingIcon: $r('sys.symbol.doc_plaintext'),
-        isEnabled: !this.busy, action: () => { this.importBackup() } })
+        isEnabled: !this.busy, action: () => { void this.importBackup() } })
     }
   }
 
@@ -1379,6 +1418,7 @@ export struct BackupManagementPage {
 
   aboutToDisappear(): void {
     this.active = false
+    void this.closeReadingBackup()
     if (this.backupDialogShown) void this.closeBackupDialog()
   }
 

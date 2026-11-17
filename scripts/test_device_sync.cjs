@@ -766,6 +766,26 @@ test('a successful backup restore seals an already-sent intent before foreground
   assert.equal(first.engine.active().reviewRequired, true)
 })
 
+test('merging a source catalog pauses local sync commits without rewriting the connection or its pending intent', async () => {
+  const { replica, draft } = engineFixture()
+  const first = replica(A, [['reading', new Map([[key, position(1)]])]])
+  await first.engine.testConnection(draft)
+  await first.engine.confirm((await first.engine.prepare(draft, ['reading'])).token, [])
+  first.store.update(state => {
+    state.intent = { connection: structuredClone(state.active), sent: true, expected: '"older"',
+      groupRevisions: [], applies: [] }
+  })
+  const before = first.store.load()
+  const scope = first.engine.groupScope('reading')
+  first.engine.beginRestore(true)
+  assert.equal(first.engine.groupScope('reading'), '')
+  await first.engine.recoverOnForeground()
+  first.engine.finishRestore(false)
+  assert.equal(first.store.load(), before)
+  assert.ok(first.engine.groupScope('reading'))
+  assert.notEqual(first.engine.groupScope('reading'), scope)
+})
+
 test('the newest reading time resolves equal positions on first merge and different pages during sync', async () => {
   const { replica, draft } = engineFixture()
   const at = (page, date) => JSON.stringify({ page, total: 8, date })

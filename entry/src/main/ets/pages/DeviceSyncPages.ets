@@ -212,6 +212,7 @@ export struct DeviceSyncWebDavPage {
   private shown(): void { this.refreshConnection() }
 
   private refreshConnection(): void {
+    appDeviceSync.refreshReviewItemsIfNeeded()
     if (!this.state.configured) { this.connectionLabel = ''; return }
     void appDeviceSync.draft().then((draft: SyncConnectionDraft | undefined): void => {
       this.connectionLabel = draft === undefined ? '' : draft.directory + (draft.username ? '\n' + draft.username : '')
@@ -417,6 +418,7 @@ export struct DeviceSyncReviewPage {
 
   aboutToAppear(): void {
     this.visible = true
+    appDeviceSync.refreshReviewItemsIfNeeded()
     this.releaseAutomatic = appDeviceSync.holdAutomaticForReview()
     if (this.reason !== 'recovery' && this.reason !== 'pending') void this.load()
   }

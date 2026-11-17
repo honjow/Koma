@@ -1,6 +1,7 @@
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { ListModifier } from '@kit.ArkUI'
 
 @ComponentV2
 export struct SecondaryListScaffold {
@@ -23,11 +24,18 @@ export struct SecondaryListScaffold {
   @Param reserveTitleBar: boolean = true
   @Param alwaysEnableEdgeSpring: boolean = true
   @Param scrollEnabled: boolean = true
+  @Param deferPrefetch: boolean = false
   @Param surfaceColor: ResourceColor = ThemeConstants.BG_SUB
   @Event onVisibleContentChange?: (start: VisibleListContentInfo) => void
   @Event onListAttach?: () => void
   @Event onReachEnd?: () => void
   @Event onDidScroll?: (offset: number, state: ScrollState) => void
+  private defaultList = new ListModifier()
+  private visibleRowsOnly = new ListModifier()
+
+  aboutToAppear(): void {
+    this.visibleRowsOnly.cachedCount(0)
+  }
 
   build() {
     Stack() {
@@ -52,6 +60,7 @@ export struct SecondaryListScaffold {
             .width('100%')
           }
         }
+        .attributeModifier(this.deferPrefetch ? this.visibleRowsOnly : this.defaultList)
         .onAttach(() => { this.onListAttach?.() })
         .scrollBar(BarState.Off)
         .width('100%')

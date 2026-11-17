@@ -8,6 +8,7 @@ export interface MihonPathIdentity {
 }
 
 export interface MihonChapterIdentity extends MihonPathIdentity {
+  pathWorkIdSeparator?: string
   targetIdSegment?: number
 }
 
@@ -39,6 +40,10 @@ export function validMihonSourceIdentity(value: MihonSourceIdentity | undefined)
     validPathIdentity(value.work) && value.work.pathIdSegment === undefined &&
     (value.chapter === undefined || (validPathIdentity(value.chapter) &&
       value.chapter.pathTitleAfterId === undefined &&
+      (value.chapter.pathWorkIdSeparator === undefined ||
+        typeof value.chapter.pathWorkIdSeparator === 'string' && value.chapter.pathPrefix.length > 0 &&
+        value.chapter.pathWorkIdSeparator.length > 0 && /^[A-Za-z0-9._:/?=&,-]{1,128}$/.test(
+          value.chapter.pathWorkIdSeparator) && value.chapter.pathIdSegment === undefined) &&
       (value.chapter.pathIdSegment === undefined || (Number.isInteger(value.chapter.pathIdSegment) &&
         value.chapter.pathIdSegment >= -8 && value.chapter.pathIdSegment <= 7)) &&
       (value.chapter.targetIdSegment === undefined || (Number.isInteger(value.chapter.targetIdSegment) &&
@@ -78,6 +83,27 @@ export function mihonPathIdentity(path: string, rule: MihonPathIdentity): string
   return id === undefined ? undefined : rule.idPrefix + id + (rule.idSuffix ?? '')
 }
 
+export function mihonChapterPathIdentity(path: string, workId: string, identity: MihonSourceIdentity): string | undefined {
+  const rule = identity.chapter
+  if (rule === undefined) return undefined
+  const separator = rule.pathWorkIdSeparator
+  if (separator === undefined) return mihonPathIdentity(path, rule)
+  if (!path.startsWith(rule.pathPrefix)) return undefined
+  // A title fragment is display metadata. The two identifiers on either
+  // side of the separator must belong to this work and chapter.
+  const address = path.split('#', 1)[0]
+  const start = address.indexOf(separator, rule.pathPrefix.length)
+  if (start < 0) return undefined
+  const work = address.substring(rule.pathPrefix.length, start)
+  if (!/^[A-Za-z0-9._,-]+$/.test(work) || work === '.' || work === '..' ||
+    identity.work.idPrefix + work + (identity.work.idSuffix ?? '') !== workId) return undefined
+  const chapterPath = address.substring(start + separator.length)
+  const chapterRule: MihonPathIdentity = { pathPrefix: '', pathSuffix: rule.pathSuffix,
+    idPrefix: rule.idPrefix, idSuffix: rule.idSuffix }
+  return mihonPathIdentity(chapterPath, chapterRule)
+}
+
 export function mihonTargetChapterId(id: string, rule: MihonChapterIdentity): string | undefined {
-  return rule.targetIdSegment === undefined ? id : id.split(':')[rule.targetIdSegment]
+  const stableId = rule.pathWorkIdSeparator === undefined ? id : id.split('#', 1)[0]
+  return rule.targetIdSegment === undefined ? stableId : stableId.split(':')[rule.targetIdSegment]
 }

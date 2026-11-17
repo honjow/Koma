@@ -20,11 +20,11 @@
   "title": "Koma 当前工作",
   "state": "Mihon 书源已发布，原备份重导已验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-17T04:44:03+08:00",
+  "updatedAt": "2026-11-17T20:13:30+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
-  "activity": "197 的真实大备份导入、冷启动、续读和手动关联已验证，原数据已恢复。",
-  "nextAction": "跟踪剩余章页兼容、图片请求及大书架长帧。",
+  "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
+  "nextAction": "详情首屏布局仍约 19 ms，切分类长帧约 27 ms。哔咔样本正文请求仍为 403。",
   "proof": [
     {
       "label": "正式主仓",
@@ -190,12 +190,29 @@
       "reportedAt": null,
       "reportedDate": "2026-11-15",
       "reportedAtSource": "用户提供真实 .tachibk，要求保留分类、章页、历史与追踪，合并已有作品。未关联时在实际阅读该作品时再说明。",
-      "updatedAt": "2026-11-17T04:44:03+08:00",
-      "status": "197 通过主体流程，17 本中 15 本显示正文，13 本回到原章原页",
-      "stage": "真实备份导入、续读和返回已验证，保留剩余兼容和性能问题",
-      "result": "197 冷启读回 2267 部、1064 部收藏、62209 条章节、9876 条历史和 23 个分类。2238 部有确切作品地址。重复导入保留关联与记录。历史首次续读、手动关联取消及成功返回原列表均通过。修复首次续读写入冲突。拷贝漫画、禁漫天堂、哔咔和绅士漫画合计 13 本恢复原章原页并显示正文。绅士漫画 338 页长章节图片清单从 34.8 秒降至 6.3 秒，书源修复已由 Actions 发布。197 已恢复原书架、历史、书源、WebDAV 与电源并释租。",
-      "remaining": "包子漫画 2 本显示正文但从第 1 页开始，1 本当前目录未恢复原章。哔咔 1 本已到原第 5 页，续读与章节列表直接打开都返回图片错误，首次请求读到 HTTP 403。大书架切国漫最长帧 65.88 ms 至 62.84 ms，仍有长帧。29 部原记录保留，包括 21 部需要原文件的本地漫画、3 部动漫之家、2 部包子漫画 Plus、1 部官方哔哩哔哩漫画及两个不同 vomic 来源各 1 部。该大备份没有追踪记录。",
+      "updatedAt": "2026-11-17T20:13:30+08:00",
+      "status": "197 章节行优化已复测，详情首帧和切分类长帧仍开放",
+      "stage": "章节列表直接使用共享的原生 HDS 行参数",
+      "result": "197 同一书架和《装备我最强》，对照包 9631f85429b7 与候选包 eb4b803cbe75，章节出现帧 28.3→24.2 ms、进详情首帧 33.7→33.5 ms、返回 16.7→15.7 ms。新包两次切分类 25.5、26.8 ms。章节区像素一致，多选与快划后行菜单均实测通过。两包在行菜单按系统返回都回书架。原分类与屏幕超时已恢复并释租，保留新包、大书架、历史和原快照。",
+      "remaining": "详情进场布局仍约 19 ms，切分类约 27 ms。首次目录此前用《漫畫裡的羅康林》核过 166 章和原续读位置，本轮复测聚焦已缓存详情。WebDAV 暂停。哔咔另一本原第 5 页正文请求 HTTP 403。未匹配原记录保留，大备份没有追踪记录。",
       "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/detail-longframe-probe.db",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/shelf-performance-20261117T181836391445/trace.htrace",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261117T181928320992/summary.json",
+        ".hvigor/outputs/mihon-large-mapping-audit/shelf-catalog-ui-197-frames.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/shelf-performance-20261117T162454679173/trace.htrace",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261117T162544804391/summary.json",
+        ".hvigor/outputs/mihon-large-mapping-audit/mihon-first-catalog-197.json",
+        ".hvigor/outputs/mihon-large-mapping-audit/multiframe-layout-197-frames.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261117T140023576542/screen.png",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261117T140028646124/screen.png",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261117T140350730276/summary.json",
+        ".hvigor/outputs/mihon-large-mapping-audit/native-layout-197-frames.json",
+        ".hvigor/outputs/mihon-large-mapping-audit/shelf-visible-projection-197-frames.json",
+        ".hvigor/outputs/mihon-large-mapping-audit/shelf-followup-197-frames.json",
+        ".hvigor/outputs/mihon-large-mapping-audit/baozi-mihon-197-page-proof.json",
+        ".hvigor/outputs/mihon-large-mapping-audit/baozi-shelf-197-frame-comparison.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/restore-20261117T094734060831",
         ".hvigor/outputs/mihon-large-mapping-audit/formal-sampling-aggregate.json",
         ".hvigor/outputs/mihon-large-mapping-audit/history-manual-repeat.log",
         ".hvigor/outputs/mihon-large-mapping-audit/last-reader-recheck.log",
@@ -11277,6 +11294,197 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "mihon-shelf-native-chapter-row-197-20261117",
+      "at": "2026-11-17T20:13:30+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 原生章节行减少章节出现帧开销",
+      "detail": "197 同场对照，章节出现帧 28.3→24.2 ms。首帧约 34 ms，切分类约 27 ms。章节多选、快划后行菜单可用，保留候选包和测试书架。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/shelf-catalog-ui-197-frames.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/shelf-performance-20261117T201137138834/trace.htrace"
+      ]
+    },
+    {
+      "id": "mihon-shelf-reuse-chapter-choice-197-20261117",
+      "at": "2026-11-17T19:08:27+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 切分类保留第二排封面，进详情按需准备多选",
+      "detail": "197 同一份大书架验证最终包 9631f85429b7。切分类最长帧 26.2 ms，封面卡销毁和创建均为 0。进缓存详情 32.1 ms，返回 15.3 ms。多选后底栏三个按钮均可用，分组菜单保留两个真实组。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/shelf-catalog-ui-197-frames.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261117T190308368246/summary.json"
+      ]
+    },
+    {
+      "id": "mihon-shelf-long-frame-breakdown-197-20261117",
+      "at": "2026-11-17T18:20:04+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 详情进场去掉重复读队列，首次章节分帧",
+      "detail": "197 同作品同书架的缓存详情最长帧 39.5–40.7→34.0–35.9 ms。原最长帧中首屏布局约 19 ms，页面初始化包含在其中。正文目录出现阶段，最终包实测标题区更新 29.0 ms、章节组挂载 30.1 ms。缓存详情章节多选通过，最终包首次目录 166 章及原续读位置落盘。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/shelf-catalog-ui-197-frames.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/shelf-performance-20261117T181836391445/trace.htrace"
+      ]
+    },
+    {
+      "id": "mihon-catalog-sync-guard-shelf-197-20261117",
+      "at": "2026-11-17T16:26:49+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 首次出目录去掉同步文件重写，大书架复测",
+      "detail": "目录合并保留写入互斥与回滚，跳过同步状态整份写盘。197《原勇者归来》首次加载的 64 章及原第 9.1 话第 1 页均落盘，最长 UI 回调 14.5 ms。1123 本书架切分类 27.7 ms、缓存详情进场 39.5 ms、返回 17.4 ms。新包 0bf22a91bf79 和测试数据留机。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/shelf-catalog-ui-197-frames.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/shelf-performance-20261117T162454679173/trace.htrace"
+      ]
+    },
+    {
+      "id": "mihon-first-catalog-background-197-20261117",
+      "at": "2026-11-17T14:32:01+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 导入作品首次目录避免重复同步写盘",
+      "detail": "197 大书架首次开启拷贝漫画作品。旧包显示 131 章，目录出现前 UI 主线程单个回调 1498.89 ms，最长绘制帧 154.01 ms。新包验证另两部初次关联作品，139 章、68 章均落盘，原章节和页索引一致。对应回调 182.06、288.43 ms，最长帧 45.11、43.18 ms。新包和 1123 本书架留在 197 当前分类，原快照保留，WebDAV 暂停。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/mihon-first-catalog-197.json"
+      ]
+    },
+    {
+      "id": "mihon-multiframe-loading-197-20261117",
+      "at": "2026-11-17T14:05:14+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 书架分帧和备份读取提示已在 197 验证",
+      "detail": "197 同一大书架两次对照。切国漫最长帧 49.62、33.48→30.72、30.31 ms，最长帧更新的封面卡片由 6 张降至 3 张。进《装备我最强》48.40、48.58→44.60、46.45 ms，首批章节布局约 96–103 ms。完成态布局一致，章节多选与书架惯性滚动通过。选备份后出现系统读取提示，关闭后进入导入确认。197 保留候选包、测试书架与历史和原始快照，WebDAV 暂停，已恢复原屏幕超时并释租。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/multiframe-layout-197-frames.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261117T140023576542/screen.png",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/actions-20261117T140028646124/screen.png",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261117T140350730276/summary.json"
+      ]
+    },
+    {
+      "id": "mihon-native-layout-197-20261117",
+      "at": "2026-11-17T12:58:31+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 卡片复用和详情分帧均降低转场最长帧",
+      "detail": "197 同一份 1123 本书架新旧包各测两次。切国漫最长帧 46.00、44.17→40.62、41.80 ms。进详情 57.76、61.05→37.97、36.66 ms，首批章节完成布局晚约 17–21 ms。返回 18.49、20.86→15.81、14.23 ms。分类后封面和详情文字位置核对一致，惯性滚动及章节多选通过。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/native-layout-197-frames.json"
+      ]
+    },
+    {
+      "id": "mihon-visible-shelf-projection-197-20261117",
+      "at": "2026-11-17T12:23:43+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 书架按需生成卡片和详情目录复用已实测",
+      "detail": "197 同一大书架两次复测，切国漫最长帧 45.04、45.70 ms，打开缓存详情 59.98、58.82 ms，返回 11.18、21.02 ms。首屏文字与位置一致，章节多选及返回通过。Repeat 和逐项差分两版切分类更慢，已撤回。已恢复 197 原书架、历史、WebDAV 与电源并释租。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/shelf-visible-projection-197-frames.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/restore-20261117T122216964729"
+      ]
+    },
+    {
+      "id": "mihon-large-shelf-layout-followup-197-20261117",
+      "at": "2026-11-17T10:24:56+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 大书架切分类再降约 5 ms",
+      "detail": "继续减掉分类切换时标题栏重复刷新，以及续读按钮组装整份阅读器会话的工作。沿用 1123 本书架，切国漫最长帧从 50.55 ms 降到两次复测的 45.46 和 45.88 ms。进详情为 65.18 和 55.75 ms，对照为 57.53 ms，降幅不稳定。返书架两次为 16.08 和 19.73 ms。封面节点复用收益不稳定，已撤回。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/shelf-followup-197-frames.json"
+      ]
+    },
+    {
+      "id": "mihon-baozi-chapter-page-shelf-197-20261117",
+      "at": "2026-11-17T09:48:54+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 包子漫画原章原页与大书架三条路径在 197 复验",
+      "detail": "197 重新导入真实大备份后，《坐拥星球》《开局一座山》《妹子、魔法与修仙者》分别回到原章第 16、4、4 页，均显示正文。另核对《天界代购店》原章第 77 页，确认分页补齐后页序正确。1123 本书架同场景最长帧，进详情 180.25→60.58 ms、返书架 253.23→15.53 ms、切国漫 66.18→49.37 ms。197 已恢复原数据、书源、WebDAV 和电源。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/baozi-mihon-197-page-proof.json",
+        ".hvigor/outputs/mihon-large-mapping-audit/baozi-shelf-197-frame-comparison.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/restore-20261117T094734060831"
+      ]
+    },
+    {
+      "id": "mihon-first-catalog-link-and-targeted-publish-20261117",
+      "at": "2026-11-17T03:10:41+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 首次目录成功后合入原进度，单本关联只更新受影响记录",
+      "detail": "此前详情页目录请求成功后没有消费原备份进度。候选在应用目录时使用同一份章节响应完成关联；单本关联后仅更新该书的书库和阅读状态，保留原文件事务。签名包已构建，真机尚未验收。29 部未匹配包括 21 部只有本地记录、3 部动漫之家、2 部包子漫画 Plus、1 部哔哩哔哩漫画及 2 部来自不同 vomic 扩展。",
+      "kind": "progress",
+      "evidence": [".hvigor/outputs/mihon-large-mapping-audit/build-link-delta.log", ".hvigor/outputs/mihon-large-mapping-audit/candidate-coverage.json"]
+    },
+    {
+      "id": "mihon-large-shelf-route-retest-20261117",
+      "at": "2026-11-17T02:20:20+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 完整重导后复验新作品，并恢复 197",
+      "detail": "从无 Mihon 记录的原数据重新导入，确认书架详情、续读原章、返回及再次打开。《交织重迭的初恋》首次目录网络失败后的进度显示仍有差异；白屏未复现，切分类通过但未量化卡顿。已独立恢复原记录、书源、同步和电源。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/user-review-shelf-result.json",
+        ".hvigor/outputs/mihon-large-mapping-audit/retest-route-errors.log"
+      ]
+    },
+    {
+      "id": "mihon-large-shelf-user-review-20261117",
+      "at": "2026-11-17T02:04:44+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 用户实测发现书架和续读路径问题",
+      "detail": "完整书架仍可能使用 Mihon 临时地址加载详情或图片，关联后的返回可能落回临时详情。禁漫目录日志出现服务器错误，白屏未定性。用户已交回 197，恢复原数据后用候选包再次完整导入，从无旧记录的作品复验。",
+      "kind": "active",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/user-review-image-errors.log",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261117T020436277089/summary.json"
+      ]
+    },
+    {
+      "id": "mihon-large-final-197-20261117",
+      "at": "2026-11-17T01:10:30+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 历史续读和最终包重复导入通过",
+      "detail": "补齐拷贝漫画章节 UUID 后，197 从原历史直接打开第 163 话并返回历史。最终包重复导入、冷启动仍有 2238 个确切作品关联，恢复原资料和设备状态并释租。原页保留，未验证两端页序一致。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/device-final-result.json",
+        ".hvigor/outputs/mihon-large-mapping-audit/copy-chapter-coverage.json"
+      ]
+    },
+    {
+      "id": "mihon-large-cold-and-existing-import-20261117",
+      "at": "2026-11-17T00:58:15+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 大备份与旧导入记录自动关联",
+      "detail": "197 实际导入并冷启动读回 2238 个确切作品 ID。再用上轮未关联的导入数据启动，无需重导，同样补齐 2238 个 ID，原备份记录逐条一致。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/device-cold-result.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261117T005815855101/summary.json"
+      ]
+    },
+    {
+      "id": "mihon-large-published-source-coverage-20261117",
+      "at": "2026-11-17T00:29:45+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "title": "#308 复核大备份与正式书源转换覆盖",
+      "detail": "原冷启动证据只验证数据保留。正式包规则逐条回放覆盖 1196/2267 部，定位禁漫天堂旧地址及拷贝漫画缺口。目录请求和批量提交仍影响已识别作品的关联。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/summary.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/source-catalog-20261116T095957653146/registry.json",
+        ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/large-cold-20261116T200042390862/run-metadata.json",
+        "https://github.com/honjow/koma-sources/releases/latest/download/index.json"
+      ]
+    },
     {
       "id": "koma-v151-github-actions-release-20261116",
       "at": "2026-11-16T21:52:22+08:00",

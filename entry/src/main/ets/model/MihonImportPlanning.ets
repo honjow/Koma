@@ -10,7 +10,8 @@ import { MangaStatus } from './MangaDetailModels'
 import { SourceManga } from './SourceModels'
 import { migrationChapterMatch } from './SourceMangaMigration'
 import { AppStrings } from '../i18n/AppStrings'
-import { MihonSourceIdentity, mihonPathIdentity, mihonTargetChapterId } from '../sourceRuntime/MihonSourceIdentity'
+import { MihonSourceIdentity, mihonChapterPathIdentity, mihonPathIdentity,
+  mihonTargetChapterId } from '../sourceRuntime/MihonSourceIdentity'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { ComicTrackerMapping, TrackerProviderId } from './TrackerModels'
 
@@ -365,6 +366,12 @@ function mihonChapterMatch(chapter: Chapter, original: Chapter[], target: Chapte
   return migrationChapterMatch(chapter, original.filter(compatible), target.filter(compatible))
 }
 
+function isMihonChapterStartFallback(previous: ReadingProgress, original: ReadingProgress): boolean {
+  return original.pageIndex > 0 && previous.updatedAt === original.updatedAt &&
+    previous.chapterId === original.chapterId && previous.pageIndex === 0 && previous.totalPages === 0 &&
+    previous.pageId === undefined && previous.columnMode === undefined
+}
+
 /** Keep a later local position and local explicit read/bookmark changes. A matched
  * chapter on a different edition starts at its beginning; the original page is retained. */
 export function mergeMihonReading(snapshot: ReaderSessionReadingSnapshot,
@@ -387,17 +394,32 @@ export function mergeMihonReading(snapshot: ReaderSessionReadingSnapshot,
       Math.max(latest, edge.readAt), 0)
     let latest: ReadingProgress | undefined
     let latestChapter: Chapter | undefined
+    const identity = item.identity
+    const chapterRule = identity?.chapter
+    const declaredChapters = new Map<string, Chapter[]>()
+    if (item.sameEdition && chapterRule !== undefined) {
+      for (const chapter of comic.chapters) {
+        const id = mihonTargetChapterId(chapter.id, chapterRule)
+        if (id === undefined) continue
+        const matches = declaredChapters.get(id) ?? []
+        matches.push(chapter)
+        declaredChapters.set(id, matches)
+      }
+    }
     for (let index = 0; index < work.chapters.length; index++) {
       const original = work.chapters[index]
       const readAt = lastRead.get(original.url) ?? 0
       if (!original.read && !original.bookmarked && original.pageIndex <= 0 && readAt <= 0) continue
       const originalChapter = originalChapters[index]
-      const chapterRule = item.identity?.chapter
-      const mappedId = chapterRule === undefined ? undefined : mihonPathIdentity(original.url, chapterRule)
-      const direct = item.sameEdition ? comic.chapters.filter((chapter: Chapter): boolean =>
-        chapterRule !== undefined ? mappedId !== undefined && mihonTargetChapterId(chapter.id, chapterRule) === mappedId :
+      const mappedId = identity === undefined ? undefined :
+        mihonChapterPathIdentity(original.url, comic.remoteResourceId ?? '', identity)
+      let direct: Chapter[] = []
+      if (item.sameEdition) {
+        if (chapterRule !== undefined) direct = mappedId === undefined ? [] : declaredChapters.get(mappedId) ?? []
+        else direct = comic.chapters.filter((chapter: Chapter): boolean =>
           (chapter.id === original.url || chapter.sourcePath === original.url) &&
-          (chapter.scanlator ?? '') === original.scanlator) : []
+          (chapter.scanlator ?? '') === original.scanlator)
+      }
       const destination = pending ? originalChapter : direct.length === 1 ? direct[0] :
         mihonChapterMatch(originalChapter, originalChapters, comic.chapters)
       if (destination === undefined) {
@@ -420,8 +442,14 @@ export function mergeMihonReading(snapshot: ReaderSessionReadingSnapshot,
         pageId: exact ? destination.pages[pageIndex]?.id : undefined, pageIndex, totalPages: total,
         progressRatio: total > 0 ? (pageIndex + 1) / total : 0, completed, updatedAt: readAt || original.modifiedAt }
       const previousPosition = previous?.position
+      // An old import may have saved the start of this chapter with the
+      // original event timestamp and no resolved pages. Reimport can repair
+      // that placeholder without overriding a subsequent reading event.
+      const repairFallback = exact && previousPosition !== undefined &&
+        (previous?.updatedAt ?? 0) <= Math.max(original.modifiedAt, readAt) &&
+        isMihonChapterStartFallback(previousPosition, position)
       const keepPosition = previousPosition !== undefined &&
-        (previousPosition.updatedAt >= position.updatedAt || (!exact && !pending))
+        !repairFallback && (previousPosition.updatedAt >= position.updatedAt || (!exact && !pending))
       states.set(key, { comicId: comic.id, chapterId: destination.id,
         position: keepPosition ? previousPosition : position, isRead: completed,
         bookmarked: localNewer ? previous?.bookmarked : original.bookmarked,
@@ -436,7 +464,9 @@ export function mergeMihonReading(snapshot: ReaderSessionReadingSnapshot,
         latestChapter = destination
       }
     }
-    if (latest !== undefined && latest.updatedAt > (progress.get(comic.id)?.updatedAt ?? 0)) {
+    const recent = progress.get(comic.id)
+    if (latest !== undefined && (latest.updatedAt > (recent?.updatedAt ?? 0) ||
+      recent !== undefined && isMihonChapterStartFallback(recent, latest))) {
       progress.set(comic.id, latest)
       histories.set(comic.id, { comicId: comic.id, sourceId: comic.sourceRuntimeId ?? ('mihon:' + work.sourceId),
         mangaId: comic.remoteResourceId ?? work.url, mangaUrl: comic.sourcePath, sourceName: comic.sourceMetadata?.sourceName,

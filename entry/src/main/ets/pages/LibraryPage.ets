@@ -7,12 +7,14 @@ import { cachedLibraryChapterUpdateTimes } from '../model/LibraryChapterUpdates'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
+import { FrameCallback } from '@kit.ArkUI'
 import { KomaMenuController, KomaMenuAction as LibraryTitleMenuItem, komaTitleMoreIcon } from '../components/ui/KomaMenuController'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { PullRefresh } from '../components/PullRefresh'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { RootNavigationState } from '../state/RootNavigationState'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -104,14 +106,122 @@ interface LibraryServerSourceFilterOption {
   title: string
 }
 
-interface LibraryGridProjection {
-  comics: ComicCoverInfo[]
-  byId: Map<ComicId, ComicCoverInfo>
-  indexById: Map<ComicId, number>
+interface LibraryCardCache {
+  cards: Map<ComicId, ComicCoverInfo>
+  categoryNames: Map<string, string>
+}
+
+interface LibraryCategoryProjection {
+  all: Comic[]
+  categories: Map<string, Comic[]>
+}
+
+class LibraryGridFrame extends FrameCallback {
+  private publish: () => void
+
+  constructor(publish: () => void) {
+    super()
+    this.publish = publish
+  }
+
+  onFrame(_timestamp: number): void { this.publish() }
+  onIdle(_timeLeft: number): void {}
+}
+
+@ObservedV2
+class LibraryGridRows implements IDataSource {
+  @Trace private firstRow: Comic[] = []
+  @Trace private secondRow: Comic[] = []
+  @Trace private rows: Comic[] = []
+  @Trace private secondRowPending: boolean = false
+  private snapshot: Comic[] | undefined = undefined
+  private listeners: DataChangeListener[] = []
+
+  totalCount(): number { return this.firstRow.length + this.secondRow.length + this.rows.length }
+  getData(index: number): number { return index }
+  comicAt(index: number): Comic | undefined {
+    if (index < this.firstRow.length) return this.firstRow[index]
+    const remainingIndex = index - this.firstRow.length
+    if (remainingIndex < this.secondRow.length) return this.secondRow[remainingIndex]
+    return this.rows[remainingIndex - this.secondRow.length]
+  }
+
+  isPublished(index: number): boolean {
+    return !this.secondRowPending || index < this.firstRow.length
+  }
+
+  registerDataChangeListener(listener: DataChangeListener): void {
+    if (!this.listeners.includes(listener)) this.listeners.push(listener)
+  }
+  unregisterDataChangeListener(listener: DataChangeListener): void {
+    this.listeners = this.listeners.filter((value: DataChangeListener): boolean => value !== listener)
+  }
+
+  update(comics: Comic[]): void {
+    if (this.snapshot === comics) return
+    const previousCount = this.totalCount()
+    // Key enumeration reads only the positions. The instantiated card nodes
+    // subscribe to the new array. No observable row is created for each key.
+    this.snapshot = comics
+    if (this.firstRow.length > 0) this.firstRow = comics.slice(0, this.firstRow.length)
+    if (this.secondRow.length > 0) {
+      this.secondRow = comics.slice(this.firstRow.length, this.firstRow.length + this.secondRow.length)
+    }
+    this.rows = comics.slice(this.firstRow.length + this.secondRow.length)
+    this.secondRowPending = false
+    this.notifyCountChange(previousCount)
+  }
+
+  startCategory(comics: Comic[], columns: number): void {
+    const previousCount = this.totalCount()
+    // Keep the already mounted second row out of sight while its new data
+    // waits for the next frame. Deleting it here would destroy those cards.
+    const retainedSecondRow: Comic[] = []
+    const end = Math.min(columns * 2, previousCount, comics.length)
+    for (let index = columns; index < end; index++) {
+      const comic = this.comicAt(index)
+      if (comic !== undefined) retainedSecondRow.push(comic)
+    }
+    this.snapshot = undefined
+    this.firstRow = comics.slice(0, columns)
+    this.secondRow = retainedSecondRow
+    this.rows = []
+    this.secondRowPending = retainedSecondRow.length > 0
+    this.notifyCountChange(previousCount)
+  }
+
+  publishSecondRow(comics: Comic[], columns: number): void {
+    const previousCount = this.totalCount()
+    this.secondRow = comics.slice(columns, columns * 2)
+    this.secondRowPending = false
+    this.notifyCountChange(previousCount)
+  }
+
+  finishCategory(comics: Comic[], columns: number): void {
+    const previousCount = this.totalCount()
+    this.snapshot = comics
+    this.rows = comics.slice(columns * 2)
+    this.notifyCountChange(previousCount)
+  }
+
+  private notifyCountChange(previousCount: number): void {
+    const count = this.totalCount()
+    if (count === previousCount) return
+    // Positional keys are stable. A staged size change only adds or removes
+    // the tail; the observed row data refreshes the slots that stay mounted.
+    const operation: DataOperation = count > previousCount
+      ? { type: DataOperationType.ADD, index: previousCount, count: count - previousCount }
+      : { type: DataOperationType.DELETE, index: count, count: previousCount - count }
+    this.listeners.forEach((listener: DataChangeListener): void => { listener.onDatasetChange([operation]) })
+  }
 }
 
 interface LibraryComicBuilderParams {
   comic: ComicCoverInfo
+}
+
+interface LibraryGridComicParams {
+  comic: Comic
 }
 
 interface LibraryCheckboxBuilderParams {
@@ -139,9 +249,6 @@ struct ContinueReadingShelfCard {
     color: ThemeConstants.SOURCE_LOCAL_COLOR,
     comicId: '',
   }
-  // The library snapshot uses this existing revision bridge to keep its
-  // continue-reading content reactive. It is not part of cover identity.
-  @Param revision: number = 0
   @Local private failedCoverUri: string = ''
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
 
@@ -239,9 +346,16 @@ export struct LibraryPage {
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param readerProgressRevision: number = 0
   @Param active: boolean = true
+  @Param rootNavigation: RootNavigationState = new RootNavigationState()
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private displayedComics: Comic[] = []
   @Local private displayedRevision: number = 0
+  private gridRows: LibraryGridRows = new LibraryGridRows()
+  private pendingGridCategory: Comic[] | undefined = undefined
+  private gridUpdateGeneration: number = 0
+  private displayedLibraryRevision: number = -1
+  private displayedProgressRevision: number = -1
+  private displayedSessionStore?: ReaderSessionStore
   @Local private projectionState: LibraryProjectionState = LibraryProjectionState.READY
   @Local private selectionMode: boolean = false
   @Local private selectedIds: Set<ComicId> = new Set<ComicId>()
@@ -309,6 +423,7 @@ export struct LibraryPage {
   @Event onProgressStoreReloadRequested: () => void = () => {}
   @Event onRefresh: () => Promise<void> = async () => {}
   @Local private scrollEnabled: boolean = true
+  @Local private coverGridScrolling: boolean = false
   @Event onImportRequested: () => void = () => {}
   @Event onSearchRequested: () => void = () => {}
   @Event onMigrationRequested: (comicIds: string[]) => void = () => {}
@@ -322,11 +437,16 @@ export struct LibraryPage {
   @Event onEditCategoriesRequested: (comicIds: ComicId[], added: string[], removed: string[]) => void =
     (_comicIds: ComicId[], _added: string[], _removed: string[]) => {}
 
-  @Monitor('selectionMode', 'selectedIds', 'viewMode', 'displayedRevision', 'batchDownloadBusy', 'languageState.effectiveLocale')
+  @Monitor('displayedRevision')
+  private updateSelectionTitleBar(): void {
+    if (this.selectionMode) this.publishTitleBar()
+  }
+
+  @Monitor('selectionMode', 'selectedIds', 'viewMode', 'batchDownloadBusy', 'languageState.effectiveLocale')
   private publishTitleBar(): void {
     const items: Record<string, Object>[] = this.selectionMode ? [
       this.titleMenuItem(s('library_action_select_all'), $r('sys.symbol.checkmark_square'),
-        () => { this.selectAllVisibleComics() }, this.hasVisibleLibraryContent()),
+        () => { this.selectAllVisibleComics() }, this.hasVisibleLibraryContent),
       this.titleMenuItem(s('library_action_categories'), $r('sys.symbol.folder'),
         () => { this.openCategoryEditor() }, this.selectedCount() > 0, 'library-title-categories'),
       this.titleMenuItem(s('migration_title'), $r('sys.symbol.arrow_right'), () => {
@@ -384,9 +504,12 @@ export struct LibraryPage {
 
   // Mihon links publish shelf and progress together. Project that committed
   // state once when the shelf is visible, including when returning to it.
-  @Monitor('libraryRevision', 'readerSessionStore', 'readerProgressRevision', 'active')
+  @Monitor('libraryRevision', 'readerSessionStore', 'readerProgressRevision', 'active', 'rootNavigation.visible')
   private syncDisplayedSnapshotFromProps(): void {
-    if (!this.active) return
+    if (!this.active || !this.rootNavigation.visible) return
+    if (this.displayedLibraryRevision === this.libraryRevision &&
+      this.displayedProgressRevision === this.readerProgressRevision &&
+      this.displayedSessionStore === this.readerSessionStore) return
     this.refreshDisplayedSnapshotFromStore()
   }
 
@@ -402,29 +525,53 @@ export struct LibraryPage {
   }
 
   private refreshDisplayedSnapshotFromStore(): void {
-    const progressByComicId = this.progressByComicId()
     const category = this.validCategoryFilter()
     const strategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory)
     this.applyCategorySort(strategy)
-    const items = this.libraryStore.listLibraryItems(progressByComicId, this.currentListOptions(category))
-    const nextComics: Comic[] = []
-    items.forEach((item: LibraryItem) => {
-      const comic = this.libraryStore.getComic(item.comicId)
-      if (comic !== undefined) {
-        nextComics.push(comic)
-      }
-    })
+    const nextComics = this.sortBy === 'source' || this.sortBy === 'lastUpdate'
+      ? this.orderedShelfComics(category)
+      : (category === 'all' ? this.orderedShelfCategories.all : this.orderedShelfCategories.categories.get(category) ?? [])
     const categoryComics = this.filterSmartCategoryComics(nextComics)
     this.hasCategoryContents = categoryComics.length > 0
     const sourceKinds = this.sourceKindsForFilter()
-    const scopedComics = categoryComics.filter((comic: Comic): boolean => {
+    const scopedComics = sourceKinds === undefined && this.filterReadState === 'all' ? categoryComics :
+      categoryComics.filter((comic: Comic): boolean => {
       if (sourceKinds !== undefined && !sourceKinds.includes(comic.sourceKind)) return false
       return this.filterReadState === 'all' || this.readerSessionStore.comicReadingState(comic) === this.filterReadState
     })
     this.displayedComics = this.filterMetadataStatusComics(
       this.filterAvailabilityComics(this.filterPreciseSourceComics(scopedComics)))
+    this.displayedLibraryRevision = this.libraryRevision
+    this.displayedProgressRevision = this.readerProgressRevision
+    this.displayedSessionStore = this.readerSessionStore
     this.displayedRevision += 1
     this.removeMissingSelectedComics()
+  }
+
+  private orderedShelfComics(category: LibraryCategoryFilter): Comic[] {
+    const items = this.libraryStore.listLibraryItems(this.shelfReadingProgress, this.currentListOptions(category))
+    const comics: Comic[] = []
+    items.forEach((item: LibraryItem) => {
+      const comic = this.libraryStore.getComic(item.comicId)
+      if (comic !== undefined) comics.push(comic)
+    })
+    return comics
+  }
+
+  @Computed
+  private get orderedShelfCategories(): LibraryCategoryProjection {
+    // Categories with the same sort take a subsequence of one ordered shelf.
+    // Live source names and chapter-update times are read at the point of use.
+    const all = this.orderedShelfComics('all')
+    const categories = new Map<string, Comic[]>()
+    all.forEach((comic: Comic): void => {
+      normalizeCategoryIds(comic.categoryIds).forEach((id: string): void => {
+        const category = categories.get(id)
+        if (category === undefined) categories.set(id, [comic])
+        else category.push(comic)
+      })
+    })
+    return { all, categories }
   }
 
   private isProjectionPending(): boolean {
@@ -566,7 +713,10 @@ export struct LibraryPage {
       comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE
   }
 
-  private progressByComicId(): Map<ComicId, ReadingProgress> {
+  @Computed
+  private get shelfReadingProgress(): Map<ComicId, ReadingProgress> {
+    void this.libraryRevision
+    void this.readerProgressRevision
     const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
     this.libraryStore.listComics(false).forEach((comic: Comic) => {
       const progress = this.readerSessionStore.getComicProgress(comic)
@@ -686,8 +836,7 @@ export struct LibraryPage {
       void new LibraryFilterStore(context).update(changes)
         .then((value: LibraryFilterPreferences) => {
           if (revision !== this.filterPreferencesMutationRevision || restoreEpoch !== this.filterPreferencesRestoreEpoch) return
-          this.applyFilterPreferences(value)
-          this.refreshDisplayedSnapshotFromStore()
+          if (this.applyFilterPreferences(value)) this.refreshDisplayedSnapshotFromStore()
         })
         .catch(() => {
           console.info('[Library] step=filter_save_failed reason=filter_save')
@@ -770,8 +919,12 @@ export struct LibraryPage {
       return
     }
     this.markFilterPreferencesMutation()
+    this.coverGridScrolling = false
     this.filterCategory = category
     this.refreshDisplayedSnapshotFromStore()
+    if (this.viewMode !== 'list' && this.displayedComics.length > this.libraryGridColumnCount()) {
+      this.pendingGridCategory = this.displayedComics
+    }
     this.saveFilterPreferences({ category })
     console.info(`[Library] step=filter_changed category=${category}`)
   }
@@ -953,11 +1106,21 @@ export struct LibraryPage {
     void this.libraryRevision
     void this.readerProgressRevision
     void this.languageState.effectiveLocale
-    return createLibraryContinueReadingCard(
-      this.libraryStore.listComics(),
-      this.readerSessionStore,
-      this.presentationByComicId,
-    )
+    const candidates: Comic[] = []
+    let latest: number | undefined
+    this.shelfReadingProgress.forEach((progress: ReadingProgress, id: ComicId): void => {
+      const comic = this.libraryStore.getComic(id)
+      if (comic === undefined || (latest !== undefined && progress.updatedAt < latest)) return
+      if (latest === undefined || progress.updatedAt > latest) {
+        candidates.length = 0
+        latest = progress.updatedAt
+      }
+      candidates.push(comic)
+    })
+    // Only equal last-read times need the existing shelf title tie-breaker.
+    candidates.sort((left: Comic, right: Comic): number =>
+      left.sortTitle.localeCompare(right.sortTitle) || left.createdAt - right.createdAt)
+    return createLibraryContinueReadingCard(candidates, this.readerSessionStore, this.presentationByComicId)
   }
 
   private continueReading(): ContinueReadingCardViewModel {
@@ -976,37 +1139,82 @@ export struct LibraryPage {
   }
 
   @Computed
-  private get gridProjection(): LibraryGridProjection {
-    void this.displayedRevision
+  private get libraryCardCache(): LibraryCardCache {
+    void this.libraryRevision
     void this.languageState.effectiveLocale
+    void this.presentationByComicId
     const categoryNames = new Map<string, string>()
     if (this.showLibraryBadges) {
       this.libraryStore.listCustomCategories().forEach((category: CustomLibraryCategory): void => {
         categoryNames.set(category.id, category.name)
       })
     }
-    const comics: ComicCoverInfo[] = []
-    const byId = new Map<ComicId, ComicCoverInfo>()
-    const indexById = new Map<ComicId, number>()
-    this.displayedComics.forEach((comic: Comic, index: number) => {
-      const labels: string[] = []
-      if (categoryNames.size > 0) {
-        normalizeCategoryIds(comic.categoryIds).forEach((id: string): void => {
-          const name = categoryNames.get(id)
-          if (name !== undefined) labels.push(name)
-        })
-      }
-      // Repeat observes the cover, not the underlying chapter and page arrays.
-      const row = createLibraryComicCard(comic, this.presentationByComicId.get(comic.id), labels)
-      comics.push(row)
-      byId.set(comic.id, row)
-      indexById.set(comic.id, index)
-    })
-    return { comics, byId, indexById }
+    return { cards: new Map<ComicId, ComicCoverInfo>(), categoryNames }
   }
 
-  private currentGridComic(comic: ComicCoverInfo): ComicCoverInfo {
-    return this.gridProjection.byId.get(comic.id) ?? comic
+  private cardForComic(comic: Comic): ComicCoverInfo {
+    const cache = this.libraryCardCache
+    const existing = cache.cards.get(comic.id)
+    if (existing !== undefined) return existing
+    const labels: string[] = []
+    if (cache.categoryNames.size > 0) {
+      normalizeCategoryIds(comic.categoryIds).forEach((id: string): void => {
+        const name = cache.categoryNames.get(id)
+        if (name !== undefined) labels.push(name)
+      })
+    }
+    const row = createLibraryComicCard(comic, this.presentationByComicId.get(comic.id), labels)
+    cache.cards.set(comic.id, row)
+    return row
+  }
+
+  @Computed
+  private get displayedCards(): ComicCoverInfo[] {
+    void this.displayedRevision
+    return this.displayedComics.map((comic: Comic): ComicCoverInfo => this.cardForComic(comic))
+  }
+
+  private gridCardForComic(comic: Comic): ComicCoverInfo {
+    // Lazy grid cells project the current record when the UI actually needs
+    // it. A retained cell after a shelf edit still resolves by comic ID.
+    void this.libraryRevision
+    return this.cardForComic(this.libraryStore.getComic(comic.id) ?? comic)
+  }
+
+  @Monitor('displayedRevision', 'viewMode')
+  private updateGridRows(): void {
+    const generation = ++this.gridUpdateGeneration
+    const comics = this.displayedComics
+    const publishInBatches = this.pendingGridCategory === comics
+    this.pendingGridCategory = undefined
+    if (this.viewMode === 'list') return
+    if (!publishInBatches) {
+      this.gridRows.update(comics)
+      return
+    }
+
+    // Each pass attaches only the next row of the new category. Earlier slots
+    // keep their content and keys, including when the lazy tail is attached.
+    const columns = this.libraryGridColumnCount()
+    const ui = this.getUIContext()
+    this.gridRows.startCategory(comics, columns)
+    const isCurrent = (): boolean => this.gridUpdateGeneration === generation && this.displayedComics === comics
+    const addSecondRow = (): void => {
+      if (!isCurrent()) return
+      this.gridRows.publishSecondRow(comics, columns)
+      if (comics.length <= columns * 2) {
+        this.gridRows.finishCategory(comics, columns)
+        return
+      }
+      ui.postFrameCallback(new LibraryGridFrame((): void => {
+        if (isCurrent()) this.gridRows.finishCategory(comics, columns)
+      }))
+    }
+    // A callback posted from a tap can run before that tap's first layout.
+    // Queue the next row from that frame so the first row can paint alone.
+    ui.postFrameCallback(new LibraryGridFrame((): void => {
+      if (isCurrent()) ui.postFrameCallback(new LibraryGridFrame(addSecondRow))
+    }))
   }
 
   private unreadForCover(comicId: ComicId): number | undefined {
@@ -1176,16 +1384,22 @@ export struct LibraryPage {
     return s('library_source_local')
   }
 
-  private hasLibraryContent(): boolean {
-    return this.displayedRevision >= 0 && this.libraryStore.listComics(false).length > 0
+  // Keep the scroll surface subscribed to emptiness, separate from the
+  // category contents that update the virtual rows inside it.
+  @Computed
+  private get hasLibraryContent(): boolean {
+    return this.displayedRevision >= 0 && this.libraryStore.hasComics()
   }
 
-  private hasVisibleLibraryContent(): boolean {
+  @Computed
+  private get hasVisibleLibraryContent(): boolean {
     return this.displayedRevision >= 0 && this.displayedComics.length > 0
   }
 
   private canRemoveComic(comicId: ComicId): boolean {
-    return this.displayedRevision >= 0 && isRemovableLocalComic(this.libraryStore.getComic(comicId))
+    // A category change doesn't change which actions a comic supports.
+    void this.libraryRevision
+    return isRemovableLocalComic(this.libraryStore.getComic(comicId))
   }
 
   private canSelectComic(comicId: ComicId): boolean {
@@ -1735,7 +1949,7 @@ export struct LibraryPage {
         { label: s('settings_row_library_view_mode_title'), children: this.titleMenuItems('layout'), action: () => {} },
         { label: s('route_import_title'), action: () => { this.onImportRequested() } },
         { label: s('route_downloads_title'), action: () => { this.onOpenDownloadsRequested() } },
-        { label: s('common_select'), isEnabled: this.hasVisibleLibraryContent(),
+        { label: s('common_select'), isEnabled: this.hasVisibleLibraryContent,
           action: () => { this.beginSelectionMode() } },
       ]
     }
@@ -1962,17 +2176,13 @@ export struct LibraryPage {
   }
 
   @Builder
-  private LibraryGridCell(params: LibraryComicBuilderParams) {
+  private LibraryGridCell(params: LibraryGridComicParams) {
     Stack({ alignContent: Alignment.TopEnd }) {
       ComicCoverCard({
-        comic: params.comic,
+        comic: this.gridCardForComic(params.comic),
         unreadBadgeCount: this.unreadForCover(params.comic.id),
-        title: params.comic.title,
-        subtitle: params.comic.subtitle,
-        coverColor: params.comic.coverColor,
-        accentColor: params.comic.accentColor,
-        categoryLabels: params.comic.categoryLabels ?? [],
         selected: this.isComicSelected(params.comic.id),
+        reuseAcrossWorks: true,
       })
         .onTouch((event: TouchEvent) => {
           this.handleComicTouch(params.comic.id, event)
@@ -1989,7 +2199,7 @@ export struct LibraryPage {
         ))
 
       if (this.selectionMode) {
-        this.ComicSelectionCheckbox({ comic: params.comic, onCover: true })
+        this.ComicSelectionCheckbox({ comic: this.gridCardForComic(params.comic), onCover: true })
       } else if (this.canRemoveComic(params.comic.id)) {
         KomaIconButton({
           icon: $r('sys.symbol.ellipsis_circle'),
@@ -2001,7 +2211,8 @@ export struct LibraryPage {
           },
         })
           .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-          .bindMenu(this.comicActionMenuKey === `grid:${params.comic.id}`, this.ComicActionMenu({ comic: params.comic }), komaMenuOptions({
+          .bindMenu(this.comicActionMenuKey === `grid:${params.comic.id}`,
+            this.ComicActionMenu({ comic: this.gridCardForComic(params.comic) }), komaMenuOptions({
             placement: Placement.BottomRight,
             onDisappear: () => {
               if (this.comicActionMenuKey === `grid:${params.comic.id}`) {
@@ -2014,33 +2225,11 @@ export struct LibraryPage {
     .width('100%')
   }
 
-  private libraryGridColumnsTemplate(): string {
-    const columns: string[] = []
-    for (let index = 0; index < this.libraryGridColumnCount(); index += 1) columns.push('1fr')
-    return columns.join(' ')
-  }
-
-  private libraryGridLayoutOptions(): GridLayoutOptions {
-    const headerCount = this.hasContinueReading() ? 3 : 2
-    const irregularIndexes: number[] = []
-    for (let index = 0; index < headerCount; index += 1) irregularIndexes.push(index)
-    irregularIndexes.push(headerCount + this.displayedComics.length)
-    return { regularSize: [1, 1], irregularIndexes: irregularIndexes }
-  }
-
-  private libraryGridCellBottomPadding(comicId: ComicId): number {
-    const index = this.gridProjection.indexById.get(comicId) ?? 0
-    const count = this.libraryGridColumnCount()
-    const lastRowStart = Math.floor((this.displayedComics.length - 1) / count) * count
-    return index >= lastRowStart ? ThemeConstants.SPACE_LG : this.libraryGridRowGap()
-  }
-
   @Builder
   private LibraryContinueReadingCard(compactList: boolean = false) {
     ContinueReadingShelfCard({
       compactList: compactList,
       info: this.continueReading(),
-      revision: this.displayedRevision,
       onOpenReader: (comicId: ComicId) => {
         if (!this.selectionMode) this.openComicFromLibrary(comicId)
       },
@@ -2048,49 +2237,52 @@ export struct LibraryPage {
   }
 
   @Builder
-  private LibraryGrid() {
-    // One scrolling owner and one keyed parent for every cover, including during rotation.
-    Grid(this.libraryScroller, this.libraryGridLayoutOptions()) {
-      GridItem() {
-        Column() {
-          Blank().height(this.layoutSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT)
-        }.width('100%')
-      }
-      .padding({ bottom: ThemeConstants.SPACE_LG })
-      .clip(false)
-
+  private LibraryGridHeader() {
+    Column({ space: ThemeConstants.SPACE_LG }) {
+      Blank()
+        .height(this.layoutSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT)
+        .width('100%')
       if (this.hasContinueReading()) {
-        GridItem() { this.LibraryContinueReadingCard() }
-          .padding({ bottom: ThemeConstants.SPACE_LG })
-          .clip(false)
+        this.LibraryContinueReadingCard()
       }
-
-      GridItem() { this.LibraryViewControls() }
-        .padding({ bottom: ThemeConstants.SPACE_LG })
-        .clip(false)
-
-      Repeat<ComicCoverInfo>(this.gridProjection.comics)
-        .each((row: RepeatItem<ComicCoverInfo>) => {
-          GridItem() {
-            this.LibraryGridCell({ comic: this.currentGridComic(row.item) })
-          }
-          .padding({ bottom: this.libraryGridCellBottomPadding(row.item.id) })
-          .clip(false)
-        })
-        .key((comic: ComicCoverInfo): string => comic.id)
-        .virtualScroll()
-
-      GridItem() {
-        Column() {
-          Blank().height(this.layoutSafeArea.bottomAvoidHeight + ThemeConstants.SPACE_XL +
-            ThemeConstants.FLOATING_TAB_BAR_CLEARANCE + Math.max(0, this.layoutSafeArea.keyboardHeight))
-        }.width('100%')
-      }.clip(false)
+      this.LibraryViewControls()
     }
-    // Retain all existing density rules, including the standard 480vp threshold.
-    .columnsTemplate(this.libraryGridColumnsTemplate())
-    .columnsGap(this.libraryGridColumnGap())
-    .rowsGap(0)
+    .width('100%')
+    .padding({ bottom: ThemeConstants.SPACE_LG })
+  }
+
+  @Builder
+  private LibraryGridFooter() {
+    Blank()
+      .height(this.layoutSafeArea.bottomAvoidHeight + ThemeConstants.SPACE_XL +
+        ThemeConstants.SPACE_LG - this.libraryGridRowGap() +
+        ThemeConstants.FLOATING_TAB_BAR_CLEARANCE + Math.max(0, this.layoutSafeArea.keyboardHeight))
+      .width('100%')
+  }
+
+  @Builder
+  private LibraryGrid() {
+    // Heading and tail span the whole width independently of item count.
+    // Category switches update only the keyed virtual rows inside that group.
+    List({ space: 0, scroller: this.libraryScroller }) {
+      ListItemGroup({ header: this.LibraryGridHeader(), footer: this.LibraryGridFooter() }) {
+        LazyForEach(this.gridRows, (index: number) => {
+          ListItem() {
+            if (this.gridRows.comicAt(index) !== undefined) {
+              this.LibraryGridCell({ comic: this.gridRows.comicAt(index) as Comic })
+            }
+          }
+          .visibility(this.gridRows.isPublished(index) ? Visibility.Visible : Visibility.Hidden)
+          .padding({ bottom: this.libraryGridRowGap() })
+          .clip(false)
+        }, (index: number): string => `${index}`)
+      }
+      .clip(false)
+    }
+    .lanes(this.libraryGridColumnCount(), this.libraryGridColumnGap())
+    // Only retain a neighboring row while scrolling. A settled category
+    // switch should rebind the visible slots, not a prefetched screen.
+    .cachedCount(this.coverGridScrolling ? 1 : 0)
     .scrollBar(BarState.Off)
     .width('100%')
     .height('100%')
@@ -2098,6 +2290,8 @@ export struct LibraryPage {
     .clipContent(ContentClipMode.CONTENT_ONLY)
     .enableScrollInteraction(this.scrollEnabled)
     .edgeEffect(EdgeEffect.None)
+    .onScrollStart(() => { this.coverGridScrolling = true })
+    .onScrollStop(() => { this.coverGridScrolling = false })
     .onDidScroll((_offset: number, state: ScrollState) => {
       this.onRootScroll(this.libraryScroller.currentOffset().yOffset, state)
     })
@@ -2184,7 +2378,7 @@ export struct LibraryPage {
   @Builder
   private LibraryList() {
     ListItemGroup({ space: this.libraryListSpace() }) {
-      Repeat<ComicCoverInfo>(this.gridProjection.comics)
+      Repeat<ComicCoverInfo>(this.displayedCards)
         .each((row: RepeatItem<ComicCoverInfo>) => {
           ListItem() {
             this.LibraryListRow(row.item)
@@ -2257,7 +2451,13 @@ export struct LibraryPage {
     .alignItems(VerticalAlign.Center)
   }
 
-  private applyFilterPreferences(preferencesValue: LibraryFilterPreferences): void {
+  private applyFilterPreferences(preferencesValue: LibraryFilterPreferences): boolean {
+    const projectionChanged = this.defaultSort.sortBy !== preferencesValue.sortBy ||
+      this.defaultSort.sortDirection !== preferencesValue.sortDirection ||
+      this.defaultSort.sortConfigured !== preferencesValue.sortConfigured ||
+      this.filterSource !== preferencesValue.source || this.filterReadState !== preferencesValue.readState ||
+      this.filterCategory !== preferencesValue.category || this.filterAvailability !== preferencesValue.availability ||
+      this.filterMetadataStatus !== preferencesValue.metadataStatus
     this.defaultSort = preferencesValue
     this.viewMode = preferencesValue.viewMode
     this.listDensity = preferencesValue.listDensity
@@ -2270,6 +2470,7 @@ export struct LibraryPage {
     console.info(
       `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} listDensity=${this.listDensity} showBadges=${this.showLibraryBadges} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability} metadataStatus=${this.filterMetadataStatus}`
     )
+    return projectionChanged
   }
 
   private async recoverFilterPreferencesAfterSave(): Promise<void> {
@@ -2305,10 +2506,12 @@ export struct LibraryPage {
       new TrackerPreferencesStore(context).subscribeMappings(refreshSmart)]
     this.restoreInitialFilterPreferences()
     this.syncDisplayedSnapshotFromProps()
+    this.updateGridRows()
     this.publishTitleBar()
   }
 
   aboutToDisappear(): void {
+    this.gridUpdateGeneration++
     this.smartSubscriptions.forEach((unsubscribe: () => void): void => { unsubscribe() })
     this.smartSubscriptions = []
     this.closeTitleMenu()
@@ -2342,7 +2545,7 @@ export struct LibraryPage {
           ListItem() {
             this.LibraryProjectionLoading()
           }
-        } else if (this.hasLibraryContent()) {
+        } else if (this.hasLibraryContent) {
           if (this.hasContinueReading()) {
             ListItem() {
               this.LibraryContinueReadingCard(this.viewMode === 'list')
@@ -2353,7 +2556,7 @@ export struct LibraryPage {
             this.LibraryViewControls()
           }
 
-          if (this.hasVisibleLibraryContent()) {
+          if (this.hasVisibleLibraryContent) {
             this.LibraryList()
           } else if (!this.hasCategoryContents && this.filterCategory !== 'all') {
             ListItem() {
@@ -2388,7 +2591,7 @@ export struct LibraryPage {
         onScrollEnableChange: (enabled: boolean): void => { this.scrollEnabled = enabled },
       }) {
         if (this.viewMode !== 'list' && !this.isProjectionPending() &&
-          this.hasLibraryContent() && this.hasVisibleLibraryContent()) {
+          this.hasLibraryContent && this.hasVisibleLibraryContent) {
           this.LibraryGrid()
         } else {
           this.LibraryListSurface()

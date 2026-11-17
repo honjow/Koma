@@ -31,6 +31,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { RemoteReadHistoryEntry } from '../model/RemoteReaderSession'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { RootNavigationState } from '../state/RootNavigationState'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 
 const HISTORY_LIMIT: number = 50
@@ -83,6 +84,7 @@ export struct HistoryPage {
   @Event onRootScroll: (offset: number, state: ScrollState) => void = (_offset: number, _state: ScrollState) => {}
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param active: boolean = false
+  @Param rootNavigation: RootNavigationState = new RootNavigationState()
   @Param readerSessionStore?: ReaderSessionStore = undefined
   @Param readerProgressRevision: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
@@ -97,23 +99,23 @@ export struct HistoryPage {
   @Event onOpenRemoteReader: (entry: RemoteReadHistoryEntry) => void = () => {}
   @Event onRefresh: () => Promise<void> = async () => {}
 
-  @Monitor('active')
+  @Monitor('active', 'rootNavigation.visible')
   private onActiveChanged(): void {
-    if (this.active) {
+    if (this.active && this.rootNavigation.visible) {
       this.reloadHistory('tab_active')
     }
   }
 
   @Monitor('remoteProgress.syncRevision')
   private onRemoteProgressSyncRevChanged(): void {
-    if (!this.active) return
+    if (!this.active || !this.rootNavigation.visible) return
     void this.remoteProgress.syncRevision
     this.reloadHistory('bootstrap_sync')
   }
 
   @Monitor('readerProgressRevision')
   private onReaderProgressRevisionChanged(): void {
-    if (!this.active) return
+    if (!this.active || !this.rootNavigation.visible) return
     this.reloadHistory('reader_progress')
   }
 

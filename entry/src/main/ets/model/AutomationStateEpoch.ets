@@ -6,7 +6,11 @@ interface AutomationEpoch { generation: number; restoring: boolean }
 const EPOCH_FILE: string = 'automation-state-epoch.v1.json'
 
 export function automationEpoch(context: common.Context): AutomationEpoch {
-  const path = `${context.filesDir}/${EPOCH_FILE}`
+  return readAutomationEpoch(context.filesDir)
+}
+
+function readAutomationEpoch(filesDir: string): AutomationEpoch {
+  const path = `${filesDir}/${EPOCH_FILE}`
   return fs.accessSync(path) ? JSON.parse(fs.readTextSync(path)) as AutomationEpoch : { generation: 0, restoring: false }
 }
 
@@ -23,9 +27,13 @@ export function beginAutomationRestore(context: common.Context): void {
 }
 
 export function finishAutomationRestore(context: common.Context): void {
-  const value = automationEpoch(context)
+  finishAutomationRestoreInDirectory(context.filesDir)
+}
+
+export function finishAutomationRestoreInDirectory(filesDir: string): void {
+  const value = readAutomationEpoch(filesDir)
   value.restoring = false
-  writeAppTextFile(`${context.filesDir}/${EPOCH_FILE}`, JSON.stringify(value))
+  writeAppTextFile(`${filesDir}/${EPOCH_FILE}`, JSON.stringify(value))
 }
 
 export function resetGeneratedAutomationWork(context: common.Context): void {

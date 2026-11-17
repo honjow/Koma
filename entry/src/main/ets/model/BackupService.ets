@@ -1740,7 +1740,7 @@ export class BackupService {
     return true
   }
 
-  async selectImportPreviewFromPicker(): Promise<BackupFileSelection | undefined> {
+  async selectImportPreviewFromPicker(beforeRead?: () => Promise<void>): Promise<BackupFileSelection | undefined> {
     const options = new picker.DocumentSelectOptions()
     options.maxSelectNumber = 1
     const documentPicker = new picker.DocumentViewPicker(this.context)
@@ -1749,6 +1749,7 @@ export class BackupService {
       DiagnosticLogger.info('backup', 'preview_cancel', '[Backup] step=preview_cancel')
       return undefined
     }
+    await beforeRead?.()
     const bytes = await readBackupBytes(result[0])
     const prefix = new Uint8Array(bytes)
     if (prefix[0] === 0x1f && prefix[1] === 0x8b) {

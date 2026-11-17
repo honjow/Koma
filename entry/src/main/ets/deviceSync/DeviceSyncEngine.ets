@@ -2438,11 +2438,14 @@ export class DeviceSyncEngine {
     for (const ref of probeCredentials) await this.removeUnusedCredential(ref)
   }
 
-  beginRestore(): void {
+  beginRestore(catalogMerge: boolean = false): void {
     this.generation++
     this.prepared = undefined
     this.restoreInProgress = true
     SYNC_GROUPS.forEach((group: SyncGroup): void => { this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1) })
+    // A catalog merge shares the local commit lock and preserves the sync
+    // baseline and pending intents. Its journal rolls back only the local data.
+    if (catalogMerge) return
     const current = this.storage.load()
     this.restoreBefore = current.active
     this.restoreBeforeIntent = current.intent

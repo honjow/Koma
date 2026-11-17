@@ -11,16 +11,18 @@ const source = fs.readFileSync(path.join(base, 'components/ChapterListSection.et
 const tree = ts.createSourceFile('chapter.ts', source, ts.ScriptTarget.Latest, true)
 const owner = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'ChapterListSection')
 const names = ['sortedChapterList','filteredChapterList','chapterNumberValue','setSortBasis','setSortDirection','hasActiveFilters',
-  'resetFilters','normalizeMetadataValue','selectedIdsInFilter','filteredChapterIds']
+  'resetFilters','normalizeMetadataValue','selectedIdsInFilter','reportDisplayOrder']
 const methods = owner.members.filter(n => ts.isMethodDeclaration(n) && names.includes(n.name.getText(tree)))
-const getter = owner.members.find(n => ts.isGetAccessorDeclaration(n) && n.name.getText(tree) === 'sortedChapters')
+const getters = owner.members.filter(n => ts.isGetAccessorDeclaration(n) &&
+  ['sortedChapters', 'sortedChapterIds'].includes(n.name.getText(tree)))
 const presentation = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'ChapterListPresentation')
 const presentationSource = presentation.getText(tree).replace(/@(?:ObservedV2|Trace)\s+/g,'')
 const model = fs.readFileSync(path.join(base, 'model/MangaDetailModels.ets'), 'utf8')
 const modelTree = ts.createSourceFile('models.ts', model, ts.ScriptTarget.Latest, true)
 const enums = modelTree.statements.filter(n => ts.isEnumDeclaration(n) && ['ChapterSortBasis','ChapterSortDirection'].includes(n.name.text))
 const js = ts.transpileModule(enums.map(n=>n.getText(modelTree)).join('\n') + '\n' + presentationSource + '\nclass Owner {' +
-  getter.getText(tree).replace(/@Computed\s+/g,'') + methods.map(n => n.getText(tree)).join('\n') +
+  getters.map(n => n.getText(tree).replace(/@Computed\s+/g,'')).join('\n') +
+  methods.map(n => n.getText(tree).replace(/@Monitor\([^)]*\)\s+/g,'')).join('\n') +
   '} exports.make=()=>{ const o=new Owner();o.presentation=new ChapterListPresentation();return o };',
   {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
 const exported = {}
@@ -63,8 +65,10 @@ test('filters and batch actions use the same reversed chapter identities without
   const input=[chapter('a',undefined,{isRead:true,language:'zh'}),chapter('b',undefined,{language:'en'}),
     chapter('c',undefined,{language:'zh'}),chapter('d',undefined,{language:'zh'})]
   const o=make(input);o.presentation.readFilter='unread';o.presentation.languageFilter='zh';o.presentation.selectedChapterIds=new Set(['c','d','a'])
-  o.setSortDirection(REVERSE);assert.deepEqual(o.filteredChapterIds(),['d','c']);assert.deepEqual(o.selectedIdsInFilter(),['d','c'])
-  o.setSortDirection(FORWARD);assert.deepEqual(o.filteredChapterIds(),['c','d']);assert.equal(input[0].isRead,true)
+  let displayed
+  o.onDisplayOrderChange = chapters => { displayed = chapters.map(chapter => chapter.id) }
+  o.setSortDirection(REVERSE);o.reportDisplayOrder();assert.deepEqual(displayed,['d','c']);assert.deepEqual(o.selectedIdsInFilter(),['d','c'])
+  o.setSortDirection(FORWARD);o.reportDisplayOrder();assert.deepEqual(displayed,['c','d']);assert.equal(input[0].isRead,true)
 })
 test('each state domain has exactly the two exposed choices, without hidden legacy defaults',()=>{
   assert.deepEqual(Object.values(exported.ChapterSortBasis).sort(),[SOURCE,NUMBER].sort())

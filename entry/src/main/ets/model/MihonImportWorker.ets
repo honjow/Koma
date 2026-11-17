@@ -3,7 +3,7 @@ import { taskpool } from '@kit.ArkTS'
 import { Comic } from './ComicModels'
 import { InMemoryLibraryStore, LibraryContents, libraryContents } from './LibraryStore'
 import { AppFilesLibraryStorePersistenceAdapter, LibraryStorePersistenceService, LIBRARY_STORE_PERSISTENCE_FILE_NAME,
-  serializeLibraryStore } from './LibraryPersistence'
+  serializeLibraryStore, updatedSourceMangaDetail } from './LibraryPersistence'
 import { alignSnapshotChapterCompletion, AppFilesReaderSessionPersistenceAdapter, ChapterReadingState,
   ReaderSessionDocumentSnapshot, ReaderSessionReadingSnapshot, READER_PROGRESS_PERSISTENCE_FILE_NAME,
   serializeReaderSessionForDevice } from './ReaderSessionStore'
@@ -14,6 +14,11 @@ import { MihonSourceIdentity, mihonPathIdentity } from '../sourceRuntime/MihonSo
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { ComicTrackerMapping } from './TrackerModels'
 import { SourceManga } from './SourceModels'
+import { comicWithCompleteSourceCatalog } from './SourceLibraryComic'
+import { MangaChapterItem, MangaDetail } from './MangaDetailModels'
+import { SourceChapterIdentityPolicy } from '../sourceRuntime/SourceWebsitePolicy'
+import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
+import { finishAutomationRestoreInDirectory } from './AutomationStateEpoch'
 
 type MihonSourceSummary = SourceRuntimeRegistryInstalledSourceSummary
 
@@ -22,6 +27,16 @@ export interface MihonLinkRequest {
   target: Comic | string
   verifiedEdition?: boolean
   identity?: MihonSourceIdentity
+}
+
+export interface MihonCatalogLink {
+  id: string
+  detail: MangaDetail
+  chapters: MangaChapterItem[]
+  excludedChapterIds: string[]
+  settingsFingerprint: string
+  identity?: MihonSourceIdentity
+  chapterPolicy?: SourceChapterIdentityPolicy
 }
 
 export interface MihonSourceMatch {
@@ -33,6 +48,7 @@ export interface MihonSourceMatch {
 export interface MihonTransactionRequest {
   bytes?: ArrayBuffer
   links?: MihonLinkRequest[]
+  catalogLinkJson?: string
   sourceMatches?: MihonSourceMatch[]
   identities: Map<string, MihonSourceIdentity>
   sources: MihonSourceSummary[]
@@ -53,6 +69,11 @@ export interface MihonPreparedTransaction {
 @Concurrent
 export async function previewMihonBackupTask(bytes: ArrayBuffer): Promise<MihonImportSummary> {
   return summarizeMihonImport(await readMihonBackup(bytes))
+}
+
+@Concurrent
+export function finishMihonAutomationRestoreTask(filesDir: string): void {
+  finishAutomationRestoreInDirectory(filesDir)
 }
 
 /** Only the prepared documents and their display data cross back to ArkUI.
@@ -96,6 +117,24 @@ export async function prepareMihonTransactionTask(filesDir: string, stagedDir: s
       if (target === undefined) throw new Error('migration_source_changed')
       entries.push(linkMihonWork(library, record, target, link.verifiedEdition, link.identity, request.labels))
     }
+    if (request.catalogLinkJson !== undefined) {
+      const catalog = JSON.parse(request.catalogLinkJson) as MihonCatalogLink
+      const record = library.listMihonImports().find((row: MihonImportRecord): boolean => row.id === catalog.id)
+      if (record === undefined) throw new Error('mihon_import_missing_work')
+      if (!record.targetComicId) {
+        const detail = catalog.detail
+        const candidate = comicWithCompleteSourceCatalog(detail.sourceId, detail.id, detail, catalog.chapters,
+          catalog.excludedChapterIds, catalog.settingsFingerprint)
+        const linked = linkMihonWork(library, record, candidate, true, catalog.identity, request.labels)
+        const stored = library.getComic(linked.target.id)
+        if (stored !== undefined) {
+          const resolved = reconcileSourceChapterIdentity(stored, detail.id, catalog.chapters, undefined, catalog.chapterPolicy)
+          library.upsertComic(updatedSourceMangaDetail(stored, detail, resolved.chapters, true,
+            catalog.excludedChapterIds, catalog.settingsFingerprint))
+        }
+        entries.push(linked)
+      }
+    }
   }
   for (const item of entries) {
     const identity = request.identities.get(item.target.sourceRuntimeId ?? '')
@@ -138,6 +177,11 @@ export async function prepareMihonTransactionTask(filesDir: string, stagedDir: s
     reader.progress = reader.progress.filter((progress): boolean => readingIds.has(progress.comicId))
     reader.sourceHistory = reader.sourceHistory.filter((history): boolean => readingIds.has(history.comicId))
     reader.chapters = reader.chapters.filter((chapter: ChapterReadingState): boolean => readingIds.has(chapter.comicId))
+    // Incremental publication never consumes the full statistics or remote histories.
+    reader.readingSessions = undefined
+    reader.remoteHistory = undefined
+    reader.syncPositions = undefined
+    reader.syncActions = undefined
   }
   for (let offset = 0; offset < contents.comics.length; offset += 16) {
     taskpool.Task.sendData('comics', contents.comics.slice(offset, offset + 16))

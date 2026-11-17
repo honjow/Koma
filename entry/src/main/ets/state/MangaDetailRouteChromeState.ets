@@ -1,4 +1,5 @@
 import { ChapterListPresentation } from '../components/ChapterListSection'
+import { MangaChapterItem } from '../model/MangaDetailModels'
 
 /**
  * Route-local page-management commands for one manga detail destination.
@@ -35,7 +36,7 @@ export class MangaDetailRouteChromeState {
   readonly detailScroller: ListScroller = new ListScroller()
   readonly chapterScroller: ListScroller = new ListScroller()
   readonly chapterPresentation: ChapterListPresentation = new ChapterListPresentation()
-  @Trace filteredChapterIds: string[] = []
+  @Trace displayedChapters: MangaChapterItem[] = []
   @Trace chapterDownloadAvailable: boolean = false
   @Trace selectedChapterDownloadEnabled: boolean = false
   @Trace visible: boolean = false
@@ -57,15 +58,21 @@ export class MangaDetailRouteChromeState {
   @Trace requestedAction: MangaDetailTitleAction = MangaDetailTitleAction.RELOAD_SOURCE
   @Trace actionRequestSeq: number = 0
 
+  @Computed
+  get hasDisplayedChapters(): boolean {
+    return this.displayedChapters.length > 0
+  }
+
   allFilteredChaptersSelected(): boolean {
-    return this.filteredChapterIds.length > 0 && this.filteredChapterIds.every((id: string): boolean =>
-      this.chapterPresentation.selectedChapterIds.has(id))
+    return this.hasDisplayedChapters &&
+      this.displayedChapters.every((chapter: MangaChapterItem): boolean =>
+        this.chapterPresentation.selectedChapterIds.has(chapter.id))
   }
 
   toggleFilteredChapterSelection(): void {
-    if (!this.chapterPresentation.selectionMode || this.filteredChapterIds.length === 0) return
+    if (!this.chapterPresentation.selectionMode || !this.hasDisplayedChapters) return
     this.chapterPresentation.selectedChapterIds = this.allFilteredChaptersSelected() ?
-      new Set<string>() : new Set<string>(this.filteredChapterIds)
+      new Set<string>() : new Set<string>(this.displayedChapters.map((chapter: MangaChapterItem): string => chapter.id))
   }
 
   requestAction(action: MangaDetailTitleAction): void {

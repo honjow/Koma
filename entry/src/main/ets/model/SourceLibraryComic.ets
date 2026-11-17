@@ -1,4 +1,4 @@
-import { Chapter, Comic, ComicSourceKind, ReadingDirection, normalizeSortKey } from './ComicModels'
+import { Chapter, Comic, ComicSourceKind, ReadingDirection, normalizeSortKey, setCompleteSourceChapterCatalog } from './ComicModels'
 import { MangaDetail, MangaChapterItem } from './MangaDetailModels'
 import { AppStrings } from '../i18n/AppStrings'
 
@@ -67,4 +67,15 @@ export function comicFromSourceManga(manga: MangaDetail, chapters: MangaChapterI
     updatedAt: now,
     lastImportedAt: now,
   }
+}
+
+export function comicWithCompleteSourceCatalog(sourceId: string | undefined, mangaId: string, detail: MangaDetail,
+  chapters: MangaChapterItem[], excludedChapterIds: string[] | undefined, settingsFingerprint: string): Comic {
+  const comic = comicFromSourceManga(detail, chapters, sourceLibraryComicId(sourceId, mangaId))
+  setCompleteSourceChapterCatalog(comic, chapters.map((chapter: MangaChapterItem): string => chapter.id), Date.now())
+  if (comic.sourceMetadata !== undefined) {
+    comic.sourceMetadata.excludedChapterIds = excludedChapterIds
+    comic.sourceMetadata.settingsFingerprint = settingsFingerprint
+  }
+  return comic
 }

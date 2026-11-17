@@ -54,6 +54,7 @@
     { "name": "backup_export_copy", "value": "导出副本" },
     { "name": "backup_export_protected_copy", "value": "导出加密副本" },
     { "name": "backup_restore_preview", "value": "恢复预览" },
+    { "name": "backup_reading_file", "value": "正在读取备份…" },
     { "name": "backup_auto_retention_detail", "value": "自动清理时，本地手动与自动备份一起计算。" },
     { "name": "backup_record_plain", "value": "未加密" },
     { "name": "backup_record_encrypted", "value": "已加密" },

@@ -1,6 +1,8 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { fileIo as fs } from '@kit.CoreFileKit'
+import { taskpool } from '@kit.ArkTS'
+import { writeAppTextFile } from './AppFileTextPersistence'
 import { AppFilesLibraryStorePersistenceAdapter } from './LibraryPersistence'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { APPLICATION_SETTINGS_BACKUP_STORES } from './ApplicationSettingsBackup'
@@ -88,6 +90,11 @@ function checkpointFilesPath(filesDir: string): string {
   return `${filesDir}/${CHECKPOINT_FILES}`
 }
 
+@Concurrent
+function publishRestoreCheckpoint(path: string, payload: string): void {
+  writeAppTextFile(path, payload)
+}
+
 async function copyCheckpointFile(source: string, destination: string, byteSize: number): Promise<void> {
   await fs.copyFile(source, destination)
   const file = fs.openSync(destination, fs.OpenMode.READ_WRITE)
@@ -154,7 +161,7 @@ export class BackupRestoreCheckpoint {
     return checkpointFilesPath(this.context.filesDir)
   }
 
-  static async prepare(context: common.UIAbilityContext): Promise<BackupRestoreCheckpoint> {
+  static async prepare(context: common.UIAbilityContext, backgroundMarker: boolean = false): Promise<BackupRestoreCheckpoint> {
     const filesDir = context.filesDir
     const adapter = new AppFilesLibraryStorePersistenceAdapter(context.filesDir, CHECKPOINT_FILE)
     if (fs.accessSync(`${filesDir}/${CHECKPOINT_FILE}`)) throw new Error('backup_checkpoint_recovery_pending')
@@ -183,7 +190,9 @@ export class BackupRestoreCheckpoint {
     // Publish the marker only once every rollback input is complete.
     const document: RestoreCheckpointDocument = { schemaVersion: FILE_CHECKPOINT_VERSION,
       phase: 'prepared', files, preferences: images }
-    adapter.save(JSON.stringify(document))
+    const payload = JSON.stringify(document)
+    if (backgroundMarker) await taskpool.execute(publishRestoreCheckpoint, `${filesDir}/${CHECKPOINT_FILE}`, payload)
+    else adapter.save(payload)
     console.info('[BackupRecovery] step=prepared')
     return new BackupRestoreCheckpoint(context, document)
   }
@@ -276,6 +285,26 @@ export class BackupRestoreCheckpoint {
     new AppFilesLibraryStorePersistenceAdapter(this.context.filesDir, CHECKPOINT_FILE).save(JSON.stringify(this.document))
     this.discardCommitted()
     console.info('[BackupRecovery] step=committed')
+  }
+
+  /** The live restore lock stays held until the worker verifies the committed marker. */
+  async commitAsync(): Promise<void> {
+    const filesDir = this.context.filesDir
+    const marker = `${filesDir}/${CHECKPOINT_FILE}`
+    this.document.phase = 'committed'
+    await taskpool.execute(publishRestoreCheckpoint, marker, JSON.stringify(this.document))
+    console.info('[BackupRecovery] step=committed')
+    try {
+      await fs.unlink(marker)
+    } catch (_error) {
+      // A retained COMMITTED image is cleanup-only on the next startup.
+      return
+    }
+    try {
+      await fs.rmdir(checkpointFilesPath(filesDir))
+    } catch (_error) {
+      // A completed transaction no longer depends on the saved copies.
+    }
   }
 
   private discardCommitted(): void {

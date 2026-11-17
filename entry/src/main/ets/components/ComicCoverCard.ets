@@ -20,6 +20,7 @@ export struct ComicCoverCard {
   @Param categoryLabels: string[] = []
   @Param selected: boolean = false
   @Param unreadBadgeCount: number | undefined = undefined
+  @Param reuseAcrossWorks: boolean = false
   @Local private failedCoverUri: string = ''
   @Local private categoryMarqueeStarted: boolean = false
   private categoryMarqueeStartTimer: number = -1
@@ -93,41 +94,30 @@ export struct ComicCoverCard {
   }
 
   @Builder
-  private CoverPlaceholder() {
-    Column() {
-      SymbolGlyph($r('sys.symbol.book'))
-        .fontSize(42)
-        .fontColor([ThemeConstants.TEXT_TERTIARY])
-    }
-    .width('100%')
-    .height('100%')
-    .padding(ThemeConstants.SPACE_MD)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
-    // An absent image is content state, not a themed illustration.  Keep the
-    // fallback neutral so a source/local colour never masquerades as a cover.
-    .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
+  private CoverImage() {
+    CachedCoverImage({
+      uri: this.displayCoverUri(),
+      coverOwnerId: this.reuseAcrossWorks ? this.comic.id : '',
+      objectFit: ImageFit.Cover,
+      sourceRuntimeId: this.displaySourceRuntimeId(),
+      sourceImageId: this.displaySourceImageId(),
+      sourceKind: this.comic.sourceKind,
+      remoteServerId: this.comic.remoteServerId ?? '',
+      sourceMangaUrl: this.comic.sourceMangaUrl ?? '',
+      onError: () => { this.failedCoverUri = this.coverFailureKey() },
+    })
   }
 
   build() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Badge(libraryUnreadBadgeOptions(this.unreadBadgeCount ?? this.comic.unreadChapterCount, this.displayAccentColor())) {
-        Stack() {
-          this.CoverPlaceholder()
+        Stack({ alignContent: Alignment.Center }) {
+          SymbolGlyph($r('sys.symbol.book'))
+            .fontSize(42)
+            .fontColor([ThemeConstants.TEXT_TERTIARY])
 
           if (this.shouldDisplayCoverImage()) {
-            CachedCoverImage({
-              uri: this.displayCoverUri(),
-              objectFit: ImageFit.Cover,
-              sourceRuntimeId: this.displaySourceRuntimeId(),
-              sourceImageId: this.displaySourceImageId(),
-              sourceKind: this.comic.sourceKind,
-              remoteServerId: this.comic.remoteServerId ?? '',
-              sourceMangaUrl: this.comic.sourceMangaUrl ?? '',
-              onError: () => {
-                this.failedCoverUri = this.coverFailureKey()
-              },
-            })
+            this.CoverImage()
           }
 
           if (this.selected) {
@@ -139,6 +129,8 @@ export struct ComicCoverCard {
         }
         .width('100%')
         .aspectRatio(0.68)
+        // Keep the placeholder in the same surface as the image fade.
+        .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
         .borderRadius(ThemeConstants.RADIUS_COVER)
         .clip(true)
         .shadow({ radius: 14, color: ThemeConstants.SHADOW_CARD, offsetY: 7 })

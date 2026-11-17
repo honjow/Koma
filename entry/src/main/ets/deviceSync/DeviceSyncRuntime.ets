@@ -130,7 +130,10 @@ class DeviceSyncRuntime {
     }
     connectDeviceSyncSignals((group: SyncGroup): void => { this.changed(group) })
     connectDeviceSyncSearchHistory((query?: string): void => { this.removeSharedSearch(query) })
-    connectDeviceSyncRestore((): void => { this.beginRestore() }, (committed: boolean): void => { this.finishRestore(committed) })
+    connectDeviceSyncRestore((catalogMerge: boolean): void => { this.beginRestore(catalogMerge) },
+      (committed: boolean, catalogMerge: boolean): void => {
+        this.finishRestore(committed, catalogMerge)
+    })
     connectDeviceSyncProgress((progress: ReadingProgress): boolean => this.allowProgress(progress))
     connectDeviceSyncReadingCapture((rows: ReadingProgress[]): SyncReadingCapture[] => this.stagePositions(rows),
       (capture: SyncReadingCapture): boolean => owners.readingAcknowledged(capture),
@@ -177,6 +180,12 @@ class DeviceSyncRuntime {
     })
   }
 
+  private reviewItemsDirty: boolean = false
+
+  refreshReviewItemsIfNeeded(): void {
+    if (this.reviewItemsDirty) this.refresh()
+  }
+
   private refresh(): void {
     const state = this.engine?.active()
     const configuration = this.engine?.configuration()
@@ -199,6 +208,7 @@ class DeviceSyncRuntime {
     const labels: Record<string, string> = labelKeys.length === 0 ? {} : this.owners?.readingLabels(labelKeys) ?? {}
     this.view.blockedReadings = retained.map((item: SyncBlockedReading): SyncBlockedReading =>
       ({ title: labels[syncKey(['position', item.capture.source, item.capture.work, item.capture.chapterId])] ?? item.title, capture: item.capture }))
+    this.reviewItemsDirty = false
   }
 
   private needed(): DeviceSyncEngine {
@@ -436,7 +446,11 @@ class DeviceSyncRuntime {
     })
   }
 
-  beginRestore(): void {
+  beginRestore(catalogMerge: boolean = false): void {
+    if (catalogMerge) {
+      this.engine?.beginRestore(true)
+      return
+    }
     const active = this.engine?.active()
     const context = this.context
     const owners = this.owners
@@ -465,9 +479,11 @@ class DeviceSyncRuntime {
     this.engine?.beginRestore()
   }
 
-  finishRestore(committed: boolean): void {
+  finishRestore(committed: boolean, catalogMerge: boolean = false): void {
     this.engine?.finishRestore(committed)
-    this.refresh()
+    // Refresh pending-item labels when the sync page next needs them.
+    if (catalogMerge) this.reviewItemsDirty = true
+    else this.refresh()
   }
 
   changed(group: SyncGroup): void {

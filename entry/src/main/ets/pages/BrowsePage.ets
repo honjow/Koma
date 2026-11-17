@@ -26,6 +26,7 @@ import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectSourceRuntimeState, SourceRuntimeState } from '../state/SourceRuntimeState'
+import { RootNavigationState } from '../state/RootNavigationState'
 import { reloadInstalledSourcePackages } from '../sourceRuntime/SourceRuntimeAppRegistry'
 
 function s(name: string): string {
@@ -50,7 +51,7 @@ export struct BrowsePage {
 
   @Monitor('chrome.requestId')
   private onCatalogAction(): void {
-    if (this.active && this.navigationVisible && this.chrome.action === 'filters') this.filtersShown = true
+    if (this.active && this.rootNavigation.visible && this.chrome.action === 'filters') this.filtersShown = true
   }
 
   @Computed
@@ -107,11 +108,11 @@ export struct BrowsePage {
     // animateTo can rebuild the list and remove the clicked HDS row before
     // its native click callback returns. Move the whole update to the next task.
     setTimeout((): void => {
-      if (!this.active || !this.navigationVisible || !this.catalogFilters.loaded) return
+      if (!this.active || !this.rootNavigation.visible || !this.catalogFilters.loaded) return
       const pinned = !this.catalogFilters.pinnedSourceIds.includes(id)
       this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseInOut }, (): void => {
         void this.catalogFilters.setSourcePinned(id, pinned).catch((): void => {
-          if (this.active && this.navigationVisible) {
+          if (this.active && this.rootNavigation.visible) {
             this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('browse_source_pin_save_failed') }))
           }
         })
@@ -148,7 +149,7 @@ export struct BrowsePage {
   @Param browseScroller: Scroller = new Scroller()
   @Event onRootScroll: (offset: number, state: ScrollState) => void = (_offset: number, _state: ScrollState) => {}
   @Param active: boolean = false
-  @Param navigationVisible: boolean = true
+  @Param rootNavigation: RootNavigationState = new RootNavigationState()
   private displayedSourceRevision: number = -1
   private availabilityEpoch: number = 0
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
@@ -384,7 +385,7 @@ export struct BrowsePage {
     }
   }
 
-  @Monitor('sourceRuntimeState.revision', 'active', 'navigationVisible')
+  @Monitor('sourceRuntimeState.revision', 'active', 'rootNavigation.visible')
   private refreshInstalledSourceSummaries(): void {
     // Registry publishers have already committed the live mutation. Reloading
     // every WASM here repeats disk work inside the reactive UI update.
@@ -392,7 +393,7 @@ export struct BrowsePage {
     // rows there; consume the newest revision once it is visible again instead
     // of rebuilding all summaries inside each package's completion callback.
     // Active-tab remote availability remains a separate owner below.
-    if (!this.active || !this.navigationVisible ||
+    if (!this.active || !this.rootNavigation.visible ||
       this.displayedSourceRevision === this.sourceRuntimeState.revision) return
     this.viewModel.loadInstalledSources()
     this.displayedSourceRevision = this.sourceRuntimeState.revision

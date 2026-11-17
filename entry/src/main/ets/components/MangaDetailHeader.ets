@@ -98,26 +98,12 @@ export struct MangaDetailHeader {
   }
 
   @Builder
-  private PendingCoverPlaceholder() {
-    // Match the established source-grid cover state while a valid cover URL is still decoding.
-    Column() {
-      SymbolGlyph($r('sys.symbol.book'))
-        .fontSize(42)
-        .fontColor([ThemeConstants.TEXT_TERTIARY])
-    }
-    .width('100%')
-    .height('100%')
-    .padding(ThemeConstants.SPACE_MD)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
-    .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
-  }
-
-  @Builder
   private Cover() {
     Stack({ alignContent: Alignment.Center }) {
+      SymbolGlyph($r('sys.symbol.book'))
+        .fontSize(this.hasCover() ? 42 : 48)
+        .fontColor([this.hasCover() ? ThemeConstants.TEXT_TERTIARY : ThemeConstants.TEXT_ON_BRAND])
       if (this.hasCover()) {
-        this.PendingCoverPlaceholder()
         CachedCoverImage({
           uri: this.manga.coverUrl ?? '',
           objectFit: ImageFit.Cover,
@@ -130,21 +116,11 @@ export struct MangaDetailHeader {
             this.failedCoverUrl = this.coverFailureKey()
           },
         })
-      } else {
-        Column() {
-          Blank()
-          SymbolGlyph($r('sys.symbol.book'))
-            .fontSize(48)
-            .fontColor([ThemeConstants.TEXT_ON_BRAND])
-          Blank()
-        }
-        .width('100%')
-        .height('100%')
-        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
       }
     }
     .width(104)
     .height(148)
+    .backgroundColor(this.hasCover() ? ThemeConstants.COVER_PLACEHOLDER : ThemeConstants.BRAND_PRIMARY)
     .borderRadius(ThemeConstants.RADIUS_THUMB)
     .clip(true)
     .shadow({ radius: 10, color: ThemeConstants.SHADOW_CARD, offsetY: 4 })

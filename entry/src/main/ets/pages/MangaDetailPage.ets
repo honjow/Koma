@@ -38,8 +38,9 @@ import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { CachedCoverImage } from '../components/CachedCoverImage'
 import { ChapterArchiveActions, chapterArchiveFailureText } from '../model/ChapterArchiveExport'
 import { selectComicCover, saveComicPersonalization, discardUncommittedComicCover } from '../model/ComicPersonalization'
-import { ColorMetrics, ComponentContent, LengthMetrics, UIUtils } from '@kit.ArkUI'
+import { ColorMetrics, ComponentContent, FrameCallback, LengthMetrics, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
+import { hiTraceMeter } from '@kit.PerformanceAnalysisKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
 import { systemShare } from '@kit.ShareKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
@@ -83,6 +84,7 @@ import {
   CustomLibraryCategory,
   ReadingDirection,
   ReadingProgress,
+  readingProgressPageIndex,
   updateReadingProgress,
   normalizeSortKey,
   readerFormatFromTags,
@@ -131,10 +133,8 @@ import {
 import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
 import {
   InMemoryReaderSessionStore,
-  ReaderSessionConfig,
   ReaderSessionStore,
   ChapterReadMutation,
-  createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import { SyncReadingSource } from '../deviceSync/DeviceSyncSignals'
@@ -168,6 +168,11 @@ interface DetailReadActionPresentation {
   label: string
   chapterLabel: string
   pageLabel: string
+}
+
+interface DetailChapterSelectionButtons {
+  download: ActionBarButton[]
+  reading: ActionBarButton[]
 }
 
 interface SourceOperationDataPayload {
@@ -244,6 +249,15 @@ class DetailDisabledReadContent implements ContentModifier<ButtonConfiguration> 
   }
 }
 
+class DetailBodyAfterFrame extends FrameCallback {
+  private attachBody: () => void
+  constructor(attachBody: () => void) {
+    super()
+    this.attachBody = attachBody
+  }
+  onFrame(_frameTimeInNano: number): void { this.attachBody() }
+}
+
 // Keep mid-size portrait windows such as device 103 in one column.
 const DETAIL_PANES_MIN_CONTENT_WIDTH: number = 700
 
@@ -311,6 +325,9 @@ export struct MangaDetailPage {
   // because the request has not started yet.
   @Local private manga: MangaDetail | undefined = undefined
   @Local private chapters: MangaChapterItem[] = []
+  @Local private detailBodyReady: boolean = false
+  @Local private detailChaptersReady: boolean = false
+  private detailMountGeneration: number = 0
   @Local private isInLibrary: boolean = false
   @Local private favoriteCategoryPickerShown: boolean = false
   @Local private favoriteCategoryChoices: LibraryCategoryChoice[] = []
@@ -385,31 +402,7 @@ export struct MangaDetailPage {
   private visibleChapterId: string = ''
   private chapterToRestore: string = ''
   @Local private chapterActionBarHeight: number = 0
-  // HDS keeps references to its button models. Update their tracked fields
-  // in place so an existing bar reacts without rebuilding the chapter list.
-  private readonly chapterDownloadAction = new ActionBarButton({
-    id: 'detail-selected-download',
-    baseIcon: $r('sys.symbol.arrow_down_to_line'),
-    enabled: false,
-    onClick: () => { this.downloadSelectedChapters() },
-  })
-  private readonly chapterMarkReadAction = new ActionBarButton({
-    id: 'detail-selected-mark-read',
-    baseIcon: $r('sys.symbol.checkmark_circle'),
-    enabled: false,
-    onClick: () => { this.markSelectedChaptersRead(true) },
-  })
-  private readonly chapterMarkUnreadAction = new ActionBarButton({
-    id: 'detail-selected-mark-unread',
-    baseIcon: $r('sys.symbol.circle'),
-    enabled: false,
-    onClick: () => { this.markSelectedChaptersRead(false) },
-  })
-  private readonly chapterDownloadActions: ActionBarButton[] = [this.chapterDownloadAction]
-  private readonly chapterReadStateActions: ActionBarButton[] = [
-    this.chapterMarkReadAction, this.chapterMarkUnreadAction,
-  ]
-
+  private chapterSelectionButtons?: DetailChapterSelectionButtons
 
   // Reserve both panes' usable widths before splitting. Window or device
   // orientation alone does not describe the space inside a destination.
@@ -566,6 +559,7 @@ export struct MangaDetailPage {
   private sourceDetailSettingsRevision: string = ''
   private sourceDetailSettingsFingerprint: string = ''
   private initialDetailLoadStarted: boolean = false
+  private initialSourceComic?: Comic
   private sourceDetailRegistryEntry?: SourceRuntimeRegistryEntry
   private handledTitleActionRequestSeq: number = 0
 
@@ -616,10 +610,30 @@ export struct MangaDetailPage {
   }
 
   aboutToAppear(): void {
-    this.syncChapterSelectionActions()
     configureSourceSettingsStore(getContext(this) as common.UIAbilityContext)
     this.chrome.showTitle = false
-    this.seedSourceDetailFromInitialRouteManga()
+    hiTraceMeter.startTrace('KomaDetailSeed', 0)
+    try {
+      this.seedSourceDetailFromInitialRouteManga()
+    } finally {
+      hiTraceMeter.finishTrace('KomaDetailSeed', 0)
+    }
+    const mount = ++this.detailMountGeneration
+    if (!this.usesDetailPanes && this.sourceDetailDataResolved && this.chapters.length > 0) {
+      // Let the cover and main reading action render first, followed by the
+      // metadata and secondary actions, then the virtual chapter rows.
+      const ui = this.getUIContext()
+      ui.postFrameCallback(new DetailBodyAfterFrame((): void => {
+        if (this.detailMountGeneration !== mount) return
+        this.detailBodyReady = true
+        ui.postFrameCallback(new DetailBodyAfterFrame((): void => {
+          if (this.detailMountGeneration === mount) this.detailChaptersReady = true
+        }))
+      }))
+    } else {
+      this.detailBodyReady = true
+      this.detailChaptersReady = true
+    }
     this.syncTitleActions()
     this.loadInitialDetailWhenVisible()
     this.unsubscribeTrackingMappings = this.trackingStore().subscribeMappings(() => {
@@ -668,6 +682,7 @@ export struct MangaDetailPage {
   }
 
   aboutToDisappear(): void {
+    this.detailMountGeneration++
     this.downloadMenu.close()
     this.unsubscribeDownloads?.()
     this.unsubscribeDownloads = undefined
@@ -817,7 +832,7 @@ export struct MangaDetailPage {
   }
 
   private runTitleAction(action: MangaDetailTitleAction): void {
-    if (action === MangaDetailTitleAction.SELECT_CHAPTERS && this.chrome.filteredChapterIds.length > 0) {
+    if (action === MangaDetailTitleAction.SELECT_CHAPTERS && this.chrome.hasDisplayedChapters) {
       this.chapterPresentation.setSelectionMode(true)
       return
     }
@@ -837,7 +852,8 @@ export struct MangaDetailPage {
     if (action === MangaDetailTitleAction.DOWNLOAD_INCOMPLETE || action === MangaDetailTitleAction.RETRY_FAILED_DOWNLOADS) {
       const mode = action === MangaDetailTitleAction.DOWNLOAD_INCOMPLETE
         ? ChapterBatchDownloadMode.NOT_DOWNLOADED : ChapterBatchDownloadMode.FAILED_ONLY
-      this.confirmDownloadFilteredChapters(this.chrome.filteredChapterIds, mode)
+      this.confirmDownloadFilteredChapters(this.chrome.displayedChapters.map(
+        (chapter: MangaChapterItem): string => chapter.id), mode)
       return
     }
     if (action === MangaDetailTitleAction.SHARE_LINK && this.chrome.webActionsAvailable) {
@@ -915,9 +931,12 @@ export struct MangaDetailPage {
     }, 120)
   }
 
-  @Monitor('readerProgressRevision')
+  private appliedReadingStateRevision: number = -1
+
+  @Monitor('readerProgressRevision', 'chrome.visible')
   private onReadingStateRevision(): void {
-    if (!this.chrome.visible) return
+    if (!this.chrome.visible || this.appliedReadingStateRevision === this.readerProgressRevision) return
+    this.appliedReadingStateRevision = this.readerProgressRevision
     this.refreshLocalEpubChapterProjection()
     this.applyChapterStatesToCurrent()
   }
@@ -941,6 +960,7 @@ export struct MangaDetailPage {
     const summaries = new Map<string, OfflineDownloadQueueEntry>()
     let wait: OfflineDownloadWaitReason | undefined
     try {
+      hiTraceMeter.startTrace('KomaDetailQueueSnapshot', 0)
       const queue = this.downloadQueue()
       const snapshot = queue.loadSnapshot()
       wait = downloadBlockedReason(snapshot.preferences)
@@ -949,6 +969,8 @@ export struct MangaDetailPage {
       })
     } catch (error) {
       DiagnosticLogger.exception('manga_detail_page', 'download_snapshot_failed', error as Error)
+    } finally {
+      hiTraceMeter.finishTrace('KomaDetailQueueSnapshot', 0)
     }
     const comic = this.libraryStore?.getComic(comicId)
     const localOffline = comic !== undefined && chapterPagesAreLocalOffline(comic.sourceKind)
@@ -1021,10 +1043,10 @@ export struct MangaDetailPage {
         DiagnosticLogger.warn('source_detail_cache', 'hydrate_failed', String(error))
       }
       if (this.params.sourceId?.trim() !== sourceId.trim() || this.params.mangaId?.trim() !== mangaId.trim()) return
-      // Hydration can supply a complete local catalog for a history-only work.
-      // Seed again before the request guard so this route has the same behavior
-      // as a persisted shelf record on a cold start.
-      this.seedSourceDetailFromInitialRouteManga()
+      // Hydration can add a history-only catalog on a cold start. Reuse the
+      // initial shelf projection if no snapshot or changed work was found.
+      if (!this.sourceChaptersResolved) this.seedSourceDetailFromInitialRouteManga(true)
+      this.initialSourceComic = undefined
       await this.loadSourceMangaDetail(sourceId, mangaId)
       return
     }
@@ -1236,19 +1258,12 @@ export struct MangaDetailPage {
       // entry. A synced list of IDs is insufficient unless every row exists
       // locally and it was resolved with the current source settings.
       if (!forceReload && retryStage === 'detail' && retainedDetail !== undefined && !waitingForChapters) {
-        const comic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
-        const metadata = comic?.sourceMetadata
-        const ids = metadata?.sharedChapterIds
-        const localIds = new Set<string>(comic?.chapters.map((chapter: Chapter): string => chapter.id) ?? [])
-        const completeSavedCatalog = ids !== undefined && ids.length > 0 &&
-          metadata?.settingsFingerprint === this.sourceDetailSettingsFingerprint &&
-          ids.every((id: string): boolean => localIds.has(id))
-        if (cached?.chaptersResolved === true || completeSavedCatalog) {
+        if (cached?.chaptersResolved === true || this.hasCompleteSavedSourceCatalog(sourceId, mangaId)) {
           this.sourceChaptersResolved = true
           if (pendingMihonEdition && cached?.chaptersResolved === true && cached.chapters.length > 0) {
-            await this.onMihonCatalogReady(cached, this.sourceDetailSettingsFingerprint, isCurrent)
+            const committed = await this.onMihonCatalogReady(cached, this.sourceDetailSettingsFingerprint, isCurrent)
             if (isCurrent()) this.applySourceMangaDetail(requestEpoch, lookup.entry, sourceId, mangaId,
-              cached.detail, cached.chapters, '', SourceDetailContentState.READY, false, cached.excludedChapterIds)
+              cached.detail, cached.chapters, '', SourceDetailContentState.READY, false, cached.excludedChapterIds, committed)
           }
           return
         }
@@ -1286,6 +1301,7 @@ export struct MangaDetailPage {
         chapters,
         '',
         retainedDetail === undefined ? SourceDetailContentState.LOADING : SourceDetailContentState.READY,
+        false, [], pendingMihonEdition,
       )
       if (!detailApplied) {
         return
@@ -1344,15 +1360,17 @@ export struct MangaDetailPage {
         this.sourceChaptersResolved = retainedChaptersResolved
         return
       }
+      let catalogCommitted = false
       if (!chaptersLoadFailed) {
         detail.chapterCount = chapters.length
         detail.sourceName = lookup.entry.manifestName
         if (pendingMihonEdition && this.sourceChaptersResolved && chapters.length > 0) {
-          await this.onMihonCatalogReady({ detail, chapters, chaptersResolved: true, excludedChapterIds },
+          catalogCommitted = await this.onMihonCatalogReady({ detail, chapters, chaptersResolved: true, excludedChapterIds },
             this.sourceDetailSettingsFingerprint, isCurrent)
           if (!isCurrent()) return
         }
       }
+      if (catalogCommitted) hiTraceMeter.startTrace('KomaMihonPublishCatalog', requestEpoch)
       const applied = this.applySourceMangaDetail(
         requestEpoch,
         lookup.entry,
@@ -1366,7 +1384,9 @@ export struct MangaDetailPage {
           : SourceDetailContentState.READY,
         !chaptersLoadFailed && this.sourceChaptersResolved,
         excludedChapterIds,
+        catalogCommitted,
       )
+      if (catalogCommitted) hiTraceMeter.finishTrace('KomaMihonPublishCatalog', requestEpoch)
       if (applied && (chaptersLoadFailed || !this.sourceChaptersResolved)) {
         this.refreshSourceLibraryDetail(sourceId, mangaId, detail, chapters,
           !chaptersLoadFailed && this.sourceChaptersResolved, excludedChapterIds)
@@ -1428,7 +1448,17 @@ export struct MangaDetailPage {
     }
   }
 
-  private seedSourceDetailFromInitialRouteManga(): void {
+  private hasCompleteSavedSourceCatalog(sourceId: string, mangaId: string): boolean {
+    const comic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
+    const metadata = comic?.sourceMetadata
+    const ids = metadata?.sharedChapterIds
+    if (comic === undefined || ids === undefined || ids.length === 0 ||
+      metadata?.settingsFingerprint !== this.sourceDetailSettingsFingerprint) return false
+    const localIds = new Set<string>(comic.chapters.map((chapter: Chapter): string => chapter.id))
+    return ids.every((id: string): boolean => localIds.has(id))
+  }
+
+  private seedSourceDetailFromInitialRouteManga(afterHydration: boolean = false): void {
     const sourceId = this.params.sourceId?.trim()
     const mangaId = this.params.mangaId?.trim()
     if (sourceId === undefined || sourceId.length === 0 || mangaId === undefined || mangaId.length === 0) {
@@ -1437,6 +1467,7 @@ export struct MangaDetailPage {
     const comicId = this.sourceComicId(sourceId, mangaId)
     const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
     const lookup = this.sourceRegistry.lookup(sourceId)
+    const previousFingerprint = this.sourceDetailSettingsFingerprint
     try {
       this.sourceDetailSettingsFingerprint = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
     } catch (error) {
@@ -1451,6 +1482,7 @@ export struct MangaDetailPage {
       const stored = libraryComic?.chapters.map((ch: Chapter): MangaChapterItem =>
         mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind)) ?? []
       this.chapters = this.decorateChapterStates(sourceChapterDisplayRows(cached.chapters, stored, cached.excludedChapterIds))
+      this.appliedReadingStateRevision = this.readerProgressRevision
       this.manga.chapterCount = this.chapters.length
       this.activeLibraryComicId = libraryComic?.id ?? ''
       this.isInLibrary = libraryComic !== undefined
@@ -1461,6 +1493,9 @@ export struct MangaDetailPage {
       this.feedbackText = ''
       return
     }
+    if (afterHydration && libraryComic !== undefined && libraryComic === this.initialSourceComic &&
+      previousFingerprint === this.sourceDetailSettingsFingerprint) return
+    if (!afterHydration) this.initialSourceComic = libraryComic
     if (libraryComic !== undefined) {
       this.activeLibraryComicId = libraryComic.id
       this.manga = mangaDetailFromComic(libraryComic, this.sourceRegistry)
@@ -1486,6 +1521,7 @@ export struct MangaDetailPage {
         if (row !== undefined) ordered.push(row)
       })
       this.chapters = this.decorateChapterStates(sourceChapterDisplayRows(ordered, stored, excluded))
+      this.appliedReadingStateRevision = this.readerProgressRevision
       if (this.chapters.length > 0) this.manga.chapterCount = this.chapters.length
       this.isInLibrary = true
       this.sourceDetailDataResolved = true
@@ -1549,6 +1585,7 @@ export struct MangaDetailPage {
     contentState: SourceDetailContentState = SourceDetailContentState.READY,
     persistResolvedChapterMetadata: boolean = false,
     excludedChapterIds: string[] = [],
+    skipLibraryWrite: boolean = false,
   ): boolean {
     if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
       return false
@@ -1560,7 +1597,7 @@ export struct MangaDetailPage {
     // Publish a changed source cover before the optional chapter refresh. The
     // shelf reads the live library owner; waiting for a resolved chapter
     // catalog left the in-memory shelf row on the old cover until restart.
-    if (libraryComic !== undefined && this.libraryStore !== undefined && this.libraryPersistenceService !== undefined &&
+    if (!skipLibraryWrite && libraryComic !== undefined && this.libraryStore !== undefined && this.libraryPersistenceService !== undefined &&
       detail.coverUrl !== undefined && detail.coverUrl.trim().length > 0) {
       if (refreshSourceComicCoverAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService,
         libraryComic.id, sourceId, mangaId, detail.coverUrl)) {
@@ -1574,7 +1611,7 @@ export struct MangaDetailPage {
         protectedSourceChapterIds(libraryComic, komaContentStorageBase(storageContext),
           this.readerSessionStore, chapterIdentity, komaRuntimeStorageKey(storageContext)), chapterIdentity)
       : undefined
-    if (persistResolvedChapterMetadata && this.sourceChaptersResolved) {
+    if (!skipLibraryWrite && persistResolvedChapterMetadata && this.sourceChaptersResolved) {
       this.refreshSourceLibraryDetail(sourceId, mangaId, detail, identity?.chapters ?? chapters, true, excludedChapterIds)
     }
     const retainedChapters: MangaChapterItem[] = []
@@ -1607,9 +1644,24 @@ export struct MangaDetailPage {
       else changed = true
     })
     if (changed) this.chapters = nextChapters
+    this.appliedReadingStateRevision = this.readerProgressRevision
     this.isInLibrary = nextDetail.isInLibrary
     this.sourceDetailDataResolved = true
     this.feedbackText = feedbackText
+    if (skipLibraryWrite && contentState === SourceDetailContentState.READY && displayedChapters.length > 0 &&
+      !this.usesDetailPanes && !this.shouldRenderChapterList()) {
+      // A first linked catalog changes the header actions too. Mount the
+      // virtual chapter group after that update has had a frame to paint.
+      this.detailChaptersReady = false
+      const mount = this.detailMountGeneration
+      const ui = this.getUIContext()
+      ui.postFrameCallback(new DetailBodyAfterFrame((): void => {
+        if (this.detailMountGeneration !== mount) return
+        ui.postFrameCallback(new DetailBodyAfterFrame((): void => {
+          if (this.detailMountGeneration === mount) this.detailChaptersReady = true
+        }))
+      }))
+    }
     this.sourceDetailContentState = contentState
     return true
   }
@@ -2985,19 +3037,16 @@ export struct MangaDetailPage {
     const progress = this.readerSessionStore.getChapterProgress(comicId, chapterId)
     const comic = this.libraryStore?.getComic(comicId)
     const comicChapter = comic?.chapters.find((item: Chapter): boolean => item.id === chapterId)
-    let config: ReaderSessionConfig = {
-      comicId, chapterId, chapterIds: this.allChapterIds(),
-      totalPages: progress?.totalPages ?? 0, pageUris: [],
-    }
-    // Source metadata may not have hydrated pages yet. In that case the matching
-    // chapter position supplies its known count; loaded chapters use Reader's config.
-    if (comic !== undefined && comicChapter !== undefined &&
-      (comicChapter.pages.length > 0 || chapterPagesAreLocalOffline(comic.sourceKind))) {
-      config = createReaderSessionConfigFromComic(comic, chapterId)
-    }
-    if (config.totalPages > 0) {
+    // The button needs only the target chapter's page count and saved image
+    // identity. Building a reader session here would traverse the full catalog.
+    const catalogChapter = comic !== undefined && comicChapter !== undefined &&
+      (comicChapter.pages.length > 0 || chapterPagesAreLocalOffline(comic.sourceKind)) ? comicChapter : undefined
+    const totalPages = catalogChapter?.pageCount ?? progress?.totalPages ?? 0
+    if (totalPages > 0) {
+      const pageIds = progress?.pageId === undefined ? undefined : catalogChapter?.pages.map(page => page.id)
+      const pageIndex = progress === undefined ? 0 : readingProgressPageIndex(progress, totalPages, pageIds)
       pageLabel = this.formatString('manga_detail_resume_page', [
-        this.readerSessionStore.restorePageIndex(config) + 1, config.totalPages,
+        pageIndex + 1, totalPages,
       ])
     }
     return {
@@ -3009,20 +3058,6 @@ export struct MangaDetailPage {
 
   private primaryReadLabel(): string {
     return this.readActionPresentation.label
-  }
-
-  private primaryReadChapterLabel(): string {
-    return this.readActionPresentation.chapterLabel
-  }
-
-  private primaryReadPageLabel(): string {
-    return this.readActionPresentation.pageLabel
-  }
-
-  private primaryReadPositionLabel(): string {
-    const chapter = this.primaryReadChapterLabel()
-    const page = this.primaryReadPageLabel()
-    return page.length > 0 ? `${chapter} · ${page}` : chapter
   }
 
   @Builder
@@ -3052,105 +3087,117 @@ export struct MangaDetailPage {
           },
         })
       } else {
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          if (this.hasReadableChapters() && !this.isDetailPending()) {
-            Row({ space: ThemeConstants.SPACE_SM }) {
-              SymbolGlyph($r('sys.symbol.doc_plaintext'))
-                .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-                .fontColor([$r('app.color.koma_action_on_accent')])
-                .flexShrink(0)
-              Text(this.primaryReadLabel())
-                .fontSize(ThemeConstants.FONT_SIZE_BODY)
-                .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.koma_action_on_accent'))
-                .maxLines(1)
-                .flexShrink(0)
-              Text(`· ${this.primaryReadChapterLabel()}`)
-                .fontSize(ThemeConstants.FONT_SIZE_BODY)
-                .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.koma_action_on_accent'))
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .flexShrink(1)
-              if (this.primaryReadPageLabel().length > 0) {
-                Text(`· ${this.primaryReadPageLabel()}`)
-                  .fontSize(ThemeConstants.FONT_SIZE_BODY)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor($r('app.color.koma_action_on_accent'))
-                  .maxLines(1)
-                  .flexShrink(0)
-              }
-            }
-            .width('100%')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .justifyContent(FlexAlign.Center)
-            .alignItems(VerticalAlign.Center)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-          }
-        }
-          .width('100%')
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .backgroundColor(this.hasReadableChapters() && !this.isDetailPending()
-            ? ThemeConstants.BRAND_PRIMARY : undefined)
-          .borderRadius(ThemeConstants.ACTION_CHIP_HEIGHT / 2)
-          .opacity(1)
-          .enabled(this.hasReadableChapters() && !this.isDetailPending())
-          .contentModifier(this.disabledPrimaryReadContent())
-          .onClick(() => {
-            this.handleStartReading()
-          })
+        this.PrimaryContinueAction(this.readActionPresentation)
       }
 
-      Row({ space: ThemeConstants.SPACE_MD }) {
-        KomaActionButton({
-          componentId: this.downloadButtonId,
-          label: s('manga_detail_action_download_chapter'),
-          kind: 'secondary',
-          icon: $r('sys.symbol.arrow_down_to_line'),
-          fill: true,
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          isEnabled: this.chrome.chapterDownloadAvailable && this.chapters.length > 0 && !this.downloadBusy,
-          action: () => {
-            // Attach to the native Button. A modifier on the custom component
-            // wraps it and loses the layout weight used by this action row.
-            this.downloadMenu.open(this.getUIContext(), this.downloadButtonId, () => this.detailDownloadMenuGroups(),
-              () => { DiagnosticLogger.warn('manga_detail_page', 'download_menu_open_failed', 'result=failed') })
-          },
-        })
-
-        if (this.canAddCurrentMangaToLibrary()) {
-          KomaIconButton({
-            icon: $r('sys.symbol.arrow_2_circlepath'),
-            kind: this.trackingButtonHighlighted() ? 'primary' : 'secondary',
-            controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
-            iconSize: ThemeConstants.FONT_SIZE_TITLE,
-            iconWeight: FontWeight.Bold,
-            isEnabled: !this.trackerMappingBusy,
-            action: () => { void this.openTrackingSheet() },
-          })
-            .accessibilityText(s('settings_pane_tracking_title'))
-          KomaIconButton({
-            icon: this.isInLibrary ? $r('sys.symbol.bookmark_fill') : $r('sys.symbol.bookmark'),
-            kind: this.isInLibrary ? 'primary' : 'secondary',
-            controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
-            iconSize: ThemeConstants.FONT_SIZE_TITLE,
-            // Match the adjacent tracking glyph's weight while the bookmark is outlined.
-            iconWeight: this.isInLibrary ? FontWeight.Normal : FontWeight.Bold,
-            action: () => { this.handleLibraryBookmark() },
-          })
-        }
+      if (this.detailBodyReady || this.usesDetailPanes) {
+        this.SecondaryActions()
       }
-      .width('100%')
     }
     .width('100%')
   }
 
-  private disabledPrimaryReadContent(): DetailDisabledReadContent | undefined {
+  @Builder
+  private PrimaryContinueAction(presentation: DetailReadActionPresentation) {
+    Button({ type: ButtonType.Normal, stateEffect: true }) {
+      if (this.hasReadableChapters() && !this.isDetailPending()) {
+        Row({ space: ThemeConstants.SPACE_SM }) {
+          SymbolGlyph($r('sys.symbol.doc_plaintext'))
+            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+            .fontColor([$r('app.color.koma_action_on_accent')])
+            .flexShrink(0)
+          Text(presentation.label)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.koma_action_on_accent'))
+            .maxLines(1)
+            .flexShrink(0)
+          Text(`· ${presentation.chapterLabel}`)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.koma_action_on_accent'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .flexShrink(1)
+          if (presentation.pageLabel.length > 0) {
+            Text(`· ${presentation.pageLabel}`)
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('app.color.koma_action_on_accent'))
+              .maxLines(1)
+              .flexShrink(0)
+          }
+        }
+        .width('100%')
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(VerticalAlign.Center)
+        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+      }
+    }
+      .width('100%')
+      .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+      .backgroundColor(this.hasReadableChapters() && !this.isDetailPending()
+        ? ThemeConstants.BRAND_PRIMARY : undefined)
+      .borderRadius(ThemeConstants.ACTION_CHIP_HEIGHT / 2)
+      .opacity(1)
+      .enabled(this.hasReadableChapters() && !this.isDetailPending())
+      .contentModifier(this.disabledPrimaryReadContent(presentation))
+      .onClick(() => {
+        this.handleStartReading()
+      })
+  }
+
+  @Builder
+  private SecondaryActions() {
+    Row({ space: ThemeConstants.SPACE_MD }) {
+      KomaActionButton({
+        componentId: this.downloadButtonId,
+        label: s('manga_detail_action_download_chapter'),
+        kind: 'secondary',
+        icon: $r('sys.symbol.arrow_down_to_line'),
+        fill: true,
+        compact: true,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        isEnabled: this.chrome.chapterDownloadAvailable && this.chapters.length > 0 && !this.downloadBusy,
+        action: () => {
+          // Attach to the native Button. A modifier on the custom component
+          // wraps it and loses the layout weight used by this action row.
+          this.downloadMenu.open(this.getUIContext(), this.downloadButtonId, () => this.detailDownloadMenuGroups(),
+            () => { DiagnosticLogger.warn('manga_detail_page', 'download_menu_open_failed', 'result=failed') })
+        },
+      })
+
+      if (this.canAddCurrentMangaToLibrary()) {
+        KomaIconButton({
+          icon: $r('sys.symbol.arrow_2_circlepath'),
+          kind: this.trackingButtonHighlighted() ? 'primary' : 'secondary',
+          controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+          iconSize: ThemeConstants.FONT_SIZE_TITLE,
+          iconWeight: FontWeight.Bold,
+          isEnabled: !this.trackerMappingBusy,
+          action: () => { void this.openTrackingSheet() },
+        })
+          .accessibilityText(s('settings_pane_tracking_title'))
+        KomaIconButton({
+          icon: this.isInLibrary ? $r('sys.symbol.bookmark_fill') : $r('sys.symbol.bookmark'),
+          kind: this.isInLibrary ? 'primary' : 'secondary',
+          controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+          iconSize: ThemeConstants.FONT_SIZE_TITLE,
+          // Match the adjacent tracking glyph's weight while the bookmark is outlined.
+          iconWeight: this.isInLibrary ? FontWeight.Normal : FontWeight.Bold,
+          action: () => { this.handleLibraryBookmark() },
+        })
+      }
+    }
+    .width('100%')
+  }
+
+  private disabledPrimaryReadContent(presentation: DetailReadActionPresentation): DetailDisabledReadContent | undefined {
     if (this.hasReadableChapters() && !this.isDetailPending()) {
       return undefined
     }
-    return new DetailDisabledReadContent(this.primaryReadLabel(), this.primaryReadChapterLabel(), this.primaryReadPageLabel())
+    return new DetailDisabledReadContent(presentation.label, presentation.chapterLabel, presentation.pageLabel)
   }
 
   @Builder
@@ -3795,85 +3842,67 @@ export struct MangaDetailPage {
   @Builder
   private DetailInformationItems() {
     if (this.manga !== undefined) {
-      ListItem() {
-        MangaDetailHeader({
-          manga: this.displayedManga(this.manga),
-          showChapterCount: this.shouldShowChapterCount(),
-          sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
-          remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
-          sourceUnavailable: this.missingSourceName.length > 0,
-          onTitleClick: (): void => {
-            const title = this.manga?.title.trim() ?? ''
-            if (title.length > 0) RouterHelper.openSearch({ query: title, sourceFilter: 'source' })
-          },
-          onSourceClick: (): void => {
-            const sourceId = this.manga?.sourceId
-            const name = this.manga?.sourceName
-            if (sourceId && name) RouterHelper.openSearch({ librarySource: { key: `source:${sourceId}`, name } })
-          },
-        })
-      }
+      MangaDetailHeader({
+        manga: this.displayedManga(this.manga),
+        showChapterCount: this.shouldShowChapterCount(),
+        sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
+        remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
+        sourceUnavailable: this.missingSourceName.length > 0,
+        onTitleClick: (): void => {
+          const title = this.manga?.title.trim() ?? ''
+          if (title.length > 0) RouterHelper.openSearch({ query: title, sourceFilter: 'source' })
+        },
+        onSourceClick: (): void => {
+          const sourceId = this.manga?.sourceId
+          const name = this.manga?.sourceName
+          if (sourceId && name) RouterHelper.openSearch({ librarySource: { key: `source:${sourceId}`, name } })
+        },
+      })
     }
 
     // Once metadata is visible, keep the final action row in place
     // while the chapter request completes.
     if (this.shouldRenderDetailActions() || this.shouldRenderDetailMetadata()) {
-      ListItem() {
-        this.ActionButtons()
-      }
+      this.ActionButtons()
     } else if (this.isDetailPending()) {
-      ListItem() {
-        this.DetailPendingState()
-      }
+      this.DetailPendingState()
     }
 
     if ((this.shouldRenderChapterList() || (!this.usesDetailPanes && !this.sourceDetailDataResolved)) &&
       !this.isDetailPending() && this.feedbackText.length > 0) {
-      ListItem() {
-        this.DetailFailureFeedback(!this.usesDetailPanes)
-      }
+      this.DetailFailureFeedback(!this.usesDetailPanes)
     }
 
     if (this.localRefreshText.length > 0) {
-      ListItem() {
-        Text(this.localRefreshText)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-      }
+      Text(this.localRefreshText)
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
 
     if (this.hasResolvedManga() && this.localMetadataEditorVisible) {
-      ListItem() {
-        this.LocalMetadataEditor()
-      }
+      this.LocalMetadataEditor()
     }
 
-    if (this.manga !== undefined) {
+    if (this.manga !== undefined && (this.detailBodyReady || this.usesDetailPanes)) {
       if (this.shouldRenderDetailMetadata()) {
         if (this.personalNotes.trim().length > 0) {
-          ListItem() {
-            MangaDescriptionSection({ description: this.personalNotes, titleKey: 'manga_notes',
-              expandOnlyWhenOverflow: true })
-          }
+          MangaDescriptionSection({ description: this.personalNotes, titleKey: 'manga_notes',
+            expandOnlyWhenOverflow: true })
         }
-        ListItem() {
-          MangaDescriptionSection({
-            description: this.manga.description,
-            formatSynopsis: true,
-            synopsisComicId: this.currentComicId(),
-            onLinkClick: (url: string) => { this.openMangaExternalLink(url) },
-          })
-        }
+        MangaDescriptionSection({
+          description: this.manga.description,
+          formatSynopsis: true,
+          synopsisComicId: this.currentComicId(),
+          onLinkClick: (url: string) => { this.openMangaExternalLink(url) },
+        })
 
-        ListItem() {
-          MangaTagsSection({
-            tags: this.manga.tags === undefined ? [] : this.manga.tags,
-            onTagClick: (tag: string) => {
-              RouterHelper.openSearch({ query: tag })
-            },
-          })
-        }
+        MangaTagsSection({
+          tags: this.manga.tags === undefined ? [] : this.manga.tags,
+          onTagClick: (tag: string) => {
+            RouterHelper.openSearch({ query: tag })
+          },
+        })
       }
     }
   }
@@ -3885,7 +3914,7 @@ export struct MangaDetailPage {
         downloadActionsAvailable: this.chrome.chapterDownloadAvailable,
         comicId: this.currentComicId(),
         presentation: this.chapterPresentation,
-        onDisplayOrderChange: (chapterIds: string[]) => { this.chrome.filteredChapterIds = chapterIds },
+        onDisplayOrderChange: (chapters: MangaChapterItem[]) => { this.chrome.displayedChapters = chapters },
         archiveBusy: this.chapterArchiveBusy,
         chapters: this.chapters,
         onExportChapter: (chapterId: string, share: boolean) => { void this.exportChapter(chapterId, share) },
@@ -3928,23 +3957,12 @@ export struct MangaDetailPage {
     }
   }
 
-  private chapterGroupIndex(inChapterPane: boolean): number {
-    if (inChapterPane) return 1 // SecondaryListScaffold owns the first inset row.
-    let index = 1
-    if (this.manga !== undefined) index++
-    if (this.shouldRenderDetailActions() || this.shouldRenderDetailMetadata() || this.isDetailPending()) index++
-    if (!this.isDetailPending() && this.feedbackText.length > 0) index++
-    if (this.localRefreshText.length > 0) index++
-    if (this.hasResolvedManga() && this.localMetadataEditorVisible) index++
-    if (this.shouldRenderDetailMetadata()) index += this.personalNotes.trim().length > 0 ? 3 : 2
-    return index
-  }
-
   private onChapterViewport(start: VisibleListContentInfo, inChapterPane: boolean): void {
     if (inChapterPane !== this.usesDetailPanes || !this.shouldRenderChapterList()) return
-    const groupIndex = this.chapterGroupIndex(inChapterPane)
-    if (this.chapterToRestore.length > 0 && this.chrome.filteredChapterIds.length > 0) {
-      const target = this.chrome.filteredChapterIds.indexOf(this.chapterToRestore)
+    const groupIndex = inChapterPane ? 1 : 2 // The portrait list also has one work-information row.
+    if (this.chapterToRestore.length > 0 && this.chrome.hasDisplayedChapters) {
+      const target = this.chrome.displayedChapters.findIndex((chapter: MangaChapterItem): boolean =>
+        chapter.id === this.chapterToRestore)
       this.chapterToRestore = ''
       if (target >= 0) {
         const scroller = inChapterPane ? this.chapterScroller : this.detailScroller
@@ -3954,7 +3972,7 @@ export struct MangaDetailPage {
     }
     const row = start.itemIndexInGroup
     this.visibleChapterId = start.index === groupIndex && row !== undefined
-      ? this.chrome.filteredChapterIds[row] ?? '' : ''
+      ? this.chrome.displayedChapters[row]?.id ?? '' : ''
   }
 
   private onInformationScroll(offset: number): void {
@@ -3973,7 +3991,8 @@ export struct MangaDetailPage {
   }
 
   private selectedChapterIds(): string[] {
-    return this.chrome.filteredChapterIds.filter((id: string): boolean => this.chapterPresentation.selectedChapterIds.has(id))
+    return this.chrome.displayedChapters.filter((chapter: MangaChapterItem): boolean =>
+      this.chapterPresentation.selectedChapterIds.has(chapter.id)).map((chapter: MangaChapterItem): string => chapter.id)
   }
 
   private downloadSelectedChapters(): void {
@@ -3991,20 +4010,52 @@ export struct MangaDetailPage {
     return ThemeConstants.SPACE_XL + (this.chapterPresentation.selectionMode ? this.chapterActionBarHeight : 0)
   }
 
-  @Monitor('chrome.chapterPresentation.selectedChapterIds', 'chrome.chapterDownloadAvailable',
+  private chapterSelectionActionButtons(): DetailChapterSelectionButtons {
+    if (this.chapterSelectionButtons === undefined) {
+      this.chapterSelectionButtons = {
+        download: [new ActionBarButton({
+          id: 'detail-selected-download',
+          baseIcon: $r('sys.symbol.arrow_down_to_line'),
+          enabled: false,
+          onClick: () => { this.downloadSelectedChapters() },
+        })],
+        reading: [new ActionBarButton({
+          id: 'detail-selected-mark-read',
+          baseIcon: $r('sys.symbol.checkmark_circle'),
+          enabled: false,
+          onClick: () => { this.markSelectedChaptersRead(true) },
+        }), new ActionBarButton({
+          id: 'detail-selected-mark-unread',
+          baseIcon: $r('sys.symbol.circle'),
+          enabled: false,
+          onClick: () => { this.markSelectedChaptersRead(false) },
+        })],
+      }
+    }
+    return this.chapterSelectionButtons
+  }
+
+  @Monitor('chrome.chapterPresentation.selectionMode', 'chrome.chapterPresentation.selectedChapterIds', 'chrome.chapterDownloadAvailable',
     'downloadBusy', 'languageState.effectiveLocale')
   private syncChapterSelectionActions(): void {
-    const hasSelection = this.chapterPresentation.selectedChapterIds.size > 0
+    const selectionMode = this.chapterPresentation.selectionMode
+    const hasSelection = selectionMode && this.chapterPresentation.selectedChapterIds.size > 0
     this.chrome.selectedChapterDownloadEnabled = hasSelection && this.chrome.chapterDownloadAvailable && !this.downloadBusy
-    this.chapterDownloadAction.enabled = this.chrome.selectedChapterDownloadEnabled
-    this.chapterMarkReadAction.enabled = hasSelection
-    this.chapterMarkUnreadAction.enabled = hasSelection
-    this.chapterDownloadAction.accessibilityText = s('manga_detail_action_download_chapter')
-    this.chapterMarkReadAction.accessibilityText = s('chapter_list_menu_mark_read')
-    this.chapterMarkUnreadAction.accessibilityText = s('chapter_list_menu_mark_unread')
-    this.chapterDownloadAction.hoverTips = this.chapterDownloadAction.accessibilityText
-    this.chapterMarkReadAction.hoverTips = this.chapterMarkReadAction.accessibilityText
-    this.chapterMarkUnreadAction.hoverTips = this.chapterMarkUnreadAction.accessibilityText
+    if (!selectionMode) return
+    // Update the existing HDS models in place while the bar is in use.
+    const buttons = this.chapterSelectionActionButtons()
+    const download = buttons.download[0]
+    const markRead = buttons.reading[0]
+    const markUnread = buttons.reading[1]
+    download.enabled = this.chrome.selectedChapterDownloadEnabled
+    markRead.enabled = hasSelection
+    markUnread.enabled = hasSelection
+    download.accessibilityText = s('manga_detail_action_download_chapter')
+    markRead.accessibilityText = s('chapter_list_menu_mark_read')
+    markUnread.accessibilityText = s('chapter_list_menu_mark_unread')
+    download.hoverTips = download.accessibilityText
+    markRead.hoverTips = markRead.accessibilityText
+    markUnread.hoverTips = markUnread.accessibilityText
   }
 
   @Builder
@@ -4014,8 +4065,8 @@ export struct MangaDetailPage {
     Row() {
       Stack() {
         HdsActionBar({
-          startButtons: this.chapterDownloadActions,
-          endButtons: this.chapterReadStateActions,
+          startButtons: this.chapterSelectionActionButtons().download,
+          endButtons: this.chapterSelectionActionButtons().reading,
           actionBarStyle: new ActionBarStyle({ margin: LengthMetrics.vp(0) }),
         })
       }
@@ -4056,6 +4107,7 @@ export struct MangaDetailPage {
         surfaceColor: Color.Transparent,
         scroller: this.detailScroller,
         scrollEnabled: this.usesDetailPanes || this.detailScrollEnabled,
+        deferPrefetch: !this.chrome.visible,
         alwaysEnableEdgeSpring: this.usesDetailPanes || nativeSpring,
         horizontalPadding: ThemeConstants.SPACE_MD,
         bottomPadding: this.usesDetailPanes ? ThemeConstants.SPACE_XL : this.chapterListBottomPadding(),
@@ -4065,8 +4117,17 @@ export struct MangaDetailPage {
           if (!this.usesDetailPanes) this.onChapterViewport(start, false)
         },
       }) {
-        this.DetailInformationItems()
-        if (!this.usesDetailPanes) {
+        // One information row lays out the visible header, actions and text.
+        // The chapter group still creates rows only when they enter the viewport.
+        ListItem() {
+          Column({ space: ThemeConstants.SPACE_LG }) {
+            this.DetailInformationItems()
+          }
+          .width('100%')
+          .alignItems(HorizontalAlign.Start)
+        }
+        .clip(false)
+        if (!this.usesDetailPanes && this.detailChaptersReady) {
           this.DetailChapterItems()
         }
       }
@@ -4081,6 +4142,7 @@ export struct MangaDetailPage {
       surfaceColor: Color.Transparent,
       scroller: this.chapterScroller,
       scrollEnabled: this.detailScrollEnabled,
+      deferPrefetch: !this.chrome.visible,
       alwaysEnableEdgeSpring: nativeSpring,
       horizontalPadding: ThemeConstants.SPACE_MD,
       bottomPadding: this.chapterListBottomPadding(),

@@ -68,6 +68,7 @@ export interface LibraryStore {
   getComic(comicId: ComicId): Comic | undefined
   findByRemote(serverId: string, resourceId: string): Comic | undefined
   findBySourceManga(sourceId: string, mangaId: string): Comic | undefined
+  hasComics(): boolean
   listComics(sortByTitle?: boolean): Comic[]
   listLibraryItems(progressByComicId?: Map<ComicId, ReadingProgress>, options?: LibraryListOptions): LibraryItem[]
   addComic(comic: Comic): void
@@ -176,6 +177,10 @@ export class InMemoryLibraryStore implements LibraryStore {
 
   private compareTitles(a: Comic, b: Comic): number {
     return a.sortTitle.localeCompare(b.sortTitle) || a.createdAt - b.createdAt
+  }
+
+  hasComics(): boolean {
+    return this.comics.size > 0
   }
 
   listComics(sortByTitle: boolean = true): Comic[] {
