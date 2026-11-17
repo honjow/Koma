@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.1 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-17T20:36:52+08:00",
+  "updatedAt": "2026-11-17T21:28:46+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -85,6 +85,32 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "LIBRARY_SMART_CATEGORY_SWITCH_CRASH",
+      "number": 316,
+      "title": "书架切换到智能分类闪退",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-17",
+      "reportedAtSource": "用户报告最新版由全部切到现有同步智能分类时闪退。",
+      "registeredAt": "2026-11-17T21:10:32+08:00",
+      "updatedAt": "2026-11-17T21:28:46+08:00",
+      "closedAt": "2026-11-17T21:28:46+08:00",
+      "status": "200 原包复现，签名修复包已复测",
+      "result": "200 原版 1.5.2 两次从全部切到已同步的智能分类「哔哩」退回桌面并退出进程。现场 HiLog 指向 LibraryPage.ets:2203:51，旧虚拟格在移除后重绘时读取不存在的作品 ID，触发 TypeError。修复使格位在撤销期间保持最后绑定的作品，点击与长按使用有效位置。签名修复包覆盖安装成功，版本读回 1.5.2/21，设备未提供 HAP 哈希。实测三轮全部、哔哩往返和一次日漫往返，进程保持，核对实际封面及返回内容。原分类全部和电源超时已恢复，租约已释放，修复包保留在 200。",
+      "remaining": "修复已通过本次真机路径，尚未发布。",
+      "relatedItems": ["MIHON_BACKUP_IMPORT", "WEBDAV_SMART_CATEGORY_SYNC"],
+      "evidence": [
+        ".hvigor/outputs/library-smart-category-crash-20261117/compiled-grid-replay.log",
+        ".hvigor/outputs/library-smart-category-crash-20261117/build-debug.log",
+        ".hvigor/outputs/library-smart-category-crash-20261117/Koma-1.5.2-shelf-crash-debug-signed.hap",
+        ".hvigor/outputs/library-smart-category-crash-20261117/fault-200-excerpt.log",
+        ".hvigor/outputs/library-smart-category-crash-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-category-switch/fixed-212637/run-metadata.json",
+        ".hvigor/outputs/library-smart-category-crash-20261117/device200__HOP-AL10/unknown/portrait-1264x1848/shelf-category-switch/restore-category-212802/run-metadata.json"
+      ]
+    },
     {
       "id": "CROSS_SEARCH_HORIZONTAL_RESULTS",
       "number": 315,
@@ -11578,6 +11604,30 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-smart-category-switch-device200-verified-20261117",
+      "at": "2026-11-17T21:28:46+08:00",
+      "itemId": "LIBRARY_SMART_CATEGORY_SWITCH_CRASH",
+      "title": "#316 在 200 复现闪退并验证修复",
+      "detail": "旧包切哔哩时，虚拟封面格重绘读取空作品 ID，系统记录 TypeError 并结束进程。修复包三轮哔哩往返和日漫往返正常，核对封面、进程及原分类恢复，保留修复包并释租。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-smart-category-switch-device200-retry-20261117",
+      "at": "2026-11-17T21:16:52+08:00",
+      "itemId": "LIBRARY_SMART_CATEGORY_SWITCH_CRASH",
+      "title": "#316 自主重连 200 仍未接通",
+      "detail": "复查无线端口、HDC 重连和局域网发现，均未取得 200 的可用连接。唯一在线 USB 设备经历史身份回执比对为 Mate 60 Pro。未对 200 下发应用操作，已释放租约。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-smart-category-switch-crash-20261117",
+      "at": "2026-11-17T21:10:32+08:00",
+      "itemId": "LIBRARY_SMART_CATEGORY_SWITCH_CRASH",
+      "title": "#316 修复虚拟封面格在移除后读取空作品",
+      "detail": "本地回放确认旧读取会抛异常，签名修复包已构建。指定的 200 无线调试连接离线，本次现场崩溃栈及真机切换仍待核验。",
+      "kind": "checkpoint"
+    },
     {
       "id": "jm-category-filter-device-237-20261117",
       "at": "2026-11-17T20:36:52+08:00",

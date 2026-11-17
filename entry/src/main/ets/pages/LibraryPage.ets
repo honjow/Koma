@@ -220,10 +220,6 @@ interface LibraryComicBuilderParams {
   comic: ComicCoverInfo
 }
 
-interface LibraryGridComicParams {
-  comic: Comic
-}
-
 interface LibraryCheckboxBuilderParams {
   comic: ComicCoverInfo
   onCover: boolean
@@ -1179,6 +1175,19 @@ export struct LibraryPage {
     // it. A retained cell after a shelf edit still resolves by comic ID.
     void this.libraryRevision
     return this.cardForComic(this.libraryStore.getComic(comic.id) ?? comic)
+  }
+
+  private publishedGridComicId(index: number): ComicId | undefined {
+    return this.gridRows.isPublished(index) ? this.gridRows.comicAt(index)?.id : undefined
+  }
+
+  private retainGridComic(index: number, comic: Comic): () => Comic {
+    return (): Comic => {
+      // A lazy slot can still receive a redraw or menu dismissal after the
+      // data source drops its index. Keep its last bound work through teardown.
+      comic = this.gridRows.comicAt(index) ?? comic
+      return comic
+    }
   }
 
   @Monitor('displayedRevision', 'viewMode')
@@ -2176,46 +2185,50 @@ export struct LibraryPage {
   }
 
   @Builder
-  private LibraryGridCell(params: LibraryGridComicParams) {
+  private LibraryGridCell(index: number, readComic: () => Comic) {
     Stack({ alignContent: Alignment.TopEnd }) {
       ComicCoverCard({
-        comic: this.gridCardForComic(params.comic),
-        unreadBadgeCount: this.unreadForCover(params.comic.id),
-        selected: this.isComicSelected(params.comic.id),
+        comic: this.gridCardForComic(readComic()),
+        unreadBadgeCount: this.unreadForCover(readComic().id),
+        selected: this.isComicSelected(readComic().id),
         reuseAcrossWorks: true,
       })
         .onTouch((event: TouchEvent) => {
-          this.handleComicTouch(params.comic.id, event)
+          const comicId = this.publishedGridComicId(index)
+          if (comicId !== undefined) this.handleComicTouch(comicId, event)
         })
         .priorityGesture(GestureGroup(GestureMode.Exclusive,
           LongPressGesture({ fingers: 1, repeat: false, duration: 500 })
             .onAction(() => {
-              this.enterSelectionMode(params.comic.id)
+              const comicId = this.publishedGridComicId(index)
+              if (comicId !== undefined) this.enterSelectionMode(comicId)
             }),
           TapGesture()
             .onAction(() => {
-              this.handleComicClick(params.comic.id)
+              const comicId = this.publishedGridComicId(index)
+              if (comicId !== undefined) this.handleComicClick(comicId)
             })
         ))
 
       if (this.selectionMode) {
-        this.ComicSelectionCheckbox({ comic: this.gridCardForComic(params.comic), onCover: true })
-      } else if (this.canRemoveComic(params.comic.id)) {
+        this.ComicSelectionCheckbox({ comic: this.gridCardForComic(readComic()), onCover: true })
+      } else if (this.canRemoveComic(readComic().id)) {
         KomaIconButton({
           icon: $r('sys.symbol.ellipsis_circle'),
           kind: 'secondary',
           controlSize: ThemeConstants.TOUCH_TARGET_SM,
           iconSize: ThemeConstants.FONT_SIZE_H3,
           action: () => {
-            this.comicActionMenuKey = `grid:${params.comic.id}`
+            const comicId = this.publishedGridComicId(index)
+            if (comicId !== undefined) this.comicActionMenuKey = `grid:${comicId}`
           },
         })
           .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-          .bindMenu(this.comicActionMenuKey === `grid:${params.comic.id}`,
-            this.ComicActionMenu({ comic: this.gridCardForComic(params.comic) }), komaMenuOptions({
+          .bindMenu(this.comicActionMenuKey === `grid:${readComic().id}`,
+            this.ComicActionMenu({ comic: this.gridCardForComic(readComic()) }), komaMenuOptions({
             placement: Placement.BottomRight,
             onDisappear: () => {
-              if (this.comicActionMenuKey === `grid:${params.comic.id}`) {
+              if (this.comicActionMenuKey === `grid:${readComic().id}`) {
                 this.comicActionMenuKey = ''
               }
             },
@@ -2269,7 +2282,7 @@ export struct LibraryPage {
         LazyForEach(this.gridRows, (index: number) => {
           ListItem() {
             if (this.gridRows.comicAt(index) !== undefined) {
-              this.LibraryGridCell({ comic: this.gridRows.comicAt(index) as Comic })
+              this.LibraryGridCell(index, this.retainGridComic(index, this.gridRows.comicAt(index) as Comic))
             }
           }
           .visibility(this.gridRows.isPublished(index) ? Visibility.Visible : Visibility.Hidden)
