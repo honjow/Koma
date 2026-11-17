@@ -186,18 +186,18 @@
       "id": "SOURCE_JM_CATEGORY_FILTER",
       "number": 314,
       "title": "禁漫天堂按类型筛选只剩默认项可用",
-      "kind": "pending_verification",
-      "progressPhase": "verification",
+      "kind": "done",
+      "progressPhase": "completed",
       "priority": "用户反馈",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-17",
       "reportedAtSource": "本会话用户转述 JM 按类型筛选只剩「最新 A 漫」可用，原始时刻未核实。",
       "registeredAt": "2026-11-17T20:22:03+08:00",
-      "updatedAt": "2026-11-17T20:36:52+08:00",
-      "status": "237 分类实测通过，待发布",
-      "result": "公开 0.1.8 的分类数据正常，提交时数字白名单错误拒绝同人、单本、韩漫等 slug。0.1.9 候选按站点原值编码，保留最新 A 漫默认项。18scan 的空标题作品保留原 ID 并沿用宿主备用标题；禁漫汉化组按官网入口走站内搜索。最终包核对 34 个菜单选项（33 个不同值），含 3 个分类的续页、排序和关键词搜索。短篇 · 禁漫上色由站点返回 0 条。最低 Koma 1.4.3。 237 的 Koma 1.5.1 通过系统文件选择器导入 0.1.9，设备 WASM 与候选逐字一致。默认、同人、单本各显示不同列表；18scan 显示作品，向下滚动见两个原空标题作品的编号。测试结束后恢复原 0.1.6、筛选偏好与息屏状态，临时包已移除并释租。",
-      "remaining": "书源 0.1.9 候选待发布，最低 Koma 1.4.3。",
+      "updatedAt": "2026-11-17T20:49:05+08:00",
+      "status": "0.1.9 已发布，237 已验证",
+      "result": "公开 0.1.8 的分类数据正常，提交时数字白名单错误拒绝同人、单本、韩漫等 slug。0.1.9 候选按站点原值编码，保留最新 A 漫默认项。18scan 的空标题作品保留原 ID 并沿用宿主备用标题；禁漫汉化组按官网入口走站内搜索。最终包核对 34 个菜单选项（33 个不同值），含 3 个分类的续页、排序和关键词搜索。短篇 · 禁漫上色由站点返回 0 条。最低 Koma 1.4.3。 237 的 Koma 1.5.1 通过系统文件选择器导入 0.1.9，设备 WASM 与候选逐字一致。默认、同人、单本各显示不同列表；18scan 显示作品，向下滚动见两个原空标题作品的编号。测试结束后恢复原 0.1.6、筛选偏好与息屏状态，临时包已移除并释租。 0.1.9 正式订阅已可更新。公开包清单及图标与候选一致，WASM 构建字节不同。使用公开包运行全部分类及代表性续页、搜索，结果与候选一致。",
+      "remaining": "",
       "evidence": [
         ".hvigor/outputs/jm-category-filter-20261117/verify-result.json",
         ".hvigor/outputs/jm-category-filter-20261117/jinmantiantang-0.1.9.koma",
@@ -208,12 +208,16 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jm-category-filter-20261117/25-18scan-list/layout.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jm-category-filter-20261117/26-18scan-blank-title/layout.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jm-category-filter-20261117/27-original-source-restored/run-metadata.json",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jm-category-filter-20261117/29-original-power-restored/run-metadata.json"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jm-category-filter-20261117/29-original-power-restored/run-metadata.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-5c2a4354910fbac0424695090bd11046a26b7686",
+        "https://github.com/honjow/koma-sources/actions/runs/44085301947",
+        ".hvigor/outputs/jm-category-filter-20261117/published/replay-result.json"
       ],
       "boundaries": [
         "237 验证默认、同人、单本和 18scan；其余选项、禁漫汉化组站内搜索与续页在本机验证。",
         "Mihon 热门使用浏览量，Koma 浏览筛选默认最新；该排序差异独立于本次类型筛选修复。"
-      ]
+      ],
+      "closedAt": "2026-11-17T20:49:05+08:00"
     },
     {
       "id": "WEBDAV_MERGE_TASKPOOL_PROXY",
@@ -907,11 +911,26 @@
       "priority": "用户反馈",
       "owner": "Root",
       "registeredAt": "2026-11-13T17:12:23+08:00",
-      "updatedAt": "2026-11-14T00:02:53+08:00",
-      "status": "197 已验证正文弹窗、取消和恢复阅读",
-      "result": "阅读器将正文挑战交给现有验证弹窗，包子源声明正文域并识别 Cloudflare 的响应头。197 实际续读《大象無形》第十章第 3 页成功。对同一正文请求回放一次 503 挑战，弹窗打开的是该章官网，完成后回到原页；取消后可重试，并能回到原页。197 已装回正常候选并复核正文，删除临时导入文件，恢复原电源状态并释租。后续候选通过系统返回关闭验证弹窗，手动重试回到原页。",
-      "remaining": "站点这次对正文正常返回，尚未在 197 遇到真实的正文 Cloudflare 挑战。",
-      "evidence": [".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203314888708", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203356759426", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T203511615540", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T203531609676", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/install-20261113T203539931800", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203634748282", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261113T203641620990", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/observe-20261114T000220837681/screen.png", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/observe-20261114T000227453532/screen.png", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/observe-20261114T000235716914/screen.png", ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261114T000253671467/run-metadata.json"],
+      "updatedAt": "2026-11-17T20:54:36+08:00",
+      "status": "0.1.24 已发布，197 验证受控正文挑战",
+      "result": "阅读器将正文挑战交给现有验证弹窗，包子源声明正文域并识别 Cloudflare 的响应头。197 实际续读《大象無形》第十章第 3 页成功。对同一正文请求回放一次 503 挑战，弹窗打开的是该章官网，完成后回到原页；取消后可重试，并能回到原页。197 已装回正常候选并复核正文，删除临时导入文件，恢复原电源状态并释租。后续候选通过系统返回关闭验证弹窗，手动重试回到原页。 包子漫画 0.1.24 已进入正式订阅，最低 Koma 1.4.1。公开包核对到原书源域和正文域，执行验证带挑战标记的 503 会请求验证，普通 503 按服务器错误处理。",
+      "remaining": "站点未自然触发正文 Cloudflare 挑战，保留该验证边界。",
+      "evidence": [
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203314888708",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203356759426",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T203511615540",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T203531609676",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/install-20261113T203539931800",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T203634748282",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261113T203641620990",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/observe-20261114T000220837681/screen.png",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/observe-20261114T000227453532/screen.png",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/observe-20261114T000235716914/screen.png",
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261114T000253671467/run-metadata.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-bb971cb1a02a7aff0169cd55d93fb40b2d9cb51d",
+        "https://github.com/honjow/koma-sources/actions/runs/44086748077",
+        ".hvigor/outputs/daily-flow-293/published-reader-fixes/replay-result.json"
+      ],
       "relatedItems": [
         "SOURCE_WEB_SESSION"
       ]
@@ -924,11 +943,15 @@
       "priority": "用户直接要求",
       "owner": "Root",
       "registeredAt": "2026-11-13T17:12:23+08:00",
-      "updatedAt": "2026-11-13T20:26:16+08:00",
-      "status": "已在 197 验证正式源同组续章",
-      "result": "1. 更新页：197 用两部测试作品实际批量下载和标为已读，未选译本仍未读；隔离数据另验写入失败恢复。\n2. 详情标题：197 验到短按搜同作、长按复制。\n3. 同名收藏：197 验到同名提示及继续选分类。\n4. 未收藏下载：197 的《Yotsuba to!》完成 51/51 页，冷启动可从下载管理打开正文；先前一次退出未复现。\n5. 源内搜索预设：197 在 MangaDex 验到保存及重新应用。\n6. 同组续章：测试源为下一话提供 Red、Blue 两个版本，197 在条漫中从第一话 Blue 向下滑，实际显示第二话 Blue。正式 MangaDex 源在 197 用《Yotsuba to!》从 James Burner Scanlations 第 1 话续到同组第 2 话，已按实际章节 ID 核对。简体和繁体候选与英文版共用顺序实现。",
+      "updatedAt": "2026-11-17T20:54:36+08:00",
+      "status": "MangaDex 三版本同组续章已发布",
+      "result": "1. 更新页：197 用两部测试作品实际批量下载和标为已读，未选译本仍未读；隔离数据另验写入失败恢复。\n2. 详情标题：197 验到短按搜同作、长按复制。\n3. 同名收藏：197 验到同名提示及继续选分类。\n4. 未收藏下载：197 的《Yotsuba to!》完成 51/51 页，冷启动可从下载管理打开正文；先前一次退出未复现。\n5. 源内搜索预设：197 在 MangaDex 验到保存及重新应用。\n6. 同组续章：测试源为下一话提供 Red、Blue 两个版本，197 在条漫中从第一话 Blue 向下滑，实际显示第二话 Blue。正式 MangaDex 源在 197 用《Yotsuba to!》从 James Burner Scanlations 第 1 话续到同组第 2 话，已按实际章节 ID 核对。简体和繁体候选与英文版共用顺序实现。 MangaDex 英文 0.1.28、简体及繁体 0.1.15 已进入正式订阅。三个公开包均执行目录回放，保留各译本组与旧宿主响应，新宿主可读取同语言候选组。197 实测范围为英文源。",
       "remaining": "",
-      "relatedItems": ["BAOZI_READER_CF_20261113", "READER_THUMBNAIL_RAIL_CLARITY_20261113", "DOWNLOAD_QUEUE_MANAGEMENT"],
+      "relatedItems": [
+        "BAOZI_READER_CF_20261113",
+        "READER_THUMBNAIL_RAIL_CLARITY_20261113",
+        "DOWNLOAD_QUEUE_MANAGEMENT"
+      ],
       "closedAt": "2026-11-13T20:26:16+08:00",
       "evidence": [
         ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/production-evidence-20261113T202616347627",
@@ -936,7 +959,10 @@
         ".hvigor/outputs/daily-flow-293/qa/updates-write.cjs",
         ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T191938372927/screen.png",
         ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/actions-20261113T192030018124/screen.png",
-        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261113T192446832081/run-metadata.json"
+        ".hvigor/outputs/daily-flow-293/device197__ALN-AL80/not-applicable/portrait-1260x2720/daily-flow/restore-20261113T192446832081/run-metadata.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-bb971cb1a02a7aff0169cd55d93fb40b2d9cb51d",
+        "https://github.com/honjow/koma-sources/actions/runs/44086748077",
+        ".hvigor/outputs/daily-flow-293/published-reader-fixes/replay-result.json"
       ]
     },
     {
@@ -11717,6 +11743,45 @@
       "title": "#316 修复虚拟封面格在移除后读取空作品",
       "detail": "本地回放确认旧读取会抛异常，签名修复包已构建。指定的 200 无线调试连接离线，本次现场崩溃栈及真机切换仍待核验。",
       "kind": "checkpoint"
+    },
+    {
+      "id": "reader-source-release-294-20261117",
+      "at": "2026-11-17T20:54:36+08:00",
+      "itemId": "BAOZI_READER_CF_20261113",
+      "title": "#294 0.1.24 已发布",
+      "detail": "包子漫画 0.1.24 已进入正式订阅，最低 Koma 1.4.1。公开包核对到原书源域和正文域，执行验证带挑战标记的 503 会请求验证，普通 503 按服务器错误处理。",
+      "kind": "release",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/releases/tag/sources-bb971cb1a02a7aff0169cd55d93fb40b2d9cb51d",
+        "https://github.com/honjow/koma-sources/actions/runs/44086748077",
+        ".hvigor/outputs/daily-flow-293/published-reader-fixes/replay-result.json"
+      ]
+    },
+    {
+      "id": "reader-source-release-293-20261117",
+      "at": "2026-11-17T20:54:36+08:00",
+      "itemId": "KOMA_DAILY_READER_FLOWS_20261113",
+      "title": "#293 MangaDex 三版本同组续章已发布",
+      "detail": "MangaDex 英文 0.1.28、简体及繁体 0.1.15 已进入正式订阅。三个公开包均执行目录回放，保留各译本组与旧宿主响应，新宿主可读取同语言候选组。197 实测范围为英文源。",
+      "kind": "release",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/releases/tag/sources-bb971cb1a02a7aff0169cd55d93fb40b2d9cb51d",
+        "https://github.com/honjow/koma-sources/actions/runs/44086748077",
+        ".hvigor/outputs/daily-flow-293/published-reader-fixes/replay-result.json"
+      ]
+    },
+    {
+      "id": "jm-category-filter-release-019-20261117",
+      "at": "2026-11-17T20:49:05+08:00",
+      "itemId": "SOURCE_JM_CATEGORY_FILTER",
+      "title": "#314 禁漫天堂 0.1.9 已发布",
+      "detail": "书源仓 5c2a435 的发布 CI 成功，正式索引、源包和图标已读回。公开 WASM 的分类、续页和搜索再次核验，最低 Koma 1.4.3。",
+      "kind": "release",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/releases/tag/sources-5c2a4354910fbac0424695090bd11046a26b7686",
+        "https://github.com/honjow/koma-sources/actions/runs/44085301947",
+        ".hvigor/outputs/jm-category-filter-20261117/published/replay-result.json"
+      ]
     },
     {
       "id": "jm-category-filter-device-237-20261117",
