@@ -59,31 +59,34 @@ function fixture() {
   return { page, current, opened, snapshot }
 }
 
+// The host uses underscores since efd24606 to satisfy ArkUI state key rules.
+const detailActionId = 'manga_detail'
+
 test('the current shared-reader dispatcher opens detail only for the observed position', () => {
   const { page, current, opened } = fixture()
   assert.deepEqual(Array.from(page.hostActionDispatch.items(), action => [action.id, action.label]),
-    [['manga-detail', 'reader_action_return_to_detail']])
-  page.hostActionDispatch.request('manga-detail', current, 5, 2)
+    [[detailActionId, 'reader_action_return_to_detail']])
+  page.hostActionDispatch.request(detailActionId, current, 5, 2)
   assert.deepEqual(opened, ['work'])
 })
 
 test('stale or unrelated menu requests cannot navigate to detail', () => {
   const { page, current, opened } = fixture()
   page.hostActionDispatch.request('other-action', current, 5, 2)
-  page.hostActionDispatch.request('manga-detail', key('B'), 5, 2)
-  page.hostActionDispatch.request('manga-detail', current, 4, 2)
-  page.hostActionDispatch.request('manga-detail', current, 5, 1)
+  page.hostActionDispatch.request(detailActionId, key('B'), 5, 2)
+  page.hostActionDispatch.request(detailActionId, current, 4, 2)
+  page.hostActionDispatch.request(detailActionId, current, 5, 1)
   assert.deepEqual(opened, [])
 })
 
 test('loading, retired and missing sessions cannot navigate to detail', () => {
   const { page, current, opened, snapshot } = fixture()
   snapshot.phase = 'loading'
-  page.hostActionDispatch.request('manga-detail', current, 5, 2)
+  page.hostActionDispatch.request(detailActionId, current, 5, 2)
   snapshot.phase = 'ready'
   snapshot.unit = null
-  page.hostActionDispatch.request('manga-detail', current, 5, 2)
+  page.hostActionDispatch.request(detailActionId, current, 5, 2)
   page.session = null
-  page.hostActionDispatch.request('manga-detail', current, 5, 2)
+  page.hostActionDispatch.request(detailActionId, current, 5, 2)
   assert.deepEqual(opened, [])
 })

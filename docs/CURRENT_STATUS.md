@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.1 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-18T00:15:26+08:00",
+  "updatedAt": "2026-11-18T03:30:58+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -85,6 +85,29 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "DETAIL_RESUME_AND_SHELF_REFRESH",
+      "number": 318,
+      "title": "返回原详情的续读页码与书架刷新",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-18",
+      "reportedAtSource": "用户报告同章翻页后返回原详情，继续阅读按钮只有退出详情再重进才更新。",
+      "updatedAt": "2026-11-18T03:30:58+08:00",
+      "status": "237 原详情续读与书架标题更新已复测",
+      "result": "逐笔核对 v1.5.1 到 v1.5.2。4a335e90 把继续阅读参数按值传入 Builder，页码无法随同章进度发布更新。也引入了会被旧作品数据填充的书架卡片缓存，并跳过下载等独立状态改变后的筛选刷新。5b876edc 的书架虚拟列表在复用行时按值传递作品。续读、列表及卡片缓存读取当前数据，需要下载等独立数据的筛选与排序在返回书架时刷新。237 签名包用同一临时本地漫画从第 4/4 页翻回第 3/4 页，关闭阅读器回到原详情显示第 3/4 页，再点继续阅读仍为第 3/4 页。书架实际列表行打开同一详情，修改标题后返回原列表立即显示新标题。已移出临时漫画并恢复网格、10 秒超时和休眠，237 保留修复包，租约已释放。旧源码上能复现卡片与下载筛选的本地用例失败，修复后均通过。",
+      "remaining": "追踪、来源排序及实际下载完成后的筛选刷新尚未逐项真机核验。候选未发布。",
+      "relatedItems": ["MIHON_BACKUP_IMPORT", "LIBRARY_SMART_CATEGORY_SWITCH_CRASH"],
+      "evidence": [
+        ".hvigor/outputs/release-152-regression/Koma-1.5.2-regression-verified-debug-signed.hap",
+        ".hvigor/outputs/release-152-regression/verification-result-032923.json",
+        ".hvigor/outputs/release-152-regression/verification-result-032217.json",
+        ".hvigor/outputs/release-152-regression/device237__VDE-AL00/unfolded/portrait-1320x2120/detail-resume/032923-24-list-after-title-change/list-after-title-change.json"
+      ]
+    },
     {
       "id": "READER_PAGED_IDLE_VOLUME",
       "number": 317,
@@ -11675,6 +11698,24 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "detail-resume-and-shelf-card-cache-237-20261118",
+      "at": "2026-11-18T03:30:58+08:00",
+      "itemId": "DETAIL_RESUME_AND_SHELF_REFRESH",
+      "title": "#318 237 复测续读和书架标题更新",
+      "detail": "前一候选在详情改名后仍在书架列表和网格显示旧作品标题。修正卡片缓存后，237 用同一临时漫画复测，原详情显示并续读到第 3/4 页，书架列表改名并返回后即时显示新标题。已移出临时漫画、恢复原网格和超时、休眠及释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/release-152-regression/verification-result-032923.json"
+    },
+    {
+      "id": "detail-resume-and-shelf-refresh-237-20261118",
+      "at": "2026-11-18T03:25:00+08:00",
+      "itemId": "DETAIL_RESUME_AND_SHELF_REFRESH",
+      "title": "#318 237 复核同章翻页、返回原详情和续读",
+      "detail": "237 最终签名包用同一临时本地漫画从第 3/4 页翻到第 4/4 页，关闭阅读器后原详情同步显示第 4/4 页，按继续阅读实际回到第 4/4 页。确认书架列表中实际作品行打开同一详情。下载筛选的本地回归测试在 1.5.2 旧源码重现、修复源码通过。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/release-152-regression/verification-result-032217.json"
+    },
     {
       "id": "reader-paged-idle-volume-200-native-vsync-result-20261118",
       "at": "2026-11-18T00:15:26+08:00",

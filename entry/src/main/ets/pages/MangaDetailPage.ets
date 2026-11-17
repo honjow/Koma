@@ -3017,10 +3017,12 @@ export struct MangaDetailPage {
     }
   }
 
-  // Page counts live in the library/reader stores. Their mutations are not
-  // reactive inputs here, so this projection must be recomputed when the
-  // detail rebuilds instead of being cached across a chapter page update.
+  // Same-chapter turns keep the chapter ID and row state. The button reads
+  // the progress revision directly so returning to this detail instance
+  // refreshes its label without rebuilding the chapter list.
   private get readActionPresentation(): DetailReadActionPresentation {
+    void this.readerProgressRevision
+    void this.chrome.visible
     const chapterId = this.progressChapterId()
     if (chapterId === undefined) {
       return {
@@ -3087,7 +3089,7 @@ export struct MangaDetailPage {
           },
         })
       } else {
-        this.PrimaryContinueAction(this.readActionPresentation)
+        this.PrimaryContinueAction()
       }
 
       if (this.detailBodyReady || this.usesDetailPanes) {
@@ -3098,7 +3100,7 @@ export struct MangaDetailPage {
   }
 
   @Builder
-  private PrimaryContinueAction(presentation: DetailReadActionPresentation) {
+  private PrimaryContinueAction() {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
       if (this.hasReadableChapters() && !this.isDetailPending()) {
         Row({ space: ThemeConstants.SPACE_SM }) {
@@ -3106,21 +3108,21 @@ export struct MangaDetailPage {
             .fontSize(ThemeConstants.FONT_SIZE_HEADING)
             .fontColor([$r('app.color.koma_action_on_accent')])
             .flexShrink(0)
-          Text(presentation.label)
+          Text(s('library_continue_reading'))
             .fontSize(ThemeConstants.FONT_SIZE_BODY)
             .fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.koma_action_on_accent'))
             .maxLines(1)
             .flexShrink(0)
-          Text(`· ${presentation.chapterLabel}`)
+          Text(`· ${this.readActionPresentation.chapterLabel}`)
             .fontSize(ThemeConstants.FONT_SIZE_BODY)
             .fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.koma_action_on_accent'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .flexShrink(1)
-          if (presentation.pageLabel.length > 0) {
-            Text(`· ${presentation.pageLabel}`)
+          if (this.readActionPresentation.pageLabel.length > 0) {
+            Text(`· ${this.readActionPresentation.pageLabel}`)
               .fontSize(ThemeConstants.FONT_SIZE_BODY)
               .fontWeight(FontWeight.Medium)
               .fontColor($r('app.color.koma_action_on_accent'))
@@ -3142,7 +3144,7 @@ export struct MangaDetailPage {
       .borderRadius(ThemeConstants.ACTION_CHIP_HEIGHT / 2)
       .opacity(1)
       .enabled(this.hasReadableChapters() && !this.isDetailPending())
-      .contentModifier(this.disabledPrimaryReadContent(presentation))
+      .contentModifier(this.disabledPrimaryReadContent(this.readActionPresentation))
       .onClick(() => {
         this.handleStartReading()
       })

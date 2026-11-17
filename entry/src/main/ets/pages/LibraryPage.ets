@@ -107,8 +107,13 @@ interface LibraryServerSourceFilterOption {
 }
 
 interface LibraryCardCache {
-  cards: Map<ComicId, ComicCoverInfo>
+  cards: Map<ComicId, LibraryCachedCard>
   categoryNames: Map<string, string>
+}
+
+interface LibraryCachedCard {
+  comic: Comic
+  card: ComicCoverInfo
 }
 
 interface LibraryCategoryProjection {
@@ -505,8 +510,16 @@ export struct LibraryPage {
     if (!this.active || !this.rootNavigation.visible) return
     if (this.displayedLibraryRevision === this.libraryRevision &&
       this.displayedProgressRevision === this.readerProgressRevision &&
-      this.displayedSessionStore === this.readerSessionStore) return
+      this.displayedSessionStore === this.readerSessionStore && !this.usesLiveShelfFiltersOrSort()) return
     this.refreshDisplayedSnapshotFromStore()
+  }
+
+  private usesLiveShelfFiltersOrSort(): boolean {
+    // Downloads, tracking mappings and source identities can change while
+    // another page is open without advancing the shelf or progress revisions.
+    return this.filterAvailability !== 'all' || this.sortBy === 'source' || this.sortBy === 'lastUpdate' ||
+      (this.filterCategory !== 'all' && (this.selectedSmartCategory()?.filters.some(filter =>
+        filter.method === 'downloaded' || filter.method === 'tracking') ?? false))
   }
 
   @Monitor('remoteProgress.syncRevision')
@@ -558,6 +571,7 @@ export struct LibraryPage {
   private get orderedShelfCategories(): LibraryCategoryProjection {
     // Categories with the same sort take a subsequence of one ordered shelf.
     // Live source names and chapter-update times are read at the point of use.
+    void this.libraryRevision
     const all = this.orderedShelfComics('all')
     const categories = new Map<string, Comic[]>()
     all.forEach((comic: Comic): void => {
@@ -1145,13 +1159,16 @@ export struct LibraryPage {
         categoryNames.set(category.id, category.name)
       })
     }
-    return { cards: new Map<ComicId, ComicCoverInfo>(), categoryNames }
+    return { cards: new Map<ComicId, LibraryCachedCard>(), categoryNames }
   }
 
-  private cardForComic(comic: Comic): ComicCoverInfo {
+  private cardForComic(fallback: Comic): ComicCoverInfo {
+    // A retained row can be drawn before the shelf reprojects. Resolve its
+    // current record first so a redraw cannot cache old metadata for its ID.
+    const comic = this.libraryStore.getComic(fallback.id) ?? fallback
     const cache = this.libraryCardCache
     const existing = cache.cards.get(comic.id)
-    if (existing !== undefined) return existing
+    if (existing?.comic === comic) return existing.card
     const labels: string[] = []
     if (cache.categoryNames.size > 0) {
       normalizeCategoryIds(comic.categoryIds).forEach((id: string): void => {
@@ -1160,13 +1177,14 @@ export struct LibraryPage {
       })
     }
     const row = createLibraryComicCard(comic, this.presentationByComicId.get(comic.id), labels)
-    cache.cards.set(comic.id, row)
+    cache.cards.set(comic.id, { comic, card: row })
     return row
   }
 
   @Computed
   private get displayedCards(): ComicCoverInfo[] {
     void this.displayedRevision
+    void this.libraryRevision
     return this.displayedComics.map((comic: Comic): ComicCoverInfo => this.cardForComic(comic))
   }
 
@@ -1174,7 +1192,7 @@ export struct LibraryPage {
     // Lazy grid cells project the current record when the UI actually needs
     // it. A retained cell after a shelf edit still resolves by comic ID.
     void this.libraryRevision
-    return this.cardForComic(this.libraryStore.getComic(comic.id) ?? comic)
+    return this.cardForComic(comic)
   }
 
   private publishedGridComicId(index: number): ComicId | undefined {
@@ -2344,33 +2362,34 @@ export struct LibraryPage {
   }
 
   @Builder
-  private LibraryListCover(comic: ComicCoverInfo) {
-    Badge(libraryUnreadBadgeOptions(this.unreadForCover(comic.id), comic.accentColor)) {
+  private LibraryListCover(row: RepeatItem<ComicCoverInfo>) {
+    Badge(libraryUnreadBadgeOptions(this.unreadForCover(row.item.id), row.item.accentColor)) {
       Stack({ alignContent: Alignment.Center }) {
         if (this.shouldShowCoverUri(
-          comic.coverUri,
-          comic.sourceRuntimeId,
-          this.sourceImageIdForComic(comic),
-          comic.sourceKind,
-          comic.remoteServerId,
-          comic.sourceMangaUrl,
+          row.item.coverUri,
+          row.item.sourceRuntimeId,
+          this.sourceImageIdForComic(row.item),
+          row.item.sourceKind,
+          row.item.remoteServerId,
+          row.item.sourceMangaUrl,
         )) {
           CachedCoverImage({
-            uri: comic.coverUri ?? '',
+            uri: row.item.coverUri ?? '',
+            coverOwnerId: row.item.id,
             objectFit: ImageFit.Cover,
-            sourceRuntimeId: comic.sourceRuntimeId ?? '',
-            sourceImageId: this.sourceImageIdForComic(comic),
-            sourceKind: comic.sourceKind,
-            remoteServerId: comic.remoteServerId ?? '',
-            sourceMangaUrl: comic.sourceMangaUrl ?? '',
+            sourceRuntimeId: row.item.sourceRuntimeId ?? '',
+            sourceImageId: this.sourceImageIdForComic(row.item),
+            sourceKind: row.item.sourceKind,
+            remoteServerId: row.item.remoteServerId ?? '',
+            sourceMangaUrl: row.item.sourceMangaUrl ?? '',
             onError: () => {
               this.markCoverUriFailed(
-                comic.coverUri,
-                comic.sourceRuntimeId,
-                this.sourceImageIdForComic(comic),
-                comic.sourceKind,
-                comic.remoteServerId,
-                comic.sourceMangaUrl,
+                row.item.coverUri,
+                row.item.sourceRuntimeId,
+                this.sourceImageIdForComic(row.item),
+                row.item.sourceKind,
+                row.item.remoteServerId,
+                row.item.sourceMangaUrl,
               )
             },
           })
@@ -2394,7 +2413,8 @@ export struct LibraryPage {
       Repeat<ComicCoverInfo>(this.displayedCards)
         .each((row: RepeatItem<ComicCoverInfo>) => {
           ListItem() {
-            this.LibraryListRow(row.item)
+            // A virtual row must keep the live item when ArkUI reuses its node.
+            this.LibraryListRow(row)
           }
         })
         .key((comic: ComicCoverInfo): string => `list:${comic.id}`)
@@ -2404,53 +2424,53 @@ export struct LibraryPage {
   }
 
   @Builder
-  private LibraryListRow(comic: ComicCoverInfo) {
+  private LibraryListRow(row: RepeatItem<ComicCoverInfo>) {
     Row({ space: ThemeConstants.SPACE_SM }) {
       ConciseListRow({
-        title: comic.title,
-        subtitle: this.listRowSubtitle(comic),
+        title: row.item.title,
+        subtitle: this.listRowSubtitle(row.item),
         showChevron: false,
         prefixActsAsLeading: true,
-        isEnabled: !this.selectionMode || this.canSelectComic(comic.id),
+        isEnabled: !this.selectionMode || this.canSelectComic(row.item.id),
         action: () => {
-          this.handleComicClick(comic.id)
+          this.handleComicClick(row.item.id)
         },
         prefixBuilderParam: () => {
-          this.LibraryListCover(comic)
+          this.LibraryListCover(row)
         },
       })
         .layoutWeight(1)
         .onTouch((event: TouchEvent) => {
-          this.handleComicTouch(comic.id, event)
+          this.handleComicTouch(row.item.id, event)
         })
         .priorityGesture(GestureGroup(GestureMode.Exclusive,
           LongPressGesture({ fingers: 1, repeat: false, duration: 500 })
             .onAction(() => {
-              this.enterSelectionMode(comic.id)
+              this.enterSelectionMode(row.item.id)
             }),
           TapGesture()
             .onAction(() => {
-              this.handleComicClick(comic.id)
+              this.handleComicClick(row.item.id)
             })
         ))
 
       if (this.selectionMode) {
-        this.ComicSelectionCheckbox({ comic: comic, onCover: false })
-      } else if (this.canRemoveComic(comic.id)) {
+        this.ComicSelectionCheckbox({ comic: row.item, onCover: false })
+      } else if (this.canRemoveComic(row.item.id)) {
         KomaIconButton({
           icon: $r('sys.symbol.ellipsis_circle'),
           kind: 'secondary',
           controlSize: ThemeConstants.TOUCH_TARGET_SM,
           iconSize: ThemeConstants.FONT_SIZE_H3,
           action: () => {
-            this.comicActionMenuKey = `list:${comic.id}`
+            this.comicActionMenuKey = `list:${row.item.id}`
           },
         })
           .margin({ right: ThemeConstants.SPACE_SM })
-          .bindMenu(this.comicActionMenuKey === `list:${comic.id}`, this.ComicActionMenu({ comic: comic }), komaMenuOptions({
+          .bindMenu(this.comicActionMenuKey === `list:${row.item.id}`, this.ComicActionMenu({ comic: row.item }), komaMenuOptions({
             placement: Placement.BottomRight,
             onDisappear: () => {
-              if (this.comicActionMenuKey === `list:${comic.id}`) {
+              if (this.comicActionMenuKey === `list:${row.item.id}`) {
                 this.comicActionMenuKey = ''
               }
             },
@@ -2460,7 +2480,7 @@ export struct LibraryPage {
     .width('100%')
     .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
     .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
-    .backgroundColor(this.isComicSelected(comic.id) ? ThemeConstants.SOFT_TINT : ThemeConstants.CARD)
+    .backgroundColor(this.isComicSelected(row.item.id) ? ThemeConstants.SOFT_TINT : ThemeConstants.CARD)
     .alignItems(VerticalAlign.Center)
   }
 

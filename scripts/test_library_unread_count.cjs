@@ -54,6 +54,28 @@ function progress(book, chapterId, pageIndex = 9) {
   return { comicId: book.id, chapterId, pageIndex, totalPages: 10,
     progressRatio: (pageIndex + 1) / 10, completed: pageIndex === 9, updatedAt: 1 }
 }
+test('a retained shelf row cannot cache the old title or cover after a book is edited', () => {
+  const filename = path.join(root, 'pages/LibraryPage.ets')
+  const source = fs.readFileSync(filename, 'utf8').replace(/\bstruct LibraryPage\b/, 'class LibraryPage')
+  const tree = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true)
+  const owner = tree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'LibraryPage')
+  const card = owner.members.find(node => node.name?.text === 'cardForComic').getText(tree)
+  const code = ts.transpileModule(`return class Shelf { ${card} }`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2020 },
+  }).outputText
+  const Shelf = new Function('createLibraryComicCard', code)(view.createLibraryComicCard)
+  const shelf = new Shelf(), original = comic(['only'])
+  const saved = { ...original, title: 'Edited title', coverUri: '/edited-cover.jpg' }
+  Object.assign(shelf, {
+    libraryStore: { getComic: () => saved },
+    libraryCardCache: { cards: new Map(), categoryNames: new Map() },
+    presentationByComicId: new Map(),
+  })
+  const fromRetainedRow = shelf.cardForComic(original)
+  assert.equal(fromRetainedRow.title, saved.title)
+  assert.equal(fromRetainedRow.coverUri, saved.coverUri)
+  assert.equal(shelf.cardForComic(saved), fromRetainedRow)
+})
 test('reading the newest chapter to 100% leaves earlier chapters unread', () => {
   const store = new stores.InMemoryReaderSessionStore(), book = comic()
   store.saveProgress(progress(book, 'last'))

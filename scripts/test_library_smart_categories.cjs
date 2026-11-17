@@ -51,6 +51,40 @@ test('reading/download/tracking facts dynamically change membership, publication
  reader.commitChapterReadStates([{comicId:'a',chapterId:'a1',isRead:true}])
  assert.equal(smart.comicMatchesSmartCategory(a,selected,context),false)
 })
+test('returning to the shelf picks up new download facts with unchanged book and progress revisions', () => {
+ const file = path.join(root, 'pages/LibraryPage.ets')
+ const source = fs.readFileSync(file, 'utf8').replace(/\bstruct LibraryPage\b/, 'class LibraryPage')
+ const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
+ const owner = tree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'LibraryPage')
+ const names = ['syncDisplayedSnapshotFromProps', 'usesLiveShelfFiltersOrSort', 'selectedSmartCategory']
+ const members = names.map(name => owner.members.find(node => node.name?.text === name))
+  .filter(Boolean).map(method => method.getText(tree).slice(method.getText(tree).indexOf('private ')))
+ const code = ts.transpileModule(`class Shelf { ${members.join('\n')} }; Shelf`, {
+  compilerOptions: { target: ts.ScriptTarget.ES2020 },
+ }).outputText
+ const Shelf = vm.runInNewContext(code)
+ const shelf = new Shelf(), library = new InMemoryLibraryStore(), reader = new InMemoryReaderSessionStore()
+ const comic = book('offline'), downloaded = new Set()
+ library.replaceSmartCategories([group([rule('downloaded')])])
+ Object.assign(shelf, {
+  active: false, rootNavigation: { visible: true }, filterAvailability: 'all', filterCategory: 'smart:1', sortBy: 'title',
+  displayedLibraryRevision: 3, libraryRevision: 3, displayedProgressRevision: 5, readerProgressRevision: 5,
+  displayedSessionStore: reader, readerSessionStore: reader, libraryStore: library, visibleIds: [],
+  refreshDisplayedSnapshotFromStore() {
+   const matches = smart.comicMatchesSmartCategory(comic, this.selectedSmartCategory(), { reader, downloaded, tracked: new Set() })
+   this.visibleIds = matches ? [comic.id] : []
+  },
+ })
+ downloaded.add(comic.id)
+ shelf.syncDisplayedSnapshotFromProps()
+ assert.deepEqual(shelf.visibleIds, [])
+ shelf.active = true
+ shelf.syncDisplayedSnapshotFromProps()
+ assert.deepEqual(shelf.visibleIds, [comic.id])
+ downloaded.delete(comic.id)
+ shelf.syncDisplayedSnapshotFromProps()
+ assert.deepEqual(shelf.visibleIds, [])
+})
 test('rules and work rating survive library/backup serialization; failed persistence retains the original groups',()=>{
  const library=new InMemoryLibraryStore(),a=book('a');a.sourceMetadata={contentRating:'safe'};library.addComic(a)
  const detail=load('model/MangaDetailModels').parseMangaDetailFromSourceItem('rated-source',{id:'rated',title:'Rated work',content_rating:'suggestive'})

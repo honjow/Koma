@@ -9,8 +9,9 @@ const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/pages
   .replace(/\bstruct (\w+)/g, 'class $1')
 const tree = ts.createSourceFile('detail.ts', source, ts.ScriptTarget.Latest, true)
 const owner = tree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'MangaDetailPage')
-const method = owner.members.find(node => node.name?.text === 'loadSourceMangaDetail').getText(tree)
-const code = ts.transpileModule('export class Page { ' + method + ' }', {
+const members = ['loadSourceMangaDetail', 'hasCompleteSavedSourceCatalog']
+  .map(name => owner.members.find(node => node.name?.text === name).getText(tree))
+const code = ts.transpileModule('export class Page { ' + members.join('\n') + ' }', {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText
 
@@ -19,9 +20,10 @@ async function exercise({ ids = ['a', 'b'], rows = ['a', 'b'], fingerprint = 'sa
   let calls = 0
   const out = {}
   new Function('exports', 'SourceDetailContentState', 'appSourceSettingsStore', 'sourceRuntimeEntryEnabled',
-    'sourceSettingsFingerprint', 'sourceMangaDetailSnapshotCache', 's', code)(
+    'sourceSettingsFingerprint', 'sourceMangaDetailSnapshotCache', 'UIUtils', 'newSourceRuntimeOperationGuardId', 's', code)(
     out, { LOADING: 'loading', READY: 'ready' }, { loadForSource: () => ({}) }, () => true,
-    () => 'same', { read: () => cached ? { chaptersResolved: true } : undefined }, key => key)
+    () => 'same', { read: () => cached ? { chaptersResolved: true } : undefined }, { getTarget: value => value },
+    () => 'test-source-operation', key => key)
   const page = new out.Page()
   Object.assign(page, {
     manga: hasDetail ? { title: 'book' } : undefined, chapters: rows.map(id => ({ id })),
@@ -29,6 +31,7 @@ async function exercise({ ids = ['a', 'b'], rows = ['a', 'b'], fingerprint = 'sa
     sourceDetailContentState: 'ready', sourceRegistry: { lookup: () => ({ ok: true, entry: {} }) },
     closeDetailWebChallenge() {}, clearDetailWebChallenge() {}, isDetailPending: () => false,
     beginSourceDetailRequest() { this.sourceChaptersResolved = false; return 1 },
+    hasPendingMihonEdition: () => false,
     sourceMangaRouteUrl: () => '', sourceComicId: () => 'book',
     findSourceRuntimeComic: () => ({ chapters: rows.map(id => ({ id })),
       sourceMetadata: { sharedChapterIds: ids, settingsFingerprint: fingerprint } }),
