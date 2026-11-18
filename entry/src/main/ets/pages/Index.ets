@@ -826,10 +826,9 @@ struct Index {
     // Let HdsTabs size the expanded slot for the current window.
     return {
       miniBarBuilder: (): void => { this.ResumeMiniBarContent() },
+      // Only style changes own the content state. An interrupted animation can
+      // report its old style after the user has switched the bar again.
       onBarStyleChange: (style: HdsBarStyle): void => {
-        this.resumeMiniBarExpanded = style === HdsBarStyle.EXPAND
-      },
-      onMiniBarAnimationEnd: (style: HdsBarStyle): void => {
         this.resumeMiniBarExpanded = style === HdsBarStyle.EXPAND
       },
     }
