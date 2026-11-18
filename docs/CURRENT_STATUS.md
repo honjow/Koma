@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.2 已重新发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-18T03:49:01+08:00",
+  "updatedAt": "2026-11-18T10:14:13+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -85,6 +85,30 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "READER_AUTO_HDR_BRIGHTNESS_TRANSITION",
+      "number": 319,
+      "title": "自动 HDR 提亮过渡有顿挫",
+      "kind": "done",
+      "progressPhase": "completed",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-18",
+      "reportedAtSource": "用户报告自动 HDR 亮度变化不自然，仍有顿挫感。",
+      "registeredAt": "2026-11-18T10:14:13+08:00",
+      "updatedAt": "2026-11-18T10:14:13+08:00",
+      "closedAt": "2026-11-18T10:14:13+08:00",
+      "status": "用户实测确认观感明显改善，修复已推送",
+      "result": "原实现会先隐藏 SDR 原图，再逐帧替换提亮滤镜。现从已显示的 SDR 原图通过系统透明度动画渐入 HDR 图，过渡完成后才隐藏原图。峰值仍为 1.5 倍，时长仍为 280 毫秒，同页超分接替沿用当前过渡。签名调试包 SHA-256 前缀 5ba85ed69030，已核对修复编入包内。reader-kit 832f9604 已推 main，Koma e91a2644 已推 master。用户实测反馈「比之前好很多」，确认提交。",
+      "remaining": "用户实测的设备、阅读模式与超分开关未具名，验收范围为用户报告的亮度过渡观感。",
+      "evidence": [
+        "https://github.com/erosTeam/reader-kit/commit/832f9604a96282e9594850d06410808ef011f796",
+        "https://github.com/honjow/Koma/commit/e91a2644fbd3c52fe4d920fc0cf9666adf2c3cee",
+        ".hvigor/outputs/auto-hdr-transition/Koma-auto-hdr-transition-debug-signed.hap",
+        ".hvigor/outputs/auto-hdr-transition/build.log"
+      ]
+    },
     {
       "id": "DETAIL_RESUME_AND_SHELF_REFRESH",
       "number": 318,
@@ -11715,6 +11739,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-auto-hdr-transition-accepted-20261118",
+      "at": "2026-11-18T10:14:13+08:00",
+      "itemId": "READER_AUTO_HDR_BRIGHTNESS_TRANSITION",
+      "title": "#319 自动 HDR 提亮过渡通过用户实测",
+      "detail": "用户反馈亮度过渡比之前好很多并确认提交。此处时间为登记时间。",
+      "kind": "verified",
+      "evidence": "https://github.com/honjow/Koma/commit/e91a2644fbd3c52fe4d920fc0cf9666adf2c3cee"
+    },
     {
       "id": "detail-resume-and-shelf-refresh-republished-152-20261118",
       "at": "2026-11-18T03:49:01+08:00",
