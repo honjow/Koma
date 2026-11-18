@@ -4,6 +4,7 @@ export type KomaIconButtonKind = 'primary' | 'secondary' | 'danger' | 'ghost'
 
 @ComponentV2
 export struct KomaIconButton {
+  @Param accessibilityLabel: string = ''
   @Param icon: Resource = $r('sys.symbol.gearshape')
   @Param kind: KomaIconButtonKind = 'ghost'
   @Param isEnabled: boolean = true
@@ -46,6 +47,7 @@ export struct KomaIconButton {
     .width(this.controlSize)
     .height(this.controlSize)
     .backgroundColor(this.buttonBackgroundColor())
+    .accessibilityText(this.accessibilityLabel)
     .enabled(this.isEnabled)
     .opacity(this.isEnabled ? 1 : 0.45)
     .onClick(() => {

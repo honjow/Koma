@@ -72,6 +72,8 @@ export struct ChapterListSection {
   @Local private downloadMenuChapterId: string = ''
   @Param downloadActionsAvailable: boolean = true
   @Event onDisplayOrderChange: (chapters: MangaChapterItem[]) => void = (_chapters: MangaChapterItem[]) => {}
+  @Param chapterCommentsAvailable: boolean = false
+  @Event onChapterComments: (chapterId: string, title: string) => void = (_id: string, _title: string) => {}
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onRemoveChapterDownload: (chapterId: string, cancel: boolean) => void = (_id: string, _cancel: boolean) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
@@ -494,6 +496,11 @@ export struct ChapterListSection {
   @Builder
   private ReadStateMenu(ri: RepeatItem<MangaChapterItem>) {
     Menu() {
+      if (this.chapterCommentsAvailable) {
+        MenuItem({ content: s('source_comments_chapter') }).onClick(() => {
+          this.onChapterComments(ri.item.id, ri.item.title)
+        })
+      }
       MenuItem({ content: s(ri.item.isBookmarked ? 'chapter_bookmark_remove' : 'chapter_bookmark_add') })
         .onClick(() => { this.onBookmarkChapter(ri.item.id, ri.item.isBookmarked !== true) })
       MenuItem({ content: s('chapter_list_menu_mark_read') })

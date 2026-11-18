@@ -1,3 +1,4 @@
+import { SourceCommentsCapability, normalizeSourceCommentsCapability } from './SourceCommentsContract'
 import { SourceWebsitePolicy, validSourceWebsitePolicy } from './SourceWebsitePolicy'
 import { sourceRequiredImageDecodes, validSourceRequiredImageDecodes } from './SourceRequiredImageDecodeDeclaration'
 import { SourceAuthenticationDescriptor, sourceAuthenticationDescriptor, validSourceAuthentication } from './SourceAuthenticationDescriptor'
@@ -80,6 +81,7 @@ export interface LocalSourcePackageInfo {
   contentRating?: string
   minAppVersion?: string
   mihonImport?: MihonSourceIdentity
+  comments?: SourceCommentsCapability
 }
 
 export interface LocalSourcePackageRuntime {
@@ -119,6 +121,7 @@ export interface LocalSourcePackageManifest {
 
 interface SourceRepoPackageManifest {
   mihonImport?: MihonSourceIdentity
+  comments?: SourceCommentsCapability
   chapterOrder?: SourceChapterOrder
   webSessionOrigins?: string[]
   authentication?: SourceAuthenticationDescriptor
@@ -180,6 +183,7 @@ export function sourceRepoManifestForShare(manifest: LocalSourcePackageManifest,
     description: manifest.package.description, contentRating: manifest.package.contentRating,
     minAppVersion: manifest.package.minAppVersion, icon: iconName,
     mihonImport: manifest.package.mihonImport,
+    comments: normalizeSourceCommentsCapability(manifest.package.comments),
     wasmSha256: manifest.runtime.wasmSha256, maxWasmBytes: manifest.runtime.maxWasmBytes,
     webSessionOrigins: manifest.permissions.webSessionOrigins,
     authentication: manifest.permissions.authentication,
@@ -692,6 +696,7 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
       contentRating: optionalPackageMetadataText(parsed.contentRating),
       minAppVersion: optionalPackageMetadataText(parsed.minAppVersion),
       mihonImport: parsed.mihonImport,
+      comments: normalizeSourceCommentsCapability(parsed.comments),
     },
     runtime: {
       abi: 'koma-source-abi-v0.1',

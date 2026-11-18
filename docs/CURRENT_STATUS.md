@@ -86,6 +86,32 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "SOURCE_READ_ONLY_COMMENTS",
+      "number": 323,
+      "title": "查看书源原站评论",
+      "kind": "pending_verification",
+      "priority": "用户需求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-19",
+      "reportedAtSource": "本会话用户提出查看原站评论，确认作品和章节入口及半模态，原始时刻未核实。",
+      "registeredAt": "2026-11-19T01:29:27+08:00",
+      "updatedAt": "2026-11-19T03:22:52+08:00",
+      "status": "18 个新增源已在 197 验证",
+      "result": "新增 9 个章节评论源、7 个作品评论源，另有阴阳师漫画屋和 MangaBall 支持两类评论。197 逐源验证评论入口和关闭返回，真实站点请求验证了有评论、空列表与续页。",
+      "remaining": "本批源包尚未发布。快看显示网页热门评论，嗶哩漫畫显示访客可见书评。",
+      "evidence": [
+        ".hvigor/outputs/source-comments-323/live-source-report.json",
+        ".hvigor/outputs/source-comments-323/197-result.json",
+        ".hvigor/outputs/source-comments-extension/wasm-live.json",
+        ".hvigor/outputs/source-comments-extension/wasm-live-additions.json",
+        ".hvigor/outputs/source-comments-extension/wasm-live-publishers.json",
+        ".hvigor/outputs/source-comments-extension/candidates.json",
+        ".hvigor/outputs/source-comments-extension/catalog-inventory.json",
+        ".hvigor/outputs/source-comments-extension/197-result.json"
+      ]
+    },
+    {
       "id": "SOURCE_INCOGNITO",
       "number": 322,
       "title": "按书源开启无痕模式",
@@ -11800,6 +11826,50 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-comments-extension-verified-20261119",
+      "at": "2026-11-19T03:22:52+08:00",
+      "itemId": "SOURCE_READ_ONLY_COMMENTS",
+      "title": "197 验证 18 个新增评论书源",
+      "detail": "作品入口、章节菜单与关闭返回均经过实机核对。ComicFury、NamiComi 简繁及 MangaBall 的章节实机样本显示暂无评论，另用候选包确认原站有评论的样本。pixiv 确认系列章节分页，快看确认网页热门评论。已清理测试传包、恢复 197 电源并释租，保留候选源。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/source-comments-extension/197-result.json"
+    },
+    {
+      "id": "source-comments-sixteen-candidates-20261119",
+      "at": "2026-11-19T03:02:43+08:00",
+      "itemId": "SOURCE_READ_ONLY_COMMENTS",
+      "title": "评论候选扩至 16 个书源",
+      "detail": "又接入咚漫、MangaBall、痞客邦三源、綜合口味和漫小肆。漫小肆旧图片域名与咚漫缺失更新时间字段曾挡住详情入口，已修正，真实站点回读通过。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/source-comments-extension/wasm-live-publishers.json"
+    },
+    {
+      "id": "source-comments-extension-candidates-20261119",
+      "at": "2026-11-19T02:14:36+08:00",
+      "itemId": "SOURCE_READ_ONLY_COMMENTS",
+      "title": "扩展原站评论书源",
+      "detail": "WEBTOON 英文和繁中、Tapas、ComicFury 及嗶哩漫畫已生成评论候选包，沿用已验证的 Koma 评论入口。嗶哩漫畫访客可读作品详情公开的书评，完整列表要求登录。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-comments-197-verified-20261119",
+      "at": "2026-11-19T01:49:19+08:00",
+      "itemId": "SOURCE_READ_ONLY_COMMENTS",
+      "title": "197 验证作品和章节评论",
+      "detail": "旧版 1.5.4 安装 Komiic 候选源后仍可搜索并打开《二人巴士》目录。新包实机追加了第二页评论并保持原滚动位置。再漫画《黑猫和魔女的教室》第 125 话从详情章节菜单和阅读器均能读到同一条评论，关闭后留在 1/20 页。《魔女的花屋》第 31 话显示暂无评论，动漫屋《海贼王 艾斯》第 4 话显示两条。最终包已复验评论图标粗细和点击。更早客户端未做实机验证。已清理本次测试文件、恢复电源并释租，197 保留候选包。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/source-comments-323/197-result.json"
+    },
+    {
+      "id": "source-read-only-comments-candidate-20261119T0129270800",
+      "at": "2026-11-19T01:29:27+08:00",
+      "itemId": "SOURCE_READ_ONLY_COMMENTS",
+      "title": "原站评论候选包进入 197 验证",
+      "detail": "作品按钮放在同步左侧，章节从单章更多和阅读器更多进入。打开时加载，最后一条可见时继续翻页。真实书源请求已验证 Komiic《二人巴士》两页、动漫屋《海贼王 艾斯》第 4 话、再漫画有吐槽与空列表。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/source-comments-323/live-source-report.json"
+    },
     {
       "id": "source-incognito-197-verified-20261119002602",
       "at": "2026-11-19T00:26:02+08:00",

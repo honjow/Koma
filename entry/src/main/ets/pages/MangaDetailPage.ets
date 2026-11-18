@@ -1,3 +1,6 @@
+import { SourceCommentsSheet } from '../components/SourceCommentsSheet'
+import { SourceCommentScope, SourceCommentsTarget } from '../sourceRuntime/SourceCommentsContract'
+import { hasSourceComments } from '../sourceRuntime/SourceCommentsService'
 import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
 import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { gridColumnCount, gridFallbackContainerWidth } from '../utils/GridColumns'
@@ -11,7 +14,7 @@ import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry
 import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, TrackerSearchTitleFieldContentBuilder } from '../components/SearchTitleField'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
-import { KomaModalScaffold } from '../components/KomaModalScaffold'
+import { KomaModalScaffold, komaModalSheetOptions } from '../components/KomaModalScaffold'
 import { LibraryCategoryChoice, LibraryCategoryPicker, libraryCategoryPickerSheetOptions } from '../components/LibraryCategoryPicker'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { MangaWebRouteParam, SourcePackageManagerRouteParam } from '../common/RouterHelper'
@@ -419,6 +422,8 @@ export struct MangaDetailPage {
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param readerProgressRevision: number = 0
   @Event onReadingStateChanged: () => void = () => {}
+  @Local private commentsShown: boolean = false
+  @Local private commentsTarget?: SourceCommentsTarget = undefined
   @Param sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
   @Param chrome: MangaDetailRouteChromeState = new MangaDetailRouteChromeState()
   @Event onBack: () => void = () => {}
@@ -684,6 +689,7 @@ export struct MangaDetailPage {
   }
 
   aboutToDisappear(): void {
+    this.commentsShown = false
     this.detailMountGeneration++
     this.downloadMenu.close()
     this.unsubscribeDownloads?.()
@@ -3152,6 +3158,33 @@ export struct MangaDetailPage {
       })
   }
 
+  private sourceCommentsAvailable(scope: SourceCommentScope): boolean {
+    const manga = this.manga
+    return manga !== undefined && manga.sourceId !== undefined && (manga.sourceImageId?.length ?? 0) > 0 &&
+      hasSourceComments(this.sourceRegistry, manga.sourceId, scope)
+  }
+
+  private openSourceComments(chapterId?: string, title?: string): void {
+    const manga = this.manga
+    if (this.commentsShown || manga?.sourceId === undefined || manga.sourceImageId === undefined ||
+      !this.sourceCommentsAvailable(chapterId === undefined ? 'manga' : 'chapter')) return
+    this.commentsTarget = { sourceId: manga.sourceId, mangaId: manga.sourceImageId,
+      chapterId, subtitle: title || manga.title }
+    this.commentsShown = true
+  }
+
+  @Builder
+  private CommentsSheet() {
+    if (this.commentsTarget !== undefined) {
+      SourceCommentsSheet({
+        registry: this.sourceRegistry,
+        target: this.commentsTarget,
+        isVisible: () => this.commentsShown && this.chrome.visible,
+        onClose: () => { this.commentsShown = false },
+      })
+    }
+  }
+
   @Builder
   private SecondaryActions() {
     Row({ space: ThemeConstants.SPACE_MD }) {
@@ -3172,6 +3205,17 @@ export struct MangaDetailPage {
         },
       })
 
+      if (this.sourceCommentsAvailable('manga')) {
+        KomaIconButton({
+          icon: $r('sys.symbol.topic_message'),
+          accessibilityLabel: s('source_comments_manga'),
+          kind: 'secondary',
+          controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+          iconSize: ThemeConstants.FONT_SIZE_TITLE,
+          iconWeight: FontWeight.Bold,
+          action: () => { this.openSourceComments() },
+        })
+      }
       if (this.canAddCurrentMangaToLibrary()) {
         KomaIconButton({
           icon: $r('sys.symbol.arrow_2_circlepath'),
@@ -3923,6 +3967,8 @@ export struct MangaDetailPage {
   private DetailChapterItems() {
     if (this.shouldRenderChapterList()) {
       ChapterListSection({
+        chapterCommentsAvailable: this.sourceCommentsAvailable('chapter'),
+        onChapterComments: (chapterId: string, title: string) => { this.openSourceComments(chapterId, title) },
         downloadActionsAvailable: this.chrome.chapterDownloadAvailable,
         comicId: this.currentComicId(),
         presentation: this.chapterPresentation,
@@ -4273,6 +4319,11 @@ export struct MangaDetailPage {
             scrollSizeMode: ScrollSizeMode.CONTINUOUS,
             showClose: false, enableFloatingDragBar: true,
           }, (): boolean => !this.trackerMappingBusy && !this.trackerSyncBusy))
+        Column() {}.width(0).height(0)
+          .bindSheet($$this.commentsShown, this.CommentsSheet, komaModalSheetOptions({
+            height: SheetSize.LARGE, detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false,
+            enableOutsideInteractive: false, scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+          }))
         this.DetailLayout()
       }
       .width('100%')

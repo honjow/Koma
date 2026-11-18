@@ -1,3 +1,4 @@
+import { SourceCommentsCapability, normalizeSourceCommentsCapability } from './SourceCommentsContract'
 import { SourceWebsitePolicy } from './SourceWebsitePolicy'
 import { SourceRateLimitRule } from './SourceRequestPolicy'
 import { sourceRequiredImageDecodes, validSourceRequiredImageDecodes } from './SourceRequiredImageDecodeDeclaration'
@@ -59,6 +60,7 @@ export interface SourceRuntimeRegistryEntryInput {
 
 export interface SourceRuntimeRegistryEntry {
   mihonImport?: MihonSourceIdentity
+  comments?: SourceCommentsCapability
   chapterOrder?: SourceChapterOrder
   sourceId: string
   manifestId: string
@@ -394,6 +396,7 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry,
       contentRating: entry.packageContentRating ?? '',
       minAppVersion: entry.packageMinAppVersion ?? '',
       mihonImport: installedManifest?.package.mihonImport,
+      comments: normalizeSourceCommentsCapability(installedManifest?.package.comments),
     },
     runtime: {
       abi: 'koma-source-abi-v0.1',
@@ -624,6 +627,7 @@ export class SourceRuntimeRegistry {
       packageContentRating: normalizePresentationText(input.manifest.package.contentRating),
       packageMinAppVersion: normalizePresentationText(input.manifest.package.minAppVersion),
       mihonImport: input.manifest.package.mihonImport,
+      comments: normalizeSourceCommentsCapability(input.manifest.package.comments),
       webSessionOrigins: input.manifest.permissions.webSessionOrigins ?? [],
       authentication: sourceAuthenticationDescriptor(input.manifest.permissions.authentication),
       requiredImageDecodes: sourceRequiredImageDecodes(input.manifest.permissions.requiredImageDecodes),

@@ -642,6 +642,7 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
       contentRating: entry.packageContentRating,
       minAppVersion: entry.packageMinAppVersion,
       mihonImport: entry.mihonImport,
+      comments: entry.comments,
     },
     runtime: {
       abi: 'koma-source-abi-v0.1',
@@ -1025,7 +1026,8 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
         JSON.stringify(existing.authentication) === JSON.stringify(entry.authentication) &&
         JSON.stringify(existing.requiredImageDecodes) === JSON.stringify(entry.requiredImageDecodes) &&
         JSON.stringify(existing.requestLimits) === JSON.stringify(entry.requestLimits) &&
-        JSON.stringify(existing.websitePolicy) === JSON.stringify(entry.websitePolicy)
+        JSON.stringify(existing.websitePolicy) === JSON.stringify(entry.websitePolicy) &&
+        JSON.stringify(existing.comments) === JSON.stringify(entry.comments)
       if (unchanged) {
         continue
       }
@@ -1054,6 +1056,7 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
           contentRating: entry.packageContentRating,
           minAppVersion: entry.packageMinAppVersion,
           mihonImport: entry.mihonImport,
+          comments: entry.comments,
         },
         runtime: {
           abi: 'koma-source-abi-v0.1',
@@ -1209,7 +1212,9 @@ function installedSourceManifestMatches(entry: SourceRuntimeRegistryEntry,
     JSON.stringify(manifest.permissions.requestLimits) === JSON.stringify(imported.permissions.requestLimits) &&
     JSON.stringify(manifest.permissions.websitePolicy) === JSON.stringify(imported.permissions.websitePolicy) &&
     JSON.stringify(entry.requestLimits) === JSON.stringify(imported.permissions.requestLimits) &&
-    JSON.stringify(entry.websitePolicy) === JSON.stringify(imported.permissions.websitePolicy)
+    JSON.stringify(entry.websitePolicy) === JSON.stringify(imported.permissions.websitePolicy) &&
+    JSON.stringify(manifest.package.comments) === JSON.stringify(imported.package.comments) &&
+    JSON.stringify(entry.comments) === JSON.stringify(imported.package.comments)
 }
 
 async function registerSourcePackageFromBytes(

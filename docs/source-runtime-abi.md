@@ -32,6 +32,16 @@
 
 新增协议先核对包生成、导入、重载及实际消费方。需要兼容旧宿主的字段由打包器从作者声明生成，旧包按原声明解释。发布验证按源的最低支持客户端安装同一份包，并核对使用扩展的新客户端结果。
 
+### 原站评论
+
+源包可声明 `comments: {version: 1, scopes: ["manga", "chapter"]}`，按站点实际支持选择作用域。它独立于旧 `operationCapabilities`。旧宿主忽略该字段，新宿主跳过未知版本。书源可继续沿用原有最低 App 版本和章末文字页。
+
+宿主声明 `source_comments_v1` 并调用 `get_comments` 时，`args` 包含 `scope`、当前源的 `mangaId`、章节作用域下的实际 `chapterId`，以及可选的 `cursor`。第一页省略 cursor。源使用自己的会话和站点访问规则，保留原站评论顺序。
+
+成功响应的 `data` 包含 `items` 和可选 `nextCursor`。每条提供当前列表中稳定的 `id`、纯文本 `author` 和 `content`。可选 `createdAt` 使用 ISO 8601 或原站时间文本。源已明确标为删除的条目可传 `deleted: true`，此时作者和正文均为空。没有评论返回空数组，未提供下一页时省略 cursor。站点拒绝、网络及数据错误按原错误合同返回。
+
+评论独立于 `get_pages`。用户打开面板后才读取，末项可见时加载下一页。关闭面板或源身份、设置变化后，过时响应由宿主丢弃。此扩展只有读取操作。
+
 ## 作品与章节身份
 
 书源负责提供稳定的作品和章节标识。身份声明按所属书源、作品及可区分的章节版本解释。外部平台的标识接入复用这一职责，外部备份的解析、书库合并和续读位置由宿主功能处理。
@@ -59,6 +69,7 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 | get_manga | koma_source_get_manga |
 | get_chapters | koma_source_get_chapters |
 | get_pages | koma_source_get_pages |
+| get_comments（可选） | koma_source_get_comments |
 | get_listings | koma_source_get_listings |
 | get_manga_list | koma_source_get_manga_list |
 | get_home | koma_source_get_home |

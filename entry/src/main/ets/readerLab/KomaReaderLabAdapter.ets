@@ -1,3 +1,4 @@
+import { SourceCommentsTarget } from '../sourceRuntime/SourceCommentsContract'
 import { ImageRuleStore } from '../model/ImageRuleStore'
 import { BannerFilterMode, ImageRuleSnapshot } from '../model/ImageBannerRules'
 import { sourceChapterOrderFor, appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -451,6 +452,17 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   chapterTitle(unit: ReaderUnitKey): string {
     return this.configs.get(this.unitId(unit))?.chapterTitle ??
       this.library.getComic(unit.work)?.chapters.find((chapter) => chapter.id === unit.unit)?.title ?? ''
+  }
+
+  chapterCommentsTarget(unit: ReaderUnitKey): SourceCommentsTarget | undefined {
+    const config = this.configs.get(this.unitId(unit))
+    const comic = this.library.getComic(unit.work)
+    const sourceId = config?.sourceRuntimeId ?? comic?.sourceRuntimeId
+    if (!sourceId || !unit.unit) return undefined
+    const prefix = sourceId + ':'
+    const mangaId = comic?.remoteResourceId ?? (unit.work.startsWith(prefix) ? unit.work.substring(prefix.length) : '')
+    if (!mangaId) return undefined
+    return { sourceId, mangaId, chapterId: unit.unit, subtitle: this.chapterTitle(unit) }
   }
 
   /** Catalog preparation is session-local and does not imply native image presentation. */

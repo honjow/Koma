@@ -1,3 +1,7 @@
+import { SourceCommentsSheet } from '../components/SourceCommentsSheet'
+import { SourceCommentsTarget } from '../sourceRuntime/SourceCommentsContract'
+import { hasSourceComments } from '../sourceRuntime/SourceCommentsService'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
 import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
 import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
@@ -42,7 +46,7 @@ import { ReaderMode } from '../model/ReaderSessionStore'
 import { READER_RUNTIME_SHAPE_POLICY, ReaderImagePixelSize, readerReadingShape } from '@reader-kit/core'
 import { readerSessionFormatForOpen } from '../model/ReaderLocalFormatProbe'
 import { ReaderSettingsContent } from '../components/ReaderSettingsContent'
-import { KomaModalScaffold } from '../components/KomaModalScaffold'
+import { KomaModalScaffold, komaModalSheetOptions } from '../components/KomaModalScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { AppStrings } from '../i18n/AppStrings'
 import { KomaReaderCatalogHost } from './KomaReaderCatalogHost'
@@ -235,6 +239,8 @@ export struct KomaReaderLabPage {
   private hdrAvailable: boolean = false
   @Local private tapZonePreviewRevision: number = 0
   @Local private chapterPickerShown: boolean = false
+  @Local private commentsShown: boolean = false
+  @Local private commentsTarget?: SourceCommentsTarget = undefined
   @Local private chapterChoices: KomaReaderLabChapterChoice[] = []
   @Local private currentChapterUnit: string = ''
   @Local private chapterPickerSelected: number = -1
@@ -373,6 +379,7 @@ export struct KomaReaderLabPage {
     this.cancelChapterRequest()
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
+    this.commentsShown = false
     this.initializeReader()
   }
 
@@ -525,6 +532,7 @@ export struct KomaReaderLabPage {
     this.authentication = null
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
+    this.commentsShown = false
     this.chapterPickerTarget = null
     this.initialization?.cancel()
     this.volumeKeys.close()
@@ -595,6 +603,7 @@ export struct KomaReaderLabPage {
     this.readerClosed = true
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
+    this.commentsShown = false
     this.chapterPickerTarget = null
     this.initialization?.cancel()
     this.volumeKeys.close()
@@ -617,13 +626,13 @@ export struct KomaReaderLabPage {
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated',
     'readerMode.volumeKeyNavigationEnabled', 'readerMode.volumeKeyBehavior', 'readerSettingsSheetShown', 'authenticationShown',
-    'chapterPickerShown', 'session')
+    'chapterPickerShown', 'commentsShown', 'session')
   syncVolumeKeys(): void {
     const enabled = this.request.volumeKeysOverride ??
       (this.hostPreferences?.volumeKeyNavigationEnabled ?? this.readerMode.volumeKeyNavigationEnabled)
     const active = this.volumeKeys.setActive(!this.readerClosed && this.request.readingChrome && this.session !== null &&
       this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated &&
-      !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && enabled,
+      !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && !this.commentsShown && enabled,
       (this.hostPreferences?.volumeKeyBehavior ?? this.readerMode.volumeKeyBehavior) === 'up_next_down_previous')
     if (active) {
       this.volumeTurnVSync.prepare()
@@ -651,12 +660,12 @@ export struct KomaReaderLabPage {
   private smartKeyAdmitted(): boolean {
     return !this.readerClosed && this.request.readingChrome && this.session !== null && this.routeActive &&
       this.labVisibility.foreground && this.readerMode.hydrated && !this.turnAssistMenuShown &&
-      !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown &&
+      !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && !this.commentsShown &&
       (this.hostPreferences?.smartKeyPageTurnEnabled ?? this.readerMode.smartKeyPageTurnEnabled)
   }
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated', 'readerMode.smartKeyPageTurnEnabled',
-    'hostPreferences', 'readerSettingsSheetShown', 'authenticationShown', 'chapterPickerShown', 'session')
+    'hostPreferences', 'readerSettingsSheetShown', 'authenticationShown', 'chapterPickerShown', 'commentsShown', 'session')
   private syncSmartKey(): void {
     this.smartKey.setActive(this.smartKeyAdmitted())
   }
@@ -664,7 +673,7 @@ export struct KomaReaderLabPage {
   private gazeAdmitted(): boolean {
     return !this.readerClosed && this.request.readingChrome && this.session !== null &&
       this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated &&
-      !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && this.gazeRequested()
+      !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && !this.commentsShown && this.gazeRequested()
   }
 
   private selectTurnAssist(mode: ReaderTurnAssist, params: ReaderAutoReadControlParams): void {
@@ -695,7 +704,7 @@ export struct KomaReaderLabPage {
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated',
     'readerMode.eyeGazePageTurnEnabled', 'readerSettingsSheetShown', 'authenticationShown',
-    'chapterPickerShown', 'session')
+    'chapterPickerShown', 'commentsShown', 'session')
   private syncEyeGazePageTurn(): void {
     if (this.gazeAdmitted()) {
       void this.gazePageTurn.setActive(true, this.getUIContext().getHostContext() as common.UIAbilityContext)
@@ -1168,7 +1177,44 @@ export struct KomaReaderLabPage {
       state.unit?.key.equals(source) === true && state.navigationRevision === navigation && state.anchor?.sourceIndexHint === index
   }
 
+  private availableHostActions(): ReaderHostAction[] {
+    const actions = this.hostActionDispatch.items().concat(this.translationActions())
+    // Re-evaluate at a chapter change. The session's exact unit, not its
+    // displayed chapter number, identifies the provider's discussion.
+    if (this.currentChapterUnit.length === 0) return actions
+    const key = new ReaderUnitKey(this.unitKey.scope, this.unitKey.work, this.currentChapterUnit)
+    const target = this.adapter?.chapterCommentsTarget(key)
+    if (target !== undefined && hasSourceComments(appSourceRuntimeRegistry, target.sourceId, 'chapter')) {
+      actions.push(new ReaderHostAction('chapter_comments', AppStrings.get('source_comments_chapter'),
+        true, false, false, 'detail'))
+    }
+    return actions
+  }
+
+  private openChapterComments(source: ReaderUnitKey, navigation: number): void {
+    const snapshot = this.session?.snapshot()
+    if (this.commentsShown || snapshot?.phase !== 'ready' || snapshot.unit === null ||
+      !snapshot.unit.key.equals(source) || snapshot.navigationRevision !== navigation) return
+    const target = this.adapter?.chapterCommentsTarget(source)
+    if (target === undefined || !hasSourceComments(appSourceRuntimeRegistry, target.sourceId, 'chapter')) return
+    this.commentsTarget = target
+    this.commentsShown = true
+  }
+
+  @Builder
+  private CommentsSheet() {
+    if (this.commentsTarget !== undefined) {
+      SourceCommentsSheet({
+        registry: appSourceRuntimeRegistry,
+        target: this.commentsTarget,
+        isVisible: () => this.commentsShown && this.routeActive && !this.readerClosed,
+        onClose: () => { this.commentsShown = false },
+      })
+    }
+  }
+
   private handleHostAction(id: string, source: ReaderUnitKey, navigation: number, index: number): void {
+    if (id === 'chapter_comments') { this.openChapterComments(source, navigation); return }
     if (!id.startsWith('translate_')) { this.hostActionDispatch.request(id, source, navigation, index); return }
     if (!this.translationTargetCurrent(source, navigation, index)) return
     if (id === 'translate_original') {
@@ -1500,6 +1546,11 @@ export struct KomaReaderLabPage {
       SourceAuthenticationSheetHost({ request: this.authentication, active: this.routeActive && this.labVisibility.foreground,
         onPresentedChanged: (shown: boolean) => { this.authenticationShown = shown } })
       Column() {}.width(0).height(0)
+        .bindSheet($$this.commentsShown, this.CommentsSheet, komaModalSheetOptions({
+          height: SheetSize.LARGE, detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false,
+          enableOutsideInteractive: false, scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+        }))
+      Column() {}.width(0).height(0)
         .bindSheet($$this.webChallengeShown, this.ReaderWebChallengeSheet, komaSheetOptions({
           detents: [SheetSize.LARGE], showClose: false,
           enableOutsideInteractive: false, enableFloatingDragBar: true,
@@ -1556,13 +1607,13 @@ export struct KomaReaderLabPage {
                 this.hostPreferences?.cropStrength ?? this.readerMode.cropStrength),
               hostSettings: this.request.preferencesReadWrite
                 ? new ReaderHostSettings((): void => { this.openHostSettings() }) : null,
-              hostActions: new ReaderHostActions(this.hostActionDispatch.items().concat(this.translationActions()),
+              hostActions: new ReaderHostActions(this.availableHostActions(),
                 (id: string, source: ReaderUnitKey, navigation: number, index: number): void => {
                   this.handleHostAction(id, source, navigation, index)
                 }),
               hostStatus: this.translationStatus(),
               active: this.routeActive && this.labVisibility.foreground && !this.authenticationShown && !this.readerSettingsSheetShown &&
-                !this.chapterPickerShown && this.presentedWebChallenge === null,
+                !this.chapterPickerShown && !this.commentsShown && this.presentedWebChallenge === null,
               centerAction: this.chapterChoices.length > 0
                 ? new ReaderCenterAction(this.chapterControlLabel(),
                   (sourceUnit: ReaderUnitKey, navigation: number): void => {
@@ -1647,6 +1698,7 @@ export struct KomaReaderLabPage {
     .translate({ x: this.productionEntry ? this.routeTransition.offset() : '0%' })
     .onBackPressed((): boolean => {
       if (!this.request.readingChrome) return false
+      if (this.commentsShown) { this.commentsShown = false; return true }
       this.closeReader()
       return true
     })

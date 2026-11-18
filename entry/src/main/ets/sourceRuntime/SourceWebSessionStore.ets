@@ -112,7 +112,7 @@ export function sourceHttpIdentityJson(entry: SourceRuntimeRegistryEntry, operat
   if (entry.packageManifestUnavailable === true) identity.packageManifestUnavailable = true
   if (entry.websitePolicy?.dnsBootstrap !== undefined) identity.dnsBootstrapDeclared = true
   if (diagnosticOperation !== undefined && ['search', 'get_manga', 'get_chapters', 'get_pages',
-    'get_manga_list', 'get_home', 'get_listings', 'get_filters', 'get_settings', 'get_image_request'].includes(diagnosticOperation)) {
+    'get_manga_list', 'get_home', 'get_listings', 'get_filters', 'get_settings', 'get_image_request', 'get_comments'].includes(diagnosticOperation)) {
     identity.diagnosticOperation = diagnosticOperation
   }
   return JSON.stringify(identity)
