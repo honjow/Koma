@@ -65,6 +65,12 @@ export struct ImagePluginsListContent {
     const versions = row.group === 'updates' ? `v${version} → v${(row.offered?.version ?? row.offeredPack!.version)}` : `v${version}`
     return `${this.description(row)}\n${versions} · ${row.source.name}`
   }
+  private rowStructureKey(row: ImagePluginRow): string {
+    return JSON.stringify([row.key(), row.group,
+      row.plugin?.version, row.pack?.version, row.offered?.version, row.offeredPack?.version,
+      this.title(row), this.description(row), row.source.name,
+      row.source.conflicts, row.source.pluginSettings])
+  }
   @Computed
   private get rowsByKey(): Map<string, ImagePluginRow> {
     const indexed = new Map<string, ImagePluginRow>()
@@ -245,11 +251,14 @@ export struct ImagePluginsListContent {
             if (index + 1 < group.rows.length) { ListDivider() }
           // The row closure holds structural data. Switch state reads the
           // current store projection by key without remounting the native control.
-          }, (row: ImagePluginRow): string => JSON.stringify([row.key(), row.group,
-            row.plugin?.version, row.pack?.version, row.offered?.version, row.offeredPack?.version,
-            row.source.conflicts, row.source.pluginSettings]))
+          }, (row: ImagePluginRow): string => this.rowStructureKey(row))
         }
-      }, (group: ImagePluginGroupRows): string => group.key)
+      // ForEach keeps its original item closure when a key is reused. The
+      // group must change identity when its rows change, otherwise an updated
+      // plugin can remain invisible in the already-mounted installed group.
+      // Activation is deliberately excluded so native switches stay mounted.
+      }, (group: ImagePluginGroupRows): string => JSON.stringify([group.key,
+        group.rows.map((row: ImagePluginRow): string => this.rowStructureKey(row))]))
       if (this.error && !this.editorShown) { Text(this.error).fontColor(ThemeConstants.TEXT_SECONDARY).padding(ThemeConstants.SPACE_MD) }
     }.width('100%')
     .bindSheet($$this.editorShown, this.Editor, komaModalSheetOptions({ height: SheetSize.MEDIUM,

@@ -104,6 +104,26 @@
       "evidence": [".hvigor/outputs/mihon-category-restore/local-replay.json"]
     },
     {
+      "id": "IMAGE_PLUGIN_UPDATED_GROUP_STALE",
+      "number": 320,
+      "title": "图片插件更新后已安装列表缺项",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-18",
+      "reportedAtSource": "用户报告图片插件更新后已安装列表经常只显示一个，重开 App 恢复。",
+      "registeredAt": "2026-11-18T11:34:38+08:00",
+      "updatedAt": "2026-11-18T11:34:38+08:00",
+      "status": "本地候选已构建，待真机核对",
+      "result": "外层 ForEach 只用分组名称作为键，分组成员变化时可能沿用旧分组内容；本地候选按行结构更新分组身份，插件启停值不参与键。使用正式包的两个插件连续更新验证，两个安装及启用状态都保留；调试 HAP 构建通过，SHA-256 为 c37259f7249fddec2ed0610c380af75ee241508af03db15421a8c233805458f7。",
+      "remaining": "尚未在真机按实际更新路径复现及验证分组显示和开关交互；候选未发布。",
+      "evidence": [
+        ".hvigor/outputs/image-plugin-list-20261118/Koma-image-plugin-list-debug.hap"
+      ]
+    },
+    {
       "id": "READER_AUTO_HDR_BRIGHTNESS_TRANSITION",
       "number": 319,
       "title": "自动 HDR 提亮过渡有顿挫",
