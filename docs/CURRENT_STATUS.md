@@ -18,9 +18,9 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "Koma 1.5.3 已发布",
+  "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-18T11:49:55+08:00",
+  "updatedAt": "2026-11-18T12:05:14+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -96,9 +96,9 @@
       "reportedDate": "2026-11-18",
       "reportedAtSource": "用户转述大备份恢复后分组对不上，原始时刻未核实。",
       "registeredAt": "2026-11-18T11:49:55+08:00",
-      "updatedAt": "2026-11-18T11:49:55+08:00",
-      "status": "新导入的分类映射已修，旧错分仍需处理",
-      "result": "Mihon 以分类排序号记录作品归属，Koma 1.5.0 至 1.5.3 用数据库 ID 查找。候选改用排序号，大备份的 21 个分类与 1,064 部收藏在本地全量导入、存储读回和重复导入中逐一对齐，小备份也通过。调试包已构建。",
+      "updatedAt": "2026-11-18T12:05:14+08:00",
+      "status": "已随 1.5.4 发布，旧错分仍需处理",
+      "result": "Mihon 以分类排序号记录作品归属，Koma 1.5.0 至 1.5.3 用数据库 ID 查找。候选改用排序号，大备份的 21 个分类与 1,064 部收藏在本地全量导入、存储读回和重复导入中逐一对齐，小备份也通过。调试包已构建。 标签 CI 发布 1.5.4，公开包版本与校验值已核。",
       "remaining": "实际设备恢复入口待验证。旧版已导入后再次合并会补齐正确分类，但样本仍保留 970 条误加的归属。旧存储无法区分导入误加与用户手动添加同一分类，清理旧关系需单独处理。",
       "relatedItems": ["MIHON_BACKUP_IMPORT"],
       "evidence": [".hvigor/outputs/mihon-category-restore/local-replay.json"]
@@ -115,10 +115,10 @@
       "reportedDate": "2026-11-18",
       "reportedAtSource": "用户报告图片插件更新后已安装列表经常只显示一个，重开 App 恢复。",
       "registeredAt": "2026-11-18T11:34:38+08:00",
-      "updatedAt": "2026-11-18T11:34:38+08:00",
-      "status": "本地候选已构建，待真机核对",
-      "result": "外层 ForEach 只用分组名称作为键，分组成员变化时可能沿用旧分组内容；本地候选按行结构更新分组身份，插件启停值不参与键。使用正式包的两个插件连续更新验证，两个安装及启用状态都保留；调试 HAP 构建通过，SHA-256 为 c37259f7249fddec2ed0610c380af75ee241508af03db15421a8c233805458f7。",
-      "remaining": "尚未在真机按实际更新路径复现及验证分组显示和开关交互；候选未发布。",
+      "updatedAt": "2026-11-18T12:05:14+08:00",
+      "status": "已随 1.5.4 发布，待真机核对",
+      "result": "外层 ForEach 只用分组名称作为键，分组成员变化时可能沿用旧分组内容；本地候选按行结构更新分组身份，插件启停值不参与键。使用正式包的两个插件连续更新验证，两个安装及启用状态都保留；调试 HAP 构建通过，SHA-256 为 c37259f7249fddec2ed0610c380af75ee241508af03db15421a8c233805458f7。 标签 CI 发布 1.5.4，公开包版本与校验值已核。",
+      "remaining": "尚未在真机按实际更新路径复现及验证分组显示和开关交互。",
       "evidence": [
         ".hvigor/outputs/image-plugin-list-20261118/Koma-image-plugin-list-debug.hap"
       ]
@@ -11777,6 +11777,24 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "release-154-321-20261118",
+      "at": "2026-11-18T12:05:14+08:00",
+      "itemId": "MIHON_BACKUP_CATEGORY_MEMBERSHIP",
+      "title": "#321 Mihon 备份分类修复随 1.5.4 发布",
+      "detail": "标签 CI 构建并发布，公开下载包的版本、构建提交和 SHA-256 已核。真机恢复入口与旧错分修复仍待处理。",
+      "kind": "release",
+      "evidence": "https://github.com/honjow/Koma/releases/tag/v1.5.4"
+    },
+    {
+      "id": "release-154-320-20261118",
+      "at": "2026-11-18T12:05:14+08:00",
+      "itemId": "IMAGE_PLUGIN_UPDATED_GROUP_STALE",
+      "title": "#320 图片插件已安装列表修复随 1.5.4 发布",
+      "detail": "标签 CI 构建并发布，公开下载包的版本、构建提交和 SHA-256 已核。实际更新路径、分组显示和开关交互仍待真机核对。",
+      "kind": "release",
+      "evidence": "https://github.com/honjow/Koma/releases/tag/v1.5.4"
+    },
     {
       "id": "mihon-backup-category-order-fix-20261118",
       "at": "2026-11-18T11:49:55+08:00",
