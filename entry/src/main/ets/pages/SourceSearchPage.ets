@@ -42,7 +42,6 @@ interface SourceSearchGridRow {
 }
 interface SourceSearchGridProjection {
   rows: SourceSearchGridRow[]
-  byKey: Map<string, SourceSearchGridRow>
   fullRowIndexes: number[]
 }
 
@@ -420,17 +419,11 @@ export struct SourceSearchPage {
       })
       rows.push({ key: 'footer', kind: 'footer', bottomPadding: ThemeConstants.SPACE_MD })
     }
-    const byKey = new Map<string, SourceSearchGridRow>()
     const fullRowIndexes: number[] = []
     rows.forEach((row: SourceSearchGridRow, index: number) => {
-      byKey.set(row.key, row)
       if (row.kind !== 'manga') fullRowIndexes.push(index)
     })
-    return { rows, byKey, fullRowIndexes }
-  }
-
-  private currentGridRow(row: SourceSearchGridRow): SourceSearchGridRow {
-    return this.gridProjection.byKey.get(row.key) ?? row
+    return { rows, fullRowIndexes }
   }
 
   @Computed
@@ -440,20 +433,20 @@ export struct SourceSearchPage {
   }
 
   @Builder
-  private GridRowContent(row: SourceSearchGridRow) {
-    if (row.kind === 'manga' && this.selectionMode) {
+  private GridRowContent(row: RepeatItem<SourceSearchGridRow>) {
+    if (row.item.kind === 'manga' && this.selectionMode) {
       Column() {
-        MangaGridItem({ manga: row.manga!, reserveTitleSpace: true,
+        MangaGridItem({ manga: row.item.manga!, reserveTitleSpace: true,
           onMangaTap: (selected: SourceManga) => { this.onMangaSelected(selected) } })
       }.width('100%')
-      .priorityGesture(LongPressGesture({ repeat: false }).onAction((): void => { this.onMangaTap(row.manga!) }))
-    } else if (row.kind === 'manga') {
-      MangaGridItem({ manga: row.manga!, onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
-    } else if (row.kind === 'loading') {
+      .priorityGesture(LongPressGesture({ repeat: false }).onAction((): void => { this.onMangaTap(row.item.manga!) }))
+    } else if (row.item.kind === 'manga') {
+      MangaGridItem({ manga: row.item.manga!, onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
+    } else if (row.item.kind === 'loading') {
       this.LoadingSearchState()
-    } else if (row.kind === 'error') {
+    } else if (row.item.kind === 'error') {
       this.SearchErrorState()
-    } else if (row.kind === 'empty') {
+    } else if (row.item.kind === 'empty') {
       this.EmptySearch()
     } else {
       SourcePaginationFooter({
@@ -602,11 +595,14 @@ export struct SourceSearchPage {
             if (this.paginationItemIndex >= 0) void this.viewModel.loadMoreSearch()
           },
         }) {
-          ForEach(this.gridProjection.rows, (row: SourceSearchGridRow) => {
-            GridItem() { this.GridRowContent(this.currentGridRow(row)) }
-              .padding({ bottom: this.currentGridRow(row).bottomPadding })
-              .clip(false)
-          }, (row: SourceSearchGridRow) => row.key)
+          Repeat<SourceSearchGridRow>(this.gridProjection.rows)
+            .each((row: RepeatItem<SourceSearchGridRow>) => {
+              GridItem() { this.GridRowContent(row) }
+                .padding({ bottom: row.item.bottomPadding })
+                .clip(false)
+            })
+            .key((row: SourceSearchGridRow): string => row.key)
+            .virtualScroll()
         }
       }
       .width('100%')

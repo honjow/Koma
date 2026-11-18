@@ -39,8 +39,8 @@ export struct SourceMangaGrid {
   @Monitor('paginationItemIndex')
   private requestNextPageIfVisible(): void {
     // The leading inset occupies Grid index 0. Use the visible range because
-    // ForEach can mount offscreen items. Recheck when a short or empty page
-    // completes without changing that range.
+    // virtualized items can be built or reused before they are visible. Recheck
+    // when a short or empty page completes without changing that range.
     if (this.paginationItemIndex >= 0 && this.lastVisibleIndex >= this.paginationItemIndex + 1 &&
       this.lastVisibleIndex <= this.contentItemCount + 1) {
       this.onPaginationRequested?.()

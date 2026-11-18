@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-19T05:12:57+08:00",
+  "updatedAt": "2026-11-19T05:39:23+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -11809,6 +11809,34 @@
         ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/restore-20261119T051711088412/run-metadata.json",
         ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/actions-20261119T051636058069/run-metadata.json"
       ]
+    },
+    {
+      "id": "HISTORY_AND_SOURCE_LIST_VIRTUALIZATION",
+      "number": 325,
+      "title": "历史与源内列表的按需创建和复用",
+      "kind": "done",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-19",
+      "reportedAtSource": "用户要求在下载优化提交后检查其他界面的同类问题。",
+      "registeredAt": "2026-11-19T05:39:23+08:00",
+      "updatedAt": "2026-11-19T05:39:23+08:00",
+      "status": "197 已验收列表交互与 Komiic 滚动",
+      "result": "历史按稳定的记录 ID 复用行，只投影有进度的作品。单源浏览和独立源内搜索按可见区复用卡片。197 的 Komiic 首页连续滚动最长主线程帧 24.91→14.92 ms，搜索续页滚动 23.93→17.56 ms。实测跨页显示、点出结果和返回原位置，最终包核对历史分组、顺序和续读页码。",
+      "remaining": "历史连续滚动约 8 ms，首进最慢仍约 165 ms，主要在 Index 根页面更新。书源管理与更新页的长分组仍一次性创建组内行，本次只核对了代码。",
+      "relatedItems": [
+        "DOWNLOAD_MANAGER_UI_JANK"
+      ],
+      "evidence": [
+        ".hvigor/outputs/long-list-audit-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/long-list-audit/perf-20261119T052800981567/frame-summary.json",
+        ".hvigor/outputs/long-list-audit-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/long-list-audit/perf-20261119T053153310089/frame-summary.json",
+        ".hvigor/outputs/long-list-audit-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/long-list-audit/perf-20261119T052953276600/frame-summary.json",
+        ".hvigor/outputs/long-list-audit-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/long-list-audit/perf-20261119T053224717692/frame-summary.json",
+        ".hvigor/outputs/long-list-audit-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/long-list-audit/perf-20261119T053407946579/frame-summary.json",
+        ".hvigor/outputs/long-list-audit-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/long-list-audit/actions-20261119T053808880105/screen-layout.json",
+        ".hvigor/outputs/long-list-audit-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/long-list-audit/actions-20261119T053840542723/screen-layout.json",
+        ".hvigor/outputs/long-list-audit-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/long-list-audit/restore-20261119T053845293675/run-metadata.json"
+      ]
     }
   ],
   "source": {
@@ -11863,6 +11891,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "history-source-list-reuse-197-20261119",
+      "at": "2026-11-19T05:39:23+08:00",
+      "itemId": "HISTORY_AND_SOURCE_LIST_VIRTUALIZATION",
+      "title": "#325 197 复测历史、单源浏览与搜索",
+      "detail": "下载优化先本地提交 234382c3。197 已核对历史点封面进入详情及返回，Komiic 的搜索后续结果点开后返回同一滚动位置。最终签名包核对历史首屏，197 保留候选，超时及电源已恢复并释租。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/long-list-audit-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/long-list-audit/perf-20261119T053153310089/frame-summary.json"
+    },
     {
       "id": "download-manager-perf-197-verified-20261119",
       "at": "2026-11-19T05:12:57+08:00",

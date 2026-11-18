@@ -55,15 +55,8 @@ interface SourceBrowseGridRow {
   homeSection?: SourceHomeSectionState
   bottomPadding: number
 }
-interface SourceBrowseGridRowParams {
-  row: SourceBrowseGridRow
-}
-interface SourceHomeSectionHeaderParams {
-  section: SourceHomeSectionState
-}
 interface SourceBrowseGridProjection {
   rows: SourceBrowseGridRow[]
-  byKey: Map<string, SourceBrowseGridRow>
   fullRowIndexes: number[]
   lastMangaIndex: number
 }
@@ -577,25 +570,25 @@ export struct SourceBrowsePage {
   }
 
   @Builder
-  private HomeSectionHeader(params: SourceHomeSectionHeaderParams) {
+  private HomeSectionHeader(row: RepeatItem<SourceBrowseGridRow>) {
       Row() {
-        Text(params.section.title)
+        Text(row.item.homeSection!.title)
           .fontSize(ThemeConstants.FONT_SIZE_H3)
           .fontWeight(FontWeight.Bold)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
         Blank()
-        if (this.hasListingForHomeSection(params.section)) {
+        if (this.hasListingForHomeSection(row.item.homeSection!)) {
           KomaActionButton({
             label: s('browse_section_open_listing'),
             kind: 'ghost',
             compact: true,
             isEnabled: !this.viewModel.loadingBrowse,
             action: () => {
-              this.openHomeSectionListing(params.section)
+              this.openHomeSectionListing(row.item.homeSection!)
             },
           })
         } else {
-          Text(s('library_count_books').replace('%s', `${params.section.manga.length}`))
+          Text(s('library_count_books').replace('%s', `${row.item.homeSection!.manga.length}`))
             .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
@@ -661,15 +654,13 @@ export struct SourceBrowsePage {
         }
       }
     }
-    const byKey = new Map<string, SourceBrowseGridRow>()
     const fullRowIndexes: number[] = []
     let lastMangaIndex = -1
     rows.forEach((row: SourceBrowseGridRow, index: number) => {
-      byKey.set(row.key, row)
       if (row.kind === 'manga') lastMangaIndex = index
       else fullRowIndexes.push(index)
     })
-    return { rows, byKey, fullRowIndexes, lastMangaIndex }
+    return { rows, fullRowIndexes, lastMangaIndex }
   }
 
   @Computed
@@ -687,32 +678,28 @@ export struct SourceBrowsePage {
     return lastMangaIndex >= 0 ? lastMangaIndex : this.gridProjection.rows.length
   }
 
-  private currentGridRow(row: SourceBrowseGridRow): SourceBrowseGridRow {
-    return this.gridProjection.byKey.get(row.key) ?? row
-  }
-
   private rowBottomPadding(row: SourceBrowseGridRow): number {
     if (this.chrome.layout === 'list' && row.kind === 'manga') return ThemeConstants.SPACE_SM
     return row.bottomPadding
   }
 
   @Builder
-  private GridRowContent(params: SourceBrowseGridRowParams) {
-    if (params.row.kind === 'manga') {
-      MangaGridItem({ manga: params.row.manga!, listLayout: this.chrome.layout === 'list', deferOffscreenCover: true,
+  private GridRowContent(row: RepeatItem<SourceBrowseGridRow>) {
+    if (row.item.kind === 'manga') {
+      MangaGridItem({ manga: row.item.manga!, listLayout: this.chrome.layout === 'list', deferOffscreenCover: true,
         onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
-    } else if (params.row.kind === 'home-header') {
-      this.HomeSectionHeader({ section: params.row.homeSection! })
-    } else if (params.row.kind === 'browse-selector') {
+    } else if (row.item.kind === 'home-header') {
+      this.HomeSectionHeader(row)
+    } else if (row.item.kind === 'browse-selector') {
       this.ListingSelector()
-    } else if (params.row.kind === 'loading') {
+    } else if (row.item.kind === 'loading') {
       this.LoadingBrowseState()
-    } else if (params.row.kind === 'empty-search') {
+    } else if (row.item.kind === 'empty-search') {
       KomaEmptyState({ title: s('source_search_empty_results_title'),
         message: s('source_search_empty_results_message') })
-    } else if (params.row.kind === 'empty-browse') {
+    } else if (row.item.kind === 'empty-browse') {
       this.EmptyBrowseResults()
-    } else if (params.row.kind === 'error') {
+    } else if (row.item.kind === 'error') {
       this.BrowseErrorState()
     } else {
       SourcePaginationFooter({
@@ -922,11 +909,14 @@ export struct SourceBrowsePage {
             else void this.viewModel.loadMoreBrowse()
           },
         }) {
-          ForEach(this.gridProjection.rows, (row: SourceBrowseGridRow) => {
-            GridItem() { this.GridRowContent({ row: this.currentGridRow(row) }) }
-              .padding({ bottom: this.rowBottomPadding(this.currentGridRow(row)) })
-              .clip(false)
-          }, (row: SourceBrowseGridRow) => row.key)
+          Repeat<SourceBrowseGridRow>(this.gridProjection.rows)
+            .each((row: RepeatItem<SourceBrowseGridRow>) => {
+              GridItem() { this.GridRowContent(row) }
+                .padding({ bottom: this.rowBottomPadding(row.item) })
+                .clip(false)
+            })
+            .key((row: SourceBrowseGridRow): string => row.key)
+            .virtualScroll()
         }
         if (!this.isSearchActive() && (this.isBlockingBrowseLoading() ||
           this.viewModel.browseContentState === BrowseContentState.LOADING)) {

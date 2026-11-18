@@ -71,6 +71,7 @@ export interface LibraryStore {
   hasComics(): boolean
   listComics(sortByTitle?: boolean): Comic[]
   listLibraryItems(progressByComicId?: Map<ComicId, ReadingProgress>, options?: LibraryListOptions): LibraryItem[]
+  listReadLibraryItems(progressByComicId: Map<ComicId, ReadingProgress>): LibraryItem[]
   addComic(comic: Comic): void
   upsertComic(comic: Comic): void
   removeComic(comicId: ComicId): void
@@ -275,6 +276,18 @@ export class InMemoryLibraryStore implements LibraryStore {
       if (right === undefined) return -1
       return multiplier * (left - right) || this.compareByAddedDesc(a, b)
     })
+  }
+
+  listReadLibraryItems(progressByComicId: Map<ComicId, ReadingProgress>): LibraryItem[] {
+    // History only needs works with a saved position. Project those works
+    // directly and keep the shelf's recent-reading tie break.
+    const rows: LibraryItem[] = []
+    for (const comic of this.comics.values()) {
+      const progress = progressByComicId.get(comic.id)
+      if (progress !== undefined) rows.push(comicToLibraryItem(comic, progress))
+    }
+    return rows.sort((a: LibraryItem, b: LibraryItem): number =>
+      (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0) || this.compareByAddedDesc(a, b))
   }
 
   private compareByAddedDesc(a: LibraryItem, b: LibraryItem): number {

@@ -54,6 +54,12 @@ interface HistorySection {
   items: HistoryItem[]
 }
 
+interface HistoryListRow {
+  key: string
+  section?: HistorySection
+  item?: HistoryItem
+}
+
 /**
  * History can project a normal shelf item or an un-shelved source reading
  * session.  This is a view model only; a source entry never pretends to be a
@@ -149,8 +155,7 @@ export struct HistoryPage {
         progressByComicId.set(progress.comicId, progress)
       })
     }
-    const libraryItems: HistoryItem[] = this.libraryStore.listLibraryItems(progressByComicId)
-      .filter((item: LibraryItem) => item.lastReadAt !== undefined)
+    const libraryItems: HistoryItem[] = this.libraryStore.listReadLibraryItems(progressByComicId)
       .map((item: LibraryItem): HistoryItem => this.libraryHistoryItem(item, sourceByComic.get(item.comicId)))
     const libraryComicIds: Set<ComicId> = new Set<ComicId>()
     libraryItems.forEach((item: HistoryItem): void => {
@@ -453,30 +458,16 @@ export struct HistoryPage {
   }
 
   @Computed
-  private get historySectionList(): HistorySection[] {
-    return this.historySections()
-  }
-
-  /** ArkUI ForEach keys must change when a history row moves groups or advances within a chapter. */
-  private historyItemRenderIdentity(item: HistoryItem): string {
-    return JSON.stringify([
-      item.id,
-      item.title,
-      item.coverUri ?? '',
-      item.sourceName,
-      item.sourceMangaUrl ?? '',
-      item.progress?.chapterId ?? '',
-      item.progress?.pageIndex ?? -1,
-      item.progress?.totalPages ?? 0,
-      item.lastReadAt ?? 0,
-      item.sourceHistory?.chapterId ?? '',
-      item.sourceHistory?.chapterTitle ?? '',
-    ])
-  }
-
-  private historySectionRenderIdentity(section: HistorySection): string {
-    return `${section.key}:${section.items.map((item: HistoryItem): string =>
-      this.historyItemRenderIdentity(item)).join('|')}`
+  private get historyRows(): HistoryListRow[] {
+    void this.languageState.effectiveLocale
+    const rows: HistoryListRow[] = []
+    this.historySections().forEach((section: HistorySection): void => {
+      rows.push({ key: `group:${section.key}`, section })
+      section.items.forEach((item: HistoryItem): void => {
+        rows.push({ key: `item:${item.id}`, item })
+      })
+    })
+    return rows
   }
 
   private shouldShowCoverUri(
@@ -523,26 +514,27 @@ export struct HistoryPage {
   }
 
   @Builder
-  private Cover(item: HistoryItem) {
+  private Cover(row: RepeatItem<HistoryListRow>) {
     Stack({ alignContent: Alignment.Center }) {
       if (this.shouldShowCoverUri(
-        item.coverUri,
-        item.sourceRuntimeId,
-        this.sourceImageIdForItem(item),
-        item.sourceKind,
-        item.remoteServerId,
-        item.sourceMangaUrl,
+        row.item.item!.coverUri,
+        row.item.item!.sourceRuntimeId,
+        this.sourceImageIdForItem(row.item.item!),
+        row.item.item!.sourceKind,
+        row.item.item!.remoteServerId,
+        row.item.item!.sourceMangaUrl,
       )) {
         CachedCoverImage({
-          uri: item.coverUri ?? '',
+          uri: row.item.item!.coverUri ?? '',
           objectFit: ImageFit.Cover,
-          sourceRuntimeId: item.sourceRuntimeId ?? '',
-          sourceImageId: this.sourceImageIdForItem(item),
-            sourceKind: item.sourceKind,
-            remoteServerId: item.remoteServerId ?? '',
-            sourceMangaUrl: item.sourceMangaUrl ?? '',
-            decodeMaxEdge: 192,
-            onError: () => {
+          sourceRuntimeId: row.item.item!.sourceRuntimeId ?? '',
+          sourceImageId: this.sourceImageIdForItem(row.item.item!),
+          sourceKind: row.item.item!.sourceKind,
+          remoteServerId: row.item.item!.remoteServerId ?? '',
+          sourceMangaUrl: row.item.item!.sourceMangaUrl ?? '',
+          decodeMaxEdge: 192,
+          onError: () => {
+            const item = row.item.item!
             this.markCoverUriFailed(
               item.coverUri,
               item.sourceRuntimeId,
@@ -564,18 +556,18 @@ export struct HistoryPage {
     .height(88)
     .borderRadius(ThemeConstants.RADIUS_CARD - ThemeConstants.SPACE_MD)
     .clip(true)
-    .backgroundColor(this.coverColor(item))
+    .backgroundColor(this.coverColor(row.item.item!))
   }
 
   @Builder
-  private HistoryGroupHeader(section: HistorySection) {
+  private HistoryGroupHeader(row: RepeatItem<HistoryListRow>) {
     Row() {
-      Text(section.title)
+      Text(row.item.section!.title)
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
         .layoutWeight(1)
-      Text(s('library_count_books').replace('%s', `${section.items.length}`))
+      Text(s('library_count_books').replace('%s', `${row.item.section!.items.length}`))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
@@ -584,19 +576,19 @@ export struct HistoryPage {
   }
 
   @Builder
-  private HistoryMetadata(sourceName: string, time: string) {
+  private HistoryMetadata(row: RepeatItem<HistoryListRow>) {
     // Let a long source name shrink first so the existing time stays on this line.
     Row() {
-      if (sourceName.length > 0) {
-        Text(sourceName)
+      if (row.item.item!.sourceName.length > 0) {
+        Text(row.item.item!.sourceName)
           .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .flexShrink(1)
       }
-      if (time.length > 0) {
-        Text(sourceName.length > 0 ? ` · ${time}` : time)
+      if ((row.item.item!.lastReadAt ?? 0) > 0) {
+        Text((row.item.item!.sourceName.length > 0 ? ' · ' : '') + this.relativeTime(row.item.item!.lastReadAt))
           .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
           .maxLines(1)
@@ -607,31 +599,32 @@ export struct HistoryPage {
   }
 
   @Builder
-  private HistoryRow(item: HistoryItem) {
+  private HistoryRow(row: RepeatItem<HistoryListRow>) {
     Row({ space: ThemeConstants.SPACE_LG }) {
       Row() {
-        this.Cover(item)
+        this.Cover(row)
       }
-        .id(`history-cover-${item.comicId}`)
+        .id(`history-cover-${row.item.item!.comicId}`)
         .onClick(() => {
+          const item = row.item.item!
           this.onOpenDetail(item.comicId, item.sourceHistory, item.remoteHistory)
         })
 
       Column({ space: ThemeConstants.SPACE_SM }) {
         Column({ space: ThemeConstants.SPACE_SM }) {
-          Text(item.title)
+          Text(row.item.item!.title)
             .fontSize(ThemeConstants.FONT_SIZE_TITLE)
             .fontWeight(FontWeight.Medium)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
             .width('100%')
 
-          Text(this.progressText(item))
+          Text(this.progressText(row.item.item!))
             .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
             .width('100%')
 
           Progress({
-            value: item.progress === undefined ? 0 : Math.round(item.progress.progressRatio * 100),
+            value: Math.round((row.item.item!.progress?.progressRatio ?? 0) * 100),
             total: 100,
             type: ProgressType.Linear,
           })
@@ -643,7 +636,7 @@ export struct HistoryPage {
         .alignItems(HorizontalAlign.Start)
 
         Row() {
-          this.HistoryMetadata(item.sourceName, this.relativeTime(item.lastReadAt))
+          this.HistoryMetadata(row)
           KomaIconButton({
             icon: $r('sys.symbol.trash'),
             controlSize: 24,
@@ -651,7 +644,7 @@ export struct HistoryPage {
             kind: 'ghost',
             accentColor: ThemeConstants.TEXT_SECONDARY,
             action: () => {
-              this.confirmRemoveHistoryItem(item)
+              this.confirmRemoveHistoryItem(row.item.item!)
             },
           })
         }
@@ -670,7 +663,7 @@ export struct HistoryPage {
     .borderRadius(ThemeConstants.RADIUS_CARD)
     .backgroundColor(ThemeConstants.CARD)
     .alignItems(VerticalAlign.Center)
-    .onClick(() => { this.openHistoryItem(item) })
+    .onClick(() => { this.openHistoryItem(row.item.item!) })
   }
 
   @Builder
@@ -717,16 +710,20 @@ export struct HistoryPage {
         ListItem() {
           this.HistoryHeader()
         }
-        ForEach(this.historySectionList, (section: HistorySection) => {
-          ListItem() {
-            this.HistoryGroupHeader(section)
-          }
-          ForEach(section.items, (item: HistoryItem) => {
+        // Keep date headers and records at the same List level so one changed
+        // record can move between dates without remounting its entire group.
+        Repeat<HistoryListRow>(this.historyRows)
+          .each((row: RepeatItem<HistoryListRow>) => {
             ListItem() {
-              this.HistoryRow(item)
+              if (row.item.section !== undefined) {
+                this.HistoryGroupHeader(row)
+              } else {
+                this.HistoryRow(row)
+              }
             }
-          }, (item: HistoryItem) => this.historyItemRenderIdentity(item))
-        }, (section: HistorySection) => this.historySectionRenderIdentity(section))
+          })
+          .key((row: HistoryListRow): string => row.key)
+          .virtualScroll()
       }
     }
   }
