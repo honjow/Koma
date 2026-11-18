@@ -56,6 +56,67 @@ const format = evaluate('BackupFileFormat', name => ({
   },
  } },
 })[name])
+
+function legacyPreview(read = fileIoBytes.read) {
+ return evaluate('LegacyBackupPreview', name => ({
+  '@kit.CoreFileKit': { fileIo: { ...fileIoBytes, read } },
+  '@kit.ArkTS': { util: { TextDecoder: { create(label, options) {
+   const decoder = new TextDecoder(label, options)
+   return { decodeToString: (bytes, options) => decoder.decode(bytes, options) }
+  } } } },
+ })[name]).readLegacyBackupPreviewJson
+}
+
+test('large legacy backup preview reads bounded chunks and retains metadata after the book payload', async t => {
+ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-backup-preview-'))
+ t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+ const file = path.join(root, 'large.json')
+ const fd = fs.openSync(file, 'w')
+ try {
+  fs.writeSync(fd, '{"libraryStore":"')
+  const page = Buffer.alloc(64 * 1024, 'a')
+  for (let i = 0; i < 2048; i++) fs.writeSync(fd, page)
+  fs.writeSync(fd, '","readingProgress":"{}","exportedAt":42,"schemaVersion":3,"settings":{"exportedAt":99}}')
+ } finally {
+  fs.closeSync(fd)
+ }
+ let totalBytes = 0
+ const preview = legacyPreview(async (fd, buffer) => {
+  assert.ok(buffer.byteLength <= 64 * 1024)
+  const size = await fileIoBytes.read(fd, buffer)
+  totalBytes += size
+  return size
+ })
+ assert.deepEqual(JSON.parse(await preview(file)), {
+  libraryStore: '', readingProgress: '', exportedAt: 42, schemaVersion: 3,
+ })
+ assert.equal(totalBytes, fs.statSync(file).size)
+})
+
+test('legacy backup metadata survives split UTF-8 and escapes, and corrupt files are rejected', async t => {
+ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-backup-preview-'))
+ t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+ const file = path.join(root, 'legacy.koma-backup')
+ const preview = legacyPreview(async (fd, buffer) => fs.readSync(fd, Buffer.from(buffer), 0, 7))
+ const encrypted = evaluate('BackupEncryptionService', name => ({
+  '@kit.ArkTS': arkTS, '@kit.CryptoArchitectureKit': { cryptoFramework: {} },
+  '../i18n/AppStrings': { AppStrings: { get: key => key } }, './BackupFileFormat': format,
+ })[name])
+ const aad = encrypted.backupEncryptedAad(4)
+ const envelope = {
+  ...aad, createdAt: 42, kdf: { id: aad.kdfId, iterations: 600000, salt: 'salt' },
+  nonce: 'nonce', tag: 'tag', aad, payload: 'contains \"quotes\", a \\ and 漫画🐈',
+ }
+ fs.writeFileSync(file, JSON.stringify(envelope))
+ assert.equal(encrypted.previewEncryptedBackupEnvelope(await preview(file)).exportedAt, 42)
+ fs.writeFileSync(file, JSON.stringify({ ...envelope, aad: { ...aad, unexpected: 1 } }))
+ await assert.rejects(async () => encrypted.previewEncryptedBackupEnvelope(await preview(file)), /backup_invalid_encrypted_envelope/)
+ for (const malformed of ['{"readingProgress": "a\\u123X"}', '{"libraryStore":"abc', '{"unknown":[0,]}', '{} {}']) {
+  fs.writeFileSync(file, malformed)
+  await assert.rejects(preview(file), /backup_invalid_legacy_preview/)
+ }
+})
+
 function load(overrides = {}) {
  const fileIo = {
   access: async p => fs.existsSync(p),

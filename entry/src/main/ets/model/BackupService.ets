@@ -92,6 +92,7 @@ import {
 } from './OfflineDownloadQueueStore'
 import { ensureKomaContentStorageBase, komaContentStorageBase } from './KomaContentStorage'
 import { ensureLocalBackupDirectory, resolvedLocalBackupDirectory } from './BackupLocalStorage'
+import { readLegacyBackupPreviewJson } from './LegacyBackupPreview'
 import {
   LocalLibraryMetadataBackupEntry,
   exportLocalLibraryMetadataBackupEntries,
@@ -1660,7 +1661,7 @@ export class BackupService {
       return { exportedAt: header.exportedAt, exportedAtText: formatBackupExportedAt(header.exportedAt),
         encrypted: header.encrypted }
     }
-    return this.localBackupFilePreview(await fs.readText(path, { encoding: 'utf-8' }))
+    return this.localBackupFilePreview(await readLegacyBackupPreviewJson(path))
   }
 
   private localBackupFilePreview(payload: string): BackupLocalFilePreview {
