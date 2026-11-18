@@ -18,9 +18,9 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "Koma 1.5.2 已重新发布",
+  "state": "Koma 1.5.3 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-18T10:14:13+08:00",
+  "updatedAt": "2026-11-18T10:56:37+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -97,10 +97,10 @@
       "reportedDate": "2026-11-18",
       "reportedAtSource": "用户报告自动 HDR 亮度变化不自然，仍有顿挫感。",
       "registeredAt": "2026-11-18T10:14:13+08:00",
-      "updatedAt": "2026-11-18T10:14:13+08:00",
+      "updatedAt": "2026-11-18T10:56:37+08:00",
       "closedAt": "2026-11-18T10:14:13+08:00",
-      "status": "用户实测确认观感明显改善，修复已推送",
-      "result": "原实现会先隐藏 SDR 原图，再逐帧替换提亮滤镜。现从已显示的 SDR 原图通过系统透明度动画渐入 HDR 图，过渡完成后才隐藏原图。峰值仍为 1.5 倍，时长仍为 280 毫秒，同页超分接替沿用当前过渡。签名调试包 SHA-256 前缀 5ba85ed69030，已核对修复编入包内。reader-kit 832f9604 已推 main，Koma e91a2644 已推 master。用户实测反馈「比之前好很多」，确认提交。",
+      "status": "用户实测确认观感明显改善，修复已随 1.5.3 发布",
+      "result": "原实现会先隐藏 SDR 原图，再逐帧替换提亮滤镜。现从已显示的 SDR 原图通过系统透明度动画渐入 HDR 图，过渡完成后才隐藏原图。峰值仍为 1.5 倍，时长仍为 280 毫秒，同页超分接替沿用当前过渡。签名调试包 SHA-256 前缀 5ba85ed69030，已核对修复编入包内。reader-kit 832f9604 已推 main，Koma e91a2644 已推 master。用户实测反馈「比之前好很多」，确认提交。修复随 1.5.3 发布，公开包已核。",
       "remaining": "用户实测的设备、阅读模式与超分开关未具名，验收范围为用户报告的亮度过渡观感。",
       "evidence": [
         "https://github.com/erosTeam/reader-kit/commit/832f9604a96282e9594850d06410808ef011f796",
@@ -1497,9 +1497,9 @@
       "reportedDate": "2026-11-10",
       "reportedAtSource": "用户反馈漫画下载每完成一章都会提示，系统已设置静默通知仍会响铃。",
       "registeredAt": "2026-11-10T16:52:00+08:00",
-      "updatedAt": "2026-11-18T09:48:00+08:00",
-      "status": "237 已验证系统通知入口、静音进度卡收起及单条完成汇总",
-      "result": "原 1.4.3 修复只覆盖普通结果通知。系统后台传输另有进度卡，LIVE_VIEW 不读取 notificationFlags。现在进度卡最多更新到 99%，传输结束就收起。237 用 f423b0e27977 确认进度卡静音，成功和失败队列各发一条汇总。调试包 6760e11fc2ca 移除了应用内提醒方式，完成汇总固定走「服务提醒」，铃声和振动交给系统。237 从设置搜索进入下载页，确认「下载完成通知」开关和「系统通知设置」入口，进入 Koma 的系统通知面板后返回原页。从作品详情发起后台下载，93/93 页完成，进度卡最后更新到 99% 后收起；通知栏只出现一条「服务提醒」汇总，点击进入下载管理。",
+      "updatedAt": "2026-11-18T10:56:37+08:00",
+      "status": "修复已随 1.5.3 发布；237 已验证静音进度卡及单条完成汇总",
+      "result": "原 1.4.3 修复只覆盖普通结果通知。系统后台传输另有进度卡，LIVE_VIEW 不读取 notificationFlags。现在进度卡最多更新到 99%，传输结束就收起。237 用 f423b0e27977 确认进度卡静音，成功和失败队列各发一条汇总。调试包 6760e11fc2ca 移除了应用内提醒方式，完成汇总固定走「服务提醒」，铃声和振动交给系统。237 从设置搜索进入下载页，确认「下载完成通知」开关和「系统通知设置」入口，进入 Koma 的系统通知面板后返回原页。从作品详情发起后台下载，93/93 页完成，进度卡最后更新到 99% 后收起；通知栏只出现一条「服务提醒」汇总，点击进入下载管理。修复随 1.5.3 发布，公开包已核。",
       "remaining": "237 原系统通知已允许，铃声为「无铃声」，振动关闭。最新实测汇总的声音和振动均关闭。系统允许响铃或振动时的实际提醒未验。",
       "evidence": [
         ".hvigor/outputs/device-sync-independent/notification-services-qa/download-notification-log3/run-metadata.json",
@@ -11739,6 +11739,24 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "release-153-hdr-20261118",
+      "at": "2026-11-18T10:56:37+08:00",
+      "itemId": "READER_AUTO_HDR_BRIGHTNESS_TRANSITION",
+      "title": "#319 自动 HDR 过渡随 1.5.3 发布",
+      "detail": "标签 CI 构建并发布，公开下载包的版本、构建模式和哈希已核。用户观感验收范围不变。",
+      "kind": "release",
+      "evidence": "https://github.com/honjow/Koma/actions/runs/44225779867"
+    },
+    {
+      "id": "release-153-download-notification-20261118",
+      "at": "2026-11-18T10:56:37+08:00",
+      "itemId": "DOWNLOAD_NOTIFICATION_REPEATED_ALERT",
+      "title": "#267 下载通知修复随 1.5.3 发布",
+      "detail": "公开包已核；系统允许响铃或振动时的实际提醒仍未验证。",
+      "kind": "release",
+      "evidence": "https://github.com/honjow/Koma/releases/tag/v1.5.3"
+    },
     {
       "id": "reader-auto-hdr-transition-accepted-20261118",
       "at": "2026-11-18T10:14:13+08:00",
