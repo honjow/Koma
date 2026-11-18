@@ -318,6 +318,8 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'list-density', titleKey: 'settings_row_list_density_title', detailKey: 'settings_row_list_density_detail' },
         { key: 'grid-column-width', titleKey: 'settings_column_width', detailKey: 'settings_column_width_hint' },
         { key: 'library-badges', titleKey: 'settings_row_library_badges_title', detailKey: 'settings_row_library_badges_detail' },
+        { key: 'library-continue-reading-card', titleKey: 'settings_row_library_continue_reading_card_title',
+          detailKey: 'settings_row_library_continue_reading_card_detail' },
         { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
         { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
         { key: 'download-notifications', titleKey: 'settings_row_download_notifications_title', detailKey: 'settings_row_download_notifications_detail' },
@@ -628,6 +630,7 @@ export struct SettingsPage {
   @Local private libraryViewMode: LibraryViewMode = 'grid'
   @Local private libraryListDensity: LibraryListDensity = 'standard'
   @Local private showLibraryBadges: boolean = true
+  @Local private showLibraryContinueReadingCard: boolean = true
   @Local private trackerAutoSyncEnabled: boolean = DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled
   @Local private trackerUpdateStrategy: TrackerUpdateStrategy = DEFAULT_TRACKER_PREFERENCES.updateStrategy
 
@@ -888,6 +891,7 @@ export struct SettingsPage {
             'list-density',
             'grid-column-width',
             'library-badges',
+            'library-continue-reading-card',
           ]),
         },
         {
@@ -2284,7 +2288,7 @@ export struct SettingsPage {
   private isSwitchRow(row: SettingsRow): boolean {
     return row.key === 'auto-hide-bottom-bar' || row.key === 'double-back-to-exit' ||
       row.key === 'library-background-update' || row.key === 'library-auto-update' ||
-      row.key === 'library-badges' ||
+      row.key === 'library-badges' || row.key === 'library-continue-reading-card' ||
       row.key === 'cache-auto-clean' ||
       row.key === 'download-wifi-only' ||
       row.key === 'download-notifications' ||
@@ -2311,6 +2315,7 @@ export struct SettingsPage {
     if (row.key === 'library-badges') {
       return this.showLibraryBadges
     }
+    if (row.key === 'library-continue-reading-card') return this.showLibraryContinueReadingCard
     if (row.key === 'cache-auto-clean') {
       return this.imageCacheAutoCleanEnabled
     }
@@ -2372,6 +2377,9 @@ export struct SettingsPage {
       this.setLibraryAutoUpdateEnabled(value)
     } else if (row.key === 'library-badges') {
       this.saveLibraryBadgesEnabled(value)
+    } else if (row.key === 'library-continue-reading-card') {
+      this.showLibraryContinueReadingCard = value
+      this.saveLibraryFilterChanges({ showContinueReadingCard: value }, s('settings_library_continue_reading_card_save_failed'))
     } else if (row.key === 'cache-auto-clean') {
       this.saveImageCacheAutoCleanEnabled(value)
     } else if (row.key === 'reader-progress') {
@@ -2626,6 +2634,7 @@ export struct SettingsPage {
           ? s('settings_download_notification_system_hint') :
           row.key === 'download-notifications' ? s('settings_row_download_notifications_detail') :
           row.key === 'auto-hide-bottom-bar' ? s('settings_auto_hide_bottom_bar_hint') :
+          row.key === 'library-continue-reading-card' ? this.rowBaseDetail(row) :
           row.key === 'library-background-update' && !this.libraryUpdatePreferences.autoCheckEnabled
             ? s('library_background_update_paused') : '',
         showChevron: false,
@@ -3012,6 +3021,7 @@ export struct SettingsPage {
     this.libraryViewMode = preferences.viewMode
     this.libraryListDensity = preferences.listDensity
     this.showLibraryBadges = preferences.showBadges
+    this.showLibraryContinueReadingCard = preferences.showContinueReadingCard
   }
 
   private saveLibraryFilterChanges(changes: LibraryFilterPreferenceChanges, failedMessage: string): void {

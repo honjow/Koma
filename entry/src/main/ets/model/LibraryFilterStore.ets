@@ -34,6 +34,7 @@ export interface LibraryFilterPreferences extends LibraryDefaultSortPreference {
   viewMode: LibraryViewMode
   listDensity: LibraryListDensity
   showBadges: boolean
+  showContinueReadingCard: boolean
   source: LibrarySourceFilter
   readState: LibraryReadStateFilter
   category: LibraryCategoryFilter
@@ -48,6 +49,7 @@ export interface LibraryFilterPreferenceChanges {
   listDensity?: LibraryListDensity
   gridColumnWidth?: number
   showBadges?: boolean
+  showContinueReadingCard?: boolean
   source?: LibrarySourceFilter
   readState?: LibraryReadStateFilter
   category?: LibraryCategoryFilter
@@ -75,6 +77,7 @@ const LIBRARY_VIEW_MODE_KEY: string = 'library.viewMode'
 const LIBRARY_LIST_DENSITY_KEY: string = 'library.listDensity'
 const LIBRARY_GRID_COLUMN_WIDTH_KEY: string = 'library.gridColumnWidth'
 const LIBRARY_SHOW_BADGES_KEY: string = 'library.showBadges'
+const LIBRARY_SHOW_CONTINUE_READING_CARD_KEY: string = 'library.showContinueReadingCard'
 const LIBRARY_FILTER_SOURCE_KEY: string = 'library.filter.source'
 const LIBRARY_FILTER_READ_STATE_KEY: string = 'library.filter.readState'
 const LIBRARY_FILTER_CATEGORY_KEY: string = 'library.filter.category'
@@ -88,6 +91,7 @@ const DEFAULT_LIBRARY_FILTER_PREFERENCES: LibraryFilterPreferences = {
   viewMode: 'grid',
   listDensity: 'standard',
   showBadges: true,
+  showContinueReadingCard: true,
   source: 'all',
   readState: 'all',
   category: 'all',
@@ -271,6 +275,8 @@ export class LibraryFilterStore {
       viewMode: normalizeViewMode(viewMode),
       listDensity: density,
       showBadges: normalizeShowBadges(showBadges),
+      showContinueReadingCard: store.getSync(LIBRARY_SHOW_CONTINUE_READING_CARD_KEY,
+        DEFAULT_LIBRARY_FILTER_PREFERENCES.showContinueReadingCard) !== false,
       source: normalizeSource(source),
       readState: normalizeReadState(readState),
       category: normalizeCategory(category),
@@ -291,6 +297,9 @@ export class LibraryFilterStore {
     if (changes.listDensity !== undefined) writes.push({ key: LIBRARY_LIST_DENSITY_KEY, value: normalizeListDensity(changes.listDensity) })
     if (changes.gridColumnWidth !== undefined) writes.push({ key: LIBRARY_GRID_COLUMN_WIDTH_KEY, value: normalizeGridColumnWidth(changes.gridColumnWidth) })
     if (changes.showBadges !== undefined) writes.push({ key: LIBRARY_SHOW_BADGES_KEY, value: normalizeShowBadges(changes.showBadges) })
+    if (changes.showContinueReadingCard !== undefined) {
+      writes.push({ key: LIBRARY_SHOW_CONTINUE_READING_CARD_KEY, value: changes.showContinueReadingCard })
+    }
     if (changes.source !== undefined) writes.push({ key: LIBRARY_FILTER_SOURCE_KEY, value: normalizeSource(changes.source) })
     if (changes.readState !== undefined) writes.push({ key: LIBRARY_FILTER_READ_STATE_KEY, value: normalizeReadState(changes.readState) })
     if (changes.category !== undefined) writes.push({ key: LIBRARY_FILTER_CATEGORY_KEY, value: normalizeCategory(changes.category) })

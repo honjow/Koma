@@ -371,6 +371,7 @@ export struct LibraryPage {
   @Local private viewMode: LibraryViewMode = 'grid'
   @Local private listDensity: LibraryListDensity = 'standard'
   @Local private showLibraryBadges: boolean = true
+  @Local private showContinueReadingCard: boolean = true
   @Local private filterSource: LibrarySourceFilter = 'all'
   @Local private filterReadState: LibraryReadStateFilter = 'all'
   @Local private filterCategory: LibraryCategoryFilter = 'all'
@@ -2212,7 +2213,7 @@ export struct LibraryPage {
       Blank()
         .height(this.layoutSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT)
         .width('100%')
-      if (this.continueReadingCard.comicId.length > 0) {
+      if (this.showContinueReadingCard && this.continueReadingCard.comicId.length > 0) {
         this.LibraryContinueReadingCard()
       }
       this.LibraryViewControls()
@@ -2441,6 +2442,7 @@ export struct LibraryPage {
     this.viewMode = preferencesValue.viewMode
     this.listDensity = preferencesValue.listDensity
     this.showLibraryBadges = preferencesValue.showBadges
+    this.showContinueReadingCard = preferencesValue.showContinueReadingCard
     this.filterSource = preferencesValue.source
     this.filterReadState = preferencesValue.readState
     this.filterCategory = preferencesValue.category
@@ -2531,7 +2533,7 @@ export struct LibraryPage {
             this.LibraryProjectionLoading()
           }
         } else if (this.hasLibraryContent) {
-          if (this.continueReadingCard.comicId.length > 0) {
+          if (this.showContinueReadingCard && this.continueReadingCard.comicId.length > 0) {
             ListItem() {
               this.LibraryContinueReadingCard(this.viewMode === 'list')
             }
