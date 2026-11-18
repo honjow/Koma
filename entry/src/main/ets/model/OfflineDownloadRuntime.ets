@@ -2,12 +2,22 @@ import { OfflineChapterDownloadManifest } from './OfflineDownloadStore'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 
 export type OfflineDownloadRuntimeSignal = 'change' | 'progress'
+export interface OfflineDownloadPageProgress {
+  comicId: string
+  chapterId: string
+  downloadedPageCount: number
+  pageCount: number
+}
+
+type OfflineDownloadListener = (signal: OfflineDownloadRuntimeSignal, progress?: OfflineDownloadPageProgress, comicId?: string) => void
+
 
 interface OfflineDownloadExecution {
   filesDir: string
   comicId: string
   promise: Promise<OfflineChapterDownloadManifest>
   pauseRequested: boolean
+  downloadedPageCount?: number
 }
 
 interface OfflineDownloadAdmission {
@@ -29,8 +39,8 @@ export class OfflineDownloadRuntime {
   private static chapterRemovals: Map<string, Promise<void>> = new Map<string, Promise<void>>()
   private static comicRemovals: Map<string, Promise<number>> = new Map<string, Promise<number>>()
   private static slots: Map<string, OfflineDownloadSlots> = new Map<string, OfflineDownloadSlots>()
-  private static listeners: Map<string, Set<(signal: OfflineDownloadRuntimeSignal) => void>> =
-    new Map<string, Set<(signal: OfflineDownloadRuntimeSignal) => void>>()
+  private static listeners: Map<string, Set<OfflineDownloadListener>> =
+    new Map<string, Set<OfflineDownloadListener>>()
 
   static initialize(filesDir: string, initialize: () => Promise<void>): Promise<void> {
     const existing = OfflineDownloadRuntime.initializations.get(filesDir)
@@ -101,7 +111,7 @@ export class OfflineDownloadRuntime {
       return await execution.promise
     } finally {
       OfflineDownloadRuntime.executions.delete(key)
-      OfflineDownloadRuntime.publish(filesDir)
+      OfflineDownloadRuntime.publish(filesDir, comicId)
     }
   }
 
@@ -222,10 +232,10 @@ export class OfflineDownloadRuntime {
     await Promise.allSettled(pending)
   }
 
-  static subscribe(filesDir: string, listener: (signal: OfflineDownloadRuntimeSignal) => void): () => void {
+  static subscribe(filesDir: string, listener: OfflineDownloadListener): () => void {
     let listeners = OfflineDownloadRuntime.listeners.get(filesDir)
     if (listeners === undefined) {
-      listeners = new Set<(signal: OfflineDownloadRuntimeSignal) => void>()
+      listeners = new Set<OfflineDownloadListener>()
       OfflineDownloadRuntime.listeners.set(filesDir, listeners)
     }
     listeners.add(listener)
@@ -234,15 +244,23 @@ export class OfflineDownloadRuntime {
     }
   }
 
-  static publish(filesDir: string): void {
+  static publish(filesDir: string, comicId?: string): void {
     OfflineDownloadRuntime.admitWaiting(filesDir)
     OfflineDownloadRuntime.listeners.get(filesDir)?.forEach(
-      (listener: (signal: OfflineDownloadRuntimeSignal) => void) => listener('change'))
+      (listener: OfflineDownloadListener) => listener('change', undefined, comicId))
+  }
+
+  static pageProgress(filesDir: string, comicId: string, chapterId: string): number | undefined {
+    return OfflineDownloadRuntime.executions.get(OfflineDownloadRuntime.key(filesDir, comicId, chapterId))
+      ?.downloadedPageCount
   }
 
   /** Page progress never admits new work or wakes structural queue owners. */
-  static publishProgress(filesDir: string): void {
+  static publishProgress(filesDir: string, executionKey: string, progress: OfflineDownloadPageProgress): void {
+    const execution = OfflineDownloadRuntime.executions.get(executionKey)
+    if (execution === undefined) return
+    execution.downloadedPageCount = progress.downloadedPageCount
     OfflineDownloadRuntime.listeners.get(filesDir)?.forEach(
-      (listener: (signal: OfflineDownloadRuntimeSignal) => void) => listener('progress'))
+      (listener: OfflineDownloadListener) => listener('progress', progress))
   }
 }

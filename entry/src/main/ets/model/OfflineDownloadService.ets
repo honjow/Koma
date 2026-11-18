@@ -2,6 +2,8 @@ import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/So
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
 import { SourceRequiredImageDecodeService } from './SourceRequiredImageDecode'
 import { downloadImagePathForBytes } from './DownloadImageFormat'
+import { persistDownloadCover } from './OfflineDownloadCover'
+import { saveDownloadManifestAsync, validateDownloadManifestAsync } from './OfflineDownloadManifestWorker'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -119,8 +121,8 @@ function extensionFromUri(uri: string): string {
   return extension.length === 0 ? 'img' : extension
 }
 
-function pageAtIndex(chapter: Chapter, index: number): Page | undefined {
-  return chapter.pages.find((page: Page): boolean => page.index === index) ?? chapter.pages[index]
+function pageAtIndex(pages: Page[], index: number): Page | undefined {
+  return pages.find((page: Page): boolean => page.index === index) ?? pages[index]
 }
 
 // Only the installed package's public work origins can persist a safe URL.
@@ -221,7 +223,6 @@ export class OfflineDownloadService {
   private readonly requestContext?: common.UIAbilityContext
   private readonly store: OfflineDownloadStore
   private readonly queueStore: OfflineDownloadQueueStore
-  private lastManifestProgressPersistedAt: number = 0
 
   constructor(store: OfflineDownloadStore, queueStore?: OfflineDownloadQueueStore, requestContext?: common.UIAbilityContext) {
     this.requestContext = requestContext
@@ -279,7 +280,7 @@ export class OfflineDownloadService {
   }
 
   async downloadChapter(comic: Comic, chapterId: string, labels?: OfflineDownloadLabels,
-    isRequested: () => boolean = () => true): Promise<OfflineChapterDownloadManifest> {
+    isRequested: () => boolean = () => true, preparedPages?: Page[]): Promise<OfflineChapterDownloadManifest> {
     const trace = DiagnosticLogger.begin('download', 'chapter')
     try {
       const filesDir = this.store.filesRootDir()
@@ -290,7 +291,7 @@ export class OfflineDownloadService {
         () => {
           const start = (): Promise<OfflineChapterDownloadManifest> => {
             if (!isRequested()) throw new Error('download_request_removed')
-            return this.runChapterDownload(comic, chapterId, key, trace, labels)
+            return this.runChapterDownload(comic, chapterId, key, trace, labels, preparedPages)
           }
           return canRunOfflineDownloadQueueNow(this.queueStore.loadPreferences())
             ? BackgroundDownloadOwner.run(this.requestContext, start) : start()
@@ -302,8 +303,21 @@ export class OfflineDownloadService {
     } catch (error) { trace.fail(error as Error); throw error as Error }
   }
 
+  private saveWorkCover(comic: Comic): void {
+    const uri = (comic.customCoverUri === undefined ? comic.coverUri : comic.sourceCoverUri) ?? ''
+    if (this.requestContext === undefined || uri.length === 0) return
+    void persistDownloadCover(this.requestContext, this.store.comicDir(comic.id), {
+      uri,
+      sourceId: comic.sourceRuntimeId,
+      imageId: comic.remoteResourceId ?? comic.id,
+      mangaUrl: comic.sourcePath,
+      sourceKind: comic.sourceKind,
+      serverId: comic.remoteServerId,
+    })
+  }
+
   private async runChapterDownload(
-    comic: Comic, chapterId: string, executionKey: string, trace: DiagnosticOperation, labels?: OfflineDownloadLabels,
+    comic: Comic, chapterId: string, executionKey: string, trace: DiagnosticOperation, labels?: OfflineDownloadLabels, preparedPages?: Page[],
   ): Promise<OfflineChapterDownloadManifest> {
     const initialPreferences = this.queueStore.loadPreferences()
     this.queueStore.upsert({
@@ -321,7 +335,7 @@ export class OfflineDownloadService {
     if (blockedReason !== undefined) {
       let existingManifest = this.store.loadManifest(comic.id, chapterId)
       if (existingManifest !== undefined) {
-        const validation = this.store.validateDownloadedChapter(comic.id, chapterId)
+        const validation = await validateDownloadManifestAsync(this.store, comic.id, chapterId)
         const complete = validation.status === OfflineDownloadedChapterStatus.DOWNLOADED
         existingManifest.status = complete ? OfflineDownloadStatus.DOWNLOADED :
           (existingManifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED)
@@ -348,16 +362,18 @@ export class OfflineDownloadService {
       trace.warn('download_blocked', `[ReaderOffline] step=download_blocked reason=chapter_missing`)
       return this.saveBlockedChapter(comic, chapterId, 'chapter_missing', labels)
     }
-    if (chapter.pages.length === 0) {
+    const pages = preparedPages ?? chapter.pages
+    if (pages.length === 0) {
       trace.warn('download_blocked', `[ReaderOffline] step=download_blocked reason=pages_missing`)
       return this.saveBlockedChapter(comic, chapterId, 'pages_missing', labels)
     }
 
-    const existingValidation = this.store.validateDownloadedChapter(comic.id, chapterId)
+    const existingValidation = await validateDownloadManifestAsync(this.store, comic.id, chapterId)
     if (existingValidation.status === OfflineDownloadedChapterStatus.DOWNLOADED &&
       existingValidation.manifest !== undefined) {
-      const manifest = this.store.saveManifest(applyManifestLabels(existingValidation.manifest, comic, chapter, labels))
+      const manifest = await saveDownloadManifestAsync(this.store, applyManifestLabels(existingValidation.manifest, comic, chapter, labels))
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+      this.saveWorkCover(comic)
       trace.info('download_reused', `[ReaderOffline] step=download_reused pages=${existingValidation.availablePageCount}/${existingValidation.pageCount}`)
       return manifest
     }
@@ -367,35 +383,48 @@ export class OfflineDownloadService {
     let manifest = this.store.createManifest(
       comic.id,
       chapterId,
-      chapter.pages.length,
+      pages.length,
       OfflineDownloadStatus.DOWNLOADING,
       manifestIdentityFromComic(comic),
       manifestLabelsFromDownload(comic, chapter, labels)
     )
     this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-    const config = createReaderSessionConfigFromComic(comic, chapterId)
-    this.lastManifestProgressPersistedAt = Date.now()
+    const config = createReaderSessionConfigFromComic(comic, chapterId, preparedPages)
+    let lastCheckpointAt = Date.now()
+    const publishPage = async (): Promise<void> => {
+      // Report a finished image immediately. Only the durable recovery record is throttled.
+      OfflineDownloadRuntime.publishProgress(this.store.runtimeKey(), executionKey, {
+        comicId: comic.id,
+        chapterId,
+        downloadedPageCount: manifest.downloadedPageCount,
+        pageCount: manifest.pageCount,
+      })
+      const now = Date.now()
+      if (now - lastCheckpointAt >= OFFLINE_DOWNLOAD_MANIFEST_PROGRESS_INTERVAL_MS) {
+        manifest = await saveDownloadManifestAsync(this.store, manifest)
+        lastCheckpointAt = now
+      }
+    }
     let pageFetchFailed = false
     const waitReason = (): OfflineDownloadWaitReason | undefined => {
       return OfflineDownloadRuntime.isPauseRequested(executionKey) ? 'paused' :
         downloadBlockedReason(this.queueStore.loadPreferences())
     }
-    const saveDeferred = (reason: OfflineDownloadWaitReason): OfflineChapterDownloadManifest => {
+    const saveDeferred = async (reason: OfflineDownloadWaitReason): Promise<OfflineChapterDownloadManifest> => {
       manifest.status = manifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED
       manifest.failureReasonCode = reason
-      manifest = this.store.saveManifest(manifest)
+      manifest = await saveDownloadManifestAsync(this.store, manifest)
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       return manifest
     }
     try {
       for (let index = 0; index < config.totalPages; index += 1) {
         const reason = waitReason()
-        if (reason !== undefined) return saveDeferred(reason)
-        const page = pageAtIndex(chapter, index)
+        if (reason !== undefined) return await saveDeferred(reason)
+        const page = pageAtIndex(pages, index)
         const pageId = page?.id ?? `page-${index + 1}`
         const reusablePage = reusableDownloadedPage(reusablePages, pageId, index)
         if (reusablePage !== undefined) {
-          const persistProgress: boolean = this.shouldPersistManifestProgress(index + 1 >= config.totalPages)
           manifest = this.store.recordPage(manifest, {
             pageId,
             pageIndex: index,
@@ -412,11 +441,8 @@ export class OfflineDownloadService {
             sourceTextOverlay: page === undefined ? reusablePage.sourceTextOverlay : page.sourceTextOverlay,
             requiredImageDecodeResolved: reusablePage.requiredImageDecodeResolved,
             updatedAt: reusablePage.updatedAt,
-          }, persistProgress)
-          if (persistProgress) {
-            this.queueStore.upsertProgress(this.queueStore.fromManifest(
-              manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-          }
+          }, false)
+          await publishPage()
           continue
         }
         const source = createReaderPageRenderSource(config, index, { preferOffline: false })
@@ -449,51 +475,39 @@ export class OfflineDownloadService {
           requiredImageDecodeResolved: writtenPage.requiredImageDecodeResolved,
           updatedAt: Date.now(),
         }
-        const persistProgress: boolean = this.shouldPersistManifestProgress(index + 1 >= config.totalPages)
-        manifest = this.store.recordPage(manifest, row, persistProgress)
+        manifest = this.store.recordPage(manifest, row, false)
         BackgroundDownloadOwner.progress(labels?.chapterTitle ?? chapter.title, manifest.downloadedPageCount, manifest.pageCount)
-        if (persistProgress) {
-          this.queueStore.upsertProgress(this.queueStore.fromManifest(
-            manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-        }
+        await publishPage()
       }
       const finalWait = waitReason()
-      if (finalWait !== undefined) return saveDeferred(finalWait)
+      if (finalWait !== undefined) return await saveDeferred(finalWait)
       manifest.status = OfflineDownloadStatus.DOWNLOADED
-      manifest = this.store.saveManifest(manifest)
-      const finalValidation = this.store.validateDownloadedChapter(comic.id, chapterId, { validateContentHash: false })
+      manifest = await saveDownloadManifestAsync(this.store, manifest)
+      const finalValidation = await validateDownloadManifestAsync(this.store, comic.id, chapterId, { validateContentHash: false })
       if (finalValidation.status !== OfflineDownloadedChapterStatus.DOWNLOADED ||
         finalValidation.pageCount <= 0 ||
         finalValidation.availablePageCount !== finalValidation.pageCount ||
         finalValidation.missingPageCount !== 0) {
         manifest.status = finalValidation.availablePageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.FAILED
         manifest.failureReasonCode = pageFetchFailed ? 'page_fetch_failed' : (finalValidation.reasonCode ?? 'manifest_validation_failed')
-        manifest = this.store.saveManifest(manifest)
+        manifest = await saveDownloadManifestAsync(this.store, manifest)
         this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
         trace.warn('download_final_validation_failed', `[ReaderOffline] step=download_final_validation_failed pages=${finalValidation.availablePageCount}/${finalValidation.pageCount} reason=${manifest.failureReasonCode}`)
         return manifest
       }
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+      this.saveWorkCover(comic)
       trace.info('download_done', `[ReaderOffline] step=download_done pages=${manifest.downloadedPageCount}/${manifest.pageCount}`)
       return manifest
     } catch (error) {
       void error
       manifest.status = manifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.FAILED
       manifest.failureReasonCode = 'page_fetch_failed'
-      manifest = this.store.saveManifest(manifest)
+      manifest = await saveDownloadManifestAsync(this.store, manifest)
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       trace.warn('download_failed', `[ReaderOffline] step=download_failed pages=${manifest.downloadedPageCount}/${manifest.pageCount} reason=page_fetch_failed ${DiagnosticLogger.errorSummary(error as Error)}`)
       return manifest
     }
-  }
-
-  private shouldPersistManifestProgress(finalPage: boolean): boolean {
-    const now: number = Date.now()
-    if (!finalPage && now - this.lastManifestProgressPersistedAt < OFFLINE_DOWNLOAD_MANIFEST_PROGRESS_INTERVAL_MS) {
-      return false
-    }
-    this.lastManifestProgressPersistedAt = now
-    return true
   }
 
   private async writePage(source: ReaderPageRenderSource, localPath: string): Promise<OfflineDownloadPageWriteResult> {

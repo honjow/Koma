@@ -20,7 +20,6 @@ export const OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION: number = 1
 const OFFLINE_DOWNLOAD_QUEUE_FILE_NAME: string = 'queue.v1.json'
 export const PUBLIC_CONTENT_QUEUE_PRIVATE_PATH: string = 'download-queue/queue.v1.json'
 export const OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS: number[] = [1, 2, 3]
-const OFFLINE_DOWNLOAD_QUEUE_PROGRESS_INTERVAL_MS: number = 1000
 export const DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES: OfflineDownloadQueuePreferences = {
   foregroundConcurrencyLimit: 1,
   isPaused: false,
@@ -368,12 +367,18 @@ function entryFromManifestValidation(validation: OfflineDownloadManifestValidati
   })
 }
 
+interface CachedOfflineDownloadQueue {
+  inode: bigint
+  modifiedAt: bigint | number
+  document: OfflineDownloadQueueDocument
+}
+
 export class OfflineDownloadQueueStore {
+  private static readonly cachedDocuments = new Map<string, CachedOfflineDownloadQueue>()
   private readonly filesDir: string
   private readonly runtimeKeyValue: string
   private readonly legacyQueuePath: string
   private readonly queuePath: string
-  private lastProgressPersistedAt: number = 0
 
   constructor(filesDir: string, runtimeKey?: string) {
     this.filesDir = trimTrailingSlash(filesDir)
@@ -412,8 +417,8 @@ export class OfflineDownloadQueueStore {
   }
 
   loadSnapshot(): OfflineDownloadQueueSnapshot {
-    const document: OfflineDownloadQueueDocument = this.loadDocument()
-    return { entries: document.entries, preferences: normalizePreferences(document.preferences) }
+    const document = this.loadDocument(false)
+    return { entries: document.entries.slice(), preferences: normalizePreferences(document.preferences) }
   }
 
   /** Merge the old sandbox queue without allowing an older legacy row to replace current progress. */
@@ -595,7 +600,7 @@ export class OfflineDownloadQueueStore {
   }
 
   loadPreferences(): OfflineDownloadQueuePreferences {
-    return this.loadDocument().preferences ?? normalizePreferences()
+    return normalizePreferences(this.loadDocument(false).preferences)
   }
 
   savePreferences(preferences: OfflineDownloadQueuePreferences): OfflineDownloadQueuePreferences {
@@ -663,7 +668,7 @@ export class OfflineDownloadQueueStore {
     }
   }
 
-  private loadDocument(): OfflineDownloadQueueDocument {
+  private loadDocument(mutable: boolean = true): OfflineDownloadQueueDocument {
     if (!fs.accessSync(this.queuePath)) {
       this.migratePublicQueue()
       if (!fs.accessSync(this.queuePath)) {
@@ -674,7 +679,23 @@ export class OfflineDownloadQueueStore {
         }
       }
     }
-    return this.readDocument(this.queuePath)
+    // Every queue writer replaces the document atomically, including restore
+    // and TaskPool startup reconciliation. The inode follows those writes
+    // without re-parsing the entire queue for each downloaded image.
+    const stat = fs.statSync(this.queuePath)
+    const modifiedAt = stat.mtimeNs ?? stat.mtime
+    let snapshot = OfflineDownloadQueueStore.cachedDocuments.get(this.queuePath)
+    if (snapshot === undefined || snapshot.inode !== stat.ino || snapshot.modifiedAt !== modifiedAt) {
+      snapshot = { inode: stat.ino, modifiedAt, document: this.readDocument(this.queuePath) }
+      OfflineDownloadQueueStore.cachedDocuments.set(this.queuePath, snapshot)
+    }
+    if (!mutable) return snapshot.document
+    return {
+      schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+      preferences: snapshot.document.preferences,
+      entries: snapshot.document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry =>
+        normalizeEntry(entry)),
+    }
   }
 
   private readDocument(path: string): OfflineDownloadQueueDocument {
@@ -694,20 +715,10 @@ export class OfflineDownloadQueueStore {
   }
 
   upsert(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry {
-    return this.writeEntry(entry, false)
+    return this.writeEntry(entry)
   }
 
-  /** Intermediate page progress is checkpointed, not fsynced once per page. */
-  upsertProgress(entry: OfflineDownloadQueueEntry): void {
-    const now: number = Date.now()
-    if (now - this.lastProgressPersistedAt < OFFLINE_DOWNLOAD_QUEUE_PROGRESS_INTERVAL_MS) {
-      return
-    }
-    this.lastProgressPersistedAt = now
-    this.writeEntry(entry, true)
-  }
-
-  private writeEntry(entry: OfflineDownloadQueueEntry, progressOnly: boolean): OfflineDownloadQueueEntry {
+  private writeEntry(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry {
     const document = this.loadDocument()
     const previous = document.entries.find((item: OfflineDownloadQueueEntry): boolean =>
       item.comicId === entry.comicId && item.chapterId === entry.chapterId)
@@ -741,7 +752,7 @@ export class OfflineDownloadQueueStore {
       schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
       preferences: document.preferences,
       entries,
-    }, progressOnly)
+    }, entry.comicId)
     return normalized
   }
 
@@ -1001,13 +1012,9 @@ export class OfflineDownloadQueueStore {
     }))
   }
 
-  private saveDocument(document: OfflineDownloadQueueDocument, progressOnly: boolean = false): void {
+  private saveDocument(document: OfflineDownloadQueueDocument, comicId?: string): void {
     this.persistDocument(document)
-    if (progressOnly) {
-      OfflineDownloadRuntime.publishProgress(this.runtimeKeyValue)
-    } else {
-      OfflineDownloadRuntime.publish(this.runtimeKeyValue)
-    }
+    OfflineDownloadRuntime.publish(this.runtimeKeyValue, comicId)
   }
 
 }

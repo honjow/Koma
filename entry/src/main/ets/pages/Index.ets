@@ -878,8 +878,7 @@ struct Index {
     if (!this.libraryUpdateReady || shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) return
     if (this.automaticDownloads === undefined) {
       this.automaticDownloads = new AutomaticDownloadController({ context: getContext(this) as common.UIAbilityContext,
-        library: this.libraryStore, registry: this.sourceRegistry, persistence: this.libraryPersistenceService,
-        onLibraryChanged: () => { this.refreshLibrarySnapshot() } })
+        library: this.libraryStore, registry: this.sourceRegistry })
     }
     this.automaticDownloads.wake()
   }

@@ -377,6 +377,28 @@ export async function resolveSourceChapterPages(
   }
 }
 
+/** Download preparation owns a short-lived page plan. Only Reader entry
+ * may publish a hydrated chapter into the library. */
+export async function resolveDownloadChapterPages(registry: SourceRuntimeRegistry,
+  comic: Comic, chapter: Chapter): Promise<SourceChapterPagesResolveResult> {
+  const sourceId = comic.sourceRuntimeId
+  if (sourceId === undefined || sourceChapterPagesMatchSettings(chapter, sourceId)) return { pages: chapter.pages }
+  const result = await resolveSourceChapterPages(registry, {
+    comicId: comic.id,
+    sourceId,
+    mangaId: sourceMangaIdFromComic(comic, sourceId),
+    mangaUrl: comic.sourcePath,
+    chapterId: chapter.id,
+  })
+  if (result.pages.length === 0) return result
+  const current = registry.lookup(sourceId).entry
+  if (current !== undefined && result.settingsFingerprint ===
+    sourcePagePlanFingerprint(appSourceSettingsStore.loadForSource(sourceId), sourcePagePlanIdentity(current))) {
+    return result
+  }
+  return { pages: [], reasonCode: 'source_pages_failed' }
+}
+
 export class SourceChapterPageHydrator {
   private readonly libraryStore: LibraryStore
   private readonly sourceRegistry: SourceRuntimeRegistry

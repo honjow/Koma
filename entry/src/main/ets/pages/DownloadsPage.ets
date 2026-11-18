@@ -16,7 +16,7 @@ import { DownloadsChrome } from '../state/DownloadsChrome'
 import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { sourceRuntimeEntryEnabled } from '../sourceRuntime/SourceRuntimeRegistry'
 import { Chapter } from '../model/ComicModels'
-import { OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
+import { OfflineDownloadPageProgress, OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
 import {
   OfflineDownloadedChapterStatus,
   OfflineDownloadStatus,
@@ -75,6 +75,28 @@ interface DownloadComicGroup {
   entries: OfflineDownloadQueueEntry[]
 }
 
+enum DownloadListRowKind {
+  SECTION,
+  GROUP,
+  CHAPTER,
+}
+
+interface DownloadListRow {
+  key: string
+  kind: DownloadListRowKind
+  completed: boolean
+  first: boolean
+  last: boolean
+  group?: DownloadComicGroup
+  chapterKey?: string
+}
+
+@ObservedV2
+class DownloadChapterRowState {
+  @Trace downloaded: number = 0
+  @Trace entry?: OfflineDownloadQueueEntry = undefined
+}
+
 @ComponentV2
 export struct DownloadsPage {
   @Param libraryStore?: LibraryStore = undefined
@@ -98,8 +120,10 @@ export struct DownloadsPage {
   private unsubscribeQueue: (() => void) | undefined = undefined
   private queueVisible: boolean = false
   private queueRefreshTimer: number = -1
+  private projectedEntries: OfflineDownloadQueueEntry[] = []
   private queueScrolling: boolean = false
   private queueRefreshPending: boolean = false
+  private readonly chapterRows = new Map<string, DownloadChapterRowState>()
   @Event onOpenReader: (comicId: string, chapterId: string) => void =
     (_comicId: string, _chapterId: string) => {}
 
@@ -135,7 +159,27 @@ export struct DownloadsPage {
     try {
       const store = this.queueStore()
       const snapshot: OfflineDownloadQueueSnapshot = store.loadSnapshot()
-      this.entries = snapshot.entries
+      const currentKeys = new Set<string>()
+      for (const entry of snapshot.entries) {
+        const key = this.rowKey(entry)
+        currentKeys.add(key)
+        const row = this.chapterRowState(key)
+        if (row.entry === undefined || JSON.stringify(row.entry) !== JSON.stringify(entry)) row.entry = entry
+        row.downloaded = entry.status === OfflineDownloadStatus.DOWNLOADING
+          ? OfflineDownloadRuntime.pageProgress(this.context().filesDir, entry.comicId, entry.chapterId)
+            ?? entry.downloadedPageCount
+          : entry.downloadedPageCount
+      }
+      for (const key of this.chapterRows.keys()) {
+        if (!currentKeys.has(key)) this.chapterRows.delete(key)
+      }
+      const entries = snapshot.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry =>
+        this.chapterRows.get(this.rowKey(entry))?.entry ?? entry)
+      if (entries.length !== this.projectedEntries.length ||
+        entries.some((entry: OfflineDownloadQueueEntry, index: number): boolean => entry !== this.projectedEntries[index])) {
+        this.projectedEntries = entries
+        this.entries = entries
+      }
       this.preferences = snapshot.preferences
       this.waitReason = downloadBlockedReason(snapshot.preferences)
       this.syncChrome()
@@ -166,7 +210,7 @@ export struct DownloadsPage {
   }
 
   private entryForKey(key: string): OfflineDownloadQueueEntry | undefined {
-    return this.entriesByKey.get(key)
+    return this.chapterRows.get(key)?.entry
   }
 
   private moveDownload(key: string, toTop: boolean, wholeComic: boolean): void {
@@ -188,13 +232,6 @@ export struct DownloadsPage {
   @Computed
   private get visibleEntryList(): OfflineDownloadQueueEntry[] {
     return this.visibleEntries()
-  }
-
-  @Computed
-  private get entriesByKey(): Map<string, OfflineDownloadQueueEntry> {
-    const entries: Map<string, OfflineDownloadQueueEntry> = new Map()
-    this.entries.forEach((entry: OfflineDownloadQueueEntry): void => { entries.set(this.rowKey(entry), entry) })
-    return entries
   }
 
   private matchesFilter(entry: OfflineDownloadQueueEntry, filter: DownloadQueueFilter): boolean {
@@ -305,9 +342,27 @@ export struct DownloadsPage {
     return entry.chapterId
   }
 
+  private downloadedPages(entry: OfflineDownloadQueueEntry): number {
+    return this.chapterRows.get(this.rowKey(entry))?.downloaded ?? entry.downloadedPageCount
+  }
+
+  private chapterRowState(key: string): DownloadChapterRowState {
+    let state = this.chapterRows.get(key)
+    if (state === undefined) {
+      state = new DownloadChapterRowState()
+      this.chapterRows.set(key, state)
+    }
+    return state
+  }
+
+  private updateLiveProgress(progress: OfflineDownloadPageProgress): void {
+    const key = offlineDownloadTaskKey({ comicId: progress.comicId, chapterId: progress.chapterId })
+    this.chapterRowState(key).downloaded = progress.downloadedPageCount
+  }
+
   private rowSubtitle(entry: OfflineDownloadQueueEntry): string {
     const progress = s('downloads_page_progress')
-      .replace('%s', `${entry.downloadedPageCount}`)
+      .replace('%s', `${this.downloadedPages(entry)}`)
       .replace('%s', `${entry.pageCount}`)
     if (entry.pageCount <= 0) return this.formatEntryStatus(entry)
     if (entry.status === OfflineDownloadStatus.DOWNLOADED) {
@@ -828,7 +883,7 @@ export struct DownloadsPage {
     if (entry.pageCount <= 0) {
       return 0
     }
-    return Math.max(0, Math.min(100, entry.downloadedPageCount / entry.pageCount * 100))
+    return Math.max(0, Math.min(100, this.downloadedPages(entry) / entry.pageCount * 100))
   }
 
   private shouldShowEntryProgress(entry: OfflineDownloadQueueEntry): boolean {
@@ -920,8 +975,11 @@ export struct DownloadsPage {
   aboutToAppear(): void {
     this.queueVisible = true
     this.unsubscribeQueue?.()
-    this.unsubscribeQueue = OfflineDownloadRuntime.subscribe(this.context().filesDir, (signal) => {
-      this.scheduleQueueRefresh(signal === 'change')
+    this.unsubscribeQueue = OfflineDownloadRuntime.subscribe(this.context().filesDir, (signal, progress) => {
+      // The page count only changes the active row and its group subtitle.
+      // Updating the queue snapshot here would invalidate every grouped row.
+      if (signal === 'progress' && progress !== undefined) this.updateLiveProgress(progress)
+      else this.scheduleQueueRefresh()
     })
     this.loadQueue()
     if (!OfflineDownloadRuntime.isInitialized(this.context().filesDir)) {
@@ -932,6 +990,8 @@ export struct DownloadsPage {
 
   aboutToDisappear(): void {
     this.queueVisible = false
+    this.chapterRows.clear()
+    this.projectedEntries = []
     this.queueScrolling = false
     this.queueRefreshPending = false
     if (this.queueRefreshTimer >= 0) {
@@ -942,27 +1002,16 @@ export struct DownloadsPage {
     this.unsubscribeQueue = undefined
   }
 
-  private scheduleQueueRefresh(structural: boolean = false): void {
-    if (this.queueScrolling && !structural) {
-      this.queueRefreshPending = true
-      return
-    }
+  private scheduleQueueRefresh(): void {
     if (!this.queueVisible || this.queueRefreshTimer >= 0) return
+    this.queueRefreshPending = true
+    if (this.queueScrolling) return
     this.queueRefreshTimer = setTimeout((): void => {
       this.queueRefreshTimer = -1
-      if (this.queueVisible) {
-        this.loadQueue()
-      }
-    }, 200)
-  }
-
-  private onQueueDidScroll(state: ScrollState): void {
-    const scrolling: boolean = state !== ScrollState.Idle
-    this.queueScrolling = scrolling
-    if (!scrolling && this.queueRefreshPending) {
+      if (!this.queueVisible || this.queueScrolling) return
       this.queueRefreshPending = false
-      this.scheduleQueueRefresh()
-    }
+      this.loadQueue()
+    }, 200)
   }
 
   @Builder
@@ -1064,43 +1113,43 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private DownloadRowMenu(key: string) {
-    if (this.entryForKey(key) !== undefined) {
+  private DownloadRowMenu(row: RepeatItem<DownloadListRow>) {
+    if (this.entryForKey(row.item.chapterKey!) !== undefined) {
       Menu() {
-        if (this.libraryStore?.getComic(this.entryForKey(key)!.comicId) !== undefined ||
-          hasOfflineDownloadSourceIdentity(this.entryForKey(key)!)) {
+        if (this.libraryStore?.getComic(this.entryForKey(row.item.chapterKey!)!.comicId) !== undefined ||
+          hasOfflineDownloadSourceIdentity(this.entryForKey(row.item.chapterKey!)!)) {
           MenuItem({ content: s('downloads_view_work') })
-            .onClick(() => { this.openDownloadEntry(this.entryForKey(key)!) })
+            .onClick(() => { this.openDownloadEntry(this.entryForKey(row.item.chapterKey!)!) })
         }
-        if (this.recoveryLabel(this.entryForKey(key)!).length > 0) {
-          MenuItem({ content: s(this.recoveryLabel(this.entryForKey(key)!)) })
-            .onClick(() => { this.recoverSource(this.entryForKey(key)!) })
+        if (this.recoveryLabel(this.entryForKey(row.item.chapterKey!)!).length > 0) {
+          MenuItem({ content: s(this.recoveryLabel(this.entryForKey(row.item.chapterKey!)!)) })
+            .onClick(() => { this.recoverSource(this.entryForKey(row.item.chapterKey!)!) })
         }
-        if (this.canPause(this.entryForKey(key)!)) {
+        if (this.canPause(this.entryForKey(row.item.chapterKey!)!)) {
           MenuItem({ content: s('downloads_pause_chapter') })
-            .onClick(() => { this.setPaused([this.entryForKey(key)!], true) })
+            .onClick(() => { this.setPaused([this.entryForKey(row.item.chapterKey!)!], true) })
         }
-        if (this.canResume(this.entryForKey(key)!)) {
+        if (this.canResume(this.entryForKey(row.item.chapterKey!)!)) {
           MenuItem({ content: s('downloads_resume_chapter') })
-            .onClick(() => { this.setPaused([this.entryForKey(key)!], false) })
+            .onClick(() => { this.setPaused([this.entryForKey(row.item.chapterKey!)!], false) })
         }
-        if (this.canMove(this.entryForKey(key)!)) {
-          MenuItem({ content: s('downloads_move_top') }).onClick(() => { this.moveDownload(key, true, false) })
-          MenuItem({ content: s('downloads_move_bottom') }).onClick(() => { this.moveDownload(key, false, false) })
+        if (this.canMove(this.entryForKey(row.item.chapterKey!)!)) {
+          MenuItem({ content: s('downloads_move_top') }).onClick(() => { this.moveDownload(row.item.chapterKey!, true, false) })
+          MenuItem({ content: s('downloads_move_bottom') }).onClick(() => { this.moveDownload(row.item.chapterKey!, false, false) })
         }
-        if (this.canRetry(this.entryForKey(key)!)) {
-          MenuItem({ content: s('downloads_retry_chapter') }).onClick(() => { this.retryDownloads([this.entryForKey(key)!]) })
+        if (this.canRetry(this.entryForKey(row.item.chapterKey!)!)) {
+          MenuItem({ content: s('downloads_retry_chapter') }).onClick(() => { this.retryDownloads([this.entryForKey(row.item.chapterKey!)!]) })
         }
-        if (this.canRead(this.entryForKey(key)!)) {
+        if (this.canRead(this.entryForKey(row.item.chapterKey!)!)) {
           MenuItem({ content: s('chapter_export_cbz') }).enabled(!this.chapterArchiveBusy)
-            .onClick(() => { void this.exportChapter(key, false) })
+            .onClick(() => { void this.exportChapter(row.item.chapterKey!, false) })
           MenuItem({ content: s('chapter_share_cbz') }).enabled(!this.chapterArchiveBusy)
-            .onClick(() => { void this.exportChapter(key, true) })
+            .onClick(() => { void this.exportChapter(row.item.chapterKey!, true) })
           MenuItem({ content: s('downloads_delete_completed') })
-            .onClick(() => { this.confirmDelete([this.entryForKey(key)!], s('downloads_delete_completed')) })
-        } else if (this.canCancel(this.entryForKey(key)!)) {
+            .onClick(() => { this.confirmDelete([this.entryForKey(row.item.chapterKey!)!], s('downloads_delete_completed')) })
+        } else if (this.canCancel(this.entryForKey(row.item.chapterKey!)!)) {
           MenuItem({ content: s('downloads_cancel_task') })
-            .onClick(() => { this.confirmCancel([this.entryForKey(key)!], s('downloads_cancel_task')) })
+            .onClick(() => { this.confirmCancel([this.entryForKey(row.item.chapterKey!)!], s('downloads_cancel_task')) })
         }
       }
     }
@@ -1122,11 +1171,17 @@ export struct DownloadsPage {
       this.canRead(entry) === completed)
   }
 
+  @Computed
+  private get visibleGroupsByKey(): Map<string, DownloadComicGroup> {
+    const result = new Map<string, DownloadComicGroup>()
+    for (const group of this.activeDownloadGroups) result.set(this.groupKey(group, false), group)
+    for (const group of this.completedDownloadGroups) result.set(this.groupKey(group, true), group)
+    return result
+  }
+
   private visibleGroupEntries(comicId: string, completed: boolean): OfflineDownloadQueueEntry[] {
-    // The card retains its identity when changing filters; read current members
-    // rather than the ForEach item's previous snapshot.
-    return this.fullGroup(comicId, completed).filter((entry: OfflineDownloadQueueEntry): boolean =>
-      this.matchesFilter(entry, this.filter))
+    // Groups retain identity across filter changes; read the current projection.
+    return this.visibleGroupsByKey.get((completed ? 'local:' : 'tasks:') + comicId)?.entries ?? []
   }
 
   private groupKey(group: DownloadComicGroup, completed: boolean): string {
@@ -1200,42 +1255,42 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private GroupMenu(group: DownloadComicGroup, completed: boolean) {
+  private GroupMenu(row: RepeatItem<DownloadListRow>) {
     Menu() {
-      if (this.libraryStore?.getComic(group.comicId) !== undefined || group.entries.some(hasOfflineDownloadSourceIdentity)) {
-        MenuItem({ content: s('downloads_view_work') }).onClick(() => { this.openGroupWork(group, completed) })
+      if (this.libraryStore?.getComic(row.item.group!.comicId) !== undefined || row.item.group!.entries.some(hasOfflineDownloadSourceIdentity)) {
+        MenuItem({ content: s('downloads_view_work') }).onClick(() => { this.openGroupWork(row.item.group!, row.item.completed) })
       }
-      if (completed) {
-        MenuItem({ content: s('chapter_export_cbz') }).onClick(() => { this.openWorkArchive(group) })
+      if (row.item.completed) {
+        MenuItem({ content: s('chapter_export_cbz') }).onClick(() => { this.openWorkArchive(row.item.group!) })
         MenuItem({ content: s('downloads_delete_group') }).onClick(() => {
-          this.confirmDelete(this.fullGroup(group.comicId, true), s('downloads_delete_group'))
+          this.confirmDelete(this.fullGroup(row.item.group!.comicId, true), s('downloads_delete_group'))
         })
       } else {
-        if (this.groupRecoveryEntry(group) !== undefined) {
-          MenuItem({ content: s(this.recoveryLabel(this.groupRecoveryEntry(group)!)) }).onClick(() => {
-            const entry = this.groupRecoveryEntry(group)
+        if (this.groupRecoveryEntry(row.item.group!) !== undefined) {
+          MenuItem({ content: s(this.recoveryLabel(this.groupRecoveryEntry(row.item.group!)!)) }).onClick(() => {
+            const entry = this.groupRecoveryEntry(row.item.group!)
             if (entry !== undefined) this.recoverSource(entry)
           })
         }
-        if (this.groupCanExplain(group) && !this.expandedGroups.has(this.groupKey(group, completed))) {
-          MenuItem({ content: s('downloads_group_view_reason') }).onClick(() => { this.toggleGroup(group, completed, true) })
+        if (this.groupCanExplain(row.item.group!) && !this.expandedGroups.has(this.groupKey(row.item.group!, row.item.completed))) {
+          MenuItem({ content: s('downloads_group_view_reason') }).onClick(() => { this.toggleGroup(row.item.group!, row.item.completed, true) })
         }
-        if (this.groupCanPause(group)) {
-          MenuItem({ content: s('downloads_pause_group') }).onClick(() => { this.setPaused(this.fullGroup(group.comicId, false), true) })
+        if (this.groupCanPause(row.item.group!)) {
+          MenuItem({ content: s('downloads_pause_group') }).onClick(() => { this.setPaused(this.fullGroup(row.item.group!.comicId, false), true) })
         }
-        if (this.groupCanResume(group)) {
-          MenuItem({ content: s('downloads_resume_group') }).onClick(() => { this.setPaused(this.fullGroup(group.comicId, false), false) })
+        if (this.groupCanResume(row.item.group!)) {
+          MenuItem({ content: s('downloads_resume_group') }).onClick(() => { this.setPaused(this.fullGroup(row.item.group!.comicId, false), false) })
         }
-        if (this.groupCanRetry(group)) {
-          MenuItem({ content: s('downloads_retry_group') }).onClick(() => { this.retryDownloads(this.fullGroup(group.comicId, false)) })
+        if (this.groupCanRetry(row.item.group!)) {
+          MenuItem({ content: s('downloads_retry_group') }).onClick(() => { this.retryDownloads(this.fullGroup(row.item.group!.comicId, false)) })
         }
-        if (this.groupCanMove(group)) {
-          MenuItem({ content: s('downloads_move_top') }).onClick(() => { this.moveGroup(group, true) })
-          MenuItem({ content: s('downloads_move_bottom') }).onClick(() => { this.moveGroup(group, false) })
+        if (this.groupCanMove(row.item.group!)) {
+          MenuItem({ content: s('downloads_move_top') }).onClick(() => { this.moveGroup(row.item.group!, true) })
+          MenuItem({ content: s('downloads_move_bottom') }).onClick(() => { this.moveGroup(row.item.group!, false) })
         }
-        if (this.groupCanCancel(group)) {
+        if (this.groupCanCancel(row.item.group!)) {
           MenuItem({ content: s('downloads_cancel_group') }).onClick(() => {
-            this.confirmCancel(this.fullGroup(group.comicId, false), s('downloads_cancel_group'))
+            this.confirmCancel(this.fullGroup(row.item.group!.comicId, false), s('downloads_cancel_group'))
           })
         }
       }
@@ -1243,20 +1298,21 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private DownloadCover(comicId: string) {
+  private DownloadCover(row: RepeatItem<DownloadListRow>) {
     Stack({ alignContent: Alignment.Center }) {
       SymbolGlyph($r('sys.symbol.book'))
         .fontSize(ThemeConstants.FONT_SIZE_H2)
         .fontColor([ThemeConstants.TEXT_TERTIARY])
-      if ((this.libraryStore?.getComic(comicId)?.coverUri ?? '').length > 0) {
+      if (row.item.completed || (this.libraryStore?.getComic(row.item.group!.comicId)?.coverUri ?? '').length > 0) {
         CachedCoverImage({
-          uri: this.libraryStore?.getComic(comicId)?.coverUri ?? '',
+          uri: this.libraryStore?.getComic(row.item.group!.comicId)?.coverUri ?? '',
+          downloadedComicId: row.item.completed ? row.item.group!.comicId : '',
           objectFit: ImageFit.Cover,
-          sourceRuntimeId: this.libraryStore?.getComic(comicId)?.sourceRuntimeId ?? '',
-          sourceImageId: this.libraryStore?.getComic(comicId)?.remoteResourceId ?? comicId,
-          sourceKind: this.libraryStore?.getComic(comicId)?.sourceKind,
-          remoteServerId: this.libraryStore?.getComic(comicId)?.remoteServerId ?? '',
-          sourceMangaUrl: this.libraryStore?.getComic(comicId)?.sourcePath ?? '',
+          sourceRuntimeId: this.libraryStore?.getComic(row.item.group!.comicId)?.sourceRuntimeId ?? '',
+          sourceImageId: this.libraryStore?.getComic(row.item.group!.comicId)?.remoteResourceId ?? row.item.group!.comicId,
+          sourceKind: this.libraryStore?.getComic(row.item.group!.comicId)?.sourceKind,
+          remoteServerId: this.libraryStore?.getComic(row.item.group!.comicId)?.remoteServerId ?? '',
+          sourceMangaUrl: this.libraryStore?.getComic(row.item.group!.comicId)?.sourcePath ?? '',
           decodeMaxEdge: 192,
         })
       }
@@ -1269,38 +1325,38 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private DownloadStatusIcon(key: string) {
-    if (this.entryForKey(key) !== undefined) {
-      SymbolGlyph(this.entryStatusIcon(this.entryForKey(key)!))
+  private DownloadStatusIcon(row: RepeatItem<DownloadListRow>) {
+    if (this.entryForKey(row.item.chapterKey!) !== undefined) {
+      SymbolGlyph(this.entryStatusIcon(this.entryForKey(row.item.chapterKey!)!))
         .fontSize(ThemeConstants.FONT_SIZE_H3)
-        .fontColor([this.entryStatusColor(this.entryForKey(key)!)])
+        .fontColor([this.entryStatusColor(this.entryForKey(row.item.chapterKey!)!)])
     }
   }
 
   @Builder
-  private DownloadChapterRow(key: string) {
-    if (this.entryForKey(key) !== undefined) {
+  private DownloadChapterRow(row: RepeatItem<DownloadListRow>) {
+    if (this.entryForKey(row.item.chapterKey!) !== undefined) {
       Row({ space: ThemeConstants.SPACE_SM }) {
         Row({ space: ThemeConstants.SPACE_MD }) {
-          this.DownloadStatusIcon(key)
+          this.DownloadStatusIcon(row)
 
           Column({ space: ThemeConstants.SPACE_XS }) {
-            Text(this.rowTitle(this.entryForKey(key)!))
+            Text(this.rowTitle(this.entryForKey(row.item.chapterKey!)!))
               .fontSize(ThemeConstants.FONT_SIZE_BODY)
               .fontWeight(FontWeight.Medium)
               .fontColor(ThemeConstants.TEXT_PRIMARY)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text(this.rowDetailSubtitle(this.entryForKey(key)!))
+            Text(this.rowDetailSubtitle(this.entryForKey(row.item.chapterKey!)!))
               .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-              .fontColor(this.entryStatusColor(this.entryForKey(key)!))
-              .maxLines(this.blockedHelpText(this.entryForKey(key)!).length > 0 ? 2 : 1)
+              .fontColor(this.entryStatusColor(this.entryForKey(row.item.chapterKey!)!))
+              .maxLines(this.blockedHelpText(this.entryForKey(row.item.chapterKey!)!).length > 0 ? 2 : 1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-            if (this.shouldShowEntryProgress(this.entryForKey(key)!)) {
-              Progress({ value: this.entryProgressValue(this.entryForKey(key)!), total: 100, type: ProgressType.Linear })
+            if (this.shouldShowEntryProgress(this.entryForKey(row.item.chapterKey!)!)) {
+              Progress({ value: this.entryProgressValue(this.entryForKey(row.item.chapterKey!)!), total: 100, type: ProgressType.Linear })
                 .width('100%')
                 .height(3)
-                .color(this.entryStatusColor(this.entryForKey(key)!))
+                .color(this.entryStatusColor(this.entryForKey(row.item.chapterKey!)!))
                 .backgroundColor(ThemeConstants.SOFT_TINT)
             }
           }
@@ -1310,18 +1366,18 @@ export struct DownloadsPage {
         .layoutWeight(1)
         .alignItems(VerticalAlign.Center)
         .onClick(() => {
-          const entry = this.entryForKey(key)
+          const entry = this.entryForKey(row.item.chapterKey!)
           if (entry !== undefined) {
             this.openDownloadRow(entry)
           }
         })
 
         if (this.chrome.selecting) {
-          SymbolGlyph(this.selection.has(key) ? $r('sys.symbol.checkmark_circle_fill') : $r('sys.symbol.circle'))
+          SymbolGlyph(this.selection.has(row.item.chapterKey!) ? $r('sys.symbol.checkmark_circle_fill') : $r('sys.symbol.circle'))
             .fontSize(ThemeConstants.FONT_SIZE_H3)
-            .fontColor([this.selection.has(key) ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.TEXT_TERTIARY])
-            .onClick(() => { this.toggleSelected(key) })
-        } else if (!this.entryForKey(key)!.canceling) {
+            .fontColor([this.selection.has(row.item.chapterKey!) ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.TEXT_TERTIARY])
+            .onClick(() => { this.toggleSelected(row.item.chapterKey!) })
+        } else if (!this.entryForKey(row.item.chapterKey!)!.canceling) {
           KomaIconButton({
             icon: $r('sys.symbol.ellipsis_circle'),
             kind: 'ghost',
@@ -1329,13 +1385,13 @@ export struct DownloadsPage {
             iconSize: ThemeConstants.FONT_SIZE_H3,
             accentColor: ThemeConstants.TEXT_SECONDARY,
             action: () => {
-              this.actionMenuKey = `row:${key}`
+              this.actionMenuKey = `row:${row.item.chapterKey!}`
             },
           })
-            .bindMenu(this.actionMenuKey === `row:${key}`, this.DownloadRowMenu(key), komaMenuOptions({
+            .bindMenu(this.actionMenuKey === `row:${row.item.chapterKey!}`, this.DownloadRowMenu(row), komaMenuOptions({
               placement: Placement.BottomRight,
               onDisappear: () => {
-                if (this.actionMenuKey === `row:${key}`) {
+                if (this.actionMenuKey === `row:${row.item.chapterKey!}`) {
                   this.closeActionMenu()
                 }
               },
@@ -1354,77 +1410,139 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private DownloadGroup(group: DownloadComicGroup, completed: boolean) {
-    Column() {
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        Row({ space: ThemeConstants.SPACE_MD }) {
-          this.DownloadCover(group.comicId)
-          Column({ space: ThemeConstants.SPACE_XS }) {
-            Text(group.title)
-              .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(ThemeConstants.TEXT_PRIMARY)
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text(this.groupSubtitle(group, completed))
-              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-          SymbolGlyph($r('sys.symbol.chevron_down'))
-            .fontSize(ThemeConstants.FONT_SIZE_H3)
-            .fontColor([ThemeConstants.TEXT_SECONDARY])
-            .rotate({ angle: this.expandedGroups.has(this.groupKey(group, completed)) ? 180 : 0 })
+  private DownloadGroupHeader(row: RepeatItem<DownloadListRow>) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        this.DownloadCover(row)
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          Text(row.item.group!.title)
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+            .maxLines(2)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(this.groupSubtitle(row.item.group!, row.item.completed))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .maxLines(2)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         .layoutWeight(1)
-        .alignItems(VerticalAlign.Center)
-        .onClick(() => { this.toggleGroup(group, completed) })
-        if (!this.chrome.selecting && (completed || this.groupCanCancel(group))) {
-          KomaIconButton({
-            icon: $r('sys.symbol.ellipsis_circle'),
-            kind: 'ghost',
-            controlSize: ThemeConstants.TOUCH_TARGET_SM,
-            iconSize: ThemeConstants.FONT_SIZE_H3,
-            action: () => { this.actionMenuKey = this.groupKey(group, completed) },
-          })
-            .bindMenu(this.actionMenuKey === this.groupKey(group, completed), this.GroupMenu(group, completed),
-              komaMenuOptions({ placement: Placement.BottomRight, onDisappear: () => {
-                if (this.actionMenuKey === this.groupKey(group, completed)) this.closeActionMenu()
-              } }))
-        }
+        .alignItems(HorizontalAlign.Start)
+        SymbolGlyph($r('sys.symbol.chevron_down'))
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontColor([ThemeConstants.TEXT_SECONDARY])
+          .rotate({ angle: this.expandedGroups.has(this.groupKey(row.item.group!, row.item.completed)) ? 180 : 0 })
       }
-      .width('100%')
-      // Equal insets keep the cover's left corners concentric with the card.
-      .padding({ left: DOWNLOAD_GROUP_COVER_INSET, right: ThemeConstants.SPACE_LG,
-        top: DOWNLOAD_GROUP_COVER_INSET, bottom: DOWNLOAD_GROUP_COVER_INSET })
+      .layoutWeight(1)
       .alignItems(VerticalAlign.Center)
-      if (this.expandedGroups.has(this.groupKey(group, completed))) {
-        Column() {
-          Divider()
-            .strokeWidth(0.5)
-            .color(ThemeConstants.DIVIDER)
-            .margin({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
-          ForEach(this.visibleGroupEntries(group.comicId, completed), (entry: OfflineDownloadQueueEntry) => {
-            this.DownloadChapterRow(this.rowKey(entry))
-          }, (entry: OfflineDownloadQueueEntry) => this.rowKey(entry))
-        }.width('100%').transition(TransitionEffect.OPACITY)
+      .onClick(() => { this.toggleGroup(row.item.group!, row.item.completed) })
+      if (!this.chrome.selecting && (row.item.completed || this.groupCanCancel(row.item.group!))) {
+        KomaIconButton({
+          icon: $r('sys.symbol.ellipsis_circle'),
+          kind: 'ghost',
+          controlSize: ThemeConstants.TOUCH_TARGET_SM,
+          iconSize: ThemeConstants.FONT_SIZE_H3,
+          action: () => { this.actionMenuKey = this.groupKey(row.item.group!, row.item.completed) },
+        })
+          .bindMenu(this.actionMenuKey === this.groupKey(row.item.group!, row.item.completed), this.GroupMenu(row),
+            komaMenuOptions({ placement: Placement.BottomRight, onDisappear: () => {
+              if (this.actionMenuKey === this.groupKey(row.item.group!, row.item.completed)) this.closeActionMenu()
+            } }))
       }
     }
     .width('100%')
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
-    .clip(true)
+    // Equal insets keep the cover's left corners concentric with the card.
+    .padding({ left: DOWNLOAD_GROUP_COVER_INSET, right: ThemeConstants.SPACE_LG,
+      top: DOWNLOAD_GROUP_COVER_INSET, bottom: DOWNLOAD_GROUP_COVER_INSET })
+    .alignItems(VerticalAlign.Center)
+  }
+
+  private appendDownloadRows(rows: DownloadListRow[], groups: DownloadComicGroup[], completed: boolean): void {
+    if (groups.length === 0) return
+    rows.push({
+      key: completed ? 'local-section' : 'task-section',
+      kind: DownloadListRowKind.SECTION,
+      completed,
+      first: rows.length === 0,
+      last: false,
+    })
+    for (const group of groups) {
+      const key = this.groupKey(group, completed)
+      const expanded = this.expandedGroups.has(key)
+      rows.push({
+        key,
+        kind: DownloadListRowKind.GROUP,
+        group,
+        completed,
+        first: true,
+        last: !expanded,
+      })
+      if (!expanded) continue
+      for (let index = 0; index < group.entries.length; index += 1) {
+        const chapterKey = this.rowKey(group.entries[index])
+        rows.push({
+          key: key + ':' + chapterKey,
+          kind: DownloadListRowKind.CHAPTER,
+          completed,
+          chapterKey,
+          first: index === 0,
+          last: index === group.entries.length - 1,
+        })
+      }
+    }
+  }
+
+  @Computed
+  private get downloadListRows(): DownloadListRow[] {
+    const rows: DownloadListRow[] = []
+    this.appendDownloadRows(rows, this.activeDownloadGroups, false)
+    this.appendDownloadRows(rows, this.completedDownloadGroups, true)
+    return rows
   }
 
   @Builder
-  private DownloadSectionTitle(label: string) {
-    Text(label)
-      .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-      .fontColor(ThemeConstants.TEXT_SECONDARY)
-      .width('100%')
+  private DownloadListItem(row: RepeatItem<DownloadListRow>) {
+    ListItem() {
+      if (row.item.kind === DownloadListRowKind.SECTION) {
+        Text(s(row.item.completed ? 'downloads_local_section' : 'downloads_tasks_section'))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .width('100%')
+      } else if (row.item.kind === DownloadListRowKind.GROUP && row.item.group !== undefined) {
+        Column() {
+          this.DownloadGroupHeader(row)
+        }
+        .width('100%')
+        .backgroundColor(ThemeConstants.CARD)
+        .borderRadius({
+          topLeft: ThemeConstants.RADIUS_CARD, topRight: ThemeConstants.RADIUS_CARD,
+          bottomLeft: row.item.last ? ThemeConstants.RADIUS_CARD : 0,
+          bottomRight: row.item.last ? ThemeConstants.RADIUS_CARD : 0,
+        })
+        .clip(true)
+      } else if (row.item.chapterKey !== undefined) {
+        Column() {
+          if (row.item.first) {
+            Divider()
+              .strokeWidth(0.5)
+              .color(ThemeConstants.DIVIDER)
+              .margin({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+          }
+          this.DownloadChapterRow(row)
+        }
+        .width('100%')
+        .backgroundColor(ThemeConstants.CARD)
+        .borderRadius({
+          bottomLeft: row.item.last ? ThemeConstants.RADIUS_CARD : 0,
+          bottomRight: row.item.last ? ThemeConstants.RADIUS_CARD : 0,
+        })
+        .clip(true)
+      }
+    }
+    .width('100%')
+    .padding({ top: row.item.kind === DownloadListRowKind.CHAPTER ||
+      (row.item.kind === DownloadListRowKind.SECTION && row.item.first) ? 0 : ThemeConstants.SPACE_MD })
   }
 
   build() {
@@ -1432,8 +1550,10 @@ export struct DownloadsPage {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
         bottomPadding: ThemeConstants.SPACE_XL,
-        onDidScroll: (_offset: number, state: ScrollState): void => {
-          this.onQueueDidScroll(state)
+        onScrollStart: () => { this.queueScrolling = true },
+        onScrollStop: () => {
+          this.queueScrolling = false
+          if (this.queueRefreshPending) this.scheduleQueueRefresh()
         },
       }) {
         if (this.entries.length === 0) {
@@ -1449,21 +1569,17 @@ export struct DownloadsPage {
               this.EmptyState(this.hasActiveFilter())
             }.transition(filterRowTransition())
           }
-          if (this.activeDownloadGroups.length > 0) {
-            ListItem() { this.DownloadSectionTitle(s('downloads_tasks_section')) }
-              .transition(filterRowTransition())
-            ForEach(this.activeDownloadGroups, (group: DownloadComicGroup) => {
-              ListItem() { this.DownloadGroup(group, false) }
-                .transition(filterRowTransition())
-            }, (group: DownloadComicGroup) => group.comicId)
-          }
-          if (this.completedDownloadGroups.length > 0) {
-            ListItem() { this.DownloadSectionTitle(s('downloads_local_section')) }
-              .transition(filterRowTransition())
-            ForEach(this.completedDownloadGroups, (group: DownloadComicGroup) => {
-              ListItem() { this.DownloadGroup(group, true) }
-                .transition(filterRowTransition())
-            }, (group: DownloadComicGroup) => group.comicId)
+          if (this.downloadListRows.length > 0) {
+            ListItemGroup({ space: 0 }) {
+              // Keep the RepeatItem wrapper through the builders so a recycled
+              // node reads the current work, chapter, and menu target.
+              // One range owns the full scroll extent. Nested repeats in several
+              // groups can retain stale end offsets after a task changes section.
+              Repeat<DownloadListRow>(this.downloadListRows)
+                .each((row: RepeatItem<DownloadListRow>) => { this.DownloadListItem(row) })
+                .key((row: DownloadListRow): string => row.key)
+                .virtualScroll({ totalCount: this.downloadListRows.length })
+            }
           }
         }
       }

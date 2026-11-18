@@ -41,6 +41,11 @@ export enum ChapterBatchScope {
   PREVIOUS = 'previous',
 }
 
+@ObservedV2
+class ChapterDownloadProgressText {
+  @Trace text: string = ''
+}
+
 // One presentation state per detail route, shared by both width layouts.
 @ObservedV2
 export class ChapterListPresentation {
@@ -53,6 +58,25 @@ export class ChapterListPresentation {
   @Trace bookmarkFilter: 'all' | 'bookmarked' | 'unbookmarked' = 'all'
   @Trace selectionMode: boolean = false
   @Trace selectedChapterIds: Set<string> = new Set<string>()
+
+  private readonly downloadProgress = new Map<string, ChapterDownloadProgressText>()
+
+  private chapterDownloadProgress(chapterId: string): ChapterDownloadProgressText {
+    let progress = this.downloadProgress.get(chapterId)
+    if (progress === undefined) {
+      progress = new ChapterDownloadProgressText()
+      this.downloadProgress.set(chapterId, progress)
+    }
+    return progress
+  }
+
+  showDownloadProgress(chapterId: string, text: string): void {
+    this.chapterDownloadProgress(chapterId).text = text
+  }
+
+  liveDownloadProgress(chapterId: string): string {
+    return this.chapterDownloadProgress(chapterId).text
+  }
 
   // The route, title bar, and both chapter layouts share the same selection.
   setSelectionMode(enabled: boolean): void {
@@ -325,8 +349,10 @@ export struct ChapterListSection {
     if (chapter.dateUpload !== undefined) {
       parts.push(this.formatDate(chapter.dateUpload))
     }
-    if (chapter.downloadProgress !== undefined) {
-      parts.push(chapter.downloadProgress)
+    const liveProgress = chapter.downloadStatus === 'downloading' ? this.presentation.liveDownloadProgress(chapter.id) : ''
+    const progress = liveProgress.length > 0 ? liveProgress : chapter.downloadProgress
+    if (progress !== undefined) {
+      parts.push(progress)
     } else if (chapter.pageCount !== undefined && chapter.pageCount > 0) {
       parts.push(this.formatString('chapter_list_page_count', [chapter.pageCount]))
     }

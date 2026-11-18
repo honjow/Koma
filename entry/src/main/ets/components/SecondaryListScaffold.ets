@@ -29,6 +29,8 @@ export struct SecondaryListScaffold {
   @Event onVisibleContentChange?: (start: VisibleListContentInfo) => void
   @Event onListAttach?: () => void
   @Event onReachEnd?: () => void
+  @Event onScrollStart?: () => void
+  @Event onScrollStop?: () => void
   @Event onDidScroll?: (offset: number, state: ScrollState) => void
   private defaultList = new ListModifier()
   private visibleRowsOnly = new ListModifier()
@@ -74,6 +76,8 @@ export struct SecondaryListScaffold {
         .edgeEffect(this.alwaysEnableEdgeSpring ? EdgeEffect.Spring : EdgeEffect.None, {
           alwaysEnabled: this.alwaysEnableEdgeSpring,
         })
+        .onScrollStart(() => { this.onScrollStart?.() })
+        .onScrollStop(() => { this.onScrollStop?.() })
         .onDidScroll((_scrollOffset: number, scrollState: ScrollState) => {
           if (this.onDidScroll) {
             this.onDidScroll(this.scroller.currentOffset().yOffset, scrollState)

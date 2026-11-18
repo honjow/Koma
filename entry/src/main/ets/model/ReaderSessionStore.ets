@@ -24,6 +24,7 @@ import {
   readerFormatFromTags,
   readingProgressPageIndex,
   isDeferredFolderArchiveChapter,
+  Page,
 } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFailureDetails } from './SourceRuntimeError'
@@ -1497,11 +1498,13 @@ export function appReaderSessionStore(filesDir: string): PersistentReaderSession
 export function createReaderSessionConfigFromComic(
   comic: Comic,
   chapterId?: ChapterId,
+  preparedPages?: Page[],
 ): ReaderSessionConfig {
   const targetChapterId = chapterId !== undefined && chapterId.length > 0
     ? chapterId
     : (firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId))?.id ?? '')
   const chapter = comic.chapters.find((item) => item.id === targetChapterId)
+  const pages = preparedPages ?? chapter?.pages ?? []
   return {
     comicId: comic.id,
     chapterId: targetChapterId,
@@ -1511,17 +1514,17 @@ export function createReaderSessionConfigFromComic(
     title: comic.title,
     chapterTitle: chapter === undefined ? undefined : readerChapterDisplayTitle(chapter),
     readingFormat: readerFormatFromTags(comic.sourceMetadata?.tags),
-    totalPages: chapter === undefined ? 0 : chapter.pageCount,
+    totalPages: preparedPages?.length ?? chapter?.pageCount ?? 0,
     deferredLocalArchive: comic.sourceKind === ComicSourceKind.LOCAL_FOLDER && chapter !== undefined &&
       isDeferredFolderArchiveChapter(chapter),
-    pageUris: chapter === undefined ? [] : chapter.pages.map((page) => page.uri),
-    pageIds: chapter === undefined ? [] : chapter.pages.map((page) => page.id),
-    pageWidths: chapter === undefined ? [] : chapter.pages.map((page) => page.width),
-    pageHeights: chapter === undefined ? [] : chapter.pages.map((page) => page.height),
-    pageTextOverlays: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceTextOverlay),
-    pageRequiredImageDecodes: chapter === undefined ? [] : chapter.pages.map((page) => page.requiredImageDecode),
-    pageTextPages: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceText),
-    pageTextRequests: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceTextRequest),
+    pageUris: pages.map((page) => page.uri),
+    pageIds: pages.map((page) => page.id),
+    pageWidths: pages.map((page) => page.width),
+    pageHeights: pages.map((page) => page.height),
+    pageTextOverlays: pages.map((page) => page.sourceTextOverlay),
+    pageRequiredImageDecodes: pages.map((page) => page.requiredImageDecode),
+    pageTextPages: pages.map((page) => page.sourceText),
+    pageTextRequests: pages.map((page) => page.sourceTextRequest),
     sourceRuntimeId: comic.sourceRuntimeId,
     sourceMangaUrl: comic.sourceRuntimeId === undefined ? undefined : comic.sourcePath,
     sourceKind: comic.sourceKind,

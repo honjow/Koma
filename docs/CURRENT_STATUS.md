@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-19T00:26:02+08:00",
+  "updatedAt": "2026-11-19T05:12:57+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -1557,22 +1557,33 @@
       "id": "DOWNLOAD_MANAGER_UI_JANK",
       "number": 268,
       "title": "下载任务期间界面卡顿",
-      "kind": "active",
+      "kind": "done",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-10",
       "reportedAtSource": "用户反馈下载任务多或下载进行中时滑动卡顿，下载管理页较明显，并要求继续深挖 UI 线程密集运算。",
       "registeredAt": "2026-11-10T18:30:00+08:00",
-      "updatedAt": "2026-11-10T18:40:00+08:00",
-      "status": "已消除已确认的高频主线程阻塞，待用户场景实测",
-      "result": "对照 NextE 的下载进度隔离方案，Koma 原先每页同步写入并校验整份清单、再次读写整份队列，并立即通知所有队列消费者。现在图片写入和内容哈希在 TaskPool 执行；清单和队列进度最多每秒持久化一次，最终状态强制落盘；页面进度信号不再唤醒自动下载控制器；下载管理页每次只解析一次快照、合并通知，滚动期间暂停进度重建，并用 @Computed 缓存筛选与分组。书架下载筛选改用启动时已核对的持久队列投影，不再在列表刷新中逐个校验 manifest 和文件。非下载路径中，历史页分组和设置页分区/行定义改为按数据变化缓存，避免每次构建重复全量计算。197 单页章节重下成功，连续六次往返惯性滚动无崩溃或重建异常。",
-      "remaining": "尚未做大量任务下优化前后主线程帧耗时对照，也未取得反馈用户的同机录屏或 trace；书架队列投影仍有单次同步 JSON 解析，详情进度仍会重新装饰整章列表，备份选择、本地归档和诊断导出仍有用户触发的同步文件操作。",
+      "updatedAt": "2026-11-19T05:12:57+08:00",
+      "status": "197 同队列前后对照通过",
+      "result": "《装备我最强》273 章下载期间，展开和收起最长帧 69.5→23.2 ms，六次惯性滚动 335.9→3.4 ms，作品详情滚动 163.8→7.3 ms。长距离滑到第 000 话，单个最慢帧 27.3 ms，惯性滚动最大帧间间隔 12.8 ms。第 224 话录屏确认页数和进度条逐页更新。",
+      "remaining": "",
       "evidence": [
         ".hvigor/outputs/device-sync-independent/notification-services-qa/download-jank-log/run-metadata.json",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/navigate-20261110T182802388553/screen.png",
-        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/install-20261110T182711234520/run-metadata.json"
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/install-20261110T182711234520/run-metadata.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T043225754792/frame-summary.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T043234030278/frame-summary.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T043346831353/frame-summary.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T043503658040/frame-summary.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T043618971843/frame-summary.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T043626713132/frame-summary.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T045631387527/frame-summary.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T045639383399/frame-summary.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T045653398225/frame-summary.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T050013911662/frame-summary.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/live-progress-20261119T045917/live-progress-20261119T045917.mp4"
       ],
-      "progressPhase": null
+      "progressPhase": "completed"
     },
     {
       "id": "DOWNLOAD_NOTIFICATION_REPEATED_ALERT",
@@ -11772,6 +11783,32 @@
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/install-20261111T225850511385/screen.png",
         ".hvigor/outputs/download-management-278/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-management/capture-cbz-20261111T231228647981/selected.cbz"
       ]
+    },
+    {
+      "id": "OFFLINE_DOWNLOADED_WORK_COVER",
+      "number": 324,
+      "title": "已下载作品的离线封面",
+      "kind": "done",
+      "progressPhase": "completed",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-19",
+      "reportedAtSource": "用户报告清除缓存后断网，下载管理的已下载作品封面无法显示。",
+      "registeredAt": "2026-11-19T05:12:57+08:00",
+      "updatedAt": "2026-11-19T05:12:57+08:00",
+      "status": "197 断网冷启动已验证",
+      "result": "原封面保存到每部作品自己的下载目录。已有下载在线时补存，离线且原封面缺失时以本地正文页兜底。197 关闭 Koma 的 WLAN 权限、冷启动后，下载管理仍显示《装备我最强》原封面，追踪确认命中下载目录封面。第 224 话 1/149 正文可读。",
+      "remaining": "",
+      "relatedItems": [
+        "DOWNLOAD_MANAGER_UI_JANK"
+      ],
+      "evidence": [
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T050759896818/trace.htrace",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T050810394885/screen.png",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/actions-20261119T050949618268/screen.png",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/restore-20261119T051711088412/run-metadata.json",
+        ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/actions-20261119T051636058069/run-metadata.json"
+      ]
     }
   ],
   "source": {
@@ -11826,6 +11863,33 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "download-manager-perf-197-verified-20261119",
+      "at": "2026-11-19T05:12:57+08:00",
+      "itemId": "DOWNLOAD_MANAGER_UI_JANK",
+      "title": "大队列滚动和逐页进度验证通过",
+      "detail": "《装备我最强》273 章下载期间，展开和收起最长帧 69.5→23.2 ms，六次惯性滚动 335.9→3.4 ms，作品详情滚动 163.8→7.3 ms。长距离滑到第 000 话，单个最慢帧 27.3 ms，惯性滚动最大帧间间隔 12.8 ms。第 224 话录屏确认页数和进度条逐页更新。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T045653398225/frame-summary.json"
+    },
+    {
+      "id": "download-manager-cover-197-verified-20261119",
+      "at": "2026-11-19T05:12:57+08:00",
+      "itemId": "OFFLINE_DOWNLOADED_WORK_COVER",
+      "title": "确认离线封面和正文的实际读取",
+      "detail": "应用 WLAN 权限关闭后冷启动，已下载分区可加载原封面与旧下载样本。追踪有 7 次下载目录封面命中。系统拒绝移动普通缓存目录，实际采用永久封面读取证据。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T050759896818/trace.htrace"
+    },
+    {
+      "id": "download-manager-heavy-queue-197-20261119",
+      "at": "2026-11-19T04:40:31+08:00",
+      "itemId": "DOWNLOAD_MANAGER_UI_JANK",
+      "title": "197 复现大队列下载时的长帧",
+      "detail": "197 以《装备我最强》273 章连续下载复现，展开主线程帧最高 69.5 ms，滚动最高 335.9 ms。原生虚拟章节列表已改善展开。剩余长帧定位到下载准备阶段改写书架，以及完成章节时下载管理重排。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/download-perf-268/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-perf/perf-20261119T043626713132/frame-summary.json"
+    },
     {
       "id": "source-comments-extension-verified-20261119",
       "at": "2026-11-19T03:22:52+08:00",

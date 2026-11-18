@@ -1,3 +1,4 @@
+import { resolveDownloadCover } from '../model/OfflineDownloadCover'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -76,6 +77,7 @@ export function cachedCoverFailureKey(
 export struct CachedCoverImage {
   @Param uri: string = ''
   @Param coverOwnerId: string = ''
+  @Param downloadedComicId: string = ''
   @Param objectFit: ImageFit = ImageFit.Cover
   @Param sourceRuntimeId: string = ''
   @Param sourceImageId: string = ''
@@ -246,7 +248,7 @@ export struct CachedCoverImage {
     sourceMangaUrl: string | undefined,
   ): string {
     return `${cachedCoverFailureKey(uri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl,
-      this.sourceCoverHeaders)}::${Math.max(1, Math.round(this.decodeMaxEdge))}`
+      this.sourceCoverHeaders)}::${this.downloadedComicId}::${Math.max(1, Math.round(this.decodeMaxEdge))}`
   }
 
   private async resolveImageUri(
@@ -261,6 +263,17 @@ export struct CachedCoverImage {
     // belongs to a source. Never hand that local file to the source's HTTP resolver.
     if (uri.startsWith('file://')) return uri
     const context = getContext(this) as common.UIAbilityContext
+    if (this.downloadedComicId.length > 0) {
+      const path = await resolveDownloadCover(context, this.downloadedComicId, {
+        uri,
+        sourceId: sourceRuntimeId,
+        imageId: sourceImageId,
+        mangaUrl: sourceMangaUrl,
+        sourceKind,
+        serverId: remoteServerId,
+      })
+      if (path.length > 0 || uri.length === 0) return path
+    }
     // Mihon records store a backup thumbnail URL before they have a runtime source.
     // Load that URL through the cover cache until the shelf record is linked.
     if (sourceRuntimeId.trim().length > 0 && !sourceRuntimeId.startsWith('mihon:')) {
@@ -285,7 +298,7 @@ export struct CachedCoverImage {
     remoteServerId: string,
     sourceMangaUrl: string,
   ): Promise<void> {
-    if (uri.length === 0 ||
+    if ((uri.length === 0 && this.downloadedComicId.length === 0) ||
       this.disposed ||
       this.sourceSignature !== signature ||
       this.decodeGeneration !== generation ||
@@ -441,7 +454,7 @@ export struct CachedCoverImage {
     // A removed cover has no replacement to resolve, so the old lease can be
     // returned immediately. For a non-empty replacement, retain it until
     // decodeImage installs the new lease through replacePixelMap().
-    if (nextUri.length === 0) {
+    if (nextUri.length === 0 && this.downloadedComicId.length === 0) {
       await this.releasePixelMap()
       return
     }
@@ -465,7 +478,7 @@ export struct CachedCoverImage {
     }
   }
 
-  @Monitor('uri', 'coverOwnerId', 'sourceRuntimeId', 'sourceImageId', 'sourceKind', 'remoteServerId', 'sourceMangaUrl', 'sourceCoverHeaders', 'decodeMaxEdge')
+  @Monitor('uri', 'coverOwnerId', 'downloadedComicId', 'sourceRuntimeId', 'sourceImageId', 'sourceKind', 'remoteServerId', 'sourceMangaUrl', 'sourceCoverHeaders', 'decodeMaxEdge')
   onSourceChanged(): void {
     this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId, this.sourceKind, this.remoteServerId, this.sourceMangaUrl)
   }

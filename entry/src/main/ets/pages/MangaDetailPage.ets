@@ -648,7 +648,17 @@ export struct MangaDetailPage {
     })
     this.refreshTrackingWhenVisible()
     const filesDir = (getContext(this) as common.UIAbilityContext).filesDir
-    this.unsubscribeDownloads = OfflineDownloadRuntime.subscribe(filesDir, () => { this.scheduleDownloadRefresh() })
+    this.unsubscribeDownloads = OfflineDownloadRuntime.subscribe(filesDir, (signal, progress, comicId) => {
+      if (signal === 'progress') {
+        if (progress !== undefined && this.chrome.visible && progress.comicId === this.currentComicId()) {
+          this.chapterPresentation.showDownloadProgress(progress.chapterId,
+            this.formatString('downloads_page_progress', [progress.downloadedPageCount, progress.pageCount]))
+        }
+        return
+      }
+      if (comicId !== undefined && comicId !== this.currentComicId()) return
+      this.scheduleDownloadRefresh()
+    })
   }
 
   private chapterArchives: ChapterArchiveActions = new ChapterArchiveActions()
@@ -967,9 +977,11 @@ export struct MangaDetailPage {
     const comicId = this.currentComicId()
     const summaries = new Map<string, OfflineDownloadQueueEntry>()
     let wait: OfflineDownloadWaitReason | undefined
+    let downloadRuntimeKey: string = ''
     try {
       hiTraceMeter.startTrace('KomaDetailQueueSnapshot', 0)
       const queue = this.downloadQueue()
+      downloadRuntimeKey = queue.runtimeKey()
       const snapshot = queue.loadSnapshot()
       wait = downloadBlockedReason(snapshot.preferences)
       snapshot.entries.forEach((entry: OfflineDownloadQueueEntry) => {
@@ -1003,7 +1015,9 @@ export struct MangaDetailPage {
         }
         if (summary.pageCount > 0 && (summary.status === OfflineDownloadStatus.DOWNLOADING ||
           summary.status === OfflineDownloadStatus.PARTIAL)) {
-          downloadProgress = this.formatString('downloads_page_progress', [summary.downloadedPageCount, summary.pageCount])
+          const downloaded = OfflineDownloadRuntime.pageProgress(downloadRuntimeKey, comicId, chapter.id)
+            ?? summary.downloadedPageCount
+          downloadProgress = this.formatString('downloads_page_progress', [downloaded, summary.pageCount])
         }
       }
       if (chapter.isRead === isRead && (chapter.isBookmarked === true) === isBookmarked &&

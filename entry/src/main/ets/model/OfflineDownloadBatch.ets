@@ -1,9 +1,8 @@
 import { common } from '@kit.AbilityKit'
-import { Chapter, Comic, sameComicIdentity } from './ComicModels'
+import { Chapter, Comic, Page, sameComicIdentity } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
-import { LibraryStorePersistenceService } from './LibraryPersistence'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
-import { resolveSourceChapterPages, SourceChapterPageHydrator, SourceChapterPageHydrationResult } from './SourceChapterPageHydrator'
+import { resolveDownloadChapterPages, resolveSourceChapterPages, SourceChapterPageHydrationResult } from './SourceChapterPageHydrator'
 import { hasOfflineDownloadSourceIdentity, OfflineDownloadQueueEntry, OfflineDownloadQueueStore,
   isOfflineDownloadTaskPending } from './OfflineDownloadQueueStore'
 import { comicFromSourceManga } from './SourceLibraryComic'
@@ -24,8 +23,6 @@ export interface OfflineDownloadBatchRequest {
   context: common.UIAbilityContext
   library: LibraryStore
   registry: SourceRuntimeRegistry
-  persistence?: LibraryStorePersistenceService
-  onLibraryChanged?: () => void
 }
 
 export function recoverableDownloadEntry(entry: OfflineDownloadQueueEntry): boolean {
@@ -98,6 +95,7 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
           failureReasonCode: 'comic_missing', updatedAt: Date.now() })
         return
       }
+      let preparedPages: Page[] | undefined
       let hydration: SourceChapterPageHydrationResult = { hydrated: true, pageCount: 0 }
       try {
         if (standalone !== undefined) {
@@ -112,8 +110,12 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
           hydration = { hydrated: resolved.pages.length > 0, pageCount: resolved.pages.length,
             reasonCode: resolved.reasonCode, sourceFailure: resolved.sourceFailure }
         } else if (comic.sourceRuntimeId) {
-          hydration = await new SourceChapterPageHydrator(request.library, request.registry, request.persistence,
-            request.onLibraryChanged).ensureChapterPages(comic.id, comic.sourceRuntimeId, entry.chapterId)
+          const chapter = comic.chapters.find((item: Chapter): boolean => item.id === entry.chapterId)
+          if (chapter === undefined) return
+          const plan = await resolveDownloadChapterPages(request.registry, comic, chapter)
+          preparedPages = plan.pages
+          hydration = { hydrated: plan.pages.length > 0, pageCount: plan.pages.length,
+            reasonCode: plan.reasonCode, sourceFailure: plan.sourceFailure }
         }
       } catch (error) {
         DiagnosticLogger.exception('downloads', 'chapter_hydration_failed', error as Error)
@@ -137,7 +139,7 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
           return
         }
         const result = await service.downloadChapter(current, entry.chapterId,
-          { comicTitle: entry.comicTitle ?? current.title, chapterTitle: entry.chapterTitle }, isPending)
+          { comicTitle: entry.comicTitle ?? current.title, chapterTitle: entry.chapterTitle }, isPending, preparedPages)
         if (result.status === OfflineDownloadStatus.DOWNLOADED) completed += 1
       } catch (error) {
         if (!isPending()) return
