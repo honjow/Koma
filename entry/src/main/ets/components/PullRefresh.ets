@@ -42,6 +42,7 @@ export struct PullRefresh {
   @Event onBottomRefresh: () => Promise<void> = async () => {}
   @Param canStartBottomRefresh: () => boolean = () => false
   @Event onScrollEnableChange: (enabled: boolean) => void = (_enabled: boolean) => {}
+  @Event onTopPullOffsetChange?: (offset: number) => void
   @Param indicatorTop: number = 0
   @Param threshold: number = DEFAULT_PULL_REFRESH_THRESHOLD
   @Param bottomIndicatorBottom: number = ThemeConstants.SPACE_XL
@@ -65,11 +66,26 @@ export struct PullRefresh {
   private isTracking: boolean = false
   private isBottomTracking: boolean = false
   private isHorizontalGesture: boolean = false
+  private mounted: boolean = false
 
   aboutToAppear(): void {
+    this.mounted = true
     this.controller.setTopRefreshAction(() => {
       this.triggerProgrammaticTopRefresh()
     })
+  }
+
+  aboutToDisappear(): void {
+    this.mounted = false
+    if (this.pullOffset > 0) this.onTopPullOffsetChange?.(0)
+  }
+
+  private setTopPullOffset(offset: number): void {
+    if (this.pullOffset === offset) return
+    this.pullOffset = offset
+    // Publish inside the same animation as the content so a stationary
+    // backdrop follows the pull, refresh hold and rebound together.
+    if (this.mounted) this.onTopPullOffsetChange?.(offset)
   }
 
   private isListAtTop(): boolean {
@@ -93,7 +109,7 @@ export struct PullRefresh {
     this.getUIContext().animateTo(
       { duration: PULL_ANIM_DURATION, curve: Curve.EaseOut },
       () => {
-        this.pullOffset = target
+        this.setTopPullOffset(target)
       },
     )
     if (target === 0) {
@@ -132,7 +148,7 @@ export struct PullRefresh {
       this.getUIContext().animateTo(
         { duration: PULL_ANIM_DURATION, curve: Curve.EaseOut },
         () => {
-          this.pullOffset = REFRESH_HOLD_OFFSET
+          this.setTopPullOffset(REFRESH_HOLD_OFFSET)
         },
       )
       this.refreshState = 2
@@ -156,7 +172,7 @@ export struct PullRefresh {
     this.getUIContext().animateTo(
       { duration: PROGRAMMATIC_PULL_ANIM_DURATION, curve: Curve.EaseOut },
       () => {
-        this.pullOffset = this.threshold
+        this.setTopPullOffset(this.threshold)
       },
     )
     setTimeout(() => {
@@ -334,7 +350,7 @@ export struct PullRefresh {
           }
           if (this.isTracking) {
             const topPullDelta = touch.y - this.topEdgeDragStartY
-            this.pullOffset = Math.max(0, this.touchStartPullOffset + topPullDelta * PULL_RESISTANCE_FACTOR)
+            this.setTopPullOffset(Math.max(0, this.touchStartPullOffset + topPullDelta * PULL_RESISTANCE_FACTOR))
             if (this.pullOffset > 0) {
               this.topIndicatorMounted = true
             }

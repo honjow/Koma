@@ -386,7 +386,9 @@ export struct MangaDetailPage {
   @Local private detailSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private detailScrollEnabled: boolean = true
   @Local private coverBackdropOffset: number = 0
+  @Local private coverBackdropScale: number = 1
   private detailScrollOffset: number = 0
+  private detailTopPullOffset: number = 0
   private coverBackdropHeight: number = 0
   private get detailScroller(): ListScroller {
     return this.chrome.detailScroller
@@ -3795,39 +3797,47 @@ export struct MangaDetailPage {
   @Builder
   private CoverBackdrop() {
     // Same cover/cache identity as the foreground. Mihon's 4dp blur and 20%
-    // image opacity sit under a theme-colour fade. Keep this layer outside the
-    // inset list so it reaches the page edges without changing content layout.
+    // image opacity sit under a theme-colour fade. Keep the backdrop outside
+    // both the inset list and the content moved by PullRefresh.
     if (this.manga !== undefined && this.visibleCoverUrl(this.manga).length > 0) {
-      Stack() {
-        Column() {
-          CachedCoverImage({
-            uri: this.visibleCoverUrl(this.manga),
-            objectFit: ImageFit.Cover,
-            sourceRuntimeId: this.manga.sourceId ?? '',
-            sourceImageId: this.manga.sourceImageId ?? this.manga.id,
-            sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
-            remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
-            sourceMangaUrl: this.manga.url ?? '',
-          })
+      Stack({ alignContent: Alignment.TopStart }) {
+        Stack() {
+          Column() {
+            CachedCoverImage({
+              uri: this.visibleCoverUrl(this.manga),
+              objectFit: ImageFit.Cover,
+              sourceRuntimeId: this.manga.sourceId ?? '',
+              sourceImageId: this.manga.sourceImageId ?? this.manga.id,
+              sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
+              remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
+              sourceMangaUrl: this.manga.url ?? '',
+            })
+          }
+            .width('100%')
+            .height('100%')
+            .blur(4)
+            .opacity(0.2)
+          Column() {}
+            .width('100%')
+            .height('100%')
+            .linearGradient({ direction: GradientDirection.Bottom,
+              colors: [[this.backdropFadeStart(), 0], [ThemeConstants.BG_SUB, 1]],
+            })
         }
-          .width('100%')
-          .height('100%')
-          .blur(4)
-          .opacity(0.2)
-        Column() {}
-          .width('100%')
-          .height('100%')
-          .linearGradient({ direction: GradientDirection.Bottom,
-            colors: [[this.backdropFadeStart(), 0], [ThemeConstants.BG_SUB, 1]],
-          })
+        .width('100%')
+        .height('60%')
+        .translate({ y: -this.coverBackdropOffset })
+        .scale({ x: this.coverBackdropScale, y: this.coverBackdropScale, centerX: '50%', centerY: 0 })
+        .onSizeChange((_old: SizeOptions, size: SizeOptions): void => {
+          this.coverBackdropHeight = Number(size.height)
+          this.updateCoverBackdropTransform()
+        })
+        .clip(true)
       }
       .width('100%')
-      .height('60%')
-      .translate({ y: -this.coverBackdropOffset })
-      .onSizeChange((_old: SizeOptions, size: SizeOptions): void => {
-        this.coverBackdropHeight = Number(size.height)
-        this.updateCoverBackdropOffset()
-      })
+      .height('100%')
+      .position({ x: 0, y: 0 })
+      // Crop the enlarged image at the information pane's edges.
       .clip(true)
       .hitTestBehavior(HitTestMode.None)
     }
@@ -3979,17 +3989,21 @@ export struct MangaDetailPage {
 
   private onInformationScroll(offset: number): void {
     this.detailScrollOffset = offset
-    this.updateCoverBackdropOffset()
+    this.updateCoverBackdropTransform()
     const showTitle = offset > 160
     if (this.chrome.showTitle !== showTitle) this.chrome.showTitle = showTitle
   }
 
-  private updateCoverBackdropOffset(): void {
-    // Beyond its measured lower edge the backdrop is already offscreen.
-    // Preserve the exact offset while visible, including pull-down overscroll.
+  private updateCoverBackdropTransform(): void {
+    // While scrolling into the page the backdrop moves with the list until
+    // it leaves the viewport. Pulling past the top grows it from the top edge.
+    const scrollOffset = Math.max(0, this.detailScrollOffset)
     const offset = this.coverBackdropHeight > 0
-      ? Math.min(this.detailScrollOffset, this.coverBackdropHeight) : this.detailScrollOffset
+      ? Math.min(scrollOffset, this.coverBackdropHeight) : scrollOffset
+    const pullOffset = Math.max(this.detailTopPullOffset, -this.detailScrollOffset, 0)
+    const scale = this.coverBackdropHeight > 0 ? 1 + pullOffset / this.coverBackdropHeight : 1
     if (this.coverBackdropOffset !== offset) this.coverBackdropOffset = offset
+    if (this.coverBackdropScale !== scale) this.coverBackdropScale = scale
   }
 
   private selectedChapterIds(): string[] {
@@ -4092,6 +4106,9 @@ export struct MangaDetailPage {
     // Keep the list mounted when toggling selection. The action bar overlays
     // only the chapter viewport, and the list tail clears its measured height.
     Stack({ alignContent: Alignment.Bottom }) {
+      if (!inChapterPane) {
+        this.CoverBackdrop()
+      }
       this.RefreshableDetail(inChapterPane)
       if (this.chapterPresentation.selectionMode) {
         this.ChapterSelectionActions()
@@ -4103,39 +4120,34 @@ export struct MangaDetailPage {
 
   @Builder
   private InformationList(nativeSpring: boolean) {
-    Stack({ alignContent: Alignment.TopStart }) {
-      this.CoverBackdrop()
-      SecondaryListScaffold({
-        surfaceColor: Color.Transparent,
-        scroller: this.detailScroller,
-        scrollEnabled: this.usesDetailPanes || this.detailScrollEnabled,
-        deferPrefetch: !this.chrome.visible,
-        alwaysEnableEdgeSpring: this.usesDetailPanes || nativeSpring,
-        horizontalPadding: ThemeConstants.SPACE_MD,
-        bottomPadding: this.usesDetailPanes ? ThemeConstants.SPACE_XL : this.chapterListBottomPadding(),
-        listSpace: ThemeConstants.SPACE_LG,
-        onDidScroll: (offset: number) => { this.onInformationScroll(offset) },
-        onVisibleContentChange: (start: VisibleListContentInfo) => {
-          if (!this.usesDetailPanes) this.onChapterViewport(start, false)
-        },
-      }) {
-        // One information row lays out the visible header, actions and text.
-        // The chapter group still creates rows only when they enter the viewport.
-        ListItem() {
-          Column({ space: ThemeConstants.SPACE_LG }) {
-            this.DetailInformationItems()
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Start)
+    SecondaryListScaffold({
+      surfaceColor: Color.Transparent,
+      scroller: this.detailScroller,
+      scrollEnabled: this.usesDetailPanes || this.detailScrollEnabled,
+      deferPrefetch: !this.chrome.visible,
+      alwaysEnableEdgeSpring: this.usesDetailPanes || nativeSpring,
+      horizontalPadding: ThemeConstants.SPACE_MD,
+      bottomPadding: this.usesDetailPanes ? ThemeConstants.SPACE_XL : this.chapterListBottomPadding(),
+      listSpace: ThemeConstants.SPACE_LG,
+      onDidScroll: (offset: number) => { this.onInformationScroll(offset) },
+      onVisibleContentChange: (start: VisibleListContentInfo) => {
+        if (!this.usesDetailPanes) this.onChapterViewport(start, false)
+      },
+    }) {
+      // One information row lays out the visible header, actions and text.
+      // The chapter group still creates rows only when they enter the viewport.
+      ListItem() {
+        Column({ space: ThemeConstants.SPACE_LG }) {
+          this.DetailInformationItems()
         }
-        .clip(false)
-        if (!this.usesDetailPanes && this.detailChaptersReady) {
-          this.DetailChapterItems()
-        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+      }
+      .clip(false)
+      if (!this.usesDetailPanes && this.detailChaptersReady) {
+        this.DetailChapterItems()
       }
     }
-    .width('100%')
-    .height('100%')
   }
 
   @Builder
@@ -4164,6 +4176,10 @@ export struct MangaDetailPage {
         indicatorTop: this.detailSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT / 2,
         onRefresh: async (): Promise<void> => { await this.refreshMangaDetail() },
         onScrollEnableChange: (enabled: boolean): void => { this.detailScrollEnabled = enabled },
+        onTopPullOffsetChange: chapterPane ? undefined : (offset: number): void => {
+          this.detailTopPullOffset = offset
+          this.updateCoverBackdropTransform()
+        },
       }) {
         if (chapterPane) {
           this.ChapterPane(false)
@@ -4182,7 +4198,8 @@ export struct MangaDetailPage {
   private DetailLayout() {
     if (this.usesDetailPanes) {
       Row() {
-        Column() {
+        Stack({ alignContent: Alignment.TopStart }) {
+          this.CoverBackdrop()
           this.InformationList(true)
         }
         .width(Math.max(264, Math.min(360, this.detailContentWidth * 0.38,
