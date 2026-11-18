@@ -245,7 +245,7 @@ export class RouterHelper {
   private static recordSourceUse(source: SourceRuntimeRegistryInstalledSourceSummary): void {
     // Only an explicit source route updates recency. Global queries can fan out
     // to many sources, and incognito must leave the existing order untouched.
-    if (!source.enabled || connectIncognitoState().enabled) return
+    if (!source.enabled || connectIncognitoState().isEnabledForSource(source.sourceId)) return
     void appSourceCatalogFilters.recordSourceUse(source.sourceId).catch((): void => {
       DiagnosticLogger.warn('source_catalog', 'recent_source_save_failed', 'phase=preferences')
     })

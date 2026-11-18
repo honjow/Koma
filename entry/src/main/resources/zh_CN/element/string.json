@@ -299,6 +299,7 @@
     { "name": "settings_section_privacy", "value": "隐私" },
     { "name": "settings_row_incognito_title", "value": "无痕模式" },
     { "name": "settings_row_incognito_detail", "value": "暂停记录阅读历史" },
+    { "name": "source_incognito_save_failed", "value": "未能保存书源无痕设置" },
     { "name": "incognito_mode_label", "value": "无痕模式" },
     { "name": "settings_pane_library_title", "value": "书架" },
     { "name": "settings_pane_library_detail", "value": "分类、更新、本地刷新" },

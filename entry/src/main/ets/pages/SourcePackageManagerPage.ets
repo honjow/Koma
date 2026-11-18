@@ -14,6 +14,8 @@ import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceSettingsSheetContent as SourceSettingsForm, sourceSettingsDraft } from '../components/SourceSettingsSheetContent'
 import { sourceHasAuthentication } from '../sourceRuntime/SourceAuthenticationService'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { IncognitoPreferencesStore } from '../model/IncognitoPreferencesStore'
+import { connectIncognitoState, IncognitoState } from '../state/IncognitoState'
 import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
@@ -169,6 +171,7 @@ export struct SourcePackageManagerPage {
   @Local private settingsSourceName: string = ''
   @Local private settingDescriptors: SourceSettingDescriptor[] = []
   @Local private settingDraft: SourceSettingsRecord = {}
+  @Local private incognito: IncognitoState = connectIncognitoState()
   @Local private sourceIndexUrl: string = ''
   private sourceIndexUrlEdited: boolean = false
   @Local private sourceIndexRepositories: SourceIndexRepository[] = []
@@ -2306,10 +2309,29 @@ export struct SourcePackageManagerPage {
     })
   }
 
+  private saveSourceIncognito(sourceId: string, enabled: boolean): void {
+    void new IncognitoPreferencesStore(this.context()).saveSourceEnabled(sourceId, enabled)
+      .catch((_error: Error): void => {
+        this.showToast(t('source_incognito_save_failed'))
+      })
+  }
+
   @Builder
   private SourceDetailsContent(params: SourceDetailsContentParams) {
     Column({ space: ThemeConstants.SPACE_LG }) {
       GroupedListSection({ inModal: true }) {
+        ConciseListRow({
+          title: t('settings_row_incognito_title'),
+          subtitle: t('settings_row_incognito_detail'),
+          leadingIcon: $r('sys.symbol.eye_slash'),
+          showChevron: false,
+          hasSwitch: true,
+          checked: this.incognito.isSourceEnabled(params.source.id),
+          switchAction: (enabled: boolean): void => {
+            this.saveSourceIncognito(params.source.id, enabled)
+          },
+        })
+        ListDivider()
         ConciseListRow({
           title: t('tab_browse'),
           subtitle: params.source.enabled ? '' : t('source_pkg_disabled'),

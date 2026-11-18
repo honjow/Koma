@@ -688,7 +688,8 @@ struct Index {
   @Monitor('readerRouteVisible', 'readerOpen', 'readerSessionLoading', 'appForegroundState.active')
   private syncReadingSessionActivity(): void {
     const active = this.readerSessionPersistenceReady && this.readerOpen && this.readerRouteVisible &&
-      !this.readerSessionLoading && this.appForegroundState.active
+      !this.readerSessionLoading && this.appForegroundState.active &&
+      !this.incognito.isSourceEnabled(this.readerSessionConfig.sourceRuntimeId)
     this.readingStatisticsRecorder.setActive(active)
     if (!active && this.readerSessionPersistenceReady) this.readerSessionStore.flush()
   }
@@ -1369,8 +1370,7 @@ struct Index {
     this.readerOpenIntent = 'resume'
     // Persist only stable identity/title/cover/current-chapter metadata. Page
     // descriptors intentionally stay in the route-local Reader config.
-    this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(preparedRequest))
-    this.readerSessionStore.flush()
+    this.saveSourceReaderHistory(preparedRequest)
     this.readerSessionLoading = false
   }
 
@@ -1569,8 +1569,15 @@ struct Index {
     if (sourceRequest.chapterId === committedRequest.chapterId &&
       this.readerSessionStore.getSourceHistory(target.work)?.chapterId === target.unit) return
     this.activeSourceReaderRequest = committedRequest
-    if (!this.incognito.enabled) appDeviceSync.beginReadingChapter(committedRequest)
-    this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(committedRequest))
+    if (!this.incognito.isEnabledForSource(committedRequest.sourceId)) appDeviceSync.beginReadingChapter(committedRequest)
+    this.saveSourceReaderHistory(committedRequest)
+  }
+
+  private saveSourceReaderHistory(request: SourceReaderSessionRequest): void {
+    // A private source doesn't publish activity even into the global incognito
+    // history overlay. Existing recorded history remains available for resume.
+    if (this.incognito.isSourceEnabled(request.sourceId)) return
+    this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(request))
     this.readerSessionStore.flush()
   }
 
@@ -1590,6 +1597,7 @@ struct Index {
 
   private beginShelfReadingSync(comic: Comic | undefined, chapter: string): void {
     if (comic?.sourceRuntimeId === undefined || comic.remoteResourceId === undefined) return
+    if (this.incognito.isSourceEnabled(comic.sourceRuntimeId)) return
     appDeviceSync.beginReadingChapter({ comicId: comic.id, sourceId: comic.sourceRuntimeId,
       mangaId: comic.remoteResourceId, mangaUrl: comic.sourcePath, sourceName: comic.sourceMetadata?.sourceName,
       title: comic.title, chapterId: chapter, chapterIds: [chapter],
@@ -1620,6 +1628,7 @@ struct Index {
     }
     const snapshot: Comic = {
       id: comicId, title, sortTitle: title, sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
+      sourceRuntimeId: comic?.sourceRuntimeId ?? manifest.sourceId,
       sourcePath: '', preferredDirection: comic?.preferredDirection ?? ReadingDirection.RIGHT_TO_LEFT,
       chapters: [chapter], chapterCount: 1, pageCount: manifest.pageCount,
       createdAt: manifest.updatedAt, updatedAt: manifest.updatedAt, lastImportedAt: manifest.updatedAt,
@@ -1643,7 +1652,7 @@ struct Index {
     let comic = this.readerComicForOpen(comicId)
     let targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
     if (chapterId === undefined && comic !== undefined && comic.sourceRuntimeId !== undefined &&
-      comic.remoteResourceId !== undefined && !this.incognito.enabled) {
+      comic.remoteResourceId !== undefined && !this.incognito.isEnabledForSource(comic.sourceRuntimeId)) {
       const syncChapter = targetChapterId ?? comic.chapters[0]?.id
       if (syncChapter !== undefined) {
         const syncRequest: SourceReaderSessionRequest = { comicId: comic.id, sourceId: comic.sourceRuntimeId,
@@ -1726,7 +1735,9 @@ struct Index {
       this.appPathStack.pop(true)
     }
     if (shouldPresentReader) {
-      if (this.readerSessionPersistenceReady) this.readerTrackerCoordinator().beginReading()
+      if (this.readerSessionPersistenceReady && !this.incognito.isSourceEnabled(comic?.sourceRuntimeId)) {
+        this.readerTrackerCoordinator().beginReading()
+      }
       this.readerClosing = false
       this.readerRouteVisible = false
       this.readerOpen = true
@@ -1759,7 +1770,8 @@ struct Index {
       if (!await this.openMihonImportedWork(nextRequest.comicId)) this.showToast(AppStrings.get('mihon_import_resume_failed'))
       return
     }
-    if (appDeviceSync.openReading(nextRequest) === 'missing') {
+    const sourceIncognito = this.incognito.isSourceEnabled(nextRequest.sourceId)
+    if (appDeviceSync.openReading(nextRequest, !sourceIncognito) === 'missing') {
       const name = nextRequest.sourceName || nextRequest.sourceId
       this.getUIContext().showAlertDialog({
         title: AppStrings.get('device_sync_missing_source').replace('%s', name),
@@ -1793,7 +1805,7 @@ struct Index {
       this.appPathStack.pop(true)
     }
     if (shouldPresentReader) {
-      if (this.readerSessionPersistenceReady) this.readerTrackerCoordinator().beginReading()
+      if (this.readerSessionPersistenceReady && !sourceIncognito) this.readerTrackerCoordinator().beginReading()
       this.readerClosing = false
       this.readerRouteVisible = false
       this.readerOpen = true
@@ -1808,6 +1820,10 @@ struct Index {
       return
     }
     this.closeHistoryResumeLoading()
+    if (this.incognito.isSourceEnabled(request.sourceId)) {
+      await this.openSourceReader(request)
+      return
+    }
     const generation = ++this.sourceReaderOpenRequest
     const isCurrent = (): boolean => generation === this.sourceReaderOpenRequest &&
       this.selectedTab === TabIndex.HISTORY && this.rootNavigation.visible && this.appForegroundState.active
@@ -2168,9 +2184,12 @@ struct Index {
     // to the shelf, including future Reader close implementations.
     this.readingStatisticsRecorder.close()
     const committed = this.readerSessionPersistenceReady && this.readerSessionStore.flush()
-    appDeviceSync.retainBlockedReading()
-    if (committed) appDeviceSync.readerClosed()
-    this.cleanupProgressCommitted = committed
+    const sourceIncognito = this.incognito.isSourceEnabled(this.readerSessionConfig.sourceRuntimeId)
+    if (!sourceIncognito) {
+      appDeviceSync.retainBlockedReading()
+      if (committed) appDeviceSync.readerClosed()
+    }
+    this.cleanupProgressCommitted = committed && !sourceIncognito
     this.readerTrackerProgress?.close(committed)
     this.readingPresentationPending = true
     this.publishDeferredReaderBackgroundPresentation()
@@ -2286,7 +2305,8 @@ struct Index {
 
   private observeReadingPages(comicId: string, chapterId: string, pages: number[]): void {
     if (!this.readerSessionPersistenceReady || comicId !== this.readerSessionConfig.comicId ||
-      chapterId !== this.readerSessionConfig.chapterId) return
+      chapterId !== this.readerSessionConfig.chapterId ||
+      this.incognito.isSourceEnabled(this.readerSessionConfig.sourceRuntimeId)) return
     this.syncReadingSessionActivity()
     this.readingStatisticsRecorder.observePages(comicId, chapterId, pages)
   }
@@ -2300,7 +2320,9 @@ struct Index {
     // Catalog consumers still receive detached configs with their full arrays.
     const config = current.comicId === anchor.unit.work && current.chapterId === anchor.unit.unit && current.totalPages > 0
       ? current : this.readerLabInitialConfig(anchor.unit.work, anchor.unit.unit)
-    if (config === null) return
+    // The reader still advances its live page index, so paging and crossing
+    // chapters work while the last recorded position and history stay intact.
+    if (config === null || this.incognito.isSourceEnabled(config.sourceRuntimeId)) return
     if (config.chapterId !== anchor.unit.unit || config.totalPages !== position.pageCount ||
       anchor.sourceIndexHint < 0 || anchor.sourceIndexHint >= config.totalPages) return
     const index = anchor.sourceIndexHint

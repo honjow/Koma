@@ -123,7 +123,8 @@
       "releases"
     ],
     "model/IncognitoPreferencesStore.ets": [
-      "incognito.enabled"
+      "incognito.enabled",
+      "incognito.sourceIds"
     ],
     "model/LibraryUpdatePreferencesStore.ets": [
       "libraryUpdate.lastCheckedAt",

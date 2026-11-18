@@ -635,12 +635,12 @@ class DeviceSyncRuntime {
       lastComplete: previous?.chapterId === request.chapterId && previous.completed }
   }
 
-  openReading(request: SourceReaderSessionRequest): 'ready' | 'missing' {
+  openReading(request: SourceReaderSessionRequest, recordProgress: boolean = true): 'ready' | 'missing' {
     this.retainBlockedReading()
     this.session = undefined
     if (this.owners?.receivedReading(request.comicId, request.chapterId) === true &&
       getInstalledSourcePackage(request.sourceId)?.enabled !== true) return 'missing'
-    this.beginReadingChapter(request)
+    if (recordProgress) this.beginReadingChapter(request)
     return 'ready'
   }
 

@@ -301,6 +301,7 @@
     { "name": "settings_section_privacy", "value": "Privacy" },
     { "name": "settings_row_incognito_title", "value": "Incognito mode" },
     { "name": "settings_row_incognito_detail", "value": "Pause reading history" },
+    { "name": "source_incognito_save_failed", "value": "Could not save incognito mode" },
     { "name": "incognito_mode_label", "value": "Incognito" },
     { "name": "settings_pane_library_title", "value": "Library" },
     { "name": "settings_pane_library_detail", "value": "Categories, updates, local refresh" },

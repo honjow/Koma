@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-18T12:05:14+08:00",
+  "updatedAt": "2026-11-19T00:26:02+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -85,6 +85,29 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "SOURCE_INCOGNITO",
+      "number": 322,
+      "title": "按书源开启无痕模式",
+      "kind": "done",
+      "priority": "用户需求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-19",
+      "reportedAtSource": "本会话用户要求参考 Mihon，并明确开关放在书源详情第一组，原始时刻未核实。",
+      "registeredAt": "2026-11-19T00:17:12+08:00",
+      "updatedAt": "2026-11-19T00:26:02+08:00",
+      "status": "197 已验证浏览与历史续读",
+      "result": "书源详情第一组首行提供无痕开关，按书源保存在本机。197 打开 Komiic 后从浏览读《一拳超人》，从第 1 页翻到第 2 页，历史未新增。从已有历史续读《入間同學入魔了》，从第 4 页翻到第 5 页，退出仍保留第 4 页。阅读记录、统计及最近使用书源的本地文件前后一致。冷启动后开关仍开启，测试结束恢复原开关与电源状态并释租，保留候选包。",
+      "remaining": "本轮真机验证覆盖浏览、历史续读和重启。书架、离线下载、外部追踪及 WebDAV 上传未单独实测。",
+      "relatedItems": [
+        "BROWSE_RECENT_SOURCES"
+      ],
+      "evidence": [
+        ".hvigor/outputs/source-incognito/build.log",
+        ".hvigor/outputs/source-incognito/197-result.json"
+      ]
+    },
     {
       "id": "MIHON_BACKUP_CATEGORY_MEMBERSHIP",
       "number": 321,
@@ -11777,6 +11800,24 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-incognito-197-verified-20261119002602",
+      "at": "2026-11-19T00:26:02+08:00",
+      "itemId": "SOURCE_INCOGNITO",
+      "title": "#322 书源无痕在 197 验证",
+      "detail": "1.5.4（23）签名调试包。实测书源第一组、浏览翻页无新增历史、已有原页续读无覆盖，阅读与最近使用文件一致。冷启动读回后恢复开关和电源并释租。",
+      "kind": "verified",
+      "evidence": ".hvigor/outputs/source-incognito/197-result.json"
+    },
+    {
+      "id": "source-incognito-build-20261119001712",
+      "at": "2026-11-19T00:17:12+08:00",
+      "itemId": "SOURCE_INCOGNITO",
+      "title": "书源无痕候选已构建",
+      "detail": "按 Mihon v0.21.3 源码核对写入边界，按 Koma 书源 ID 存储。签名调试包构建通过，设备偏好与备份归类核对通过。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/source-incognito/build.log"
+    },
     {
       "id": "release-154-321-20261118",
       "at": "2026-11-18T12:05:14+08:00",
