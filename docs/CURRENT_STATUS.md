@@ -1473,15 +1473,21 @@
       "reportedDate": "2026-11-10",
       "reportedAtSource": "用户反馈漫画下载每完成一章都会提示，系统已设置静默通知仍会响铃。",
       "registeredAt": "2026-11-10T16:52:00+08:00",
-      "updatedAt": "2026-11-18T05:08:29+08:00",
-      "status": "237 已核对系统进度静音与单条队列汇总，修复在调试包",
-      "result": "原 1.4.3 修复只覆盖普通结果通知。系统后台传输另有进度卡，LIVE_VIEW 不读取 notificationFlags，章节写完也无需用 100% 触发系统完成状态。现保留进度更新至 99%，任务结束后收起卡片，队列汇总沿用下载通知设置。237 安装 f423b0e27977 签名调试包，从作品详情开始下载并退回桌面，通知中心可见后台实况窗。93/93 页完成，系统记录最后一次进度为 99% 且进度卡 isSoundEnable=false，随后只出现一条「完成 1 章 · 失败 0 章」汇总；另一个实际失败场景也只出现一条失败汇总。",
-      "remaining": "237 当前系统配置也将结果汇总标记为静音。尚未核对系统允许汇总响铃时的扬声器输出。",
+      "updatedAt": "2026-11-18T09:48:00+08:00",
+      "status": "237 已验证系统通知入口、静音进度卡收起及单条完成汇总",
+      "result": "原 1.4.3 修复只覆盖普通结果通知。系统后台传输另有进度卡，LIVE_VIEW 不读取 notificationFlags。现在进度卡最多更新到 99%，传输结束就收起。237 用 f423b0e27977 确认进度卡静音，成功和失败队列各发一条汇总。调试包 6760e11fc2ca 移除了应用内提醒方式，完成汇总固定走「服务提醒」，铃声和振动交给系统。237 从设置搜索进入下载页，确认「下载完成通知」开关和「系统通知设置」入口，进入 Koma 的系统通知面板后返回原页。从作品详情发起后台下载，93/93 页完成，进度卡最后更新到 99% 后收起；通知栏只出现一条「服务提醒」汇总，点击进入下载管理。",
+      "remaining": "237 原系统通知已允许，铃声为「无铃声」，振动关闭。最新实测汇总的声音和振动均关闭。系统允许响铃或振动时的实际提醒未验。",
       "evidence": [
         ".hvigor/outputs/device-sync-independent/notification-services-qa/download-notification-log3/run-metadata.json",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/navigate-20261110T165029604037/screen.png",
         ".hvigor/outputs/grid-width-silent-download/device237__VDE-AL00/unfolded/portrait-1320x2120/grid-and-download/050747-1127000-alternate-background-progress/alternate-progress.json",
-        ".hvigor/outputs/grid-width-silent-download/device237__VDE-AL00/unfolded/portrait-1320x2120/grid-and-download/050831-4601000-download-completion/run-metadata.json"
+        ".hvigor/outputs/grid-width-silent-download/device237__VDE-AL00/unfolded/portrait-1320x2120/grid-and-download/050831-4601000-download-completion/run-metadata.json",
+        ".hvigor/outputs/download-summary-alert/build.log",
+        ".hvigor/outputs/download-summary-alert/device237__VDE-AL00/unfolded/portrait-1320x2120/summary-audio/092021-4637000-actual-sound_vibrate/run-metadata.json",
+        ".hvigor/outputs/download-summary-alert/device237__VDE-AL00/unfolded/portrait-1320x2120/summary-audio/093611-2967000-system-scroll-koma/system-screen.json",
+        ".hvigor/outputs/download-system-notification/build.log",
+        ".hvigor/outputs/download-summary-alert/device237__VDE-AL00/unfolded/portrait-1320x2120/summary-audio/094500-0291000-verify-system-notification-entry/system-notification-sheet.json",
+        ".hvigor/outputs/download-summary-alert/device237__VDE-AL00/unfolded/portrait-1320x2120/summary-audio/094744-4228000-actual-system-managed/run-metadata.json"
       ],
       "progressPhase": "verification"
     },

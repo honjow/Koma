@@ -179,7 +179,7 @@ walk(layout)
 joined = '\n'.join(texts)
 if 'Send test notification' in joined or '发送测试通知' in joined:
     raise SystemExit('download notification UI smoke failed: test notification row is visible')
-if 'Download notifications' not in joined and '下载完成通知' not in joined:
+if 'Download completion notifications' not in joined and '下载完成通知' not in joined:
     raise SystemExit('download notification UI smoke failed: notification permission row is missing')
 PY
 

@@ -74,7 +74,7 @@ export async function cancelOfflineDownloadSummary(): Promise<void> {
   }
 }
 
-/** After a user has declined the system prompt, the platform requires its settings sheet. */
+/** Open the system sheet for notification permission, ringtone and vibration. */
 export async function openOfflineDownloadSystemSettings(context: common.UIAbilityContext): Promise<OfflineDownloadNotificationStatus> {
   try { await notificationManager.openNotificationSettings(context) }
   catch (error) {
@@ -89,21 +89,25 @@ export async function publishOfflineDownloadSummary(context: common.UIAbilityCon
   completed: number, failed: number): Promise<OfflineDownloadNotificationDispatchResult> {
   if (completed === 0 && failed === 0) return { delivered: false, code: 'not_needed' }
   try {
-    const settings = await loadDownloadNotificationPreferences(context)
-    if (!settings.enabled || !await notificationManager.isNotificationEnabled()) {
+    if (!(await loadDownloadNotificationPreferences(context)).enabled || !await notificationManager.isNotificationEnabled()) {
+      return { delivered: false, code: 'disabled' }
+    }
+    const summaryWantAgent = await createOfflineDownloadWantAgent()
+    // Respect an app switch changed while preparing the notification.
+    if (!(await loadDownloadNotificationPreferences(context)).enabled) {
       return { delivered: false, code: 'disabled' }
     }
     const request: notificationManager.NotificationRequest = {
       id: 4101,
       label: 'koma.downloads',
-      notificationSlotType: notificationManager.SlotType.CONTENT_INFORMATION,
-      // Flags only suppress alerts; channel and system notification settings remain authoritative.
+      // Keep completion in one channel. The system owns sound and vibration.
+      notificationSlotType: notificationManager.SlotType.SERVICE_INFORMATION,
       notificationFlags: {
-        soundEnabled: settings.sound === 'silent' || settings.sound === 'vibrate' ? NOTIFICATION_FLAG_CLOSE : 0,
-        vibrationEnabled: settings.sound === 'silent' || settings.sound === 'sound' ? NOTIFICATION_FLAG_CLOSE : 0,
+        bannerEnabled: NOTIFICATION_FLAG_CLOSE,
+        lockScreenEnabled: NOTIFICATION_FLAG_CLOSE,
       },
       isAlertOnce: false,
-      wantAgent: await createOfflineDownloadWantAgent(),
+      wantAgent: summaryWantAgent,
       tapDismissed: true,
       content: {
         notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
@@ -113,8 +117,6 @@ export async function publishOfflineDownloadSummary(context: common.UIAbilityCon
         },
       },
     }
-    // A user can turn notifications off while the queue finishes or WantAgent is prepared.
-    if (!(await loadDownloadNotificationPreferences(context)).enabled) return { delivered: false, code: 'disabled' }
     await notificationManager.publish(request)
     return { delivered: true, code: 'delivered' }
   } catch (error) {

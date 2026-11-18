@@ -145,7 +145,12 @@ function checkInventory(portable) {
     for (const store of stores) {
       assert(portable[store] && !coveredStores.has(store), `Invalid portable Preferences store: ${store}`)
       coveredStores.add(store)
-      classify(owner, portable[store], 'applicationSettings')
+      // Retired preferences may still round-trip through backups without an app settings owner.
+      const legacy = policy.legacyApplicationSettings[store] ?? []
+      for (const key of legacy) {
+        assert(portable[store].includes(key), `Unknown legacy backup key: ${store} → ${key}`)
+      }
+      classify(owner, portable[store].filter(key => !legacy.includes(key)), 'applicationSettings')
     }
   }
   assert.deepEqual([...coveredStores].sort(), Object.keys(portable).sort(), 'Classify the owner of every portable store')

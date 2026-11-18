@@ -33,6 +33,7 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
   'koma_chapter_list_preferences_v1': ['chapterList.overrides.v1'],
   'koma_library_automation_v1': ['automation.policy'],
   'koma_app_preferences_v1': ['app.language'],
+  // Keep accepting the alert style in older backups. The system now owns sound and vibration.
   'koma_download_notifications_v1': ['download.notifications.enabled', 'download.notifications.sound'],
   'koma_appearance_preferences_v1': ['appearance.accentColor', 'appearance.autoHideBottomBar', 'navigation.backGuardEnabled'],
   'koma_library_filter_preferences': [

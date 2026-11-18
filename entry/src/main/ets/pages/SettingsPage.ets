@@ -95,8 +95,7 @@ import {
   openOfflineDownloadSystemSettings,
   requestOfflineDownloadNotificationPermission,
 } from '../model/OfflineDownloadNotificationStore'
-import { DownloadNotificationSound, loadDownloadNotificationPreferences, saveDownloadNotificationEnabled,
-  saveDownloadNotificationSound } from '../model/DownloadNotificationPreferences'
+import { loadDownloadNotificationPreferences, saveDownloadNotificationEnabled } from '../model/DownloadNotificationPreferences'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import {
   AppearanceAccentColor,
@@ -322,7 +321,8 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
         { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
         { key: 'download-notifications', titleKey: 'settings_row_download_notifications_title', detailKey: 'settings_row_download_notifications_detail' },
-        { key: 'download-notification-sound', titleKey: 'settings_download_notification_sound', detailKey: 'settings_download_notification_sound' },
+        { key: 'download-system-notification-settings', titleKey: 'settings_download_system_notification_title',
+          detailKey: 'settings_download_system_notification_detail' },
         { key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title', detailKey: 'settings_row_download_concurrency_detail' },
         { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail' },
         { key: 'tracker-auto-sync', titleKey: 'settings_row_tracker_auto_sync_title', detailKey: 'settings_row_tracker_auto_sync_detail' },
@@ -622,7 +622,6 @@ export struct SettingsPage {
   @Local private downloadWifiOnly: boolean = false
   @Local private downloadNotificationStatus: OfflineDownloadNotificationStatus = 'unavailable'
   @Local private downloadNotificationsEnabled: boolean = true
-  @Local private downloadNotificationSound: DownloadNotificationSound = 'silent'
   private downloadNotificationRefreshEpoch: number = 0
   private libraryFilterMutationRevision: number = 0
   private libraryFilterLoadEpoch: number = 0
@@ -800,9 +799,6 @@ export struct SettingsPage {
     if (row.key === 'download-wifi-only') {
       return this.downloadWifiOnly ? this.t('common_on') : this.t('common_off')
     }
-    if (row.key === 'download-notification-sound') {
-      return s('download_notification_sound_' + this.downloadNotificationSound)
-    }
     if (row.key === 'version') {
       return this.versionDetail.length > 0
         ? this.versionDetail
@@ -954,7 +950,7 @@ export struct SettingsPage {
           titleKey: 'settings_section_downloads',
           rows: this.rowsByKeys([
             'download-notifications',
-            'download-notification-sound',
+            'download-system-notification-settings',
             'download-concurrency',
             'download-wifi-only',
           ]),
@@ -1314,7 +1310,6 @@ export struct SettingsPage {
   private loadDownloadNotificationStatus(): void {
     void loadDownloadNotificationPreferences(this.context()).then((value): void => {
       this.downloadNotificationsEnabled = value.enabled
-      this.downloadNotificationSound = value.sound
     }).catch((error: Error): void => { DiagnosticLogger.exception('downloads', 'notification_preferences_load_failed', error) })
     void getOfflineDownloadNotificationStatus()
       .then((status: OfflineDownloadNotificationStatus) => {
@@ -1987,15 +1982,6 @@ export struct SettingsPage {
     })
   }
 
-  private setDownloadNotificationSound(sound: DownloadNotificationSound): void {
-    void saveDownloadNotificationSound(this.context(), sound).then((): void => {
-      this.downloadNotificationSound = sound
-    }).catch((error: Error): void => {
-      DiagnosticLogger.exception('downloads', 'notification_sound_save_failed', error)
-      this.showToast(s('settings_download_notification_failed'))
-    })
-  }
-
   private openDownloadSystemNotificationSettings(): void {
     const epoch = ++this.downloadNotificationRefreshEpoch
     void openOfflineDownloadSystemSettings(this.context()).then((status: OfflineDownloadNotificationStatus): void => {
@@ -2288,7 +2274,6 @@ export struct SettingsPage {
       row.key === 'reader-page-gap' ||
       row.key === 'reader-wide-image-mode' ||
       row.key === 'download-concurrency' ||
-      row.key === 'download-notification-sound' ||
       row.key === 'cache-limit' ||
       row.key === 'library-view-mode' ||
       row.key === 'list-density' ||
@@ -2519,11 +2504,6 @@ export struct SettingsPage {
         this.SelectionMenuItem(select, s('reader_wide_mode_keep_single'), this.readerWideImageMode === 'keep_single', () => { this.saveReaderWideImageMode('keep_single') })
         this.SelectionMenuItem(select, s('reader_wide_mode_split'), this.readerWideImageMode === 'split_wide_pages', () => { this.saveReaderWideImageMode('split_wide_pages') })
         this.SelectionMenuItem(select, s('reader_wide_mode_rotate'), this.readerWideImageMode === 'rotate_wide_pages', () => { this.saveReaderWideImageMode('rotate_wide_pages') })
-      } else if (row.key === 'download-notification-sound') {
-        this.SelectionMenuItem(select, s('download_notification_sound_silent'), this.downloadNotificationSound === 'silent', () => { this.setDownloadNotificationSound('silent') })
-        this.SelectionMenuItem(select, s('download_notification_sound_sound'), this.downloadNotificationSound === 'sound', () => { this.setDownloadNotificationSound('sound') })
-        this.SelectionMenuItem(select, s('download_notification_sound_vibrate'), this.downloadNotificationSound === 'vibrate', () => { this.setDownloadNotificationSound('vibrate') })
-        this.SelectionMenuItem(select, s('download_notification_sound_sound_vibrate'), this.downloadNotificationSound === 'sound_vibrate', () => { this.setDownloadNotificationSound('sound_vibrate') })
       } else if (row.key === 'download-concurrency') {
         ForEach(OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS, (limit: number) => {
           this.SelectionMenuItem(select, `${limit}`, this.downloadForegroundConcurrencyLimit === limit, () => {
@@ -2575,6 +2555,8 @@ export struct SettingsPage {
   private handleRowClick(row: SettingsRow): void {
     if (row.key === 'grid-column-width') {
       this.onOpenSettingsPane('grid-column-width')
+    } else if (row.key === 'download-system-notification-settings') {
+      this.openDownloadSystemNotificationSettings()
     } else if (row.key === 'komga') {
       this.onOpenKomgaSettings()
     } else if (row.key === 'kavita') {
@@ -2623,7 +2605,7 @@ export struct SettingsPage {
 
   @Builder
   private SectionRow(row: SettingsRow) {
-    if (row.key === 'grid-column-width') {
+    if (row.key === 'grid-column-width' || row.key === 'download-system-notification-settings') {
       ConciseListRow({ title: this.rowTitle(row), subtitle: this.rowBaseDetail(row), subtitleMaxLines: 2,
         showChevron: true, action: () => { this.handleRowClick(row) } })
     } else if (row.key === 'translation-cache') {
@@ -2649,10 +2631,6 @@ export struct SettingsPage {
         showChevron: false,
         hasSwitch: true,
         checked: this.switchRowValue(row),
-        action: () => {
-          if (row.key === 'download-notifications' && this.downloadNotificationsEnabled)
-            this.openDownloadSystemNotificationSettings()
-        },
         isEnabled: (row.key !== 'reader-volume-key-behavior' || this.readerVolumeKeyNavigationEnabled) &&
           (row.key !== 'library-background-update' || this.libraryUpdatePreferences.autoCheckEnabled),
         switchAction: (isOn: boolean) => {

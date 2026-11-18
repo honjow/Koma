@@ -1,4 +1,7 @@
 {
+  "legacyApplicationSettings": {
+    "koma_download_notifications_v1": ["download.notifications.sound"]
+  },
   "applicationSettings": {
     "i18n/LanguageSettings.ets": [
       "koma_app_preferences_v1"

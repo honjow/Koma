@@ -16,10 +16,10 @@ function loadModel(name, requireDependency) {
 }
 
 const requests = []
-let settings = { enabled: true, sound: 'silent' }
+let settings = { enabled: true }
 let systemEnabled = true
 const notificationManager = {
-  SlotType: { CONTENT_INFORMATION: 3 },
+  SlotType: { SERVICE_INFORMATION: 2 },
   ContentType: { NOTIFICATION_CONTENT_BASIC_TEXT: 1 },
   isNotificationEnabled: async () => systemEnabled,
   publish: async (request) => { requests.push(request) },
@@ -42,26 +42,23 @@ const exported = loadModel('OfflineDownloadNotificationStore', name => {
   throw new Error('Unexpected dependency: ' + name)
 })
 
-test('queue summary respects the app switch, system permission and selected alerts', async () => {
+test('queue summary respects the app switch and lets the system handle sound and vibration', async () => {
   requests.length = 0
   const context = { filesDir: '/app' }
   assert.equal((await exported.publishOfflineDownloadSummary(context, 0, 0)).code, 'not_needed')
-  settings = { enabled: false, sound: 'silent' }
+  settings = { enabled: false }
   assert.equal((await exported.publishOfflineDownloadSummary(context, 3, 0)).code, 'disabled')
   settings.enabled = true; systemEnabled = false
   assert.equal((await exported.publishOfflineDownloadSummary(context, 3, 0)).code, 'disabled')
   assert.equal(requests.length, 0)
   systemEnabled = true
-  for (const [sound, flags] of [
-    ['silent', [2, 2]], ['sound', [0, 2]], ['vibrate', [2, 0]], ['sound_vibrate', [0, 0]],
-  ]) {
-    settings.sound = sound
-    assert.equal((await exported.publishOfflineDownloadSummary(context, 3, 1)).code, 'delivered')
-    const request = requests.at(-1)
-    assert.equal(request.id, 4101)
-    assert.deepEqual([request.notificationFlags.soundEnabled, request.notificationFlags.vibrationEnabled], flags)
-    assert.equal(request.content.normal.text, 'download_notification_summary:3,1')
-  }
+  assert.equal((await exported.publishOfflineDownloadSummary(context, 3, 1)).code, 'delivered')
+  assert.equal(requests.length, 1)
+  const [request] = requests
+  assert.equal(request.id, 4101)
+  assert.equal(request.notificationSlotType, notificationManager.SlotType.SERVICE_INFORMATION)
+  assert.deepEqual(request.notificationFlags, { bannerEnabled: 2, lockScreenEnabled: 2 })
+  assert.equal(request.content.normal.text, 'download_notification_summary:3,1')
 })
 
 test('disabled summary can be removed and system permission recovery returns the new state', async () => {
