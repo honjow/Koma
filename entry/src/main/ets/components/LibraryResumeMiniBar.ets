@@ -5,7 +5,9 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { CachedCoverImage } from './CachedCoverImage'
 import { KomaIconButton } from './ui/KomaIconButton'
 
-const COVER_SIZE = 42
+const COVER_SIZE = 44
+// Match the space above and below the cover in the native MiniBar.
+const EXPANDED_COVER_LEFT_INSET = 6
 
 @ComponentV2
 export struct LibraryResumeMiniBar {
@@ -62,9 +64,10 @@ export struct LibraryResumeMiniBar {
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
+        // Let the native MiniBar provide the surface and keep the button's press feedback.
         KomaIconButton({
-          icon: $r('sys.symbol.arrow_right'),
-          kind: 'secondary',
+          icon: $r('sys.symbol.flipping_page_fill'),
+          kind: 'ghost',
           controlSize: ThemeConstants.TOUCH_TARGET_SM,
           action: () => { this.onContinueReading(this.info.comicId) },
         })
@@ -74,7 +77,7 @@ export struct LibraryResumeMiniBar {
     }
     .width('100%')
     .height('100%')
-    .padding(this.expanded ? { left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM } : 0)
+    .padding(this.expanded ? { left: EXPANDED_COVER_LEFT_INSET, right: ThemeConstants.SPACE_SM } : 0)
     .justifyContent(this.expanded ? FlexAlign.Start : FlexAlign.Center)
     .id('library-resume-minibar')
   }
