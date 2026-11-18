@@ -54,12 +54,14 @@ import {
   HdsNavDestination,
   HdsNavigation,
   HdsAnimationMode,
+  HdsBarStyle,
   HdsNavigationMenuItemOptions,
   HdsNavDestinationTitleMode,
   HdsNavigationTitleMode,
   HdsTabs,
   HdsTabsController,
   HdsTabsFloatingStyle,
+  HdsTabsMiniBar,
   HideMode,
   BottomBuilderShowType,
   ScrollEffectType,
@@ -75,6 +77,7 @@ import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from '../model/Rem
 import { SearchPage } from './SearchPage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../components/SearchTitleField'
 import { SettingsPage, SettingsPaneKey, settingsPaneTitle, usesWideSettingsHome } from './SettingsPage'
+import { LibraryResumeMiniBar } from '../components/LibraryResumeMiniBar'
 import { KomaModalContent, KomaModalScaffold, komaModalCloseAction, komaModalTitleBarOptions } from '../components/KomaModalScaffold'
 import { FormTitleActionState } from '../state/FormTitleActionState'
 import { MODEL_SOURCE_ADD_BUTTON_ID, ModelSourcesTitleAction } from '../components/KomaTranslationSourcesContent'
@@ -138,6 +141,8 @@ import { KomaTabIcon } from '../components/KomaTabIcon'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   LibraryPresentationByComicId,
+  ContinueReadingCardViewModel,
+  createLibraryContinueReadingCard,
   MOCK_LIBRARY_READER_SESSION,
   createMockLibraryPresentationMap,
   createSeededLibraryStore,
@@ -613,6 +618,7 @@ struct Index {
   }
 
   private tabController: HdsTabsController = new HdsTabsController()
+  @Local private resumeMiniBarExpanded: boolean = false
   private rootTabScrollers: Scroller[] = [new Scroller(), new Scroller(), new Scroller(), new Scroller()]
   @Local private appearanceState: AppearanceState = connectAppearanceState()
   private bottomBarVisibleByScroll: boolean = true
@@ -750,6 +756,98 @@ struct Index {
     this.libraryPresentationPending = true
     if (!this.isReaderRouteVisible()) this.publishDeferredReaderBackgroundPresentation()
     this.resumeAutomaticDownloadQueue()
+  }
+
+  @Computed
+  private get shelfReadingProgress(): Map<ComicId, ReadingProgress> {
+    void this.libraryRevision
+    void this.readerProgressRevision
+    const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
+    this.libraryStore.listComics(false).forEach((comic: Comic) => {
+      const progress = this.readerSessionStore.getComicProgress(comic)
+      if (progress !== undefined) {
+        progressByComicId.set(comic.id, progress)
+      }
+    })
+    return progressByComicId
+  }
+
+  @Computed
+  private get continueReadingCard(): ContinueReadingCardViewModel {
+    // Both resume entries use the complete shelf, independent of the visible category or filters.
+    void this.libraryRevision
+    void this.readerProgressRevision
+    void this.languageState.effectiveLocale
+    const candidates: Comic[] = []
+    let latest: number | undefined
+    this.shelfReadingProgress.forEach((progress: ReadingProgress, id: ComicId): void => {
+      const comic = this.libraryStore.getComic(id)
+      if (comic === undefined || (latest !== undefined && progress.updatedAt < latest)) return
+      if (latest === undefined || progress.updatedAt > latest) {
+        candidates.length = 0
+        latest = progress.updatedAt
+      }
+      candidates.push(comic)
+    })
+    // Only equal last-read times need the existing shelf title tie-breaker.
+    candidates.sort((left: Comic, right: Comic): number =>
+      left.sortTitle.localeCompare(right.sortTitle) || left.createdAt - right.createdAt)
+    return createLibraryContinueReadingCard(candidates, this.readerSessionStore, this.presentationByComicId)
+  }
+
+  private readerChapterIdForComic(comic: Comic): string | undefined {
+    const progress = this.readerSessionStore.getComicProgress(comic)
+    if (progress !== undefined && comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
+      return progress.chapterId
+    }
+    return firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId),
+      (id: string): boolean => this.readerSessionStore.isChapterRead(comic.id, id))?.id
+  }
+
+  private openLibraryContinueReading(comicId: ComicId): void {
+    const comic = this.libraryStore.getComic(comicId)
+    if (comic === undefined) {
+      this.showToast(AppStrings.get('common_unavailable'))
+      return
+    }
+    const chapterId = this.readerChapterIdForComic(comic)
+    void this.openReader(comicId, chapterId)
+  }
+
+  private canShowResumeMiniBar(): boolean {
+    return this.continueReadingCard.comicId.length > 0 &&
+      (this.selectedTab !== TabIndex.LIBRARY || !this.libraryTitleBar.selectionMode)
+  }
+
+  private resumeMiniBarOptions(): HdsTabsMiniBar | undefined {
+    if (!this.canShowResumeMiniBar()) {
+      return undefined
+    }
+    // Let HdsTabs size the expanded slot for the current window.
+    return {
+      miniBarBuilder: (): void => { this.ResumeMiniBarContent() },
+      onBarStyleChange: (style: HdsBarStyle): void => {
+        this.resumeMiniBarExpanded = style === HdsBarStyle.EXPAND
+      },
+      onMiniBarAnimationEnd: (style: HdsBarStyle): void => {
+        this.resumeMiniBarExpanded = style === HdsBarStyle.EXPAND
+      },
+    }
+  }
+
+  @Builder
+  private ResumeMiniBarContent() {
+    LibraryResumeMiniBar({
+      info: this.continueReadingCard,
+      expanded: this.resumeMiniBarExpanded,
+      onContinueReading: (comicId: ComicId): void => {
+        if (this.resumeMiniBarExpanded && this.canShowResumeMiniBar() &&
+          comicId === this.continueReadingCard.comicId) {
+          this.tabController.applyMiniBarStyle(HdsBarStyle.COLLAPSE)
+          this.openLibraryContinueReading(comicId)
+        }
+      },
+    })
   }
 
   private refreshReadingPresentation(): void {
@@ -4279,14 +4377,16 @@ struct Index {
                 libraryRevision: this.libraryRevision,
                 readerSessionStore: this.readerSessionStore,
                 readerProgressRevision: this.readerProgressRevision,
+                shelfReadingProgress: this.shelfReadingProgress,
+                continueReadingCard: this.continueReadingCard,
                 presentationByComicId: this.presentationByComicId,
                 sourceRegistry: this.sourceRegistry,
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
                 onOpenMangaDetail: (comicId: ComicId) => {
                   this.openLibraryMangaDetail(comicId)
                 },
-                onOpenReader: (comicId: ComicId, chapterId?: string) => {
-                  void this.openReader(comicId, chapterId)
+                onContinueReading: (comicId: ComicId) => {
+                  this.openLibraryContinueReading(comicId)
                 },
                 onProgressStoreReloadRequested: () => {
                   this.reloadReaderSessionStore('bootstrap_sync')
@@ -4451,6 +4551,7 @@ struct Index {
           .barFloatingStyle({
             barBottomMargin: ThemeConstants.SPACE_XL,
             adaptToHandedness: true,
+            miniBar: this.resumeMiniBarOptions(),
             systemMaterialEffect: {
               materialType: hdsMaterial.MaterialType.ADAPTIVE,
               materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,

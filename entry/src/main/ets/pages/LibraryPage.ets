@@ -1,10 +1,8 @@
-import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
 import { LibrarySortMenuItems, librarySortLabel, librarySortSummary } from '../components/LibrarySortMenu'
 import { cachedLibraryChapterUpdateTimes } from '../model/LibraryChapterUpdates'
-import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { FrameCallback } from '@kit.ArkUI'
@@ -32,7 +30,6 @@ import {
   LibraryComicPresentation,
   LibraryPresentationByComicId,
   createLibraryComicCard,
-  createLibraryContinueReadingCard,
 } from '../model/MockLibraryData'
 import {
   Chapter,
@@ -348,6 +345,8 @@ export struct LibraryPage {
   @Param libraryPreferencesRevision: number = 0
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param readerProgressRevision: number = 0
+  @Param shelfReadingProgress: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
+  @Param continueReadingCard: ContinueReadingCardViewModel = { title: '', detail: '', progress: 0, color: '', comicId: '' }
   @Param active: boolean = true
   @Param rootNavigation: RootNavigationState = new RootNavigationState()
   @Local private languageState: LanguageState = connectLanguageState()
@@ -424,7 +423,7 @@ export struct LibraryPage {
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onOpenMangaDetail: (comicId: ComicId) => void = (_comicId: ComicId) => {}
-  @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
+  @Event onContinueReading: (comicId: ComicId) => void = (_comicId: ComicId) => {}
   @Event onProgressStoreReloadRequested: () => void = () => {}
   @Event onRefresh: () => Promise<void> = async () => {}
   @Local private scrollEnabled: boolean = true
@@ -725,20 +724,6 @@ export struct LibraryPage {
       comic.sourceKind === ComicSourceKind.KAVITA_REMOTE ||
       comic.sourceKind === ComicSourceKind.OPDS_REMOTE ||
       comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE
-  }
-
-  @Computed
-  private get shelfReadingProgress(): Map<ComicId, ReadingProgress> {
-    void this.libraryRevision
-    void this.readerProgressRevision
-    const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
-    this.libraryStore.listComics(false).forEach((comic: Comic) => {
-      const progress = this.readerSessionStore.getComicProgress(comic)
-      if (progress !== undefined) {
-        progressByComicId.set(comic.id, progress)
-      }
-    })
-    return progressByComicId
   }
 
   private currentListOptions(category: LibraryCategoryFilter): LibraryListOptions {
@@ -1113,38 +1098,6 @@ export struct LibraryPage {
     return s('library_metadata_status_all')
   }
 
-  @Computed
-  private get continueReadingCard(): ContinueReadingCardViewModel {
-    // This card intentionally considers the complete shelf, not the filtered
-    // projection. Cache that independent scan across header/layout builders.
-    void this.libraryRevision
-    void this.readerProgressRevision
-    void this.languageState.effectiveLocale
-    const candidates: Comic[] = []
-    let latest: number | undefined
-    this.shelfReadingProgress.forEach((progress: ReadingProgress, id: ComicId): void => {
-      const comic = this.libraryStore.getComic(id)
-      if (comic === undefined || (latest !== undefined && progress.updatedAt < latest)) return
-      if (latest === undefined || progress.updatedAt > latest) {
-        candidates.length = 0
-        latest = progress.updatedAt
-      }
-      candidates.push(comic)
-    })
-    // Only equal last-read times need the existing shelf title tie-breaker.
-    candidates.sort((left: Comic, right: Comic): number =>
-      left.sortTitle.localeCompare(right.sortTitle) || left.createdAt - right.createdAt)
-    return createLibraryContinueReadingCard(candidates, this.readerSessionStore, this.presentationByComicId)
-  }
-
-  private continueReading(): ContinueReadingCardViewModel {
-    return this.continueReadingCard
-  }
-
-  private hasContinueReading(): boolean {
-    return this.continueReadingCard.comicId.length > 0
-  }
-
   private listRowSubtitle(comic: ComicCoverInfo): string {
     if (comic.categoryLabels !== undefined && comic.categoryLabels.length > 0) {
       return [comic.subtitle].concat(comic.categoryLabels).filter((label: string): boolean => label !== '').join(' · ')
@@ -1502,25 +1455,6 @@ export struct LibraryPage {
       return
     }
     this.onOpenMangaDetail(comicId)
-  }
-
-  private readerChapterIdForComic(comic: Comic): string | undefined {
-    const progress = this.readerSessionStore.getComicProgress(comic)
-    if (progress !== undefined && comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
-      return progress.chapterId
-    }
-    return firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId),
-      (id: string): boolean => this.readerSessionStore.isChapterRead(comic.id, id))?.id
-  }
-
-  private openComicFromLibrary(comicId: ComicId): void {
-    const comic = this.libraryStore.getComic(comicId)
-    if (comic === undefined) {
-      this.showToast(s('common_unavailable'))
-      return
-    }
-    const chapterId = this.readerChapterIdForComic(comic)
-    this.onOpenReader(comicId, chapterId)
   }
 
   private handleComicTouch(comicId: ComicId, event: TouchEvent): void {
@@ -2265,9 +2199,9 @@ export struct LibraryPage {
   private LibraryContinueReadingCard(compactList: boolean = false) {
     ContinueReadingShelfCard({
       compactList: compactList,
-      info: this.continueReading(),
+      info: this.continueReadingCard,
       onOpenReader: (comicId: ComicId) => {
-        if (!this.selectionMode) this.openComicFromLibrary(comicId)
+        if (!this.selectionMode) this.onContinueReading(comicId)
       },
     })
   }
@@ -2278,7 +2212,7 @@ export struct LibraryPage {
       Blank()
         .height(this.layoutSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT)
         .width('100%')
-      if (this.hasContinueReading()) {
+      if (this.continueReadingCard.comicId.length > 0) {
         this.LibraryContinueReadingCard()
       }
       this.LibraryViewControls()
@@ -2597,7 +2531,7 @@ export struct LibraryPage {
             this.LibraryProjectionLoading()
           }
         } else if (this.hasLibraryContent) {
-          if (this.hasContinueReading()) {
+          if (this.continueReadingCard.comicId.length > 0) {
             ListItem() {
               this.LibraryContinueReadingCard(this.viewMode === 'list')
             }
