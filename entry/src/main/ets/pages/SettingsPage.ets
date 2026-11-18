@@ -162,6 +162,7 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 import { LibraryUpdateState, connectLibraryUpdateState } from '../state/LibraryUpdateState'
 import { mutateLibraryUpdatePreferences, requestLibraryUpdateCheck } from '../model/LibraryUpdateCoordinator'
+import { LibraryGridWidthSettings } from '../components/LibraryGridWidthSettings'
 
 interface SettingsRow {
   key: string
@@ -180,6 +181,7 @@ export type SettingsPaneKey =
   'incognito' |
   'appearance' |
   'library' |
+  'grid-column-width' |
   'reader' |
   'services' |
   'downloads' |
@@ -315,6 +317,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'library-update-results', titleKey: 'settings_row_library_update_results_title', detailKey: 'settings_row_library_update_results_detail' },
         { key: 'library-view-mode', titleKey: 'settings_row_library_view_mode_title', detailKey: 'settings_row_library_view_mode_detail' },
         { key: 'list-density', titleKey: 'settings_row_list_density_title', detailKey: 'settings_row_list_density_detail' },
+        { key: 'grid-column-width', titleKey: 'settings_column_width', detailKey: 'settings_column_width_hint' },
         { key: 'library-badges', titleKey: 'settings_row_library_badges_title', detailKey: 'settings_row_library_badges_detail' },
         { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
         { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
@@ -492,6 +495,7 @@ function safeSettingsErrorCode(error: Error): string {
 }
 
 export function settingsPaneTitle(pane: SettingsPaneKey): string {
+  if (pane === 'grid-column-width') return s('settings_column_width')
   if (pane === 'advanced') return s('settings_pane_advanced_title')
   if (pane === 'translation') return s('comic_translation_settings_title')
   if (pane === 'llm-sources') return s('llm_sources_title')
@@ -886,6 +890,7 @@ export struct SettingsPage {
           rows: this.rowsByKeys([
             'library-view-mode',
             'list-density',
+            'grid-column-width',
             'library-badges',
           ]),
         },
@@ -2568,7 +2573,9 @@ export struct SettingsPage {
   }
 
   private handleRowClick(row: SettingsRow): void {
-    if (row.key === 'komga') {
+    if (row.key === 'grid-column-width') {
+      this.onOpenSettingsPane('grid-column-width')
+    } else if (row.key === 'komga') {
       this.onOpenKomgaSettings()
     } else if (row.key === 'kavita') {
       this.onOpenKavitaSettings()
@@ -2616,7 +2623,10 @@ export struct SettingsPage {
 
   @Builder
   private SectionRow(row: SettingsRow) {
-    if (row.key === 'translation-cache') {
+    if (row.key === 'grid-column-width') {
+      ConciseListRow({ title: this.rowTitle(row), subtitle: this.rowBaseDetail(row), subtitleMaxLines: 2,
+        showChevron: true, action: () => { this.handleRowClick(row) } })
+    } else if (row.key === 'translation-cache') {
       KomaTranslationCacheRow()
     } else if (row.key === 'content-cache') {
       KomaPageCacheRow()
@@ -2706,7 +2716,7 @@ export struct SettingsPage {
     }
     const navigationRows: string[] = ['komga', 'kavita', 'opds', 'webdav', 'sources',
       'library-update-results', 'translation', 'enhancement-models', 'diagnostics',
-      'image-plugins']
+      'image-plugins', 'grid-column-width']
     if (navigationRows.includes(result.row.key)) {
       this.handleRowClick(result.row)
     } else {
@@ -2939,6 +2949,8 @@ export struct SettingsPage {
       this.SearchResults()
     } else if (this.pane === 'diagnostics') {
       DiagnosticsSettingsContent()
+    } else if (this.pane === 'grid-column-width') {
+      LibraryGridWidthSettings()
     } else if (this.pane === 'translation') {
       KomaTranslationSettingsContent({ sheetPresentation: false, onClose: () => { this.onClosePane() },
         titleAction: this.formTitleAction,
@@ -3059,7 +3071,7 @@ export struct SettingsPage {
           scroller: this.scroller,
           onDidScroll: this.onRootScroll,
           listSpace: ThemeConstants.SPACE_LG,
-          horizontalPadding: SETTINGS_LIST_HORIZONTAL_PADDING,
+          horizontalPadding: this.pane === 'grid-column-width' ? 0 : SETTINGS_LIST_HORIZONTAL_PADDING,
           inModal: this.inModal,
           bottomPadding: ThemeConstants.SPACE_XL,
           floatingTabTailPadding: this.pane === 'root' ? ThemeConstants.FLOATING_TAB_BAR_CLEARANCE : 0,

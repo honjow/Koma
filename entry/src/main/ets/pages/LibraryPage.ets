@@ -25,6 +25,8 @@ import { LibraryCategoryChoice, LibraryCategoryPicker, libraryCategoryPickerShee
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { gridFallbackContainerWidth } from '../utils/GridColumns'
 import { libraryCoverGridColumnCount, libraryCoverGridGap } from '../utils/LibraryCoverLayout'
+import { LibraryCoverGridAdjustment } from '../state/LibraryCoverGridAdjustment'
+import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
 import {
   ContinueReadingCardViewModel,
   LibraryComicPresentation,
@@ -377,6 +379,8 @@ export struct LibraryPage {
   @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
   @Local private filterMetadataStatus: LibraryMetadataStatusFilter = 'all'
   @Local private containerWidth: number = gridFallbackContainerWidth()
+  @Local private coverLayout: LibraryCoverLayoutState = connectLibraryCoverLayout()
+  @Local private gridAdjustment: LibraryCoverGridAdjustment = new LibraryCoverGridAdjustment()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Param libraryScroller: Scroller = new Scroller()
   @Event onRootScroll: (offset: number, state: ScrollState) => void = (_offset: number, _state: ScrollState) => {}
@@ -1258,7 +1262,8 @@ export struct LibraryPage {
     const measured = this.libraryViewportWidth() > 0
       ? this.libraryViewportWidth()
       : gridFallbackContainerWidth()
-    return libraryCoverGridColumnCount(measured, this.listDensity)
+    return libraryCoverGridColumnCount(measured, this.listDensity,
+      this.gridAdjustment.width(this.coverLayout.gridColumnWidth))
   }
 
  private libraryGridColumnGap(): number {
@@ -2321,6 +2326,13 @@ export struct LibraryPage {
     .clipContent(ContentClipMode.CONTENT_ONLY)
     .enableScrollInteraction(this.scrollEnabled)
     .edgeEffect(EdgeEffect.None)
+    .gesture(PinchGesture({ fingers: 2 })
+      .onActionStart((): void => {
+        this.gridAdjustment.beginPinch(this.libraryViewportWidth(), this.listDensity, this.coverLayout.gridColumnWidth)
+      })
+      .onActionUpdate((event: GestureEvent): void => { this.gridAdjustment.updatePinch(event.scale, this.getUIContext()) })
+      .onActionEnd((): void => { this.gridAdjustment.endPinch(this.getUIContext()) })
+      .onActionCancel((): void => { this.gridAdjustment.cancelPinch() }))
     .onScrollStart(() => { this.coverGridScrolling = true })
     .onScrollStop(() => { this.coverGridScrolling = false })
     .onDidScroll((_offset: number, state: ScrollState) => {

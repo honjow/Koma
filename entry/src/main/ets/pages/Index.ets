@@ -2786,6 +2786,7 @@ struct Index {
     const pane = (param as Record<string, string>)?.pane
     if (pane === 'appearance' ||
       pane === 'library' ||
+      pane === 'grid-column-width' ||
       pane === 'reader' ||
       pane === 'services' ||
       pane === 'downloads' ||

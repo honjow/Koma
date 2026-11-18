@@ -1,5 +1,6 @@
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { connectLibraryCoverLayout } from '../state/LibraryCoverLayoutState'
+import { clampLibraryGridColumnWidth } from '../utils/LibraryCoverLayout'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import {
@@ -45,6 +46,7 @@ export interface LibraryFilterPreferenceChanges {
   sortDirection?: LibrarySortDirection
   viewMode?: LibraryViewMode
   listDensity?: LibraryListDensity
+  gridColumnWidth?: number
   showBadges?: boolean
   source?: LibrarySourceFilter
   readState?: LibraryReadStateFilter
@@ -71,6 +73,7 @@ const LIBRARY_SORT_DIRECTION_KEY: string = 'library.sortDirection'
 const LIBRARY_SORT_CONFIGURED_KEY: string = 'library.sortConfigured'
 const LIBRARY_VIEW_MODE_KEY: string = 'library.viewMode'
 const LIBRARY_LIST_DENSITY_KEY: string = 'library.listDensity'
+const LIBRARY_GRID_COLUMN_WIDTH_KEY: string = 'library.gridColumnWidth'
 const LIBRARY_SHOW_BADGES_KEY: string = 'library.showBadges'
 const LIBRARY_FILTER_SOURCE_KEY: string = 'library.filter.source'
 const LIBRARY_FILTER_READ_STATE_KEY: string = 'library.filter.readState'
@@ -118,6 +121,10 @@ function normalizeListDensity(value: string): LibraryListDensity {
     return value
   }
   return 'standard'
+}
+
+function normalizeGridColumnWidth(value: number): number {
+  return Number.isFinite(value) && value > 0 ? clampLibraryGridColumnWidth(value) : 0
 }
 
 function normalizeShowBadges(value: boolean): boolean {
@@ -254,7 +261,9 @@ export class LibraryFilterStore {
     const availability = store.getSync(LIBRARY_FILTER_AVAILABILITY_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.availability) as string
     const metadataStatus = store.getSync(LIBRARY_FILTER_METADATA_STATUS_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.metadataStatus) as string
     const density = normalizeListDensity(listDensity)
-    connectLibraryCoverLayout().density = density
+    const layout = connectLibraryCoverLayout()
+    layout.density = density
+    layout.gridColumnWidth = normalizeGridColumnWidth(store.getSync(LIBRARY_GRID_COLUMN_WIDTH_KEY, 0) as number)
     return {
       sortBy,
       sortDirection,
@@ -280,6 +289,7 @@ export class LibraryFilterStore {
     if (changes.sortDirection !== undefined) writes.push({ key: LIBRARY_SORT_DIRECTION_KEY, value: changes.sortDirection })
     if (changes.viewMode !== undefined) writes.push({ key: LIBRARY_VIEW_MODE_KEY, value: normalizeViewMode(changes.viewMode) })
     if (changes.listDensity !== undefined) writes.push({ key: LIBRARY_LIST_DENSITY_KEY, value: normalizeListDensity(changes.listDensity) })
+    if (changes.gridColumnWidth !== undefined) writes.push({ key: LIBRARY_GRID_COLUMN_WIDTH_KEY, value: normalizeGridColumnWidth(changes.gridColumnWidth) })
     if (changes.showBadges !== undefined) writes.push({ key: LIBRARY_SHOW_BADGES_KEY, value: normalizeShowBadges(changes.showBadges) })
     if (changes.source !== undefined) writes.push({ key: LIBRARY_FILTER_SOURCE_KEY, value: normalizeSource(changes.source) })
     if (changes.readState !== undefined) writes.push({ key: LIBRARY_FILTER_READ_STATE_KEY, value: normalizeReadState(changes.readState) })

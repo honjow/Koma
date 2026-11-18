@@ -4,6 +4,7 @@ import { AppStorageV2 } from '@kit.ArkUI'
 @ObservedV2
 export class LibraryCoverLayoutState {
   @Trace density: string = 'standard'
+  @Trace gridColumnWidth: number = 0
 }
 
 export function connectLibraryCoverLayout(): LibraryCoverLayoutState {

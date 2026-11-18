@@ -2,6 +2,7 @@ import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeA
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { PullRefresh } from './PullRefresh'
 import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
+import { LibraryCoverGridAdjustment } from '../state/LibraryCoverGridAdjustment'
 import { libraryCoverGridColumnCount, libraryCoverGridGap } from '../utils/LibraryCoverLayout'
 import { gridFallbackContainerWidth } from '../utils/GridColumns'
 
@@ -24,6 +25,8 @@ export struct SourceMangaGrid {
   @Param fullRowIndexes: number[] = []
   @Param pinnedOverlayHeight: number = 0
   @Param singleColumn: boolean = false
+  @Param useSharedColumnWidth: boolean = false
+  @Param gridAdjustment?: LibraryCoverGridAdjustment = undefined
   @Param withPullRefresh: boolean = false
   @Param paginationItemIndex: number = -1
   private lastVisibleIndex: number = -1
@@ -51,10 +54,15 @@ export struct SourceMangaGrid {
     return { regularSize: [1, 1], irregularIndexes: indexes }
   }
 
+  private viewportWidth(): number {
+    return this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
+  }
+
   private columnsTemplate(): string {
     if (this.singleColumn) return '1fr'
-    const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
-    return `repeat(${libraryCoverGridColumnCount(width, this.coverLayout.density)}, 1fr)`
+    const preferredWidth = this.useSharedColumnWidth ? this.coverLayout.gridColumnWidth : 0
+    const width = this.gridAdjustment?.width(preferredWidth) ?? preferredWidth
+    return `repeat(${libraryCoverGridColumnCount(this.viewportWidth(), this.coverLayout.density, width)}, 1fr)`
   }
 
   @Builder
@@ -91,6 +99,15 @@ export struct SourceMangaGrid {
     .edgeEffect(this.withPullRefresh ? EdgeEffect.None : EdgeEffect.Spring, {
       alwaysEnabled: !this.withPullRefresh,
     })
+    .gesture(PinchGesture({ fingers: 2 })
+      .onActionStart((): void => {
+        if (!this.singleColumn) {
+          this.gridAdjustment?.beginPinch(this.viewportWidth(), this.coverLayout.density, this.coverLayout.gridColumnWidth)
+        }
+      })
+      .onActionUpdate((event: GestureEvent): void => { this.gridAdjustment?.updatePinch(event.scale, this.getUIContext()) })
+      .onActionEnd((): void => { this.gridAdjustment?.endPinch(this.getUIContext()) })
+      .onActionCancel((): void => { this.gridAdjustment?.cancelPinch() }))
     .onScrollIndex((_first: number, last: number) => {
       this.lastVisibleIndex = last
       this.requestNextPageIfVisible()

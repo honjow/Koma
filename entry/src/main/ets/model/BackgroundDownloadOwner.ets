@@ -74,16 +74,16 @@ export class BackgroundDownloadOwner {
     if (task === undefined || total <= 0) return
     if (Date.now() - BackgroundDownloadOwner.lastProgressAt < 500 && completed < total) return
     BackgroundDownloadOwner.lastProgressAt = Date.now()
+    // The system treats 100 as a completion alert and ignores notificationFlags for LIVE_VIEW.
+    // Keep this card in progress until the task closes. Only the queue summary may alert.
+    const progressValue = Math.min(99, Math.floor(completed * 100 / total))
     const request: notificationManager.NotificationRequest = {
       id: task.notificationId,
       notificationSlotType: notificationManager.SlotType.LIVE_VIEW,
-      // Progress updates must not re-alert for every page or chapter.
       isAlertOnce: true,
-      notificationFlags: { soundEnabled: 2, vibrationEnabled: 2, bannerEnabled: 2 },
       content: { notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_SYSTEM_LIVE_VIEW,
         systemLiveView: { typeCode: 8, title: AppStrings.get('downloads_title'), text: title } },
-      template: { name: 'downloadTemplate', data: { title, fileName: title,
-        progressValue: Math.floor(completed * 100 / total) } },
+      template: { name: 'downloadTemplate', data: { title, fileName: title, progressValue } },
     }
     BackgroundDownloadOwner.write = BackgroundDownloadOwner.write.then(async (): Promise<void> => {
       if (BackgroundDownloadOwner.notification !== task) return

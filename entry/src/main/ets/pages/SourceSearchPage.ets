@@ -412,7 +412,7 @@ export struct SourceSearchPage {
       rows.push({ key: kind, kind, bottomPadding: ThemeConstants.SPACE_MD })
     } else {
       const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
-      const columns = libraryCoverGridColumnCount(width, this.coverLayout.density)
+      const columns = libraryCoverGridColumnCount(width, this.coverLayout.density, this.coverLayout.gridColumnWidth)
       const lastRowStart = Math.floor((this.viewModel.searchResults.length - 1) / columns) * columns
       this.viewModel.searchResults.forEach((item: SourceManga, index: number) => {
         rows.push({ key: `manga:${item.sourceId}:${item.id}`, kind: 'manga', manga: item,
@@ -593,6 +593,7 @@ export struct SourceSearchPage {
           }))
         SourceMangaGrid({
           scroller: this.gridScroller,
+          useSharedColumnWidth: true,
           contentItemCount: this.gridProjection.rows.length,
           fullRowIndexes: this.gridProjection.fullRowIndexes,
           pinnedOverlayHeight: SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT,

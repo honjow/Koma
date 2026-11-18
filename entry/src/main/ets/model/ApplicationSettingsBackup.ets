@@ -38,7 +38,7 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
   'koma_library_filter_preferences': [
     'library.sort', 'library.sortDirection', 'library.sortConfigured', 'library.viewMode', 'library.listDensity', 'library.showBadges',
     'library.filter.source', 'library.filter.readState', 'library.filter.category',
-    'library.filter.availability', 'library.filter.metadataStatus',
+    'library.filter.availability', 'library.filter.metadataStatus', 'library.gridColumnWidth',
   ],
   'koma_library_update_preferences_v1': [
     'libraryUpdate.autoCheckEnabled', 'libraryUpdate.intervalHours', 'libraryUpdate.foregroundOnly',
@@ -61,7 +61,9 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
 export const APPLICATION_SETTINGS_BACKUP_STORES: string[] = Object.keys(PORTABLE_FIELDS)
 
 function checkPortableValue(name: string, key: string, value: ApplicationSettingValue): void {
-  if (name === 'koma_download_notifications_v1') {
+  if (name === 'koma_library_filter_preferences' && key === 'library.gridColumnWidth') {
+    if (typeof value !== 'number' || value < 0) throw new Error('backup_application_settings_invalid')
+  } else if (name === 'koma_download_notifications_v1') {
     if (key === 'download.notifications.enabled' && typeof value !== 'boolean') throw new Error('backup_application_settings_invalid')
     if (key === 'download.notifications.sound' && (typeof value !== 'string' ||
       !['silent', 'sound', 'vibrate', 'sound_vibrate'].includes(value))) throw new Error('backup_application_settings_invalid')

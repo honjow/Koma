@@ -1473,13 +1473,15 @@
       "reportedDate": "2026-11-10",
       "reportedAtSource": "用户反馈漫画下载每完成一章都会提示，系统已设置静默通知仍会响铃。",
       "registeredAt": "2026-11-10T16:52:00+08:00",
-      "updatedAt": "2026-11-12T03:17:44+08:00",
-      "status": "静默更新修复已进入 1.4.3，待验证系统通知投递",
-      "result": "下载结果通知复用同一通知 ID，并明确关闭声音、振动、横幅和锁屏提醒，同时启用仅首次提醒。通知请求回归和 Debug 构建通过；197 实际章节重下已成功，但系统通知能力为关闭，日志返回 code=disabled，不能在该机观察静默投递。 修复提交已包含在正式 Koma 1.4.3；仍无系统通知开启时的设备投递对照。",
-      "remaining": "需在已开启通知的设备确认下载完成卡存在且连续章节更新不响铃；197 测试已恢复电源并释租，保留最终开发包。",
+      "updatedAt": "2026-11-18T05:08:29+08:00",
+      "status": "237 已核对系统进度静音与单条队列汇总，修复在调试包",
+      "result": "原 1.4.3 修复只覆盖普通结果通知。系统后台传输另有进度卡，LIVE_VIEW 不读取 notificationFlags，章节写完也无需用 100% 触发系统完成状态。现保留进度更新至 99%，任务结束后收起卡片，队列汇总沿用下载通知设置。237 安装 f423b0e27977 签名调试包，从作品详情开始下载并退回桌面，通知中心可见后台实况窗。93/93 页完成，系统记录最后一次进度为 99% 且进度卡 isSoundEnable=false，随后只出现一条「完成 1 章 · 失败 0 章」汇总；另一个实际失败场景也只出现一条失败汇总。",
+      "remaining": "237 当前系统配置也将结果汇总标记为静音。尚未核对系统允许汇总响铃时的扬声器输出。",
       "evidence": [
         ".hvigor/outputs/device-sync-independent/notification-services-qa/download-notification-log3/run-metadata.json",
-        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/navigate-20261110T165029604037/screen.png"
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/navigate-20261110T165029604037/screen.png",
+        ".hvigor/outputs/grid-width-silent-download/device237__VDE-AL00/unfolded/portrait-1320x2120/grid-and-download/050747-1127000-alternate-background-progress/alternate-progress.json",
+        ".hvigor/outputs/grid-width-silent-download/device237__VDE-AL00/unfolded/portrait-1320x2120/grid-and-download/050831-4601000-download-completion/run-metadata.json"
       ],
       "progressPhase": "verification"
     },
@@ -10251,11 +10253,12 @@
       "reportedAt": null,
       "reportedAtSource": "本轮当前用户反馈；原消息精确时刻未核。",
       "firstHandledAt": "2026-11-01T11:18:06+08:00",
-      "result": "237076标准密度：书架与MANGA Plus Creators真实浏览均3列/392px，源内真实搜索封面也392px；宽松密度：书架与同源浏览均2列/552px。原密度设置、目录/搜索及返回路径保持。",
-      "remaining": "本项已核验交付，无新增待办。",
+      "result": "237076标准密度：书架与MANGA Plus Creators真实浏览均3列/392px，源内真实搜索封面也392px；宽松密度：书架与同源浏览均2列/552px。原密度设置、目录/搜索及返回路径保持。2026-11-18 移植 NextE 的双指缩放和网格密度滑块，书架与书源浏览共用保存宽度。237 在 f423b0e27977 调试包中书架展开 392→606px，同源浏览读到 606px；浏览捏合 606→392px，回书架读到 392px。通过设置搜索进入网格密度，调节滑块以后预览和书架均为 606px。",
+      "remaining": "双指缩放和设置滑块已在 237 调试包核验。冷启动读回 606px，随后恢复测试前的 392px。",
       "remainingActions": [],
       "boundaries": [
-        "用户明确要求统一为已有书架宽度设置，不另造宽度选项或任意改尺寸。"
+        "同一宽度供书架与书源浏览使用，未设置时使用原密度。新增网格密度预览、滑块及手势按 2026-11-18 用户明确要求参考 NextE。",
+        "已保存的按源网格和列表选择继续各自生效，列表不参与双指缩放。"
       ],
       "evidencePoints": [
         "source-catalog-build076.log：编译成功；cover-fresh-baseline-247已保存本场七JSON/18prefs，原SLEEP/120000/noOverride；解锁后AWAKE/86400000。",
@@ -10264,7 +10267,8 @@
         "cover-library-comfortable-260与cover-source-comfortable-ready-262/width-comparison.json：实际552px、两列；262真实封面亲审，261初始加载未计通过。",
         "Koma/master 1051e573e479638728a65f4d848488d539a0baca已推，精确CI41279263888运行中；cover-original-restored-263/restoration-comparison.json：七JSON及18偏好文件字节同fresh247、无新增偏好；cover-power-restored-264：SLEEP/120000/noOverride；原租约已释放。",
         "独立CI41279263888被后续33081076的并发规则取消；33081076保含1051e573，最终以CI41279803358为构建交付回执，不重新运行旧构建。",
-        "最终包含两项修复的Koma/master33081076b616fe3f0efddaff479e84ed91815ca0，精确CI41279803358 completed/success；Build Release/Inspect/Upload成功，Publish tagged Release skipped，未再发布App。"
+        "最终包含两项修复的Koma/master33081076b616fe3f0efddaff479e84ed91815ca0，精确CI41279803358 completed/success；Build Release/Inspect/Upload成功，Publish tagged Release skipped，未再发布App。",
+        ".hvigor/outputs/grid-width-silent-download/device237__VDE-AL00/unfolded/portrait-1320x2120/grid-and-download/045333-2150000-install-final-grid-build/gesture-result.json"
       ],
       "closedAt": "2026-11-01T14:25:23+08:00",
       "modificationBasis": {

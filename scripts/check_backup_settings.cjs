@@ -220,6 +220,7 @@ async function verifyRoundTrip() {
     'navigation.backGuardEnabled': false,
     'download.notifications.enabled': true,
     'download.notifications.sound': 'vibrate',
+    'library.gridColumnWidth': 146,
     'migration.selectedSources': JSON.stringify(['source-b', 'source-a']),
     'migration.matchOptions': JSON.stringify({ deepSearch: true, prioritizeChapters: false }),
     'source_index.repositories.v1': JSON.stringify([

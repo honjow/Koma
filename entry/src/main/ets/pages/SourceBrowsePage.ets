@@ -19,6 +19,7 @@ import { MangaGridItem } from '../components/MangaGridItem'
 import { gridFallbackContainerWidth } from '../utils/GridColumns'
 import { libraryCoverGridColumnCount } from '../utils/LibraryCoverLayout'
 import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
+import { LibraryCoverGridAdjustment } from '../state/LibraryCoverGridAdjustment'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControlValue } from '../components/SourceFilterControls'
@@ -88,6 +89,7 @@ export struct SourceBrowsePage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private coverLayout: LibraryCoverLayoutState = connectLibraryCoverLayout()
+  @Local private gridAdjustment: LibraryCoverGridAdjustment = new LibraryCoverGridAdjustment()
   @Local private sourceRuntimeState: SourceRuntimeState = connectSourceRuntimeState()
   private pendingSourceRuntimeRevision: number = 0
   @Local private filtersShown: boolean = false
@@ -603,7 +605,8 @@ export struct SourceBrowsePage {
 
   private sourceGridColumnCount(): number {
     const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
-    return libraryCoverGridColumnCount(width, this.coverLayout.density)
+    return libraryCoverGridColumnCount(width, this.coverLayout.density,
+      this.gridAdjustment.width(this.coverLayout.gridColumnWidth))
   }
 
   private appendMangaRows(rows: SourceBrowseGridRow[], prefix: string, manga: SourceManga[]): void {
@@ -902,6 +905,8 @@ export struct SourceBrowsePage {
         SourceMangaGrid({
           scroller: this.chrome.scroller,
           singleColumn: this.chrome.layout === 'list',
+          useSharedColumnWidth: true,
+          gridAdjustment: this.gridAdjustment,
           contentItemCount: this.gridProjection.rows.length,
           fullRowIndexes: this.gridProjection.fullRowIndexes,
           pinnedOverlayHeight: SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT,
