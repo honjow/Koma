@@ -52,6 +52,7 @@ export interface MihonBackupWork {
   modifiedAt: number
   favoriteModifiedAt?: number
   chapters: MihonBackupChapter[]
+  // Mihon field 17 stores category order values. Keep the serialized property name for saved imports.
   categoryIds: string[]
   history: MihonBackupHistory[]
   tracking: MihonBackupTracking[]

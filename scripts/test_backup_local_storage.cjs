@@ -149,10 +149,11 @@ test('Mihon backup retains history-only works and exact chapter and source ident
   message(17, varint(8), varint(3)), field(17, 5), field(100, 0),
   message(104, message(1, url), field(2, time)), message(110, '讀者筆記'))
  const source = message(101, field(2, sourceId))
- const category = message(2, message(1, '自訂分類'), field(3, 8))
+ const category = message(2, message(1, '自訂分類'), field(2, 8), field(3, 42))
  const backup = await mihon.readMihonBackup(exactBytes(gzipSync(Buffer.concat([work, source, category]))))
  assert.equal(backup.works[0].favorite, false)
  assert.deepEqual(backup.works[0].categoryIds, ['8', '3', '5'])
+ assert.deepEqual(backup.categories, [{ name: '自訂分類', order: 8, id: '42' }])
  assert.equal(backup.works[0].sourceId, '9223372036854775806')
  assert.deepEqual(backup.sources, [{ id: backup.works[0].sourceId, name: '' }])
  assert.equal(backup.works[0].notes, '讀者筆記')
@@ -181,7 +182,7 @@ test('Mihon import merges an existing edition and keeps a newer local reading po
   sourceId: '8212829630734804062', url: '/work/17', title: 'Original title',
   coverUrl: 'https://img.example/work/17.jpg',
   notes: 'Imported note', author: 'Original author', genres: [], status: 1, favorite: true,
-  addedAt: 10, modifiedAt: 50, categoryIds: ['4'], tracking: [],
+  addedAt: 10, modifiedAt: 50, categoryIds: ['0', '8'], tracking: [],
   chapters: [{ url: '/work/17/chapter/6', title: 'Chapter 6', number: 6, scanlator: '', read: true,
    bookmarked: true, pageIndex: 4, fetchedAt: 0, uploadedAt: 0, sourceOrder: 1, modifiedAt: 50 }],
   history: [{ chapterUrl: '/work/17/chapter/6', readAt: 50, readDuration: 1 }],
@@ -200,7 +201,9 @@ test('Mihon import merges an existing edition and keeps a newer local reading po
   comicId: existing.id, chapterId: current.chapterId, position: current, isRead: false, bookmarked: false, updatedAt: 100,
  }] }
  const backup = { works: [work], sources: [{ id: work.sourceId, name: 'Book source' }],
-  categories: [{ id: '4', name: 'Imported category', order: 0 }] }
+  categories: [{ id: '4', name: 'First category', order: 0 },
+   { id: '8', name: 'Unassigned category', order: 1 },
+   { id: '9', name: 'Later category', order: 8 }] }
  for (let round = 0; round < 2; round++) {
   const merged = planning.importMihonWorks(backup, library)
   assert.equal(planning.mergeMihonReading(snapshot, merged), 0)
@@ -210,8 +213,10 @@ test('Mihon import merges an existing edition and keeps a newer local reading po
  assert.equal(result.title, 'Original title')
  assert.equal(result.subtitle, 'Locally cached description')
  assert.equal(result.personalNotes, 'Local note')
- assert.equal(result.categoryIds.length, 2)
- assert.equal(library.listCustomCategories().length, 2)
+ const categoryById = new Map(library.listCustomCategories().map(row => [row.id, row.name]))
+ assert.deepEqual(result.categoryIds.map(id => categoryById.get(id)).sort(),
+  ['First category', 'Later category', 'Local category'])
+ assert.equal(categoryById.size, 4)
  assert.equal(library.listMihonImports()[0].work.chapters[0].pageIndex, 4)
  assert.deepEqual(snapshot.progress, [current])
  assert.equal(snapshot.chapterStates[0].bookmarked, false)

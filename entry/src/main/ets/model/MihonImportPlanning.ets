@@ -184,7 +184,7 @@ function categoryLinks(backup: MihonBackup, library: LibraryStore): Map<string, 
   const links = new Map<string, string>()
   for (const category of backup.categories.slice().sort((left, right): number => left.order - right.order)) {
     const base = category.name.trim().slice(0, 40)
-    if (!base || category.id === '0' || links.has(category.id)) continue
+    if (!base) continue
     let name = base
     let suffix = 2
     while (smartNames.has(libraryCategoryNameKey(name))) {
@@ -194,7 +194,8 @@ function categoryLinks(backup: MihonBackup, library: LibraryStore): Map<string, 
     const key = libraryCategoryNameKey(name)
     const id = names.get(key) ?? library.createCustomCategory(name).id
     names.set(key, id)
-    links.set(category.id, id)
+    // Mihon exports manga memberships by category order, including order 0.
+    links.set(category.order.toString(), id)
   }
   return links
 }
