@@ -21,7 +21,6 @@ import {
 } from './LibraryUpdatePreferencesStore'
 import {
   KOMA_BUNDLE_NAME,
-  KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS,
   KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES,
   KOMA_LAUNCH_ROUTE_PARAM,
 } from '../common/Constants'
@@ -342,8 +341,7 @@ export async function publishLibraryUpdateNotification(summary: LibraryUpdateSum
   const title = notificationSummary.failedCount > 0 && notificationSummary.newChapterCount <= 0
     ? AppStrings.get('library_update_notification_failed_title')
     : AppStrings.get('library_update_notification_title')
-  return publishLibraryUpdateNotificationText(title, notificationSummary.summaryText, notificationSummary.checkedAt,
-    notificationSummary.newChapterCount > 0 ? KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES : KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS)
+  return publishLibraryUpdateNotificationText(title, notificationSummary.summaryText, notificationSummary.checkedAt)
 }
 
 export async function publishLibraryUpdateFailureNotification(
@@ -354,7 +352,6 @@ export async function publishLibraryUpdateFailureNotification(
     AppStrings.get('library_update_notification_failed_title'),
     AppStrings.get('library_updates_check_failed'),
     checkedAt,
-    KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS,
   )
 }
 
@@ -362,7 +359,6 @@ async function publishLibraryUpdateNotificationText(
   title: string,
   text: string,
   checkedAt: number,
-  launchRoute: string,
 ): Promise<LibraryUpdateNotificationDispatchResult> {
   if (!isLibraryUpdateNotificationDeliveryEnabled()) {
     return { delivered: false, code: 'disabled' }
@@ -377,7 +373,7 @@ async function publishLibraryUpdateNotificationText(
       label: 'koma.library_update',
       appMessageId: `koma.library_update.${checkedAt}`,
       notificationSlotType: notificationManager.SlotType.CONTENT_INFORMATION,
-      wantAgent: await createLibraryUpdateWantAgent(launchRoute),
+      wantAgent: await createLibraryUpdateWantAgent(),
       tapDismissed: true,
       content: {
         notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
@@ -396,9 +392,9 @@ async function publishLibraryUpdateNotificationText(
   }
 }
 
-async function createLibraryUpdateWantAgent(launchRoute: string): Promise<WantAgent> {
+async function createLibraryUpdateWantAgent(): Promise<WantAgent> {
   const parameters: Record<string, Object> = {}
-  parameters[KOMA_LAUNCH_ROUTE_PARAM] = launchRoute
+  parameters[KOMA_LAUNCH_ROUTE_PARAM] = KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES
   const launchWant: Want = {
     bundleName: KOMA_BUNDLE_NAME,
     abilityName: 'EntryAbility',
@@ -799,6 +795,33 @@ export function getLatestLibraryUpdateJobSnapshot(): LibraryUpdateJobSnapshot | 
   )
 }
 
+export interface LibraryUpdateFailureDetails {
+  results: LibraryUpdateComicResult[]
+  checkFailureCode?: string
+}
+
+export function libraryUpdateFailureDetails(
+  summary?: LibraryUpdateSummary,
+  job?: LibraryUpdateJobSnapshot,
+): LibraryUpdateFailureDetails {
+  const jobSummary = job?.summary
+  const latest = jobSummary !== undefined && (summary === undefined || jobSummary.checkedAt >= summary.checkedAt)
+    ? jobSummary : summary
+  if (job !== undefined && job.updatedAt > (latest?.checkedAt ?? 0)) {
+    // A check can fail before it produces any per-work results.
+    if (job.state === 'failed' || job.state === 'backed-off') {
+      return { results: [], checkFailureCode: job.failureCode ?? 'unknown' }
+    }
+    if (job.state === 'success') return { results: [] }
+  }
+  const results = latest?.results.filter((row: LibraryUpdateComicResult): boolean => row.status === 'failed') ?? []
+  return { results, checkFailureCode: results.length === 0 && (latest?.failedCount ?? 0) > 0 ? 'unknown' : undefined }
+}
+
+export function cachedLibraryUpdateFailureDetails(): LibraryUpdateFailureDetails {
+  return libraryUpdateFailureDetails(latestLibraryUpdateSummary, latestLibraryUpdateJobSnapshot)
+}
+
 export class LibraryUpdateResultStore {
   private context: common.UIAbilityContext
 
@@ -817,6 +840,17 @@ export class LibraryUpdateResultStore {
     } catch (_error) {
       return undefined
     }
+  }
+
+  async loadFailureDetails(): Promise<LibraryUpdateFailureDetails> {
+    const savedJob = await this.loadJobSnapshot()
+    const savedSummary = savedJob?.summary ?? await this.load()
+    const job = latestLibraryUpdateJobSnapshot
+    const summary = latestLibraryUpdateSummary
+    return libraryUpdateFailureDetails(
+      summary !== undefined && summary.checkedAt >= (savedSummary?.checkedAt ?? 0) ? summary : savedSummary,
+      job !== undefined && job.updatedAt >= (savedJob?.updatedAt ?? 0) ? job : savedJob,
+    )
   }
 
   async loadChapterUpdates(): Promise<LibraryChapterUpdate[]> {

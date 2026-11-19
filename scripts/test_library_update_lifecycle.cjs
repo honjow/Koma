@@ -57,6 +57,7 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
   const dependencies = {
     ...isolation,
     appDeviceSync: { attachPublisher() {} },
+    bindRemoteProgressLibrary() {},
     applyBackgroundLibraryResults: async () => {},
     appSourceWebSessionStore: { configure() {} },
     appSourcePackageManagerCache: { prepare: async () => {}, revalidateInBackground() {} },
@@ -90,6 +91,8 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
     catalogFilters = { prepare: async () => {} };
     appForegroundState; libraryStore; sourceRegistry; libraryPersistenceService;
     ensureLibraryPersistenceService() { return this.libraryPersistenceService }
+    retryPublicContentStorage() {} retryMihonAfterSourceChange() {}
+    isReaderRouteVisible() { return false } publishDeferredReaderBackgroundPresentation() {}
     handleReaderLabLaunch() {} openExternalReaderSession() {} reloadReaderSessionStore() {}
     triggerAutomaticBackup() {} triggerPendingTrackerProgressSync() {} runForegroundAutomaticBackup() {}
     loadLibraryChapterUpdateHistory() {} refreshLibraryUpdateBadge() {} resumeAutomaticDownloadQueue() {}
@@ -123,7 +126,6 @@ async function main() {
   assert.match(read('pages/Index'), /@Monitor\('appForegroundState.revision'\)\s+private runForegroundLibraryUpdate/)
   assert.match(read('pages/Index'), /@Monitor\('libraryUpdateState.revision'\)\s+private refreshLibrarySnapshot/)
   assert.match(read('pages/SettingsPage'), /@Monitor\('libraryUpdateState.revision'\)\s+private reloadCompletedLibraryUpdate/)
-  assert.match(read('pages/LibraryUpdateResultPage'), /@Monitor\('libraryUpdateState.revision'\)\s+private reloadResults/)
 
   const foregroundFirst = environment()
   foregroundFirst.foregroundEvent()
@@ -224,111 +226,49 @@ async function main() {
   assert.equal(root.libraryUpdatePreferences, savedPreferences, 'Save plus reread failures must retain the known preference')
   assert.deepEqual(root.toasts, ['settings_library_auto_update_save_failed', 'settings_library_update_interval_save_failed'])
 
-  const summaryA = { checkedAt: 100, totalCount: 1 }
-  const summaryB = { checkedAt: 200, totalCount: 2 }
-  let latestJob = { state: 'success', updatedAt: 100 }
-  let latestSummary = summaryA
-  let jobRead = deferred()
-  let resultRead = deferred()
-  const Results = compile(`export class Results {
-    summary; jobSnapshot;
-    libraryUpdateResultStore() { return resultStore }
-    formatTimestamp(value) { return String(value) }
-    ${['aboutToAppear', 'reloadResults', 'loadPersistedSummary', 'isFailureJobSnapshot',
-      'isSummaryBlockedByJob', 'effectiveSummaryForJob', 'summaryMetricValue']
-      .map((name) => method('pages/LibraryUpdateResultPage', name)).join('\n')}
+  let recordsRead = deferred()
+  let failureRead = deferred()
+  const failure = { results: [{ comicId: 'failed-book' }] }
+  const clear = { results: [] }
+  const records = [{ comicId: 'book', chapterId: 'new-chapter' }]
+  const Updates = compile(`export class Updates {
+    records = []; loading = true; error = false; failures = { results: [] }; loadRevision = 0;
+    ${['aboutToAppear', 'aboutToDisappear', 'reload']
+      .map((name) => method('pages/LibraryUpdatesPage', name)).join('\n')}
   }`, {
-    resultStore: { loadJobSnapshot: () => jobRead.promise, load: () => resultRead.promise },
-    getLatestLibraryUpdateJobSnapshot: () => latestJob,
-    getLatestLibraryUpdateSummary: () => latestSummary,
-    setLatestLibraryUpdateJobSnapshot: (value) => { latestJob = value },
-    setLatestLibraryUpdateSummary: (value) => { latestSummary = value },
-    clearLatestLibraryUpdateSummary: () => { latestSummary = undefined },
-    countLibraryUpdateNewChapters: compile(ts.createSourceFile('service.ts', read('model/LibraryUpdateService'),
-      ts.ScriptTarget.Latest, true, ts.ScriptKind.TS).statements
-      .find((node) => node.name?.text === 'countLibraryUpdateNewChapters').getText(), {}).countLibraryUpdateNewChapters,
-  }).Results
-  const resultsPage = new Results()
-  resultsPage.aboutToAppear()
-  assert.equal(resultsPage.summary, summaryA)
-  latestJob = { state: 'success', updatedAt: 200 }
-  latestSummary = summaryB
-  resultsPage.reloadResults() // Deliver the declared completion-revision monitor without recreating the page.
-  assert.equal(resultsPage.summary, summaryB)
-  jobRead.resolve({ state: 'success', updatedAt: 100 })
+    getContext: () => ({}),
+    LibraryUpdateResultStore: class {
+      loadChapterUpdates() { return recordsRead.promise }
+      loadFailureDetails() { return failureRead.promise }
+    },
+  }).Updates
+  const updates = new Updates()
+  updates.aboutToAppear()
+  recordsRead.resolve(records)
+  failureRead.resolve(failure)
   await tick()
-  assert.equal(resultsPage.summary, summaryB, 'Old disk callback must not replace a newly completed round')
-  assert.equal(resultsPage.jobSnapshot.updatedAt, 200)
+  assert.equal(updates.records, records)
+  assert.equal(updates.failures, failure)
+  assert.equal(updates.loading, false)
 
-  const partial = { checkedAt: 300, totalCount: 3 }
-  latestSummary = partial
-  latestJob = { state: 'failed', updatedAt: 300 }
-  resultsPage.reloadResults()
+  failureRead = deferred()
+  const olderRead = failureRead
+  updates.reload()
+  failureRead = deferred()
+  updates.reload()
+  failureRead.resolve(clear)
   await tick()
-  assert.equal(resultsPage.summary, partial, 'Same-round failure snapshot keeps its summary')
-  resultsPage.summary = undefined
-  latestSummary = undefined
-  resultRead = deferred()
-  resultsPage.loadPersistedSummary(latestJob)
-  latestJob = { state: 'failed', updatedAt: 400 }
-  resultRead.resolve(summaryA)
+  olderRead.resolve(failure)
   await tick()
-  assert.equal(resultsPage.summary, undefined, 'Pending read must use the latest job at completion')
+  assert.equal(updates.failures, clear, 'A delayed failure cannot replace a newer successful check')
+  assert.equal(updates.records, records, 'Changing check failures does not clear chapter updates')
 
-  // Test the actual rendering inputs, not merely assignment to page.summary.
-  const resultSource = read('pages/LibraryUpdateResultPage')
-  assert.match(resultSource, /private SummaryCard\(\)/)
-  assert.match(resultSource, /private ProviderSummaryCard\(\)/)
-  const textExpression = (prefix) => {
-    const line = resultSource.split('\n').map((line) => line.trim()).find((line) => line.startsWith(prefix))
-    assert.ok(line, prefix)
-    return line.slice('Text('.length, -1)
-  }
-  const timestampExpression = textExpression('Text(this.summary === undefined')
-  const metricExpression = textExpression('Text(`${this.summaryMetricValue(metric)}')
-  const providerExpression = resultSource.match(/ForEach\(([^\n]+), \(provider:/)[1]
-  const resultExpression = resultSource.match(/ForEach\(([^\n]+), \(result:/)[1]
-  const keyExpression = (kind) => {
-    const line = resultSource.split('\n').find((line) => line.includes(`}, (${kind}:`) && line.includes('this.summary?.checkedAt'))
-    assert.ok(line, `${kind} key must include current check identity`)
-    return line.slice(line.indexOf('=>') + 2, line.lastIndexOf(')')).trim()
-  }
-  const bindings = compile(`
-    export function timestamp() { return (${timestampExpression}) }
-    export function metric(metric) { return (${metricExpression}) }
-    export function providers() { return (${providerExpression}) }
-    export function results() { return (${resultExpression}) }
-    export function providerKey(provider) { return (${keyExpression('provider')}) }
-    export function resultKey(result) { return (${keyExpression('result')}) }
-  `, {})
-  const provider = { providerKind: 'source_runtime', sourceKey: 'fixture', totalCount: 2 }
-  const comicResult = { comicId: 'fixture', status: 'updated', previousChapterCount: 1, newChapterCount: 4 }
-  const firstSummary = { checkedAt: 1000, totalCount: 2, updatedCount: 1, unchangedCount: 0,
-    skippedCount: 1, failedCount: 0, providerSummaries: [provider], results: [comicResult] }
-  resultsPage.summary = firstSummary
-  const firstProviderKey = bindings.providerKey.call(resultsPage, provider)
-  const firstResultKey = bindings.resultKey.call(resultsPage, comicResult)
-  assert.equal(bindings.timestamp.call(resultsPage), '1000')
-  assert.deepEqual(['total', 'updated', 'unchanged', 'skipped', 'failed', 'new-chapters']
-    .map((metric) => bindings.metric.call(resultsPage, metric)), ['2', '1', '0', '1', '0', '3'])
-  const secondSummary = { ...firstSummary, checkedAt: 2000, totalCount: 9, updatedCount: 2,
-    unchangedCount: 3, skippedCount: 0, failedCount: 4,
-    providerSummaries: [{ ...provider, totalCount: 9 }],
-    results: [{ ...comicResult, newChapterCount: 8 }] }
-  resultsPage.summary = secondSummary
-  assert.equal(firstSummary.checkedAt, 1000, 'Fixture must replace, not mutate, the captured summary')
-  assert.equal(bindings.timestamp.call(resultsPage), '2000')
-  assert.deepEqual(['total', 'updated', 'unchanged', 'skipped', 'failed', 'new-chapters']
-    .map((metric) => bindings.metric.call(resultsPage, metric)), ['9', '2', '3', '0', '4', '7'])
-  assert.equal(bindings.providers.call(resultsPage), secondSummary.providerSummaries)
-  assert.equal(bindings.results.call(resultsPage), secondSummary.results)
-  assert.notEqual(bindings.providerKey.call(resultsPage, provider), firstProviderKey)
-  assert.notEqual(bindings.resultKey.call(resultsPage, comicResult), firstResultKey)
-  resultsPage.summary = undefined
-  assert.equal(bindings.timestamp.call(resultsPage), '')
-  assert.equal(bindings.metric.call(resultsPage, 'total'), '0')
-  assert.deepEqual(bindings.providers.call(resultsPage), [])
-  assert.deepEqual(bindings.results.call(resultsPage), [])
-  console.log('PASS library update lifecycle: actual lifecycle/settings methods, Results revision/late reads and live timestamp/metric/list expressions across replacement and clearing')
+  failureRead = deferred()
+  updates.reload()
+  updates.aboutToDisappear()
+  failureRead.resolve(failure)
+  await tick()
+  assert.equal(updates.failures, clear)
+  console.log('PASS library update lifecycle: settings, delayed failure reads and retained new chapters')
 }
 main().catch((error) => { console.error(error); process.exitCode = 1 })

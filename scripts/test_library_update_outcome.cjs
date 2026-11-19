@@ -254,13 +254,22 @@ async function main() {
   const launchRoute = () => publishedNotifications.at(-1).wantAgent.wants[0].parameters[constants.KOMA_LAUNCH_ROUTE_PARAM]
   assert.equal((await result.publishLibraryUpdateNotification(failureNotice)).delivered,true)
   assert.equal(publishedNotifications.at(-1).content.normal.text,'library_update_summary_counts:0,0,4')
-  assert.equal(launchRoute(), constants.KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS)
+  assert.equal(launchRoute(), constants.KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES)
   await result.publishLibraryUpdateFailureNotification(1,'unknown')
   assert.equal(publishedNotifications.at(-1).content.normal.text,'library_updates_check_failed')
-  assert.equal(launchRoute(), constants.KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS)
+  assert.equal(launchRoute(), constants.KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES)
   const update = summary(['updated', 'failed'])
   assert.equal((await result.publishLibraryUpdateNotification(update)).delivered, true)
   assert.equal(launchRoute(), constants.KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES)
+  const mixedCheck = summary(['updated', 'failed', 'unchanged', 'skipped'])
+  const mixedJob = result.completedLibraryUpdateJobSnapshot(mixedCheck)
+  assert.deepEqual(result.libraryUpdateFailureDetails(mixedCheck, mixedJob).results
+    .map(row => [row.comicId, row.message]), [[mixedCheck.results[1].comicId, 'network_error']])
+  assert.deepEqual(result.libraryUpdateFailureDetails(mixedCheck, {
+    state: 'backed-off', updatedAt: mixedCheck.checkedAt + 1, failureCode: 'network_error',
+  }), { results: [], checkFailureCode: 'network_error' })
+  assert.deepEqual(result.libraryUpdateFailureDetails(mixedCheck, result.completedLibraryUpdateJobSnapshot(
+    summary(['unchanged'], mixedCheck.checkedAt + 1))).results, [])
   checkChapterIdentityProtection()
   checkBaoziChapterIdentityProtection()
   await checkBaoziUpdateFailure()

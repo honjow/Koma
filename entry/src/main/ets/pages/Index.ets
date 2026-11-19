@@ -112,7 +112,6 @@ import { KomgaSeriesPage, KomgaSeriesRouteParam } from './KomgaSeriesPage'
 import { KavitaBrowsePage, KavitaBrowseRouteParam } from './KavitaBrowsePage'
 import { OpdsBrowsePage, OpdsBrowseRouteParam } from './OpdsBrowsePage'
 import { WebDavBrowsePage, WebDavBrowseRouteParam } from './WebDavBrowsePage'
-import { LibraryUpdateResultPage } from './LibraryUpdateResultPage'
 import { LibraryCategoryManagementChrome, LibraryCategoryManagementPage } from './LibraryCategoryManagementPage'
 import { KomgaServerPage } from './KomgaServerPage'
 import { KavitaServerPage } from './KavitaServerPage'
@@ -1009,10 +1008,7 @@ struct Index {
     const check: Record<string, Object> = { 'label': AppStrings.get('source_pkg_check_updates'),
       'icon': $r('sys.symbol.arrow_clockwise'), 'isEnabled': !this.libraryUpdateState.busy,
       'action': (): void => { this.libraryUpdatesRefreshController.triggerTopRefresh() } }
-    const results: Record<string, Object> = { 'label': AppStrings.get('route_library_update_results_title'),
-      'icon': $r('sys.symbol.list_bullet'),
-      'action': (): void => { this.appPathStack.pushPath({ name: RouteName.LIBRARY_UPDATE_RESULTS }) } }
-    const items: Record<string, Object>[] = [{ 'content': visibility }, { 'content': check }, { 'content': results }]
+    const items: Record<string, Object>[] = [{ 'content': visibility }, { 'content': check }]
     content['menu'] = { 'value': items, 'maxCount': 2 } as Record<string, Object>
     return options
   }
@@ -4046,20 +4042,6 @@ struct Index {
       .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
       .titleMode(this.settingsDestinationTitleMode(inModal))
       .titleBar(this.settingsDestinationTitleOptions(inModal, this.settingsPaneTitleBarOpts(param as SettingsPaneRouteParam)))
-    } else if (name === RouteName.LIBRARY_UPDATE_RESULTS) {
-      HdsNavDestination() {
-        KomaModalContent({ useInset: inModal }) {
-          LibraryUpdateResultPage({ inModal: inModal,
-            onOpenResult: (action: () => void): void => { this.leaveSettingsModalFor(action, inModal) },
-            libraryStore: this.libraryStore,
-            sourceRegistry: this.sourceRegistry,
-          })
-        }
-      }
-      .backgroundColor(inModal ? Color.Transparent : undefined)
-      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
-      .titleMode(this.settingsDestinationTitleMode(inModal))
-      .titleBar(this.settingsDestinationTitleOptions(inModal, this.navDestTitleBarOpts(AppStrings.get('route_library_update_results_title'))))
     } else if (name === RouteName.BACKUP_MANAGEMENT) {
       HdsNavDestination() {
         KomaModalContent({ useInset: inModal }) {
@@ -4194,9 +4176,6 @@ struct Index {
       onOpenImagePlugins: (request: ImagePluginsRequest): void => { stack.pushPath({ name: RouteName.IMAGE_PLUGINS, param: request }) },
       onOpenSourcePackageManager: () => {
         this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER, stack)
-      },
-      onOpenLibraryUpdateResults: () => {
-        this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS, stack)
       },
       onOpenDownloads: () => {
         this.openSettingsSecondary(RouteName.DOWNLOADS, stack)
@@ -4546,9 +4525,6 @@ struct Index {
                 },
                 onOpenSourcePackageManager: () => {
                   this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
-                },
-                onOpenLibraryUpdateResults: () => {
-                  this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS)
                 },
                 onOpenDownloads: () => {
                   this.openSettingsSecondary(RouteName.DOWNLOADS)

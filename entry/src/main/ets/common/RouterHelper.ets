@@ -163,10 +163,6 @@ export class RouterHelper {
     stack.pushPath({ name: RouteName.IMPORT })
   }
 
-  static pushLibraryUpdateResults(): void {
-    RouterHelper.openLaunchRoute(RouteName.LIBRARY_UPDATE_RESULTS)
-  }
-
   static pushLibraryUpdates(): void {
     RouterHelper.openLaunchRoute(RouteName.LIBRARY_UPDATES)
   }

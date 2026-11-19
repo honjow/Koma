@@ -9,7 +9,10 @@ import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from '../model/Ko
 import { LibraryUpdatesChrome } from '../state/LibraryUpdatesChrome'
 import { komaDialogMaterial, komaToastOptions } from '../theme/KomaPopupOptions'
 import { LibraryChapterUpdate, cachedLibraryChapterUpdates } from '../model/LibraryChapterUpdates'
-import { LibraryUpdateResultStore } from '../model/LibraryUpdateResultStore'
+import { cachedLibraryUpdateFailureDetails, LibraryUpdateFailureDetails,
+  LibraryUpdateResultStore } from '../model/LibraryUpdateResultStore'
+import { LibraryUpdateComicResult } from '../model/LibraryUpdateService'
+import { libraryUpdateComicTitle, libraryUpdateFailureText } from '../model/LibraryUpdatePresentation'
 import { connectLibraryUpdateState, LibraryUpdateState } from '../state/LibraryUpdateState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
@@ -17,6 +20,7 @@ import { PullRefreshController } from '../components/PullRefresh'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
+import { KomaModalScaffold, komaModalSheetOptions } from '../components/KomaModalScaffold'
 import { CachedCoverImage } from '../components/CachedCoverImage'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -49,6 +53,9 @@ export struct LibraryUpdatesPage {
   @Local private records: LibraryChapterUpdate[] = cachedLibraryChapterUpdates() ?? []
   @Local private loading: boolean = cachedLibraryChapterUpdates() === undefined
   @Local private error: boolean = false
+  @Local private failures: LibraryUpdateFailureDetails = cachedLibraryUpdateFailureDetails()
+  @Local private openedFailures: LibraryUpdateFailureDetails = { results: [] }
+  @Local private failuresShown: boolean = false
   @Local private visibleLimit: number = 80
   private loadRevision: number = 0
 
@@ -58,7 +65,8 @@ export struct LibraryUpdatesPage {
   @Monitor('updateState.revision')
   private reload(): void {
     const revision = ++this.loadRevision
-    void new LibraryUpdateResultStore(getContext(this) as common.UIAbilityContext).loadChapterUpdates()
+    const store = new LibraryUpdateResultStore(getContext(this) as common.UIAbilityContext)
+    void store.loadChapterUpdates()
       .then((records: LibraryChapterUpdate[]): void => {
         if (revision !== this.loadRevision) return
         this.records = records; this.loading = false; this.error = false
@@ -66,6 +74,9 @@ export struct LibraryUpdatesPage {
         if (revision !== this.loadRevision) return
         this.loading = false; this.error = true
       })
+    void store.loadFailureDetails().then((failures: LibraryUpdateFailureDetails): void => {
+      if (revision === this.loadRevision) this.failures = failures
+    })
   }
 
   private day(value: number): string {
@@ -272,54 +283,103 @@ export struct LibraryUpdatesPage {
     }))
   }
 
-  build() {
-    if (this.language.effectiveLocale.length > 0 && this.readerProgressRevision >= 0) {
-      PullRefreshListScaffold({ controller: this.refreshController, onRefresh: async (): Promise<void> => {
-        this.refreshing = true
-        try { await this.onRefresh(); this.reload() } finally { this.refreshing = false }
-      },
-        onReachEnd: (): void => { this.visibleLimit = Math.max(this.visibleLimit,
-          Math.min(this.visibleLimit + 80, this.filteredRows.length)) },
-        bottomPadding: ThemeConstants.SPACE_XL }) {
-        if (this.updateState.busy && !this.refreshing) {
-          ListItem() {
-            Row({ space: ThemeConstants.SPACE_SM }) {
-              Text(AppStrings.get('library_updates_checking')).fontColor(ThemeConstants.TEXT_SECONDARY)
-            }.padding(ThemeConstants.SPACE_MD)
+  @Builder
+  private FailureSheet() {
+    KomaModalScaffold({ title: AppStrings.get('library_update_failure_details'),
+      onClose: (): void => { this.failuresShown = false } }) {
+      if (this.openedFailures.checkFailureCode !== undefined) {
+        ListItem() {
+          GroupedListSection({ inModal: true }) {
+            ConciseListRow({ title: libraryUpdateFailureText(this.openedFailures.checkFailureCode!),
+              showChevron: false })
           }
         }
-        // Refresh updates the saved snapshot in the background. Its activity
-        // must not replace either existing rows or the confirmed empty state.
-        if (this.filteredRows.length === 0) {
-          ListItem() {
-            if (this.loading) {
-              LoadingProgress().width(32).height(32).color(ThemeConstants.BRAND_PRIMARY)
-                .visibility(this.refreshing ? Visibility.Hidden : Visibility.Visible)
-            }
-            else {
-              KomaEmptyState({ icon: $r('sys.symbol.bell'),
-                title: AppStrings.get(this.error ? 'library_updates_load_failed' :
-                  this.chrome.unreadOnly ? 'library_updates_unread_empty' : 'library_updates_empty'),
-                message: this.chrome.unreadOnly && !this.error ? '' : AppStrings.get('library_updates_empty_hint'),
-                showAction: this.error, actionLabel: AppStrings.get('common_retry'),
-                action: (): void => { this.reload() } })
-            }
-          }
-        } else {
-          ForEach(this.days, (day: string) => {
+      } else {
+        Repeat<LibraryUpdateComicResult>(this.openedFailures.results)
+          .each((row: RepeatItem<LibraryUpdateComicResult>) => {
             ListItem() {
-              GroupedListSection({ title: day }) {
-                ForEach(this.rowsByDay[day], (row: ChapterUpdateRow) => {
-                  this.UpdateRow(row)
-                  if (!this.isLastRow(day, row)) { ListDivider() }
-                }, (row: ChapterUpdateRow): string => JSON.stringify([row.comic.id, row.chapter.id,
-                  row.comic.title, row.chapter.title, row.comic.coverUri,
-                  this.readerSessionStore?.isChapterRead(row.comic.id, row.chapter.id)]))
+              GroupedListSection({ inModal: true }) {
+                ConciseListRow({ title: libraryUpdateComicTitle(this.libraryStore.getComic(row.item.comicId)),
+                  subtitle: libraryUpdateFailureText(row.item.message), showChevron: false })
               }
             }
-          }, (day: string): string => day)
+          })
+          .key((row: LibraryUpdateComicResult): string => row.comicId)
+          .virtualScroll()
+      }
+    }
+  }
+
+  build() {
+    if (this.language.effectiveLocale.length > 0 && this.readerProgressRevision >= 0) {
+      Column() {
+        PullRefreshListScaffold({ controller: this.refreshController, onRefresh: async (): Promise<void> => {
+          this.refreshing = true
+          try { await this.onRefresh(); this.reload() } finally { this.refreshing = false }
+        },
+          onReachEnd: (): void => { this.visibleLimit = Math.max(this.visibleLimit,
+            Math.min(this.visibleLimit + 80, this.filteredRows.length)) },
+          bottomPadding: ThemeConstants.SPACE_XL }) {
+          if (this.updateState.busy && !this.refreshing) {
+            ListItem() {
+              Row({ space: ThemeConstants.SPACE_SM }) {
+                Text(AppStrings.get('library_updates_checking')).fontColor(ThemeConstants.TEXT_SECONDARY)
+              }.padding(ThemeConstants.SPACE_MD)
+            }
+          }
+          if (!this.chrome.selecting &&
+            (this.failures.results.length > 0 || this.failures.checkFailureCode !== undefined)) {
+            ListItem() {
+              GroupedListSection() {
+                ConciseListRow({ title: this.failures.results.length > 0
+                    ? AppStrings.format('library_update_failures_count', this.failures.results.length)
+                    : AppStrings.get('library_updates_check_failed'),
+                  action: (): void => {
+                    this.openedFailures = this.failures
+                    this.failuresShown = true
+                  } })
+              }
+            }
+          }
+          // Refresh updates the saved snapshot in the background. Its activity
+          // must not replace either existing rows or the confirmed empty state.
+          if (this.filteredRows.length === 0) {
+            ListItem() {
+              if (this.loading) {
+                LoadingProgress().width(32).height(32).color(ThemeConstants.BRAND_PRIMARY)
+                  .visibility(this.refreshing ? Visibility.Hidden : Visibility.Visible)
+              }
+              else {
+                KomaEmptyState({ icon: $r('sys.symbol.bell'),
+                  title: AppStrings.get(this.error ? 'library_updates_load_failed' :
+                    this.chrome.unreadOnly ? 'library_updates_unread_empty' : 'library_updates_empty'),
+                  message: this.chrome.unreadOnly && !this.error ? '' : AppStrings.get('library_updates_empty_hint'),
+                  showAction: this.error, actionLabel: AppStrings.get('common_retry'),
+                  action: (): void => { this.reload() } })
+              }
+            }
+          } else {
+            ForEach(this.days, (day: string) => {
+              ListItem() {
+                GroupedListSection({ title: day }) {
+                  ForEach(this.rowsByDay[day], (row: ChapterUpdateRow) => {
+                    this.UpdateRow(row)
+                    if (!this.isLastRow(day, row)) { ListDivider() }
+                  }, (row: ChapterUpdateRow): string => JSON.stringify([row.comic.id, row.chapter.id,
+                    row.comic.title, row.chapter.title, row.comic.coverUri,
+                    this.readerSessionStore?.isChapterRead(row.comic.id, row.chapter.id)]))
+                }
+              }
+            }, (day: string): string => day)
+          }
         }
       }
+      .width('100%')
+      .height('100%')
+      .bindSheet($$this.failuresShown, this.FailureSheet, komaModalSheetOptions({
+        height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false,
+        enableOutsideInteractive: false, scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+      }))
     }
   }
 }

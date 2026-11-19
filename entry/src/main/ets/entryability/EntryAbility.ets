@@ -381,10 +381,9 @@ export default class EntryAbility extends UIAbility {
 
   private openLaunchRouteFromWant(want: Want): void {
     const route = want.parameters?.[KOMA_LAUNCH_ROUTE_PARAM]
-    if (route === KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES) {
+    // Notifications posted before the upgrade can still carry the old report route.
+    if (route === KOMA_LAUNCH_ROUTE_LIBRARY_UPDATES || route === KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS) {
       RouterHelper.pushLibraryUpdates()
-    } else if (route === KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS) {
-      RouterHelper.pushLibraryUpdateResults()
     } else if (route === KOMA_LAUNCH_ROUTE_DOWNLOADS) {
       RouterHelper.pushDownloads()
     } else if (route === KOMA_LAUNCH_ROUTE_SOURCE_PACKAGE_MANAGER) {

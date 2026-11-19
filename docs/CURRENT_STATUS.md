@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-19T05:39:23+08:00",
+  "updatedAt": "2026-11-19T13:57:10+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -10208,18 +10208,18 @@
     {
       "id": "LIBRARY_UPDATES_BELL_ENTRY",
       "number": 208,
-      "title": "书架铃铛入口与新章节更新列表",
+      "title": "书架更新入口与失败明细",
       "kind": "pending_verification",
       "priority": "P1（当前用户要求）",
       "owner": "Root",
-      "status": "197 已验证更新路由和切换提示",
-      "updatedAt": "2026-11-15T01:00:54+08:00",
-      "stage": "启动参数与页面已核",
+      "status": "197 已核对失败明细和新旧启动参数",
+      "updatedAt": "2026-11-19T13:57:10+08:00",
+      "stage": "候选已装 197",
       "reportedAt": null,
       "reportedAtSource": "本会话最新用户要求，精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T06:28:00+08:00",
-      "result": "新章通知与书架铃铛进入同一更新列表，纯失败通知进入检查详情。197 验证冷、热启动及普通信封／带圆点信封切换，两态均有显示范围提示。",
-      "remaining": "197 已验证通知启动参数，系统通知栏投递和点击未实测。",
+      "result": "新旧通知统一打开「更新」。撤掉旧检查报表与设置入口。有失败时点开半模态，只列作品和可读原因。197 实测 7 部失败的真实检查记录、新旧启动参数与返回。",
+      "remaining": "197 发起书架检查后切到后台，验证期间 1,123 部检查未结束，尚未收到系统通知，通知栏实际点击待验证。",
       "boundaries": [
         "保留后台检查频率、来源范围、Wi-Fi与充电条件，不因打开页面自动全库检查。",
         "沿既有书库更新及结果持久域，不用章节列表显示顺序或数量差猜新增章节。",
@@ -10229,9 +10229,14 @@
       "modificationBasis": {
         "object": "LibraryPage标题栏及书库更新结果路径",
         "decision": "用户明确采用首页书架第二图标改铃铛、列表样式收入菜单，并授权评估完善更新界面。",
-        "allowedDifference": "以现有列表控件呈现新章节和更新状态；铃铛打开更新页，原检查统计保留次级入口。"
+        "allowedDifference": "11 月 19 日用户确认撤掉旧报表，失败明细留在「更新」；旧通知启动参数继续兼容。"
       },
       "evidence": [
+        ".hvigor/outputs/library-update-notification-route/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-update-notification/cold-legacy-20261119T135019785414/screen-layout.json",
+        ".hvigor/outputs/library-update-notification-route/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-update-notification/warm-legacy-20261119T135028063749/screen-layout.json",
+        ".hvigor/outputs/library-update-notification-route/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-update-notification/cold-current-20261119T135038176641/screen-layout.json",
+        ".hvigor/outputs/library-update-notification-route/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-update-notification/actions-20261119T135143740100/screen.png",
+        ".hvigor/outputs/library-update-notification-route/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-update-notification/system-notification-observe-20261119T135609492068/run-metadata.json",
         ".hvigor/outputs/library-update-notification-route/qa/cold-update-want-path",
         ".hvigor/outputs/library-update-notification-route/qa/warm-no-duplicate-route-path",
         ".hvigor/outputs/library-update-notification-route/qa/failure-update-want-path",
@@ -11891,6 +11896,24 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-update-unified-inbox-197-20261119",
+      "at": "2026-11-19T13:57:10+08:00",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "title": "更新通知统一入口，失败明细已移入更新页",
+      "detail": "197 签名候选的新旧通知启动参数均打开更新列表，热启动重复进入无叠页。7 部失败的明细可打开并返回新章列表，显示已知原因。实际通知栏投递等待本次检查完成。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/library-update-notification-route/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-update-notification/actions-20261119T135143740100/screen.png"
+    },
+    {
+      "id": "library-update-notification-old-details-reported-20261119",
+      "at": "2026-11-19T13:39:38+08:00",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "title": "再次报告更新通知打开旧详情",
+      "detail": "核对 v1.5.4 与当前代码，含新章的通知指向更新列表，只有检查失败且无新章时发送到旧详情。保留用户实际反馈，具体通知类型待核。",
+      "kind": "checkpoint",
+      "evidence": "entry/src/main/ets/model/LibraryUpdateResultStore.ets"
+    },
     {
       "id": "history-source-list-reuse-197-20261119",
       "at": "2026-11-19T05:39:23+08:00",

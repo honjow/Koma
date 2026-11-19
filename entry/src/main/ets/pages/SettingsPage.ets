@@ -313,7 +313,6 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'download-read-cleanup', titleKey: 'automation_read_cleanup', detailKey: 'automation_read_cleanup' },
         { key: 'download-cleanup-exclude', titleKey: 'automation_cleanup_exclude', detailKey: 'automation_cleanup_exclude' },
         { key: 'library-update', titleKey: 'settings_row_library_update_title', detailKey: 'settings_row_library_update_detail' },
-        { key: 'library-update-results', titleKey: 'settings_row_library_update_results_title', detailKey: 'settings_row_library_update_results_detail' },
         { key: 'library-view-mode', titleKey: 'settings_row_library_view_mode_title', detailKey: 'settings_row_library_view_mode_detail' },
         { key: 'list-density', titleKey: 'settings_row_list_density_title', detailKey: 'settings_row_list_density_detail' },
         { key: 'grid-column-width', titleKey: 'settings_column_width', detailKey: 'settings_column_width_hint' },
@@ -553,7 +552,6 @@ export struct SettingsPage {
   @Event onOpenWebDavSettings: () => void = () => {}
   @Event onOpenImagePlugins: (request: ImagePluginsRequest) => void = () => {}
   @Event onOpenSourcePackageManager: () => void = () => {}
-  @Event onOpenLibraryUpdateResults: () => void = () => {}
   @Event onOpenDownloads: () => void = () => {}
   @Event onOpenImportRequested: () => void = () => {}
   @Event onRefreshLocalFolders: () => Promise<LocalLibraryFolderRescanActionResult | undefined> =
@@ -840,9 +838,6 @@ export struct SettingsPage {
       }
       return `${this.t('common_last_checked')} ${this.formatTimestamp(checkedAt).slice(-5)}`
     }
-    if (row.key === 'library-update-results') {
-      return this.getEffectiveLibraryUpdateSummary() === undefined ? this.t('library_update_no_result') : this.t('settings_library_update_results_view')
-    }
     if (row.key === 'library-view-mode') {
       return this.libraryViewModeLabel(this.libraryViewMode)
     }
@@ -912,7 +907,7 @@ export struct SettingsPage {
         {
           key: 'library-maintenance',
           titleKey: 'settings_section_library_maintenance',
-          rows: this.rowsByKeys(['library-update', 'library-update-results', 'local-library-refresh']),
+          rows: this.rowsByKeys(['library-update', 'local-library-refresh']),
         },
       ]
     }
@@ -1833,11 +1828,6 @@ export struct SettingsPage {
     this.onOpenSourcePackageManager()
   }
 
-  private openLibraryUpdateResults(): void {
-    console.info('[Settings] step=open_library_update_results')
-    this.onOpenLibraryUpdateResults()
-  }
-
   private automationCategories(): LibraryCategoryDefinition[] {
     const categories: LibraryCategoryDefinition[] = [{ id: 'uncategorized', name: s('library_category_uncategorized') }]
     this.libraryStore?.listCustomCategories().forEach((category: CustomLibraryCategory): void => {
@@ -2587,8 +2577,6 @@ export struct SettingsPage {
       this.requestLibraryUpdateNotifications()
     } else if (row.key === 'library-update') {
       this.checkLibraryUpdates()
-    } else if (row.key === 'library-update-results') {
-      this.openLibraryUpdateResults()
     } else if (row.key === 'local-library-refresh') {
       void this.checkLocalLibraryRefresh()
     } else if (row.key === 'reader-display-effects') {
@@ -2702,7 +2690,7 @@ export struct SettingsPage {
       return
     }
     const navigationRows: string[] = ['komga', 'kavita', 'opds', 'webdav', 'sources',
-      'library-update-results', 'translation', 'enhancement-models', 'diagnostics',
+      'translation', 'enhancement-models', 'diagnostics',
       'image-plugins', 'grid-column-width']
     if (navigationRows.includes(result.row.key)) {
       this.handleRowClick(result.row)

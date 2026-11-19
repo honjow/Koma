@@ -31,7 +31,6 @@ export class RouteName {
   static readonly IMAGE_PLUGINS: string = 'ImagePluginsPage'
   static readonly LIBRARY_UPDATES: string = 'LibraryUpdatesPage'
   static readonly SETTINGS_PANE: string = 'SettingsPanePage'
-  static readonly LIBRARY_UPDATE_RESULTS: string = 'LibraryUpdateResultPage'
   static readonly LIBRARY_CATEGORIES: string = 'LibraryCategoryManagementPage'
   static readonly DOWNLOADS: string = 'DownloadsPage'
   static readonly BACKUP_MANAGEMENT: string = 'BackupManagementPage'
