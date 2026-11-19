@@ -17,7 +17,7 @@ import {
   readSyncCredential, writeSyncCredential, clearSyncCredential,
 } from './DeviceSyncStorage'
 import { DeviceSyncWebDav, SyncConnectionDraft, SyncRemoteManifest, SyncRequestGuard } from './DeviceSyncWebDav'
-import { DeviceSyncMetrics, SyncRoundMetrics, syncMetricUptime } from './DeviceSyncMetrics'
+import { DeviceSyncMetrics, DeviceSyncSliceBudget, SyncRoundMetrics, syncMetricUptime } from './DeviceSyncMetrics'
 import { SyncShardCachePort } from './DeviceSyncShardCache'
 import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncOwner'
 import {
@@ -152,33 +152,6 @@ interface DatasetShardResult {
 interface CheckedPlan {
   plan?: PackedSyncPlan
   error?: string
-}
-
-class SyncPlanSliceBudget {
-  readonly started = syncMetricUptime()
-  yields = 0
-  private sliceStarted = this.started
-  private longestSlice = 0
-  private readonly guard: SyncRequestGuard
-
-  constructor(guard: SyncRequestGuard) {
-    this.guard = guard
-  }
-
-  yieldIfNeeded(): Promise<void> | undefined {
-    const elapsed = syncMetricUptime() - this.sliceStarted
-    if (elapsed < 4) return undefined
-    this.longestSlice = Math.max(this.longestSlice, elapsed)
-    this.yields++
-    return new Promise<void>((resume: () => void): void => { setTimeout(resume, 0) }).then((): void => {
-      this.guard()
-      this.sliceStarted = syncMetricUptime()
-    })
-  }
-
-  peak(): number {
-    return Math.max(this.longestSlice, syncMetricUptime() - this.sliceStarted)
-  }
 }
 
 @Concurrent
@@ -1582,7 +1555,7 @@ export class DeviceSyncEngine {
       ownWritable: remote.sharedHash === undefined ? remote.ownWritable : undefined, own }
     // A full sync can arrive during a fling. Yield between row chunks on both
     // sides of TaskPool and recheck the connection before resuming preparation.
-    const encode = new SyncPlanSliceBudget(guard)
+    const encode = new DeviceSyncSliceBudget(guard)
     const input = await packSyncPlanInput(groups, () => encode.yieldIfNeeded())
     guard()
     hiTraceMeter.traceByValue('KomaDeviceSyncPlanInputEncodeSliceMs', encode.peak())
@@ -1591,7 +1564,7 @@ export class DeviceSyncEngine {
       space, state.replica, state.counter, transport) as CheckedPlan
     guard()
     if (checked.plan === undefined) throw new Error(checked.error ?? 'sync_invalid_plan')
-    const decode = new SyncPlanSliceBudget(guard)
+    const decode = new DeviceSyncSliceBudget(guard)
     const plan = await unpackSyncPlan(checked.plan, () => decode.yieldIfNeeded())
     guard()
     hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeSliceMs', decode.peak())

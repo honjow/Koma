@@ -46,7 +46,16 @@ test('a staged sync state cannot overwrite a newer local write or publish after 
     './DeviceSyncFacts': facts, './DeviceSyncWire': wire, './DeviceSyncWebDav': {},
   })
   const storage = new DeviceSyncStorage('/test')
-  storage.update(state => { state.counter = 1 })
+  storage.update(state => {
+    state.counter = 1
+    const group = { id: 'reading',
+      facts: Array.from({ length: 130 }, (_, i) => facts.emptySyncFact('测试,"[]' + i)),
+      baseline: [{ key: 'baseline', value: '"\n' }], pending: [] }
+    const connection = { credential: '', space: 'old', endpointIdentity: 'old', revision: 7, manifestHash: '',
+      selected: ['reading'], automatic: true, reviewRequired: false, lastSuccess: 0, lastError: '', groups: [group] }
+    state.archivedIntents = [{ connection, expected: '', sent: true, groupRevisions: [],
+      applies: [{ group: 'reading', changes: group.baseline }], staged: [group] }]
+  })
   const pauseNext = () => new Promise(resolve => { blocked = true; staged = resolve })
   const firstStage = pauseNext()
   const saving = storage.updateInBackground(state => { state.counter += 1; return true }, () => {})
@@ -56,6 +65,7 @@ test('a staged sync state cannot overwrite a newer local write or publish after 
   await saving
   assert.equal(JSON.parse(files.get(path)).counter, 6)
   assert.equal(storage.load().counter, 6)
+  assert.equal(files.get(path), JSON.stringify(storage.load()))
 
   let allowed = true
   const secondStage = pauseNext()

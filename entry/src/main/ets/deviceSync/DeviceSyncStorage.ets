@@ -2,10 +2,12 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { asset } from '@kit.AssetStoreKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { taskpool, util } from '@kit.ArkTS'
+import { hiTraceMeter } from '@kit.PerformanceAnalysisKit'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { isSyncReplica, SyncEditKind, SyncFact, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { canonicalSyncDirectory, SyncConnectionDraft } from './DeviceSyncWebDav'
 import { syncUtf8 } from './DeviceSyncWire'
+import { DeviceSyncSliceBudget, syncMetricUptime } from './DeviceSyncMetrics'
 import { SyncReadingActionCapture, SyncReadingCapture } from './DeviceSyncSignals'
 
 export interface SyncLocalValue {
@@ -220,10 +222,67 @@ function readingDelta(before: SyncLocalDocument, after: SyncLocalDocument): Sync
   }
 }
 
+const SYNC_STATE_BATCH_ROWS = 64
+const SYNC_STATE_RECORD_FIELDS = new Set<string>(['active', 'intent', 'connection'])
+const SYNC_STATE_RECORD_LISTS = new Set<string>([
+  'groups', 'archives', 'archivedIntents', 'replanIntents', 'stagedRecovery', 'staged', 'applies',
+])
+
+/** Keep the ordinary JSON document and its property/row order. Split only its
+ * known containers so facts and retained intents cannot block one UI turn. */
+class SyncStateJson {
+  readonly parts: string[] = []
+  private readonly budget: DeviceSyncSliceBudget
+
+  constructor(budget: DeviceSyncSliceBudget) {
+    this.budget = budget
+  }
+
+  async writeRecord(record: Object): Promise<void> {
+    const fields = record as Record<string, Object | undefined>
+    this.parts.push('{')
+    let separator = ''
+    for (const name of Object.keys(fields)) {
+      const value = fields[name]
+      if (value === undefined) continue
+      const pause = this.budget.yieldIfNeeded()
+      if (pause !== undefined) await pause
+      this.parts.push(separator, JSON.stringify(name), ':')
+      separator = ','
+      if (Array.isArray(value)) {
+        await this.writeArray(value, SYNC_STATE_RECORD_LISTS.has(name))
+      } else if (value !== null && typeof value === 'object' && SYNC_STATE_RECORD_FIELDS.has(name)) {
+        await this.writeRecord(value)
+      } else {
+        this.parts.push(JSON.stringify(value))
+      }
+    }
+    this.parts.push('}')
+  }
+
+  private async writeArray(rows: Object[], nested: boolean): Promise<void> {
+    this.parts.push('[')
+    const step = nested ? 1 : SYNC_STATE_BATCH_ROWS
+    for (let start = 0; start < rows.length; start += step) {
+      const pause = this.budget.yieldIfNeeded()
+      if (pause !== undefined) await pause
+      if (start > 0) this.parts.push(',')
+      const item = rows[start]
+      if (nested && item !== null && typeof item === 'object' && !Array.isArray(item)) {
+        await this.writeRecord(item)
+      } else {
+        const part = JSON.stringify(rows.slice(start, start + step))
+        this.parts.push(part.slice(1, -1))
+      }
+    }
+    this.parts.push(']')
+  }
+}
+
 @Concurrent
-function stageSyncState(path: string, body: string): string {
+function stageSyncState(path: string, parts: string[]): string {
   try {
-    writeAppTextFile(path, body)
+    writeAppTextFile(path, parts.join(''))
     return ''
   } catch (error) {
     return (error as Error).message || 'sync_local_state_write_failed'
@@ -325,9 +384,16 @@ export class DeviceSyncStorage {
           if (this.current !== original) continue
         }
         if (!prepared) {
-          // Transfer a flat string. Taskpool's object clone otherwise walks the
-          // complete sync document on the caller thread before enqueueing it.
-          const error = await taskpool.execute(stageSyncState, stagedPath, JSON.stringify(next)) as string
+          const budget = new DeviceSyncSliceBudget(guard)
+          const body = new SyncStateJson(budget)
+          await body.writeRecord(next)
+          guard()
+          if (this.current !== original) continue
+          hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeChars',
+            body.parts.reduce((count: number, part: string): number => count + part.length, 0))
+          hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeSliceMs', budget.peak())
+          hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeMs', syncMetricUptime() - budget.started)
+          const error = await taskpool.execute(stageSyncState, stagedPath, body.parts) as string
           if (error.length > 0) throw new Error(error)
         }
         guard()
@@ -366,8 +432,11 @@ export class DeviceSyncStorage {
   }
 
   save(value: SyncLocalDocument): void {
+    const receipt = value.localReceipt !== undefined && value.localReceipt !== this.current?.localReceipt
+    const started = receipt ? syncMetricUptime() : 0
     writeAppTextFile(this.path, JSON.stringify(value))
     this.current = value
+    if (receipt) hiTraceMeter.traceByValue('KomaDeviceSyncReceiptSaveMs', syncMetricUptime() - started)
   }
 }
 

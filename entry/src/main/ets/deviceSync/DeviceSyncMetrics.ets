@@ -4,6 +4,33 @@ import { systemDateTime } from '@kit.BasicServicesKit'
 export function syncMetricUptime(): number {
   try { return systemDateTime.getUptime(systemDateTime.TimeType.STARTUP) } catch (_error) { return 0 }
 }
+export class DeviceSyncSliceBudget {
+  readonly started = syncMetricUptime()
+  yields = 0
+  private sliceStarted = this.started
+  private longestSlice = 0
+  private readonly guard: () => void
+
+  constructor(guard: () => void) {
+    this.guard = guard
+  }
+
+  yieldIfNeeded(): Promise<void> | undefined {
+    const elapsed = syncMetricUptime() - this.sliceStarted
+    if (elapsed < 4) return undefined
+    this.longestSlice = Math.max(this.longestSlice, elapsed)
+    this.yields++
+    return new Promise<void>((resume: () => void): void => { setTimeout(resume, 0) }).then((): void => {
+      this.guard()
+      this.sliceStarted = syncMetricUptime()
+    })
+  }
+
+  peak(): number {
+    return Math.max(this.longestSlice, syncMetricUptime() - this.sliceStarted)
+  }
+}
+
 export interface SyncRequestMetrics {
   method: string
   namespace: string

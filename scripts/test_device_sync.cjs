@@ -8,6 +8,10 @@ const ts = require(process.env.KOMA_TYPESCRIPT_PATH ??
 
 const root = path.resolve(__dirname, '../entry/src/main/ets/deviceSync')
 function compile(file, ports = {}, globals = {}) {
+  if (file === 'DeviceSyncStorage') {
+    ports = { './DeviceSyncMetrics': metrics,
+      '@kit.PerformanceAnalysisKit': { hiTraceMeter: { traceByValue() {} } }, ...ports }
+  }
   const source = fs.readFileSync(path.join(root, file + '.ets'), 'utf8')
   const compiled = ts.transpileModule(source, {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS },
