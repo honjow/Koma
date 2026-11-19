@@ -450,28 +450,55 @@ const COVER_IMAGE_READ_TIMEOUT_MS: number = 15000
 const COVER_IMAGE_CONNECT_TIMEOUT_MS: number = 10000
 const NETWORKKIT_DEFAULT_BUFFER_BYTES: number = 50 * 1024 * 1024
 const READER_PAGE_IMAGE_BUFFER_BYTES: number = 64 * 1024 * 1024
-const READER_IMAGE_PROGRESS_INTERVAL_MS: number = 100
+const READER_IMAGE_PROGRESS_INTERVAL_MS: number = 50
 
 interface ReaderImageResponse { status: number; bytes: ArrayBuffer }
 
 function observeReaderImageProgress(receive: RemoteImageDownloadProgress): RemoteImageDownloadProgress {
   let lastPercent = -1
+  let lastTotal = 0
   let lastUpdate = 0
   return (loaded: number, total: number): void => {
-    // Fast responses may complete before the first intermediate update. Wait for
-    // the cached file to become ready instead of flashing 100% on those pages.
-    if (!Number.isFinite(loaded) || !Number.isFinite(total) || loaded <= 0 || loaded >= total) return
+    if (!Number.isSafeInteger(loaded) || !Number.isSafeInteger(total) || loaded < 0 || loaded >= total) return
     const percent = Math.round(100 * loaded / total)
     const now = Date.now()
-    if (percent === lastPercent || now - lastUpdate < READER_IMAGE_PROGRESS_INTERVAL_MS) return
+    // Headers can establish 0%, then the first real increase can arrive in the
+    // same interval. Bound subsequent updates as short pages share the list.
+    // The image presentation still takes over as soon as its pixels are ready.
+    if (percent >= 100 || (total === lastTotal && percent === lastPercent)) return
+    if (total === lastTotal && lastPercent > 0 && percent > 0 &&
+      now - lastUpdate < READER_IMAGE_PROGRESS_INTERVAL_MS) return
     lastPercent = percent
+    lastTotal = total
     lastUpdate = now
     receive(loaded, total)
   }
 }
 
+interface ReaderImageResponseLength { declared: number; stream: number }
+
+function readerImageResponseLength(headers: Object): ReaderImageResponseLength {
+  const fields = headers as Record<string, string>
+  let declared = -1
+  let identity = true
+  for (const key of Object.keys(fields)) {
+    const name = key.toLowerCase()
+    const value = String(fields[key]).trim()
+    if (name === 'content-length' && /^\d+$/.test(value)) {
+      const length = Number(value)
+      if (Number.isSafeInteger(length)) declared = length
+    } else if ((name === 'content-encoding' || name === 'transfer-encoding') && value.toLowerCase() !== 'identity') {
+      identity = false
+    }
+  }
+  // Encoded or chunked responses may expose a different byte unit in the
+  // body callback. Their progress stays with NetworkKit's paired counters.
+  return { declared, stream: identity && declared > 0 ? declared : 0 }
+}
+
 async function requestReaderImageStream(request: http.HttpRequest, target: string, options: http.HttpRequestOptions,
-  onChunk: (chunk: ArrayBuffer) => void, progress: RemoteImageDownloadProgress): Promise<ReaderImageResponse> {
+  onChunk: (chunk: ArrayBuffer) => void, progress: RemoteImageDownloadProgress,
+  streamTotal: () => number): Promise<ReaderImageResponse> {
   const chunks: ArrayBuffer[] = []
   let length = 0
   let exceededLimit = false
@@ -490,11 +517,13 @@ async function requestReaderImageStream(request: http.HttpRequest, target: strin
     }
     chunks.push(chunk)
     length += chunk.byteLength
+    const total = streamTotal()
+    if (total > 0) progress(length, total)
     onChunk(chunk)
   })
   request.on('dataEnd', resolveEnd)
   request.on('dataReceiveProgress', (value: http.DataReceiveProgressInfo): void => {
-    if (!exceededLimit && value !== undefined) progress(value.receiveSize, value.totalSize)
+    if (!exceededLimit && value !== undefined && streamTotal() <= 0) progress(value.receiveSize, value.totalSize)
   })
   const result = request.requestInStream(target, options).then(async (status: number): Promise<ReaderImageResponse> => {
     if (status !== 200) return { status, bytes: new ArrayBuffer(0) }
@@ -613,22 +642,21 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
   } catch (_error) {}
   let responseStarted: boolean = false
   let declaredBytes: number = -1
+  let streamBytes: number = 0
   let normalDeadline: number = -1
   try {
     httpRequest.on('headersReceive', (headers: Object) => {
       responseStarted = true
       declaredBytes = -1
+      streamBytes = 0
       try {
-        const fields = headers as Record<string, string>
-        for (const key of Object.keys(fields)) {
-          if (key.toLowerCase() === 'content-length' && /^\d+$/.test(fields[key])) {
-            const length = Number(fields[key])
-            if (Number.isSafeInteger(length)) declaredBytes = length
-          }
-        }
+        const length = readerImageResponseLength(headers)
+        declaredBytes = length.declared
+        streamBytes = length.stream
       } catch (_error) {
         // A malformed diagnostic header must not affect the image request.
       }
+      if (streamBytes > 0) progress?.(0, streamBytes)
       trace.info('response', 'declaredBytes=' + declaredBytes)
     })
   } catch (error) {
@@ -651,7 +679,7 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
       ? httpRequest.request(url, options).then((response: http.HttpResponse): ReaderImageResponse => {
         return { status: response.responseCode, bytes: response.result as ArrayBuffer }
       })
-      : requestReaderImageStream(httpRequest, url, options, probeSize, progress)
+      : requestReaderImageStream(httpRequest, url, options, probeSize, progress, () => streamBytes)
     // Give a site-declared large chapter image extra time on the same GET.
     // Covers, ordinary responses and missing/malformed lengths retain the
     // existing deadline. A timeout leaves no partial file in the image cache.

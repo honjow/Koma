@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-19T23:14:50+08:00",
+  "updatedAt": "2026-11-19T23:36:15+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -631,11 +631,15 @@
       "reportedDate": "2026-11-15",
       "reportedAtSource": "用户在本会话报告，原始时刻未核实。",
       "registeredAt": "2026-11-15T21:55:14+08:00",
-      "updatedAt": "2026-11-15T22:31:51+08:00",
-      "status": "237 分页、条漫均已实测，哔咔分流 2 待登录",
-      "result": "Koma 宿主将真实下载字节接入共享阅读器现有百分比。当前页可接续预载的进度，缓存仍在接收完整图片后发布。签名 Debug HAP 构建通过。本地验证覆盖重试、预载接续、完整文件发布和流式接收上限，扩展运行有 8 项与改动前相同的失败。237 分页实测《碧藍之海》第105话首图从 2% 更新到 26%，Komiic 的响应总大小未知，显示循环加载后正常出图。同包条漫实测瓜子漫画《从姑获鸟开始》334 鬼梦貘，从循环加载切换到 72%，随后正常出图并能连续滚动；可见两张正文图。哔哩漫画第105、106话在本轮条漫对照中部分请求等不到响应头，保留循环加载。已恢复本书原单页从右到左、无痕开关、书架第56话第3页及 10000ms 休眠超时，释租，保留测试包。",
-      "remaining": "237 的哔咔漫画显示要求登录。需要在设备上完成登录，才能用分流 2 的正文图实测特殊 DNS 请求进度。尚未发布。",
+      "updatedAt": "2026-11-19T23:36:15+08:00",
+      "status": "201 已核对条漫新页的早期百分比，哔咔分流 2 仍待实测",
+      "result": "正文流能取得同口径的响应头长度时，由响应头和实际数据块提供百分比。第一次增长不受节流限制，之后的同一请求更新间隔从 100 ms 缩到 50 ms。图像就绪时立即显示。201《遇强则强》第 27 话首图录到 1% 和 49% 后正常显示，连续前翻至第 57 页。最后一段实时日志确认 27 次新图请求全部返回 200，响应头至收完正文的中位数为 23 ms，范围为 1–182 ms。 Koma 宿主将真实下载字节接入共享阅读器现有百分比。当前页可接续预载的进度，缓存仍在接收完整图片后发布。签名 Debug HAP 构建通过。本地验证覆盖重试、预载接续、完整文件发布和流式接收上限，扩展运行有 8 项与改动前相同的失败。237 分页实测《碧藍之海》第105话首图从 2% 更新到 26%，Komiic 的响应总大小未知，显示循环加载后正常出图。同包条漫实测瓜子漫画《从姑获鸟开始》334 鬼梦貘，从循环加载切换到 72%，随后正常出图并能连续滚动；可见两张正文图。哔哩漫画第105、106话在本轮条漫对照中部分请求等不到响应头，保留循环加载。已恢复本书原单页从右到左、无痕开关、书架第56话第3页及 10000ms 休眠超时，释租，保留测试包。",
+      "remaining": "快回包或分批集中到达时，显示的百分比会跨格。哔咔分流 2 仍需在可用账号下实测实际传输回报。",
       "evidence": [
+        ".hvigor/outputs/reader-image-progress-306/device201__LMR-AL00/not-applicable/portrait-1276x2848/reader-image-progress/chapter-27-open-233152386094/chapter-27-open-233152386094.mp4",
+        ".hvigor/outputs/reader-image-progress-306/device201__LMR-AL00/not-applicable/portrait-1276x2848/reader-image-progress/chapter-27-forward-233426325038/chapter-27-forward-233426325038.mp4",
+        ".hvigor/outputs/reader-image-progress-306/device201__LMR-AL00/not-applicable/portrait-1276x2848/reader-image-progress/chapter-27-forward-233426325038/network-summary.json",
+        ".hvigor/outputs/reader-image-progress-306/device201__LMR-AL00/not-applicable/portrait-1276x2848/reader-image-progress/restore-233524186681/run-metadata.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-image-progress/06-chapter105-recording/koma_reader_progress_237_2211.mp4",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-image-progress/07-reader-outcome/reader.jpeg",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/reader-image-progress/11-control-settled/run-metadata.json",
@@ -11952,6 +11956,20 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-image-progress-chunk-feed-201-20261119",
+      "at": "2026-11-19T23:36:15+08:00",
+      "itemId": "READER_REMOTE_IMAGE_DOWNLOAD_PROGRESS",
+      "title": "201 复核条漫新图的早期下载百分比",
+      "detail": "正文流能取得同口径的响应头长度时，由响应头和实际数据块提供百分比。第一次增长不受节流限制，之后的同一请求更新间隔从 100 ms 缩到 50 ms。图像就绪时立即显示。201《遇强则强》第 27 话首图录到 1% 和 49% 后正常显示，连续前翻至第 57 页。最后一段实时日志确认 27 次新图请求全部返回 200，响应头至收完正文的中位数为 23 ms，范围为 1–182 ms。无痕和电源已恢复，原书架续读仍为第 1 话第 74 页。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/reader-image-progress-306/device201__LMR-AL00/not-applicable/portrait-1276x2848/reader-image-progress/chapter-27-open-233152386094/chapter-27-open-233152386094.mp4",
+        ".hvigor/outputs/reader-image-progress-306/device201__LMR-AL00/not-applicable/portrait-1276x2848/reader-image-progress/chapter-27-forward-233426325038/chapter-27-forward-233426325038.mp4",
+        ".hvigor/outputs/reader-image-progress-306/device201__LMR-AL00/not-applicable/portrait-1276x2848/reader-image-progress/chapter-27-forward-233426325038/network-summary.json",
+        ".hvigor/outputs/reader-image-progress-306/device201__LMR-AL00/not-applicable/portrait-1276x2848/reader-image-progress/restore-233524186681/run-metadata.json"
+      ]
+    },
     {
       "id": "continuous-first-loaded-201-20261119",
       "at": "2026-11-19T23:14:50+08:00",

@@ -176,6 +176,49 @@ test('foreground joins the preload byte count before the cache publishes a file'
   report(80, 80)
   assert.deepEqual(received, [[12, 80], [48, 80]])
 })
+
+test('image streaming reports early body bytes even when the platform progress event skips them', async () => {
+  let now = 1000
+  const file = 'model/ReaderPageSourceAdapter.ets'
+  const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets', file), 'utf8')
+  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
+  const names = new Set(['readerImageResponseLength', 'observeReaderImageProgress', 'requestReaderImageStream'])
+  const declarations = tree.statements.filter(node => names.has(node.name?.getText(tree)) ||
+    (ts.isVariableStatement(node) && node.declarationList.declarations.some(declaration =>
+      ['READER_IMAGE_PROGRESS_INTERVAL_MS', 'READER_PAGE_IMAGE_BUFFER_BYTES'].includes(declaration.name.getText(tree)))))
+  const exports = {}
+  vm.runInNewContext(ts.transpileModule(declarations.map(node => node.getText(tree)).join('\n') +
+    '\nexport { readerImageResponseLength, observeReaderImageProgress, requestReaderImageStream }', {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports, Date: { now: () => now } })
+
+  for (const encoded of [false, true]) {
+    const length = exports.readerImageResponseLength({ 'Content-Length': '200', ...(encoded && { 'Content-Encoding': 'gzip' }) })
+    const events = new Map(), reports = []
+    const progress = exports.observeReaderImageProgress((loaded, total) => reports.push([loaded, total]))
+    const request = {
+      on: (name, callback) => events.set(name, callback),
+      requestInStream: () => Promise.resolve(200),
+    }
+    const result = exports.requestReaderImageStream(request, 'https://images.invalid/page', {}, () => {},
+      progress, () => length.stream)
+    const chunk = count => events.get('dataReceive')(new ArrayBuffer(count))
+    const platform = (receiveSize, totalSize) => events.get('dataReceiveProgress')({ receiveSize, totalSize })
+    if (length.stream > 0) progress(0, length.stream)
+    chunk(12)
+    now += 25
+    chunk(24)
+    now += 28
+    chunk(36)
+    platform(80, 200)
+    chunk(128)
+    platform(200, 200)
+    events.get('dataEnd')()
+    assert.equal((await result).bytes.byteLength, 200)
+    assert.deepEqual(reports, encoded ? [[80, 200]] : [[0, 200], [12, 200], [72, 200]])
+  }
+})
+
 const Index = methods('pages/Index.ets', 'Index', ['prepareReaderLabCatalog'], {
   ComicSourceKind: { LOCAL_FOLDER: 'folder' }, KomaReaderFailure: { sourceError: () => Error('source failure') },
 })
