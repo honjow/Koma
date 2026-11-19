@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-19T23:36:15+08:00",
+  "updatedAt": "2026-11-20T00:12:03+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -5387,14 +5387,14 @@
       "id": "CONTINUOUS_PERFORMANCE",
       "number": 1,
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "201 新页长测确认主线程减负，超分下的帧间隔仍待收敛",
-      "stage": "保留已实测的同签候选，继续跟踪条漫的剩余长帧",
+      "status": "已确认 TaskPool 回执占用滚动主线程，实机低速惯性仍有帧间隔尖峰",
+      "stage": "优先定位 237 低速中的大块 TaskPool 回执，随后评估同页缓存结果合并",
       "kind": "active",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
       "result": "正文缓存检查和落盘已移到后台，未变的短图行少做更新，已测新页连续加载。 连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
-      "remaining": "继续定位系统超分打开时连续占用主线程的 ArkUI 可取消事件回调，保留快甩和新页加载的真实对照。左右分页仍需定位 FlushDirtyNodeUpdate 内资源查询和 ForEachNode 的归属，沿原决定保留已撤回的固定窗口实验。",
+      "remaining": "追踪大块 TaskPool 返回的生产者，核对能否在 worker 侧消费数据或落盘后交回小结果。同时区分缓存正文、处理描述、存在检查和尺寸回报。先验明同页可以共享的检查或发布结果，再减少回主线程的次数，保留正在读的页面即时发布、重试和缓存缺失恢复。左右分页保留原独立调查及固定窗口撤回决定。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -5403,6 +5403,12 @@
       "closedAt": null,
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/two-devices-motion-001.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/237-lower-inertia-long-frame.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/lazy-metadata-201-evidence.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/lazy-metadata-frame-attribution-201.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/lazy-metadata-reader-kit.patch",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/lazy-metadata-baseline-restored-201-identity.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/fresh-forward-201-evidence.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/cold-final-201-identity.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/candidate/Koma-1.5.5-issue-001-final-signed.hap",
@@ -5497,6 +5503,14 @@
       ],
       "latestCounterexampleAt": "2026-11-08T21:10:00+08:00",
       "evidencePoints": [
+        "按需复制页面元数据实验中，240 页的本地基准每次快照平均复制 506→26 个对象。201 使用全新短图章节，各 20 次快甩，原包/实验包新图请求 154→162，最长间隔 31.55→28.26 ms，超过 16.7 ms 的间隔 21→34，刻意继续向前的 40 次实验包快甩另加载 253 张新图。样本分属不同章节。由于帧间隔指标不一致，实验只保留补丁，201 回到已验的百分比修复包。",
+        "此前 35.33 ms 的长帧通过 ArkUI handleId 匹配同进程 worker 投递，4 段是 TaskPoolOnResultTask，累计 26.34 ms，其中 2 段由 worker 文件重命名回调发出。另两段目前只有结果投递，尚未标出业务入口。",
+        "201 关闭超分低速惯性，第 39 话，20 次原生惯性滚动从第 1 页到第 81 页，当前窗口匹配到 79/79 个新图 HTTP 200。帧间隔超过 16.7 ms 有 15 次，超过 33.3 ms 有 0 次，最长 21.96 ms。最长窗口内有 2 段已匹配的 TaskPool 回执，共 14.24 ms。",
+        "201 开启超分低速惯性，第 40 话，20 次原生惯性滚动从第 1 页到第 81 页，当前窗口匹配到 79/79 个新图 HTTP 200。帧间隔超过 16.7 ms 有 12 次，超过 33.3 ms 有 0 次，最长 23.08 ms。最长窗口内有 3 段已匹配的 TaskPool 回执，共 13.85 ms。",
+        "237 快甩，第 18 话，18 次原生惯性滚动从第 1 页到第 89 页，当前窗口匹配到 86/86 个新图 HTTP 200。帧间隔超过 16.7 ms 有 22 次，超过 33.3 ms 有 2 次，最长 37.55 ms。最长窗口内有 4 段已匹配的 TaskPool 回执，共 16.30 ms。",
+        "237 低速惯性，第 19 话，18 次原生惯性滚动从第 1 页到第 45 页，当前窗口匹配到 43/43 个新图 HTTP 200。帧间隔超过 16.7 ms 有 30 次，超过 33.3 ms 有 2 次，最长 93.23 ms。最长窗口内有 1 段已匹配的 TaskPool 回执，共 88.91 ms。",
+        "237 低速组最长 93.23 ms。单个结果回执持续 88.91 ms，其中主线程实际在 CPU 上运行 88.39 ms。运行时标出反序列化 3372645 字节，用时 12.92 ms。其余 JavaScript 时间和结果所属业务尚未具名。该组另有一次 37.62 ms，后台文件重命名结果引出的主线程回执持续 21.51 ms。",
+        "未清应用缓存，用访问到的新图请求确认测试范围。237 沿用设备当前安装版本及超分设置。章节切换后低速组从正文区域滑动，工具栏未能在开始前通过点图收起。",
         "201 在《遇强则强》第 5、6 话测对照包，最终候选从第 16 话只向前快翻到第 25 话第 146 页。最终候选 206 次，累计 8 分 36 秒，1541 次新图网络请求均 HTTP 200，期间完成系统超分 10 次。快甩为 1890 物理像素、18000 px/s，另留正常阅读间歇。开关两态各取前后 20 次快甩，主线程文件检查回调 72→0、文件重命名回调 1125→23、条漫单元更新 5632→2472、超过 8.3 ms 的应用 UI 帧 154→10。前后均用不同新章，页高和超分任务量随内容变化。",
         "最终候选具 trace 的滚动样本最长应用帧间隔 35.33 ms，其中超过 33.3 ms 的间隔 1 次。最终包最长间隔出现在第 22 话首甩，多个 ArkUI 可取消事件回调连续占用主线程，未见同窗文件检查。前一冷加载候选的最长约 40 ms 还包含 CreatePixelMap 完成回调和文件检查。",
         "201 从性能测试书架使用如漫画《遇强则强》第 3 话第 189 页，宽幅甩动校准单次跨 8 张短图。旧包和候选的超分开关两态各 60 次，四组计 240 次，分段采集各约 4 分钟，含前读、跨章、回滑，后段落点随自然惯性有所不同。开启超分时系统抖动 47→22、滚动中超过 33.3 ms 的间隔 3→1、主线程超过 32 MiB 的缓冲释放 131→0。关闭超分时系统抖动 70→48、超过 33.3 ms 的间隔 7→1、最长间隔 57.51→36.21 ms。",
@@ -5505,6 +5519,7 @@
         "同包同作品向下跨章，197 实滑 11 分 17 秒、最长停顿 1.80 秒；200 实滑 10 分 41 秒、最长停顿 1.59 秒。两机都出现刷新信号已发出、应用主线程迟迟未处理。"
       ],
       "remainingActions": [
+        "追踪大块 TaskPool 返回的生产者，核对能否在 worker 侧消费数据或落盘后交回小结果。同时区分缓存正文、处理描述、存在检查和尺寸回报。先验明同页可以共享的检查或发布结果，再减少回主线程的次数，保留正在读的页面即时发布、重试和缓存缺失恢复。左右分页保留原独立调查及固定窗口撤回决定。",
         "继续定位系统超分打开时连续占用主线程的 ArkUI 可取消事件回调，保留快甩和新页加载的真实对照。左右分页仍需定位 FlushDirtyNodeUpdate 内资源查询和 ForEachNode 的归属，沿原决定保留已撤回的固定窗口实验。",
         "201 已验条漫超分的显示尺寸解码、正文缓存查写后台化和短图行输入复用。正文与处理描述批量检查的独立收益仍未拆包对照。",
         "237 快看漫画《遇强则强，我的修为无上限》第 1 话，4 倍超分图解码为 5120×3996。回滑仍有同一批超分文件重新解码，约 78 MiB 的缓冲在 UI 主线程释放。201 随后的普通倍率显示尺寸解码及放大全像素已验证。237 仍沿自身设备复测。",
@@ -5550,7 +5565,7 @@
         "date": "2026-10-26"
       },
       "previousClosedAt": "2026-11-08T08:35:59+08:00",
-      "updatedAt": "2026-11-19T23:14:50+08:00",
+      "updatedAt": "2026-11-20T00:12:03+08:00",
       "evidence": [
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
@@ -11956,6 +11971,22 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "continuous-taskpool-fling-201-237-20261120",
+      "at": "2026-11-20T00:12:03+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "201 与 237 新页惯性滚动追到 TaskPool 回执",
+      "detail": "按需复制页面元数据实验中，240 页的本地基准每次快照平均复制 506→26 个对象。201 使用全新短图章节，各 20 次快甩，原包/实验包新图请求 154→162，最长间隔 31.55→28.26 ms，超过 16.7 ms 的间隔 21→34，刻意继续向前的 40 次实验包快甩另加载 253 张新图。样本分属不同章节。由于帧间隔指标不一致，实验只保留补丁，201 回到已验的百分比修复包。此前 35.33 ms 的长帧通过 ArkUI handleId 匹配同进程 worker 投递，4 段是 TaskPoolOnResultTask，累计 26.34 ms，其中 2 段由 worker 文件重命名回调发出。另两段目前只有结果投递，尚未标出业务入口。201 关闭超分低速惯性，第 39 话，20 次原生惯性滚动从第 1 页到第 81 页，当前窗口匹配到 79/79 个新图 HTTP 200。帧间隔超过 16.7 ms 有 15 次，超过 33.3 ms 有 0 次，最长 21.96 ms。最长窗口内有 2 段已匹配的 TaskPool 回执，共 14.24 ms。201 开启超分低速惯性，第 40 话，20 次原生惯性滚动从第 1 页到第 81 页，当前窗口匹配到 79/79 个新图 HTTP 200。帧间隔超过 16.7 ms 有 12 次，超过 33.3 ms 有 0 次，最长 23.08 ms。最长窗口内有 3 段已匹配的 TaskPool 回执，共 13.85 ms。237 快甩，第 18 话，18 次原生惯性滚动从第 1 页到第 89 页，当前窗口匹配到 86/86 个新图 HTTP 200。帧间隔超过 16.7 ms 有 22 次，超过 33.3 ms 有 2 次，最长 37.55 ms。最长窗口内有 4 段已匹配的 TaskPool 回执，共 16.30 ms。237 低速惯性，第 19 话，18 次原生惯性滚动从第 1 页到第 45 页，当前窗口匹配到 43/43 个新图 HTTP 200。帧间隔超过 16.7 ms 有 30 次，超过 33.3 ms 有 2 次，最长 93.23 ms。最长窗口内有 1 段已匹配的 TaskPool 回执，共 88.91 ms。237 低速组最长 93.23 ms。单个结果回执持续 88.91 ms，其中主线程实际在 CPU 上运行 88.39 ms。运行时标出反序列化 3372645 字节，用时 12.92 ms。其余 JavaScript 时间和结果所属业务尚未具名。该组另有一次 37.62 ms，后台文件重命名结果引出的主线程回执持续 21.51 ms。未清应用缓存，用访问到的新图请求确认测试范围。237 沿用设备当前安装版本及超分设置。章节切换后低速组从正文区域滑动，工具栏未能在开始前通过点图收起。两机已读回原续读和无痕状态，恢复超时并释租。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/two-devices-motion-001.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/237-lower-inertia-long-frame.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/lazy-metadata-201-evidence.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/lazy-metadata-frame-attribution-201.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/lazy-metadata-reader-kit.patch",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/lazy-metadata-baseline-restored-201-identity.json"
+      ]
+    },
     {
       "id": "reader-image-progress-chunk-feed-201-20261119",
       "at": "2026-11-19T23:36:15+08:00",
