@@ -311,7 +311,7 @@ export default class EntryAbility extends UIAbility {
       void error
       DiagnosticLogger.error('app', 'configure_avoid_areas_failed', '[EntryAbility] step=configure_avoid_areas_failed code=avoid_area_failed')
       LayoutSafeAreaBridge.publishInsets(FALLBACK_TOP_AVOID, FALLBACK_BOTTOM_AVOID)
-      LayoutSafeAreaBridge.publishTopCutoutHeight(0)
+      LayoutSafeAreaBridge.publishTopCutout(0, 0, 0)
       LayoutSafeAreaBridge.publishKeyboardHeight(0)
     }
   }
@@ -331,17 +331,17 @@ export default class EntryAbility extends UIAbility {
       const keyboardArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_KEYBOARD)
       const cutoutRect = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT).topRect
       LayoutSafeAreaBridge.publishInsets(top, bottom)
-      // The label sits below the camera, so publish the cutout's bottom edge
-      // (top + height), not its hole height. Using the hole height alone
-      // overstates the gap and pushes the label to the maximum size.
-      LayoutSafeAreaBridge.publishTopCutoutHeight(
-        uiContext.px2vp(cutoutRect.top + cutoutRect.height))
+      LayoutSafeAreaBridge.publishTopCutout(
+        uiContext.px2vp(cutoutRect.left),
+        uiContext.px2vp(cutoutRect.left + cutoutRect.width),
+        uiContext.px2vp(cutoutRect.top + cutoutRect.height),
+      )
       LayoutSafeAreaBridge.publishKeyboardHeight(uiContext.px2vp(keyboardArea.bottomRect.height))
     } catch (error) {
       void error
       DiagnosticLogger.error('app', 'publish_avoid_heights_failed', '[EntryAbility] step=publish_avoid_heights_failed code=avoid_area_failed')
       LayoutSafeAreaBridge.publishInsets(FALLBACK_TOP_AVOID, FALLBACK_BOTTOM_AVOID)
-      LayoutSafeAreaBridge.publishTopCutoutHeight(0)
+      LayoutSafeAreaBridge.publishTopCutout(0, 0, 0)
       LayoutSafeAreaBridge.publishKeyboardHeight(0)
     }
   }

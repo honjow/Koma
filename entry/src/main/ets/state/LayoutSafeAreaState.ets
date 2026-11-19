@@ -1,15 +1,19 @@
 import { AppStorageV2 } from '@kit.ArkUI'
 
+interface TopCutout {
+  left: number
+  right: number
+  bottom: number
+}
+
 @ObservedV2
 export class LayoutSafeAreaState {
   @Trace topAvoidHeight: number = 0
   @Trace bottomAvoidHeight: number = 0
   @Trace keyboardHeight: number = 0
   @Trace windowWidthVp: number = 0
-  // Height of the camera cutout's avoid area measured from the top of the
-  // window. Published from the window avoid area, so it updates on rotation,
-  // fold and resize instead of relying on a display query.
-  @Trace topCutoutHeight: number = 0
+  // Window coordinates in vp. Publish the edges together on rotation, fold and resize.
+  @Trace topCutout: TopCutout = { left: 0, right: 0, bottom: 0 }
 }
 
 const LAYOUT_SAFE_AREA_V2_KEY: string = 'v2:layoutSafeArea'
@@ -42,11 +46,11 @@ export class LayoutSafeAreaBridge {
     }
   }
 
-  static publishTopCutoutHeight(topCutoutHeight: number): void {
-    if (!Number.isFinite(topCutoutHeight) || topCutoutHeight < 0) return
+  static publishTopCutout(left: number, right: number, bottom: number): void {
     const state = connectLayoutSafeArea()
-    if (state.topCutoutHeight !== topCutoutHeight) {
-      state.topCutoutHeight = topCutoutHeight
+    const current = state.topCutout
+    if (current.left !== left || current.right !== right || current.bottom !== bottom) {
+      state.topCutout = { left, right, bottom }
     }
   }
 }

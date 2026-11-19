@@ -13,6 +13,7 @@ export interface AppearancePreferences {
 const APPEARANCE_PREFERENCES_STORE_NAME: string = 'koma_appearance_preferences_v1'
 const ACCENT_COLOR_KEY: string = 'appearance.accentColor'
 const AUTO_HIDE_BOTTOM_BAR_KEY: string = 'appearance.autoHideBottomBar'
+const SHOW_RESUME_MINI_BAR_KEY: string = 'appearance.showResumeMiniBar'
 const DOUBLE_BACK_TO_EXIT_KEY: string = 'navigation.backGuardEnabled'
 
 export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
@@ -69,6 +70,7 @@ export class AppearancePreferencesStore {
       const accentColor = normalizeAppearanceAccentColor(raw)
       connectAppearanceState().accentColor = accentColor
       connectAppearanceState().autoHideBottomBar = await store.get(AUTO_HIDE_BOTTOM_BAR_KEY, true) as boolean
+      connectAppearanceState().showResumeMiniBar = await store.get(SHOW_RESUME_MINI_BAR_KEY, true) !== false
       connectAppearanceState().doubleBackToExit = await store.get(DOUBLE_BACK_TO_EXIT_KEY, true) as boolean
       return { accentColor }
     })
@@ -97,6 +99,12 @@ export class AppearancePreferencesStore {
   saveAutoHideBottomBar(enabled: boolean): Promise<void> {
     return this.saveBooleanPreference(AUTO_HIDE_BOTTOM_BAR_KEY, enabled, () => {
       connectAppearanceState().autoHideBottomBar = enabled
+    })
+  }
+
+  saveShowResumeMiniBar(enabled: boolean): Promise<void> {
+    return this.saveBooleanPreference(SHOW_RESUME_MINI_BAR_KEY, enabled, () => {
+      connectAppearanceState().showResumeMiniBar = enabled
     })
   }
 

@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-19T13:57:10+08:00",
+  "updatedAt": "2026-11-19T14:21:33+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -85,6 +85,43 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "RESUME_MINIBAR_SETTING",
+      "number": 328,
+      "title": "可关闭续读迷你栏",
+      "kind": "done",
+      "priority": "用户需求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-19",
+      "reportedAtSource": "本会话用户要求新增默认开启的迷你栏开关，原始时刻未核实。",
+      "registeredAt": "2026-11-19T14:15:30+08:00",
+      "updatedAt": "2026-11-19T14:21:33+08:00",
+      "status": "197 实测通过",
+      "result": "设置 → 外观提供「续读迷你栏」开关，默认开启并按设备保存。197 实测关闭后底部导航正常排布，顶部续读卡片仍显示，冷启动保持关闭。重新开启后可展开，并续读《装备我最强》第 224 话第 2 页。已恢复原开关和电源。",
+      "remaining": "",
+      "evidence": [".hvigor/outputs/resume-minibar-setting/197-result.json"]
+    },
+    {
+      "id": "INCOGNITO_STATUS_CUTOUT_OVERLAP",
+      "number": 327,
+      "title": "侧边开孔不压缩无痕提示字号",
+      "kind": "accepted",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-19",
+      "reportedAtSource": "本会话用户提出侧边开孔时用适中的固定字号，原始时刻未核实。",
+      "registeredAt": "2026-11-19T14:09:25+08:00",
+      "updatedAt": "2026-11-19T14:15:30+08:00",
+      "status": "用户实测通过",
+      "result": "无痕提示沿用无开孔时的 12 fp，开孔横向与文字或图标相交才按剩余高度缩小。197 核对中央开孔和开关，左右偏侧通过坐标验证。用户实测确认无问题，同意验收。",
+      "remaining": "",
+      "evidence": [
+        ".hvigor/outputs/incognito-cutout/197-result.json",
+        ".hvigor/outputs/incognito-cutout/device197__ALN-AL80/not-applicable/portrait-1260x2720/incognito-cutout/actions-20261119T140853396844/screen.png"
+      ]
+    },
     {
       "id": "SOURCE_READ_ONLY_COMMENTS",
       "number": 323,
@@ -11896,6 +11933,32 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "resume-minibar-setting-197-20261119",
+      "at": "2026-11-19T14:21:33+08:00",
+      "itemId": "RESUME_MINIBAR_SETTING",
+      "title": "197 验证续读迷你栏开关",
+      "detail": "默认开启，关闭后冷启动保持关闭，重新开启后可从原章页继续阅读。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/resume-minibar-setting/197-result.json"
+    },
+    {
+      "id": "incognito-status-cutout-accepted-20261119",
+      "at": "2026-11-19T14:15:30+08:00",
+      "itemId": "INCOGNITO_STATUS_CUTOUT_OVERLAP",
+      "title": "用户确认无痕提示实测通过",
+      "detail": "用户在会话中确认测试通过。设备与原始发言时刻未核实。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "incognito-status-cutout-197-20261119",
+      "at": "2026-11-19T14:09:25+08:00",
+      "itemId": "INCOGNITO_STATUS_CUTOUT_OVERLAP",
+      "title": "197 核对无痕提示的中央开孔避让",
+      "detail": "实际切换无痕开关，核对文字和图标在开孔下方居中显示。侧边开孔的字号判断已用坐标样例核对。",
+      "kind": "checkpoint",
+      "evidence": ".hvigor/outputs/incognito-cutout/197-result.json"
+    },
     {
       "id": "library-update-unified-inbox-197-20261119",
       "at": "2026-11-19T13:57:10+08:00",

@@ -112,6 +112,9 @@
     ]
   },
   "deviceOnly": {
+    "model/AppearancePreferencesStore.ets": [
+      "appearance.showResumeMiniBar"
+    ],
     "state/SourceCatalogFilterState.ets": [
       "browse.recentSourceIds"
     ],

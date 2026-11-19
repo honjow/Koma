@@ -249,6 +249,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'theme-color', titleKey: 'settings_row_theme_color_title', detailKey: 'settings_row_theme_color_detail' },
         { key: 'language', titleKey: 'settings_row_language_title', detailKey: 'settings_row_language_detail' },
         { key: 'auto-hide-bottom-bar', titleKey: 'settings_auto_hide_bottom_bar', detailKey: 'settings_auto_hide_bottom_bar_hint' },
+        { key: 'show-resume-mini-bar', titleKey: 'settings_show_resume_mini_bar', detailKey: 'settings_show_resume_mini_bar_hint' },
       ],
     },
     {
@@ -2276,7 +2277,7 @@ export struct SettingsPage {
   }
 
   private isSwitchRow(row: SettingsRow): boolean {
-    return row.key === 'auto-hide-bottom-bar' || row.key === 'double-back-to-exit' ||
+    return row.key === 'auto-hide-bottom-bar' || row.key === 'show-resume-mini-bar' || row.key === 'double-back-to-exit' ||
       row.key === 'library-background-update' || row.key === 'library-auto-update' ||
       row.key === 'library-badges' || row.key === 'library-continue-reading-card' ||
       row.key === 'cache-auto-clean' ||
@@ -2297,6 +2298,7 @@ export struct SettingsPage {
 
   private switchRowValue(row: SettingsRow): boolean {
     if (row.key === 'auto-hide-bottom-bar') return this.appearanceState.autoHideBottomBar
+    if (row.key === 'show-resume-mini-bar') return this.appearanceState.showResumeMiniBar
     if (row.key === 'double-back-to-exit') return this.appearanceState.doubleBackToExit
     if (row.key === 'library-background-update') return !this.libraryUpdatePreferences.foregroundOnly
     if (row.key === 'library-auto-update') {
@@ -2349,6 +2351,13 @@ export struct SettingsPage {
       void this.appearancePreferencesStore().saveAutoHideBottomBar(value).catch((error: Error): void => {
         DiagnosticLogger.exception('settings_page', 'save_bottom_bar_auto_hide_failed', error)
         this.showToast(s('settings_auto_hide_bottom_bar_save_failed'))
+      })
+      return
+    }
+    if (row.key === 'show-resume-mini-bar') {
+      void this.appearancePreferencesStore().saveShowResumeMiniBar(value).catch((error: Error): void => {
+        DiagnosticLogger.exception('settings_page', 'save_resume_mini_bar_failed', error)
+        this.showToast(s('settings_show_resume_mini_bar_save_failed'))
       })
       return
     }
@@ -2621,7 +2630,7 @@ export struct SettingsPage {
         subtitle: row.key === 'download-notifications' && this.downloadNotificationsEnabled && this.downloadNotificationStatus === 'disabled'
           ? s('settings_download_notification_system_hint') :
           row.key === 'download-notifications' ? s('settings_row_download_notifications_detail') :
-          row.key === 'auto-hide-bottom-bar' ? s('settings_auto_hide_bottom_bar_hint') :
+          row.key === 'auto-hide-bottom-bar' || row.key === 'show-resume-mini-bar' ||
           row.key === 'library-continue-reading-card' ? this.rowBaseDetail(row) :
           row.key === 'library-background-update' && !this.libraryUpdatePreferences.autoCheckEnabled
             ? s('library_background_update_paused') : '',

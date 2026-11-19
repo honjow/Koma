@@ -4,10 +4,11 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
 
+const LABEL_SPACING_VP: number = 4
+
 // Incognito status strip: a tinted band across the whole status-bar area with
-// a small "incognito" label pinned to the band's bottom edge, below the camera
-// cutout. Rendered only while incognito mode is on, on top of every page below
-// the reader.
+// a centered label pinned to its bottom edge. Only a cutout in the label's
+// horizontal span reduces its size. Rendered above non-reader pages.
 @ComponentV2
 export struct IncognitoStatusBarOverlay {
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
@@ -39,34 +40,46 @@ export struct IncognitoStatusBarOverlay {
     }
   }
 
-  // The font is the gap between the cutout's bottom edge and the band's bottom
-  // edge, directly: no multiplier, no fixed size. 4vp is the lower bound so a
-  // narrow gap still renders a legible label; 12vp caps an abnormally wide one.
-  private labelFontSize(): number {
-    const gap = this.bandHeight() - this.safeArea.topCutoutHeight
-    return Math.min(Math.max(gap, 4), 12)
+  @Computed
+  private get labelFontSize(): number {
+    const bandHeight = this.bandHeight()
+    const normalSize = Math.min(Math.max(bandHeight, 4), 12)
+    const cutout = this.safeArea.topCutout
+    if (cutout.right <= cutout.left || cutout.bottom <= 0) return normalSize
+
+    const reducedSize = Math.max(4, Math.min(normalSize, bandHeight - cutout.bottom))
+    const windowWidth = this.safeArea.windowWidthVp
+    if (windowWidth <= 0 || reducedSize === normalSize) return reducedSize
+
+    // Use the normal-size label to decide overlap. Measuring the smaller label
+    // would let the fit flip back and forth when a cutout is just off-center.
+    const uiContext = this.getUIContext()
+    const textWidthPx = uiContext.getMeasureUtils().measureText({
+      textContent: AppStrings.get('incognito_mode_label'),
+      fontSize: normalSize,
+    })
+    const labelWidth = uiContext.px2vp(textWidthPx + uiContext.fp2px(normalSize)) + LABEL_SPACING_VP
+    const labelLeft = (windowWidth - labelWidth) / 2
+    const labelRight = labelLeft + labelWidth
+    return cutout.left < labelRight && cutout.right > labelLeft ? reducedSize : normalSize
   }
 
   build() {
     if (this.incognito.enabled && this.bandHeight() > 0) {
       Stack() {
-        // The label container spans the whole band and pins the label to the
-        // band's bottom edge, which is the status bar's bottom. A large camera
-        // cutout never hides the label: the container simply overlaps the
-        // cutout region from the top.
-        Row({ space: 4 }) {
+        Row({ space: LABEL_SPACING_VP }) {
           Text(AppStrings.get('incognito_mode_label'))
-            .fontSize(this.labelFontSize())
+            .fontSize(this.labelFontSize)
             .fontColor(this.labelColor())
           SymbolGlyph($r('sys.symbol.eye_slash'))
-            .fontSize(this.labelFontSize())
+            .fontSize(this.labelFontSize)
             .fontColor([this.labelColor()])
         }
         .width('100%')
         .justifyContent(FlexAlign.Center)
         // Nudge the ink down by most of its font descent so the glyph's bottom
         // edge sits just inside the strip's bottom, flush without crossing it.
-        .offset({ y: this.labelFontSize() * 0.17 })
+        .offset({ y: this.labelFontSize * 0.17 })
       }
       .width('100%')
       .height(this.bandHeight())

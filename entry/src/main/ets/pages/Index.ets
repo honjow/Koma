@@ -815,7 +815,8 @@ struct Index {
   }
 
   private canShowResumeMiniBar(): boolean {
-    return this.continueReadingCard.comicId.length > 0 &&
+    // This device's bottom MiniBar preference is independent of the shelf card.
+    return this.appearanceState.showResumeMiniBar && this.continueReadingCard.comicId.length > 0 &&
       (this.selectedTab !== TabIndex.LIBRARY || !this.libraryTitleBar.selectionMode)
   }
 
