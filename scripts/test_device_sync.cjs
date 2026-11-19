@@ -61,10 +61,15 @@ test('the worker plan preserves pending receipts and restores one shared fact ta
       'mdx:11111111-1111-1111-1111-111111111111', chapter])
     remote.push(edit(facts.emptySyncFact(remoteKey), dot(B, i), 'set', position(2)))
   }
-  const plan = planner.planDeviceSync([{
+  const prepared = [{
     id: 'reading', local: { values: [{ key, value: position(3) }], skipped: 0, revision: 'local' },
-    remote, requiresPreview: false, resetBaseline: false, removed: [],
-  }], undefined, [], C, false, A, 1)
+    remote, published: [fact], migrating: [], requiresPreview: false, resetBaseline: false, removed: [],
+    previous: { id: 'reading', facts: [fact], baseline: [], pending: [] },
+  }]
+  const input = await planner.packSyncPlanInput(prepared, () => undefined)
+  const restored = planner.unpackSyncPlanInput(structuredClone(input))
+  assert.deepEqual(JSON.parse(JSON.stringify(restored)), prepared)
+  const plan = planner.planDeviceSync(restored, undefined, [], C, false, A, 1)
   const payload = structuredClone(planner.packSyncPlan(plan))
   let yielded = false
   const result = await planner.unpackSyncPlan(payload, () => yielded ? undefined :

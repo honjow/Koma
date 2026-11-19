@@ -50,6 +50,7 @@ export interface ProposedSync {
 }
 
 const PLAN_CHUNK_CHARS = 64 * 1024
+const PLAN_INPUT_ROWS = 64
 
 interface PackedPlanGroup {
   id: SyncGroup
@@ -63,6 +64,87 @@ interface PackedPlanGroup {
 interface PackedPlanApply {
   group: SyncGroup
   changes: string[]
+}
+
+export interface PackedPlanInput {
+  header: string
+  values: string[]
+  remote: string[]
+  published?: string[]
+  migrating?: string[]
+  previousFacts?: string[]
+  previousBaseline?: string[]
+  previousPending?: string[]
+}
+
+async function packInputRows<T>(rows: T[],
+  yieldIfNeeded: () => Promise<void> | undefined): Promise<string[]> {
+  const result: string[] = []
+  for (let start = 0; start < rows.length; start += PLAN_INPUT_ROWS) {
+    const pause = yieldIfNeeded()
+    if (pause !== undefined) await pause
+    result.push(JSON.stringify(rows.slice(start, start + PLAN_INPUT_ROWS)))
+  }
+  return result
+}
+
+function unpackInputRows<T>(chunks: string[]): T[] {
+  const rows: T[] = []
+  for (const chunk of chunks) {
+    for (const row of JSON.parse(chunk) as T[]) rows.push(row)
+  }
+  return rows
+}
+
+// Snapshot rows can be large even for a sync with nothing to publish. Encode
+// them in parts on the caller, and assemble them only in the planning worker.
+export async function packSyncPlanInput(groups: PreparedGroup[],
+  yieldIfNeeded: () => Promise<void> | undefined): Promise<PackedPlanInput[]> {
+  const result: PackedPlanInput[] = []
+  for (const row of groups) {
+    const pause = yieldIfNeeded()
+    if (pause !== undefined) await pause
+    const previous = row.previous
+    const local = row.local
+    const header: PreparedGroup = {
+      id: row.id, coverUnavailable: row.coverUnavailable, degraded: row.degraded,
+      requiresPreview: row.requiresPreview, resetBaseline: row.resetBaseline, removed: row.removed,
+      remote: [], previous: previous === undefined ? undefined : {
+        id: previous.id, facts: [], baseline: [], pending: [],
+        deferred: previous.deferred, deferredRoots: previous.deferredRoots,
+      },
+      local: { values: [], revision: local.revision, skipped: local.skipped,
+        readingOutsideScope: local.readingOutsideScope, readingHistoryKeys: local.readingHistoryKeys,
+        protectedKeys: local.protectedKeys, retainedDeletionKeys: local.retainedDeletionKeys,
+        defaultKeys: local.defaultKeys, unsetKeys: local.unsetKeys, restoreEdits: local.restoreEdits, labels: local.labels },
+    }
+    result.push({
+      header: JSON.stringify(header), values: await packInputRows(local.values, yieldIfNeeded),
+      remote: await packInputRows(row.remote, yieldIfNeeded),
+      published: row.published === undefined ? undefined : await packInputRows(row.published, yieldIfNeeded),
+      migrating: row.migrating === undefined ? undefined : await packInputRows(row.migrating, yieldIfNeeded),
+      previousFacts: previous === undefined ? undefined : await packInputRows(previous.facts, yieldIfNeeded),
+      previousBaseline: previous === undefined ? undefined : await packInputRows(previous.baseline, yieldIfNeeded),
+      previousPending: previous === undefined ? undefined : await packInputRows(previous.pending, yieldIfNeeded),
+    })
+  }
+  return result
+}
+
+export function unpackSyncPlanInput(groups: PackedPlanInput[]): PreparedGroup[] {
+  return groups.map((packed: PackedPlanInput): PreparedGroup => {
+    const row = JSON.parse(packed.header) as PreparedGroup
+    row.local.values = unpackInputRows<SyncLocalValue>(packed.values)
+    row.remote = unpackInputRows<SyncFact>(packed.remote)
+    if (packed.published !== undefined) row.published = unpackInputRows<SyncFact>(packed.published)
+    if (packed.migrating !== undefined) row.migrating = unpackInputRows<SyncFact>(packed.migrating)
+    if (row.previous !== undefined) {
+      row.previous.facts = unpackInputRows<SyncFact>(packed.previousFacts ?? [])
+      row.previous.baseline = unpackInputRows<SyncLocalValue>(packed.previousBaseline ?? [])
+      row.previous.pending = unpackInputRows<SyncPendingEdit>(packed.previousPending ?? [])
+    }
+    return row
+  })
 }
 
 export interface PackedSyncPlan {

@@ -22,8 +22,8 @@ import { SyncShardCachePort } from './DeviceSyncShardCache'
 import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncOwner'
 import {
   byLocalValue, bySyncFact, coverDatasetId, dependsOnConflict, hasLegacyRetainedDeletion,
-  isCoverKey, isShelfBook, localValueRows, packSyncPlan, planDeviceSync, unpackSyncPlan,
-  PackedSyncPlan, PreparedGroup, priorConflictRoots, ProposedSync, replaceGroup, restorableEdits, sameShelfBook, shelfMoveValue,
+  isCoverKey, isShelfBook, localValueRows, packSyncPlan, packSyncPlanInput, planDeviceSync, unpackSyncPlan, unpackSyncPlanInput,
+  PackedPlanInput, PackedSyncPlan, PreparedGroup, priorConflictRoots, ProposedSync, replaceGroup, restorableEdits, sameShelfBook, shelfMoveValue,
   SyncMergeChoice, SyncPlanTransport, usesReadingTime, writeDatasetForKey, writeDatasetId, writeDatasetIds,
 } from './DeviceSyncPlanner'
 
@@ -154,11 +154,38 @@ interface CheckedPlan {
   error?: string
 }
 
+class SyncPlanSliceBudget {
+  readonly started = syncMetricUptime()
+  yields = 0
+  private sliceStarted = this.started
+  private longestSlice = 0
+  private readonly guard: SyncRequestGuard
+
+  constructor(guard: SyncRequestGuard) {
+    this.guard = guard
+  }
+
+  yieldIfNeeded(): Promise<void> | undefined {
+    const elapsed = syncMetricUptime() - this.sliceStarted
+    if (elapsed < 4) return undefined
+    this.longestSlice = Math.max(this.longestSlice, elapsed)
+    this.yields++
+    return new Promise<void>((resume: () => void): void => { setTimeout(resume, 0) }).then((): void => {
+      this.guard()
+      this.sliceStarted = syncMetricUptime()
+    })
+  }
+
+  peak(): number {
+    return Math.max(this.longestSlice, syncMetricUptime() - this.sliceStarted)
+  }
+}
+
 @Concurrent
-function prepareSyncPlan(preparedText: string, existing: SyncManifest | undefined, choices: SyncMergeChoice[],
+function prepareSyncPlan(input: PackedPlanInput[], existing: SyncManifest | undefined, choices: SyncMergeChoice[],
   space: string, replica: string, counter: number, transport: SyncPlanTransport): CheckedPlan {
   try {
-    const prepared = JSON.parse(preparedText) as PreparedGroup[]
+    const prepared = unpackSyncPlanInput(input)
     const plan = packSyncPlan(planDeviceSync(prepared, existing, choices, space, false, replica, counter, transport))
     let chunks = 0
     for (const group of plan.groups) chunks += group.facts.length + group.baseline.length
@@ -1553,37 +1580,23 @@ export class DeviceSyncEngine {
     }
     const transport: SyncPlanTransport = { writer: remote.writer, shared: remote.sharedHash !== undefined,
       ownWritable: remote.sharedHash === undefined ? remote.ownWritable : undefined, own }
-    // Groups contain entire fact tables. Flatten the data before crossing the
-    // Taskpool boundary so handing the plan to a worker does not deep-clone it.
-    const encodeStarted = syncMetricUptime()
-    const preparedText = JSON.stringify(groups)
-    hiTraceMeter.traceByValue('KomaDeviceSyncPlanInputEncodeMs', syncMetricUptime() - encodeStarted)
-    const checked = await taskpool.execute(prepareSyncPlan, preparedText, remote.manifest, choices,
+    // A full sync can arrive during a fling. Yield between row chunks on both
+    // sides of TaskPool and recheck the connection before resuming preparation.
+    const encode = new SyncPlanSliceBudget(guard)
+    const input = await packSyncPlanInput(groups, () => encode.yieldIfNeeded())
+    guard()
+    hiTraceMeter.traceByValue('KomaDeviceSyncPlanInputEncodeSliceMs', encode.peak())
+    hiTraceMeter.traceByValue('KomaDeviceSyncPlanInputEncodeMs', syncMetricUptime() - encode.started)
+    const checked = await taskpool.execute(prepareSyncPlan, input, remote.manifest, choices,
       space, state.replica, state.counter, transport) as CheckedPlan
     guard()
     if (checked.plan === undefined) throw new Error(checked.error ?? 'sync_invalid_plan')
-    const decodeStarted = syncMetricUptime()
-    let sliceStarted = decodeStarted
-    let longestSlice = 0
-    let yields = 0
-    // Large account plans can arrive during a fling. Yield between row chunks
-    // and recheck the connection guard before resuming an uncommitted plan.
-    const yieldIfNeeded = (): Promise<void> | undefined => {
-      const elapsed = syncMetricUptime() - sliceStarted
-      if (elapsed < 4) return undefined
-      longestSlice = Math.max(longestSlice, elapsed)
-      yields++
-      return new Promise<void>((resume: () => void): void => { setTimeout(resume, 0) }).then((): void => {
-        guard()
-        sliceStarted = syncMetricUptime()
-      })
-    }
-    const plan = await unpackSyncPlan(checked.plan, yieldIfNeeded)
+    const decode = new SyncPlanSliceBudget(guard)
+    const plan = await unpackSyncPlan(checked.plan, () => decode.yieldIfNeeded())
     guard()
-    hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeSliceMs',
-      Math.max(longestSlice, syncMetricUptime() - sliceStarted))
-    hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeYields', yields)
-    hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeMs', syncMetricUptime() - decodeStarted)
+    hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeSliceMs', decode.peak())
+    hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeYields', decode.yields)
+    hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeMs', syncMetricUptime() - decode.started)
     if (replans.length > 0) {
       if (!remote.writer || remote.ownWritable === false) throw new Error('sync_remote_result_unknown')
       const floor = replans.reduce((value: number, intent: SyncCommitIntent): number =>
