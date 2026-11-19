@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-19T21:21:21+08:00",
+  "updatedAt": "2026-11-19T23:14:50+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -5383,14 +5383,14 @@
       "id": "CONTINUOUS_PERFORMANCE",
       "number": 1,
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "条漫连续滑动已达标；分页长帧定位到 Swiper 缓存页重建",
-      "stage": "197 分页固定窗口 3/5 页对照已验",
+      "status": "201 新页长测确认主线程减负，超分下的帧间隔仍待收敛",
+      "stage": "保留已实测的同签候选，继续跟踪条漫的剩余长帧",
       "kind": "active",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
-      "remaining": "左右分页长帧不随 Swiper 窗口大小变化，替换容器或缩窗的收益假设不成立；固定 3/5 页实验已撤回，包回到 1ed00638。下一步应先定位 FlushDirtyNodeUpdate 内 160 次资源查询和 13 个 ForEachNode 的真实归属（ReaderPage build 域还是 Swiper 内部），再决定是否继续优化。连续条漫已稳定在 11.6ms 无 >16.7ms 帧。共享 main 固定 270c0e1。",
+      "result": "正文缓存检查和落盘已移到后台，未变的短图行少做更新，已测新页连续加载。 连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
+      "remaining": "继续定位系统超分打开时连续占用主线程的 ArkUI 可取消事件回调，保留快甩和新页加载的真实对照。左右分页仍需定位 FlushDirtyNodeUpdate 内资源查询和 ForEachNode 的归属，沿原决定保留已撤回的固定窗口实验。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -5399,6 +5399,13 @@
       "closedAt": null,
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/fresh-forward-201-evidence.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/cold-final-201-identity.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/candidate/Koma-1.5.5-issue-001-final-signed.hap",
+        ".hvigor/outputs/continuous-short-images-20261119/device201__LMR-AL00/not-applicable/portrait-1276x2848/continuous-short-images/long-device-restore-231425790829/run-metadata.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/wide-compare-201.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/candidate-201-identity.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/compare-201.json",
         ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-cache-write/reader-new-pages-trace-20261109T002138194789/audit/long-scroll-summary.json",
         ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-cache-write/reader-new-pages-trace-20261109T000728789568/audit/long-scroll-summary.json",
         ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-cache-write/reader-new-pages-trace-20261108T235717210778/audit/long-scroll-summary.json",
@@ -5486,9 +5493,18 @@
       ],
       "latestCounterexampleAt": "2026-11-08T21:10:00+08:00",
       "evidencePoints": [
+        "201 在《遇强则强》第 5、6 话测对照包，最终候选从第 16 话只向前快翻到第 25 话第 146 页。最终候选 206 次，累计 8 分 36 秒，1541 次新图网络请求均 HTTP 200，期间完成系统超分 10 次。快甩为 1890 物理像素、18000 px/s，另留正常阅读间歇。开关两态各取前后 20 次快甩，主线程文件检查回调 72→0、文件重命名回调 1125→23、条漫单元更新 5632→2472、超过 8.3 ms 的应用 UI 帧 154→10。前后均用不同新章，页高和超分任务量随内容变化。",
+        "最终候选具 trace 的滚动样本最长应用帧间隔 35.33 ms，其中超过 33.3 ms 的间隔 1 次。最终包最长间隔出现在第 22 话首甩，多个 ArkUI 可取消事件回调连续占用主线程，未见同窗文件检查。前一冷加载候选的最长约 40 ms 还包含 CreatePixelMap 完成回调和文件检查。",
+        "201 从性能测试书架使用如漫画《遇强则强》第 3 话第 189 页，宽幅甩动校准单次跨 8 张短图。旧包和候选的超分开关两态各 60 次，四组计 240 次，分段采集各约 4 分钟，含前读、跨章、回滑，后段落点随自然惯性有所不同。开启超分时系统抖动 47→22、滚动中超过 33.3 ms 的间隔 3→1、主线程超过 32 MiB 的缓冲释放 131→0。关闭超分时系统抖动 70→48、超过 33.3 ms 的间隔 7→1、最长间隔 57.51→36.21 ms。",
+        "201 普通倍率 5120×3996 超分图以 1280×999 解码，双击放大时解码原尺寸。关闭超分的剩余最长间隔包含约 10.43 ms 的 fs.access 完成回调与约 10.24 ms 的事件回调，整体文件回调数量未下降，不能把长测变化完全归结于缓存检查合并。开启超分仅剩一个超过 33.3 ms 的滚动间隔，包含 ArkUI 更新和布局。",
+        "201 性能测试书架《遇强则强，我的修为无上限》第 3 话，同一 7 次惯性滚动从 189/258 到 203/258。关闭首轮、开启系统超分、关闭复测的滚动期应用帧最大间隔分别为 17.32、33.44、27.85 ms。开启时 6 次按 5120×3996 全尺寸解码，后台最长 99.67 ms。约 78 MiB 缓冲在惯性段内单次主线程释放最长 6.23 ms。关闭复测最长间隔中，VSync 已发出但应用晚 19.61 ms 才处理，其间有主线程 fs.access 完成回调。",
         "同包同作品向下跨章，197 实滑 11 分 17 秒、最长停顿 1.80 秒；200 实滑 10 分 41 秒、最长停顿 1.59 秒。两机都出现刷新信号已发出、应用主线程迟迟未处理。"
       ],
       "remainingActions": [
+        "继续定位系统超分打开时连续占用主线程的 ArkUI 可取消事件回调，保留快甩和新页加载的真实对照。左右分页仍需定位 FlushDirtyNodeUpdate 内资源查询和 ForEachNode 的归属，沿原决定保留已撤回的固定窗口实验。",
+        "201 已验条漫超分的显示尺寸解码、正文缓存查写后台化和短图行输入复用。正文与处理描述批量检查的独立收益仍未拆包对照。",
+        "237 快看漫画《遇强则强，我的修为无上限》第 1 话，4 倍超分图解码为 5120×3996。回滑仍有同一批超分文件重新解码，约 78 MiB 的缓冲在 UI 主线程释放。201 随后的普通倍率显示尺寸解码及放大全像素已验证。237 仍沿自身设备复测。",
+        "保留原生 List，按显示距离和像素预算准备图片，在实际惯性滚动期间控制增强工作。用 237 同一作品核对新页、回滑和超分两态下的帧时间、加载等待和内存。既有分页验证另见原记录。",
         "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。优化候选三份 trace 仍有 25、22、26 个超预算界面帧，栈集中在 ArkUI FlushDirtyNodeUpdate/FlushLayoutTask；第 9 段还有一次 63 毫秒 PreferencesGetValue 回调。需继续合并连续列表测量触发、定位剩余偏好读取者，并复验普通阅读路径。 共享 Kit 的滚动范围合并候选 01798b1 在 197 第一段仍有 25 个超 8.3 毫秒界面帧、最长手势间隔 56.5 毫秒，未显示收益；Koma 子模块本地已回到 3483d20。reader-kit 原仓本地 revert 580cd8b 尚待用户明确授权后才能推送远端 main。"
       ],
       "boundaries": [
@@ -5500,7 +5516,7 @@
         "history": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
         "originalReason": "按稳定page key复用native List及单元；Core负责资源状态和请求身份，UI不能另建选章/进度owner。",
         "reopenEvidence": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
-        "allowedDifference": "仅连续单元使用最小渲染投影；稳定displayed original且无新请求/retained/失败/notice/cropPending时，按完整页元数据、slot/request/URI/variant/visual/crop及navigation比较复用；加载/替换/失败仍逐次接新frame。保全局Core快照/进度、native key、图片与缩略条实例、几何、样式、转场。缓存仅现有窗口，离开/拓扑变化丢弃。"
+        "allowedDifference": "仅连续单元使用最小渲染投影；稳定displayed original且无新请求/retained/失败/notice/cropPending时，按完整页元数据、slot/request/URI/variant/visual/crop及navigation比较复用；单图的原图加载/解码可在请求、字节进度、像素及页面几何完全相同时复用输入。加载状态不同、进场交接、替换和失败仍按原边界接收新帧。保全局Core快照/进度、native key、图片与缩略条实例、几何、样式、转场。缓存仅现有窗口，离开/拓扑变化丢弃。"
       },
       "diagnosticBasis": {
         "object": "ReaderSession.load与ReaderPagedSession.reportPresentation的临时阶段日志",
@@ -5530,7 +5546,7 @@
         "date": "2026-10-26"
       },
       "previousClosedAt": "2026-11-08T08:35:59+08:00",
-      "updatedAt": "2026-11-10T11:26:00+08:00",
+      "updatedAt": "2026-11-19T23:14:50+08:00",
       "evidence": [
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
@@ -11936,6 +11952,71 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "continuous-first-loaded-201-20261119",
+      "at": "2026-11-19T23:14:50+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "201 条漫停帧修复与后续新页长测",
+      "detail": "正文缓存检查和落盘已移到后台，未变的短图行少做更新，已测新页连续加载。201 在《遇强则强》第 5、6 话测对照包，最终候选从第 16 话只向前快翻到第 25 话第 146 页。最终候选 206 次，累计 8 分 36 秒，1541 次新图网络请求均 HTTP 200，期间完成系统超分 10 次。快甩为 1890 物理像素、18000 px/s，另留正常阅读间歇。开关两态各取前后 20 次快甩，主线程文件检查回调 72→0、文件重命名回调 1125→23、条漫单元更新 5632→2472、超过 8.3 ms 的应用 UI 帧 154→10。前后均用不同新章，页高和超分任务量随内容变化。最终候选具 trace 的滚动样本最长应用帧间隔 35.33 ms，其中超过 33.3 ms 的间隔 1 次。最终包最长间隔出现在第 22 话首甩，多个 ArkUI 可取消事件回调连续占用主线程，未见同窗文件检查。前一冷加载候选的最长约 40 ms 还包含 CreatePixelMap 完成回调和文件检查。超分和无痕开关恢复，原续读仍是第 3 话第 189 页。已恢复原 10 秒超时、息屏并释租。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/fresh-forward-201-evidence.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/cold-final-201-identity.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/candidate/Koma-1.5.5-issue-001-final-signed.hap",
+        ".hvigor/outputs/continuous-short-images-20261119/device201__LMR-AL00/not-applicable/portrait-1276x2848/continuous-short-images/long-device-restore-231425790829/run-metadata.json",
+        "Koma 本地 2a584c92，reader-kit d7dcc10 已从配置的原仓 main 推送并由公共依赖地址读回。"
+      ]
+    },
+    {
+      "id": "continuous-short-images-wide-201-20261119",
+      "at": "2026-11-19T22:29:22+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "201 长测条漫的显示尺寸解码与原图缓存候选",
+      "detail": "按用户纠正撤下慢速样本，宽幅快甩校准单次跨 8 张短图。旧包和候选各测超分开关两态，每组约 4 分钟、60 次，覆盖同一作品跨章和回滑。超分普通倍率未再全尺寸解码，放大依然取完整像素。关闭超分时主线程帧耗时和最长帧间隔下降，仍有个别包含文件回调的长间隔。保留候选，恢复第 3 话第 189 页书架续读、图像增强关、双击 150 ms、无痕关和原 10 秒超时后息屏并释租。设备拒绝读取已安装 HAP，版本、安装回执及新增解码行为已核。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/wide-compare-201.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/candidate-201-identity.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/wide-candidate-zoom.jsonl",
+        ".hvigor/outputs/continuous-short-images-20261119/device201__LMR-AL00/not-applicable/portrait-1276x2848/continuous-short-images/candidate-wide-motion-222731628035/koma-001-201-222731628035.mp4",
+        ".hvigor/outputs/continuous-short-images-20261119/device201__LMR-AL00/not-applicable/portrait-1276x2848/continuous-short-images/long-device-restore-222838847371/run-metadata.json",
+        "Koma 本地 2f9576f7，reader-kit 2ec52474 已推原仓 main，并由 Koma 配置的公共 Remote 读回。"
+      ]
+    },
+    {
+      "id": "continuous-short-images-201-20261119",
+      "at": "2026-11-19T21:40:30+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "201 同段对照复现条漫抖动与超分大图开销",
+      "detail": "201 的 Koma 1.5.5 从性能测试书架进入《遇强则强》并无痕续读第 3 话。保留现有缓存，依次关闭、开启系统超分、关闭复测，每轮从 189/258 滑至 203/258，三次普通、四次快速惯性滚动。系统分别记录 0、2、3 次抖动，最大间隔分别为 17.32、33.44、27.85 ms（应用滚动帧间隔）。超分轮确认大图解码、刷缓存、释放开销。关闭复测最长间隔中存在 fs.access 完成回调，具体调用者未核。现有代码已将原生 List 的 moving 状态经输入锁传给超分交互保护。原续读第 189 页、超分和无痕关、息屏超时及租约均已恢复读回。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/compare-201.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/fling-gap-201.jsonl",
+        ".hvigor/outputs/continuous-short-images-20261119/device201__LMR-AL00/not-applicable/portrait-1276x2848/continuous-short-images/restore-device-214008653039/run-metadata.json"
+      ]
+    },
+    {
+      "id": "continuous-short-images-237-20261119",
+      "at": "2026-11-19T20:50:56+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "237 实测短图回滑仍解码和释放超分大图",
+      "detail": "Koma 1.5.5，无痕读快看漫画《遇强则强，我的修为无上限》第 1 话。前读、回滑各 6 次，应用帧最长 14.05、13.72ms，分别 7、5 帧超 8.3ms；延长前读 13 次到第 17 页附近。原图 1280×999，超分 5120×3996，三张超分图在两方向都解码，后台单次最高 149.8ms。UI 主线程释放同尺寸缓冲最高 9.15ms，另有根组件与多行更新。未触发 WebDAV，原阅读方向、无痕和电源均已恢复并释租。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/trace-forward-20261119T204659316182/audit/continuous-summary.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/trace-back-20261119T204717051898/audit/continuous-summary.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/trace-extended-20261119T204835498604/audit/continuous-summary.json"
+      ]
+    },
+    {
+      "id": "continuous-cold-short-images-20261119",
+      "at": "2026-11-19T19:57:29+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "短图首次进入视口的卡顿仍待解决",
+      "detail": "用户反馈普通阅读同时加载多张短图时卡顿，预热后较轻。现有预载准备文件和尺寸，正文解码窗口主要只多一张相邻页；新图回执仍各自发布整段快照。超分有单任务队列，交互保护按手指离开后的定时器恢复，未接原生 List 的惯性停稳事件。本次为源码定位，旧样本达标仅代表其具名范围。此时间为登记时间。",
+      "kind": "checkpoint"
+    },
     {
       "id": "migration-search-real-route-20261119",
       "at": "2026-11-19T21:21:21+08:00",
