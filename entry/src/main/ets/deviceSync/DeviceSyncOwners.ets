@@ -4,9 +4,8 @@ import { taskpool, util } from '@kit.ArkTS'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import {
-  LIBRARY_STORE_PERSISTENCE_FILE_NAME, LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION, PersistedComic,
-  PersistedLibraryCategory, PersistedLibraryStoreDocument, PersistedChapter, assertValidLibraryStoreJson,
-  readLibraryStoreDocument,
+  LIBRARY_STORE_PERSISTENCE_FILE_NAME, PersistedComic, PersistedLibraryCategory, PersistedLibraryStoreDocument,
+  PersistedChapter, readLibraryStoreDocument,
 } from '../model/LibraryPersistence'
 import {
   AppFilesReaderSessionPersistenceAdapter, ChapterReadingState, ReaderSessionDocumentSnapshot,
@@ -16,10 +15,7 @@ import {
   DEFAULT_READER_PREFERENCES, ReaderDeviceSyncPreferences, ReaderImageFitMode, ReaderPageMode, ReaderPreferencesStore,
   ReaderSeriesModeOverride,
 } from '../model/ReaderPreferencesStore'
-import {
-  ComicSourceKind, ReadingDirection, ReadingProgress,
-  libraryCategoryNameKey, normalizeLibraryCategoryName, normalizeSortKey,
-} from '../model/ComicModels'
+import { ReadingDirection, ReadingProgress } from '../model/ComicModels'
 import { SourceReadHistoryEntry } from '../model/SourceReaderSession'
 import { normalizeSearchHistoryEntries, SearchHistoryEntry, SearchHistoryStore } from '../model/SearchHistoryStore'
 import { sourceLibraryComicId } from '../model/SourceLibraryComic'
@@ -31,7 +27,7 @@ import { isSyncReplica, SyncEdit, SyncFact, SyncGroup } from './DeviceSyncFacts'
 import {
   safeSyncSearch, syncCatalogAddress, syncCatalogRecordKey, syncCoverAddress, SyncChapterCatalog, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSearchValue, SyncSubscription,
   SyncWorkLabel, syncKey, syncKeyParts, syncPublicLabel, syncReadingIdentity, syncReadingPosition,
-  syncReadingRecent, syncSearchIdentity, syncShelfIdentity, syncShelfLabel, syncShelfMove, syncShelfMoveDestination,
+  syncReadingRecent, syncSearchIdentity, syncShelfLabel, syncShelfMove, syncShelfMoveDestination,
   syncGroupVisibleValue, SyncShelfMove, SyncSmartCategory, SyncWorkSlice,
 } from './DeviceSyncData'
 import { DeviceSyncStorage, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision, SyncPreparedReceipt, SyncReadingReceipt, SyncSavedConnection,
@@ -39,35 +35,17 @@ import { DeviceSyncStorage, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot
 import { deviceSyncActionCaptureKey, deviceSyncCaptureKey, SyncCapturedReadingEdit, SyncReadingActionCapture,
   SyncReadingCapture, SyncLocalShelfMove } from './DeviceSyncSignals'
 import { syncDigest } from './DeviceSyncWire'
+import { CATEGORY_SYNC_PREFIX, FAVORITE, READ_LATER, emptySyncLibrary, matchesShelfWork, PreparedSyncShelf,
+  prepareSyncShelfDocument, sharedCategoryRecord, shelfSourceCover, shelfWork, smartCategoryKey,
+  SyncKeptShelfDetails, SyncLocalCategory, SyncProjection, SyncResumeProof, SyncSourceIdentity, toLocalCategory,
+  toSharedCategory } from './DeviceSyncShelfApply'
 
 const SYNC_PROJECTION = 'device-sync-projection.v1.json'
 const SYNC_JOURNAL = 'device-sync-local-commit.v1.json'
-const CATEGORY_SYNC_PREFIX = 'custom_sync_'
-const FAVORITE = 'favorite'
-const READ_LATER = 'read_later'
-
-export interface SyncLocalCategory {
-  local: string
-  shared: string
-  localOnly: boolean
-  originalName?: string
-  displayedName?: string
-}
-
-interface SyncSourceIdentity {
-  source: string
-  work: string
-}
 
 interface SyncLocalReadingWork extends SyncSourceIdentity {
   comic?: PersistedComic
   history?: SourceReadHistoryEntry
-}
-
-interface SyncResumeProof {
-  comicId: string
-  chapterId: string
-  received?: boolean
 }
 
 export interface SyncShelfRemoval {
@@ -75,27 +53,6 @@ export interface SyncShelfRemoval {
   title: string
   source: string
   work: string
-}
-
-interface SyncKeptShelfDetails {
-  id: string
-  notes?: string
-  cover?: string
-}
-
-interface SyncProjection {
-  categories: SyncLocalCategory[]
-  blockedShelf: string[]
-  readingProofs: SyncResumeProof[]
-  acceptedQueries: SyncLocalValue[]
-  receivedQueries: SyncLocalValue[]
-  subscriptions: SyncLocalValue[]
-  acceptedSubscriptionKey?: string
-  categoryOrder?: string[]
-  projectedOrder?: string[]
-  adoptedSharedCatalog?: boolean
-  keptShelfDetails?: SyncKeptShelfDetails[]
-  receivedRecent?: string[]
 }
 
 interface SyncFileImage {
@@ -140,19 +97,14 @@ function parseReadingSnapshot(directory: string, persistedText: string | null): 
 }
 
 @Concurrent
-function serializeSyncLibrary(library: PersistedLibraryStoreDocument): string {
-  const json = JSON.stringify(library)
-  assertValidLibraryStoreJson(json)
-  return json
+function prepareSyncShelf(raw: string | null, changes: SyncLocalValue[], projectionText: string,
+  acceptedRemoval: string, replica: string): PreparedSyncShelf {
+  return prepareSyncShelfDocument(raw, changes, projectionText, acceptedRemoval, replica)
 }
 
 @Concurrent
 function serializeSyncReading(reading: ReaderSessionDocumentSnapshot): string {
   return serializeReaderSessionForDevice(reading)
-}
-
-function emptySyncLibrary(): PersistedLibraryStoreDocument {
-  return { schemaVersion: LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION, comics: [], customCategories: [] }
 }
 
 @Concurrent
@@ -181,22 +133,8 @@ function datedProgress(source: ReadingProgress, updatedAt: number): ReadingProgr
     completed: source.completed, updatedAt, columnMode: source.columnMode }
 }
 
-function syncUuid(text: string): string {
-  const hash = syncDigest(text)
-  return hash.substring(0, 8) + '-' + hash.substring(8, 12) + '-' + hash.substring(12, 16) + '-' +
-    hash.substring(16, 20) + '-' + hash.substring(20, 32)
-}
-
 function knownWork(source: string | undefined, work: string | undefined): SyncSourceIdentity | undefined {
   return source !== undefined && work !== undefined && syncReadingIdentity(source, work) ? { source, work } : undefined
-}
-
-function shelfWork(comic: PersistedComic): SyncSourceIdentity | undefined {
-  const source = comic.sourceRuntimeId
-  const work = comic.remoteResourceId
-  return source !== undefined && work !== undefined && comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY &&
-    comic.remoteServerId === undefined && syncShelfIdentity(source, work) && sourceLibraryComicId(source, work) === comic.id ?
-    { source, work } : undefined
 }
 
 @Concurrent
@@ -224,26 +162,6 @@ function syncChapterCatalogRows(source: string, work: string, ids: string[], dat
 
 function shelfLabel(comic: PersistedComic, source: string): SyncWorkLabel {
   return syncShelfLabel(source, comic.title, comic.sourceMetadata?.sourceName ?? '', comic.sourcePath)
-}
-
-function shelfSourceCover(comic?: PersistedComic): string | undefined {
-  return syncCoverAddress(comic?.sourceCoverUri ?? (comic?.customCoverUri === undefined ? comic?.coverUri : undefined))
-}
-
-function matchesShelfWork(comic: PersistedComic, source: string, work: string): boolean {
-  const identity = shelfWork(comic)
-  return identity?.source === source && identity?.work === work
-}
-
-function indexShelfWorks(comics: PersistedComic[]): Map<string, PersistedComic> {
-  const rows = new Map<string, PersistedComic>()
-  for (const comic of comics) {
-    const identity = shelfWork(comic)
-    if (identity === undefined) continue
-    const key = syncKey([identity.source, identity.work])
-    if (!rows.has(key)) rows.set(key, comic)
-  }
-  return rows
 }
 
 function validDate(date: number): number {
@@ -335,43 +253,6 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return new AppFilesReaderSessionPersistenceAdapter(this.context.filesDir).loadSnapshot()
   }
 
-  private toSharedCategory(local: string, projection: SyncProjection): string | undefined {
-    const existing = projection.categories.find((row: SyncLocalCategory): boolean => row.local === local)
-    if (existing?.localOnly === true) return undefined
-    if (local === FAVORITE) return 'builtin-favorite'
-    if (local === READ_LATER) return 'builtin-read-later'
-    return existing?.shared ?? syncUuid(this.storage.load().replica + ':category:' + local)
-  }
-
-  private sharedCategoryRecord(local: string, projection: SyncProjection): string | undefined {
-    // Legacy sync keys carry membership only. Keep the promoted local name and
-    // order out of category records, whose wire identity must be a UUID.
-    if (local === FAVORITE || local === READ_LATER) return undefined
-    return this.toSharedCategory(local, projection)
-  }
-
-  private toLocalCategory(shared: string, library: PersistedLibraryStoreDocument, projection: SyncProjection): string {
-    if (shared === 'builtin-favorite') return FAVORITE
-    if (shared === 'builtin-read-later') return READ_LATER
-    const existing = (library.customCategories ?? []).find((row: PersistedLibraryCategory): boolean =>
-      this.toSharedCategory(row.id, projection) === shared)
-    if (existing !== undefined) return existing.id
-    const base = CATEGORY_SYNC_PREFIX + shared
-    let id = base
-    let suffix = 2
-    while ((library.customCategories ?? []).some((row: PersistedLibraryCategory): boolean => row.id === id)) {
-      id = base + '_' + suffix++
-    }
-    return id
-  }
-
-  private smartCategoryKey(id: string): string {
-    const shared = id.slice('smart:'.length)
-    // Existing local IDs also travel in backups. Derive the same identity
-    // when the same old smart category is restored on two devices.
-    return syncKey(['smart-category', isSyncReplica(shared) ? shared : syncUuid('smart-category:' + id)])
-  }
-
   private sharedSmartRule(rule: LibrarySmartFilter, projection: SyncProjection): LibrarySmartFilter {
     const value = rule.value
     if (rule.method !== 'category' || value === undefined || value === 'uncategorized') return rule
@@ -379,7 +260,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const shared = value.startsWith(CATEGORY_SYNC_PREFIX) ? value.slice(CATEGORY_SYNC_PREFIX.length) : ''
     // Keep a deleted category's identity so the rule continues to match
     // nothing until that category reappears. Never map by the displayed name.
-    const category = mapping?.shared ?? (isSyncReplica(shared) ? shared : this.toSharedCategory(value, projection))
+    const category = mapping?.shared ?? (isSyncReplica(shared) ? shared : toSharedCategory(value, projection, this.storage.load().replica))
     return { method: rule.method, value: category, exclude: rule.exclude }
   }
 
@@ -485,7 +366,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       const order: string[] = []
       const protectedKeys: string[] = []
       categories.forEach((category: PersistedLibraryCategory): void => {
-        const key = this.sharedCategoryRecord(category.id, projection)
+        const key = sharedCategoryRecord(category.id, projection, this.storage.load().replica)
         if (key === undefined) return
         order.push(key)
         const mapping = projection.categories.find((item: SyncLocalCategory): boolean => item.local === category.id)
@@ -496,7 +377,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       if (order.length > 0) row(values, ['order'],
         JSON.stringify(order) === JSON.stringify(projection.projectedOrder) ? projection.categoryOrder ?? order : order)
       for (const category of library.smartCategories ?? []) {
-        const key = this.smartCategoryKey(category.id)
+        const key = smartCategoryKey(category.id)
         const mapping = projection.categories.find((item: SyncLocalCategory): boolean => item.local === category.id)
         const name = mapping?.displayedName === category.name ? mapping.originalName ?? category.name : category.name
         const definition: SyncSmartCategory = { name, order: category.sortOrder, createdAt: category.createdAt,
@@ -525,7 +406,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         labels[syncKey(['book', identity.source, identity.work])] = label.title
         for (const catalog of parsed.catalogs?.[comic.id] ?? []) values.push(catalog)
         comic.categoryIds?.forEach((category: string): void => {
-          const key = this.toSharedCategory(category, projection)
+          const key = toSharedCategory(category, projection, this.storage.load().replica)
           if (key !== undefined) {
             row(values, ['member', identity.source, identity.work, key], true)
             labels[syncKey(['member', identity.source, identity.work, key])] = label.title + ' · ' +
@@ -560,7 +441,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         const book = library.comics.find((comic: PersistedComic): boolean => matchesShelfWork(comic, target.toSource, target.toWork))
         const memberships: string[] = []
         book?.categoryIds?.forEach((id: string): void => {
-          const category = this.toSharedCategory(id, projection)
+          const category = toSharedCategory(id, projection, this.storage.load().replica)
           if (category !== undefined) memberships.push(category)
         })
         const value = JSON.stringify({ toSource: target.toSource, toWork: target.toWork,
@@ -769,11 +650,11 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       const parts = syncKeyParts(key)
       if (parts[0] === 'smart-category') {
         return !(library.smartCategories ?? []).some((category: LibrarySmartCategory): boolean =>
-          this.smartCategoryKey(category.id) === key)
+          smartCategoryKey(category.id) === key)
       }
       if (parts[0] === 'category') {
         return !(library.customCategories ?? []).some((category: PersistedLibraryCategory): boolean =>
-          this.toSharedCategory(category.id, projection) === parts[1]) &&
+          toSharedCategory(category.id, projection, this.storage.load().replica) === parts[1]) &&
           !projection.categories.some((category: SyncLocalCategory): boolean => category.shared === parts[1] && category.localOnly)
       }
       if (parts[0] !== 'book' && parts[0] !== 'member') return false
@@ -785,265 +666,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       if (comic === undefined) return true
       if (!matchesShelfWork(comic, parts[1], parts[2])) return false
       if (parts[0] === 'book') return false
-      const local = this.toLocalCategory(parts[3], library, projection)
+      const local = toLocalCategory(parts[3], library, projection, this.storage.load().replica)
       return !(comic.categoryIds ?? []).includes(local)
-    })
-  }
-
-  private applyChapterCatalogs(changes: SyncLocalValue[], library: PersistedLibraryStoreDocument): void {
-    const values = new Map<string, string>()
-    changes.forEach((item: SyncLocalValue): void => { if (item.value !== '') values.set(item.key, item.value) })
-    let works: Map<string, PersistedComic> | undefined
-    changes.forEach((change: SyncLocalValue): void => {
-      const parts = syncKeyParts(change.key)
-      if (parts[0] !== 'chapter-catalog' || change.value === '') return
-      if (works === undefined) works = indexShelfWorks(library.comics)
-      const comic = works.get(syncKey([parts[1], parts[2]]))
-      if (comic === undefined) return
-      const header = JSON.parse(change.value) as SyncChapterCatalog
-      const known = comic.sourceMetadata?.sharedChapterIds
-      let ids: string[] = []
-      if (known !== undefined && syncDigest(JSON.stringify(known)) === header.digest) ids = known.slice()
-      else {
-        if (header.blocks > values.size) throw new Error('sync_catalog_incomplete')
-        for (let index = 0; index < header.blocks; index++) {
-          const block = values.get(syncKey(['chapter-catalog-block', parts[1], parts[2], header.digest, index.toString()]))
-          if (block === undefined) throw new Error('sync_catalog_incomplete')
-          ids = ids.concat(JSON.parse(block) as string[])
-        }
-      }
-      if (ids.length !== header.count || new Set<string>(ids).size !== header.count ||
-        syncDigest(JSON.stringify(ids)) !== header.digest) throw new Error('sync_catalog_incomplete')
-      comic.sourceMetadata = comic.sourceMetadata ?? {}
-      comic.sourceMetadata.sharedChapterIds = ids
-      comic.sourceMetadata.chapterCatalogUpdatedAt = header.date
-      comic.chapterCount = ids.length
-    })
-  }
-
-  private uniqueCategoryName(name: string, used: Set<string>): string {
-    const original = normalizeLibraryCategoryName(name)
-    let value = original
-    let index = 2
-    while (used.has(libraryCategoryNameKey(value))) {
-      const suffix = ' (' + index++ + ')'
-      value = original.substring(0, 40 - suffix.length).trimEnd() + suffix
-    }
-    used.add(libraryCategoryNameKey(value))
-    return value
-  }
-
-  private applySmartCategories(changes: SyncLocalValue[], library: PersistedLibraryStoreDocument,
-    projection: SyncProjection): void {
-    const smartChanges = changes.filter((row: SyncLocalValue): boolean => syncKeyParts(row.key)[0] === 'smart-category')
-    if (smartChanges.length === 0) return
-    const groups = library.smartCategories ?? []
-    const byKey = new Map<string, LibrarySmartCategory>(groups.map((group: LibrarySmartCategory): [string, LibrarySmartCategory] =>
-      [this.smartCategoryKey(group.id), group]))
-    const replaced = new Set<string>(smartChanges.map((row: SyncLocalValue): string => row.key))
-    const names = new Set<string>((library.customCategories ?? []).map((category: PersistedLibraryCategory): string =>
-      libraryCategoryNameKey(category.name)))
-    byKey.forEach((group: LibrarySmartCategory, key: string): void => {
-      if (!replaced.has(key)) names.add(libraryCategoryNameKey(group.name))
-    })
-    for (const change of smartChanges) {
-      const shared = syncKeyParts(change.key)[1]
-      const id = byKey.get(change.key)?.id ?? 'smart:' + shared
-      projection.categories = projection.categories.filter((item: SyncLocalCategory): boolean => item.local !== id)
-      if (change.value === '') {
-        byKey.delete(change.key)
-        library.categoryDisplayStrategies = library.categoryDisplayStrategies?.filter(item => item.categoryId !== id)
-        continue
-      }
-      const definition = JSON.parse(change.value) as SyncSmartCategory
-      const name = this.uniqueCategoryName(definition.name, names)
-      const filters = definition.filters.map((rule: LibrarySmartFilter): LibrarySmartFilter => {
-        const value = rule.value
-        if (rule.method !== 'category' || value === undefined || value === 'uncategorized') return rule
-        return { method: rule.method, value: this.toLocalCategory(value, library, projection), exclude: rule.exclude }
-      })
-      byKey.set(change.key, { id, name, sortOrder: definition.order, createdAt: definition.createdAt, updatedAt: Date.now(), filters })
-      projection.categories.push({ local: id, shared, localOnly: false, originalName: definition.name, displayedName: name })
-    }
-    library.smartCategories = Array.from(byKey.values())
-  }
-
-  private applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDocument, projection: SyncProjection,
-    acceptedRemoval: string = ''): void {
-    const categories = library.customCategories ?? []
-    library.customCategories = categories
-    const updatedSmart = new Set<string>(changes.filter((row: SyncLocalValue): boolean =>
-      syncKeyParts(row.key)[0] === 'smart-category').map((row: SyncLocalValue): string => row.key))
-    const names = new Set<string>((library.smartCategories ?? [])
-      .filter((category: LibrarySmartCategory): boolean => !updatedSmart.has(this.smartCategoryKey(category.id)))
-      .map((category: LibrarySmartCategory): string => libraryCategoryNameKey(category.name)))
-    const rename = new Set<string>()
-    changes.forEach((change: SyncLocalValue): void => {
-      const key = syncKeyParts(change.key)
-      if (key[0] === 'category' && change.value !== '') rename.add(this.toLocalCategory(key[1], library, projection))
-    })
-    categories.forEach((category: PersistedLibraryCategory): void => {
-      if (!rename.has(category.id)) names.add(libraryCategoryNameKey(category.name))
-    })
-    const now = Date.now()
-    changes.filter((change: SyncLocalValue): boolean => syncKeyParts(change.key)[0] === 'category')
-      .sort((a: SyncLocalValue, b: SyncLocalValue): number => a.key < b.key ? -1 : a.key === b.key ? 0 : 1)
-      .forEach((change: SyncLocalValue): void => {
-        const shared = syncKeyParts(change.key)[1]
-        const id = this.toLocalCategory(shared, library, projection)
-        const existing = categories.find((category: PersistedLibraryCategory): boolean => category.id === id)
-        if (change.value === '') {
-          if (existing === undefined) return
-          const privateMembers = library.comics.some((comic: PersistedComic): boolean =>
-            (comic.categoryIds ?? []).includes(id) && !changes.some((change: SyncLocalValue): boolean => {
-              const key = syncKeyParts(change.key)
-              return key[0] === 'member' && key[3] === shared && change.value === '' &&
-                comic.sourceRuntimeId === key[1] && comic.remoteResourceId === key[2]
-            }))
-          const deviceSettings = (library.categoryDisplayStrategies ?? []).some(item => item.categoryId === id)
-          const smartDependency = (library.smartCategories ?? []).some((item: LibrarySmartCategory): boolean =>
-            item.filters.some((rule: LibrarySmartFilter): boolean => rule.method === 'category' && rule.value === id))
-          if (privateMembers || deviceSettings || smartDependency) {
-            projection.categories = projection.categories.filter((row: SyncLocalCategory): boolean => row.local !== id)
-            projection.categories.push({ local: id, shared, localOnly: true })
-          } else {
-            categories.splice(categories.indexOf(existing), 1)
-            library.comics.forEach((comic: PersistedComic): void => {
-              comic.categoryIds = comic.categoryIds?.filter((value: string): boolean => value !== id)
-            })
-          }
-          return
-        }
-        const originalName = JSON.parse(change.value) as string
-        const name = this.uniqueCategoryName(originalName, names)
-        if (existing !== undefined) {
-          existing.name = name
-          existing.updatedAt = now
-        } else {
-          categories.push({ id, name, sortOrder: categories.length, createdAt: now, updatedAt: now })
-        }
-        projection.categories = projection.categories.filter((row: SyncLocalCategory): boolean => row.local !== id)
-        projection.categories.push({ local: id, shared, localOnly: false, originalName, displayedName: name })
-      })
-    changes.forEach((change: SyncLocalValue): void => {
-      const key = syncKeyParts(change.key)
-      if (key[0] !== 'book' || syncShelfMove(change.value) !== undefined) return
-      const id = sourceLibraryComicId(key[1], key[2])
-      const existing = library.comics.find((comic: PersistedComic): boolean => comic.id === id)
-      if (existing !== undefined && !matchesShelfWork(existing, key[1], key[2])) return
-      const kept = projection.keptShelfDetails?.find((entry: SyncKeptShelfDetails): boolean => entry.id === id)
-      library.syncShelfMoves = library.syncShelfMoves?.filter((move: SyncLocalShelfMove): boolean =>
-        move.source !== key[1] || move.work !== key[2])
-      if (change.value === '') {
-        if (existing === undefined) return
-        if (id !== acceptedRemoval && (existing.personalNotes || existing.customCoverUri)) {
-          if (!projection.blockedShelf.includes(id)) projection.blockedShelf.push(id)
-          return
-        }
-        if (id === acceptedRemoval) {
-          projection.blockedShelf = projection.blockedShelf.filter((value: string): boolean => value !== id)
-          const details: SyncKeptShelfDetails = { id, notes: existing.personalNotes, cover: existing.customCoverUri }
-          projection.keptShelfDetails = (projection.keptShelfDetails ?? []).filter((entry: SyncKeptShelfDetails): boolean =>
-            entry.id !== id).concat(details)
-        }
-        library.comics = library.comics.filter((comic: PersistedComic): boolean => comic.id !== id)
-      } else if (existing === undefined) {
-        const label = JSON.parse(change.value) as SyncWorkLabel
-        library.comics.push({ id, title: label.title, sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
-          sourcePath: label.workUrl ?? 'source://' + key[1] + '/' + key[2], sourceRuntimeId: key[1], remoteResourceId: key[2],
-          sourceMetadata: { sourceName: label.sourceName }, sortTitle: normalizeSortKey(label.title),
-          preferredDirection: ReadingDirection.RIGHT_TO_LEFT, chapters: [], chapterCount: 0, pageCount: 0,
-          personalNotes: kept?.notes, customCoverUri: kept?.cover, coverUri: kept?.cover,
-          createdAt: now, updatedAt: now, lastImportedAt: now })
-      } else {
-        const label = JSON.parse(change.value) as SyncWorkLabel
-        if (label.workUrl !== undefined && existing.sourcePath.startsWith('source://')) existing.sourcePath = label.workUrl
-        projection.blockedShelf = projection.blockedShelf.filter((value: string): boolean => value !== id)
-        if (kept !== undefined) {
-          existing.personalNotes = existing.personalNotes ?? kept.notes
-          if (existing.customCoverUri === undefined && kept.cover !== undefined) {
-            existing.sourceCoverUri = existing.sourceCoverUri ?? existing.coverUri
-            existing.customCoverUri = kept.cover
-            existing.coverUri = kept.cover
-          }
-        }
-      }
-      if (kept !== undefined && change.value !== '') {
-        projection.keptShelfDetails = projection.keptShelfDetails?.filter((entry: SyncKeptShelfDetails): boolean => entry.id !== id)
-      }
-    })
-    let works: Map<string, PersistedComic> | undefined
-    const byWork = (source: string, work: string): PersistedComic | undefined => {
-      if (works === undefined) works = indexShelfWorks(library.comics)
-      return works.get(syncKey([source, work]))
-    }
-    changes.forEach((change: SyncLocalValue): void => {
-      const key = syncKeyParts(change.key)
-      if (key[0] === 'cover' && change.value !== '') {
-        const comic = byWork(key[1], key[2])
-        if (comic !== undefined && shelfSourceCover(comic) === undefined) {
-          const cover = JSON.parse(change.value) as string
-          if (comic.customCoverUri !== undefined) comic.sourceCoverUri = comic.sourceCoverUri || cover
-          else comic.coverUri = comic.coverUri || cover
-        }
-        return
-      }
-      if (key[0] === 'order' && change.value !== '') {
-        const order = JSON.parse(change.value) as string[]
-        const ordered = categories.slice().sort((a: PersistedLibraryCategory,
-          b: PersistedLibraryCategory): number => a.sortOrder - b.sortOrder)
-        const shared = ordered.filter((category: PersistedLibraryCategory): boolean =>
-          this.sharedCategoryRecord(category.id, projection) !== undefined)
-        shared.sort((a: PersistedLibraryCategory, b: PersistedLibraryCategory): number => {
-          const aid = this.toSharedCategory(a.id, projection) ?? ''
-          const bid = this.toSharedCategory(b.id, projection) ?? ''
-          const ai = order.indexOf(aid)
-          const bi = order.indexOf(bid)
-          if (ai >= 0 && bi >= 0) return ai - bi
-          if (ai >= 0) return -1
-          if (bi >= 0) return 1
-          return aid < bid ? -1 : aid === bid ? 0 : 1
-        })
-        projection.categoryOrder = order
-        projection.projectedOrder = shared.map((item: PersistedLibraryCategory): string => this.toSharedCategory(item.id, projection) ?? '')
-        let next = 0
-        ordered.forEach((category: PersistedLibraryCategory, index: number): void => {
-          if (this.sharedCategoryRecord(category.id, projection) === undefined) category.sortOrder = index
-          else shared[next++].sortOrder = index
-        })
-      }
-      if (key[0] !== 'member') return
-      const comic = byWork(key[1], key[2])
-      if (comic === undefined) return
-      const local = this.toLocalCategory(key[3], library, projection)
-      if (local !== FAVORITE && local !== READ_LATER && !categories.some((item: PersistedLibraryCategory): boolean => item.id === local)) return
-      const next = (comic.categoryIds ?? []).filter((id: string): boolean => id !== local)
-      if (change.value !== '') next.push(local)
-      comic.categoryIds = next
-    })
-    // The engine resolves the winner and any chain. Verify the actual target
-    // again in this same library write, after adds, deletes and memberships.
-    changes.forEach((change: SyncLocalValue): void => {
-      const key = syncKeyParts(change.key)
-      const move = key[0] === 'book' ? syncShelfMove(change.value) : undefined
-      if (move === undefined) return
-      const target = library.comics.find((comic: PersistedComic): boolean => matchesShelfWork(comic, move.toSource, move.toWork))
-      if (target === undefined || move.categories?.some((category: string): boolean =>
-        !(target.categoryIds ?? []).includes(this.toLocalCategory(category, library, projection)))) return
-      const id = sourceLibraryComicId(key[1], key[2])
-      const existing = library.comics.find((comic: PersistedComic): boolean => matchesShelfWork(comic, key[1], key[2]))
-      if (existing === undefined) return
-      if (id !== acceptedRemoval && (existing.personalNotes || existing.customCoverUri)) {
-        if (!projection.blockedShelf.includes(id)) projection.blockedShelf.push(id)
-        return
-      }
-      if (id === acceptedRemoval) {
-        const details: SyncKeptShelfDetails = { id, notes: existing.personalNotes, cover: existing.customCoverUri }
-        projection.keptShelfDetails = (projection.keptShelfDetails ?? []).filter((item: SyncKeptShelfDetails): boolean =>
-          item.id !== id).concat(details)
-      }
-      projection.blockedShelf = projection.blockedShelf.filter((value: string): boolean => value !== id)
-      library.comics = library.comics.filter((comic: PersistedComic): boolean => comic.id !== id)
     })
   }
 
@@ -1235,7 +859,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         }
         if (current !== target.revision) throw new Error('sync_local_changed')
       }
-      const projection = this.projection(admittedFiles[2] ?? null)
+      let projection = this.projection(admittedFiles[2] ?? null)
       const originalProjection = JSON.stringify(projection)
       const files: SyncFileImage[] = []
       let previousPreferences: ReaderDeviceSyncPreferences | undefined
@@ -1248,13 +872,10 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         if (group.changes.length === 0) continue
         if (group.group === 'shelf') {
           const raw = admittedFiles[0]
-          const library = raw === undefined ? emptySyncLibrary() :
-            await taskpool.execute(parseSyncLibrary, raw) as PersistedLibraryStoreDocument
-          this.applyShelf(group.changes, library, projection, acceptedRemoval)
-          this.applySmartCategories(group.changes, library, projection)
-          this.applyChapterCatalogs(group.changes, library)
-          const json = await taskpool.execute(serializeSyncLibrary, library) as string
-          this.addImage(files, LIBRARY_STORE_PERSISTENCE_FILE_NAME, raw, json)
+          const prepared = await taskpool.execute(prepareSyncShelf, raw ?? null, group.changes,
+            JSON.stringify(projection), acceptedRemoval, this.storage.load().replica) as PreparedSyncShelf
+          projection = this.projection(prepared.projectionText)
+          this.addImage(files, LIBRARY_STORE_PERSISTENCE_FILE_NAME, raw, prepared.libraryText)
         } else if (group.group === 'reading') {
           const reading = await taskpool.execute(parseReadingSnapshot, this.context.filesDir, admittedFiles[1] ?? null) as ReaderSessionDocumentSnapshot
           this.applyReading(group.changes, reading, projection)
@@ -1442,7 +1063,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   }
 
   sharedCategory(id: string): string | undefined {
-    return this.toSharedCategory(id, this.projection())
+    return toSharedCategory(id, this.projection(), this.storage.load().replica)
   }
 
   shelfWorkLabel(source: string, work: string): SyncWorkLabel | undefined {
@@ -1455,7 +1076,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const projection = this.projection()
     const categories: string[] = []
     comic?.categoryIds?.forEach((id: string): void => {
-      const category = this.toSharedCategory(id, projection)
+      const category = toSharedCategory(id, projection, this.storage.load().replica)
       if (category !== undefined) categories.push(category)
     })
     return categories

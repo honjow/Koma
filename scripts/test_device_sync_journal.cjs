@@ -521,6 +521,11 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     './LocalLibraryMetadataService': {}, './LocalLibraryFolderContract': {},
     './LocalLibraryRescanService': {},
   }) : { LIBRARY_STORE_PERSISTENCE_FILE_NAME: 'library.json', LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION: 1 }
+  const shelfApply = compile('DeviceSyncShelfApply', {
+    '@kit.PerformanceAnalysisKit': { hiTraceMeter: { traceByValue() {} } },
+    '../model/LibraryPersistence': persistence, '../model/ComicModels': comics, '../model/SourceLibraryComic': sourceComic,
+    './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncWire': wire,
+  })
   const { KomaDeviceSyncOwners } = compile('DeviceSyncOwners', {
     '@kit.CoreFileKit': nativeFs, '@kit.ArkTS': {
       util: { generateRandomUUID: randomUUID },
@@ -532,6 +537,7 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     '../model/SearchHistoryStore': {}, '../model/SourceLibraryComic': sourceComic,
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceIndexMetadata': {},
     './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncSignals': signals, './DeviceSyncWire': wire,
+    './DeviceSyncShelfApply': shelfApply,
   })
   const context = { filesDir }
   let owner
