@@ -415,14 +415,14 @@ export class DeviceSyncStorage {
   }
 
   /** Stage a complete file off the UI thread. Only the current state may replace the durable cursor. */
-  updateInBackground(change: (state: SyncLocalDocument) => boolean, guard: () => void,
+  updateInBackground(change: (state: SyncLocalDocument) => boolean | Promise<boolean>, guard: () => void,
     readingReceipt: boolean = false): Promise<void> {
     const write = this.backgroundWrite.then((): Promise<void> => this.stageUpdate(change, guard, readingReceipt))
     this.backgroundWrite = write.catch((): void => {})
     return write
   }
 
-  private async stageUpdate(change: (state: SyncLocalDocument) => boolean, guard: () => void,
+  private async stageUpdate(change: (state: SyncLocalDocument) => boolean | Promise<boolean>, guard: () => void,
     readingReceipt: boolean): Promise<void> {
     const stagedPath = this.path + '.background'
     try {
@@ -430,7 +430,16 @@ export class DeviceSyncStorage {
         guard()
         const original = this.load()
         const next = this.copy(original)
-        if (!change(next)) return
+        const result = change(next)
+        if (typeof result === 'boolean') {
+          if (!result) return
+        } else {
+          const changed = await result
+          guard()
+          // An intervening local edit can invalidate the worker's input.
+          if (this.current !== original) continue
+          if (!changed) return
+        }
         const delta = readingReceipt ? readingDelta(original, next) : undefined
         let prepared = false
         if (delta !== undefined) {

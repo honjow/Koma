@@ -213,8 +213,7 @@ export function syncVisibleHeads(fact: SyncFact): SyncEdit[] {
     fact.barriers.every((barrier: SyncEdit): boolean => syncObserves(value.observed, barrier.version)))
 }
 
-export function syncVisibleValue(fact: SyncFact): string | undefined {
-  const values = syncVisibleHeads(fact)
+export function syncVisibleValue(fact: SyncFact, values: SyncEdit[] = syncVisibleHeads(fact)): string | undefined {
   if (values.length > 0) return values[values.length - 1].value
   // Concurrent delete wins over a reset containing a value.
   if (fact.barriers.some((edit: SyncEdit): boolean => edit.kind === 'delete')) return undefined

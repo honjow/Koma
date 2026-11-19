@@ -25,6 +25,23 @@ const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
 });
 const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreferencesStore(ctx), other=new mod.ReaderPreferencesStore(ctx);
 (async()=>{
+ const syncContext={filesDir:'/owned-memory/sync-preferences'};
+ const syncStore=new mod.ReaderPreferencesStore(syncContext);
+ const missing=await syncStore.captureDeviceSyncPreferences();
+ assert.deepEqual(missing.unsetFields,['mode','animation','page-number','image-fit']);
+ const syncData=data.get(syncContext.filesDir);
+ syncData.set('reader.pageMode','auto_page');
+ syncData.set('reader.showPageNumber',false);
+ syncData.set('reader.pageTurnAnimation',mod.DEFAULT_READER_PREFERENCES.pageTurnAnimation);
+ syncData.set(mod.SERIES_MODE_OVERRIDES_KEY,JSON.stringify({
+   book:{pageMode:'auto_page',readingDirection:ReadingDirection.RIGHT_TO_LEFT},
+ }));
+ const snapshot=await syncStore.captureDeviceSyncPreferences();
+ assert.deepEqual(snapshot.unsetFields,['image-fit']);
+ assert.equal(snapshot.showPageNumber,false);
+ assert.equal(snapshot.mode.pageMode,'single_page');
+ assert.deepEqual(snapshot.books.book,{pageMode:'single_page',readingDirection:ReadingDirection.RIGHT_TO_LEFT});
+
  let applied=[];ctx.getApplicationContext=()=>({setColorMode:n=>{if(n===0 && ctx.failTheme)throw Error('platform_fail');applied.push(n)}});
  await store.save(mod.DEFAULT_READER_PREFERENCES);assert.deepEqual(applied,[]);
  mod.bindReaderThemeWindow(ctx);await store.load();assert.deepEqual(applied,[-1]);

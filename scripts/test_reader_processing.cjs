@@ -75,6 +75,18 @@ function cropFileTask(source,image) {
   return new Function('image','ReaderPageCropDetector','ReaderPageCropBounds',js+';return '+fn.name.text+';')(image,crop.ReaderPageCropDetector,crop.ReaderPageCropBounds)
 }
 
+function superResolutionSubject(imports) {
+  function load(relative) {
+    const mod = {}
+    const code = ts.transpileModule(fs.readFileSync(path.join(root, 'model', relative + '.ets'), 'utf8'),
+      { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
+    new Function('exports', 'require', code)(mod, name =>
+      name === './ReaderSuperResolutionCache' ? load('ReaderSuperResolutionCache') : imports[name] ?? {})
+    return mod
+  }
+  return load('ReaderSuperResolutionService').ReaderSuperResolutionService
+}
+
 test('source fingerprint preparation retires cancelled or changed enhancement before cache/native work', async () => {
   const readMode={superResolutionEnabled:true,superResolutionModel:'photo',superResolutionBackend:'auto',superResolutionMaxHeight:2000}
   let release,started,current=true,cacheReads=0
@@ -86,10 +98,7 @@ test('source fingerprint preparation retires cancelled or changed enhancement be
     './ReaderProcessingDiagnostics':{readerProcessingOwnerHash:()=>''},
     '@kit.ImageKit':{image:{createImageSource:()=>({getImageInfo:async()=>({size:{width:2,height:3}}),release:async()=>{}})}},
   }
-  const mod={}
-  new Function('exports','require',ts.transpileModule(fs.readFileSync(path.join(root,'model/ReaderSuperResolutionService.ets'),'utf8'),
-    {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(mod,name=>imports[name]??{})
-  const service=mod.ReaderSuperResolutionService
+  const service=superResolutionSubject(imports)
   Object.assign(service,{fileStat:()=>({size:123}),releaseOwner(){},pipelineVersion:()=> 'pipeline',
     outputPath(_context,identity){cacheReads++;assert.ok(identity.includes('|123|verified-content|maxHeight=2000|backend=auto'));return '/cache/output'},
     fileSize:()=>42,touch(){},readBackendMetadata:()=> 'cpu'})
@@ -108,6 +117,37 @@ test('source fingerprint preparation retires cancelled or changed enhancement be
   const result=await valid.request
   assert.equal(result.applied,true);assert.equal(result.reason,'cache_hit:cpu');assert.equal(cacheReads,1)
 })
+
+test('super-resolution cache eviction keeps the newly published file and leaves in-flight scratch alone during stats', async () => {
+  const cacheDir = '/cache/reader-super-resolution-cache'
+  const files = new Map([
+    ['kept.jpg', { size: 160 * 1024 * 1024, mtime: 1 }],
+    ['kept.jpg.backend', { size: 6, mtime: 1 }],
+    ['old.jpg', { size: 120 * 1024 * 1024, mtime: 2 }],
+    ['old.jpg.backend', { size: 6, mtime: 2 }],
+    ['new.jpg', { size: 10 * 1024 * 1024, mtime: 3 }],
+    ['abandoned.jpg.part', { size: 3, mtime: 4 }],
+  ])
+  const leaf = file => file.slice(cacheDir.length + 1)
+  const service = superResolutionSubject({
+    '../state/ReaderModeState': { READER_SUPER_RESOLUTION_MAX_SOURCE_HEIGHT: 8000 },
+    './CacheStat': { CacheStat: class { count = 0; bytes = 0 } },
+    '@kit.CoreFileKit': { fileIo: {
+      accessSync: directory => directory === cacheDir,
+      listFileSync: () => [...files.keys()],
+      statSync: file => files.get(leaf(file)),
+      unlinkSync: file => files.delete(leaf(file)),
+    } },
+    '@kit.ArkTS': { taskpool: { execute: async (task, ...args) => task(...args) } },
+    '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn() {} } },
+  })
+  const context = { cacheDir: '/cache' }
+  assert.equal((await service.stat(context)).count, 3)
+  assert.equal(files.has('abandoned.jpg.part'), true)
+  await service.pruneToLimit(context, cacheDir + '/kept.jpg')
+  assert.deepEqual([...files.keys()], ['kept.jpg', 'kept.jpg.backend', 'new.jpg'])
+})
+
 test('packed PixelMap export keeps real border detection and translation-region native input valid',async()=>{
   const get=relative=>process.env.KOMA_RGBA_CONSUMERS_BEFORE==='1'
     ? require('node:child_process').execFileSync('git',['show','440c014f:entry/src/main/ets/'+relative],{encoding:'utf8'})

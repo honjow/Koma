@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { taskpool, util } from '@kit.ArkTS'
+import { hiTraceMeter } from '@kit.PerformanceAnalysisKit'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import {
@@ -17,7 +18,7 @@ import {
 } from '../model/ReaderPreferencesStore'
 import { ReadingDirection, ReadingProgress } from '../model/ComicModels'
 import { SourceReadHistoryEntry } from '../model/SourceReaderSession'
-import { normalizeSearchHistoryEntries, SearchHistoryEntry, SearchHistoryStore } from '../model/SearchHistoryStore'
+import { normalizeSearchHistoryEntries, parseStoredSearchHistory, SearchHistoryEntry, SearchHistoryStore } from '../model/SearchHistoryStore'
 import { sourceLibraryComicId } from '../model/SourceLibraryComic'
 import type { LibrarySmartCategory, LibrarySmartFilter } from '../model/LibrarySmartCategory'
 import { SourceIndexDeviceSyncSnapshot, SourceIndexService } from '../sourceRuntime/SourceIndexService'
@@ -112,12 +113,41 @@ function parseSyncLibrary(raw: string): PersistedLibraryStoreDocument {
   return readLibraryStoreDocument(raw)
 }
 
+@Concurrent
+function projectSearchHistorySnapshot(payload: string): SyncLocalSnapshot {
+  const entries = parseStoredSearchHistory(payload)
+  const terms = new Map<string, SearchHistoryEntry>()
+  for (const item of entries) {
+    if (!safeSyncSearch(item.query)) continue
+    const key = syncSearchIdentity(item.query)
+    if ((terms.get(key)?.updatedAt ?? 0) <= item.updatedAt) terms.set(key, item)
+  }
+  const values: SyncLocalValue[] = []
+  const labels: Record<string, string> = {}
+  terms.forEach((item: SearchHistoryEntry, term: string): void => {
+    const key = syncKey(['query', term])
+    const value: SyncSearchValue = { text: item.query, date: item.updatedAt }
+    values.push({ key, value: JSON.stringify(value) })
+    labels[key] = item.query
+  })
+  return { values, labels, revision: syncDigest(JSON.stringify(entries)), skipped: 0 }
+}
+
 function clonePrefs(prefs: ReaderDeviceSyncPreferences): ReaderDeviceSyncPreferences {
   return JSON.parse(JSON.stringify(prefs)) as ReaderDeviceSyncPreferences
 }
 
 function row(values: SyncLocalValue[], key: string[], value: string | boolean | Object): void {
   values.push({ key: syncKey(key), value: JSON.stringify(value) })
+}
+
+async function scanSyncSnapshotRows<T>(rows: T[], work: SyncWorkSlice, guard: (() => void) | undefined,
+  visit: (row: T) => void): Promise<void> {
+  for (const item of rows) {
+    const pause = work.pause()
+    if (pause !== undefined) { await pause; guard?.() }
+    visit(item)
+  }
 }
 
 function makeProgress(comicId: string, chapterId: string, position: SyncPositionValue, isRead: boolean,
@@ -264,32 +294,29 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return { method: rule.method, value: category, exclude: rule.exclude }
   }
 
-  private sourceIdentities(library: PersistedLibraryStoreDocument, reading: ReaderSessionDocumentSnapshot,
-    knownFacts: SyncFact[] = []):
-    Map<string, SyncLocalReadingWork> {
-    const result = new Map<string, SyncLocalReadingWork>()
-    library.comics.forEach((comic: PersistedComic): void => {
-      const source = comic.sourceRuntimeId
-      const work = comic.remoteResourceId
-      if (source !== undefined && work !== undefined) result.set(comic.id, { source, work, comic })
-    })
-    reading.chapters.forEach((chapter: ChapterReadingState): void => {
-      const identity = chapter.sourceIdentity
-      if (identity !== undefined && !result.has(chapter.comicId) &&
-        syncReadingIdentity(identity.source, identity.work) && sourceLibraryComicId(identity.source, identity.work) === chapter.comicId) {
-        result.set(chapter.comicId, { source: identity.source, work: identity.work })
-      }
-    })
-    reading.sourceHistory.forEach((entry: SourceReadHistoryEntry): void => {
-      result.set(entry.comicId, { source: entry.sourceId, work: entry.mangaId, history: entry,
-        comic: result.get(entry.comicId)?.comic })
-    })
-    for (const fact of knownFacts) {
-      const parts = syncKeyParts(fact.key)
-      const id = sourceLibraryComicId(parts[1], parts[2])
-      if (!result.has(id)) result.set(id, { source: parts[1], work: parts[2] })
+  private rememberLibraryIdentity(result: Map<string, SyncLocalReadingWork>, comic: PersistedComic): void {
+    const source = comic.sourceRuntimeId
+    const work = comic.remoteResourceId
+    if (source !== undefined && work !== undefined) result.set(comic.id, { source, work, comic })
+  }
+
+  private rememberChapterIdentity(result: Map<string, SyncLocalReadingWork>, chapter: ChapterReadingState): void {
+    const identity = chapter.sourceIdentity
+    if (identity !== undefined && !result.has(chapter.comicId) &&
+      syncReadingIdentity(identity.source, identity.work) && sourceLibraryComicId(identity.source, identity.work) === chapter.comicId) {
+      result.set(chapter.comicId, { source: identity.source, work: identity.work })
     }
-    return result
+  }
+
+  private rememberHistoryIdentity(result: Map<string, SyncLocalReadingWork>, entry: SourceReadHistoryEntry): void {
+    result.set(entry.comicId, { source: entry.sourceId, work: entry.mangaId, history: entry,
+      comic: result.get(entry.comicId)?.comic })
+  }
+
+  private rememberFactIdentity(result: Map<string, SyncLocalReadingWork>, fact: SyncFact): void {
+    const parts = syncKeyParts(fact.key)
+    const id = sourceLibraryComicId(parts[1], parts[2])
+    if (!result.has(id)) result.set(id, { source: parts[1], work: parts[2] })
   }
 
   private readingFacts(): SyncFact[] {
@@ -313,7 +340,13 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   }
 
   readingIdentities(): Map<string, SyncLocalReadingWork> {
-    return this.sourceIdentities(this.library(), this.reading(), this.readingFacts())
+    const result = new Map<string, SyncLocalReadingWork>()
+    const reading = this.reading()
+    this.library().comics.forEach((comic: PersistedComic): void => { this.rememberLibraryIdentity(result, comic) })
+    reading.chapters.forEach((chapter: ChapterReadingState): void => { this.rememberChapterIdentity(result, chapter) })
+    reading.sourceHistory.forEach((entry: SourceReadHistoryEntry): void => { this.rememberHistoryIdentity(result, entry) })
+    this.readingFacts().forEach((fact: SyncFact): void => { this.rememberFactIdentity(result, fact) })
+    return result
   }
 
   async snapshot(group: SyncGroup, verify: boolean, guard?: () => void, shelfSpace?: string,
@@ -324,19 +357,12 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const labels: Record<string, string> = {}
     let skipped = 0
     if (group === 'search-history') {
-      const entries = await new SearchHistoryStore(this.context).load()
-      const terms = new Map<string, SearchHistoryEntry>()
-      entries.forEach((item: SearchHistoryEntry): void => {
-        if (!safeSyncSearch(item.query)) return
-        const key = syncSearchIdentity(item.query)
-        if ((terms.get(key)?.updatedAt ?? 0) <= item.updatedAt) terms.set(key, item)
-      })
-      terms.forEach((item: SearchHistoryEntry, term: string): void => {
-        const value: SyncSearchValue = { text: item.query, date: item.updatedAt }
-        row(values, ['query', term], value)
-        labels[syncKey(['query', term])] = item.query
-      })
-      return { values, labels, revision: syncDigest(JSON.stringify(entries)), skipped }
+      const payload = await new SearchHistoryStore(this.context).captureDeviceSyncPayload()
+      guard?.()
+      const snapshot = await taskpool.execute(projectSearchHistorySnapshot, payload) as SyncLocalSnapshot
+      guard?.()
+      hiTraceMeter.traceByValue('KomaDeviceSyncSearchSnapshotRows', snapshot.values.length)
+      return snapshot
     }
     if (group === 'source-subscriptions') {
       const snapshot = await new SourceIndexService(this.context).captureDeviceSyncSnapshot()
@@ -458,7 +484,19 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const reading = await taskpool.execute(parseReadingSnapshot, this.context.filesDir, rawReading ?? null) as ReaderSessionDocumentSnapshot
     guard?.()
     const knownFacts = group === 'reading' ? this.readingFacts() : []
-    const identities = this.sourceIdentities(library, reading, knownFacts)
+    const identities = new Map<string, SyncLocalReadingWork>()
+    await scanSyncSnapshotRows(library.comics, work, guard, (comic: PersistedComic): void =>
+      this.rememberLibraryIdentity(identities, comic))
+    await scanSyncSnapshotRows(reading.chapters, work, guard, (chapter: ChapterReadingState): void =>
+      this.rememberChapterIdentity(identities, chapter))
+    await scanSyncSnapshotRows(reading.sourceHistory, work, guard, (entry: SourceReadHistoryEntry): void =>
+      this.rememberHistoryIdentity(identities, entry))
+    const factsByKey = new Map<string, SyncFact>()
+    await scanSyncSnapshotRows(knownFacts, work, guard, (fact: SyncFact): void => {
+      this.rememberFactIdentity(identities, fact)
+      factsByKey.set(fact.key, fact)
+    })
+    guard?.()
     if (group === 'reader-settings') {
       const preferences = await new ReaderPreferencesStore(this.context).captureDeviceSyncPreferences()
       const mode: SyncReaderMode = { mode: preferences.mode.pageMode, direction: preferences.mode.readingDirection }
@@ -497,13 +535,13 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     }
     let readingOutsideScope = 0
     const protectedKeys = new Set<string>()
-    const knownValues = new Map<string, string>()
-    for (const fact of knownFacts) {
-      const pause = work.pause()
-      if (pause !== undefined) { await pause; guard?.() }
-      const value = syncGroupVisibleValue('reading', fact)
-      if (value !== undefined) knownValues.set(fact.key, value)
+    const knownValue = (key: string): string | undefined => {
+      const fact = factsByKey.get(key)
+      return fact === undefined ? undefined : syncGroupVisibleValue('reading', fact)
     }
+    // Only persisted local rows need the visible values. Remote-only history
+    // still supplies fallback identities and keeps its original merge rules.
+    hiTraceMeter.traceByValue('KomaDeviceSyncReadingSnapshotFacts', factsByKey.size)
     // The owner's persisted chapter/page is sufficient for export. Source
     // package and account checks belong to opening the chapter on each device.
     for (const progress of reading.progress) {
@@ -517,7 +555,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       const recentKey = syncKey(['recent', identity.source, identity.work])
       const cover = shelfSourceCover(identity.comic) ?? syncCoverAddress(identity.history?.coverUri)
       if (cover !== undefined) row(values, ['cover', identity.source, identity.work], cover)
-      const known = knownValues.get(recentKey)
+      const known = knownValue(recentKey)
       const saved = known === undefined ? undefined : JSON.parse(known) as SyncRecentValue
       if (known !== undefined && saved?.chapter === progress.chapterId && saved.date === validDate(progress.updatedAt)) {
         values.push({ key: recentKey, value: known })
@@ -534,7 +572,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       if (identity === undefined || !syncReadingIdentity(identity.source, identity.work, chapter.chapterId)) continue
       const suffix = [identity.source, identity.work, chapter.chapterId]
       const positionKey = syncKey(['position'].concat(suffix))
-      const known = knownValues.get(positionKey)
+      const known = chapter.position === undefined ? undefined : knownValue(positionKey)
       const saved = known === undefined ? undefined : JSON.parse(known) as SyncPositionValue
       const position = chapter.position === undefined ? undefined :
         syncReadingPosition(chapter.position.pageIndex, chapter.position.totalPages, chapter.position.updatedAt)
@@ -545,10 +583,10 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
           row(values, ['position'].concat(suffix), position)
         }
       }
-      if (chapter.isRead || knownValues.get(syncKey(['read'].concat(suffix))) === 'false') {
+      if (chapter.isRead || knownValue(syncKey(['read'].concat(suffix))) === 'false') {
         row(values, ['read'].concat(suffix), chapter.isRead)
       }
-      if (chapter.bookmarked === true || knownValues.get(syncKey(['bookmark'].concat(suffix))) === 'false') {
+      if (chapter.bookmarked === true || knownValue(syncKey(['bookmark'].concat(suffix))) === 'false') {
         row(values, ['bookmark'].concat(suffix), chapter.bookmarked === true)
       }
     }

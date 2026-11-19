@@ -861,24 +861,28 @@ export class ReaderPreferencesStore {
 
   captureDeviceSyncPreferences(): Promise<ReaderDeviceSyncPreferences> {
     return this.ordered(async (): Promise<ReaderDeviceSyncPreferences> => {
-      const current = await this.readPreferences()
-      const store = await this.preferences()
+      // All shared fields and their presence come from one ordered read. A
+      // background round doesn't need the local gesture, rendering or SR settings.
+      const values = await (await this.preferences()).getAll() as Record<string, Object>
+      const defaults = DEFAULT_READER_PREFERENCES
+      const pageMode = normalizeReaderPageMode((values['reader.pageMode'] ?? defaults.pageMode) as string)
+      const readingDirection = normalizeReaderDirection(
+        (values['reader.readingDirection'] ?? defaults.readingDirection) as string, defaults.readingDirection)
       const unsetFields: string[] = []
-      if (!(await store.has('reader.pageMode')) && !(await store.has('reader.readingDirection'))) unsetFields.push('mode')
-      if (!(await store.has('reader.pageTurnAnimation'))) unsetFields.push('animation')
-      if (!(await store.has('reader.showPageNumber'))) unsetFields.push('page-number')
-      if (!(await store.has('reader.imageFitMode'))) unsetFields.push('image-fit')
-      const books = await this.readSeriesModeOverrides()
+      if (values['reader.pageMode'] === undefined && values['reader.readingDirection'] === undefined) unsetFields.push('mode')
+      if (values['reader.pageTurnAnimation'] === undefined) unsetFields.push('animation')
+      if (values['reader.showPageNumber'] === undefined) unsetFields.push('page-number')
+      if (values['reader.imageFitMode'] === undefined) unsetFields.push('image-fit')
+      const books = normalizeReaderSeriesModeOverrides((values[SERIES_MODE_OVERRIDES_KEY] ?? '') as string)
       for (const id of Object.keys(books)) {
         if (books[id].pageMode === 'auto_page') books[id].pageMode = 'single_page'
       }
       return {
         // Keep the existing wire enum readable by older installs. Automatic is local.
-        mode: { pageMode: current.pageMode === 'auto_page' ? 'single_page' : current.pageMode,
-          readingDirection: current.readingDirection },
-        pageTurnAnimation: current.pageTurnAnimation,
-        showPageNumber: current.showPageNumber,
-        imageFitMode: current.imageFitMode,
+        mode: { pageMode: pageMode === 'auto_page' ? 'single_page' : pageMode, readingDirection },
+        pageTurnAnimation: (values['reader.pageTurnAnimation'] ?? defaults.pageTurnAnimation) !== false,
+        showPageNumber: (values['reader.showPageNumber'] ?? defaults.showPageNumber) !== false,
+        imageFitMode: normalizeReaderImageFitMode((values['reader.imageFitMode'] ?? defaults.imageFitMode) as string),
         books,
         unsetFields,
       }

@@ -31,6 +31,26 @@ export interface SearchHistoryRecord {
   librarySource?: LibrarySearchSource
 }
 
+export function parseStoredSearchHistory(payload: string): SearchHistoryEntry[] {
+  const parsed = JSON.parse(payload) as SearchHistoryRecord[]
+  if (!Array.isArray(parsed)) {
+    throw new Error('search_history_invalid')
+  }
+  parsed.forEach((record: SearchHistoryRecord): void => {
+    if (record === null || typeof record !== 'object' || Array.isArray(record) ||
+      (record.query !== undefined && typeof record.query !== 'string') ||
+      (record.updatedAt !== undefined && typeof record.updatedAt !== 'number') ||
+      (record.sourceFilter !== undefined && typeof record.sourceFilter !== 'string') ||
+      (record.syncSourceSet !== undefined && typeof record.syncSourceSet !== 'string') ||
+      (record.librarySource !== undefined && (record.librarySource === null || typeof record.librarySource !== 'object' ||
+        typeof record.librarySource.key !== 'string' || record.librarySource.key.trim().length === 0 ||
+        typeof record.librarySource.name !== 'string' || record.librarySource.name.trim().length === 0))) {
+      throw new Error('search_history_invalid')
+    }
+  })
+  return normalizeSearchHistoryEntries(parsed)
+}
+
 export function searchHistoryEntryKey(query: string, scope?: SearchHistoryScope): string {
   if (scope?.syncSourceSet !== undefined) {
     return JSON.stringify([syncSearchIdentity(query), 'source', '', scope.syncSourceSet])
@@ -151,23 +171,13 @@ export class SearchHistoryStore {
 
   private async readEntries(store: preferences.Preferences): Promise<SearchHistoryEntry[]> {
     const payload = await store.get(SEARCH_HISTORY_QUERIES_KEY, '[]') as string
-    const parsed = JSON.parse(payload) as SearchHistoryRecord[]
-    if (!Array.isArray(parsed)) {
-      throw new Error('search_history_invalid')
-    }
-    parsed.forEach((record: SearchHistoryRecord): void => {
-      if (record === null || typeof record !== 'object' || Array.isArray(record) ||
-        (record.query !== undefined && typeof record.query !== 'string') ||
-        (record.updatedAt !== undefined && typeof record.updatedAt !== 'number') ||
-        (record.sourceFilter !== undefined && typeof record.sourceFilter !== 'string') ||
-        (record.syncSourceSet !== undefined && typeof record.syncSourceSet !== 'string') ||
-        (record.librarySource !== undefined && (record.librarySource === null || typeof record.librarySource !== 'object' ||
-          typeof record.librarySource.key !== 'string' || record.librarySource.key.trim().length === 0 ||
-          typeof record.librarySource.name !== 'string' || record.librarySource.name.trim().length === 0))) {
-        throw new Error('search_history_invalid')
-      }
-    })
-    return normalizeSearchHistoryEntries(parsed)
+    return parseStoredSearchHistory(payload)
+  }
+
+  /** Capture the persisted value under the same ordering as UI reads and edits. */
+  captureDeviceSyncPayload(): Promise<string> {
+    return this.ordered(async (): Promise<string> =>
+      await (await this.preferences()).get(SEARCH_HISTORY_QUERIES_KEY, '[]') as string)
   }
 
   async record(query: string, scope?: SearchHistoryScope): Promise<SearchHistoryEntry[]> {

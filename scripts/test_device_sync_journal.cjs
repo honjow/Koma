@@ -111,6 +111,21 @@ test('a staged sync state cannot overwrite a newer local write or publish after 
   assert.equal(storage.load().counter, 8)
   assert.equal(JSON.parse(files.get(path)).localReceipt, 'committed')
   assert.deepEqual([...files.keys()], [path])
+
+  let resumePreparation
+  let markPreparing
+  const preparing = new Promise(resolve => { markPreparing = resolve })
+  const afterPreparation = storage.updateInBackground(async state => {
+    if (state.counter === 8) await new Promise(resolve => { resumePreparation = resolve; markPreparing() })
+    state.counter++
+    return true
+  }, () => {})
+  await preparing
+  storage.update(state => { state.counter = 10 })
+  resumePreparation()
+  await afterPreparation
+  assert.equal(JSON.parse(files.get(path)).counter, 11)
+  assert.equal(files.get(path), JSON.stringify(storage.load()))
 })
 
 test('reading receipt stages only its changes and rebases after a concurrent durable write', async () => {
@@ -527,6 +542,7 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncWire': wire,
   })
   const { KomaDeviceSyncOwners } = compile('DeviceSyncOwners', {
+    '@kit.PerformanceAnalysisKit': { hiTraceMeter: { traceByValue() {} } },
     '@kit.CoreFileKit': nativeFs, '@kit.ArkTS': {
       util: { generateRandomUUID: randomUUID },
       taskpool: { execute: async (fn, ...args) => fn(...args) },

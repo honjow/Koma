@@ -50,6 +50,12 @@ interface SyncLocalEditChange {
   version?: SyncVersion
 }
 
+@Concurrent
+function validateRecordedReadingFacts(facts: SyncFact[]): boolean {
+  for (const fact of facts) checkSyncGroupFact('reading', fact)
+  return true
+}
+
 export interface SyncMergeConflict {
   group: SyncGroup
   key: string
@@ -2144,10 +2150,13 @@ export class DeviceSyncEngine {
 
   async recordReadingEdits(actions: DeviceSyncLocalEdit[], receipt: SyncReadingReceipt, guard: () => void): Promise<SyncVersion | undefined> {
     let version: SyncVersion | undefined
-    await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
-      const change = this.prepareEdits(state, 'reading', actions, receipt)
+    await this.storage.updateInBackground(async (state: SyncLocalDocument): Promise<boolean> => {
+      const toValidate: SyncFact[] = []
+      const change = this.prepareEdits(state, 'reading', actions, receipt, toValidate)
       version = change?.version
       if (change === undefined) return false
+      // Validate exactly the resulting facts before applying the edit or its receipt.
+      if (toValidate.length > 0) await taskpool.execute(validateRecordedReadingFacts, toValidate)
       change.apply(state)
       return true
     }, guard, true)
@@ -2155,7 +2164,7 @@ export class DeviceSyncEngine {
   }
 
   private prepareEdits(current: SyncLocalDocument, group: SyncGroup, actions: DeviceSyncLocalEdit[],
-    receipt?: SyncReadingReceipt): SyncLocalEditChange | undefined {
+    receipt?: SyncReadingReceipt, toValidate?: SyncFact[]): SyncLocalEditChange | undefined {
     const active = current.active
     if (active === undefined || !active.selected.includes(group) ||
       (active.restoreReview === true && syncRequiresExplicitReview(active)) || this.restoreInProgress) return
@@ -2170,7 +2179,8 @@ export class DeviceSyncEngine {
       const old = facts.get(action.key) ?? emptySyncFact(action.key)
       if (action.kind === 'set' && syncVisibleValue(old) === action.value && syncVisibleHeads(old).length <= 1) return
       const updated = applySyncEdit(old, { version, observed: action.observed ?? old.seen, kind: action.kind, value: action.value })
-      checkSyncGroupFact(group, updated)
+      if (toValidate === undefined) checkSyncGroupFact(group, updated)
+      else toValidate.push(updated)
       facts.set(action.key, updated)
       pending.push({ key: action.key, version })
       if (action.value === '') baseline.delete(action.key)

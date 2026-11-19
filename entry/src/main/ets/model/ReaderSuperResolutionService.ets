@@ -35,6 +35,7 @@ import {
 } from './ReaderSuperResolutionModelRegistry'
 import { ReaderSystemSuperResolutionService } from './ReaderSystemSuperResolutionService'
 import { readerImageFileSha256 } from './ReaderImageFileIdentity'
+import { pruneSuperResolutionCache, readSuperResolutionCache, removeSuperResolutionCacheFile } from './ReaderSuperResolutionCache'
 
 const CACHE_DIR_NAME: string = 'reader-super-resolution-cache'
 const OUTPUT_SCALE: number = 2
@@ -116,16 +117,9 @@ function setReaderSuperResolutionInteractionProtectionRequired(required: boolean
   applyReaderSuperResolutionInteractionPause()
 }
 
-class ReaderSuperResolutionCacheEntry {
-  path: string = ''
-  bytes: number = 0
-  mtime: number = 0
-
-  constructor(path: string, bytes: number, mtime: number) {
-    this.path = path
-    this.bytes = bytes
-    this.mtime = mtime
-  }
+@Concurrent
+function pruneSuperResolutionCacheOnWorker(dir: string, protectedPath: string, maxBytes: number, maxFiles: number): void {
+  pruneSuperResolutionCache(dir, protectedPath, maxBytes, maxFiles)
 }
 
 export class ReaderSuperResolutionResult {
@@ -376,7 +370,7 @@ export class ReaderSuperResolutionService {
 
   static async stat(context: common.UIAbilityContext): Promise<CacheStat> {
     const result: CacheStat = new CacheStat()
-    const entries: ReaderSuperResolutionCacheEntry[] = ReaderSuperResolutionService.cacheEntries(context)
+    const entries = readSuperResolutionCache(ReaderSuperResolutionService.cacheDir(context), false)
     result.count = entries.length
     for (let i: number = 0; i < entries.length; i++) {
       result.bytes += entries[i].bytes
@@ -386,7 +380,7 @@ export class ReaderSuperResolutionService {
 
   static async clear(context: common.UIAbilityContext): Promise<void> {
     await ReaderSuperResolutionService.waitForIdle()
-    const entries: ReaderSuperResolutionCacheEntry[] = ReaderSuperResolutionService.cacheEntries(context)
+    const entries = readSuperResolutionCache(ReaderSuperResolutionService.cacheDir(context), true)
     for (let i: number = 0; i < entries.length; i++) {
       ReaderSuperResolutionService.removeIfExists(entries[i].path)
       ReaderSuperResolutionService.removeIfExists(
@@ -1441,70 +1435,18 @@ export class ReaderSuperResolutionService {
     context: common.UIAbilityContext,
     protectedPath: string,
   ): Promise<void> {
-    const task: Promise<void> = ReaderSuperResolutionService.pruneChain.then(
-      (): Promise<void> => ReaderSuperResolutionService.pruneNow(context, protectedPath),
-      (): Promise<void> => ReaderSuperResolutionService.pruneNow(context, protectedPath),
-    )
+    // The single processing slot stays occupied until the scan and eviction
+    // finish. The next task cannot begin writing its own .part in this window.
+    const directory = ReaderSuperResolutionService.cacheDir(context)
+    const task: Promise<void> = ReaderSuperResolutionService.pruneChain.then(async (): Promise<void> => {
+      try {
+        await taskpool.execute(pruneSuperResolutionCacheOnWorker, directory, protectedPath, MAX_CACHE_BYTES, MAX_CACHE_FILE_COUNT)
+      } catch (error) {
+        DiagnosticLogger.warn('reader-super-resolution', 'cache_scan_failed', (error as Error).message)
+      }
+    })
     ReaderSuperResolutionService.pruneChain = task
     return task
-  }
-
-  private static async pruneNow(
-    context: common.UIAbilityContext,
-    protectedPath: string,
-  ): Promise<void> {
-    const entries: ReaderSuperResolutionCacheEntry[] = ReaderSuperResolutionService.cacheEntries(context)
-    entries.sort(
-      (left: ReaderSuperResolutionCacheEntry, right: ReaderSuperResolutionCacheEntry): number =>
-        left.mtime - right.mtime,
-    )
-    let totalBytes: number = 0
-    for (let i: number = 0; i < entries.length; i++) {
-      totalBytes += entries[i].bytes
-    }
-    let remaining: number = entries.length
-    for (let i: number = 0; i < entries.length; i++) {
-      if ((totalBytes <= MAX_CACHE_BYTES && remaining <= MAX_CACHE_FILE_COUNT) || remaining <= 1) {
-        break
-      }
-      if (entries[i].path === protectedPath) {
-        continue
-      }
-      ReaderSuperResolutionService.removeIfExists(entries[i].path)
-      ReaderSuperResolutionService.removeIfExists(
-        ReaderSuperResolutionService.backendMetadataPath(entries[i].path),
-      )
-      totalBytes -= entries[i].bytes
-      remaining--
-    }
-  }
-
-  private static cacheEntries(context: common.UIAbilityContext): ReaderSuperResolutionCacheEntry[] {
-    const entries: ReaderSuperResolutionCacheEntry[] = []
-    const dir: string = ReaderSuperResolutionService.cacheDir(context)
-    try {
-      if (!fileIo.accessSync(dir)) {
-        return entries
-      }
-      const names: string[] = fileIo.listFileSync(dir)
-      for (let i: number = 0; i < names.length; i++) {
-        const path: string = `${dir}/${names[i]}`
-        if (names[i].endsWith('.part')) {
-          ReaderSuperResolutionService.removeIfExists(path)
-          continue
-        }
-        if (!names[i].endsWith('.jpg')) {
-          continue
-        }
-        const stat: fileIo.Stat | null = ReaderSuperResolutionService.fileStat(path)
-        if (stat !== null && stat.size > 0) {
-          entries.push(new ReaderSuperResolutionCacheEntry(path, stat.size, stat.mtime))
-        }
-      }
-    } catch (error) {
-      DiagnosticLogger.warn('reader-super-resolution', 'cache_scan_failed', (error as Error).message)
-    }
-    return entries
   }
 
   private static outputPath(context: common.UIAbilityContext, identity: string): string {
@@ -1547,9 +1489,7 @@ export class ReaderSuperResolutionService {
   }
 
   private static removeIfExists(path: string): void {
-    try {
-      fileIo.unlinkSync(path)
-    } catch (_error) {}
+    removeSuperResolutionCacheFile(path)
   }
 
   private static backendMetadataPath(outputPath: string): string {

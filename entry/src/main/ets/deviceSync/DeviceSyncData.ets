@@ -230,15 +230,19 @@ export function syncShelfMoveDestination(key: string, visible: (key: string) => 
 }
 
 export function syncGroupVisibleValue(group: SyncGroup, fact: SyncFact): string | undefined {
-  const value = syncVisibleValue(fact)
+  const heads = syncVisibleHeads(fact)
+  const value = syncVisibleValue(fact, heads)
   const kind = syncKeyParts(fact.key)[0]
   if (value !== undefined && (kind === 'recent' || kind === 'position' || kind === 'query' || kind === 'chapter-catalog')) {
+    // A single head or fallback reset already won. Only concurrent values need date comparison.
+    if (heads.length <= 1) return value
     let best = value
     let date = (JSON.parse(best) as SyncRecentValue).date ?? 0
-    syncVisibleHeads(fact).forEach((candidate: SyncEdit): void => {
+    for (let i = 0; i < heads.length - 1; i++) {
+      const candidate = heads[i]
       const nextDate = (JSON.parse(candidate.value) as SyncRecentValue).date ?? 0
       if (nextDate > date) { date = nextDate; best = candidate.value }
-    })
+    }
     return best
   }
   if (group !== 'shelf' || !fact.key.startsWith('["book",') ||
