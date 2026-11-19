@@ -77,7 +77,7 @@ export interface PackedPlanInput {
   previousPending?: string[]
 }
 
-async function packInputRows<T>(rows: T[],
+export async function packInputRows<T>(rows: T[],
   yieldIfNeeded: () => Promise<void> | undefined): Promise<string[]> {
   const result: string[] = []
   for (let start = 0; start < rows.length; start += PLAN_INPUT_ROWS) {

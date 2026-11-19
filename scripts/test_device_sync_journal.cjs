@@ -8,9 +8,9 @@ const { randomUUID } = require('node:crypto')
 // Only NetworkKit, native credentials and owner persistence are host substitutes.
 const support = new Function('require', '__dirname',
   fs.readFileSync(path.join(__dirname, 'test_device_sync.cjs'), 'utf8') +
-  '\nreturn { compile, wire, facts, data, journal, metrics, engineFixture, runtimeFixture, A, B, C, dot, edit };')(
+  '\nreturn { compile, wire, facts, data, journal, metrics, planner, engineFixture, runtimeFixture, A, B, C, dot, edit };')(
   name => name === 'node:test' ? () => {} : require(name), __dirname)
-const { compile, wire, facts, data, journal, metrics, engineFixture, runtimeFixture, A, B, C, dot, edit } = support
+const { compile, wire, facts, data, journal, metrics, planner, engineFixture, runtimeFixture, A, B, C, dot, edit } = support
 const models = compile('../remote/WebDavModels')
 const xml = compile('../remote/WebDavClient', { './WebDavModels': models })
 
@@ -541,6 +541,11 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     '../model/LibraryPersistence': persistence, '../model/ComicModels': comics, '../model/SourceLibraryComic': sourceComic,
     './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncWire': wire,
   })
+  const readingSnapshot = compile('DeviceSyncReadingSnapshot', {
+    '../model/LibraryPersistence': persistence, '../model/ReaderSessionStore': sessions,
+    '../model/SourceLibraryComic': sourceComic, './DeviceSyncData': data, './DeviceSyncShelfApply': shelfApply,
+    './DeviceSyncWire': wire,
+  })
   const { KomaDeviceSyncOwners } = compile('DeviceSyncOwners', {
     '@kit.PerformanceAnalysisKit': { hiTraceMeter: { traceByValue() {} } },
     '@kit.CoreFileKit': nativeFs, '@kit.ArkTS': {
@@ -553,7 +558,7 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     '../model/SearchHistoryStore': {}, '../model/SourceLibraryComic': sourceComic,
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceIndexMetadata': {},
     './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncSignals': signals, './DeviceSyncWire': wire,
-    './DeviceSyncShelfApply': shelfApply,
+    './DeviceSyncShelfApply': shelfApply, './DeviceSyncReadingSnapshot': readingSnapshot, './DeviceSyncPlanner': planner,
   })
   const context = { filesDir }
   let owner
@@ -1086,6 +1091,11 @@ test('saved history and live page turns from other sources reach a fresh reader 
   }
   await connect(a)
   await connect(b)
+  const reviewSnapshot = await a.owner.snapshot('reading', true)
+  const ordinarySnapshot = await a.owner.snapshot('reading', true, undefined, undefined, false)
+  for (const field of ['values', 'revision', 'skipped', 'readingHistoryKeys', 'protectedKeys']) {
+    assert.deepEqual(ordinarySnapshot[field], reviewSnapshot[field])
+  }
   let cold = b.coldReader()
   assert.equal(cold.getSourceHistory(publicComic).mangaUrl, publicUrl)
   assert.equal(cold.getSourceHistory(publicComic).coverUri, publicCover)
