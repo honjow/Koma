@@ -5734,16 +5734,16 @@
         "READER_SETTINGS_STABILITY",
         "NEXT_CHAPTER_PREFETCH_REUSE"
       ],
-      "status": "具名设备路径及精确CI完成",
-      "kind": "done",
-      "result": "197具名跨章预载、方向和点击路径已验证，App及书源提交精确CI成功。",
-      "remaining": "",
+      "status": "原源目录续接候选已构建，真机待验",
+      "kind": "pending_verification",
+      "result": "此前 197 具名跨章预载、方向与点击路径已验证。2026-11-19 新反例是读到章末继续翻页或滚动时无法自动进入下一话。瓜子《一人之下》真实目录 812 条且 ID 唯一，旧逻辑遇显示话号重复后只剩当前章。Koma 改用完整原源目录中的位置生成续读序列，保留书源明确允许的无号章，旧收藏在后台升级。瓜子 0.1.9 让所有作品按原站导航交付顺序。新旧 WASM 真实目录对照核对了 812、273、3853 条的 ID 和标题，3853 条经三页完整合并；宿主读回复现新766→新767→768，且新767取得 6 页页表。签名 Debug HAP 和候选 WASM 构建通过。",
+      "remaining": "设备上通过普通入口核对章末翻页、滚动和跨章预载。App 与瓜子候选尚未发布。",
       "reportedAt": "2026-10-23T04:55:39.469Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 372447921 重新读原文与时间戳，不是摘要/登记时间。",
       "firstEvidenceAt": "2026-10-23T04:55:39.469Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": "2026-10-30T13:47:21+08:00",
+      "closedAt": null,
       "evidencePoints": [
         "直接产物索引：.hvigor/outputs/continuous-position-rejected-072.patch；reader-kit提交7744665155743b4c62b2e21166e22ace76b9e27c，119关键回归通过；Koma接入提交5d966878；197清理HAP SHA-256 f6749b58303015d413fea24d2baf4030375a9958c27f7a760defb9793d8fe889。自然终点反例58/59；MeasuredPosition改用原生getItemRect实际边界而非推算imageHeight，参考官方API与Mihon同规则，61/62设备回验。reader-kit 7744665与cab2118已推main并读回cab；Koma 229daf3c精确CI40651937090失败，漏偏好/state/bridge等调用依赖；补齐提交091d2b6758c94bb0d58130f6b9626a052f6ce787已推master，精确CI40655062200 completed/success，连接器读回head_sha一致。",
         "重开前原result逐字保留：197 Blue横向双方向及连续章、MH1234多页RTL、Nemo多页纵向往返具名范围已核，精确CI成功，设备已恢复。",
@@ -5758,7 +5758,9 @@
         "koma-sources 04fa4a9b2c134ac8261eb55eb37ce124b8457aff精确CI41009585265 completed/success；14正式ZIP匹配release digest、manifest等候选，index版本/方向一致，公开WASM source_info版本已执行；/private/tmp/koma-order-published-04fa4a9/identity.json。14源不冒全部Native，xkcd Native为旧015+本地metadata016候选、正式017仅版本/metadata变化。Zero/Pixiv/MHR/Iqiyi/XCOMIC代码候选未交付，MangaDex/Nami/妙趣未知不扩大。",
         "Koma 995ba6bb101d091c1ba0bab2842ff9a2e5037dc7精确CI41009792919 completed/success、artifact已上传、tag发布job skipped；14源04fa4a9精确CI41009585265及正式实体已核。"
       ],
-      "remainingActions": [],
+      "remainingActions": [
+        "从书架续读与源详情进入阅读，在真机观察章末翻页或滚动跨入无号正文，核对预载目标和实际进入章节。"
+      ],
       "boundaries": [
         "保显式选章与既有续读语义；不以isAtEnd强改页码、不延时抢滚动。不能从本路径宣称全部Reader通过。",
         "不外推全部Reader或尚未核实分组源。"
@@ -5772,8 +5774,8 @@
       "reportedAgeSecondsAtAudit": 225492,
       "reportedDate": "2026-10-23",
       "reportedDateSource": "按上述原始UTC首报换算Asia/Shanghai日期，不使用登记日。",
-      "closedAtSource": "Root本轮核当前N/E单unit/adjacent null消费合同并对照Koma既有具名实证后登记；不是N/E实机跨章验收或用户接受时间。",
-      "stage": "具名范围已交付",
+      "closedAtSource": "此前具名范围于 2026-10-30T13:47:21+08:00 收口；当前新增的目录顺序反例尚待真机复验。",
+      "stage": "主机回放及构建完成",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-scroll-motion-05/",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-candidate-motion-09/",
@@ -5835,7 +5837,7 @@
         "收口前原结果：197 Nemo纵向分页完整滑动可连续进入下一章并回到前章末页，画面连续且章节提示对应；原App、数据与电源已恢复并释租。",
         "https://github.com/honjow/Koma/actions/runs/40790249371"
       ],
-      "reopenedAt": "2026-10-30T12:12:54+08:00"
+      "reopenedAt": "2026-11-19T20:42:54+08:00"
     },
     {
       "id": "NEXT_CHAPTER_PREFETCH_REUSE",

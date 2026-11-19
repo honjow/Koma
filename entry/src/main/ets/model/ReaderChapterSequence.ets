@@ -1,4 +1,5 @@
 import { SourceChapterOrder } from '../sourceRuntime/SourceChapterOrder'
+import type { Chapter } from './ComicModels'
 
 /** Complete manual catalog metadata; never derives edition or order from a title. */
 export interface ReaderChapterDescriptor {
@@ -18,6 +19,14 @@ export interface ReaderChapterDescriptor {
 export interface ChapterReadSequenceEntry extends ReaderChapterDescriptor {
   isRead: boolean
   localReadingIndex?: number
+}
+
+/** Old snapshots can have a numeric sequence (or just the current chapter).
+ * A saved exclusion may also predate the installed source's catalog rules. */
+export function needsSourceCatalogChronology(chapter: ReaderChapterDescriptor | Chapter | undefined,
+  fromLibrary: boolean = false): boolean {
+  return chapter !== undefined && (fromLibrary || chapter.continuationEligible !== false) && chapter.readingOrder === undefined &&
+    chapter.readingVariantGroup === undefined && chapter.readingVariantSequence === undefined
 }
 
 /** A bulk edit follows the same edition and chronology as reading. Local

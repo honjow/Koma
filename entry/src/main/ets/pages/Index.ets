@@ -93,6 +93,7 @@ import {
   ReaderChapterOpenIntent,
   cloneReaderChapterDescriptor,
   continuationChapterIds,
+  needsSourceCatalogChronology,
 } from '../model/ReaderChapterSequence'
 import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceWebFetchBridgeHost } from '../components/SourceWebFetchBridgeHost'
@@ -1259,6 +1260,8 @@ struct Index {
       chapterTitles,
       continuationChapterIds: request.chaptersResolved === true && request.chapters !== undefined
         ? continuationChapterIds(request.chapters, request.chapterId, true) : undefined,
+      sourceChapterChronologyPending: needsSourceCatalogChronology(request.chapters?.find(
+        (chapter: ReaderChapterDescriptor): boolean => chapter.id === request.chapterId)),
       title: request.title,
       chapterTitle: chapterTitles[selectedIndex],
       readingFormat: request.readingFormat,
@@ -2034,6 +2037,7 @@ struct Index {
       chapterTitle: baseConfig.chapterTitle ?? chapter?.title,
       chapterIds,
       continuationChapterIds: baseConfig.continuationChapterIds,
+      sourceChapterChronologyPending: baseConfig.sourceChapterChronologyPending,
       chapterTitles,
       totalPages: 1,
       pageUris: ['source-placeholder://chapter'],
@@ -2117,6 +2121,7 @@ struct Index {
         chapterTitle: baseConfig.chapterTitle ?? validation.manifest.chapterTitle,
         chapterIds,
         continuationChapterIds: baseConfig.continuationChapterIds,
+        sourceChapterChronologyPending: baseConfig.sourceChapterChronologyPending,
         chapterTitles,
         totalPages: validation.pageCount,
         pageUris,

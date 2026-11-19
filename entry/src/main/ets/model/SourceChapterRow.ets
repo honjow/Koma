@@ -135,8 +135,10 @@ export function parseSourceChapterRow(item: SourceRuntimeRecord, untitledLabel: 
     readingGroup,
     readingVariantGroup: optionalSourceString(item['readingVariantGroup']),
     readingVariantSequence: optionalSourceString(item['readingVariantSequence']),
+    // The complete catalog can supply a position even if this row has no
+    // display number. Preserve the source's own eligibility until that point.
     continuationEligible: hasContinuationContract ? item['continuationEligible'] === true &&
-      readingGroup !== undefined && (readingOrder !== undefined || chapterNumber !== undefined || optionalSourceNumber(volumeNumber) !== undefined) : undefined,
+      readingGroup !== undefined : undefined,
     volumeNumber,
     scanlator: firstSourceDisplayString([
       item['scanlator'],

@@ -269,12 +269,23 @@ test('a newer opening layout retires its earlier callback and closed/replaced ca
 
 const sharedCore = require('../third_party/reader-kit/tests/load-core.cjs')('ReaderSession')
 const sharedProcessing = require('../third_party/reader-kit/tests/load-core.cjs')('ReaderProcessingCoordinator')
+function loadHostModel(name, dependencies = {}) {
+  const source = fs.readFileSync(path.join(root, '../model', `${name}.ets`), 'utf8')
+  const exports = {}
+  vm.runInNewContext(ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports, require: id => dependencies[id] ?? {} })
+  return exports
+}
+const { RemoteImageFileRequest } = loadHostModel('RemoteImageCacheStore')
 function preparationFixture(hostPrepare, fetchSource = async source => '/cache/' + source.imageUri,
   readSize = async () => '0,0') {
   const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter',
-    ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'installConfig', 'prepareSequence', 'adjacent', 'preloadNextUnit',
-      'page', 'preload', 'recoverableImageFailure', 'refreshPageSources', 'sourceFile', 'load', 'close'], {
+    ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'prepareArchiveBookmarks', 'authenticationSource',
+      'installConfig', 'prepareSequence', 'adjacent', 'preloadNextUnit',
+      'page', 'preload', 'prepareImageSize', 'publishPreparedSize', 'recoverableImageFailure', 'refreshPageSources', 'sourceFile', 'load', 'close'], {
       ...sharedCore, ...sharedProcessing, DiagnosticLogger: { info() {} }, KomaReaderFailure: { catalogMessage: error => error.message },
+      SourceRuntimeError: class extends Error {}, RemoteImageFileRequest,
       ComicSourceKind: { LOCAL_FOLDER: 'local_folder', LOCAL_ARCHIVE: 'local_archive' },
       ReaderPageRenderKind: { REMOTE_URL_IMAGE: 1, URI_PLACEHOLDER: 2, LOCAL_FILE_IMAGE: 3 },
       createReaderPageRenderSources: config => config.pageUris.map((imageUri, index) => ({ kind: 1, imageUri, sourceRuntimeId: config.sourceRuntimeId, pageId: config.pageIds?.[index] })),
@@ -284,12 +295,12 @@ function preparationFixture(hostPrepare, fetchSource = async source => '/cache/'
       readPreloadedImageSize() {}, taskpool: { execute: (_worker, path) => readSize(path) },
     })
   const adapter = new Adapter()
-  Object.assign(adapter, { configs: new Map(), sources: new Map(), preparedUnits: new Map(),
+  Object.assign(adapter, { configs: new Map(), sources: new Map(), preparedUnits: new Map(), archiveBookmarks: new Map(),
     preparingUnits: new Map(), preparingSequences: new Set(), resolvedSequences: new Map(), onSequenceReady() {},
     sourceRequests: new Map(), refreshingSources: new Map(), automaticallyRefreshedUnits: new Set(), automaticPageRetries: new Set(), closed: false, chapterPreloadEnabled: true,
     preloadedSizes: new Map(), preloadedSizeVersions: new Map(),
     preparationCancellation: new sharedCore.ReaderCancellation(), catalogFailureText: 'visible failure',
-    remotePreloadAllowed: () => true,
+    remotePreloadAllowed: () => true, bannerPolicy: () => 'off', automaticPaging: () => false,
     catalogHost: { prepare: hostPrepare }, thumbnails: { close() {} },
   })
   return adapter
@@ -395,7 +406,7 @@ test('online adjacent chapters and lookahead consume the same sequence instead o
 
 test('legacy chronology resolves beside the current page and then enables the same lookahead', async () => {
   const adapter = preparationFixture(async target => ({ ...chapterConfig(target.unit), sourceRuntimeId: 'source',
-    continuationChapterIds: undefined }))
+    continuationChapterIds: [target.unit], sourceChapterChronologyPending: true }))
   let finish, publications = 0
   adapter.catalogHost.sequence = () => new Promise(resolve => { finish = resolve })
   adapter.onSequenceReady = () => { publications++ }
@@ -790,6 +801,38 @@ test('declared source chronology supplies the same chapter relation without edit
   const grouped = chapters.map(chapter => ({ ...chapter, readingGroup: 'edition', continuationEligible: false }))
   assert.deepEqual(Array.from(output.continuationChapterIds(chronology.sourceCatalogChronology(grouped, 'newest_first'), 'extra')), ['extra'],
     'catalog chronology cannot override a source edition restriction')
+})
+
+test('complete source catalogs supply automatic neighbors through missing and repeated numbers', () => {
+  const { continuationChapterIds, needsSourceCatalogChronology } = chapterSequence()
+  const chronology = loadHostModel('SourceChapterChronology')
+  const { parseSourceChapterRow } = loadHostModel('SourceChapterRow', {
+    './SourceTextNormalizer': loadHostModel('SourceTextNormalizer'),
+  })
+  const catalog = [
+    { id: 'latest', chapterNumber: 13 }, { id: 'extra' },
+    { id: '12-part-two', chapterNumber: 12 }, { id: '12-part-one', chapterNumber: 12 },
+    { id: 'first', chapterNumber: 11 },
+  ].map(chapter => parseSourceChapterRow({ ...chapter, title: chapter.id,
+    readingGroup: 'main', continuationEligible: true }, 'Untitled', 'Chapter %s'))
+  const notice = { id: 'notice', title: 'notice', readingGroup: 'main', continuationEligible: false }
+  const volume = { id: 'volume', title: 'volume', readingGroup: 'volumes', continuationEligible: true }
+  assert.equal(needsSourceCatalogChronology(catalog[1]), true)
+  assert.equal(needsSourceCatalogChronology(notice), false)
+  assert.equal(needsSourceCatalogChronology(notice, true), true)
+  const resolved = chronology.sourceCatalogChronology([volume, notice, ...catalog], undefined)
+  assert.deepEqual(Array.from(continuationChapterIds(resolved, 'extra')),
+    ['first', '12-part-one', '12-part-two', 'extra', 'latest'])
+  assert.deepEqual(Array.from(continuationChapterIds(resolved, 'notice')), ['notice'])
+  assert.deepEqual(Array.from(continuationChapterIds(resolved, 'volume')), ['volume'])
+  assert.equal(needsSourceCatalogChronology(resolved.find(chapter => chapter.id === 'extra')), false)
+
+  const plainCatalog = [{ id: 'opening', title: 'Opening' }, { id: 'appendix', title: 'Appendix' }]
+  assert.deepEqual(Array.from(continuationChapterIds(chronology.sourceCatalogChronology(plainCatalog, undefined), 'opening')),
+    ['opening', 'appendix'])
+  const explicit = catalog.map(chapter => ({ ...chapter, readingOrder: 1 }))
+  assert.equal(chronology.sourceCatalogChronology(explicit, 'newest_first')[1], explicit[1])
+  assert.deepEqual(Array.from(continuationChapterIds(explicit, 'extra')), ['extra'])
 })
 
 

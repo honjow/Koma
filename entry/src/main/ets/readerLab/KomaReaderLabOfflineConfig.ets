@@ -53,6 +53,7 @@ export function createKomaReaderLabOfflineConfig(
     chapterTitle: baseConfig.chapterTitle ?? manifest.chapterTitle,
     chapterIds,
     continuationChapterIds: baseConfig.continuationChapterIds,
+    sourceChapterChronologyPending: baseConfig.sourceChapterChronologyPending,
     chapterTitles,
     totalPages: validation.pageCount,
     pageUris,

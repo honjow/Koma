@@ -11,7 +11,7 @@ import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
-import { continuationChapterIds, firstReaderChapter, ReaderChapterOpenIntent } from './ReaderChapterSequence'
+import { continuationChapterIds, firstReaderChapter, needsSourceCatalogChronology, ReaderChapterOpenIntent } from './ReaderChapterSequence'
 import {
   Chapter,
   ChapterId,
@@ -174,6 +174,7 @@ export interface ReaderSessionConfig {
   chapterId: ChapterId
   chapterIds: string[]
   continuationChapterIds?: string[]
+  sourceChapterChronologyPending?: boolean
   chapterTitles?: string[]
   title?: string
   chapterTitle?: string
@@ -218,6 +219,7 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     chapterId: config.chapterId,
     chapterIds: config.chapterIds.slice(),
     continuationChapterIds: config.continuationChapterIds?.slice(),
+    sourceChapterChronologyPending: config.sourceChapterChronologyPending,
     chapterTitles: config.chapterTitles?.slice(),
     title: config.title,
     chapterTitle: config.chapterTitle,
@@ -1510,6 +1512,7 @@ export function createReaderSessionConfigFromComic(
     chapterId: targetChapterId,
     chapterIds: comic.chapters.map((item) => item.id),
     continuationChapterIds: continuationChapterIds(comic.chapters, targetChapterId, true),
+    sourceChapterChronologyPending: comic.sourceRuntimeId !== undefined && needsSourceCatalogChronology(chapter, true),
     chapterTitles: comic.chapters.map((item) => readerChapterDisplayTitle(item)),
     title: comic.title,
     chapterTitle: chapter === undefined ? undefined : readerChapterDisplayTitle(chapter),

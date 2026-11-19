@@ -345,7 +345,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     this.configs.set(this.unitId(key), config)
     this.sources.set(this.unitId(key), sources)
     this.preparedUnits.set(this.unitId(key), unit)
-    if (config.sourceRuntimeId !== undefined && config.continuationChapterIds === undefined) {
+    if (config.sourceRuntimeId !== undefined && (config.continuationChapterIds === undefined ||
+      config.sourceChapterChronologyPending === true)) {
       void this.prepareSequence(key.copy())
     }
     return unit.copy()
