@@ -22,6 +22,7 @@ import { writeAppTextFile } from './AppFileTextPersistence'
 import { MihonImportService, MihonImportSelection } from './MihonImportService'
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
+import { taskpool } from '@kit.ArkTS'
 import { preferences } from '@kit.ArkData'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
@@ -92,7 +93,7 @@ import {
 } from './OfflineDownloadQueueStore'
 import { ensureKomaContentStorageBase, komaContentStorageBase } from './KomaContentStorage'
 import { ensureLocalBackupDirectory, resolvedLocalBackupDirectory } from './BackupLocalStorage'
-import { readLegacyBackupPreviewJson } from './LegacyBackupPreview'
+import { readLegacyBackupPreviewTask } from './BackupPreviewWorker'
 import {
   LocalLibraryMetadataBackupEntry,
   exportLocalLibraryMetadataBackupEntries,
@@ -206,6 +207,16 @@ interface BackupTrackerSyncPreferences {
 
 export interface BackupLocalFilePreview extends BackupFileSummary {
   exportedAtText: string
+}
+
+interface EncodedPlainBackup {
+  bytes: ArrayBuffer
+  preview: BackupLocalFilePreview
+}
+
+interface SerializedPlainBackup {
+  payload: string
+  exportedAt: number
 }
 
 interface BackupFileHeader {
@@ -911,7 +922,12 @@ export class BackupService {
   }
 
   async export(content?: BackupContentPreferences): Promise<string> {
-    return JSON.stringify(await this.buildBackupDocument(BACKUP_SCHEMA_VERSION, false, content))
+    return (await this.serializePlainBackup(content)).payload
+  }
+
+  private async serializePlainBackup(content?: BackupContentPreferences): Promise<SerializedPlainBackup> {
+    const document = await this.buildBackupDocument(BACKUP_SCHEMA_VERSION, false, content)
+    return { payload: JSON.stringify(document), exportedAt: document.exportedAt }
   }
 
   async exportBackgroundTemplate(): Promise<string> {
@@ -929,9 +945,9 @@ export class BackupService {
 
   async exportLocal(content?: BackupContentPreferences): Promise<BackupLocalFileRecord> {
     await ensureLocalBackupDirectory(this.context)
-    const payload = await this.export(content)
+    const backup = await this.encodePlainBackup(content)
     const fileName = `koma-backup-${Date.now()}${BACKUP_FILE_EXTENSION}`
-    const record = await this.writeLocalBackup(fileName, payload)
+    const record = await this.writeLocalBackup(fileName, backup.bytes, backup.preview)
     DiagnosticLogger.info('backup', 'local_export', '[Backup] step=local_export')
     return record
   }
@@ -939,8 +955,10 @@ export class BackupService {
   async exportEncryptedLocal(passphrase: string, content?: BackupContentPreferences): Promise<BackupLocalFileRecord> {
     await ensureLocalBackupDirectory(this.context)
     const payload = await this.exportEncrypted(passphrase, content)
+    const preview = this.localBackupFilePreview(payload)
+    const bytes = await encodeBackupFile(payload, preview)
     const fileName = `koma-backup-${Date.now()}${BACKUP_FILE_EXTENSION}`
-    const record = await this.writeLocalBackup(fileName, payload)
+    const record = await this.writeLocalBackup(fileName, bytes, preview)
     DiagnosticLogger.info('backup', 'local_export_encrypted', '[Backup] step=local_export_encrypted')
     return record
   }
@@ -1600,9 +1618,21 @@ export class BackupService {
   }
 
   async exportToPicker(content?: BackupContentPreferences): Promise<string | undefined> {
-    const payload = await this.export(content)
-    return this.saveBackupToPicker(await encodeBackupFile(payload, this.localBackupFilePreview(payload)),
+    const backup = await this.encodePlainBackup(content)
+    return this.saveBackupToPicker(backup.bytes,
       `koma-backup-${Date.now()}${BACKUP_FILE_EXTENSION}`, false)
+  }
+
+  private async encodePlainBackup(content?: BackupContentPreferences): Promise<EncodedPlainBackup> {
+    const backup = await this.serializePlainBackup(content)
+    // The writer already owns the timestamp and format. Read-back parsing here retained another
+    // full copy of the library, source packages and covers just to recover those two fields.
+    const preview: BackupLocalFilePreview = {
+      exportedAt: backup.exportedAt,
+      exportedAtText: formatBackupExportedAt(backup.exportedAt),
+      encrypted: false,
+    }
+    return { bytes: await encodeBackupFile(backup.payload, preview), preview }
   }
 
   async exportLocalCopyToPicker(fileName: string, passphrase?: string): Promise<string | undefined> {
@@ -1640,9 +1670,8 @@ export class BackupService {
     return result[0]
   }
 
-  private async writeLocalBackup(fileName: string, payload: string): Promise<BackupLocalFileRecord> {
-    const preview = this.localBackupFilePreview(payload)
-    const bytes = await encodeBackupFile(payload, preview)
+  private async writeLocalBackup(fileName: string, bytes: ArrayBuffer,
+    preview: BackupLocalFilePreview): Promise<BackupLocalFileRecord> {
     ensureDir(this.localBackupsDir())
     const targetName = this.uniqueLocalBackupFileName(fileName)
     const targetPath = this.localBackupPath(targetName)
@@ -1661,7 +1690,9 @@ export class BackupService {
       return { exportedAt: header.exportedAt, exportedAtText: formatBackupExportedAt(header.exportedAt),
         encrypted: header.encrypted }
     }
-    return this.localBackupFilePreview(await readLegacyBackupPreviewJson(path))
+    // Only the path and the bounded preview cross threads. The legacy file stays off the UI thread.
+    const task = new taskpool.Task(readLegacyBackupPreviewTask, path)
+    return this.localBackupFilePreview(await taskpool.execute(task, taskpool.Priority.LOW) as string)
   }
 
   private localBackupFilePreview(payload: string): BackupLocalFilePreview {
