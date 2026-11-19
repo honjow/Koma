@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-19T14:21:33+08:00",
+  "updatedAt": "2026-11-19T21:21:21+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -9961,8 +9961,8 @@
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [],
-      "result": "失败与重试共用原加载位置，底部不再新增；已选来源只由独立移除键移出，点整行不误删，拖动及重进选择记忆保留。",
-      "remaining": "无；保留已接受迁移数据事务范围。",
+      "result": "失败与重试共用原加载位置，底部不再新增；已选来源只由独立移除键移出，点整行不误删，拖动及重进选择记忆保留。 批量手动搜索已由独立目的页承载，197 实测进入、系统返回和选中回填。",
+      "remaining": "批量手动搜索转场已在 197 验证。",
       "remainingActions": [],
       "boundaries": [
         "使用当前Koma控件；仅按用户明确采用的入口和流程实施，不擅自扩展样式。",
@@ -9971,6 +9971,7 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本轮直接用户反馈，精确发送时间未取得；登记时间不冒充首报。",
+      "updatedAt": "2026-11-19T21:21:21+08:00",
       "closedAt": "2026-11-01T03:59:08+08:00",
       "evidencePoints": [
         "用户本轮明确要求实现迁移功能，并指出Mihon和Aidoku均有。",
@@ -11935,6 +11936,21 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "migration-search-real-route-20261119",
+      "at": "2026-11-19T21:21:21+08:00",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "title": "批量迁移手动搜索恢复为独立目的页",
+      "detail": "197 上从书架多选两部作品进入迁移。连续录像确认搜索推入、系统返回及点选结果的退场。选中的真实结果回填原行，第二行保留。测试未执行复制或迁移。已回到原书架，恢复原电源设置并释租。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/08-search-roundtrip/koma_migration_search_roundtrip_20261119.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/10-search-system-back/koma_migration_search_system_back_20261119.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/12-result-selection/koma_migration_result_selection_20261119.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/13-selected-review/review-selected.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/14-restore-device/run-metadata.json"
+      ]
+    },
     {
       "id": "resume-minibar-setting-197-20261119",
       "at": "2026-11-19T14:21:33+08:00",

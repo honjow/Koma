@@ -14,6 +14,7 @@ export class RouteName {
   static readonly SEARCH: string = 'SearchPage'
   static readonly MANGA_DETAIL: string = 'MangaDetailPage'
   static readonly MANGA_MIGRATION: string = 'MangaMigrationPage'
+  static readonly MANGA_MIGRATION_SEARCH: string = 'MangaMigrationSearchPage'
   static readonly MANGA_WEB: string = 'MangaWebPage'
   static readonly SOURCE_BROWSE: string = 'SourceBrowsePage'
   static readonly SOURCE_SEARCH: string = 'SourceSearchPage'

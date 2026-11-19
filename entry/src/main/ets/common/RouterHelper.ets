@@ -10,7 +10,7 @@ import { MigrationMatchOptions } from '../model/MangaMigrationPreferencesStore'
 import { LibrarySearchSource } from '../model/LibrarySearchQuery'
 import { DownloadsChrome } from '../state/DownloadsChrome'
 import { LibraryUpdatesChrome } from '../state/LibraryUpdatesChrome'
-import { CrossSearchSourceFilter } from '../model/CrossSearchService'
+import { CrossSearchSection, CrossSearchSourceFilter } from '../model/CrossSearchService'
 import { appSourceCatalogFilters } from '../state/SourceCatalogFilterState'
 import { connectIncognitoState } from '../state/IncognitoState'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -82,6 +82,15 @@ export interface MangaMigrationRouteParam {
   selectedSources?: string[]
   matchOptions?: MigrationMatchOptions
   chrome?: MangaMigrationRouteChromeState
+}
+
+export interface MangaMigrationSearchRouteParam {
+  chrome: SearchRouteChromeState
+  sourceIds: string[]
+  fromMihon: boolean
+  onChooseSources: () => void
+  onShelfResults: (query: string) => CrossSearchSection | undefined
+  onMangaSelected: (manga: SourceManga) => void
 }
 
 export class RouterHelper {

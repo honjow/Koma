@@ -1,13 +1,12 @@
 import { SearchRouteChromeState } from './SearchRouteChromeState'
 
-export type MigrationCommand = 'continue' | 'copy' | 'move' | 'finish' | 'sources' | 'matches' | 'retryFailed'
+export type MigrationCommand = 'continue' | 'copy' | 'move' | 'finish' | 'sources' | 'retryFailed'
 
 /** The page owns migration state; root title actions are its route-local projection. */
 @ObservedV2
 export class MangaMigrationRouteChromeState {
   @Trace stage: string = 'sources'
   @Trace visible: boolean = false
-  @Trace single: boolean = false
   readonly search: SearchRouteChromeState = new SearchRouteChromeState(false)
   @Trace canContinue: boolean = false
   @Trace readyCount: number = 0

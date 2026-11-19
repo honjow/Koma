@@ -18,7 +18,7 @@ import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary,
   sourceRuntimeEntryEnabled } from '../sourceRuntime/SourceRuntimeRegistry'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
-import { RouterHelper } from '../common/RouterHelper'
+import { MangaMigrationSearchRouteParam, RouterHelper } from '../common/RouterHelper'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
@@ -30,6 +30,7 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { MangaMigrationPreferencesStore, MigrationMatchOptions } from '../model/MangaMigrationPreferencesStore'
 import { MangaMigrationRouteChromeState } from '../state/MangaMigrationRouteChromeState'
+import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { chooseMigrationCandidate, migrationSearchQueries, latestMigrationChapter } from '../model/MangaMigrationMatching'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
@@ -76,6 +77,7 @@ export struct MangaMigrationPage {
   @Event onLibraryChanged: () => void = () => {}
   @Event onComplete: (targetIds: string[]) => void = () => {}
   @Event onBusyChanged: (busy: boolean) => void = () => {}
+  @Event onOpenSearch: (param: MangaMigrationSearchRouteParam) => void = () => {}
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private stage: string = 'sources'
   @Local private sources: SourceRuntimeRegistryInstalledSourceSummary[] = []
@@ -90,6 +92,7 @@ export struct MangaMigrationPage {
   @Local private singleConfirmationShown: boolean = false
   private singleDialogId: number = -1
   @Local private searchComicId: string = ''
+  private batchSearch?: SearchRouteChromeState
   private initialized: boolean = false
   private handledCommandSeq: number = 0
   private prepared: Map<string, PreparedMangaMigration> = new Map()
@@ -136,7 +139,6 @@ export struct MangaMigrationPage {
 
   private syncChrome(): void {
     this.chrome.stage = this.stage
-    this.chrome.single = this.rows.length === 1
     this.chrome.busy = this.committing || this.starting
     this.chrome.canContinue = !this.chrome.busy && this.selectedSources.length > 0 && this.rows.length > 0
     this.chrome.readyCount = this.readyCount()
@@ -158,7 +160,6 @@ export struct MangaMigrationPage {
     else if (this.chrome.command === 'copy' && this.readyCount() > 0) this.confirm(true)
     else if (this.chrome.command === 'move' && this.readyCount() > 0) this.confirm(false)
     else if (this.chrome.command === 'finish') this.finish()
-    else if (this.chrome.command === 'matches') { this.stage = 'matches'; this.syncChrome() }
     else if (this.chrome.command === 'retryFailed') void this.runMatches(this.rows.filter((row: MigrationRow): boolean => row.state === 'failed'))
     else if (this.chrome.command === 'sources') {
       this.matchingRun += 1
@@ -359,8 +360,24 @@ export struct MangaMigrationPage {
     if (this.committing) return
     this.generations.set(row.comic.id, (this.generations.get(row.comic.id) ?? 0) + 1)
     if (row.state === 'searching') this.updateRow(row.comic.id, { comic: row.comic, state: 'idle' })
-    // One migration destination owns selection, results and confirmation.
-    // Search is an in-place stage, not another route that must pop back first.
+    if (this.rows.length > 1) {
+      // The review stays mounted while the search destination is on top.
+      // Matches, transfer options and scroll position belong to the review.
+      const chrome = new SearchRouteChromeState(false)
+      const previousQuery = this.searchComicId === row.comic.id ? this.batchSearch?.query : undefined
+      chrome.submitQuery(previousQuery ?? row.comic.title)
+      this.searchComicId = row.comic.id
+      this.batchSearch = chrome
+      this.onOpenSearch({
+        chrome,
+        sourceIds: this.selectedSources.slice(),
+        fromMihon: this.fromMihon,
+        onChooseSources: (): void => { this.chrome.request('sources') },
+        onShelfResults: (query: string): CrossSearchSection | undefined => this.mihonShelfResults(query),
+        onMangaSelected: (manga: SourceManga): void => { void this.selectTarget(row.comic, manga) },
+      })
+      return
+    }
     const query = this.searchComicId === row.comic.id ? this.chrome.search.query : row.comic.title
     this.searchComicId = row.comic.id
     this.chrome.search.submitQuery(query)
@@ -371,7 +388,6 @@ export struct MangaMigrationPage {
   private selectSearchTarget(manga: SourceManga): void {
     const row = this.rows.find((item: MigrationRow): boolean => item.comic.id === this.searchComicId)
     if (row === undefined || this.committing) return
-    if (this.rows.length > 1) { this.stage = 'matches'; this.syncChrome() }
     void this.selectTarget(row.comic, manga)
   }
 

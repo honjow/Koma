@@ -106,7 +106,7 @@ import { MihonImportService } from '../model/MihonImportService'
 import { SourceMangaDetailSnapshot } from '../model/SourceMangaDetailSnapshotCache'
 import { MangaMigrationPreferencesStore } from '../model/MangaMigrationPreferencesStore'
 import { MigrationCommand } from '../state/MangaMigrationRouteChromeState'
-import { MangaMigrationRouteParam } from '../common/RouterHelper'
+import { MangaMigrationRouteParam, MangaMigrationSearchRouteParam } from '../common/RouterHelper'
 import { SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT, SourceSearchTitleFieldContentBuilder } from '../components/SourceSearchTitleField'
 import { SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT, SourceBrowseTitleFieldContentBuilder } from '../components/SourceBrowseTitleField'
 import { KomgaSeriesPage, KomgaSeriesRouteParam } from './KomgaSeriesPage'
@@ -3572,6 +3572,33 @@ struct Index {
     })
   }
 
+  private closeMigrationSearch(param: MangaMigrationSearchRouteParam): boolean {
+    const top = this.appPathStack.getAllPathName().length - 1
+    if (top < 0 || this.appPathStack.getParamByIndex(top) !== param) return false
+    this.appPathStack.pop()
+    return true
+  }
+
+  @Builder
+  private MigrationSearchDestination(param: MangaMigrationSearchRouteParam) {
+    HdsNavDestination() {
+      SearchPage({ chrome: param.chrome, migrationSources: param.sourceIds,
+        onMigrationShelfResults: param.onShelfResults,
+        automaticallyOpenWebChallenge: !param.fromMihon,
+        libraryStore: this.libraryStore, libraryPersistenceService: this.ensureLibraryPersistenceService(),
+        onMangaSelected: (manga: SourceManga): void => {
+          if (this.closeMigrationSearch(param)) param.onMangaSelected(manga)
+        },
+      })
+    }
+    .titleBar(this.migrationSearchTitleBarOpts(param.chrome, param.fromMihon, true, (): void => {
+      if (this.closeMigrationSearch(param)) param.onChooseSources()
+    }))
+    .onShown((): void => { param.chrome.visible = true })
+    .onHidden((): void => { param.chrome.visible = false })
+    .onDisAppear((): void => { this.disposeSearchFieldContent(param.chrome) })
+  }
+
   @Builder
   private AppDestination(name: string, param: Object) {
     if (name === SETTINGS_MODAL_ROUTE) {
@@ -3705,6 +3732,13 @@ struct Index {
           registry: this.sourceRegistry, libraryStore: this.libraryStore,
           persistence: this.ensureLibraryPersistenceService(), readerStore: this.readerSessionStore,
           onBusyChanged: (busy: boolean): void => { (param as MangaMigrationRouteParam).committing = busy },
+          onOpenSearch: (search: MangaMigrationSearchRouteParam): void => {
+            const top = this.appPathStack.getAllPathName().length - 1
+            if (top >= 0 && this.appPathStack.getParamByIndex(top) === param) {
+              this.appPathStack.pushPath({ name: RouteName.MANGA_MIGRATION_SEARCH, param: search },
+                { launchMode: LaunchMode.NEW_INSTANCE })
+            }
+          },
           onLibraryChanged: (): void => {
             this.onMangaDetailLibraryChanged()
             this.readerProgressRevision += 1
@@ -3742,12 +3776,9 @@ struct Index {
       .onDisAppear((): void => {
         this.disposeSearchFieldContent(RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam).search)
       })
-      .onBackPressed((): boolean => {
-        const chrome = RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam)
-        if (chrome.busy) return true
-        if (chrome.stage === 'search' && !chrome.single) { chrome.request('matches'); return true }
-        return false
-      })
+      .onBackPressed((): boolean => RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam).busy)
+    } else if (name === RouteName.MANGA_MIGRATION_SEARCH) {
+      this.MigrationSearchDestination(param as MangaMigrationSearchRouteParam)
     } else if (name === RouteName.SOURCE_BROWSE) {
       this.SourceBrowseDestination(param as SourceBrowseRouteParam)
     } else if (name === RouteName.SOURCE_SEARCH) {
@@ -5130,8 +5161,26 @@ struct Index {
     }
   }
 
+  private migrationSearchTitleBarOpts(chrome: SearchRouteChromeState, fromMihon: boolean, enabled: boolean,
+    onChooseSources: () => void): Record<string, Object> {
+    const options = this.searchTitleBarOpts({ chrome }, true)
+    const content = options['content'] as Record<string, Object>
+    if (fromMihon) {
+      content['title'] = { 'mainTitle': AppStrings.get('tab_search') } as Record<string, Object>
+    }
+    const itemContent: Record<string, Object> = { 'label': AppStrings.get('migration_choose_sources'),
+      'icon': $r('sys.symbol.funnel'), 'isEnabled': enabled, 'action': onChooseSources }
+    const item: Record<string, Object> = { 'content': itemContent }
+    content['menu'] = { 'value': [item], 'maxCount': 1 } as Record<string, Object>
+    return options
+  }
+
   private migrationTitleBarOpts(param: MangaMigrationRouteParam): Record<string, Object> {
     const chrome = RouterHelper.ensureMigrationRouteChrome(param)
+    if (chrome.stage === 'search') {
+      return this.migrationSearchTitleBarOpts(chrome.search, param.fromMihon === true, !chrome.busy,
+        (): void => { chrome.request('sources') })
+    }
     const items: Record<string, Object>[] = []
     const add = (label: string, icon: Resource, command: MigrationCommand, enabled: boolean): void => {
       const content: Record<string, Object> = { 'label': AppStrings.get(label), 'icon': icon,
@@ -5139,17 +5188,7 @@ struct Index {
       const item: Record<string, Object> = { 'content': content }
       items.push(item)
     }
-    if (chrome.stage === 'search') {
-      add('migration_choose_sources', $r('sys.symbol.funnel'), 'sources', true)
-      const options = this.searchTitleBarOpts({ chrome: chrome.search }, true)
-      const content = options['content'] as Record<string, Object>
-      if (param.fromMihon) {
-        const title: Record<string, Object> = { 'mainTitle': AppStrings.get('tab_search') }
-        content['title'] = title
-      }
-      content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
-      return options
-    } else if (chrome.stage === 'sources') {
+    if (chrome.stage === 'sources') {
       add('migration_continue', $r('sys.symbol.arrow_right'), 'continue', chrome.canContinue)
     } else {
       if (!param.fromMihon) add('migration_copy', $r('sys.symbol.doc_plaintext'), 'copy', chrome.readyCount > 0)
