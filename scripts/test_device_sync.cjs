@@ -37,6 +37,9 @@ const wire = compile('DeviceSyncWire', {
 const data = compile('DeviceSyncData', {
   './DeviceSyncFacts': facts, './DeviceSyncWire': wire, './DeviceSyncCaseFold': compile('DeviceSyncCaseFold'),
 })
+const planner = compile('DeviceSyncPlanner', {
+  './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncWire': wire,
+})
 const journal = compile('DeviceSyncJournal', { './DeviceSyncWire': wire })
 const A = '10000000-0000-0000-0000-000000000000'
 const B = 'f0000000-0000-0000-0000-000000000000'
@@ -48,6 +51,31 @@ const dot = (replica, sequence) => ({ replica, sequence })
 function edit(fact, version, kind, value, observed = fact.seen) {
   return facts.applySyncEdit(fact, { version, kind, value, observed })
 }
+
+test('the worker plan preserves pending receipts and restores one shared fact table', async () => {
+  const fact = edit(facts.emptySyncFact(key), dot(A, 1), 'set', position(2))
+  const remote = [fact]
+  for (let i = 1; i <= 320; i++) {
+    const chapter = 'ch:22222222-2222-2222-2222-' + String(i).padStart(12, '0')
+    const remoteKey = data.syncKey(['position', 'org.mangadex.koma',
+      'mdx:11111111-1111-1111-1111-111111111111', chapter])
+    remote.push(edit(facts.emptySyncFact(remoteKey), dot(B, i), 'set', position(2)))
+  }
+  const plan = planner.planDeviceSync([{
+    id: 'reading', local: { values: [{ key, value: position(3) }], skipped: 0, revision: 'local' },
+    remote, requiresPreview: false, resetBaseline: false, removed: [],
+  }], undefined, [], C, false, A, 1)
+  const payload = structuredClone(planner.packSyncPlan(plan))
+  let yielded = false
+  const result = await planner.unpackSyncPlan(payload, () => yielded ? undefined :
+    new Promise(resolve => setImmediate(() => { yielded = true; resolve() })))
+  assert.ok(yielded)
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), JSON.parse(JSON.stringify(plan)))
+  assert.strictEqual(result.remaining[0].facts, result.groups[0].facts)
+  assert.strictEqual(result.remaining[0].baseline, result.groups[0].baseline)
+  assert.deepEqual(result.remaining[0].pending, plan.remaining[0].pending)
+  assert.deepEqual(result.groups[0].pending, plan.groups[0].pending)
+})
 
 test('a later reread does not let a concurrent stale page escape the reset', () => {
   const initial = facts.emptySyncFact(key)
@@ -361,6 +389,7 @@ function engineFixture(providerOverride, shardCache) {
     }),
     './DeviceSyncStorage': storagePort, './DeviceSyncWebDav': { DeviceSyncWebDav: providerOverride ?? Provider },
     './DeviceSyncMetrics': metrics,
+    '@kit.PerformanceAnalysisKit': { hiTraceMeter: { traceByValue() {} } },
     '@kit.ArkTS': {
       util: { generateRandomUUID: randomUUID },
       taskpool: { execute: async (fn, ...args) => fn(...structuredClone(args)) },

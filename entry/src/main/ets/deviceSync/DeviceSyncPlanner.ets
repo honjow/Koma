@@ -49,6 +49,118 @@ export interface ProposedSync {
   publish: boolean
 }
 
+const PLAN_CHUNK_CHARS = 64 * 1024
+
+interface PackedPlanGroup {
+  id: SyncGroup
+  facts: string[]
+  baseline: string[]
+  pending: string[]
+  deferred?: string[]
+  deferredRoots?: string[]
+}
+
+interface PackedPlanApply {
+  group: SyncGroup
+  changes: string[]
+}
+
+export interface PackedSyncPlan {
+  manifest: string
+  objects: SyncObject[]
+  groups: PackedPlanGroup[]
+  staged: PackedPlanGroup[]
+  remainingPending: string[][]
+  applies: PackedPlanApply[]
+  revisions: string
+  counter: number
+  initialCounter: number
+  publish: boolean
+  writtenDatasets?: string[]
+}
+
+function packPlanRows<T>(rows: T[]): string[] {
+  const chunks: string[] = []
+  let part: string[] = []
+  let chars = 2
+  for (const row of rows) {
+    const item = JSON.stringify(row)
+    if (chars + item.length > PLAN_CHUNK_CHARS && part.length > 0) {
+      chunks.push('[' + part.join(',') + ']')
+      part = []
+      chars = 2
+    }
+    part.push(item)
+    chars += item.length + 1
+  }
+  if (part.length > 0) chunks.push('[' + part.join(',') + ']')
+  return chunks
+}
+
+function packPlanGroup(group: SyncGroupState): PackedPlanGroup {
+  return { id: group.id, facts: packPlanRows(group.facts), baseline: packPlanRows(group.baseline),
+    pending: packPlanRows(group.pending), deferred: group.deferred, deferredRoots: group.deferredRoots }
+}
+
+/** Only pending edits differ between the proposed and acknowledged group
+ * states. Pass one copy of the facts and baseline as small JSON chunks. */
+export function packSyncPlan(plan: ProposedSync): PackedSyncPlan {
+  return {
+    manifest: JSON.stringify(plan.manifest), objects: plan.objects,
+    groups: plan.groups.map(packPlanGroup), staged: plan.staged.map(packPlanGroup),
+    remainingPending: plan.remaining.map((group: SyncGroupState): string[] => packPlanRows(group.pending)),
+    applies: plan.applies.map((apply: SyncApplyGroup): PackedPlanApply =>
+      ({ group: apply.group, changes: packPlanRows(apply.changes) })),
+    revisions: JSON.stringify(plan.revisions), counter: plan.counter, initialCounter: plan.initialCounter,
+    publish: plan.publish, writtenDatasets: plan.writtenDatasets,
+  }
+}
+
+async function unpackPlanRows<T>(chunks: string[], yieldIfNeeded: () => Promise<void> | undefined): Promise<T[]> {
+  const result: T[] = []
+  for (const chunk of chunks) {
+    const pause = yieldIfNeeded()
+    if (pause !== undefined) await pause
+    for (const row of JSON.parse(chunk) as T[]) result.push(row)
+  }
+  return result
+}
+
+async function unpackPlanGroup(group: PackedPlanGroup,
+  yieldIfNeeded: () => Promise<void> | undefined): Promise<SyncGroupState> {
+  return { id: group.id, facts: await unpackPlanRows<SyncFact>(group.facts, yieldIfNeeded),
+    baseline: await unpackPlanRows<SyncLocalValue>(group.baseline, yieldIfNeeded),
+    pending: await unpackPlanRows<SyncPendingEdit>(group.pending, yieldIfNeeded),
+    deferred: group.deferred, deferredRoots: group.deferredRoots }
+}
+
+export async function unpackSyncPlan(packed: PackedSyncPlan,
+  yieldIfNeeded: () => Promise<void> | undefined): Promise<ProposedSync> {
+  const groups: SyncGroupState[] = []
+  const staged: SyncGroupState[] = []
+  const remaining: SyncGroupState[] = []
+  const applies: SyncApplyGroup[] = []
+  for (const group of packed.groups) {
+    const decoded = await unpackPlanGroup(group, yieldIfNeeded)
+    const pending = await unpackPlanRows<SyncPendingEdit>(packed.remainingPending[groups.length], yieldIfNeeded)
+    groups.push(decoded)
+    remaining.push({ id: decoded.id, facts: decoded.facts, baseline: decoded.baseline,
+      pending, deferred: decoded.deferred, deferredRoots: decoded.deferredRoots })
+  }
+  for (const group of packed.staged) staged.push(await unpackPlanGroup(group, yieldIfNeeded))
+  for (const row of packed.applies) {
+    applies.push({ group: row.group, changes: await unpackPlanRows<SyncLocalValue>(row.changes, yieldIfNeeded) })
+  }
+  const pause = yieldIfNeeded()
+  if (pause !== undefined) await pause
+  return {
+    manifest: JSON.parse(packed.manifest) as SyncManifest, objects: packed.objects,
+    groups, staged, remaining, applies, revisions: JSON.parse(packed.revisions) as SyncOwnerRevision[],
+    counter: packed.counter, initialCounter: packed.initialCounter,
+    publish: packed.publish, writtenDatasets: packed.writtenDatasets,
+  }
+}
+
 export interface SyncPlanTransport {
   writer?: boolean
   shared?: boolean

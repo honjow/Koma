@@ -1,4 +1,5 @@
 import { taskpool, util } from '@kit.ArkTS'
+import { hiTraceMeter } from '@kit.PerformanceAnalysisKit'
 import {
   applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleHeads, syncVisibleValue, SyncEdit,
   SyncEditKind, SyncFact, SyncGroup, SyncVersion, SYNC_GROUPS,
@@ -21,8 +22,8 @@ import { SyncShardCachePort } from './DeviceSyncShardCache'
 import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncOwner'
 import {
   byLocalValue, bySyncFact, coverDatasetId, dependsOnConflict, hasLegacyRetainedDeletion,
-  isCoverKey, isShelfBook, localValueRows, planDeviceSync,
-  PreparedGroup, priorConflictRoots, ProposedSync, replaceGroup, restorableEdits, sameShelfBook, shelfMoveValue,
+  isCoverKey, isShelfBook, localValueRows, packSyncPlan, planDeviceSync, unpackSyncPlan,
+  PackedSyncPlan, PreparedGroup, priorConflictRoots, ProposedSync, replaceGroup, restorableEdits, sameShelfBook, shelfMoveValue,
   SyncMergeChoice, SyncPlanTransport, usesReadingTime, writeDatasetForKey, writeDatasetId, writeDatasetIds,
 } from './DeviceSyncPlanner'
 
@@ -149,7 +150,7 @@ interface DatasetShardResult {
 }
 
 interface CheckedPlan {
-  plan?: ProposedSync
+  plan?: PackedSyncPlan
   error?: string
 }
 
@@ -158,7 +159,11 @@ function prepareSyncPlan(preparedText: string, existing: SyncManifest | undefine
   space: string, replica: string, counter: number, transport: SyncPlanTransport): CheckedPlan {
   try {
     const prepared = JSON.parse(preparedText) as PreparedGroup[]
-    return { plan: planDeviceSync(prepared, existing, choices, space, false, replica, counter, transport) }
+    const plan = packSyncPlan(planDeviceSync(prepared, existing, choices, space, false, replica, counter, transport))
+    let chunks = 0
+    for (const group of plan.groups) chunks += group.facts.length + group.baseline.length
+    hiTraceMeter.traceByValue('KomaDeviceSyncPlanPackedChunks', chunks)
+    return { plan }
   } catch (error) {
     return { error: (error as Error).message }
   }
@@ -1550,19 +1555,44 @@ export class DeviceSyncEngine {
       ownWritable: remote.sharedHash === undefined ? remote.ownWritable : undefined, own }
     // Groups contain entire fact tables. Flatten the data before crossing the
     // Taskpool boundary so handing the plan to a worker does not deep-clone it.
-    const checked = await taskpool.execute(prepareSyncPlan, JSON.stringify(groups), remote.manifest, choices,
+    const encodeStarted = syncMetricUptime()
+    const preparedText = JSON.stringify(groups)
+    hiTraceMeter.traceByValue('KomaDeviceSyncPlanInputEncodeMs', syncMetricUptime() - encodeStarted)
+    const checked = await taskpool.execute(prepareSyncPlan, preparedText, remote.manifest, choices,
       space, state.replica, state.counter, transport) as CheckedPlan
     guard()
     if (checked.plan === undefined) throw new Error(checked.error ?? 'sync_invalid_plan')
+    const decodeStarted = syncMetricUptime()
+    let sliceStarted = decodeStarted
+    let longestSlice = 0
+    let yields = 0
+    // Large account plans can arrive during a fling. Yield between row chunks
+    // and recheck the connection guard before resuming an uncommitted plan.
+    const yieldIfNeeded = (): Promise<void> | undefined => {
+      const elapsed = syncMetricUptime() - sliceStarted
+      if (elapsed < 4) return undefined
+      longestSlice = Math.max(longestSlice, elapsed)
+      yields++
+      return new Promise<void>((resume: () => void): void => { setTimeout(resume, 0) }).then((): void => {
+        guard()
+        sliceStarted = syncMetricUptime()
+      })
+    }
+    const plan = await unpackSyncPlan(checked.plan, yieldIfNeeded)
+    guard()
+    hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeSliceMs',
+      Math.max(longestSlice, syncMetricUptime() - sliceStarted))
+    hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeYields', yields)
+    hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeMs', syncMetricUptime() - decodeStarted)
     if (replans.length > 0) {
       if (!remote.writer || remote.ownWritable === false) throw new Error('sync_remote_result_unknown')
       const floor = replans.reduce((value: number, intent: SyncCommitIntent): number =>
         Math.max(value, intent.connection.revision), 0)
-      checked.plan.manifest = copySyncManifest(checked.plan.manifest)
-      checked.plan.manifest.revision = Math.max(checked.plan.manifest.revision, floor + 1)
-      checked.plan.publish = true
+      plan.manifest = copySyncManifest(plan.manifest)
+      plan.manifest.revision = Math.max(plan.manifest.revision, floor + 1)
+      plan.publish = true
     }
-    return checked.plan
+    return plan
   }
 
   private configureReplans(provider: DeviceSyncWebDav, endpoint: string): void {
