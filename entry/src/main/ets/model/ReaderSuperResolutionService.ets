@@ -3,7 +3,7 @@ import { readerProcessingOwnerHash, readerSuperResolutionFailureCode } from './R
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
 import { fileIo } from '@kit.CoreFileKit'
-import { image } from '@kit.ImageKit'
+import { image, sendableImage } from '@kit.ImageKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   connectReaderModeState as connectReadMode,
@@ -46,10 +46,46 @@ const MAX_OUTPUT_PIXEL_BYTES: number = MAX_OUTPUT_PIXELS * 4
 const SYSTEM_MAX_OUTPUT_EDGE: number = READER_SUPER_RESOLUTION_MAX_SOURCE_HEIGHT * 4
 const SYSTEM_MAX_OUTPUT_PIXELS: number = SYSTEM_MAX_OUTPUT_EDGE * SYSTEM_MAX_OUTPUT_EDGE
 const SYSTEM_MAX_OUTPUT_PIXEL_BYTES: number = SYSTEM_MAX_OUTPUT_PIXELS * 4
+const SENDABLE_PIXEL_MAP_LIMIT: number = 128 * 1024 * 1024
 
 @Concurrent
 function allocateSystemSuperResolutionPixels(bytes: number): ArrayBuffer {
   return new ArrayBuffer(bytes)
+}
+
+/** Keep the Core Vision normalization buffer and JPEG encoder on this worker. */
+@Concurrent
+async function packSystemSuperResolution(source: sendableImage.PixelMap, width: number, height: number,
+  path: string): Promise<void> {
+  let pixels: image.PixelMap | undefined = undefined
+  let packer: image.ImagePacker | undefined = undefined
+  let file: fileIo.File | undefined = undefined
+  try {
+    const bytes = new ArrayBuffer(width * height * 4)
+    await source.readPixelsToBuffer(bytes)
+    await source.release()
+    pixels = await image.createPixelMap(bytes, {
+      size: { width, height },
+      srcPixelFormat: image.PixelMapFormat.RGBA_8888,
+      pixelFormat: image.PixelMapFormat.RGBA_8888,
+      editable: false,
+    })
+    file = await fileIo.open(path, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+    packer = image.createImagePacker()
+    await packer.packToFile(pixels, file.fd, { format: 'image/jpeg', quality: 98 })
+    await fileIo.close(file)
+    file = undefined
+  } finally {
+    if (file !== undefined) {
+      try { await fileIo.close(file) } catch (_error) {}
+    }
+    if (packer !== undefined) {
+      try { await packer.release() } catch (_error) {}
+    }
+    if (pixels !== undefined) {
+      try { await pixels.release() } catch (_error) {}
+    }
+  }
 }
 
 const MAX_CACHE_FILE_COUNT: number = 64
@@ -866,37 +902,59 @@ export class ReaderSuperResolutionService {
       // Core Vision may return an internal hardware layout that ImagePacker cannot encode.
       processingStage = 'system_normalize'
       await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
-      const normalizedBuffer = await taskpool.execute(allocateSystemSuperResolutionPixels, outputPixels * 4) as ArrayBuffer
-      await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
-      await outputPixelMap.readPixelsToBuffer(normalizedBuffer)
-      try {
-        await outputPixelMap.release()
-        outputPixelMap = undefined
-      } catch (_releaseError) { /* Retry disposal in finally. */ }
-      await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
-      const normalizedOptions: image.InitializationOptions = {
-        size: { width: outputWidth, height: outputHeight },
-        srcPixelFormat: image.PixelMapFormat.RGBA_8888,
-        pixelFormat: image.PixelMapFormat.RGBA_8888,
-        editable: false,
+      let shared: sendableImage.PixelMap | undefined = undefined
+      if (outputPixels * 4 <= SENDABLE_PIXEL_MAP_LIMIT) {
+        try {
+          shared = sendableImage.convertFromPixelMap(outputPixelMap)
+          outputPixelMap = undefined
+        } catch (_conversionError) { /* Keep the original normalization path for unsupported maps. */ }
       }
-      normalizedPixelMap = await image.createPixelMap(normalizedBuffer, normalizedOptions)
-      await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
-      ReaderSuperResolutionService.removeIfExists(tmpPath)
-      processingStage = 'output_file'
-      outputFile = await fileIo.open(
-        tmpPath,
-        fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC,
-      )
-      packer = image.createImagePacker()
-      processingStage = 'output_pack'
-      await packer.packToFile(normalizedPixelMap, outputFile.fd, {
-        format: 'image/jpeg',
-        quality: 98,
-      })
+      if (shared !== undefined) {
+        const workerMap = shared
+        processingStage = 'system_worker_pack'
+        try {
+          await taskpool.execute(packSystemSuperResolution, workerMap, outputWidth, outputHeight, tmpPath)
+        } catch (error) {
+          // If transfer or reading the sendable map failed, try the same
+          // pixels through the existing normalization path.
+          try {
+            outputPixelMap = sendableImage.convertToPixelMap(workerMap)
+            shared = undefined
+          } catch (_conversionError) {
+            try { await workerMap.release() } catch (_releaseError) {}
+            throw error as Error
+          }
+          processingStage = 'system_normalize'
+          await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
+        }
+      }
+      if (outputPixelMap !== undefined) {
+        const normalizedBuffer = await taskpool.execute(allocateSystemSuperResolutionPixels, outputPixels * 4) as ArrayBuffer
+        await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
+        await outputPixelMap.readPixelsToBuffer(normalizedBuffer)
+        try {
+          await outputPixelMap.release()
+          outputPixelMap = undefined
+        } catch (_releaseError) { /* Retry disposal in finally. */ }
+        await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
+        normalizedPixelMap = await image.createPixelMap(normalizedBuffer, {
+          size: { width: outputWidth, height: outputHeight },
+          srcPixelFormat: image.PixelMapFormat.RGBA_8888,
+          pixelFormat: image.PixelMapFormat.RGBA_8888,
+          editable: false,
+        })
+        await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
+        ReaderSuperResolutionService.removeIfExists(tmpPath)
+        processingStage = 'output_file'
+        outputFile = await fileIo.open(tmpPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+        packer = image.createImagePacker()
+        processingStage = 'output_pack'
+        await packer.packToFile(normalizedPixelMap, outputFile.fd, { format: 'image/jpeg', quality: 98 })
+        await fileIo.close(outputFile)
+        outputFile = null
+      }
       ReaderSuperResolutionService.ensureTaskActive(inFlight)
-      await fileIo.close(outputFile)
-      outputFile = null
+      if (ReaderSuperResolutionService.fileSize(tmpPath) <= 0) throw new Error('enhanced image file is empty')
       ReaderSuperResolutionService.removeIfExists(outputPath)
       ReaderSuperResolutionService.removeIfExists(
         ReaderSuperResolutionService.backendMetadataPath(outputPath),
@@ -914,7 +972,7 @@ export class ReaderSuperResolutionService {
         'process_success',
         `model=${ReaderSuperResolutionModel.SYSTEM_CORE_VISION} ` +
           `source=${sourceWidth}x${sourceHeight} output=${outputWidth}x${outputHeight} ` +
-          `backend=system bytes=${outputBytes} elapsedMs=${elapsedMs} ` +
+          `backend=system normalize=${shared !== undefined ? 'worker' : 'local'} bytes=${outputBytes} elapsedMs=${elapsedMs} ` +
           `keyHash=${readerProcessingOwnerHash(sourceKey)}`,
       )
       await ReaderSuperResolutionService.pruneToLimit(context, outputPath)

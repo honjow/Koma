@@ -219,6 +219,36 @@ test('image streaming reports early body bytes even when the platform progress e
   }
 })
 
+test('a measured download skips its own file probe while joined readers and cache hits still get dimensions', async () => {
+  const file = 'model/ReaderPageSourceAdapter.ets'
+  const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets', file), 'utf8')
+  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
+  const method = tree.statements.find(node => node.name?.getText(tree) === 'fetchReaderRemoteFile')
+  const exports = {}, probes = []
+  vm.runInNewContext(ts.transpileModule(method.getText(tree) + '\nexport { fetchReaderRemoteFile }', {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports, maintainReaderImageCacheAfterWrite: async () => {},
+    probeReaderImageFileSize: async (path, report) => { probes.push(path); report(1200, 937) } })
+  const { cache } = cacheFixture()
+  const fetch = exports.fetchReaderRemoteFile
+  const measurements = []
+  const report = label => (width, height) => measurements.push([label, width, height])
+  const unexpectedDownload = () => { throw new Error('an existing request must be reused') }
+  await fetch(cache, 'hit', undefined, unexpectedDownload, undefined, false, report('hit'))
+  cache.get = async () => undefined
+  let finish
+  const own = fetch(cache, 'shared', undefined, (_progress, measured) => new Promise(resolve => {
+    finish = () => { report('download')(1200, 937); measured(); resolve(new ArrayBuffer(4)) }
+  }), undefined, false, report('duplicate'))
+  await new Promise(setImmediate)
+  const join = fetch(cache, 'shared', undefined, unexpectedDownload, undefined, false, report('join'))
+  finish()
+  await Promise.all([own, join])
+  await fetch(cache, 'unknown', undefined, async () => new ArrayBuffer(4), undefined, false, report('fallback'))
+  assert.deepEqual(measurements, [['hit', 1200, 937], ['download', 1200, 937], ['join', 1200, 937], ['fallback', 1200, 937]])
+  assert.deepEqual(probes, ['/cache/existing.jpg', '/cache/replacement.jpg', '/cache/replacement.jpg'])
+})
+
 const Index = methods('pages/Index.ets', 'Index', ['prepareReaderLabCatalog'], {
   ComicSourceKind: { LOCAL_FOLDER: 'folder' }, KomaReaderFailure: { sourceError: () => Error('source failure') },
 })
