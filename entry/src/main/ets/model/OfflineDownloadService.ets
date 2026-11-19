@@ -543,6 +543,7 @@ export class OfflineDownloadService {
     const detectedPath = downloadImagePathForBytes(localPath, new Uint8Array(bytes, 0, Math.min(32, bytes.byteLength)))
     const result = await writeDownloadPageBytes(detectedPath, bytes)
     result.localPath = detectedPath
+    if (source.requiredImageDecodeResolved === true) result.requiredImageDecodeResolved = true
     return result
   }
 }

@@ -38,15 +38,17 @@ void Number(napi_env env, napi_value object, const char *name, uint32_t value)
 
 napi_value KomaInspectImageProcessor(napi_env env, napi_callback_info info)
 {
-    size_t count = 1, size = 0;
-    napi_value argument;
+    size_t count = 2, size = 0;
+    napi_value args[2] {};
     const uint8_t *bytes = nullptr;
-    napi_get_cb_info(env, info, &count, &argument, nullptr, nullptr);
-    if (count != 1 || !Bytes(env, argument, bytes, size) || size > 2u * 1024u * 1024u) {
+    bool sourceOwned = false;
+    napi_get_cb_info(env, info, &count, args, nullptr, nullptr);
+    if (count < 1 || !Bytes(env, args[0], bytes, size) || size > 2u * 1024u * 1024u ||
+        (count == 2 && napi_get_value_bool(env, args[1], &sourceOwned) != napi_ok)) {
         napi_throw_type_error(env, nullptr, "Invalid image processor module");
         return nullptr;
     }
-    const auto reason = koma::RunImageProcessorInspection(std::vector<uint8_t>(bytes, bytes + size));
+    const auto reason = koma::RunImageProcessorInspection(std::vector<uint8_t>(bytes, bytes + size), sourceOwned);
     napi_value result;
     napi_create_string_utf8(env, reason.c_str(), reason.size(), &result);
     return result;
@@ -56,14 +58,16 @@ napi_value KomaInspectImageProcessor(napi_env env, napi_callback_info info)
 // the worker's ArrayBuffer for this call; it is not copied into a second native image.
 napi_value KomaRunImageProcessor(napi_env env, napi_callback_info info)
 {
-    size_t count = 5;
-    napi_value args[5] {};
+    size_t count = 6;
+    napi_value args[6] {};
     napi_get_cb_info(env, info, &count, args, nullptr, nullptr);
     const uint8_t *wasm = nullptr, *pixels = nullptr;
     size_t wasmCount = 0, pixelCount = 0, configurationLength = 0;
     uint32_t width = 0, height = 0;
-    if (count != 5 || !Bytes(env, args[0], wasm, wasmCount) || wasmCount > 2u * 1024u * 1024u ||
+    bool sourceOwned = false;
+    if (count < 5 || !Bytes(env, args[0], wasm, wasmCount) || wasmCount > 2u * 1024u * 1024u ||
         !Bytes(env, args[1], pixels, pixelCount) ||
+        (count == 6 && napi_get_value_bool(env, args[5], &sourceOwned) != napi_ok) ||
         napi_get_value_uint32(env, args[2], &width) != napi_ok || napi_get_value_uint32(env, args[3], &height) != napi_ok ||
         napi_get_value_string_utf8(env, args[4], nullptr, 0, &configurationLength) != napi_ok || configurationLength > 4u * 1024u * 1024u) {
         napi_throw_type_error(env, nullptr, "Invalid image processor input");
@@ -72,7 +76,8 @@ napi_value KomaRunImageProcessor(napi_env env, napi_callback_info info)
     std::string configuration(configurationLength + 1, '\0');
     napi_get_value_string_utf8(env, args[4], configuration.data(), configuration.size(), &configurationLength);
     configuration.resize(configurationLength);
-    auto result = koma::RunImageProcessor(std::vector<uint8_t>(wasm, wasm + wasmCount), pixels, pixelCount, width, height, configuration);
+    auto result = koma::RunImageProcessor(std::vector<uint8_t>(wasm, wasm + wasmCount), pixels, pixelCount,
+        width, height, configuration, sourceOwned);
     napi_value object, reason, buffer;
     napi_create_object(env, &object);
     Boolean(env, object, "ok", result.error.empty());
@@ -81,7 +86,16 @@ napi_value KomaRunImageProcessor(napi_env env, napi_callback_info info)
     Number(env, object, "height", result.height);
     napi_create_string_utf8(env, result.error.c_str(), result.error.size(), &reason);
     napi_set_named_property(env, object, "reason", reason);
-    if (result.changed) {
+    if (result.changed && width == 0 && height == 0) {
+        // The byte stage may return directly across TaskPool. Give that result
+        // ordinary JS buffer ownership without an external native finalizer.
+        void *destination = nullptr;
+        if (napi_create_arraybuffer(env, result.pixels.size(), &destination, &buffer) != napi_ok) {
+            napi_throw_error(env, nullptr, "Cannot return restored image bytes");
+            return nullptr;
+        }
+        std::memcpy(destination, result.pixels.data(), result.pixels.size());
+    } else if (result.changed) {
         auto bytes = std::make_unique<std::vector<uint8_t>>(std::move(result.pixels));
         if (napi_create_external_arraybuffer(env, bytes->data(), bytes->size(),
             [](napi_env, void *, void *owner) { delete static_cast<std::vector<uint8_t> *>(owner); }, bytes.get(), &buffer) != napi_ok) {

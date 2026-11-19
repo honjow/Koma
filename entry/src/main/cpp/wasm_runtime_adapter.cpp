@@ -975,30 +975,30 @@ private:
 } // namespace
 
 ImageProcessorResult RunImageProcessor(const std::vector<uint8_t> &wasm, const uint8_t *rgba,
-    size_t byteCount, uint32_t width, uint32_t height, const std::string &configuration)
+    size_t byteCount, uint32_t width, uint32_t height, const std::string &configuration, bool sourceOwned)
 {
 #if defined(KOMA_ENABLE_WAMR)
     try {
         RuntimeLease runtime("", RuntimeLane::ImagePlugin);
         ThreadEnv environment;
-        return ExecuteImageProcessor(wasm, rgba, byteCount, width, height, configuration);
+        return ExecuteImageProcessor(wasm, rgba, byteCount, width, height, configuration, sourceOwned);
     } catch (const std::exception &error) {
         ImageProcessorResult result;
         result.error = error.what();
         return result;
     }
 #else
-    return ExecuteImageProcessor(wasm, rgba, byteCount, width, height, configuration);
+    return ExecuteImageProcessor(wasm, rgba, byteCount, width, height, configuration, sourceOwned);
 #endif
 }
 
-std::string RunImageProcessorInspection(const std::vector<uint8_t> &wasm)
+std::string RunImageProcessorInspection(const std::vector<uint8_t> &wasm, bool sourceOwned)
 {
 #if defined(KOMA_ENABLE_WAMR)
     try {
         RuntimeLease runtime("", RuntimeLane::ImagePlugin);
         ThreadEnv environment;
-        return InspectImageProcessor(wasm);
+        return InspectImageProcessor(wasm, sourceOwned);
     } catch (const std::exception &error) { return error.what(); }
 #else
     return "wamr_not_built";

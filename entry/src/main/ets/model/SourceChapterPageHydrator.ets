@@ -243,7 +243,11 @@ async function pagesFromSourceRows(comicId: string, chapterId: string, rows: Rec
     const image = sourcePageImageRecord(item)
     if (image?.['requiredImageDecode'] !== undefined) {
       if (image['kind'] !== 'url') throw new Error('source_required_decode_invalid')
-      page.requiredImageDecode = sourceRequiredImageDecode(image['requiredImageDecode'])
+      const hint = sourceRequiredImageDecode(image['requiredImageDecode'])
+      // WASM parameters belong to the effective image request, keeping them out of
+      // chapter snapshots and binding them to the response they describe.
+      if (hint.kind !== 'jm_stripes_v1') throw new Error('source_required_decode_invalid')
+      page.requiredImageDecode = hint
     }
     if (image?.['textOverlay'] !== undefined) {
       if (image['kind'] !== 'url') throw new Error('source_text_overlay_invalid')

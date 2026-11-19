@@ -17,12 +17,12 @@ struct ImageProcessorResult {
 // The worker supplies tightly packed RGBA8888. Algorithms and their parameters
 // belong to downloaded plugins; this interface contains no named-site behavior.
 bool RegisterImageProcessorImports();
-std::string InspectImageProcessor(const std::vector<uint8_t> &wasm);
-std::string RunImageProcessorInspection(const std::vector<uint8_t> &wasm);
+std::string InspectImageProcessor(const std::vector<uint8_t> &wasm, bool sourceOwned = false);
+std::string RunImageProcessorInspection(const std::vector<uint8_t> &wasm, bool sourceOwned = false);
 ImageProcessorResult ExecuteImageProcessor(const std::vector<uint8_t> &wasm,
     const uint8_t *rgba, size_t byteCount, uint32_t width, uint32_t height,
-    const std::string &configuration);
+    const std::string &configuration, bool sourceOwned = false);
 ImageProcessorResult RunImageProcessor(const std::vector<uint8_t> &wasm,
     const uint8_t *rgba, size_t byteCount, uint32_t width, uint32_t height,
-    const std::string &configuration);
+    const std::string &configuration, bool sourceOwned = false);
 } // namespace koma

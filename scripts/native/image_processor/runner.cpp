@@ -13,6 +13,8 @@ std::vector<uint8_t> Read(const char *path)
 }
 int main(int count, char **args)
 {
+    const bool sourceOwned = count > 1 && std::strcmp(args[1], "--source") == 0;
+    if (sourceOwned) { --count; ++args; }
     const bool inspect = count == 3 && std::strcmp(args[1], "--inspect") == 0;
     if (!inspect && count != 7) return 2;
     auto wasm = Read(args[inspect ? 2 : 1]);
@@ -24,14 +26,14 @@ int main(int count, char **args)
     if (!wasm_runtime_full_init(&init) || !koma::RegisterImageProcessorImports()) return 3;
     if (!wasm_runtime_init_thread_env()) return 4;
     if (inspect) {
-        std::cout << "{\"error\":\"" << koma::InspectImageProcessor(wasm) << "\"}\n";
+        std::cout << "{\"error\":\"" << koma::InspectImageProcessor(wasm, sourceOwned) << "\"}\n";
         wasm_runtime_destroy_thread_env();
         wasm_runtime_destroy();
         return 0;
     }
     auto pixels = Read(args[2]), configuration = Read(args[5]);
     auto result = koma::ExecuteImageProcessor(wasm, pixels.data(), pixels.size(), std::stoul(args[3]), std::stoul(args[4]),
-        std::string(configuration.begin(), configuration.end()));
+        std::string(configuration.begin(), configuration.end()), sourceOwned);
     if (result.changed) {
         std::ofstream file(args[6], std::ios::binary);
         file.write(reinterpret_cast<const char *>(result.pixels.data()), result.pixels.size());

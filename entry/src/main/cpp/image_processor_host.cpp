@@ -13,6 +13,7 @@
 namespace koma {
 namespace {
 constexpr size_t kMaxImageBytes = 256u * 1024u * 1024u;
+constexpr size_t kMaxEncodedBytes = 128u * 1024u * 1024u;
 constexpr size_t kMaxConfigurationBytes = 4u * 1024u * 1024u;
 constexpr size_t kMaxModuleBytes = 2u * 1024u * 1024u;
 constexpr uint32_t kMaxMemoryPages = 128;
@@ -20,16 +21,28 @@ constexpr auto kExecutionTime = std::chrono::seconds(5);
 
 struct ImageCall {
     const uint8_t *input;
+    size_t inputSize;
     uint32_t width, height;
     const std::string &configuration;
     ImageProcessorResult output;
     uint32_t nextOutputRow = 0;
+    size_t nextOutputByte = 0;
     std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + kExecutionTime;
+};
+
+// The import table is global to WAMR. A normal source invocation must never
+// interpret its own user data as an ImageCall or see another worker's pixels.
+thread_local wasm_exec_env_t processorEnvironment = nullptr;
+class ProcessorScope {
+public:
+    explicit ProcessorScope(wasm_exec_env_t env) { processorEnvironment = env; }
+    ~ProcessorScope() { processorEnvironment = nullptr; }
 };
 
 ImageCall *Call(wasm_exec_env_t env)
 {
-    return static_cast<ImageCall *>(wasm_runtime_get_user_data(env));
+    return env != nullptr && env == processorEnvironment ?
+        static_cast<ImageCall *>(wasm_runtime_get_user_data(env)) : nullptr;
 }
 
 bool Region(uint32_t imageWidth, uint32_t imageHeight, int32_t x, int32_t y,
@@ -77,7 +90,7 @@ int32_t ReadRegion(wasm_exec_env_t env, int32_t x, int32_t y, int32_t width,
 int32_t CreateOutput(wasm_exec_env_t env, int32_t width, int32_t height)
 {
     auto *call = Call(env);
-    if (Cancelled(env) || width <= 0 || height <= 0 || call->output.width != 0 ||
+    if (Cancelled(env) || call->width == 0 || width <= 0 || height <= 0 || call->output.width != 0 ||
         static_cast<uint64_t>(width) * height * 4 > kMaxImageBytes) return -1;
     try { call->output.pixels.resize(static_cast<size_t>(width) * height * 4); }
     catch (...) { return -1; }
@@ -98,6 +111,42 @@ int32_t WriteOutput(wasm_exec_env_t env, int32_t x, int32_t y, int32_t width,
     return static_cast<int32_t>(bytes);
 }
 
+// Encoded bytes and RGBA share the same sandbox and deadline. Byte I/O is
+// available only in the encoded stage of an explicitly declared source module.
+int32_t ByteLength(wasm_exec_env_t env)
+{
+    const auto *call = Call(env);
+    return call && call->width == 0 ? static_cast<int32_t>(call->inputSize) : -1;
+}
+
+int32_t ReadBytes(wasm_exec_env_t env, uint32_t offset, uint8_t *destination, uint32_t count)
+{
+    const auto *call = Call(env);
+    if (Cancelled(env) || call->width != 0 || !destination || !count || offset > call->inputSize ||
+        count > call->inputSize - offset) return -1;
+    std::memcpy(destination, call->input + offset, count);
+    return static_cast<int32_t>(count);
+}
+
+int32_t CreateByteOutput(wasm_exec_env_t env, uint32_t count)
+{
+    auto *call = Call(env);
+    if (Cancelled(env) || call->width != 0 || !count || count > kMaxEncodedBytes || !call->output.pixels.empty()) return -1;
+    try { call->output.pixels.resize(count); }
+    catch (...) { return -1; }
+    return 0;
+}
+
+int32_t WriteBytes(wasm_exec_env_t env, const uint8_t *source, uint32_t count)
+{
+    auto *call = Call(env);
+    if (Cancelled(env) || call->width != 0 || !source || !count ||
+        count > call->output.pixels.size() - call->nextOutputByte) return -1;
+    std::memcpy(call->output.pixels.data() + call->nextOutputByte, source, count);
+    call->nextOutputByte += count;
+    return static_cast<int32_t>(count);
+}
+
 NativeSymbol imageSymbols[] = {
     {"width", reinterpret_cast<void *>(Width), "()i", nullptr},
     {"height", reinterpret_cast<void *>(Height), "()i", nullptr},
@@ -107,6 +156,10 @@ NativeSymbol imageSymbols[] = {
     {"output_create", reinterpret_cast<void *>(CreateOutput), "(ii)i", nullptr},
     {"output_write", reinterpret_cast<void *>(WriteOutput), "(iiii*~)i", nullptr},
     {"check_cancel", reinterpret_cast<void *>(Cancelled), "()i", nullptr},
+    {"bytes_len", reinterpret_cast<void *>(ByteLength), "()i", nullptr},
+    {"bytes_read", reinterpret_cast<void *>(ReadBytes), "(i*~)i", nullptr},
+    {"bytes_output_create", reinterpret_cast<void *>(CreateByteOutput), "(i)i", nullptr},
+    {"bytes_output_write", reinterpret_cast<void *>(WriteBytes), "(*~)i", nullptr},
 };
 
 // A start function runs before an execution environment can own its deadline.
@@ -154,7 +207,7 @@ public:
     }
 };
 
-void PrepareModule(Module &module, std::vector<uint8_t> &moduleBytes)
+void PrepareModule(Module &module, std::vector<uint8_t> &moduleBytes, bool sourceOwned)
 {
     ValidateSections(moduleBytes);
     char error[256] {};
@@ -165,8 +218,10 @@ void PrepareModule(Module &module, std::vector<uint8_t> &moduleBytes)
     for (int32_t i = 0; i < importCount; ++i) {
         wasm_import_t item {};
         wasm_runtime_get_import_type(module.module, i, &item);
-        if (item.kind != WASM_IMPORT_EXPORT_KIND_FUNC || !item.module_name ||
-            std::strcmp(item.module_name, "koma_image") != 0) throw std::runtime_error("processor_import_not_allowed");
+        if (item.kind != WASM_IMPORT_EXPORT_KIND_FUNC || !item.module_name || !item.name ||
+            std::strcmp(item.module_name, "koma_image") != 0 ||
+            (!sourceOwned && std::strncmp(item.name, "bytes_", 6) == 0))
+            throw std::runtime_error("processor_import_not_allowed");
     }
     bool hasMemory = false;
     bool hasAbi = false, hasProcess = false;
@@ -219,40 +274,46 @@ bool RegisterImageProcessorImports()
         static_cast<uint32_t>(sizeof(imageSymbols) / sizeof(imageSymbols[0])));
 }
 
-std::string InspectImageProcessor(const std::vector<uint8_t> &wasm)
+std::string InspectImageProcessor(const std::vector<uint8_t> &wasm, bool sourceOwned)
 {
     try {
         std::vector<uint8_t> bytes(wasm);
         Module module;
-        PrepareModule(module, bytes);
+        PrepareModule(module, bytes, sourceOwned);
         return "";
     } catch (const std::exception &error) { return error.what(); }
 }
 
 ImageProcessorResult ExecuteImageProcessor(const std::vector<uint8_t> &wasm,
     const uint8_t *rgba, size_t byteCount, uint32_t width, uint32_t height,
-    const std::string &configuration)
+    const std::string &configuration, bool sourceOwned)
 {
     try {
-        if (!rgba || !width || !height || byteCount > kMaxImageBytes ||
-            static_cast<uint64_t>(width) * height * 4 != byteCount || configuration.size() > kMaxConfigurationBytes)
+        const bool encoded = sourceOwned && width == 0 && height == 0;
+        const bool validInput = encoded ? byteCount > 0 && byteCount <= kMaxEncodedBytes :
+            width > 0 && height > 0 && byteCount <= kMaxImageBytes &&
+            static_cast<uint64_t>(width) * height == byteCount / 4 && byteCount % 4 == 0;
+        if (!rgba || !validInput || configuration.size() > kMaxConfigurationBytes)
             throw std::runtime_error("invalid_image_input");
         std::vector<uint8_t> moduleBytes(wasm);
         Module module;
-        PrepareModule(module, moduleBytes);
+        PrepareModule(module, moduleBytes, sourceOwned);
         char error[256] {};
         module.instance = wasm_runtime_instantiate(module.module, 64 * 1024, 256 * 1024, error, sizeof(error));
         if (!module.instance) throw std::runtime_error("processor_instantiate_failed");
         module.environment = wasm_runtime_create_exec_env(module.instance, 64 * 1024);
         if (!module.environment) throw std::runtime_error("processor_environment_failed");
-        ImageCall call {rgba, width, height, configuration};
+        ImageCall call {rgba, byteCount, width, height, configuration};
         wasm_runtime_set_user_data(module.environment, &call);
+        ProcessorScope scope(module.environment);
         Deadline deadline(module.instance);
         if (module.Invoke("koma_image_processor_abi") != 1) throw std::runtime_error("processor_abi_not_supported");
         const int32_t status = static_cast<int32_t>(module.Invoke("koma_image_process"));
         if (Cancelled(module.environment)) throw std::runtime_error("processor_timeout");
         if (status == 0) return {};
-        if (status != 1 || !call.output.width || call.nextOutputRow != call.output.height)
+        const bool complete = encoded ? !call.output.pixels.empty() && call.nextOutputByte == call.output.pixels.size() :
+            call.output.width != 0 && call.nextOutputRow == call.output.height;
+        if (status != 1 || !complete)
             throw std::runtime_error("processor_incomplete_output");
         call.output.changed = true;
         return std::move(call.output);
@@ -266,8 +327,8 @@ ImageProcessorResult ExecuteImageProcessor(const std::vector<uint8_t> &wasm,
 #else
 namespace koma {
 bool RegisterImageProcessorImports() { return false; }
-std::string InspectImageProcessor(const std::vector<uint8_t> &) { return "wamr_not_built"; }
+std::string InspectImageProcessor(const std::vector<uint8_t> &, bool) { return "wamr_not_built"; }
 ImageProcessorResult ExecuteImageProcessor(const std::vector<uint8_t> &, const uint8_t *, size_t, uint32_t, uint32_t,
-    const std::string &) { ImageProcessorResult result; result.error = "wamr_not_built"; return result; }
+    const std::string &, bool) { ImageProcessorResult result; result.error = "wamr_not_built"; return result; }
 }
 #endif

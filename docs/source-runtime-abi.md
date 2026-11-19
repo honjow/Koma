@@ -88,6 +88,8 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 公开封面的 GET 地址和请求头在列表或搜索操作内已知时，应随结果在 `cover: {kind:"url", url, headers}` 一次给出。无额外头用空对象。允许 `Accept`、`Referer`，宿主声明 `source_public_cover_user_agent_v1` 后也可提供原站要求的 `User-Agent`，声明 `source_public_cover_client_headers_v1` 后也可提供公开客户端标记 `Version`、`Webp`、`Platform`。宿主按完整描述并行发起请求，沿用原源限速、缓存身份和同图合并。镜像随生成卡片的列表操作确定。需要票据、认证、Cookie、专用传输或其他动态行为的封面仍通过 `get_image_request`，应省略 `cover.headers`。旧宿主沿原解析路径，书源应保留该路径。
 
+正文需要 `Referer`、`User-Agent` 等请求头时，书源声明 `imageRequest` 能力，并通过 `get_image_request` 返回 `data: {url, headers}`。阅读器从此结果读取正文请求头。页表中的 `image.url` 用来定位图片，封面请求头使用 `cover.headers`。
+
 宿主可在一批调用间短时复用 WAMR 的进程级内存池，空闲后释放。每次调用独立创建模块实例和请求上下文，书源状态应通过 ABI 规定的存储能力传递，不能依赖上一次 WASM 实例。正常列表优先于菜单设置能力探测，后台图片操作在真正获得执行槽后才复制 WASM 输入。
 
 `get_filters` 的每个筛选项可选 `scope: "browse" | "search"`：默认按查询内容区分，空白查询属于 browse，非空查询属于 search；缺省在两者均有效，兼容旧源。`type: "header"` 只携带源原文的 `name`/`label` 与可选 `description`，不产生请求值、默认值、计数或持久化值。宿主只向源提交当前作用域的值，并保留另一作用域的已保存选择；切换查询不删除选择。仅当请求顶层 `hostFeatures` 包含 `source_filter_scope_header_v1` 时，源才能返回依赖作用域或 Header 的新版 schema；未声明时必须返回该源原有 schema，旧宿主不得误暴露或消费新项。
@@ -252,5 +254,15 @@ RPC 成功返回 `ok:true`，失败只返回 `ok:false,error:{code}`。`nowMs` �
 包 `requiredImageDecodes:["jm_stripes_v1"]` 是能力声明，经标准metadata/build/导入/Registry保留，去重且未知kind拒绝。声明源在旧raw缓存sidecar未知时必须重新发现image descriptor，错误不回原乱码；普通旧源cache命中不增加网页依赖，不按sourceId猜需要解码。
 
 `source_required_image_decode_jm_stripes_v1` 支持 `Page.image.requiredImageDecode:{kind:"jm_stripes_v1",rows:N}` 与 `get_image_request` 成功 `data.requiredImageDecode`。N为2至20的偶数；两处都有时必须一致，不可覆写/丢弃冲突。URI/PID保持原样。Host对实际字节先处理gzip，GIF87a/GIF89a魔数透传保动画，其他图按固定参考纵条带还原；不按URL扩展判断。原wire缓存保留，canonical派生按安装/页身份/算法缓存，在气泡、裁边与其它可选插件之前执行，不受“关闭图片处理”控制，封面不参与。下载写canonical并记录已解码标记，离线/导出不能二次解扰。非法hint、解码/格式/资源错误保持失败，不以原乱码冒可读图。
+
+### 书源随包图片还原 v1
+
+源包声明 `requiredImageDecodes: ["wasm_image_v1"]`、支持该能力的 `minAppVersion` 和完整 `wasmSha256`。在 `source.wasm` 中增加唯一的 `koma.image-processor.v1` 自定义段，段内容为独立处理器的完整 WASM。整份 `source.wasm` 由现有安装、分享和备份恢复流程验证并保留。一个声明使用一种还原合同，已发布的 `jm_stripes_v1` 包可继续使用原字段和缓存。
+
+仅当请求的 `hostFeatures` 含 `source_required_image_decode_wasm_v1` 时，源在 `get_image_request` 对需要还原的正文或封面输出 `data.requiredImageDecode`。例如 `{"kind":"wasm_image_v1","bytes":"{}","pixels":"{\"order\":[1,0]}"}`。`bytes` 与 `pixels` 二者择一或同时提供，分别在解码前与解码后执行。每项是非空、最多 64 KiB 的 UTF-8 配置，宿主原样传入 `config_read`。省略的阶段跳过，普通图片返回原请求描述。配置只携带还原参数，放在实际图片请求中，避免把逐图材料写入章页快照。缺少能力时，源返回不兼容错误。此能力要求源为封面和正文提供完整的 `get_image_request` 请求描述，包含相应 HTTP 请求头。
+
+执行沿用 [图片插件 ABI](image-processing-plugin-abi.md) 的导出、像素格式、沙箱和执行限制。字节阶段 `width()` 与 `height()` 均返回 0，允许使用 `bytes_len() -> i32`、`bytes_read(offset, ptr, length) -> i32`、`bytes_output_create(length) -> i32`、`bytes_output_write(ptr, length) -> i32`。输入按偏移只读，输出先声明总长，再按顺序写入。成功创建返回 0，读写返回字节数，失败返回 -1。字节输入与输出各限 128 MiB。像素阶段仅接受单帧图片，以无损 PNG 编码完整输出。两个阶段都必须返回 1 且写完输出。宿主验证实际图片格式并解码检查尺寸。字节阶段的有效编码直接保留，动画由原格式继续承载。
+
+还原优先于气泡、裁切和可选插件。阅读、预载和封面共享当前安装与设置下的还原缓存，手动刷新重新请求描述和原响应，成功后才发布缓存。下载调用相同还原服务并保存已还原图片，离线和导出不再运行处理器。处理器仅访问当前输入和配置，输出不完整、格式无效、超时或源安装发生变化时本次加载失败。
 
 网页登录可声明 `authentication.userAgent`，仅web类型、1至1024字符且拒HTTP控制字符；动态get_authentication必须原样回送包内值。仅该显式登录begin使用它，WebView实际加载和完成时UA必须一致，后续HTTP沿已授权会话UA。无字段包保原默认路径，不改变全局或普通源请求头。

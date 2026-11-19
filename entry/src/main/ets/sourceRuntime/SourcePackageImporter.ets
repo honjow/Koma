@@ -1,6 +1,8 @@
 import { SourceCommentsCapability, normalizeSourceCommentsCapability } from './SourceCommentsContract'
 import { SourceWebsitePolicy, validSourceWebsitePolicy } from './SourceWebsitePolicy'
-import { sourceRequiredImageDecodes, validSourceRequiredImageDecodes } from './SourceRequiredImageDecodeDeclaration'
+import { SOURCE_IMAGE_PROCESSOR_KIND, sourceImageProcessorModule, sourceRequiredImageDecodes,
+  validSourceRequiredImageDecodes } from './SourceRequiredImageDecodeDeclaration'
+import { imagePluginNative } from '../model/ImagePluginNative'
 import { SourceAuthenticationDescriptor, sourceAuthenticationDescriptor, validSourceAuthentication } from './SourceAuthenticationDescriptor'
 import { SourceRateLimitRule, validSourceRequestLimits } from './SourceRequestPolicy'
 import { SOURCE_REPO_PACKAGE_ICON_FILES, isValidSourcePackageMinAppVersion, normalizeSourceHomepage } from './SourcePackageMetadata'
@@ -761,6 +763,10 @@ export function validateNormalizedManifest(manifest: LocalSourcePackageManifest)
   if (!isValidSourcePackageMinAppVersion(manifest.package.minAppVersion)) {
     return 'manifest_invalid'
   }
+  if (manifest.permissions.requiredImageDecodes?.includes(SOURCE_IMAGE_PROCESSOR_KIND) &&
+    (!manifest.package.minAppVersion || !/^[a-f0-9]{64}$/.test(manifest.runtime.wasmSha256))) {
+    return 'manifest_invalid'
+  }
   if (manifest.operationCapabilities !== undefined &&
     normalizeSourceOperationCapabilityTokens(manifest.operationCapabilities).length !== manifest.operationCapabilities.length) {
     return 'manifest_invalid'
@@ -769,7 +775,18 @@ export function validateNormalizedManifest(manifest: LocalSourcePackageManifest)
 }
 
 export function validateImportedWasmBytes(manifest: LocalSourcePackageManifest, importedWasmBytes: Uint8Array): boolean {
-  return importedWasmDigestMatches(manifest, importedWasmBytes, sha256Hex(importedWasmBytes))
+  return importedWasmDigestMatches(manifest, importedWasmBytes, sha256Hex(importedWasmBytes)) &&
+    validSourceImageProcessor(manifest, importedWasmBytes)
+}
+
+function validSourceImageProcessor(manifest: LocalSourcePackageManifest, wasm: Uint8Array): boolean {
+  if (!manifest.permissions.requiredImageDecodes?.includes(SOURCE_IMAGE_PROCESSOR_KIND)) return true
+  try { sourceImageProcessorModule(wasm); return true } catch (_error) { return false }
+}
+
+@Concurrent
+function inspectRequiredImageProcessor(module: Uint8Array): boolean {
+  return imagePluginNative.inspectImageProcessor(module, true).length === 0
 }
 
 function importedWasmDigestMatches(
@@ -790,7 +807,8 @@ export async function validateImportedWasmBytesAsync(
   const workerBytes = new Uint8Array(importedWasmBytes.byteLength)
   workerBytes.set(importedWasmBytes)
   const importedHash = await taskpool.execute(computeSourcePackageSha256, workerBytes) as string
-  return importedWasmDigestMatches(manifest, importedWasmBytes, importedHash)
+  return importedWasmDigestMatches(manifest, importedWasmBytes, importedHash) &&
+    validSourceImageProcessor(manifest, importedWasmBytes)
 }
 
 export function validateRestoredSourcePackage(
@@ -997,6 +1015,13 @@ export async function importLocalSourceArchive(
       hashOk,
       attemptedWamrExecution: false,
     }
+  }
+  if (manifest.permissions.requiredImageDecodes?.includes(SOURCE_IMAGE_PROCESSOR_KIND)) {
+    // The section is a view into the registered source; TaskPool owns only a copy.
+    const processor = new Uint8Array(sourceImageProcessorModule(importedWasmBytes))
+    let validProcessor = false
+    try { validProcessor = await taskpool.execute(inspectRequiredImageProcessor, processor) as boolean } catch (_error) {}
+    if (!validProcessor) return { ok: false, reasonCode: 'manifest_invalid', manifest, manifestPath, attemptedWamrExecution: false }
   }
 
   return {
