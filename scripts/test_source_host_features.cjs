@@ -75,7 +75,8 @@ test('required image decoding discovers declared old cache, fails closed, and pr
   let entry = { enabled: true, manifestVersion: '1', wasmPath: '/installed/source.wasm' }
   let sidecar, calls = 0, fail = false, rows = 10
   const decoded = [], hint = { kind: 'jm_stripes_v1', rows: 10 }
-  const cache = { get: async url => url === '' ? 'wire-cache' : sidecar === undefined ? undefined : 'sidecar',
+  const cache = { getReaderPage: async (_imageSeed, metadataSeed) => ({ imagePath: 'wire-cache',
+    metadataPath: metadataSeed === undefined || sidecar === undefined ? undefined : 'sidecar' }),
     put: async (_url, _headers, bytes) => { sidecar = JSON.parse(Buffer.from(bytes).toString()); return 'sidecar' } }
   const kinds = { LOCAL_FILE_IMAGE: 'local', REMOTE_URL_IMAGE: 'remote', SOURCE_TEXT_REQUEST: 'text' }
   const adapter = functions('model/ReaderPageSourceAdapter.ets', ['sourceImageMangaRoute', 'sourceRemoteImageCacheKey', 'fetchAndCacheSourceRuntimeRemoteImage',

@@ -1,5 +1,5 @@
 import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
-import { buffer } from '@kit.ArkTS'
+import { buffer, taskpool } from '@kit.ArkTS'
 import { isAvifFileType } from './ImageFileContent'
 
 export type RemoteImageCacheHeaders = Record<string, string>
@@ -56,6 +56,31 @@ export interface RemoteImageCacheStats {
 interface RemoteImageCacheManifestDocument {
   schemaVersion: number
   entries: RemoteImageCacheManifestEntry[]
+}
+
+export interface ReaderCachedPageFiles {
+  imagePath?: string
+  metadataPath?: string
+}
+
+interface ReaderCacheFileAvailability {
+  image: boolean
+  metadata: boolean
+}
+
+@Concurrent
+function checkReaderCacheFiles(imagePath: string, metadataPath: string): ReaderCacheFileAvailability {
+  const image = fs.accessSync(imagePath)
+  return { image, metadata: image && metadataPath.length > 0 && fs.accessSync(metadataPath) }
+}
+
+async function readerCacheFileAvailability(imagePath: string, metadataPath: string): Promise<ReaderCacheFileAvailability> {
+  try {
+    return await taskpool.execute(checkReaderCacheFiles, imagePath, metadataPath) as ReaderCacheFileAvailability
+  } catch (_error) {
+    const image = await fs.access(imagePath)
+    return { image, metadata: image && metadataPath.length > 0 && await fs.access(metadataPath) }
+  }
 }
 
 function normalizeSeparator(value: string): string {
@@ -247,6 +272,24 @@ export class RemoteImageCacheStore {
     return this.enqueue(() => this.getNow(url, headers, cacheKeySeed))
   }
 
+  /** Keep existence checks authoritative after OS cache eviction. A short-page
+   * run can need both files per row, so return one worker result to the UI. */
+  getReaderPage(imageSeed: string, metadataSeed?: string): Promise<ReaderCachedPageFiles> {
+    return this.enqueue(async (): Promise<ReaderCachedPageFiles> => {
+      const imageKey = cacheKeyFor('', undefined, imageSeed)
+      const image = this.entries.get(imageKey)
+      if (image === undefined) return {}
+      const metadataKey = metadataSeed === undefined ? '' : cacheKeyFor('source-image-processing.json', undefined,
+        metadataSeed)
+      const metadata = this.entries.get(metadataKey)
+      const availability = await readerCacheFileAvailability(image.path, metadata?.path ?? '')
+      const imagePath = await this.finishLookup(imageKey, image, availability.image)
+      if (imagePath === undefined || metadata === undefined) return { imagePath }
+      const metadataPath = await this.finishLookup(metadataKey, metadata, availability.metadata)
+      return { imagePath, metadataPath }
+    })
+  }
+
   /** Remove one corrupt cached image while keeping the manifest and quota consistent. */
   invalidatePath(path: string): Promise<boolean> {
     return this.enqueue(() => this.invalidatePathNow(path))
@@ -277,11 +320,16 @@ export class RemoteImageCacheStore {
   private async getNow(url: string, headers?: RemoteImageCacheHeaders, cacheKeySeed?: string): Promise<string | undefined> {
     const key = cacheKeyFor(url, headers, cacheKeySeed)
     const entry = this.entries.get(key)
+    return this.finishLookup(key, entry, entry !== undefined && await fs.access(entry.path))
+  }
+
+  private async finishLookup(key: string, entry: RemoteImageCacheManifestEntry | undefined,
+    exists: boolean): Promise<string | undefined> {
     if (entry === undefined) {
       console.info(`[ReaderCache] step=miss key=${key}`)
       return Promise.resolve(undefined)
     }
-    if (!await fs.access(entry.path)) {
+    if (!exists) {
       this.removeEntry(key)
       await this.persist()
       console.info(`[ReaderCache] step=miss key=${key}`)

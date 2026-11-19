@@ -29,12 +29,16 @@ function loadCache(directory) {
     rename: fs.promises.rename,
   }
   const exports = {}
-  const imports = { '@kit.CoreFileKit': { fileIo: io }, '@kit.ArkTS': { buffer: Buffer } }
+  const imports = {
+    '@kit.CoreFileKit': { fileIo: io },
+    '@kit.ArkTS': { buffer: Buffer, taskpool: { execute: async (work, ...args) => work(...args) } },
+  }
   const imageFileContent = {}
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/ImageFileContent.ets'), 'utf8').replace(/^@Concurrents*$/gm, ''), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports: imageFileContent, require: name => imports[name] })
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/RemoteImageCacheStore.ets'), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/RemoteImageCacheStore.ets'), 'utf8')
+    .replace(/^@Concurrent$/gm, ''), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, {
     exports, require: name => name === './ImageFileContent' ? imageFileContent : imports[name],
@@ -60,4 +64,31 @@ test('continuous reader cache eviction waits for interaction and keeps the newes
   assert.equal(fs.existsSync(current), true, 'the displayed page stays protected')
   await cache.clear()
   fs.rmSync(directory, { recursive: true, force: true })
+})
+
+test('reader page lookup keeps the body usable after cached metadata is evicted', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-reader-cache-page-'))
+  const cache = loadCache(directory)
+  try {
+    const image = await cache.put('https://cache.invalid/page.jpg', undefined, new Uint8Array(4).buffer, 'page')
+    const metadata = await cache.put('source-image-processing.json', undefined, new Uint8Array(8).buffer, 'metadata')
+    const cachedPage = await cache.getReaderPage('page', 'metadata')
+    assert.equal(cachedPage.imagePath, image)
+    assert.equal(cachedPage.metadataPath, metadata)
+
+    fs.unlinkSync(metadata)
+    const imageOnly = await cache.getReaderPage('page', 'metadata')
+    assert.equal(imageOnly.imagePath, image)
+    assert.equal(imageOnly.metadataPath, undefined)
+    assert.equal((await cache.stats()).entryCount, 1)
+
+    fs.unlinkSync(image)
+    const unavailable = await cache.getReaderPage('page', 'metadata')
+    assert.equal(unavailable.imagePath, undefined)
+    assert.equal(unavailable.metadataPath, undefined)
+    assert.equal((await cache.stats()).entryCount, 0)
+  } finally {
+    await cache.clear()
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
 })

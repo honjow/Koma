@@ -1140,12 +1140,15 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
       priority, coverImage, onProcessing, onSize, onProgress)
   }
   const cacheKeySeed = sourceRemoteImageCacheKey(sourceId, uri, sourceImageId, route)
-  const cachedFast = forceReload ? undefined : await readerImageCacheStore.get('', undefined, cacheKeySeed)
   const hintKey = cacheKeySeed + ':processing:' + sourceImageProcessingFingerprint(sourceId)
+  const needsHints = onProcessing !== undefined || onRequiredDecode !== undefined
+  const cached = forceReload ? undefined : await readerImageCacheStore.getReaderPage(cacheKeySeed,
+    needsHints ? hintKey : undefined)
+  const cachedFast = cached?.imagePath
   if (cachedFast !== undefined && cachedFast.length > 0) {
     if (onSize !== undefined) void probeReaderImageFileSize(cachedFast, onSize)
-    if (onProcessing === undefined && onRequiredDecode === undefined) return cachedFast
-    const hintPath = await readerImageCacheStore.get('source-image-processing.json', undefined, hintKey)
+    if (!needsHints) return cachedFast
+    const hintPath = cached?.metadataPath
     if (hintPath !== undefined) {
       const value = JSON.parse(await fs.readText(hintPath)) as SourceImageProcessingCache
       onProcessing?.(value.hint ?? undefined)
