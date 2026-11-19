@@ -13,7 +13,7 @@ import {
 } from './DeviceSyncWire'
 import {
   DeviceSyncStorage, SyncArchivePending, SyncArchiveSeen, SyncCommitIntent, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision,
-  SyncPendingEdit, SyncProbeRecord, SyncReadingReceipt, SyncRestoreEdit, SyncSavedConfiguration, SyncSavedConnection, SyncStagedRecovery, checkedSyncDraft, copySyncConnection,
+  SyncPendingEdit, SyncPreparedReceipt, SyncProbeRecord, SyncReadingReceipt, SyncRestoreEdit, SyncSavedConfiguration, SyncSavedConnection, SyncStagedRecovery, checkedSyncDraft, copySyncConnection,
   readSyncCredential, writeSyncCredential, clearSyncCredential,
 } from './DeviceSyncStorage'
 import { DeviceSyncWebDav, SyncConnectionDraft, SyncRemoteManifest, SyncRequestGuard } from './DeviceSyncWebDav'
@@ -1151,14 +1151,13 @@ export class DeviceSyncEngine {
     const nextGroup: SyncGroupState = { id: 'reading', facts: merged, baseline: localValueRows(nextValues),
       pending: current.pending, deferred: current.deferred, deferredRoots: current.deferredRoots }
     await this.owner.commit([{ group: 'reading', changes }], [{ group: 'reading', revision: local.revision }],
-      (id: string): void => {
-        guard()
-        this.storage.update((state: SyncLocalDocument): void => {
+      (id: string): Promise<SyncPreparedReceipt> => {
+        return this.storage.prepareReceipt((state: SyncLocalDocument): void => {
           if (state.active === undefined || state.active.space !== active.space) throw new Error('sync_connection_changed')
           state.active.groups = replaceGroup(state.active.groups, nextGroup)
           this.prepareEdits(state, 'reading', choice)?.apply(state)
           state.localReceipt = id
-        })
+        }, guard)
       })
   }
 
@@ -1817,11 +1816,11 @@ export class DeviceSyncEngine {
     // receipt is verified. It must not disappear if the local owner write fails.
     if (!proposal.publish) await beforeSend()
     const previousCredential = this.active()?.credential
-    await this.owner.commit(proposal.applies, proposal.revisions, (localReceipt: string): void => {
+    await this.owner.commit(proposal.applies, proposal.revisions, (localReceipt: string): Promise<SyncPreparedReceipt> => {
       guard()
       if (this.storage.load().counter !== proposal.counter) throw new Error('sync_local_changed')
       const committed = applyReceiptBaselines(proposal.remaining, proposal.applies)
-      this.storage.update((state: SyncLocalDocument): void => {
+      return this.storage.prepareReceipt((state: SyncLocalDocument): void => {
         this.finishLocalReceipt(state, connection, committed, localReceipt,
           proposal.publish && state.intent?.commit?.startsWith('v4/' + this.publicationWriter() + '/') === true)
         // Only the exact remote dots of the old, same-space plan prove that
@@ -1836,7 +1835,7 @@ export class DeviceSyncEngine {
             })
           })
         })
-      })
+      }, guard)
     })
     const before = proposal.groups.find((group: SyncGroupState): boolean => group.id === 'reading')?.pending ?? []
     const after = proposal.remaining.find((group: SyncGroupState): boolean => group.id === 'reading')?.pending ?? []
@@ -2409,13 +2408,13 @@ export class DeviceSyncEngine {
         change.value !== '' || !retained.includes(change.key)) }
     })
     const committed = applyReceiptBaselines(accepted, applies)
-    await this.owner.commit(applies, intent.groupRevisions, (localReceipt: string): void => {
+    await this.owner.commit(applies, intent.groupRevisions, (localReceipt: string): Promise<SyncPreparedReceipt> => {
       guard()
       if (this.storage.load().counter !== starting.counter) throw new Error('sync_local_changed')
-      this.storage.update((state: SyncLocalDocument): void => {
+      return this.storage.prepareReceipt((state: SyncLocalDocument): void => {
         this.finishLocalReceipt(state, connection, committed, localReceipt,
           intent.commit?.startsWith('v4/' + this.publicationWriter() + '/') === true)
-      })
+      }, guard)
     })
   }
 

@@ -417,6 +417,17 @@ function engineFixture(providerOverride, shardCache) {
         const next = clone(document)
         if (change(next)) document = next
       },
+      async prepareReceipt(change, guard) {
+        guard()
+        const original = document
+        const next = clone(original)
+        change(next)
+        const check = () => {
+          guard()
+          if (document !== original) throw new Error('sync_local_changed')
+        }
+        return { check, publish() { check(); document = next }, async dispose() {} }
+      },
     }
     const owner = ownerFactory?.(store) ?? {
       async snapshot(group) {
@@ -424,18 +435,24 @@ function engineFixture(providerOverride, shardCache) {
         return { values: rows, revision: JSON.stringify(rows), skipped: 0, ...snapshotExtras.get(group) }
       },
       removed: () => [],
-      async commit(groups, expected, save) {
+      async commit(groups, expected, prepare) {
         for (const item of expected) {
           assert.equal(item.revision, (await this.snapshot(item.group)).revision)
         }
-        for (const { group, changes } of groups) {
-          if (!values.has(group)) values.set(group, new Map())
-          for (const row of changes) {
-            if (row.value === '') values.get(group).delete(row.key)
-            else values.get(group).set(row.key, row.value)
+        const receipt = await prepare(randomUUID())
+        try {
+          receipt.check()
+          for (const { group, changes } of groups) {
+            if (!values.has(group)) values.set(group, new Map())
+            for (const row of changes) {
+              if (row.value === '') values.get(group).delete(row.key)
+              else values.get(group).set(row.key, row.value)
+            }
           }
+          receipt.publish()
+        } finally {
+          await receipt.dispose()
         }
-        save(randomUUID())
       },
     }
     return { engine: new DeviceSyncEngine(store, owner, shardCache), values, store, snapshotExtras,

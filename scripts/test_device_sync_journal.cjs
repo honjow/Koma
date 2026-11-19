@@ -96,6 +96,21 @@ test('a staged sync state cannot overwrite a newer local write or publish after 
   await assert.rejects(updating, /sync_local_changed/)
   assert.equal(storage.load().archivePending[0].checks, 1)
   assert.equal(JSON.parse(files.get(path)).archivePending[0].awaitingListing, true)
+
+  const receipt = await storage.prepareReceipt(state => { state.localReceipt = 'prepared' }, () => {})
+  assert.equal(storage.load().localReceipt, undefined)
+  assert.equal(JSON.parse(files.get(path)).localReceipt, undefined)
+  assert.equal(JSON.parse(files.get(path + '.receipt')).localReceipt, 'prepared')
+  storage.update(state => { state.counter = 8 })
+  assert.throws(() => receipt.publish(), /sync_local_changed/)
+  await receipt.dispose()
+  assert.deepEqual([...files.keys()], [path])
+  const retry = await storage.prepareReceipt(state => { state.localReceipt = 'committed' }, () => {})
+  retry.publish()
+  await retry.dispose()
+  assert.equal(storage.load().counter, 8)
+  assert.equal(JSON.parse(files.get(path)).localReceipt, 'committed')
+  assert.deepEqual([...files.keys()], [path])
 })
 
 test('reading receipt stages only its changes and rebases after a concurrent durable write', async () => {
@@ -605,6 +620,21 @@ test('automatic first merge persists a shared chapter directory and unread count
     device.engine.setSelection(['shelf', 'reading'])
     await device.engine.saveConfiguration(transport.draft)
     device.engine.setEnabled(true)
+    if (device === b) {
+      const prepareReceipt = b.store.prepareReceipt.bind(b.store)
+      b.store.prepareReceipt = async (...args) => {
+        const receipt = await prepareReceipt(...args)
+        assert.equal(b.coldShelf().shelf.getComic(comic.id), undefined)
+        return { ...receipt, publish() {
+          assert.ok(b.coldShelf().shelf.getComic(comic.id))
+          throw new Error('synthetic_receipt_rename_failure')
+        } }
+      }
+      await assert.rejects(b.engine.syncNow(), /synthetic_receipt_rename_failure/)
+      assert.equal(b.store.load().localReceipt, undefined)
+      assert.equal(b.coldShelf().shelf.getComic(comic.id), undefined)
+      b.store.prepareReceipt = prepareReceipt
+    }
     await device.engine.syncNow()
     assert.equal(device.engine.active().reviewRequired, false)
   }

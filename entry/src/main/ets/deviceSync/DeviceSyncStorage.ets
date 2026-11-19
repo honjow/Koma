@@ -186,6 +186,12 @@ export interface SyncArchiveSeen {
   kind: string
 }
 
+export interface SyncPreparedReceipt {
+  check: () => void
+  publish: () => void
+  dispose: () => Promise<void>
+}
+
 export function copySyncConnection(value: SyncSavedConnection): SyncSavedConnection {
   return { credential: value.credential, endpointIdentity: value.endpointIdentity, space: value.space, revision: value.revision,
     manifestHash: value.manifestHash, frontier: value.frontier?.slice(), selected: value.selected.slice(), automatic: value.automatic,
@@ -331,6 +337,7 @@ export class DeviceSyncStorage {
   private readonly path: string
   private current?: SyncLocalDocument
   private backgroundWrite: Promise<void> = Promise.resolve()
+  private receiptPreparing = false
 
   constructor(filesDir: string) {
     this.path = filesDir + '/device-sync-state.v1.json'
@@ -359,6 +366,54 @@ export class DeviceSyncStorage {
     this.save(state)
   }
 
+  /** Prepare the receipt before the owner enters its synchronous file phase.
+   * Only publishing it after the owner writes can authorize journal recovery. */
+  async prepareReceipt(change: (state: SyncLocalDocument) => void,
+    guard: () => void): Promise<SyncPreparedReceipt> {
+    if (this.receiptPreparing) throw new Error('sync_local_busy')
+    this.receiptPreparing = true
+    const path = this.path + '.receipt'
+    let open = true
+    let published = false
+    const dispose = async (): Promise<void> => {
+      if (!open) return
+      open = false
+      try {
+        if (!published) await this.discardStage(path)
+      } finally {
+        this.receiptPreparing = false
+      }
+    }
+    const started = syncMetricUptime()
+    try {
+      guard()
+      const original = this.load()
+      const next = this.copy(original)
+      change(next)
+      if (!(await this.stageDocument(path, original, next, guard))) throw new Error('sync_local_changed')
+      const check = (): void => {
+        guard()
+        if (!open || published || this.current !== original) throw new Error('sync_local_changed')
+      }
+      hiTraceMeter.traceByValue('KomaDeviceSyncReceiptPrepareMs', syncMetricUptime() - started)
+      const receipt: SyncPreparedReceipt = {
+        check, dispose,
+        publish: (): void => {
+          const commitStarted = syncMetricUptime()
+          check()
+          fs.renameSync(path, this.path)
+          this.current = next
+          published = true
+          hiTraceMeter.traceByValue('KomaDeviceSyncReceiptSaveMs', syncMetricUptime() - commitStarted)
+        },
+      }
+      return receipt
+    } catch (error) {
+      await dispose()
+      throw error as Error
+    }
+  }
+
   /** Stage a complete file off the UI thread. Only the current state may replace the durable cursor. */
   updateInBackground(change: (state: SyncLocalDocument) => boolean, guard: () => void,
     readingReceipt: boolean = false): Promise<void> {
@@ -383,19 +438,7 @@ export class DeviceSyncStorage {
           guard()
           if (this.current !== original) continue
         }
-        if (!prepared) {
-          const budget = new DeviceSyncSliceBudget(guard)
-          const body = new SyncStateJson(budget)
-          await body.writeRecord(next)
-          guard()
-          if (this.current !== original) continue
-          hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeChars',
-            body.parts.reduce((count: number, part: string): number => count + part.length, 0))
-          hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeSliceMs', budget.peak())
-          hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeMs', syncMetricUptime() - budget.started)
-          const error = await taskpool.execute(stageSyncState, stagedPath, body.parts) as string
-          if (error.length > 0) throw new Error(error)
-        }
+        if (!prepared && !(await this.stageDocument(stagedPath, original, next, guard))) continue
         guard()
         if (this.current !== original) continue
         // A synchronous rename is the short commit boundary. A normal local
@@ -406,8 +449,29 @@ export class DeviceSyncStorage {
       }
       throw new Error('sync_local_changed')
     } finally {
-      try { await fs.unlink(stagedPath) } catch (_error) {}
+      await this.discardStage(stagedPath)
     }
+  }
+
+  private async stageDocument(path: string, original: SyncLocalDocument, next: SyncLocalDocument,
+    guard: () => void): Promise<boolean> {
+    const budget = new DeviceSyncSliceBudget(guard)
+    const body = new SyncStateJson(budget)
+    await body.writeRecord(next)
+    guard()
+    if (this.current !== original) return false
+    hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeChars',
+      body.parts.reduce((count: number, part: string): number => count + part.length, 0))
+    hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeSliceMs', budget.peak())
+    hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeMs', syncMetricUptime() - budget.started)
+    const error = await taskpool.execute(stageSyncState, path, body.parts) as string
+    if (error.length > 0) throw new Error(error)
+    guard()
+    return this.current === original
+  }
+
+  private async discardStage(path: string): Promise<void> {
+    try { await fs.unlink(path) } catch (_error) {}
   }
 
   private copy(current: SyncLocalDocument): SyncLocalDocument {
@@ -432,11 +496,8 @@ export class DeviceSyncStorage {
   }
 
   save(value: SyncLocalDocument): void {
-    const receipt = value.localReceipt !== undefined && value.localReceipt !== this.current?.localReceipt
-    const started = receipt ? syncMetricUptime() : 0
     writeAppTextFile(this.path, JSON.stringify(value))
     this.current = value
-    if (receipt) hiTraceMeter.traceByValue('KomaDeviceSyncReceiptSaveMs', syncMetricUptime() - started)
   }
 }
 

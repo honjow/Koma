@@ -1,5 +1,5 @@
 import { SyncGroup } from './DeviceSyncFacts'
-import { SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision } from './DeviceSyncStorage'
+import { SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision, SyncPreparedReceipt } from './DeviceSyncStorage'
 
 export interface SyncApplyGroup {
   group: SyncGroup
@@ -12,5 +12,6 @@ export interface DeviceSyncOwner {
     includeReadingLabels?: boolean): Promise<SyncLocalSnapshot>
   removed(group: SyncGroup, keys: string[]): Promise<string[]>
   validateChanges?(group: SyncApplyGroup): Promise<void>
-  commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], saveCursor: (receipt: string) => void): Promise<void>
+  commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[],
+    prepareCursor: (receipt: string) => Promise<SyncPreparedReceipt>): Promise<void>
 }

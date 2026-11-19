@@ -34,7 +34,7 @@ import {
   syncReadingRecent, syncSearchIdentity, syncShelfIdentity, syncShelfLabel, syncShelfMove, syncShelfMoveDestination,
   syncGroupVisibleValue, SyncShelfMove, SyncSmartCategory, SyncWorkSlice,
 } from './DeviceSyncData'
-import { DeviceSyncStorage, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision, SyncReadingReceipt, SyncSavedConnection,
+import { DeviceSyncStorage, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision, SyncPreparedReceipt, SyncReadingReceipt, SyncSavedConnection,
   SyncReadingRestoreCandidate, SyncRestoreEdit } from './DeviceSyncStorage'
 import { deviceSyncActionCaptureKey, deviceSyncCaptureKey, SyncCapturedReadingEdit, SyncReadingActionCapture,
   SyncReadingCapture, SyncLocalShelfMove } from './DeviceSyncSignals'
@@ -1208,7 +1208,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     this.applySubscriptions(group.changes, snapshot)
   }
 
-  async commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], saveCursor: (id: string) => void,
+  async commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], prepareCursor: (id: string) => Promise<SyncPreparedReceipt>,
     acceptedRemoval: string = '', stillAllowed?: () => boolean): Promise<void> {
     const reader = appReaderSessionStore(this.context.filesDir)
     if (!reader.flush()) throw new Error('sync_local_busy')
@@ -1279,26 +1279,34 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       if (originalProjection !== nextProjection) this.addImage(files, SYNC_PROJECTION, admittedFiles[2], nextProjection)
       const id = util.generateRandomUUID()
       if (files.length === 0 && nextPreferences === undefined && nextSearch === undefined && nextSubscriptions === undefined) {
-        if (stillAllowed?.() === false) throw new Error('sync_local_changed')
-        saveCursor(id)
+        const receipt = await prepareCursor(id)
+        try {
+          if (stillAllowed?.() === false) throw new Error('sync_local_changed')
+          receipt.publish()
+        } finally {
+          await receipt.dispose()
+        }
         return
       }
       const journal: LocalJournal = { id, files, filesStarted: false, previousPreferences, nextPreferences, previousSearch, nextSearch,
         previousSubscriptions, nextSubscriptions }
       writeAppTextFile(this.path(SYNC_JOURNAL), JSON.stringify(journal))
+      let receipt: SyncPreparedReceipt | undefined
       try {
         if (nextPreferences !== undefined) await new ReaderPreferencesStore(this.context).applyDeviceSyncPreferences(nextPreferences)
         if (nextSearch !== undefined) await new SearchHistoryStore(this.context).applyDeviceSyncEntries(nextSearch)
         if (nextSubscriptions !== undefined) await new SourceIndexService(this.context).applyDeviceSyncSnapshot(nextSubscriptions)
+        receipt = await prepareCursor(id)
         if (stillAllowed?.() === false || reader.currentDeviceSyncRevision() !== readerRevision ||
           fileNames.some((name: string, index: number): boolean =>
           readFile(this.path(name)) !== admittedFiles[index])) throw new Error('sync_local_changed')
-        // File owners commit synchronously. They can accept ordinary edits
-        // while Preferences await, but never interleave with this file phase.
+        receipt.check()
+        // Keep the owner files and receipt publication in one synchronous turn.
+        // A crash before the receipt replacement still rolls back via the journal.
         journal.filesStarted = true
         writeAppTextFile(this.path(SYNC_JOURNAL), JSON.stringify(journal))
         for (const image of files) writeAppTextFile(this.path(image.name), image.after)
-        saveCursor(id)
+        receipt.publish()
         fs.unlinkSync(this.path(SYNC_JOURNAL))
       } catch (error) {
         try {
@@ -1308,6 +1316,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
           throw new Error('sync_local_recovery_required')
         }
         throw error as Error
+      } finally {
+        await receipt?.dispose()
       }
       const changed = groups.filter((group: SyncApplyGroup): boolean => group.changes.length > 0)
         .map((group: SyncApplyGroup): SyncGroup => group.group)
@@ -1382,8 +1392,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const value = this.shelfRemovalValue(item.source, item.work, this.library())
     if (value === undefined) return
     await this.commit([{ group: 'shelf', changes: [{ key: syncKey(['book', item.source, item.work]), value }] }],
-      [{ group: 'shelf', revision: snapshot.revision }], (id: string): void => {
-        this.storage.update((state: SyncLocalDocument): void => { state.localReceipt = id })
+      [{ group: 'shelf', revision: snapshot.revision }], (id: string): Promise<SyncPreparedReceipt> => {
+        return this.storage.prepareReceipt((state: SyncLocalDocument): void => { state.localReceipt = id }, (): void => {})
       }, item.id, (): boolean => this.storage.load().active?.space === space &&
         this.shelfRemovalValue(item.source, item.work, this.library()) === value)
   }
@@ -1421,8 +1431,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     })
     if (changes.length === 0) return
     const snapshot = await this.snapshot('shelf', false)
-    await this.commit([{ group: 'shelf', changes }], [{ group: 'shelf', revision: snapshot.revision }], (id: string): void => {
-      this.storage.update((state: SyncLocalDocument): void => { state.localReceipt = id })
+    await this.commit([{ group: 'shelf', changes }], [{ group: 'shelf', revision: snapshot.revision }], (id: string): Promise<SyncPreparedReceipt> => {
+      return this.storage.prepareReceipt((state: SyncLocalDocument): void => { state.localReceipt = id }, (): void => {})
     })
   }
 
