@@ -57,8 +57,13 @@ test('reader cache hits update live eviction and coalesce restart metadata witho
       return fs.promises.rename(...args)
     },
   }
+  class Task {
+    constructor(work, ...args) { this.run = () => work(...args) }
+    setCloneList() {}
+  }
   const exports = {}
-  const imports = { '@kit.CoreFileKit': { fileIo: io }, '@kit.ArkTS': { buffer: Buffer } }
+  const imports = { '@kit.CoreFileKit': { fileIo: io }, '@kit.ArkTS': { buffer: Buffer,
+    taskpool: { Task, execute: async (work, ...args) => typeof work === 'function' ? work(...args) : work.run() } } }
   const imageFileContent = {}
   const imageSource = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/ImageFileContent.ets'), 'utf8')
   vm.runInNewContext(ts.transpileModule(imageSource.replace(/^@Concurrent\s*$/gm, ''), {

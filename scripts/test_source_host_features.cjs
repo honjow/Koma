@@ -33,8 +33,14 @@ function fileCache(directory) {
     close: async file => fs.closeSync(file.fd),
     write: async (fd, bytes) => fs.writeSync(fd, typeof bytes === 'string' ? bytes : new Uint8Array(bytes)) }
   const imageFileContent = functions('model/ImageFileContent.ets', ['isAvifFileType'], {})
+  class Task {
+    constructor(work, ...args) { this.run = () => work(...args) }
+    setCloneList() {}
+  }
   const { RemoteImageCacheStore } = load('model/RemoteImageCacheStore.ets', {
-    '@kit.CoreFileKit': { fileIo: io }, '@kit.ArkTS': { buffer: Buffer }, './ImageFileContent': imageFileContent,
+    '@kit.CoreFileKit': { fileIo: io }, './ImageFileContent': imageFileContent,
+    '@kit.ArkTS': { buffer: Buffer, taskpool: { Task,
+      execute: async (work, ...args) => typeof work === 'function' ? work(...args) : work.run() } },
   })
   return { io, cache: new RemoteImageCacheStore(directory) }
 }

@@ -101,16 +101,7 @@ function joinSandboxPath(parent: string, child: string): string {
   return right.length === 0 ? left : `${left}/${right}`
 }
 
-async function closeFileQuietly(file: fs.File | undefined): Promise<void> {
-  if (file === undefined) {
-    return
-  }
-  try {
-    await fs.close(file)
-  } catch (_err) {
-  }
-}
-
+@Concurrent
 async function writeBytes(path: string, bytes: ArrayBuffer): Promise<void> {
   const tempPath = `${path}.tmp`
   let file: fs.File | undefined = undefined
@@ -132,7 +123,12 @@ async function writeBytes(path: string, bytes: ArrayBuffer): Promise<void> {
     }
     throw _error as Error
   } finally {
-    await closeFileQuietly(file)
+    if (file !== undefined) {
+      try {
+        await fs.close(file)
+      } catch (_closeError) {
+      }
+    }
   }
 }
 
@@ -320,6 +316,12 @@ export class RemoteImageCacheStore {
   private async getNow(url: string, headers?: RemoteImageCacheHeaders, cacheKeySeed?: string): Promise<string | undefined> {
     const key = cacheKeyFor(url, headers, cacheKeySeed)
     const entry = this.entries.get(key)
+    if (entry !== undefined && this.trackAvif) {
+      // Preload and processed readers also use single-file hits as a page
+      // joins the visible window. Keep those checks on the same worker.
+      const availability = await readerCacheFileAvailability(entry.path, '')
+      return this.finishLookup(key, entry, availability.image)
+    }
     return this.finishLookup(key, entry, entry !== undefined && await fs.access(entry.path))
   }
 
@@ -386,7 +388,17 @@ export class RemoteImageCacheStore {
   private async putNow(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer, cacheKeySeed?: string): Promise<string> {
     const key = cacheKeyFor(url, headers, cacheKeySeed)
     const filePath = joinSandboxPath(this.rootDir, `${key}.${extensionForUrl(url)}`)
-    await writeBytes(filePath, bytes)
+    if (this.trackAvif) {
+      // The reader can finish several downloads during one fling. Keep their
+      // file-open, write, stat and rename callbacks on the worker, and publish
+      // the index only after the same atomic file commit succeeds. The caller
+      // still owns its buffer (for example a source processor can reuse it).
+      const task = new taskpool.Task(writeBytes, filePath, bytes)
+      task.setCloneList([bytes])
+      await taskpool.execute(task)
+    } else {
+      await writeBytes(filePath, bytes)
+    }
     this.setEntry({
       key,
       url,

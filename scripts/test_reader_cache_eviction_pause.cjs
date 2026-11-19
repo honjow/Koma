@@ -28,10 +28,15 @@ function loadCache(directory) {
     close: async file => fs.closeSync(file.fd),
     rename: fs.promises.rename,
   }
+  class Task {
+    constructor(work, ...args) { this.run = () => work(...args) }
+    setCloneList() {}
+  }
   const exports = {}
   const imports = {
     '@kit.CoreFileKit': { fileIo: io },
-    '@kit.ArkTS': { buffer: Buffer, taskpool: { execute: async (work, ...args) => work(...args) } },
+    '@kit.ArkTS': { buffer: Buffer, taskpool: { Task,
+      execute: async (work, ...args) => typeof work === 'function' ? work(...args) : work.run() } },
   }
   const imageFileContent = {}
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/ImageFileContent.ets'), 'utf8').replace(/^@Concurrents*$/gm, ''), {
