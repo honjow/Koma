@@ -116,6 +116,13 @@ interface LibraryCachedCard {
 }
 
 interface LibraryCategoryProjection {
+  sortBy: LibrarySortBy
+  sortDirection: LibrarySortDirection
+  libraryStore: LibraryStore
+  libraryRevision: number
+  readerSessionStore: ReaderSessionStore
+  readerProgressRevision: number
+  readingProgress: Map<ComicId, ReadingProgress>
   all: Comic[]
   categories: Map<string, Comic[]>
 }
@@ -355,8 +362,11 @@ export struct LibraryPage {
   private gridRows: LibraryGridRows = new LibraryGridRows()
   private pendingGridCategory: Comic[] | undefined = undefined
   private gridUpdateGeneration: number = 0
+  private shelfCategoryProjection?: LibraryCategoryProjection
+  private displayedLibraryStore?: LibraryStore
   private displayedLibraryRevision: number = -1
   private displayedProgressRevision: number = -1
+  private displayedReadingProgress?: Map<ComicId, ReadingProgress>
   private displayedSessionStore?: ReaderSessionStore
   @Local private projectionState: LibraryProjectionState = LibraryProjectionState.READY
   @Local private selectionMode: boolean = false
@@ -509,11 +519,13 @@ export struct LibraryPage {
 
   // Mihon links publish shelf and progress together. Project that committed
   // state once when the shelf is visible, including when returning to it.
-  @Monitor('libraryRevision', 'readerSessionStore', 'readerProgressRevision', 'active', 'rootNavigation.visible')
+  @Monitor('libraryStore', 'libraryRevision', 'readerSessionStore', 'readerProgressRevision', 'shelfReadingProgress',
+    'active', 'rootNavigation.visible')
   private syncDisplayedSnapshotFromProps(): void {
     if (!this.active || !this.rootNavigation.visible) return
-    if (this.displayedLibraryRevision === this.libraryRevision &&
+    if (this.displayedLibraryStore === this.libraryStore && this.displayedLibraryRevision === this.libraryRevision &&
       this.displayedProgressRevision === this.readerProgressRevision &&
+      this.displayedReadingProgress === this.shelfReadingProgress &&
       this.displayedSessionStore === this.readerSessionStore && !this.usesLiveShelfFiltersOrSort()) return
     this.refreshDisplayedSnapshotFromStore()
   }
@@ -541,9 +553,7 @@ export struct LibraryPage {
     const category = this.validCategoryFilter()
     const strategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory)
     this.applyCategorySort(strategy)
-    const nextComics = this.sortBy === 'source' || this.sortBy === 'lastUpdate'
-      ? this.orderedShelfComics(category)
-      : (category === 'all' ? this.orderedShelfCategories.all : this.orderedShelfCategories.categories.get(category) ?? [])
+    const nextComics = this.orderedCategoryComics(category)
     const categoryComics = this.filterSmartCategoryComics(nextComics)
     this.hasCategoryContents = categoryComics.length > 0
     const sourceKinds = this.sourceKindsForFilter()
@@ -554,8 +564,10 @@ export struct LibraryPage {
     })
     this.displayedComics = this.filterMetadataStatusComics(
       this.filterAvailabilityComics(this.filterPreciseSourceComics(scopedComics)))
+    this.displayedLibraryStore = this.libraryStore
     this.displayedLibraryRevision = this.libraryRevision
     this.displayedProgressRevision = this.readerProgressRevision
+    this.displayedReadingProgress = this.shelfReadingProgress
     this.displayedSessionStore = this.readerSessionStore
     this.displayedRevision += 1
     this.removeMissingSelectedComics()
@@ -571,21 +583,42 @@ export struct LibraryPage {
     return comics
   }
 
-  @Computed
-  private get orderedShelfCategories(): LibraryCategoryProjection {
+  private orderedCategoryComics(category: LibraryCategoryFilter): Comic[] {
+    // Live source names and chapter-update times need to be read on each refresh.
+    if (this.sortBy === 'source' || this.sortBy === 'lastUpdate') return this.orderedShelfComics(category)
+
+    const cached = this.shelfCategoryProjection
+    const readingProgress = this.shelfReadingProgress
     // Categories with the same sort take a subsequence of one ordered shelf.
-    // Live source names and chapter-update times are read at the point of use.
-    void this.libraryRevision
+    // Menu actions publish synchronously, before ArkUI would refresh a @Computed cache.
+    if (cached !== undefined && cached.sortBy === this.sortBy && cached.sortDirection === this.sortDirection &&
+      cached.libraryStore === this.libraryStore && cached.libraryRevision === this.libraryRevision &&
+      cached.readerSessionStore === this.readerSessionStore && cached.readerProgressRevision === this.readerProgressRevision &&
+      cached.readingProgress === readingProgress) {
+      return category === 'all' ? cached.all : cached.categories.get(category) ?? []
+    }
+
     const all = this.orderedShelfComics('all')
     const categories = new Map<string, Comic[]>()
     all.forEach((comic: Comic): void => {
       normalizeCategoryIds(comic.categoryIds).forEach((id: string): void => {
-        const category = categories.get(id)
-        if (category === undefined) categories.set(id, [comic])
-        else category.push(comic)
+        const members = categories.get(id)
+        if (members === undefined) categories.set(id, [comic])
+        else members.push(comic)
       })
     })
-    return { all, categories }
+    this.shelfCategoryProjection = {
+      sortBy: this.sortBy,
+      sortDirection: this.sortDirection,
+      libraryStore: this.libraryStore,
+      libraryRevision: this.libraryRevision,
+      readerSessionStore: this.readerSessionStore,
+      readerProgressRevision: this.readerProgressRevision,
+      readingProgress,
+      all,
+      categories,
+    }
+    return category === 'all' ? all : categories.get(category) ?? []
   }
 
   private isProjectionPending(): boolean {

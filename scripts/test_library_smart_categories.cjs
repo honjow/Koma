@@ -6,6 +6,7 @@ const preference={has:async k=>values.has(k),get:async(k,d)=>values.get(k)??d,ge
   put:async(k,v)=>values.set(k,v),delete:async k=>values.delete(k),flush:async()=>{if(failFlush){failFlush=false;throw Error('disk full')}}}
 const ports={
   '@kit.ArkData':{preferences:{getPreferences:async()=>preference,getPreferencesSync:()=>preference}},
+  'libkoma_source_runtime.so': {},
   '../i18n/AppStrings':{AppStrings:{get:k=>k,format:(k,...v)=>k+v.join(',')}},
   '../sourceRuntime/SourceRuntimeAppRegistry':{sourceChapterOrderFor:()=>undefined},
   '../diagnostics/DiagnosticLogger':{DiagnosticLogger:{warn(){},exception(){}}},
@@ -15,12 +16,13 @@ function load(file){
  const exports={};modules.set(file,exports)
  const source=fs.readFileSync(path.join(root,file+'.ets'),'utf8').replace(/@Concurrent\s*/g,'')
  const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
- vm.runInNewContext(js,{exports,console,Map,Set,Date,setTimeout,clearTimeout,require(name){
+ vm.runInNewContext(js,{exports,console,Map,Set,Date,setTimeout,clearTimeout,
+  ObservedV2: () => {},Trace: () => {},$r: name => name,require(name){
   if(ports[name])return ports[name]
   if(name.startsWith('@kit.'))return {}
   if(name.startsWith('.'))return load(path.posix.normalize(path.posix.join(path.posix.dirname(file),name)))
   throw Error('Missing port '+name)
- }})
+ }},{filename:file+'.ets'})
  return exports
 }
 const clone=v=>JSON.parse(JSON.stringify(v)),smart=load('model/LibrarySmartCategory'),models=load('model/ComicModels')
@@ -37,12 +39,79 @@ function shelfSubject(names, globals = {}) {
  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
  const owner = tree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'LibraryPage')
  const members = names.map(name => owner.members.find(node => node.name?.text === name)).filter(Boolean)
-  .map(method => source.slice(ts.getDecorators(method)?.at(-1)?.end ?? method.getStart(tree), method.end))
+  .map(method => method.getText(tree))
  const code = ts.transpileModule(`class Shelf { ${members.join('\n')} }; Shelf`, {
-  compilerOptions: { target: ts.ScriptTarget.ES2020 },
+  compilerOptions: { target: ts.ScriptTarget.ES2020, experimentalDecorators: true },
  }).outputText
- return vm.runInNewContext(code, globals)
+ return vm.runInNewContext(code, { Monitor: () => () => {}, ...globals })
 }
+test('the shelf publishes the selected sort and direction in the same refresh', () => {
+ const library = new InMemoryLibraryStore()
+ const reader = new InMemoryReaderSessionStore()
+ const { librarySortDirection } = load('model/LibraryStore')
+ const { effectiveLibraryDefaultSort } = load('model/LibraryFilterStore')
+ const category = library.createCustomCategory('Manual')
+ const books = ['a', 'b', 'c'].map(id => book(id))
+ books[0].categoryIds = [category.id]
+ books[1].categoryIds = [category.id]
+ books.forEach(comic => library.addComic(comic))
+ const progress = new Map(books.map((comic, index) => [comic.id, {
+  comicId: comic.id, chapterId: comic.chapters[0].id, updatedAt: [10, 30, 20][index],
+ }]))
+ const updates = new Map([['a', 20], ['b', 10], ['c', 30]])
+ let frame = 0
+ const Shelf = shelfSubject(['setSortBy', 'refreshDisplayedSnapshotFromStore', 'applyCategorySort',
+  'orderedShelfComics', 'orderedShelfCategories', 'orderedCategoryComics', 'currentListOptions',
+  'syncDisplayedSnapshotFromProps', 'usesLiveShelfFiltersOrSort'], {
+  librarySortDirection, effectiveLibraryDefaultSort, normalizeCategoryIds: models.normalizeCategoryIds,
+  cachedLibraryChapterUpdateTimes: () => updates,
+  // ArkUI recomputes a dirty @Computed getter at the next frame, not during the click.
+  Computed(_owner, _name, descriptor) {
+   const get = descriptor.get
+   let computedAt = -1, value
+   descriptor.get = function () {
+    if (computedAt !== frame) {
+     value = get.call(this)
+     computedAt = frame
+    }
+    return value
+   }
+  },
+ })
+ const shelf = new Shelf()
+ const pass = comics => comics
+ Object.assign(shelf, {
+  active: true, rootNavigation: { visible: true },
+  libraryStore: library, libraryRevision: 1, readerSessionStore: reader, readerProgressRevision: 1,
+  shelfReadingProgress: progress, filterCategory: 'all', filterReadState: 'all', filterAvailability: 'all', displayedRevision: 0,
+  defaultSort: { sortBy: 'lastRead', sortDirection: 'desc', sortConfigured: true },
+  validCategoryFilter() { return this.filterCategory },
+  selectedSmartCategory: () => undefined,
+  sourceKindsForFilter: () => undefined,
+  filterSmartCategoryComics: pass, filterMetadataStatusComics: pass,
+  filterAvailabilityComics: pass, filterPreciseSourceComics: pass,
+  removeMissingSelectedComics() {}, markFilterPreferencesMutation() {}, saveFilterPreferences() {},
+ })
+ const ids = () => Array.from(shelf.displayedComics, comic => comic.id)
+ shelf.refreshDisplayedSnapshotFromStore()
+ assert.deepEqual(ids(), ['b', 'c', 'a'])
+ shelf.setSortBy('lastUpdate', 'desc')
+ assert.deepEqual(ids(), ['c', 'a', 'b'])
+ frame += 1
+ void shelf.orderedShelfCategories
+ shelf.setSortBy('lastRead', 'desc')
+ assert.deepEqual(ids(), ['b', 'c', 'a'])
+ shelf.setSortBy('lastRead', 'asc')
+ assert.deepEqual(ids(), ['a', 'c', 'b'])
+ shelf.filterCategory = category.id
+ shelf.refreshDisplayedSnapshotFromStore()
+ assert.deepEqual(ids(), ['a', 'b'])
+ const publishedProgress = new Map(progress)
+ publishedProgress.set('a', { ...progress.get('a'), updatedAt: 40 })
+ shelf.shelfReadingProgress = publishedProgress
+ shelf.syncDisplayedSnapshotFromProps()
+ assert.deepEqual(ids(), ['b', 'a'])
+})
 test('positive source/category values are OR, methods are AND and exclusions do not rewrite manual membership',()=>{
  const a=book('a'),b=book('b'),c=book('c');a.categoryIds=['favorite'];b.categoryIds=['read_later']
  const context={reader:new InMemoryReaderSessionStore(),downloaded:new Set(),tracked:new Set()}
@@ -67,11 +136,13 @@ test('returning to the shelf picks up new download facts with unchanged book and
  const Shelf = shelfSubject(['syncDisplayedSnapshotFromProps', 'usesLiveShelfFiltersOrSort', 'selectedSmartCategory'])
  const shelf = new Shelf(), library = new InMemoryLibraryStore(), reader = new InMemoryReaderSessionStore()
  const comic = book('offline'), downloaded = new Set()
+ const readingProgress = new Map()
  library.replaceSmartCategories([group([rule('downloaded')])])
  Object.assign(shelf, {
   active: false, rootNavigation: { visible: true }, filterAvailability: 'all', filterCategory: 'smart:1', sortBy: 'title',
   displayedLibraryRevision: 3, libraryRevision: 3, displayedProgressRevision: 5, readerProgressRevision: 5,
-  displayedSessionStore: reader, readerSessionStore: reader, libraryStore: library, visibleIds: [],
+  displayedLibraryStore: library, libraryStore: library, displayedSessionStore: reader, readerSessionStore: reader,
+  displayedReadingProgress: readingProgress, shelfReadingProgress: readingProgress, visibleIds: [],
   refreshDisplayedSnapshotFromStore() {
    const matches = smart.comicMatchesSmartCategory(comic, this.selectedSmartCategory(), { reader, downloaded, tracked: new Set() })
    this.visibleIds = matches ? [comic.id] : []

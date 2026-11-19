@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-20T02:42:14+08:00",
+  "updatedAt": "2026-11-20T04:03:19+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -85,6 +85,32 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "LIBRARY_SORT_STALE_PROJECTION",
+      "number": 331,
+      "title": "书架切换排序后仍显示旧顺序",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-20",
+      "reportedAtSource": "用户报告书架排序有时不重排，明确给出「最近更新 → 最近阅读」。",
+      "registeredAt": "2026-11-20T03:54:21+08:00",
+      "updatedAt": "2026-11-20T04:03:19+08:00",
+      "status": "用户确认真机实测已修复",
+      "result": "排序动作设置新值后同步刷新列表，旧实现此时读到下一帧才更新的缓存。缓存现按排序方式、方向和数据快照同步校验，同一排序下复用分类结果。本地用不同更新时间和阅读时间复现旧顺序，修复后核对了排序切换、方向、分类和阅读快照晚到。 用户随后确认真机实测已修复。",
+      "remaining": "",
+      "relatedItems": [
+        "LIBRARY_SORT_AND_UPDATE_DEFAULTS",
+        "MIHON_BACKUP_IMPORT"
+      ],
+      "evidence": [
+        ".hvigor/outputs/library-sort-20261120/shelf-tests.log",
+        ".hvigor/outputs/library-sort-20261120/build.log",
+        ".hvigor/outputs/library-sort-20261120/Koma-library-sort-fix-signed.hap"
+      ],
+      "closedAt": "2026-11-20T04:03:19+08:00"
+    },
     {
       "id": "RESUME_MINIBAR_SETTING",
       "number": 328,
@@ -12011,6 +12037,22 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-sort-stale-projection-device-confirmation-20261120",
+      "at": "2026-11-20T04:03:19+08:00",
+      "itemId": "LIBRARY_SORT_STALE_PROJECTION",
+      "title": "#331 用户真机确认书架排序已修复",
+      "detail": "用户确认真机实测已修复并允许提交。机型及逐项操作未提供。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-sort-stale-projection-20261120",
+      "at": "2026-11-20T03:54:21+08:00",
+      "itemId": "LIBRARY_SORT_STALE_PROJECTION",
+      "title": "#331 修复书架切换排序时复用旧顺序",
+      "detail": "本地使用书架排序入口复现并核对修复，签名调试包已构建，真机未验。",
+      "kind": "checkpoint"
+    },
     {
       "id": "continuous-237-shelf-worker-20261120",
       "at": "2026-11-20T02:42:14+08:00",
