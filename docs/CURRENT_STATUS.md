@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-20T01:25:13+08:00",
+  "updatedAt": "2026-11-20T02:01:06+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -5387,14 +5387,14 @@
       "id": "CONTINUOUS_PERFORMANCE",
       "number": 1,
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "237 已验证图头复用、后台超分和自动同步分批处理，仍有短暂掉帧",
-      "stage": "以 237 新页惯性对照核对剩余长帧及其执行阶段",
+      "status": "237 已验证同步状态分批编码，条漫继续跟踪残留长帧",
+      "stage": "定位惯性滚动中的其余长帧",
       "kind": "active",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
       "result": "正文缓存检查和落盘已移到后台，未变的短图行少做更新，已测新页连续加载。 连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
-      "remaining": "定位合并解码完成后至下一次窗口 VSync 之间的主线程工作，并核对其他超过 33.3 ms 的帧。左右分页保留原独立调查及固定窗口撤回决定。",
+      "remaining": "继续定位并缩短已测到的本机回执同步写盘，以及独立的超帧预算回调。左右分页保留原独立调查及固定窗口撤回决定。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -5403,6 +5403,10 @@
       "closedAt": null,
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/taskpool-237-staged-state-evidence.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/taskpool-237-staged-frames.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/state-sync-237-retained.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/state-sync-237-cleanup.log",
         ".hvigor/outputs/continuous-short-images-20261119/qa/taskpool-237-evidence.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/taskpool-237-owner-evidence.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/taskpool-237-retained-package.json",
@@ -5516,6 +5520,7 @@
       ],
       "latestCounterexampleAt": "2026-11-08T21:10:00+08:00",
       "evidencePoints": [
+        "对照包给合并解析后、本机状态暂存前加了计时。237 低速里约 989 万字符的状态一次编码耗时 37–86 ms，第一组同步紧接计划解析后的样本为 65 ms。候选按批编码、由后台拼接并原子落盘，相同字符量单批 4–5 ms，编码全程 21–33 ms。冷启动最慢单批 12 ms。同步真实回执已持久化，其中独立的主线程回执写盘仍耗时 40–62 ms。第 40 与 41 话先做基线再做候选，第 44 与 45 话反向复测。基线和候选各 48 次同手势低速惯性，分别收齐 125 和 122 个新图 HTTP 200。超过 16.7 ms 的间隔 62→53，超过 33.3 ms 为 8→9，最慢 87.3→70.1 ms。含快甩和持续阅读共验证候选 100 次惯性和 297 个新图 HTTP 200。已在 237 留下同签候选，并恢复原桌面、续读位置、无痕与原屏幕超时，设备已释租。仓库 89 项同步用例与现有额外并发暂存用例通过。额外的旧归档维护用例在此次改动前后均停在同一个 DELETE 等待断言。",
         "237 的低速惯性基线第 20、21 话和修复包第 25、26 话各 24 甩、各 62 个新图请求。惯性运动中的 GetImageInfo 回执 76→8，fs.read 回执 114→61。超过 16.7 ms 的帧间隔 37→16，超过 33.3 ms 的为 4→4，最长 87.18→72.01 ms。双方使用不同的新章，超分任务量受内容影响。",
         "图头与超分修复包另完成第 27 话快甩 12 次和第 28 话连续低速 42 次。从第 1 页读到第 63、111 页，两组共 170 个新的 HTTP 200。四组实际有 9 次后台超分编码成功。完成的 5120×3996 超分图进入原生显示解码。",
         "宿主复用成功下载已经得到的图头尺寸，删除无消费者的全图片尺寸查询。系统超分将可共享的输出交给后台，在前景只接收完成结果。237 底层追踪观测到原来一张超分图准备 71.96–81.84 MB 的归一化缓冲。",
@@ -5537,6 +5542,7 @@
         "同包同作品向下跨章，197 实滑 11 分 17 秒、最长停顿 1.80 秒；200 实滑 10 分 41 秒、最长停顿 1.59 秒。两机都出现刷新信号已发出、应用主线程迟迟未处理。"
       ],
       "remainingActions": [
+        "继续定位并缩短已测到的本机回执同步写盘，以及独立的超帧预算回调。左右分页保留原独立调查及固定窗口撤回决定。",
         "定位合并解码完成后至下一次窗口 VSync 之间的主线程工作，并核对其他超过 33.3 ms 的帧。左右分页保留原独立调查及固定窗口撤回决定。",
         "追踪大块 TaskPool 返回的生产者，核对能否在 worker 侧消费数据或落盘后交回小结果。同时区分缓存正文、处理描述、存在检查和尺寸回报。先验明同页可以共享的检查或发布结果，再减少回主线程的次数，保留正在读的页面即时发布、重试和缓存缺失恢复。左右分页保留原独立调查及固定窗口撤回决定。",
         "继续定位系统超分打开时连续占用主线程的 ArkUI 可取消事件回调，保留快甩和新页加载的真实对照。左右分页仍需定位 FlushDirtyNodeUpdate 内资源查询和 ForEachNode 的归属，沿原决定保留已撤回的固定窗口实验。",
@@ -5584,7 +5590,7 @@
         "date": "2026-10-26"
       },
       "previousClosedAt": "2026-11-08T08:35:59+08:00",
-      "updatedAt": "2026-11-20T01:25:13+08:00",
+      "updatedAt": "2026-11-20T02:01:06+08:00",
       "evidence": [
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
@@ -11990,6 +11996,20 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "continuous-237-sync-state-staging-20261120",
+      "at": "2026-11-20T02:01:06+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "237 对照同步状态分批编码与新页滚动",
+      "detail": "实现提交 595f527e。对照包给合并解析后、本机状态暂存前加了计时。237 低速里约 989 万字符的状态一次编码耗时 37–86 ms，第一组同步紧接计划解析后的样本为 65 ms。候选按批编码、由后台拼接并原子落盘，相同字符量单批 4–5 ms，编码全程 21–33 ms。冷启动最慢单批 12 ms。同步真实回执已持久化，其中独立的主线程回执写盘仍耗时 40–62 ms。第 40 与 41 话先做基线再做候选，第 44 与 45 话反向复测。基线和候选各 48 次同手势低速惯性，分别收齐 125 和 122 个新图 HTTP 200。超过 16.7 ms 的间隔 62→53，超过 33.3 ms 为 8→9，最慢 87.3→70.1 ms。含快甩和持续阅读共验证候选 100 次惯性和 297 个新图 HTTP 200。已在 237 留下同签候选，并恢复原桌面、续读位置、无痕与原屏幕超时，设备已释租。仓库 89 项同步用例与现有额外并发暂存用例通过。额外的旧归档维护用例在此次改动前后均停在同一个 DELETE 等待断言。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/taskpool-237-staged-state-evidence.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/taskpool-237-staged-frames.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/state-sync-237-retained.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/state-sync-237-cleanup.log"
+      ]
+    },
     {
       "id": "continuous-237-image-headers-worker-sr-20261120",
       "at": "2026-11-20T01:25:13+08:00",
