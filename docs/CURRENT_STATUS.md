@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-20T04:03:19+08:00",
+  "updatedAt": "2026-11-20T04:14:41+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -85,6 +85,33 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "SOURCE_BROWSE_RECYCLED_COVER",
+      "number": 332,
+      "title": "书源浏览翻页时短暂显示上一部作品的封面",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-20",
+      "reportedAtSource": "用户报告书源浏览网格加载下一页时先看到旧封面，随后更新，列表模式未仔细检查。",
+      "registeredAt": "2026-11-20T04:08:29+08:00",
+      "updatedAt": "2026-11-20T04:14:41+08:00",
+      "status": "用户确认真机实测翻页问题已修复",
+      "result": "浏览页的网格和列表都复用卡片，原来没有传递作品身份。封面组件现按书源和作品识别归属，卡片切换作品时立即退回现有占位图，直到新封面就绪。同一作品刷新封面仍可保留原图。组件级前后对照和签名候选构建通过。 用户随后确认真机实测翻页问题已修复。",
+      "remaining": "",
+      "relatedItems": [
+        "SOURCE_BROWSE_LAYOUT_PER_PROVIDER",
+        "SOURCE_BROWSE_COVER_RETRY"
+      ],
+      "evidence": [
+        ".hvigor/outputs/source-browse-cover-20261120/cover-replay.log",
+        ".hvigor/outputs/source-browse-cover-20261120/build.log",
+        ".hvigor/outputs/source-browse-cover-20261120/source-tests.log",
+        ".hvigor/outputs/source-browse-cover-20261120/source-tests-before.log"
+      ],
+      "closedAt": "2026-11-20T04:14:41+08:00"
+    },
     {
       "id": "LIBRARY_SORT_STALE_PROJECTION",
       "number": 331,
@@ -12037,6 +12064,22 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-browse-recycled-cover-device-confirmation-20261120",
+      "at": "2026-11-20T04:14:41+08:00",
+      "itemId": "SOURCE_BROWSE_RECYCLED_COVER",
+      "title": "#332 用户真机确认书源翻页串封面已修复",
+      "detail": "用户确认真机实测翻页问题已修复，允许提交并关闭。设备型号和逐种布局的实测细节未提供。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-browse-recycled-cover-20261120",
+      "at": "2026-11-20T04:08:29+08:00",
+      "itemId": "SOURCE_BROWSE_RECYCLED_COVER",
+      "title": "#332 修复书源翻页时复用旧封面",
+      "detail": "本地回放对照了切换作品首帧、封面加载期间和同一作品更新封面。候选包已签名构建，两台测试机正被占用，等待普通路径真机复测。筛选和网页验证的五项回归用例在修复前输入下同样失败。",
+      "kind": "checkpoint"
+    },
     {
       "id": "library-sort-stale-projection-device-confirmation-20261120",
       "at": "2026-11-20T04:03:19+08:00",

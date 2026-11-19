@@ -82,7 +82,8 @@ export struct MangaGridItem {
       } else {
         CachedCoverImage({
           uri: this.manga.coverUrl ?? '',
-          coverOwnerId: this.coverOptions === undefined ? '' : this.manga.id,
+          // Both layouts reuse cards. Keep the old cover only while the same work reloads.
+          coverOwnerId: JSON.stringify([this.manga.sourceId, this.manga.id]),
           objectFit: ImageFit.Cover,
           sourceRuntimeId: this.manga.sourceId,
           sourceImageId: this.coverOptions?.imageId ?? this.manga.id,
