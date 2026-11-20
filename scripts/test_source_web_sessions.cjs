@@ -1927,6 +1927,29 @@ test('redirected target challenge is probed at that origin and handed back only 
   assert.equal(f.diagnostics.includes('state=used_once'), true)
 })
 
+test('effective response URL requires an installed HTTPS scope and keeps credentials on the starting origin', async () => {
+  const f = fixture()
+  const final = 'https://viewer.invalid/read?cid=demo%2Ftoken'
+  const redirect = () => ({ responseCode: 302, result: '', header: { location: [final] } })
+  const read = { includeResponseUrl: true, headers: { Accept: 'text/html', Referer: 'https://site.invalid/reader' } }
+  const noGrant = await f.http([redirect()], JSON.stringify(f.identity()), read)
+  assert.equal(noGrant.result.error.code, 'invalid_request')
+  assert.equal(noGrant.calls.length, 0)
+
+  f.changeEntry(entry => ({ ...entry, websitePolicy: { responseUrlOrigins: ['https://site.invalid', 'https://viewer.invalid'] } }))
+  f.grant()
+  const context = JSON.stringify(f.identity())
+  const success = await f.http([redirect(), { responseCode: 200, result: 'reader', header: {} }], context, read)
+  assert.equal(success.result.responseUrl, final)
+  assert.equal(success.result.bodyText, 'reader')
+  assert.ok(success.calls[0].options.header.Cookie)
+  assert.deepEqual(Object.keys(success.calls[1].options.header), ['Accept'])
+
+  const rejected = await f.http([{ ...redirect(), header: { Location: 'https://other.invalid/read' } }], context, read)
+  assert.equal(rejected.result.error.code, 'invalid_request')
+  assert.equal(rejected.calls.length, 1)
+})
+
 test('declared target does not authorize anonymous cross-origin POST redirect', async () => {
   const f = fixture()
   f.changeEntry(e => ({ ...e, webSessionOrigins: ['https://site.invalid', 'https://mobile.invalid'] }))

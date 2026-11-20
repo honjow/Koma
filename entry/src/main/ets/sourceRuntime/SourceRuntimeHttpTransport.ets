@@ -12,7 +12,7 @@ import { BusinessError, deviceInfo } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
 import { NativeSourceRuntime, SourceBrowserHttpTiming } from './NativeSourceRuntime'
 import { appSourceSettingsStore } from './SourceSettingsStore'
-import { sourceDnsTarget, SOURCE_FRESH_HTTP_MIN_SDK, SourceGuestHttp, SourceGuestCookie, SourceGuestCookieCapture, SourceGuestNumberedPath, declaredSourceHttpProfile, mergeDeclaredSourceCookies, renderedDocumentFallbackEnabled } from './SourceWebsitePolicy'
+import { sourceDnsTarget, sourceResponseUrlTarget, SOURCE_FRESH_HTTP_MIN_SDK, SourceGuestHttp, SourceGuestCookie, SourceGuestCookieCapture, SourceGuestNumberedPath, declaredSourceHttpProfile, mergeDeclaredSourceCookies, renderedDocumentFallbackEnabled } from './SourceWebsitePolicy'
 import { sourceWebFetchBridge } from './SourceWebFetchBridge'
 import { initializeSourceDnsBootstrap, requestSourceDnsHop, sourceDnsBootstrapIp, sourceDnsOverride,
   SourceDnsOverride, SourceDnsBootstrapScope } from './SourceDnsBootstrapTransport'
@@ -49,6 +49,7 @@ interface SourceHttpRequestEnvelope {
   wantChallengeRequestId?: boolean | 'document'
   guestSearch?: boolean
   nativeSession?: boolean
+  includeResponseUrl?: boolean
   url?: Object | string | number | boolean | null
   method?: Object | string | number | boolean | null
   headers?: Object | string | number | boolean | null
@@ -222,6 +223,7 @@ class SourceHttpSuccessEnvelope {
   challengeRequestId?: string
   guestSearchCookie?: string
   guestSearchUrl?: string
+  responseUrl?: string
   sessionSetCookies?: string[]
   dnsOverride?: SourceDnsOverride
 
@@ -720,7 +722,9 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     ? envelope.headers as Record<string, Object> : undefined
   const requestHeaderNames = headerRecord === undefined ? '' : Object.keys(headerRecord)
     .map((name: string): string => name.toLocaleLowerCase()).sort().join(',')
-  trace.info('request_target', sourceDiagnosticTarget(url) + ' method=' + method +
+  const privateTarget = envelope.includeResponseUrl === true
+  const diagnosticTarget = (target: string): string => privateTarget ? 'target=declared' : sourceDiagnosticTarget(target)
+  trace.info('request_target', diagnosticTarget(url) + ' method=' + method +
     ' source=' + (identity?.sourceId ?? '') + ' sourceVersion=' + (identity?.sourceVersion ?? '') +
     ' headerNames=' + (requestHeaderNames.length > 0 ? requestHeaderNames : 'none'))
   const nativeSession = envelope.nativeSession === true
@@ -761,10 +765,18 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   }
   const freshHttp = declaredSourceHttpProfile(installedEntry?.websitePolicy, url) === 'fresh_http11'
   const guestSearch = envelope.guestSearch === true
+  const includeResponseUrl = envelope.includeResponseUrl === true
+  const responseUrlOrigins = installedEntry?.websitePolicy?.responseUrlOrigins ?? []
+  if (includeResponseUrl && (guestSearch || nativeSession || method !== 'GET' || body.length > 0 ||
+    envelope.dnsOverride !== undefined || identity?.credentialGrantId !== undefined ||
+    !sourceResponseUrlTarget(responseUrlOrigins, url))) {
+    trace.finish('rejected', 'reason=invalid_response_url_request')
+    return transportError('invalid_request', false)
+  }
   // A source that opted into the WebView bridge may read through its granted
   // session when the native transport is rejected. Misses fall through to the
   // existing network path; the bridge never widens permissions by itself.
-  if (installedEntry?.websitePolicy?.webFetchBridge === true && !guestSearch && !nativeSession &&
+  if (installedEntry?.websitePolicy?.webFetchBridge === true && !includeResponseUrl && !guestSearch && !nativeSession &&
     probe === undefined && method === 'GET' && body.length === 0 && identity !== undefined) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       if (attempt > 0) {
@@ -827,7 +839,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       }
     }
   }
-  if (!guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceDocument !== undefined) {
+  if (!includeResponseUrl && !guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceDocument !== undefined) {
     const ready = verifiedSourceDocument
     const requestMatch = ready.request.requestJson === requestJson
     const byteContextMatch = ready.request.httpContextJson === httpContextJson
@@ -917,7 +929,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     // timeout budget intact once its slot becomes available.
     policyWaitMs += Math.max(0, Date.now() - policyStartedAt)
     const crossOrigin = sourceWebOrigin(currentUrl) !== sourceWebOrigin(url)
-    let originalHeaders = crossOrigin && session !== undefined
+    let originalHeaders = crossOrigin && (session !== undefined || includeResponseUrl)
       ? sourcePublicRedirectHeaders(sourceHeaders(envelope.headers)) : sourceHeaders(envelope.headers)
     if (dnsOverride !== undefined && crossOrigin) {
       // OkHttp drops Authorization when a redirect changes origin. The ordinary
@@ -928,10 +940,13 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       })
       originalHeaders = redirectedHeaders
     }
-    const active = session === undefined || identity === undefined ? undefined : probe === undefined
+    // A request for the effective URL can use its original, explicitly granted
+    // web session. Declared cross-origin hops receive only public request headers.
+    const active = session === undefined || identity === undefined || (includeResponseUrl && crossOrigin)
+      ? undefined : probe === undefined
       ? appSourceWebSessionStore.requestSession(identity, currentUrl)
       : appSourceWebSessionStore.pendingRequestSession(identity, currentUrl, probe.proof)
-    if (session !== undefined && active === undefined &&
+    if (session !== undefined && active === undefined && !(includeResponseUrl && crossOrigin) &&
       !sourceAllowsAnonymousRedirect(identity, url, currentUrl, currentMethod, currentBody, probe)) {
       trace.finish('failed', 'reason=web_session_unavailable')
       return transportError('web_session_unavailable', false)
@@ -951,7 +966,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       ' uaSource=' + (active === undefined ? 'source' : 'webview'))
     trace.info('owner', 'operation=' + (identity?.diagnosticOperation ?? 'unknown'))
     if (active !== undefined) trace.info('clearance_cookie', 'state=' + sourceClearanceCookieState(headers['Cookie'] ?? ''))
-    const remaining = session === undefined && dnsOverride === undefined && !freshHttp && !guestSearch ? sourceTimeout(envelope.timeoutMs) :
+    const remaining = session === undefined && dnsOverride === undefined && !freshHttp && !guestSearch && !includeResponseUrl ? sourceTimeout(envelope.timeoutMs) :
       Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt - policyWaitMs))
     let response: SourceHopResponse | undefined = undefined
     const hopStartedAt = Date.now()
@@ -998,7 +1013,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     // NetworkKit owns proxy behavior when the native candidate cannot safely
     // honor the platform proxy or trust store. A non-session redirect is
     // replayed there so its existing automatic redirect semantics remain intact.
-    if (response === undefined || (usedSourceBrowserHttp && session === undefined &&
+    if (response === undefined || (usedSourceBrowserHttp && session === undefined && !includeResponseUrl &&
       [301, 302, 303, 307, 308].includes(response.responseCode))) {
       const remainingForFallback = remaining - Math.max(0, Date.now() - hopStartedAt)
       if (remainingForFallback <= 0) throw new SourceBrowserHttpFailure(2300028)
@@ -1007,7 +1022,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         request.on('headersReceive', () => {
           if (firstHeaderMs < 0) firstHeaderMs = Math.max(0, Date.now() - hopStartedAt)
         })
-        if ((session !== undefined || guestSearch || nativeSession) && !attachSourceRedirectStop(request)) {
+        if ((session !== undefined || guestSearch || nativeSession || includeResponseUrl) && !attachSourceRedirectStop(request)) {
           trace.finish('failed', 'reason=web_session_redirect_unavailable')
           return transportError('web_session_redirect_unavailable', false)
         }
@@ -1025,10 +1040,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         throw error as Error
       } finally { request.off('headersReceive'); request.destroy() }
     }
-    trace.info('hop_response', 'hop=' + redirects + ' status=' + response.responseCode + ' ' + sourceDiagnosticTarget(currentUrl) +
+    trace.info('hop_response', 'hop=' + redirects + ' status=' + response.responseCode + ' ' + diagnosticTarget(currentUrl) +
       ' headersReceived=' + (usedSourceBrowserHttp || firstHeaderMs >= 0) + ' firstHeaderMs=' + firstHeaderMs +
       ' elapsedMs=' + Math.max(0, Date.now() - hopStartedAt) + ' ' + sourceHttpTimingText(response.performanceTiming))
-    if (nativeSession && !current()) {
+    if ((nativeSession || includeResponseUrl) && !current()) {
       trace.finish('cancelled', 'reason=source_request_cancelled')
       return transportError('source_request_cancelled', false)
     }
@@ -1095,12 +1110,12 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         }
       }
     }
-    if ((session !== undefined || dnsOverride !== undefined || freshHttp || guestSearch) &&
+    if ((session !== undefined || dnsOverride !== undefined || freshHttp || guestSearch || includeResponseUrl) &&
       [301, 302, 303, 307, 308].includes(response.responseCode)) {
       const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
       const locationKey = Object.keys(responseHeaders).find((name: string): boolean => name.toLowerCase() === 'location')
       const locationValue = locationKey === undefined ? undefined : responseHeaders[locationKey]
-      const location = (freshHttp || guestSearch) && Array.isArray(locationValue) && locationValue.length === 1
+      const location = (freshHttp || guestSearch || includeResponseUrl) && Array.isArray(locationValue) && locationValue.length === 1
         ? sourceString(locationValue[0]) : sourceString(locationValue)
       if (location === undefined || redirects >= (dnsOverride === undefined && !freshHttp ? 30 : 20) ||
         Date.now() - startedAt - policyWaitMs >= sourceTimeout(envelope.timeoutMs)) {
@@ -1113,6 +1128,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         return rcpFailure(new SourceRcpTransportFailure('invalid_response', true))
       }
       const nextUrl = nextTarget.toString()
+      if (includeResponseUrl && !sourceResponseUrlTarget(responseUrlOrigins, nextUrl)) {
+        trace.finish('failed', 'reason=response_url_redirect_rejected')
+        return transportError('invalid_request', false)
+      }
       if (guestSearch && (guestPolicy === undefined || !guestHttpTarget(guestPolicy, nextUrl, true))) {
         trace.finish('failed', 'reason=guest_search_redirect_rejected')
         return transportError('invalid_request', false)
@@ -1121,7 +1140,9 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       const nextSession = guestSearch || freshHttp || identity === undefined ? undefined : probe === undefined
         ? appSourceWebSessionStore.requestSession(identity, nextUrl)
         : appSourceWebSessionStore.pendingRequestSession(identity, nextUrl, probe.proof)
-      if (session !== undefined && nextSession === undefined && !sourceAllowsAnonymousRedirect(identity, url, nextUrl, currentMethod, currentBody, probe)) {
+      if (session !== undefined && nextSession === undefined &&
+        !(includeResponseUrl && sourceWebOrigin(nextUrl) !== sourceWebOrigin(url)) &&
+        !sourceAllowsAnonymousRedirect(identity, url, nextUrl, currentMethod, currentBody, probe)) {
         trace.finish('failed', 'reason=web_session_redirect_rejected')
         return transportError('web_session_redirect_rejected', false)
       }
@@ -1160,8 +1181,9 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       }
     }
     trace.finish(response.responseCode >= 400 ? 'failed' : 'completed', 'status=' + response.responseCode +
-      ' chars=' + responseBody.length + ' ' + sourceDiagnosticTarget(currentUrl))
+      ' chars=' + responseBody.length + ' ' + diagnosticTarget(currentUrl))
     const result = new SourceHttpSuccessEnvelope(response.responseCode, responseBody, accessSignal, challengeRequestId)
+    if (includeResponseUrl) result.responseUrl = currentUrl
     if (guestSearch) {
       result.guestSearchUrl = currentUrl
       if (response.responseCode === 200 && guestPolicy !== undefined)

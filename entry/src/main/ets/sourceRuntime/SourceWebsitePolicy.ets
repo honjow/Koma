@@ -73,6 +73,7 @@ export interface SourceWebsitePolicy {
   publicCookieOverrides?: SourceCookieOverride[]
   dnsBootstrap?: SourceDnsBootstrap
   guestHttp?: SourceGuestHttp
+  responseUrlOrigins?: string[]
   preserveRouteCover?: boolean
   routeCoverPlaceholderSuffix?: string
   mobileWebAndroidAgentOrigins?: string[]
@@ -98,6 +99,11 @@ function parsedWebUrl(value: Object | undefined): url.URL | undefined {
 function isOrigin(value: Object | undefined): boolean {
   const parsed = parsedWebUrl(value)
   return parsed !== undefined && parsed.protocol === 'https:' && parsed.origin === value
+}
+
+export function sourceResponseUrlTarget(origins: string[], fullUrl: string): boolean {
+  const parsed = parsedWebUrl(fullUrl)
+  return parsed !== undefined && parsed.protocol === 'https:' && origins.includes(parsed.origin)
 }
 
 function safePath(value: Object): boolean {
@@ -208,6 +214,10 @@ export function validSourceWebsitePolicy(value?: Object): boolean {
   const policy = asRecord(value)
   if (policy === undefined) return false
   if (!validGuestHttp(policy['guestHttp']) || !validDnsBootstrap(policy['dnsBootstrap'])) return false
+  const responseOrigins = policy['responseUrlOrigins']
+  if (responseOrigins !== undefined && (!Array.isArray(responseOrigins) || responseOrigins.length === 0 ||
+    responseOrigins.length > 8 || !responseOrigins.every((origin: Object): boolean => isOrigin(origin)) ||
+    new Set(responseOrigins as string[]).size !== responseOrigins.length)) return false
   if (!validChapterIdentity(policy['chapterIdentity']) ||
     (policy['preserveRouteCover'] !== undefined && typeof policy['preserveRouteCover'] !== 'boolean')) return false
   const renderedDocument = policy['renderedDocumentFallback']
