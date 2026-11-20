@@ -112,13 +112,14 @@
       "reportedAt": null,
       "reportedDate": "2026-11-21",
       "reportedAtSource": "本会话用户报告刚退出漫画后续读偶发较久加载。",
-      "updatedAt": "2026-11-21T04:10:07+08:00",
-      "status": "200 已复现书架续读慢，已修正正文缓存回归",
+      "updatedAt": "2026-11-21T04:15:01+08:00",
+      "status": "用户实测确认书架续读加载明显改善",
       "result": "日漫分类顶部卡片三轮续读同一页，每轮重新取得正文页表和九张图的票据，随后命中正文文件。目录补齐和取图共用同源串行队列。捕获的三轮超分使用已有结果，未见推理启动。已修复源生成文件未命中时跳过普通正文缓存的问题。",
-      "remaining": "200 用原安装包取证并回到原分类和第 19 页记录。缓存修复尚未装机复测，收到同步进度的续读路径仍会刷新页表。",
+      "remaining": "继续核对其他书源和共用缓存入口。收到同步进度的续读路径仍会刷新页表。",
       "relatedItems": ["READER_TEMPORARY_ENHANCEMENT_REUSE", "HISTORY_RESUME_WAIT_FEEDBACK"],
       "evidence": [
         "本地执行验证了目录未返回时目标章可准备，目录返回后更新选章标题和相邻章节。",
+        "本会话用户实测反馈：这一个加载速度好了很多。修复提交 67e9f33a。",
         ".hvigor/outputs/shelf-resume-latency-20261121/device200__HOP-AL10/unknown/portrait-1828x2584/shelf-resume-roundtrip/roundtrip-trace-003/resume-latency-summary.json"
       ]
     },
