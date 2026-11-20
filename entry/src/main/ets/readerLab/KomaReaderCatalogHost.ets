@@ -1,6 +1,12 @@
 import { ReaderCancellation, ReaderUnitKey } from '@reader-kit/core'
 import { ReaderSessionConfig, cloneReaderSessionConfig } from '../model/ReaderSessionStore'
 
+export interface KomaReaderChapterCatalogUpdate {
+  continuation?: string[]
+  chapterIds?: string[]
+  chapterTitles?: string[]
+}
+
 /** Koma-owned catalog seam; reader-kit never resolves providers, downloads or library state. */
 export class KomaReaderCatalogHost {
   private initialResolver: (work: string, unit: string) => ReaderSessionConfig | null
@@ -8,7 +14,7 @@ export class KomaReaderCatalogHost {
     cancellation: ReaderCancellation, forceRefresh: boolean) => Promise<ReaderSessionConfig | null>
   private commitResolver: (target: ReaderUnitKey, config: ReaderSessionConfig) => void
   private sequenceResolver: ((target: ReaderUnitKey, cancellation: ReaderCancellation) =>
-    Promise<string[] | undefined>) | null
+    Promise<KomaReaderChapterCatalogUpdate | undefined>) | null
 
   constructor(
     initialResolver: (work: string, unit: string) => ReaderSessionConfig | null,
@@ -16,7 +22,7 @@ export class KomaReaderCatalogHost {
       cancellation: ReaderCancellation, forceRefresh: boolean) => Promise<ReaderSessionConfig | null>,
     commitResolver: (target: ReaderUnitKey, config: ReaderSessionConfig) => void,
     sequenceResolver: ((target: ReaderUnitKey, cancellation: ReaderCancellation) =>
-      Promise<string[] | undefined>) | null = null,
+      Promise<KomaReaderChapterCatalogUpdate | undefined>) | null = null,
   ) {
     this.initialResolver = initialResolver
     this.prepareResolver = prepareResolver
@@ -42,10 +48,10 @@ export class KomaReaderCatalogHost {
     this.commitResolver(target.copy(), cloneReaderSessionConfig(config))
   }
 
-  async sequence(target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<string[] | undefined> {
+  async sequence(target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<KomaReaderChapterCatalogUpdate | undefined> {
     cancellation.check()
     const result = await this.sequenceResolver?.(target.copy(), cancellation)
     cancellation.check()
-    return result?.slice()
+    return result
   }
 }

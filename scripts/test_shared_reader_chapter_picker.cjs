@@ -405,17 +405,21 @@ test('online adjacent chapters and lookahead consume the same sequence instead o
   adapter.close()
 })
 
-test('legacy chronology resolves beside the current page and then enables the same lookahead', async () => {
+test('a known chapter opens while the catalog is pending, then gains picker choices and verified lookahead', async () => {
   const adapter = preparationFixture(async target => ({ ...chapterConfig(target.unit), sourceRuntimeId: 'source',
-    continuationChapterIds: [target.unit], sourceChapterChronologyPending: true }))
+    chapterIds: [target.unit], chapterTitles: ['Current'], continuationChapterIds: undefined }))
   let finish, publications = 0
   adapter.catalogHost.sequence = () => new Promise(resolve => { finish = resolve })
   adapter.onSequenceReady = () => { publications++ }
   const unit = await adapter.prepare(unitKey('B'), new sharedCore.ReaderCancellation())
   assert.equal(unit.pageCount, 3, 'cached current pages do not wait for chapter metadata')
   assert.equal(adapter.adjacent(unit, 'next'), null)
-  finish(['A', 'B', 'C']); await later()
+  finish({ continuation: ['A', 'B', 'C'], chapterIds: ['C', 'B', 'A', 'alternate'],
+    chapterTitles: ['Gamma', 'Beta', 'Alpha', 'Alternate'] })
+  await later()
   assert.equal(adapter.adjacent(unit, 'next').unit, 'C')
+  assert.equal(adapter.configs.get(adapter.unitId(unit.key)).chapterTitles[3], 'Alternate')
+  assert.equal(adapter.configs.get(adapter.unitId(unit.key)).chapterTitle, 'Beta')
   assert.equal(publications, 1)
   const laterChapter = await adapter.prepare(unitKey('C'), new sharedCore.ReaderCancellation())
   assert.equal(adapter.adjacent(laterChapter, 'previous').unit, 'B')

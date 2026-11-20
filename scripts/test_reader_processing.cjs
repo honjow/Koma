@@ -104,7 +104,7 @@ test('source fingerprint preparation retires cancelled or changed enhancement be
     fileSize:()=>42,touch(){},readBackendMetadata:()=> 'cpu'})
   const begin=async()=>{
     const ready=new Promise(resolve=>{started=resolve})
-    const request=service.process({},'/source','page',()=>{},'owner',0,()=>current)
+    const request=service.process({},'/source','page',()=>{},'owner',()=>0,()=>current)
     await ready;return {request}
   }
   const cancelled=await begin();current=false;release('verified-content')
@@ -116,6 +116,54 @@ test('source fingerprint preparation retires cancelled or changed enhancement be
   const valid=await begin();release('verified-content')
   const result=await valid.request
   assert.equal(result.applied,true);assert.equal(result.reason,'cache_hit:cpu');assert.equal(cacheReads,1)
+})
+
+test('a newly selected page runs ahead of the old foreground and queued lookahead', async () => {
+  const readMode = {
+    superResolutionEnabled: true, superResolutionModel: 'photo',
+    superResolutionBackend: 'auto', superResolutionMaxHeight: 2000,
+  }
+  const service = superResolutionSubject({
+    '../state/ReaderModeState': {
+      connectReaderModeState: () => readMode,
+      ReaderSuperResolutionModel: { NONE: 'none', SYSTEM_CORE_VISION: 'system' },
+    },
+    './ReaderSuperResolutionModelRegistry': { ReaderSuperResolutionModelRegistry: { find: () => ({}) } },
+    './ReaderImageFileIdentity': { readerImageFileSha256: async source => source },
+    './ReaderNativeSuperResolution': { ReaderNativeSuperResolution: { setRequestActive() {} } },
+    '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { info() {}, warn() {} } },
+    './ReaderProcessingDiagnostics': { readerProcessingOwnerHash: () => '' },
+  })
+  const started = []
+  const running = new Map()
+  Object.assign(service, {
+    fileStat: () => ({ size: 123 }), fileSize: () => 0, pipelineVersion: () => 'pipeline',
+    outputPath: (_context, identity) => identity,
+    processNow: (_context, _path, key, _output, _height, _model, _backend, task) =>
+      new Promise(resolve => {
+        started.push(key)
+        running.set(key, () => resolve({ reason: task.superseded ? 'superseded' : 'complete' }))
+      }),
+  })
+  const turn = () => new Promise(resolve => setImmediate(resolve))
+  const process = (key, priority) => service.process({}, key, key, () => {}, key, () => priority)
+  const previous = process('previous', 0)
+  const lookahead = process('lookahead', 1)
+  const selected = process('selected', 1)
+  await turn()
+  assert.deepEqual(started, ['previous'])
+  service.updateOwnerPriority('selected', 0)
+  service.updateOwnerPriority('previous', 1)
+  running.get('previous')()
+  assert.equal((await previous).reason, 'superseded')
+  await turn()
+  assert.deepEqual(started, ['previous', 'selected'])
+  running.get('selected')()
+  await selected
+  await turn()
+  assert.deepEqual(started, ['previous', 'selected', 'lookahead'])
+  running.get('lookahead')()
+  await lookahead
 })
 
 test('super-resolution cache eviction keeps the newly published file and leaves in-flight scratch alone during stats', async () => {

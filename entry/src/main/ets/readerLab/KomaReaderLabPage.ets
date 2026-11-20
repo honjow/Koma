@@ -450,7 +450,11 @@ export struct KomaReaderLabPage {
       const session = new ReaderPagedSession(adapter, translation, adapter, adapter)
       adapter.automaticPaging = (): boolean => this.hostPreferences?.pageMode === 'auto_page'
       adapter.onAutomaticPageSize = (page: ReaderPage): void => { session.reportAutomaticPageSize(page) }
-      adapter.onSequenceReady = (): void => { session.refreshAdjacency() }
+      adapter.onSequenceReady = (): void => {
+        session.refreshAdjacency()
+        const unit = session.snapshot().unit?.key
+        if (unit !== undefined) this.syncChapterChoices(unit)
+      }
       if (this.request.readingChrome) {
         this.trialWindow.open(context)
         this.keepScreenOn = new ReaderKeepScreenOn(context)

@@ -7,7 +7,8 @@ import {
 } from '@reader-kit/core'
 import { ReaderFileInformation } from '@reader-kit/ui'
 import { ReaderSuperResolutionResult, ReaderSuperResolutionTaskPriority,
-  readerSuperResolutionProcess, readerSuperResolutionReleaseOwner, readerSuperResolutionPromoteOwner } from '../model/ReaderSuperResolutionService'
+  readerSuperResolutionProcess, readerSuperResolutionReleaseOwner,
+  readerSuperResolutionUpdateOwnerPriority } from '../model/ReaderSuperResolutionService'
 import { KomaReaderCropSource } from './KomaReaderCropSource'
 
 export class KomaReaderSuperResolutionInformation {
@@ -159,8 +160,10 @@ export class KomaReaderSuperResolutionProvider implements ReaderAssetProvider {
     const detach = cancellation.onCancel((): void => {
       readerSuperResolutionReleaseOwner(ownerKey)
     })
-    const promotion = cancellation instanceof ReaderProcessingCancellation
-      ? cancellation.onPromotion((): void => readerSuperResolutionPromoteOwner(ownerKey)) : (): void => {}
+    const priority = (): number => cancellation instanceof ReaderProcessingCancellation && cancellation.priority === 'prefetch'
+      ? ReaderSuperResolutionTaskPriority.PREFETCH : ReaderSuperResolutionTaskPriority.CURRENT
+    const stopPriorityUpdates = cancellation instanceof ReaderProcessingCancellation
+      ? cancellation.onPriorityChange((): void => readerSuperResolutionUpdateOwnerPriority(ownerKey, priority())) : (): void => {}
     let sourceAsset: ReaderAsset | null = null
     let retained: boolean = false
     try {
@@ -175,15 +178,16 @@ export class KomaReaderSuperResolutionProvider implements ReaderAssetProvider {
       if (sourcePath.length === 0) throw new Error('reader_variant_source_unavailable')
       const result: ReaderSuperResolutionResult = await readerSuperResolutionProcess(
         this.context, sourcePath, sourceKey, (state: string): void => {
-          this.rememberInformation(page, identity, configuration.model, false, state)
-        }, ownerKey,
-        cancellation instanceof ReaderProcessingCancellation && cancellation.priority === 'prefetch'
-          ? ReaderSuperResolutionTaskPriority.PREFETCH : ReaderSuperResolutionTaskPriority.CURRENT,
+          if (!cancellation.isCancelled()) this.rememberInformation(page, identity, configuration.model, false, state)
+        }, ownerKey, priority,
         (): boolean => {
           const current = this.configuration()
           return !cancellation.isCancelled() && current.enabled && current.identity() === identity
         })
       cancellation.check()
+      if (result.reason === 'superseded' && cancellation instanceof ReaderProcessingCancellation) {
+        cancellation.prefetchSuperseded = true
+      }
       this.rememberInformation(page, identity, configuration.model, result.applied, result.reason)
       const current = this.configuration()
       if (!current.enabled || current.identity() !== identity || !result.applied) {
@@ -202,13 +206,13 @@ export class KomaReaderSuperResolutionProvider implements ReaderAssetProvider {
           ? { width: result.outputWidth, height: result.outputHeight } : null, this.cropStrength, saveUri)
     } catch (error) {
       const current = this.informationByPage.get(this.pageIdentity(page))
-      if (current !== undefined && current.identity === identity && !current.applied &&
+      if (!cancellation.isCancelled() && current !== undefined && current.identity === identity && !current.applied &&
         (current.reason === 'queued' || current.reason === 'processing')) {
         this.rememberInformation(page, identity, configuration.model, false, (error as Error).message)
       }
       throw error as Error
     } finally {
-      detach(); promotion(); sourceAsset?.release()
+      detach(); stopPriorityUpdates(); sourceAsset?.release()
       if (!retained) readerSuperResolutionReleaseOwner(ownerKey)
     }
   }

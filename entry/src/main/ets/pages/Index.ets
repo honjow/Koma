@@ -39,7 +39,7 @@ import { ReadDownloadCleanup } from '../model/ReadDownloadCleanup'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
-import { KomaReaderCatalogHost } from '../readerLab/KomaReaderCatalogHost'
+import { KomaReaderCatalogHost, KomaReaderChapterCatalogUpdate } from '../readerLab/KomaReaderCatalogHost'
 import { KomaReaderFailure } from '../readerLab/KomaReaderFailure'
 import { comicArchiveExtractionRoot } from '../import/ComicArchiveBookmarks'
 import { readOrderedEpubImages } from '../import/EpubArchiveReader'
@@ -1337,30 +1337,12 @@ struct Index {
     openEpoch: number,
   ): Promise<void> {
     const preparedRequest = cloneSourceReaderSessionRequest(request)
-    if (preparedRequest.chaptersResolved !== true) {
-      try {
-        const lookup = this.sourceRegistry.lookup(request.sourceId)
-        if (lookup.ok && lookup.entry !== undefined && sourceRuntimeEntryEnabled(lookup.entry)) {
-          const catalog = await resolveSourceChapterList(lookup.entry, request.mangaId, request.mangaUrl,
-            (): boolean => openEpoch === this.readerOpenEpoch && this.readerOpen && !this.readerClosing)
-          if (catalog.resolved && catalog.chapters.some((chapter: ReaderChapterDescriptor): boolean => chapter.id === request.chapterId)) {
-            preparedRequest.chapters = catalog.chapters.map((chapter: ReaderChapterDescriptor): ReaderChapterDescriptor =>
-              cloneReaderChapterDescriptor(chapter))
-            preparedRequest.chapterIds = catalog.chapters.map((chapter: ReaderChapterDescriptor): string => chapter.id)
-            preparedRequest.chapterTitles = catalog.chapters.map((chapter: ReaderChapterDescriptor): string => chapter.title)
-            preparedRequest.chaptersResolved = true
-            if (openEpoch === this.readerOpenEpoch && this.readerOpen && !this.readerClosing &&
-              this.sourceRegistry.lookup(request.sourceId).entry === lookup.entry) this.rememberSharedChapterCatalog(preparedRequest)
-          }
-        }
-      } catch (_error) {
-        // A failed catalog must not prevent opening the known current chapter.
-        DiagnosticLogger.warn('index', 'chapter', '[ReaderSource] chapter catalog unresolved')
-      }
-    }
+    // History already identifies the exact chapter. The adapter fills in the
+    // manual catalog and verified continuation in the background.
     // Do not share the library hydrator's result here. Source hosts may issue
     // short-lived descriptors; a transient Reader open always resolves pages
     // afresh and never writes them to LibraryStore.
+    const pagePlanStartedAt = Date.now()
     const resolution = await this.readReaderPagesWithVerification<SourceChapterPagesResolveResult>(request.sourceId,
       (guard?: string): Promise<SourceChapterPagesResolveResult> => resolveSourceChapterPages(this.sourceRegistry, {
       comicId: request.comicId,
@@ -1379,6 +1361,8 @@ struct Index {
       activeRequest.chapterId !== request.chapterId) {
       return
     }
+    DiagnosticLogger.info('reader', 'source_entry_page_plan',
+      `elapsedMs=${Date.now() - pagePlanStartedAt} ready=${resolution.pages.length > 0}`)
     this.activeSourceReaderRequest = preparedRequest
     if (resolution.pages.length === 0) {
       this.logReaderSourcePagesUnavailable(resolution.reasonCode)
@@ -1526,7 +1510,7 @@ struct Index {
   /** Legacy libraries acquire source ordinals in the background, never by
    * reversing their possibly merged stored array or delaying the cached page. */
   private async prepareReaderLabSequence(target: ReaderUnitKey,
-    cancellation: ReaderCancellation): Promise<string[] | undefined> {
+    cancellation: ReaderCancellation): Promise<KomaReaderChapterCatalogUpdate | undefined> {
     const epoch = this.readerOpenEpoch
     const isCurrent = (): boolean => !cancellation.isCancelled() && epoch === this.readerOpenEpoch &&
       this.readerOpen && !this.readerClosing
@@ -1537,7 +1521,8 @@ struct Index {
       const sourceCurrent = (): boolean => isCurrent() && this.sourceRegistry.lookup(source.sourceId).entry === lookup.entry
       const catalog = await resolveSourceChapterList(lookup.entry, source.mangaId, source.mangaUrl, sourceCurrent)
       cancellation.check()
-      if (!catalog.resolved || !sourceCurrent()) return undefined
+      if (!catalog.resolved || !sourceCurrent() ||
+        !catalog.chapters.some((chapter: ReaderChapterDescriptor): boolean => chapter.id === target.unit)) return undefined
       const active = this.activeSourceReaderRequest
       if (active === undefined || active.comicId !== source.comicId || active.sourceId !== source.sourceId ||
         active.mangaId !== source.mangaId) return undefined
@@ -1549,10 +1534,15 @@ struct Index {
       updated.chaptersResolved = true
       this.activeSourceReaderRequest = updated
       this.rememberSharedChapterCatalog(updated)
-      return continuationChapterIds(catalog.chapters, target.unit, true, chapterReadingSortFor(target.work))
+      return {
+        continuation: continuationChapterIds(catalog.chapters, target.unit, true, chapterReadingSortFor(target.work)),
+        chapterIds: updated.chapterIds,
+        chapterTitles: updated.chapterTitles,
+      }
     }
-    return new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
+    const continuation = await new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
       this.ensureLibraryPersistenceService()).resolveChapterSequence(target.work, target.unit, isCurrent)
+    return continuation === undefined ? undefined : { continuation }
   }
 
   private createReaderLabCatalogHost(production: boolean = false): KomaReaderCatalogHost {
@@ -1590,7 +1580,7 @@ struct Index {
         return this.prepareReaderLabCatalog(target, cancellation)
       },
       (target: ReaderUnitKey, config: ReaderSessionConfig): void => this.commitReaderLabCatalog(target, config),
-      (target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<string[] | undefined> =>
+      (target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<KomaReaderChapterCatalogUpdate | undefined> =>
         this.prepareReaderLabSequence(target, cancellation),
     )
   }
@@ -1873,6 +1863,7 @@ struct Index {
       this.selectedTab === TabIndex.HISTORY && this.rootNavigation.visible && this.appForegroundState.active &&
       this.canOpenLibraryComic(request.comicId)
     const timer = this.startHistoryResumeLoading(isCurrent)
+    const syncStartedAt = Date.now()
     let conflict: SyncReadingWorkConflict | undefined
     try {
       conflict = await appDeviceSync.waitForReadingSync(request)
@@ -1880,6 +1871,8 @@ struct Index {
       if (this.historyResumeLoadingTimer === timer) this.closeHistoryResumeLoading()
     }
     if (!isCurrent()) return
+    DiagnosticLogger.info('reader', 'history_resume_sync',
+      `elapsedMs=${Date.now() - syncStartedAt} conflict=${conflict !== undefined}`)
     if (conflict !== undefined) {
       this.showReadingResumeConflict(conflict, request)
       return

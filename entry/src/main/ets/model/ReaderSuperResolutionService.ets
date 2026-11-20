@@ -154,9 +154,9 @@ class ReaderSuperResolutionInFlightTask {
   priority: number = ReaderSuperResolutionTaskPriority.CURRENT
   enqueueOrder: number = 0
   sourcePath: string = ''
-  owners: Set<string> = new Set<string>()
+  owners: Map<string, number> = new Map<string, number>()
   observers: Array<(state: ReaderSuperResolutionTaskState) => void> = []
-  uncancellable: boolean = false
+  unownedPriority: number = Number.POSITIVE_INFINITY
   superseded: boolean = false
   resumeSystemProcessing: (() => void) | null = null
   startAction: () => Promise<ReaderSuperResolutionResult> =
@@ -397,7 +397,7 @@ export class ReaderSuperResolutionService {
     sourceKey: string,
     onTaskState: (state: ReaderSuperResolutionTaskState) => void = (_state: ReaderSuperResolutionTaskState) => {},
     ownerKey: string = '',
-    priority: number = ReaderSuperResolutionTaskPriority.CURRENT,
+    priority: () => number = (): number => ReaderSuperResolutionTaskPriority.CURRENT,
     current: () => boolean = (): boolean => true,
   ): Promise<ReaderSuperResolutionResult> {
     if (!current()) return ReaderSuperResolutionService.originalResult(sourcePath, 'cancelled')
@@ -514,9 +514,9 @@ export class ReaderSuperResolutionService {
 
     const existing: ReaderSuperResolutionInFlightTask | undefined =
       ReaderSuperResolutionService.inFlight.get(outputPath)
-    if (existing !== undefined) {
-      ReaderSuperResolutionService.claimOwner(ownerKey, existing, onTaskState)
-      ReaderSuperResolutionService.promote(existing, priority, sourceKey)
+    if (existing !== undefined && ReaderSuperResolutionService.hasActiveOwner(existing)) {
+      ReaderSuperResolutionService.claimOwner(ownerKey, existing, priority(), onTaskState)
+      ReaderSuperResolutionService.updateTaskPriority(existing, sourceKey)
       onTaskState(existing.state)
       DiagnosticLogger.info(
         'reader-super-resolution',
@@ -530,9 +530,9 @@ export class ReaderSuperResolutionService {
     inFlight.requestId = ReaderSuperResolutionService.requestSequence
     ReaderSuperResolutionService.enqueueSequence += 1
     inFlight.enqueueOrder = ReaderSuperResolutionService.enqueueSequence
-    inFlight.priority = priority
+    inFlight.priority = priority()
     inFlight.sourcePath = sourcePath
-    ReaderSuperResolutionService.claimOwner(ownerKey, inFlight, onTaskState)
+    ReaderSuperResolutionService.claimOwner(ownerKey, inFlight, inFlight.priority, onTaskState)
     const task: Promise<ReaderSuperResolutionResult> =
       new Promise<ReaderSuperResolutionResult>(
         (
@@ -569,7 +569,7 @@ export class ReaderSuperResolutionService {
     DiagnosticLogger.info(
       'reader-super-resolution',
       'queue_enqueue',
-      `priority=${priority} keyHash=${readerProcessingOwnerHash(sourceKey)}`,
+      `priority=${inFlight.priority} keyHash=${readerProcessingOwnerHash(sourceKey)}`,
     )
     ReaderSuperResolutionService.enqueue(inFlight, sourceKey)
     try {
@@ -579,12 +579,11 @@ export class ReaderSuperResolutionService {
     }
   }
 
-  static promoteOwner(ownerKey: string): void {
-    for (const task of ReaderSuperResolutionService.inFlight.values()) {
-      if (task.owners.has(ownerKey)) {
-        ReaderSuperResolutionService.promote(task, ReaderSuperResolutionTaskPriority.CURRENT, ownerKey)
-      }
-    }
+  static updateOwnerPriority(ownerKey: string, priority: number): void {
+    const task = ReaderSuperResolutionService.ownerTasks.get(ownerKey)
+    if (task === undefined) return
+    task.owners.set(ownerKey, priority)
+    ReaderSuperResolutionService.updateTaskPriority(task, ownerKey)
   }
 
   static releaseOwner(ownerKey: string): void {
@@ -598,14 +597,16 @@ export class ReaderSuperResolutionService {
     }
     ReaderSuperResolutionService.ownerTasks.delete(ownerKey)
     task.owners.delete(ownerKey)
-    if (task.owners.size <= 0) {
+    if (!ReaderSuperResolutionService.hasActiveOwner(task)) {
       ReaderNativeSuperResolution.setRequestActive(task.requestId, false)
-      if (!ReaderSuperResolutionService.hasActiveOwner(task)) task.resumeSystemProcessing?.()
+      task.resumeSystemProcessing?.()
       DiagnosticLogger.info(
         'reader-super-resolution',
         'queue_release',
         `request=${task.requestId} state=${task.state}`,
       )
+    } else {
+      ReaderSuperResolutionService.updateTaskPriority(task, ownerKey)
     }
   }
 
@@ -642,11 +643,12 @@ export class ReaderSuperResolutionService {
   private static claimOwner(
     ownerKey: string,
     task: ReaderSuperResolutionInFlightTask,
+    priority: number,
     observer: (state: ReaderSuperResolutionTaskState) => void,
   ): void {
     task.observers.push(observer)
     if (ownerKey.length <= 0) {
-      task.uncancellable = true
+      task.unownedPriority = Math.min(task.unownedPriority, priority)
       ReaderNativeSuperResolution.setRequestActive(task.requestId, true)
       return
     }
@@ -655,13 +657,13 @@ export class ReaderSuperResolutionService {
     if (previous !== undefined && previous !== task) {
       ReaderSuperResolutionService.releaseOwner(ownerKey)
     }
-    task.owners.add(ownerKey)
+    task.owners.set(ownerKey, priority)
     ReaderSuperResolutionService.ownerTasks.set(ownerKey, task)
     ReaderNativeSuperResolution.setRequestActive(task.requestId, true)
   }
 
   private static hasActiveOwner(task: ReaderSuperResolutionInFlightTask): boolean {
-    return !task.superseded && (task.uncancellable || task.owners.size > 0)
+    return !task.superseded && (Number.isFinite(task.unownedPriority) || task.owners.size > 0)
   }
 
   private static ensureTaskActive(task: ReaderSuperResolutionInFlightTask): void {
@@ -696,7 +698,7 @@ export class ReaderSuperResolutionService {
     if (ReaderSuperResolutionService.inFlight.get(outputPath) === task) {
       ReaderSuperResolutionService.inFlight.delete(outputPath)
     }
-    task.owners.forEach((ownerKey: string): void => {
+    task.owners.forEach((_priority: number, ownerKey: string): void => {
       if (ReaderSuperResolutionService.ownerTasks.get(ownerKey) === task) {
         ReaderSuperResolutionService.ownerTasks.delete(ownerKey)
       }
@@ -717,22 +719,22 @@ export class ReaderSuperResolutionService {
     ReaderSuperResolutionService.drainQueue()
   }
 
-  private static promote(
-    task: ReaderSuperResolutionInFlightTask,
-    priority: number,
-    sourceKey: string,
-  ): void {
-    if (priority >= task.priority) {
-      return
-    }
+  private static updateTaskPriority(task: ReaderSuperResolutionInFlightTask, sourceKey: string): void {
+    if (task.superseded) return
+    let priority = task.unownedPriority
+    task.owners.forEach((value: number): void => { priority = Math.min(priority, value) })
+    if (priority === task.priority) return
     task.priority = priority
     ReaderSuperResolutionService.sortPendingTasks()
-    if (priority === ReaderSuperResolutionTaskPriority.CURRENT) {
+    // Once the reader leaves a page, its retained work is lookahead again.
+    // A pending current page can supersede it at the existing backend boundary.
+    if (ReaderSuperResolutionService.pendingTasks.some((pending: ReaderSuperResolutionInFlightTask): boolean =>
+      pending.priority === ReaderSuperResolutionTaskPriority.CURRENT && ReaderSuperResolutionService.hasActiveOwner(pending))) {
       ReaderSuperResolutionService.preemptActivePrefetch(sourceKey)
     }
     DiagnosticLogger.info(
       'reader-super-resolution',
-      'queue_promote',
+      'queue_priority',
       `request=${task.requestId} priority=${priority} state=${task.state} ` +
         `keyHash=${readerProcessingOwnerHash(sourceKey)}`,
     )
@@ -1534,8 +1536,8 @@ export function readerSuperResolutionSetInteractionPaused(paused: boolean): void
   ReaderSuperResolutionService.setInteractionPaused(paused)
 }
 
-export function readerSuperResolutionPromoteOwner(ownerKey: string): void {
-  ReaderSuperResolutionService.promoteOwner(ownerKey)
+export function readerSuperResolutionUpdateOwnerPriority(ownerKey: string, priority: number): void {
+  ReaderSuperResolutionService.updateOwnerPriority(ownerKey, priority)
 }
 
 export function readerSuperResolutionReleaseOwner(ownerKey: string): void {
@@ -1548,7 +1550,7 @@ export function readerSuperResolutionProcess(
   sourceKey: string,
   onTaskState: (state: ReaderSuperResolutionTaskState) => void = (_state: ReaderSuperResolutionTaskState): void => {},
   ownerKey: string = '',
-  priority: number = ReaderSuperResolutionTaskPriority.CURRENT,
+  priority: () => number = (): number => ReaderSuperResolutionTaskPriority.CURRENT,
   current: () => boolean = (): boolean => true,
 ): Promise<ReaderSuperResolutionResult> {
   return ReaderSuperResolutionService.process(context, sourcePath, sourceKey, onTaskState, ownerKey, priority, current)

@@ -357,14 +357,27 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     if (this.closed || this.catalogHost === null || this.preparingSequences.has(work)) return
     this.preparingSequences.add(work)
     try {
-      const sequence = await this.catalogHost.sequence(key.copy(), this.preparationCancellation)
-      if (this.closed || sequence === undefined || !sequence.includes(key.unit)) return
-      sequence.forEach((chapterId: string): void => {
-        const id = this.unitId(new ReaderUnitKey(key.scope, key.work, chapterId))
-        this.resolvedSequences.set(id, sequence)
-        const config = this.configs.get(id)
-        if (config !== undefined) config.continuationChapterIds = sequence.slice()
-      })
+      const catalog = await this.catalogHost.sequence(key.copy(), this.preparationCancellation)
+      if (this.closed || catalog === undefined) return
+      const sequence = catalog.continuation
+      if (sequence !== undefined && sequence.includes(key.unit)) {
+        sequence.forEach((chapterId: string): void => {
+          const id = this.unitId(new ReaderUnitKey(key.scope, key.work, chapterId))
+          this.resolvedSequences.set(id, sequence)
+          const config = this.configs.get(id)
+          if (config !== undefined) config.continuationChapterIds = sequence.slice()
+        })
+      }
+      // Publish the manual choices without rebuilding the current chapter's
+      // source list or restarting its images.
+      const config = this.configs.get(this.unitId(key))
+      const chapterIds = catalog.chapterIds
+      const chapterIndex = chapterIds?.indexOf(key.unit) ?? -1
+      if (config !== undefined && chapterIds !== undefined && chapterIndex >= 0) {
+        config.chapterIds = chapterIds.slice()
+        config.chapterTitles = catalog.chapterTitles?.slice()
+        config.chapterTitle = catalog.chapterTitles?.[chapterIndex] ?? config.chapterTitle
+      }
       this.onSequenceReady()
     } catch (_error) {
       if (!this.closed) DiagnosticLogger.warn('reader', 'chapter_sequence_unavailable', 'reason=chapter_sequence_unavailable')
