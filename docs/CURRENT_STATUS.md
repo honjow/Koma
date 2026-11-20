@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-20T10:23:15+08:00",
+  "updatedAt": "2026-11-21T01:49:47+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3204,14 +3204,21 @@
       "kind": "active",
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
-      "status": "動漫戲說 0.1.1 已在 237 验证并发布；Tapas 已实测免费阅读，官网公告将停服",
-      "updatedAt": "2026-11-15T07:12:09+08:00",
+      "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
+      "updatedAt": "2026-11-21T01:49:47+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
       "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。 CosplayTele V2已修正文网络失败分类、严格JSON输入与owner、精确HostFeature判定，保持55作/3204位置；旧包保留，尚未实机或公开。Buon已完成55相册269网页/4888位置拆合模式对照，现沿既有章节排除合同完善普通设置双向切换，Host专属限流已本地实现但新HAP未构建/实机；旧CLI成功发生在加门控前，最终不冒真实限流支持。拷贝已找到完整固定Apache参考，并取得公开列表、搜索与402条目录；正文仍为空键/独立API210，未绕取。BiliCookie与哔咔私密输入仍按真实缺口推进，不把部分metadata或编译当可用移植。 已解码用户指定Keiyoushi GZIP Protobuf索引，真实条目含禁漫天堂、HANMAN18、绅士会所、紳士漫畫，名称与站点身份分别核对。JM独立匿名WASM已实际运行，目录/搜索/详情/章节/页表API成功且已有70部以上完整分层作品；真实数据库明文错误和TLS失败保留，不算通过。Root已确定独立必需解扰能力合同及选定API域的3请求/2秒限流边界，Host实现尚未完成，未冒已可直接阅读或已安装。其余候选冻结范围保留，八源互不因单个账号/API缺口停工。 JM匿名V2已按真实75作品分层取样保73完整成功（55热门、10最新、8搜索），4842原章节／9142页位置独立核对；两作数据库异常与三次TLS失败独立保留，不算健康。229次既有成功操作原体回放与66个身份／错误边界已核，图片请求补PID与URI章归属，实际12不同作品中间图含8解扰与4旧aid无hint。Host解扰核心8张真实图逐像素等于独立参考，主线程整图I/O已移至后台，离线canonical标记避免重复解扰；真实Harmony解码与完整消费者尚待统一HAP和237，不声明已可Native阅读。CosplayTele237新事务已独立备份，原机无该源，普通导入核验进行中；Buon仍等待精确新能力HAP。绅士会所独立匿名源已实际编码，当前同身份两次TLS失败，无HTTP状态，不能说全站不可用；紳士漫畫匿名与可选网页登录合同继续实际移植。 CosplayTele V2已在237按普通FilePicker导入、URL搜索和Gallery入口实际核对Robin的1/62与62/62、Evanescia的1/99与99/99真实照片，稳定源／作品／章节身份已读回；Root已亲审。原筛选偏好、registry与四份测试数据共六份原字节已恢复，本次新增源目录及上传文件已精确移除，原电源读回并释租。详情封面仍为占位，用户反馈后单列修复，不能把正文验收扩大为完整交付或公开发布。JM V3已通过标准metadata透传必需解扰声明，新宿主同签HAP已实际构建，尚未安装或平台图像链验收。 CosplayTele V3两作真实封面补齐已在237普通网址入口亲审，原目录及55/3204固定回放保持；本事务数据偏好源与电源全部恢复释租，候选未公开。宿主源列表常驻搜索已被用户否决，正在改为标题栏按需进入；不拿功能筛选结果抵消该UI未通过。 CosplayTele已连同真实特色封面修复正式分发，公开包／索引／图标／许可及镜像核一致，公开WASM固定体行为等于具名237候选，未混其它源WIP。紳士漫畫WN已实际编码并离线编译，以预先固定60作计划保59完整、1连接原失败；59作92章／5807页与独立网页固定体逐项等，12不同作品中间原图已解码目视。镜像更新、严格身份、黑名单跳页和失败恢复本地执行；扫描页数正整数保存校验尚需宿主最小增量，未冒完整Native或发布。 JM内部V3归档包含额外许可文件，被当前完整Importer真实执行拒为unsafe_archive_entry；原失败保留。V4仅重新封装允许的3项，WASM/manifest/icon逐字不变，许可旁置交付；当前生产完整导入流程的平台适配执行已通过，不冒HarmonyNative。237新租约/新事务备份及唤醒门禁进行中。 用户反馈JM图标后，Root与两执行者已实际逐图审八个新源、13内部包及2公开/镜像包：JM圆角底板/外阴影/外留白未处理；哔咔字标有全白额外底板，且原取图网页为第三方PicaWeb，不能称官方身份已证；哔哩/拷贝/绅士会所尚缺图。Buon/Cosplay/WN本次未见外板/外罩/外阴影，不扩为全部源功能通过。已查原始工具记录，执行者在20:19读到了既有规范，缺陷发生于未执行和主审未拦截，不归咎文档不存在。两仓AGENTS已接入源仓唯一素材规范的双人强制读取与最终包/列表实图亲审流程；正在实际修正五项，不以写规则当完成。JM V4已在237普通导入并核实际WASM/图标，正常搜索和93章目录可见，但封面get_image_request实际失败，未进入Reader或验收。 237已走正常UI删除本次JM，原registry、七文件字节及两项原缺失状态、单独新增导入目录/上传缺失与原电源均读回；保留App，03:14:33释租。未运行Reader或Buon。后续素材图像编辑三稿分别留反例：用户指出JM重画了主体，哔哩稿外缘杂色、绅士会所稿变形，不把用户对JM的否定扩成其它稿的要求。Root已逐图审并写入五项原像素资产：JM与Pica来自同固定上游192原图，移除额外底板/影保原人物字形；哔哩/绅士会所由同固定上游原图提取原粉圆漫/青字；拷贝按实际页面CSS精确取原sprite区域，逐RGBA同。所有保留素材的原RGB像素未改，无生成稿入源或包；Buon/Cosplay/WN原图不动。现规范明确禁止重画主体替代抠背景。JM封面独立真实MID分支已本地修好，238真实封面及Reader原分支回放通过，尚未新包/Native。 用户明确：原图画面内部填色不当成外加底板，去外影/外遮罩并恢复旧圆角缺角，App自行做圆角；先裁边和阴影，低清才恢复或严格重绘。此前按颜色抠的四图方案作废，原审计不能仅因哔咔原白底就认定多余外板，PicaWeb素材身份仍待源完整核对。只否定JM重绘，哔哩/绅士会所原可用稿恢复，拷贝原CSS提取不重做。JM V6只切外影/留白并恢复172个旧遮罩边缘像素，其余22932原RGB逐字保持，原画内蓝底无透色；包内与现Importer核对通过。237实际新图标和同一作品真实封面及原93章已亲审，具名通过；未进入Reader。原数据和电源读回，正常卸载私有scope与本次目录缺失均核，已释租。 本轮按当前正式订阅索引核，点名的四源只有CosplayTele已公开。哔咔默认线路2在受控WASM接入真实宿主协议形状，进程复用、封面及真人登录后路径未完成；拷贝真实正文仍未成功。 Buon Dua在237切换分页与整本，实际分别显示1/20及20/20、1/152及152/152。旧候选的详情/网址入口漏站点封面；修复候选本地55相册110调用均与原站og:image一致，其余响应与请求相同。用户明确改为后续统一按1.2.0发布App，目前继续开发，未改版本名和版本号。 Buon Dua新版真实封面237可见、原阅读位置152/152与目录保持；包候选已按minAppVersion 1.2.0打包，未进当前正式索引。哔咔237已实际点开未登录提示与账号表单并取消，未提交账号；App已修正误导的“打开网页或官方 App”文案。拷贝普通/榜单动态设置、默认空选项和拒绝空白UA在实际WASM+宿主逻辑验证通过；正文210仍是独立外部访问限制。 App 版本定义现为1.2.0/9，已构建同签候选，普通安装读回。Buon Dua 正式工作区构建在55个真实固定样本502次操作与具名真机候选等价，旧1.1.1拒绝其1.2.0门槛，正式源码已推。哔咔237两处账号入口与四项设置已验；正式Pica生产包回放继续。Copy以站点HTTP210与宿主必要协议差距分别跟踪。 Buon Dua 和哔咔 0.1.0 均已生成正式订阅条目与公开附件，最低 App 1.2.0，正式 App 仍是 1.1.1。公开 Buon 的正式 WASM 复跑 55 个真实固定体通过。拷贝宿主新增 API 26 专用 HTTP/1.1，无 Cookie／缓存、禁连接复用及动态主页，原 App 最低系统不变；API 23–25 的缺能力范围已单列。新宿主同签构建已进237。 本次优先四源已公开：CosplayTele 0.1.0最低0.1.4，Buon Dua、哔咔、拷贝漫画各0.1.0最低1.2.0。拷贝候选已在237进入真实列表、《啟示錄四騎士》280章与1/190阅读，公开包索引与36项固定响应回放已核。用户再次明确绅士会所与紳士漫畫均在优先交付范围，身份分别为com.hentaiclub.koma和com.wnacg.koma。 绅士会所和紳士漫畫已分别在237正常导入、打开列表、目录和实际首图。绅士会所33页，紳士漫畫99页。两源按App实际封面字段纠正独立请求，具名正式候选分别显示6张封面。会所一次主站连接失败，通过普通重试后返回。两源提交744a55e9及8f9b0dee已推，工作流42127940379。 绅士两源正式索引与0.1.0包已读回，最低均为1.2.0。公开WASM与237候选编译字节不同。会所公开275个真实固定体操作、22个边界及实际WAMR封面同响应，紳士漫畫公开241个操作、67个边界和163个实际封面请求均与候选一致。 11月6日继续按公开目录和域名去重寻找中文及高使用量源。CCC 追漫台官网公开自报注册逾33万、月均165万浏览次数，未注明统计截止；实际匿名 API 总数523部。实测三部免费章节由站点公开签发并交付加密图片，现宿主无通用处理；未请求付费图或使用账号。第二个中文 Utifa 已查到 Mihon zh.utifa 1.6.1，域名 bx.yaimer.com，正在核正常免费签名图片和过期刷新，当前未出候选。 Utifa 0.1.0 内测版本已对照74部目录、34部真实详情、644章及10部实图，另核同章过期签名复用。首轮237实证本地 oracle 错误解码 POST 字段，热门及搜索的真实POST返回HTTP200业务坏响应。V2使用原始JSON正文，本地CLI实网热门和精确搜索均通过，真机复测中。Tapas Google Play标注千万级下载，非活跃数；匿名网页参考样本已核热门、最新、搜索和一章免费50图，付费锁无正文，继续独立移植。 Utifa POST 修正后在237核热门、精确搜索、三部实际目录和图片。《龙珠完全版》1/121及121/121，《龙珠单行本》42章及1/186，正式依赖锁包《魔导少年》69章及1/200。正式依赖包与V2在相同真实原体上170次响应和请求轨迹全等。Native 已看见「最近更新」菜单，测试断言使用原字样「最新」而未点击；实际最新内容有官网与WASM证据。设备原包、数据、电源恢复后释租。Utifa 0.1.0 已推书源 master 8298d2b，等待正式索引。 精确源CI 42178845528成功，正式索引确认Utifa 0.1.0最低App1.2.0。公开包及图标SHA已核，公开WASM对保存的真实原体170次请求与响应轨迹与正式锁候选完全一致。237用同一公开包确认热门→最近更新，实际显示两部已知作品，原设备数据及电源恢复并释租。Tapas已扩大匿名路径到39个完整目录与12部实际原图，免费阅读和明确付费锁分别回放，真实账号仍待验。 本次下载核对当前正式索引，91 条均无 net.bilimanga.koma；原源仓已存在独立未发布草稿，取代上文旧的目录不存在结论。此前接管进度没有单列当前交付差距。旧原网目录曾取到 201 章，正文未建立可读证据；当前由 new_source_ports 核对固定上游和真实路径。 本轮当前上游 1.6.15，原站仍为 www.bilimanga.net。官方标注简体入口会跳回原域。旧网页原体重放最新 50 项和目录 201 项。当前《別當歐尼醬了！》第 1 话移动 UA 收到 HTTP 200 但正文显示桌面限制且无页图，其余探测在 HTTP 前断开；不能据此判断站点全域故障。关键词搜索需要站点实际游客 Cookie 及兑换票据，草稿未实现。 237 原生浏览器具名《別當歐尼醬了！》第 1 话主域和网页声明的简体入口无可读正文，已关闭唯一测试私密标签，保留原两标签并恢复电源、释租。用户另反馈 Mihon 正常，该设备浏览器对照不能代表 Mihon。核固定上游为移动 UA 与文档请求头、共享 CookieJar、真实游客凭据、邻章导航变体；Koma 草稿部分请求语义和游客搜索能力缺失，阅读差异由 new_source_ports 接回修正。 用户指出本机使用 Surge。198.18 为其正常 Fake IP，不能据此判 DNS 故障。Surge 当前规则选择直连并失败，单次选用已有代理时真实正文返回 15、14、19 张页图，逐张在源 WASM 重放。50 部作品真实详情和目录已初步重放。游客 CSS/JS 及兑换 HTTP 200，关键词查找 302 站内详情，最终 HTTP 200；较宽关键词两页也实际成功。宿主加入有限同源游客 Cookie 和统一限速开发候选，正式 App 尚未包含该接口。 已用固定上游、官网和源 WASM 逐项对照 50 部作品、9754 个目录位置和 15 章 400 个页图位置。真实关键词覆盖前两页与站内直达详情；宿主新增同源游客头隔离和统一限速，已通过针对性实际函数测试和签名构建。正式 App 1.2.0 尚无新增能力。 已完成可安装 0.1.0 内部包，包内图标采用官网真实 favicon 还原方形原白底，主代理亲看实际包内图。宿主 060857dc 已合入 Koma 主分支，正式 1.2.0 未包含两项能力。内部包使用开发宿主，仅供下一步联测，旧宿主门控不发网络。 最终内部 v2 按用户要求去掉短提示末尾句号，安装包、旧宿主门控与扩展后 16 章 413 页图位置、原列表和真实搜索用同一最终 WASM 重验。v1 保留历史证据。 最终内部 v3 补齐 Mihon 的目录日期，以站点东八区日期传入原章节模型。50 部 9754 个位置在包内 WASM 和 Koma 生产解析器逐项通过，其余章节字段和请求与 v2 一致。宿主主分支 CI 42193647828 通过，未打 App 标签。 237 已覆盖安装含游客搜索和共享限流的同签 Koma，并在书源管理正常导入 v3，设备 WASM 和图标字节与候选一致。热门列表普通重试和关键词「學生會也有洞」都在收到响应头前失败，HTTP=0、NetworkKit 2300999。Mac 同时经现有 Surge 路线实取游客 Cookie，换票 HTTP 200，关键词 HTTP 302 并打开对应作品。首次 237 事务已还原原书源、测试数据和电源并释租，按覆盖安装约定保留签名测试 App。 用户允许临时代理后，237 实际加载热门，搜索「學生會也有洞」先获三个游客流程 HTTP 200，再收到搜索 HTTP 302 并跟至作品；201 章目录完整显示。首话 19 页，原 AVIF 169223 字节 HTTP 200，与 Mac 对照大小一致，阅读器报 reader_decode_failed，重试同样失败。237 实读 API 26，样本是 AV1 High 4:4:4；同 URL 请求 JPEG 仍返回同 AVIF，替换扩展名返回 404。App 正在修原图兼容。WLAN 已从手动代理恢复为无，Mac 三条临时规则移除，237 原数据、电源恢复并释租。最新公开索引核对原八个点名源，公开六个，缺哔哩漫画和 JM。JM 公开宿主 v1.2.0 已有必需解扰和限流，匿名 v7 候选已普通导入并进入正文验收。 JM v7 在 237 普通导入并搜索 JM356488，显示具名封面及 93 章，第一话页表 49 页，正文 HTTP 200；宿主后台任务在解码完成前返回 Promise，原图未显示。已改为等待解码完成，现有解扰和离线检查通过，a67d9f7f 已推。原签名未改，并行同步开发使本地构建门禁失败，干净提交独立跑 CI。 JM 同签修复包在 237 实显 JM356488 首、中、末页，第 25 页六条还原与独立参考比对通过；JM145504 无需解扰旧章也实际显示首、中、末页。 哔哩漫画经用户允许的临时线路在同包实显《學生會也有洞！》首话第 1/19 和 3/19 页，确认原 AVIF 走兼容解码，保留原图下载文件。自动点滑块目标为第 4 页，实际落在第 3 页，按实际页码记录。 同签设备候选包含并行同步工作区代码，测试仅覆盖书源路径。公开 App 主分支已合入游客 Cookie、JM 解码等待和 AVIF 兼容。 237 已读回原源数据、WLAN 无手动代理和电源设置，移除三条 Surge 临时规则并释放租约。用户明确先合入修复，App 版本另定。 用户已锚定 Koma 1.2.1（构建 10）。哔哩漫画与 JM 的正式候选由原开发者以既有具名验收包为基础准备，并核最终包业务 WASM 与 237 验收版本。App 正式发布与书源公开是两道独立状态。 用户已锚定 Koma 1.2.1（构建 10）。哔哩漫画和 JM 正式候选的最低版本均为 1.2.1，WASM 与图标和 237 验收包逐字一致，实际导入及版本门禁回放通过。哔哩漫画已验搜索、201 章、第 1 和第 3 张 AVIF；JM 两部实际读到首、中、末页。主分支含游客会话、AVIF 和解扰修复。当前 GitHub 无 1.2.1 正式发布，也未推触发书源上架的变更。 用户明确允许先上线依赖 Koma 1.2.1 的书源，旧版门禁仍生效。master 首发嗶哩漫畫 0.1.0、禁漫天堂 0.1.0 与 Komiic 0.1.15。公开回查发现首发禁漫天堂包遗漏 requiredImageDecodes，已修正式打包投影并升级 0.1.1，已安装旧包可通过书源管理更新。三条正式包重新下载和实际导入通过，1.2.0 拒绝、1.2.1 放行。嗶哩漫畫与禁漫天堂的公开 WASM 均执行了各自具名真实响应回放。当前 Mac 路线 GH-Proxy 默认索引、三包和三个图标与正式内容一致。App 1.2.1 标签构建由另一会话执行。 依用户点名，新增 Xiutaku 与 Kiutaku 0.1.0（最低 Koma 1.2.0，源仓本地 e5c8930）。两条通过现网热门和最新续页、关键词及空结果、站内网址、详情、目录及正文，实际封面和正文图可解码；最终包均通过生产导入代码。逐项对照官网，Xiutaku 20 个相册，Kiutaku 18 个相册，其中 2 个 Video 条目官网无图片，源明确提示无图。Kiutaku 正文按上游不发送 Referer；上游相关推荐保留在原站，Xiutaku 上游共用 10 请求/秒限制未接入。237 当前 Koma 1.2.1 的普通入口被系统隐私同意页拦截，没有安装源包或写入阅读数据，电源和超时已读回原值并释租。 续场按用户明确允许在 237 点击系统隐私同意，普通浏览页已到达，替代上一轮隐私页阻断。Xiutaku 0.1.1 对接主域 10 次/秒共享限流，图片 CDN 不受该窗口限制；Kiutaku 0.1.1 同一次详情读取原站关联作品，现有详情更多菜单打开原生书源网格。源码已本地提交 fe3961d，最终 WASM 与 18 个官网 Kiutaku 相册的 344 张关联卡片一致；生产导入和限流检查通过。正式分发签名的 HAP 被 237 拒绝侧载（9568322），改用同版本的设备签名候选。 237 同签验收 HAP 安装通过（对应 App 主分支 9987197d）。两条 0.1.1 均由文件选择器导入并在源管理读回版本；搜索、详情和正文首图各验一部，实际显示 1/20。Kiutaku 从详情更多进入相关作品，点开卡片并返回原作通过。仅移除本轮新增历史及两条测试源，读回原多语言开关、原超时和睡眠，清除两个临时上传；按授权保留同意结果和新测试 App。 用户授权先发兼容源并把宿主锚定为 1.2.2。Kiutaku 0.1.1 已正式发布，最低 1.2.0；下载公开包重放确认旧宿主正常加载详情，新宿主额外显示相关作品。Xiutaku 的正式注册最低要求 1.2.2；实际旧版安装门禁对 1.2.0/1.2.1 返回不兼容，1.2.2 放行。Xiutaku 的精确提交已推送，等待正式发布。 Xiutaku 发布成功，正式最新索引、两份实际包、图标及各自最低版本已读回；公开 WASM 对照实际官网样本回放两源详情、目录和首章图序。Xiutaku 无宿主能力时拦截联网；Kiutaku 的旧宿主基本阅读保持兼容。正式公开包本轮未重装真机。",
-      "remaining": "Tapas 当前尚未公开：官网公告 2027 年 3 月 31 日停服；已接入本地标准构建并通过真实响应回放，237 已从文件导入候选，验证热门、最近更新、搜索、详情、63 章目录及免费正文滑至第 3 页；搜索标题中的站点高亮标记已修复。系统 WebView UA 能打开移动登录表单，但跳至 m.tapas.io，宿主按精确域名完成授权，真实账号登录及会话回流尚未验证。動漫戲說 0.1.1 已发布，最低 Koma 1.4.0。官网三个最新列表标签合并为「最新漫畫」，下拉可选 33 个官网题材分类。官网热血页的第 1、2 页及停止条件已通过真实 WASM 执行。237 实测导入、最新列表、热血分类、FAVO 搜索、详情 137 章和此前 522 的首话首图正常显示。两张旧作品的官网封面地址仍返回 404。237 本轮上传文件已删除，恢复原电源并释租。漫畫狗当前浏览器显示 Cloudflare 已阻止；90 漫画网浏览器首页、摩绪详情及首话图片正常，命令行同站返回 403，原因尚未确认。CCC 待公开免费章节图像能力；继续按正式索引去重发现。JM 收藏夹和签到走官网；哔哩漫画具名真机验证使用临时线路。Xiutaku 需 App 1.2.2，Kiutaku 支持 1.2.0。",
+      "remaining": "Tapas 当前尚未公开：官网公告 2027 年 3 月 31 日停服；已接入本地标准构建并通过真实响应回放，237 已从文件导入候选，验证热门、最近更新、搜索、详情、63 章目录及免费正文滑至第 3 页；搜索标题中的站点高亮标记已修复。系统 WebView UA 能打开移动登录表单，但跳至 m.tapas.io，宿主按精确域名完成授权，真实账号登录及会话回流尚未验证。動漫戲說 0.1.1 已发布，最低 Koma 1.4.0。官网三个最新列表标签合并为「最新漫畫」，下拉可选 33 个官网题材分类。官网热血页的第 1、2 页及停止条件已通过真实 WASM 执行。237 实测导入、最新列表、热血分类、FAVO 搜索、详情 137 章和此前 522 的首话首图正常显示。两张旧作品的官网封面地址仍返回 404。237 本轮上传文件已删除，恢复原电源并释租。90漫画网 0.1.0 已进入正式订阅，最低 Koma 1.4.1。201 已验热门、最近更新、日本筛选和词搜；197 验证两个作品的完整目录，能读原故障第 12 页，对照章节在线与下载都读至第 5 页。详情成功后直接复用完整目录，站点首次响应仍可能超过现有 60 秒上限或返回 502。肉漫屋 0.1.0 已进入正式订阅，最低 Koma 1.5.5。201 验证热门、最近更新、搜索和目录。197 默认域的公开章收到不完整文档，书源改在同一章路径请求官网备用域，校验章节后取得完整 260 页，首图与手选备用域一致。原 16 个候选现在剩 14 个未公开。Hanime1.me 候选已导入 237，站点拒绝目录访问。喜漫漫画和漫蛙漫画需要在解码前还原图片响应，花火漫画需要在解码后重排图块。宿主和书源打包已实现随包 WASM 还原。237 用同一验收包从系统文件选择器导入，核对封面、三页在线阅读、下载 3/3 和下载入口的离线出图。下载原图字节与输入一致，像素输出与串联输出一致，三个本地页均有已还原标记。 验收源、临时下载和暂存包已清理，原 11 个下载条目及暂停状态逐项相同，237 恢复原超时和休眠并释租。现有 JM 声明及旧像素插件通过本地兼容检查。三个站点已继续接入。漫蛙在 237 从正常浏览进入《一拳超人原作版》，首话第 1/17 页正常显示，实际首图为加密路径，作品评论已读回。花火走当前官网的普通网页接口，实际 27 页和错位首图在本机成功还原；237 验过热门、搜索、详情及作品评论。正文收到官网游客额度耗尽，最终候选提示官网登录，登录后续读仍待验。喜漫已按上游接入四个备用域名，并让浏览、搜索、详情、目录、图片、作品和网页登录统一使用所选站点。237 实测可保存 .cc，网页确实进入 favcomic.cc/lander，.com 和 .cc 的实际榜单未加载。官网公开脚本已核实带 token 的网页登录流程，原生自动登录后的章节会话仍待活站验证。此次 17 个新源图标已换成官网或官网存档原件，完整方形、无外部阴影和蒙版，已逐个核对本地候选包，替换后的素材尚未发布。App 随包图片还原改动已在原仓本地提交。两个真实评论源分别验证了实际条目和花火的下一页。漫蛙漫画 0.1.0 已进入正式书源订阅，要求 Koma 1.5.5 或以上。当时的 App 1.5.4 尚无随包图片还原能力。花火和喜漫仍是本地候选。CCC 的上游也需要还原加密图像；继续按正式索引去重发现。JM 收藏夹和签到走官网；哔哩漫画具名真机验证使用临时线路。Xiutaku 需 App 1.2.2，Kiutaku 支持 1.2.0。 2026-11-20 以正式索引核对原 18 个具名候选，已发布 6 个、未发布 12 个；加上前批 4 个候选，逐源保留 16 个未发布项。下列为当前验收边界，候选打包及本机回放与正式发布分别记录。",
       "evidence": [
+        ".hvigor/outputs/two-source-browse-20261120/publication/roumanwu010/receipt.json",
+        ".hvigor/outputs/two-source-browse-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/roumanwu-document/43-roudoc-197-final-default-reader/hilog.txt",
+        ".hvigor/outputs/two-source-browse-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/roumanwu-document/53-roudoc-197-recovered/run-metadata.json",
+        ".hvigor/outputs/two-source-browse-20261120/publication/jiulingmanhua010/receipt.json",
+        ".hvigor/outputs/two-source-browse-20261120/jiulingmanhua-investigation/chapter-context/RESULT.md",
+        ".hvigor/outputs/two-source-browse-20261120/device201__LMR-AL00/not-applicable/portrait-1276x2848/roumanwu/23-rou-201-exact-page-shape/hilog.txt",
+        ".hvigor/outputs/two-source-browse-20261120/device201__LMR-AL00/not-applicable/portrait-1276x2848/roumanwu/25-rou-201-official-chapter/layout.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/acgn-v011-20261115/candidate-source-006/screen.png",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/acgn-v011-20261115/listings-008/screen.png",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/acgn-v011-20261115/category-009/layout.json",
@@ -3363,7 +3370,45 @@
         "https://github.com/honjow/koma-sources/releases/tag/sources-8298d2b3dca68b29b4822654e37e54142a53bb7d",
         "https://github.com/honjow/koma-sources/actions/runs/42178845528",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/utifa-discovery/public-8298d2b/receipt.json",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-utifa-public-latest.json"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-utifa-public-latest.json",
+        ".hvigor/outputs/source-image-processor-validation/manwamanhua-device/device237__VDE-AL00/unfolded/portrait-1320x2120/manwamanhua-image/11-manwa-reader/screen.png",
+        ".hvigor/outputs/source-image-processor-validation/manwamanhua-device/device237__VDE-AL00/unfolded/portrait-1320x2120/manwamanhua-image/25-manwa-live-comments/layout.json",
+        ".hvigor/outputs/source-image-processor-validation/manwamanhua-device/device237__VDE-AL00/unfolded/portrait-1320x2120/manwamanhua-image/19-hanabi-reader/layout.json",
+        ".hvigor/outputs/source-image-processor-validation/manwamanhua-device/device237__VDE-AL00/unfolded/portrait-1320x2120/manwamanhua-image/30-hanabi-live-comments/layout.json",
+        ".hvigor/outputs/source-image-processor-validation/hanabimanga-comments-device/anonymous-quota-result.json",
+        ".hvigor/outputs/source-image-processor-validation/hanabi-real/restored.png",
+        ".hvigor/outputs/source-image-processor-validation/manwamanhua-device/device237__VDE-AL00/unfolded/portrait-1320x2120/manwamanhua-image/41-remove-manwa-history/layout.json",
+        ".hvigor/outputs/source-image-processor-validation/manwamanhua-device/device237__VDE-AL00/unfolded/portrait-1320x2120/manwamanhua-image/55-remove-hanabi-and-files/run-metadata.json",
+        ".hvigor/outputs/source-image-processor-validation/manwamanhua-device/device237__VDE-AL00/unfolded/portrait-1320x2120/manwamanhua-image/59-restore-browse-and-power/run-metadata.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-fb72fc3acf23bef1fbb8bce602fde97e34367746",
+        ".hvigor/outputs/source-image-processor-validation/manwa-release/published/verified.json",
+        ".hvigor/outputs/source-coverage-20261119/favcomic-live-compare/official-icon-audit/packaged-verified.json",
+        ".hvigor/outputs/source-coverage-20261119/favcomic-live-compare/mirror-replay.json",
+        ".hvigor/outputs/source-coverage-20261119/favcomic-live-compare/device237__VDE-AL00/unfolded/portrait-1320x2120/favcomic-mirrors/16-readback-cc/layout.json",
+        ".hvigor/outputs/source-coverage-20261119/favcomic-live-compare/device237__VDE-AL00/unfolded/portrait-1320x2120/favcomic-mirrors/19-webview-cc/layout.json",
+        ".hvigor/outputs/source-coverage-20261119/favcomic-live-compare/device237__VDE-AL00/unfolded/portrait-1320x2120/favcomic-mirrors/27-restore-237/run-metadata.json",
+        ".hvigor/outputs/source-brand-review-20261119/dedup-18/batch-pack-manifests.json",
+        ".hvigor/outputs/two-source-browse-20261120/jiulingmanhua-investigation/device-201-result.md",
+        ".hvigor/outputs/two-source-browse-20261120/jiulingmanhua-investigation/timeout60/device-result.md",
+        ".hvigor/outputs/two-source-browse-20261120/jiulingmanhua-investigation/timeout60/desktop-oracle/RESULT.md",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-21d34dbcc1c53a0233ebff205c4f61fda6b33442"
+      ],
+      "remainingActions": [
+        "香香腐宅（boylove）｜已修复官网标签选择器。197 在主站和备用域名均加载动态标签、使用「香香汉化」得到作品。官网另有个别标签返回业务 500。此前已验 43/43 下载、冷启动离线、真实乱序图、游客打开 VIP 章时的锁定提示。真实 VIP 登录与授权后阅读待验，未发布。",
+        "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
+        "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
+        "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
+        "巴卡漫画（bakamh）｜200 同一设备的已验证 WebView 可打开官网首页、排行和连载目录。Koma 带网页验证 Cookie 与 WebView UA 请求首页 GET、归档 GET 及 Mihon 的目录 POST，三条均返回带拒绝页标志的 HTTP 403，未收到挑战脚本。失败发生在原生网络访问，普通 GET 同样受影响。站方安全规则的具体命中条件需要站方日志，候选未发布。",
+        "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
+        "哔哩漫画（bilimanga）｜0.1.11 手动验证及成功标志已发布。0.1.12 候选移植 Keiyoushi 1aba299d 的自动输入搜索验证码，默认关闭，旧宿主保留手动路径。App 提供可组合的二进制 HTTP 响应与按源隔离的原生 Cookie 会话；PNG 解码、字模识别、表单隐藏字段和最多三次尝试均在源内。237 安装最终 Koma 1.5.6（25）候选并从文件导入 0.1.12，回读 WASM 与构建一致。全自动搜索「芙莉蓮」无需人工输入或 WebView；同词重搜及换词「魔法」正常，复用验证结果且不再取图提交。详情和 147 章目录已核对，本轮未重验正文及下载。源已在独立原仓本地提交 33f173e。App 新能力与源候选均未公开发布；正式订阅仍为 0.1.11。",
+        "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
+        "Hanime1.me（hanime1）｜237 和普通浏览器都收到直接拒绝，未出现可操作的挑战。目录和阅读仍待可访问条件。",
+        "Hikarinagi（hikarinagi）｜本机已验列表、详情、270 章目录及登录要求。登录后的图片 POST、正文和下载待验。",
+        "JComic（jcomic）｜开发宿主已验最新、分类、搜索、连载和单章页表。首图 CDN 返回 403，待核实页图及下载。",
+        "漫蛙（manwa）｜manwa.me 与正式的漫蛙漫画为独立入口。此前有首图和存档证据，之后主域及镜像均未取得可读目录，需确认可用入口。",
+        "如漫画（同名站）（rumanhuaunoriginal）｜独立于已发布的如漫画。网站首页可达，实测详情返回 500，待核对正常作品的详情、目录和正文。",
+        "TOPTOON頂通（toptoon）｜开发宿主已验热门、最新、搜索和章节列表。游客公开样本回到目录，待核公开章实际正文与上游访问行为。",
+        "vomic（vomic）｜开发宿主已验栏目、37 个分类、两组目录及游客登录要求。账号续期和登录后页图待验。"
       ]
     },
     {
@@ -27737,6 +27782,89 @@
         ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/39-manual-final-readback/layout.json",
         ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/40-anchored-fling-33-to-34/summary.json",
         ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/41-anchored-fling-readback/layout.json"
+      ]
+    },
+    {
+      "id": "source-sdk-interceptor-mycomic-237-20261120",
+      "at": "2026-11-20T23:28:31+08:00",
+      "itemId": "SOURCE_MYCOMIC_CLOUDFLARE_403",
+      "title": "MYCOMIC 首次采用 SDK 拦截器并在 237 验证",
+      "detail": "在 237 原 Koma 1.5.5 通过本地文件导入 MYCOMIC 0.1.32 拦截器候选，读回 WASM 与本机相同且与原包不同，包声明及宿主导入未变。最高人气列表与封面、《美丽新世界！》源内搜索、详情和 262 个章节的目录正常。本轮同期未自然出现验证页。对实际原包和候选回放带标志的挑战、普通 403、404，分类和请求标识一致。保留候选和主机原包备份，临时 .koma 已删除，原桌面、10 秒超时及休眠已恢复并释租。未进入正文，未发布。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-sdk-interceptor/wasm-identity.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-sdk-interceptor/wasm-negative-replay.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-sdk-interceptor/11-settled-catalog/catalog.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-sdk-interceptor/12-source-search/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-sdk-interceptor/13-manga-detail/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-sdk-interceptor/14-restore/run-metadata.json"
+      ]
+    },
+    {
+      "id": "source-sdk-interceptor-bilimanga-237-20261120",
+      "at": "2026-11-20T23:44:27+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "verification",
+      "title": "哔哩漫画复用 SDK HTTP 状态拦截器并在 237 验证验证码入口",
+      "detail": "在 237 原 Koma 1.5.5（24）从文件导入哔哩漫画 0.1.11 本地候选，回读 WASM 与候选一致，清单、图标与原装源包一致。热门列表、封面和《學生會也有洞！》详情及 203 个章节目录正常。搜索「芙莉蓮」直达带原关键词的原站验证码表单。本轮未提交验证码，验证后的自动关闭及重搜未复测。对比实际原装包、改前工作区构建及候选的 WASM，正常结果、验证码文档及原请求标识、401、403、404、429、503、正文缺失及传输失败的结果与请求均一致。此次沿用 ABI、HTTP 信封及最低 App 版本。237 保留候选与本机原包备份，清理临时文件，恢复原浏览筛选、桌面和 10 秒超时及休眠，已释租。候选未发布。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-sdk-bilimanga/wasm-identity.json",
+        ".hvigor/outputs/source-sdk-bilimanga-237/wasm-replay.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-sdk-bilimanga/09-catalog/catalog.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-sdk-bilimanga/10-search/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-sdk-bilimanga/14-detail-settled/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-sdk-bilimanga/16-restore/run-metadata.json"
+      ]
+    },
+    {
+      "id": "source-http-response-metadata-bilimanga-237-20261121",
+      "at": "2026-11-21T00:24:25+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "verification",
+      "title": "App 支持按请求选择响应元数据，哔哩漫画接入并在 237 实测",
+      "detail": "237 安装本轮实际编译的 Koma 1.5.6（25）候选并本地导入哔哩漫画。包内及设备读回 WASM 一致。热门列表正常，源内搜「芙莉蓮」的请求日志确认启用了 responseUrl，返回 HTTP 200 验证表单并打开同词表单。本轮未填写验证码；精确命中跳转后没有目录链接时用最终地址解析作品，已在实际候选 WASM 回放验证。宿主回归确认经授权接续的可见文档保有实际地址，只消费一次并拒绝其他地址。旧 App 沿用前一请求与解析方式。能力按源在同一 HTTP 请求中点选，基础 ABI 不变。237 保留候选，临时下载文件已删除，测试前的 WebDAV 同步页、10 秒超时和休眠已恢复，租约已释放。App 和源均未发布。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/06-install-final/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/11-catalog-search/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/11-catalog-search/run-metadata.json",
+        ".hvigor/outputs/source-http-response-contract-237/metadata-wasm-replay.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/16-restore/run-metadata.json"
+      ]
+    },
+    {
+      "id": "source-interaction-resume-bilimanga-237-20261121",
+      "at": "2026-11-21T00:41:45+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "verification",
+      "title": "源内搜索接入通用交互续接并在 237 实测书源标记",
+      "detail": "哔哩漫画和 CCC 的源码链路都能在已确认交互后重调原操作，原实现无源内处理位置回传。本轮 App 加入源内搜索的 source_interaction_resume_v1，验证及登录使用同一个按原操作一次性回传的字段，沿现有源包、设置、查询、筛选和可见性检查。237 覆盖安装实际带能力的 Koma 1.5.6（25）候选并从文件导入哔哩漫画，读回 WASM 与构建结果一致。搜索「芙莉蓮」后打开原站同词表单，真机日志确认 interactionState=true。前台完成回调的受控回放覆盖两种交互、同查询一次回传和后续分页不携带。实际 WASM 回放核对原请求一致、旧宿主结果一致。未在真机提交验证码；CCC 只对照现有登录恢复链路，尚未接入新接口且会员未验。两类候选保留在 237，已恢复同步页、10 秒超时和休眠，清临时文件并释租。未发布。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/resume-02-install/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/resume-06-search/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/resume-06-search/layout.json",
+        ".hvigor/outputs/source-interaction-resume-237/wasm-resume.json",
+        ".hvigor/outputs/source-interaction-resume-237/operation-resume-tests.txt",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/resume-09-restore/run-metadata.json"
+      ]
+    },
+    {
+      "id": "source-http-bytes-cookie-bilimanga-auto-237-20261121",
+      "at": "2026-11-21T01:49:47+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "verification",
+      "title": "哔哩漫画自动识别并提交搜索验证码通过 237 验收",
+      "detail": "固定 Keiyoushi 1aba299dd03549a98d6f4461f6022d1e9adf04c0 的 SearchCaptcha.kt、搜索表单流程及默认关闭的 SOLVE_CAPTCHA。在源内移植数字字模和有界 PNG 解码；App 新增 source_http_bytes_v1 与 source_http_cookie_session_v1，复用原 HTTP import，精确源包及 HTTPS origin 隔离，支持正文保真、Cookie Path/过期/删除、跳转、期限及取消；响应元数据可与表单 POST 组合。237 多次安装实际构建、清空进程会话后，全程无需人手输入或 WebView 即完成 GET 搜索、GET 图片、POST 验码、302 和 200，返回《葬送的芙莉蓮》与封面。最终构建同词重搜与换词「魔法」均只发送搜索 GET 及正常跳转，没有重复取图片或提交。详情和 147 章目录已验；本轮不作为正文、下载或识别成功率的全量结论。设备源 WASM 与最终包一致（8fa82f0f…），最终 App 8581029d…；通用原语三项执行检查和 SDK HTTP 三项检查通过。全量会话回归 102 项有 2 项既有诊断断言失败，与改前相同，未改期望放行。最终源在旧 hostFeatures 下回放普通结果及手动验证码路径正常；旧 App 未实机安装本候选。源提交 33f173e；两侧本地候选尚未公开。237 保留新 App 和 0.1.12，自动开关启用；只删除本轮下载文件并反查不存在，恢复原 WebDAV 同步页、10 秒超时与 SLEEP，已独立释租。前文“不能协助验证码”的一概拒绝没有适用依据，已纠正。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/auto-21-final-find/installed.wasm",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/auto-29-delivery-search/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/auto-29-delivery-search/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/auto-30-delivery-repeat-and-restore/same-query.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/auto-30-delivery-repeat-and-restore/changed-query.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/auto-30-delivery-repeat-and-restore/run-metadata.json",
+        ".hvigor/outputs/bilimanga-auto-237/final.sha256",
+        ".hvigor/outputs/bilimanga-auto-237/old-host-compatibility.json",
+        ".hvigor/outputs/bilimanga-auto-237/primitive-tests-final.txt",
+        ".hvigor/outputs/bilimanga-auto-237/sdk-http-tests.txt"
       ]
     }
   ],

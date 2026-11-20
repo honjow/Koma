@@ -61,8 +61,9 @@ function fixture() {
     browseFilterValues: {}, searchFilterValues: {}, filters: [], persistSearchFilters: true,
     filterDataRevision: 0, browsePage: 1, searchPage: 1,
     browseNextCursor: '', searchNextCursor: '', searchResults: [], hasMoreSearch: false,
-    searchSource: async (_source, query, page, cursor) => {
-      calls.push({ query, page, cursor }); const reply = replies.shift(); if (reply instanceof Error) throw reply; return reply
+    searchSource: async (_source, query, page, cursor, _current, _guard, resume) => {
+      calls.push({ query, page, cursor, ...(resume === undefined ? {} : { resume }) })
+      const reply = replies.shift(); if (reply instanceof Error) throw reply; return reply
     },
     homeAvailable: true, homeSections: [], listings: [{ id: 'popular', name: 'Popular', kind: 'popular' }],
     browseSections: [{ listing: { id: 'popular' }, manga: [{ id: 'old' }] }], popularManga: [{ id: 'old' }],
@@ -103,6 +104,35 @@ test('explicit source login cancels and reopens safely, then retries only its or
     assert.ok(second); await first.complete(); assert.equal(retries, 0)
     await second.complete(); await second.complete(); assert.equal(retries, 1)
     assert.equal(f.model[scope + 'Authentication'], null)
+  }
+})
+
+test('verification and authentication echo a checkpoint once into the original search', async () => {
+  for (const kind of ['verification', 'authentication']) {
+    const f = fixture()
+    if (kind === 'authentication') f.source.authentication = { kind: 'web' }
+    const code = kind === 'authentication' ? 'auth_required' : 'challenge_required'
+    f.replies.push(new SourceRuntimeError({ ok: false, error: { code, interactionState: 'search:document' } }))
+    await f.model.runSearch(f.source, 'same query')
+    assert.deepEqual(f.calls, [{ query: 'same query', page: 1, cursor: '' }])
+    f.replies.push({ manga: [{ id: 'result' }], hasNextPage: true, nextCursor: 'next' })
+    if (kind === 'authentication') {
+      const receipt = f.model.authenticationRequest('search', () => true)
+      assert.ok(receipt)
+      await receipt.complete()
+    } else {
+      const { id } = f.model.searchWebChallenge
+      assert.equal(f.model.claimWebChallenge('search', id, true), true)
+      assert.equal(await f.model.completeWebChallenge('search', id, true), true)
+      assert.equal(await f.model.completeWebChallenge('search', id, true), false)
+    }
+    f.replies.push({ manga: [{ id: 'other' }], hasNextPage: false })
+    await f.model.loadMoreSearch()
+    assert.deepEqual(f.calls, [
+      { query: 'same query', page: 1, cursor: '' },
+      { query: 'same query', page: 1, cursor: '', resume: { kind, state: 'search:document' } },
+      { query: 'same query', page: 2, cursor: 'next' },
+    ])
   }
 })
 

@@ -1,5 +1,6 @@
 import { waitForSourceRequestSlot, SourceRequestAdmission } from './SourceRequestPolicy'
-import { url as urlKit } from '@kit.ArkTS'
+import { url as urlKit, util } from '@kit.ArkTS'
+import { sourceHttpCookieJar } from './SourceHttpCookieJar'
 import { appSourceWebSessionStore, sourceWebOrigin, sourceWebPackageIdentity, SourceHttpIdentity, SourcePendingWebSessionRequest } from './SourceWebSessionStore'
 import { appSourceRuntimeRegistry } from './SourceRuntimeAppRegistry'
 import { sourceRuntimeEntryEnabled } from './SourceRuntimeRegistry'
@@ -38,6 +39,10 @@ function privateIdentityFailure(): string {
   return JSON.stringify(failure)
 }
 
+interface SourceHttpResponseMetadata {
+  finalUrl?: boolean
+}
+
 interface SourceHttpRequestEnvelope {
   type?: string
   version?: number
@@ -50,6 +55,9 @@ interface SourceHttpRequestEnvelope {
   guestSearch?: boolean
   nativeSession?: boolean
   includeResponseUrl?: boolean
+  responseMetadata?: SourceHttpResponseMetadata
+  responseKind?: string
+  session?: string
   webTokenGeneration?: string
   url?: Object | string | number | boolean | null
   method?: Object | string | number | boolean | null
@@ -66,6 +74,7 @@ interface RejectedSourceGet {
   identity: SourceHttpIdentity
   rejectedUrl: string
   requiresDocumentReadiness: boolean
+  reportsDocumentUrl: boolean
 }
 
 interface SourceWebProbeContext {
@@ -169,6 +178,14 @@ export function stageSourceWebDocument(sourceId: string, sessionId: string, requ
     }
     const response = new SourceHttpSuccessEnvelope(200, html)
     response.networkPerformed = false
+    // The document was observed at this exact admitted GET. Keep the same
+    // response metadata regardless of whether native HTTP or WebView read it.
+    if (request.reportsDocumentUrl) {
+      if (!sourceResponseUrlTarget(entry?.websitePolicy?.responseUrlOrigins ?? [], documentUrl)) {
+        return false
+      }
+      response.responseUrl = documentUrl
+    }
     verifiedSourceDocument = { request, sessionId, responseJson: JSON.stringify(response) }
     DiagnosticLogger.info('source_http', 'document_handoff', 'state=staged bytes=' + html.length)
     return true
@@ -218,6 +235,7 @@ class SourceHttpSuccessEnvelope {
   // `status` to distinguish HTTP failures from transport failures.
   status: number
   bodyText: string
+  bodyBase64?: string
   networkPerformed: boolean = true
   // An additive host signal, without forwarding response headers or cookies.
   accessSignal?: string
@@ -723,7 +741,11 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     ? envelope.headers as Record<string, Object> : undefined
   const requestHeaderNames = headerRecord === undefined ? '' : Object.keys(headerRecord)
     .map((name: string): string => name.toLocaleLowerCase()).sort().join(',')
-  const privateTarget = envelope.webTokenGeneration !== undefined || envelope.includeResponseUrl === true
+  const reportsDocumentUrl = envelope.responseMetadata?.finalUrl === true
+  const includeResponseUrl = envelope.includeResponseUrl === true || reportsDocumentUrl
+  const binaryResponse = envelope.responseKind === 'bodyBytes'
+  const sourceSession = envelope.session === 'source'
+  const privateTarget = envelope.webTokenGeneration !== undefined || sourceSession || binaryResponse || includeResponseUrl
   const diagnosticTarget = (target: string): string => privateTarget ? 'target=declared' : sourceDiagnosticTarget(target)
   trace.info('request_target', diagnosticTarget(url) + ' method=' + method +
     ' source=' + (identity?.sourceId ?? '') + ' sourceVersion=' + (identity?.sourceVersion ?? '') +
@@ -754,10 +776,17 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   const installedEntry = installed !== undefined && identity !== undefined && sourceRuntimeEntryEnabled(installed) &&
     installed.manifestVersion === identity.sourceVersion && sourceWebPackageIdentity(installed) === identity.packageIdentity
     ? installed : undefined
+  if ((binaryResponse || sourceSession) && (installedEntry === undefined || identity === undefined ||
+    identity.credentialGrantId !== undefined || envelope.guestSearch === true || nativeSession ||
+    envelope.webTokenGeneration !== undefined || envelope.dnsOverride !== undefined || probe !== undefined ||
+    sourceWebOrigin(url).length === 0 || !url.startsWith('https://'))) {
+    trace.finish('rejected', 'reason=invalid_source_http_options')
+    return transportError('invalid_request', false)
+  }
   const webToken = envelope.webTokenGeneration !== undefined
   const webTokenHeaders = webToken ? sourceHeaders(envelope.headers) : undefined
   if (webToken && (probe !== undefined || nativeSession || envelope.guestSearch === true ||
-    envelope.includeResponseUrl === true || envelope.dnsOverride !== undefined || identity?.credentialGrantId !== undefined ||
+    includeResponseUrl || envelope.dnsOverride !== undefined || identity?.credentialGrantId !== undefined ||
     method !== 'GET' || body.length > 0 || typeof envelope.webTokenGeneration !== 'string' ||
     !/^[0-9a-f]{32}$/.test(envelope.webTokenGeneration) || installedEntry?.authentication?.webToken === undefined ||
     (webTokenHeaders !== undefined && Object.keys(webTokenHeaders).some((name: string): boolean =>
@@ -790,9 +819,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   }
   const freshHttp = !webToken && declaredSourceHttpProfile(installedEntry?.websitePolicy, url) === 'fresh_http11'
   const guestSearch = envelope.guestSearch === true
-  const includeResponseUrl = envelope.includeResponseUrl === true
   const responseUrlOrigins = installedEntry?.websitePolicy?.responseUrlOrigins ?? []
-  if (includeResponseUrl && (guestSearch || nativeSession || method !== 'GET' || body.length > 0 ||
+  if (includeResponseUrl && (guestSearch || nativeSession || (!reportsDocumentUrl && (method !== 'GET' || body.length > 0)) ||
     envelope.dnsOverride !== undefined || identity?.credentialGrantId !== undefined ||
     !sourceResponseUrlTarget(responseUrlOrigins, url))) {
     trace.finish('rejected', 'reason=invalid_response_url_request')
@@ -801,7 +829,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   // A source that opted into the WebView bridge may read through its granted
   // session when the native transport is rejected. Misses fall through to the
   // existing network path; the bridge never widens permissions by itself.
-  if (installedEntry?.websitePolicy?.webFetchBridge === true && !webToken && !includeResponseUrl && !guestSearch && !nativeSession &&
+  if (installedEntry?.websitePolicy?.webFetchBridge === true && !binaryResponse && !sourceSession &&
+    !webToken && !includeResponseUrl && !guestSearch && !nativeSession &&
     probe === undefined && method === 'GET' && body.length === 0 && identity !== undefined) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       if (attempt > 0) {
@@ -849,7 +878,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       return transportError('invalid_request', false)
     }
   }
-  if (!webToken && !guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceGet !== undefined) {
+  if (!binaryResponse && !webToken && !guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceGet !== undefined) {
     const ready = verifiedSourceGet
     if (identity !== undefined && ready.request.requestJson === requestJson &&
       ready.request.httpContextJson === httpContextJson) {
@@ -864,7 +893,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       }
     }
   }
-  if (!webToken && !includeResponseUrl && !guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceDocument !== undefined) {
+  if (!binaryResponse && !webToken && (reportsDocumentUrl || envelope.includeResponseUrl !== true) && !guestSearch && !freshHttp && !nativeSession &&
+    probe === undefined && verifiedSourceDocument !== undefined) {
     const ready = verifiedSourceDocument
     const requestMatch = ready.request.requestJson === requestJson
     const byteContextMatch = ready.request.httpContextJson === httpContextJson
@@ -909,13 +939,13 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     }
     const forbiddenHeader = Object.keys(sourceHeaders(envelope.headers)).some((name: string): boolean =>
       ['authorization', 'proxy-authorization', 'cookie', 'host'].includes(name.toLowerCase()))
-    if (probe !== undefined || nativeSession || method !== 'GET' || body.length > 0 || forbiddenHeader || identity?.credentialGrantId !== undefined) {
+    if (probe !== undefined || sourceSession || binaryResponse || nativeSession || method !== 'GET' || body.length > 0 || forbiddenHeader || identity?.credentialGrantId !== undefined) {
       trace.finish('rejected', 'reason=invalid_request')
       return rcpFailure(new SourceRcpTransportFailure('invalid_request'))
     }
   }
   // A native account uses its own private Cookie header, isolated from ArkWeb's cookie jar.
-  const session = guestSearch || freshHttp || nativeSession || webToken || identity === undefined ? undefined : probe === undefined
+  const session = sourceSession || guestSearch || freshHttp || nativeSession || webToken || identity === undefined ? undefined : probe === undefined
     ? appSourceWebSessionStore.requestSession(identity, url)
     : appSourceWebSessionStore.pendingRequestSession(identity, url, probe.proof)
   if (probe !== undefined && (session === undefined || !probe.current())) {
@@ -954,7 +984,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     // timeout budget intact once its slot becomes available.
     policyWaitMs += Math.max(0, Date.now() - policyStartedAt)
     const crossOrigin = sourceWebOrigin(currentUrl) !== sourceWebOrigin(url)
-    let originalHeaders = crossOrigin && (session !== undefined || includeResponseUrl)
+    let originalHeaders = crossOrigin && (sourceSession || session !== undefined || includeResponseUrl)
       ? sourcePublicRedirectHeaders(sourceHeaders(envelope.headers)) : sourceHeaders(envelope.headers)
     if (dnsOverride !== undefined && crossOrigin) {
       // OkHttp drops Authorization when a redirect changes origin. The ordinary
@@ -986,13 +1016,15 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       if (cookie.length > 0) headers['Cookie'] = cookie
     }
     if (webTokenGrant !== undefined) headers['Authorization'] = webTokenGrant.authorization
+    const requestHeaders = sourceSession && identity !== undefined
+      ? sourceHttpCookieJar.headers(identity.sourceId, identity.packageIdentity, currentUrl, headers) : headers
     trace.info('session', 'identity=' + (identity === undefined ? 'none' : 'native') +
       ' session=' + (active === undefined ? 'none' : 'attached') +
       ' cookieState=' + (typeof headers['Cookie'] === 'string' && headers['Cookie'].length > 0 ? 'present' : 'empty') +
       ' uaSource=' + (active === undefined ? 'source' : 'webview'))
     trace.info('owner', 'operation=' + (identity?.diagnosticOperation ?? 'unknown'))
     if (active !== undefined) trace.info('clearance_cookie', 'state=' + sourceClearanceCookieState(headers['Cookie'] ?? ''))
-    const remaining = session === undefined && dnsOverride === undefined && !freshHttp && !guestSearch && !includeResponseUrl ? sourceTimeout(envelope.timeoutMs) :
+    const remaining = session === undefined && !sourceSession && !binaryResponse && dnsOverride === undefined && !freshHttp && !guestSearch && !includeResponseUrl ? sourceTimeout(envelope.timeoutMs) :
       Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt - policyWaitMs))
     let response: SourceHopResponse | undefined = undefined
     const hopStartedAt = Date.now()
@@ -1015,13 +1047,13 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     }
     // A package can select an implemented transport for its declared origin.
     // Network permission and credential/session scopes are checked separately.
-    const browserProfile = !nativeSession && !webToken && currentMethod === 'GET' && currentBody.length === 0
+    const browserProfile = !binaryResponse && !nativeSession && !webToken && currentMethod === 'GET' && currentBody.length === 0
       ? declaredSourceHttpProfile(installedEntry?.websitePolicy, currentUrl) : ''
     if (response === undefined && browserProfile.length > 0 && browserProfile !== 'fresh_http11') {
       sourceBrowserHttpSequence += 1
       const callId = 'source-browser-http-' + sourceBrowserHttpSequence
-      const requestHeaders: string[] = Object.keys(headers).map((name: string): string => name + ': ' + headers[name])
-      const pending = NativeSourceRuntime.sourceBrowserHttp(callId, currentUrl, requestHeaders, remaining, browserProfile)
+      const headerLines: string[] = Object.keys(requestHeaders).map((name: string): string => name + ': ' + requestHeaders[name])
+      const pending = NativeSourceRuntime.sourceBrowserHttp(callId, currentUrl, headerLines, remaining, browserProfile)
       const timer = setInterval(() => { if (!current()) NativeSourceRuntime.cancelSourceBrowserHttp(callId) }, 100)
       try {
         const native = await pending
@@ -1039,7 +1071,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     // NetworkKit owns proxy behavior when the native candidate cannot safely
     // honor the platform proxy or trust store. A non-session redirect is
     // replayed there so its existing automatic redirect semantics remain intact.
-    if (response === undefined || (usedSourceBrowserHttp && session === undefined && !includeResponseUrl &&
+    if (response === undefined || (usedSourceBrowserHttp && session === undefined && !sourceSession && !includeResponseUrl &&
       [301, 302, 303, 307, 308].includes(response.responseCode))) {
       const remainingForFallback = remaining - Math.max(0, Date.now() - hopStartedAt)
       if (remainingForFallback <= 0) throw new SourceBrowserHttpFailure(2300028)
@@ -1048,17 +1080,20 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         request.on('headersReceive', () => {
           if (firstHeaderMs < 0) firstHeaderMs = Math.max(0, Date.now() - hopStartedAt)
         })
-        if ((session !== undefined || guestSearch || nativeSession || webToken || includeResponseUrl) && !attachSourceRedirectStop(request)) {
+        if ((sourceSession || session !== undefined || guestSearch || nativeSession || webToken || includeResponseUrl) && !attachSourceRedirectStop(request)) {
           trace.finish('failed', 'reason=web_session_redirect_unavailable')
           return transportError('web_session_redirect_unavailable', false)
         }
-        const networkResponse = await request.request(currentUrl, {
+        const options: http.HttpRequestOptions = {
           method: sourceNetworkMethod(currentMethod),
           customMethod: currentMethod === 'GET' || currentMethod === 'POST' || currentMethod === 'HEAD' ? undefined : currentMethod,
           extraData: currentBody.length > 0 ? currentBody : undefined,
-          expectDataType: http.HttpDataType.STRING, usingCache: false, header: headers,
+          expectDataType: binaryResponse ? http.HttpDataType.ARRAY_BUFFER : http.HttpDataType.STRING,
+          usingCache: false, header: requestHeaders,
           readTimeout: remainingForFallback, connectTimeout: remainingForFallback,
-        })
+        }
+        if (binaryResponse) options.maxLimit = 1024 * 1024
+        const networkResponse = await request.request(currentUrl, options)
         response = new SourceHopResult(networkResponse.responseCode, networkResponse.result, networkResponse.header, networkResponse.performanceTiming)
       } catch (error) {
         trace.warn('hop_failed', 'hop=' + redirects + ' headersReceived=' + (firstHeaderMs >= 0) +
@@ -1069,7 +1104,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     trace.info('hop_response', 'hop=' + redirects + ' status=' + response.responseCode + ' ' + diagnosticTarget(currentUrl) +
       ' headersReceived=' + (usedSourceBrowserHttp || firstHeaderMs >= 0) + ' firstHeaderMs=' + firstHeaderMs +
       ' elapsedMs=' + Math.max(0, Date.now() - hopStartedAt) + ' ' + sourceHttpTimingText(response.performanceTiming))
-    if ((nativeSession || webToken || includeResponseUrl) && !current()) {
+    if ((sourceSession || binaryResponse || nativeSession || webToken || includeResponseUrl) && !current()) {
       trace.finish('cancelled', 'reason=source_request_cancelled')
       return transportError('source_request_cancelled', false)
     }
@@ -1094,7 +1129,14 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       if (probe === undefined) appSourceWebSessionStore.acceptResponseCookies(identity, currentUrl, values)
       else appSourceWebSessionStore.acceptPendingResponseCookies(identity, currentUrl, probe.proof, values)
     }
-    const responseBody = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
+    if (sourceSession && identity !== undefined) {
+      sourceHttpCookieJar.accept(identity.sourceId, identity.packageIdentity, currentUrl, response.header)
+    }
+    if (binaryResponse && (!(response.result instanceof ArrayBuffer) || response.result.byteLength > 1024 * 1024)) {
+      trace.finish('failed', 'reason=invalid_binary_response')
+      return transportError('invalid_response', false)
+    }
+    const responseBody = binaryResponse ? '' : typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
     if (webTokenGrant !== undefined && response.responseCode === 401) {
       try { await webTokenGrant.rejectUnauthorized() }
       catch (_error) { trace.warn('web_token', 'state=delete_failed') }
@@ -1118,7 +1160,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         const key = rejectedSourceGetKey(identity.sourceId, identity.operationGuardId)
         const previous = rejectedSourceGets.get(key)
         const rejected: RejectedSourceGet = {
-          requestJson, httpContextJson, identity, rejectedUrl: currentUrl, requiresDocumentReadiness: documentCandidate
+          requestJson, httpContextJson, identity, rejectedUrl: currentUrl,
+          requiresDocumentReadiness: documentCandidate, reportsDocumentUrl
         }
         if (optedIn || documentCandidate) {
           rejectedSourceSequence += 1
@@ -1140,12 +1183,12 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         }
       }
     }
-    if ((session !== undefined || dnsOverride !== undefined || freshHttp || guestSearch || includeResponseUrl) &&
+    if ((sourceSession || session !== undefined || dnsOverride !== undefined || freshHttp || guestSearch || includeResponseUrl) &&
       [301, 302, 303, 307, 308].includes(response.responseCode)) {
       const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
       const locationKey = Object.keys(responseHeaders).find((name: string): boolean => name.toLowerCase() === 'location')
       const locationValue = locationKey === undefined ? undefined : responseHeaders[locationKey]
-      const location = (freshHttp || guestSearch || includeResponseUrl) && Array.isArray(locationValue) && locationValue.length === 1
+      const location = (sourceSession || freshHttp || guestSearch || includeResponseUrl) && Array.isArray(locationValue) && locationValue.length === 1
         ? sourceString(locationValue[0]) : sourceString(locationValue)
       if (location === undefined || redirects >= (dnsOverride === undefined && !freshHttp ? 30 : 20) ||
         Date.now() - startedAt - policyWaitMs >= sourceTimeout(envelope.timeoutMs)) {
@@ -1154,7 +1197,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         return transportError('web_session_redirect_rejected', false)
       }
       const nextTarget = new urlKit.URL(location, currentUrl)
-      if (freshHttp && (nextTarget.protocol !== 'https:' || nextTarget.username.length > 0 || nextTarget.password.length > 0)) {
+      if ((sourceSession || freshHttp) && (nextTarget.protocol !== 'https:' || nextTarget.username.length > 0 || nextTarget.password.length > 0)) {
         return rcpFailure(new SourceRcpTransportFailure('invalid_response', true))
       }
       const nextUrl = nextTarget.toString()
@@ -1211,8 +1254,9 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       }
     }
     trace.finish(response.responseCode >= 400 ? 'failed' : 'completed', 'status=' + response.responseCode +
-      ' chars=' + responseBody.length + ' ' + diagnosticTarget(currentUrl))
+      ' chars=' + responseBody.length + ' responseUrl=' + includeResponseUrl + ' ' + diagnosticTarget(currentUrl))
     const result = new SourceHttpSuccessEnvelope(response.responseCode, responseBody, accessSignal, challengeRequestId)
+    if (binaryResponse) result.bodyBase64 = new util.Base64Helper().encodeToStringSync(new Uint8Array(response.result as ArrayBuffer))
     if (includeResponseUrl) result.responseUrl = currentUrl
     if (guestSearch) {
       result.guestSearchUrl = currentUrl

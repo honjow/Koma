@@ -1,7 +1,7 @@
 import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { runBrowseSourceRequestInWorker as runBrowseSourceOperationTask } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
-import { SourceWebChallengeGate, SourceWebChallengeReceipt, SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
+import { SourceInteractionResume, SourceWebChallengeGate, SourceWebChallengeReceipt, SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
 import { appSourceWebSessionStore, sourceHttpIdentityJson, sourceWebPackageIdentity } from '../sourceRuntime/SourceWebSessionStore'
 import { SourcePrivateSessionHost } from '../sourceRuntime/SourcePrivateSessionHost'
 import { clearSourceRejectedRequest, selectSourceRejectedRequest } from '../sourceRuntime/SourceRuntimeHttpTransport'
@@ -135,6 +135,8 @@ type SourceOperationArgs = SourceHomeArgs | SourceListingsArgs | SourceFilterDat
 
 interface SourceOperationHostHints {
   network: boolean
+  interactionResumeSupported?: boolean
+  interactionResume?: SourceInteractionResume
 }
 
 interface SourceOperationRequest {
@@ -583,14 +585,20 @@ export class BrowseViewModel {
   }
 
   private publishWebChallenge(scope: SourceWebChallengeScope, error: Error, automaticRecovery: boolean,
-    current: () => boolean, retry: (handle?: string) => Promise<void>): void {
+    current: () => boolean, retry: (handle?: string, resume?: SourceInteractionResume) => Promise<void>): void {
     const source = this.selectedSource
     const explicitLogin = error instanceof SourceRuntimeError &&
       (error.diagnostic.code === 'auth_required' || error.diagnostic.reason === 'auth_required') &&
       (error.diagnostic.status === 0 || error.diagnostic.status === 401)
+    // Preserve only source-declared state and only in this receipt's closure.
+    // Leaving the route, changing settings or cancelling retires the closure.
+    const state = scope === 'search' && error instanceof SourceRuntimeError ? error.interactionState : undefined
+    const resume: SourceInteractionResume | undefined = state === undefined ? undefined :
+      { kind: explicitLogin ? 'authentication' : 'verification', state }
     if (!automaticRecovery && explicitLogin && source?.authentication !== undefined) {
       const gate = scope === 'browse' ? this.browseAuthenticationGate : this.searchAuthenticationGate
-      const receipt = gate.issue(source.sourceId, scope, true, current, async (): Promise<void> => { await retry() })
+      const receipt = gate.issue(source.sourceId, scope, true, current,
+        async (): Promise<void> => { await retry(undefined, resume) })
       if (scope === 'browse') this.browseAuthentication = receipt
       else this.searchAuthentication = receipt
       return
@@ -605,7 +613,7 @@ export class BrowseViewModel {
       // the same operation ID must survive until its one verified response is consumed.
       if (scope === 'browse') this.browseChallengeHandle = undefined
       else this.searchChallengeHandle = undefined
-      try { await retry(handle) } finally {
+      try { await retry(handle, resume) } finally {
         if (handle !== undefined) clearSourceRejectedRequest(sourceId, handle)
       }
     }, error instanceof SourceRuntimeError && error.diagnostic.kind === 'challenge', handle)
@@ -1266,7 +1274,7 @@ export class BrowseViewModel {
   }
 
   async runSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string, automaticRecovery: boolean = false,
-    operationGuardId?: string, fromFilters: boolean = this.filterOnlySearch): Promise<void> {
+    operationGuardId?: string, fromFilters: boolean = this.filterOnlySearch, resume?: SourceInteractionResume): Promise<void> {
     // In-place Browse search also comes here without ensureSearchFilters.
     // Search owns its defaults/saved choices; a late Browse listing must never
     // overwrite them and retire the new search's HTTP guard (237 MangaBall).
@@ -1316,7 +1324,7 @@ export class BrowseViewModel {
       this.searchPage = retainsCurrentResults ? retained!.page : 1
       this.searchNextCursor = retainsCurrentResults ? retained!.cursor : ''
       challengeCurrent = this.webChallengeGuard('search')
-      const result = await this.searchSource(source, normalizedQuery, 1, '', challengeCurrent, operationGuardId)
+      const result = await this.searchSource(source, normalizedQuery, 1, '', challengeCurrent, operationGuardId, resume)
       if (requestId !== this.searchRequestId) {
         return
       }
@@ -1335,7 +1343,9 @@ export class BrowseViewModel {
       this.searchNeedsWebSession = e instanceof SourceRuntimeError &&
         (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required')
       this.publishWebChallenge('search', e, automaticRecovery, challengeCurrent,
-        async (handle?: string): Promise<void> => { await this.runSearch(source, query, true, handle, fromFilters) })
+        async (handle?: string, resume?: SourceInteractionResume): Promise<void> => {
+          await this.runSearch(source, query, true, handle, fromFilters, resume)
+        })
       this.searchErrorIsFirstPage = true
       if (!retainsCurrentResults) {
         this.searchResults = []
@@ -1373,20 +1383,20 @@ export class BrowseViewModel {
     this.searchNextCursor = ''
   }
 
-  async retrySearchPage(automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
+  async retrySearchPage(automaticRecovery: boolean = false, operationGuardId?: string, resume?: SourceInteractionResume): Promise<void> {
     if (this.loadingSearch || this.searchErrorMessage.length === 0 ||
       this.selectedSource === undefined || !this.hasActiveSearch) {
       return
     }
     if (this.searchErrorIsFirstPage) {
-      await this.runSearch(this.selectedSource, this.searchQuery, automaticRecovery, operationGuardId)
+      await this.runSearch(this.selectedSource, this.searchQuery, automaticRecovery, operationGuardId, this.filterOnlySearch, resume)
       return
     }
     this.hasMoreSearch = true
-    await this.loadMoreSearch(automaticRecovery, operationGuardId)
+    await this.loadMoreSearch(automaticRecovery, operationGuardId, resume)
   }
 
-  async loadMoreSearch(automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
+  async loadMoreSearch(automaticRecovery: boolean = false, operationGuardId?: string, resume?: SourceInteractionResume): Promise<void> {
     if (this.loadingSearch || !this.hasMoreSearch || this.selectedSource === undefined || !this.hasActiveSearch) {
       return
     }
@@ -1416,7 +1426,10 @@ export class BrowseViewModel {
           throw new SourceRuntimeError(failure)
         }
         visited.add(requestedCursor)
-        const more = await this.searchSource(source, query, page, cursor, challengeCurrent, operationGuardId)
+        const more = await this.searchSource(source, query, page, cursor, challengeCurrent, operationGuardId, resume)
+        // Empty-page continuation is a different cursor. Only the failed page
+        // owns the interaction completion.
+        resume = undefined
         if (requestId !== this.searchRequestId || !challengeCurrent()) return
         const previousCount = this.searchResults.length
         this.searchPage = page
@@ -1438,7 +1451,9 @@ export class BrowseViewModel {
       this.searchNeedsWebSession = e instanceof SourceRuntimeError &&
         (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required')
       this.publishWebChallenge('search', e, automaticRecovery, challengeCurrent,
-        async (handle?: string): Promise<void> => { await this.retrySearchPage(true, handle) })
+        async (handle?: string, resume?: SourceInteractionResume): Promise<void> => {
+          await this.retrySearchPage(true, handle, resume)
+        })
       this.hasMoreSearch = false
     } finally {
       if (requestId === this.searchRequestId) {
@@ -1454,6 +1469,7 @@ export class BrowseViewModel {
     cursor: string = '',
     isActive: (() => boolean) | undefined = undefined,
     operationGuardId: string | undefined = undefined,
+    resume: SourceInteractionResume | undefined = undefined,
   ): Promise<SourceMangaList> {
     const pageArg: SourceOperationPageArg = {
       cursor: this.pageCursor(page, cursor),
@@ -1464,7 +1480,7 @@ export class BrowseViewModel {
       page: pageArg,
       filters: this.filterValuesForQuery(this.searchFilterValues, query, this.filters, this.useSearchForFilters),
     }
-    return this.runSourceOperation(source.sourceId, 'search', args, page, isActive, operationGuardId)
+    return this.runSourceOperation(source.sourceId, 'search', args, page, isActive, operationGuardId, resume)
   }
 
   async loadMangaList(
@@ -1800,12 +1816,13 @@ export class BrowseViewModel {
     page: number,
     isActive: (() => boolean) | undefined = undefined,
     operationGuardId: string | undefined = undefined,
+    resume: SourceInteractionResume | undefined = undefined,
   ): Promise<SourceMangaList> {
     const lookup = this.registry.lookup(sourceId)
     if (!lookup.ok || lookup.entry === undefined) {
       throw new Error(AppStrings.get('browse_error_source_unavailable'))
     }
-    const requestJson = this.buildRequestJson(sourceId, operation, args, page)
+    const requestJson = this.buildRequestJson(sourceId, operation, args, page, operation === 'search' && isActive !== undefined, resume)
     const scope: SourceWebChallengeScope = operation === 'search' ? 'search' : 'browse'
     const ownGuard = isActive !== undefined && operationGuardId === undefined
     const guardId = isActive === undefined ? undefined : operationGuardId ?? newSourceRuntimeOperationGuardId()
@@ -1885,9 +1902,15 @@ export class BrowseViewModel {
     operation: string,
     args: SourceOperationArgs,
     page: number,
+    supportsInteractionResume: boolean = false,
+    resume?: SourceInteractionResume,
   ): string {
     const settings = appSourceSettingsStore.loadForSource(sourceId)
     const hostHints: SourceOperationHostHints = { network: true }
+    if (supportsInteractionResume) {
+      hostHints.interactionResumeSupported = true
+      if (resume !== undefined) hostHints.interactionResume = resume
+    }
     const request: SourceOperationRequest = {
       type: 'request',
       version: 1,
@@ -1901,12 +1924,14 @@ export class BrowseViewModel {
     return JSON.stringify(request)
   }
 
+
   private runtimeError(response: SourceRuntimeCallResponse, operation: string): SourceRuntimeError {
     const error = new SourceRuntimeError(response)
     const details = error.diagnostic
     DiagnosticLogger.warn('browse_view_model', 'source_operation_failed',
       'operation=' + safeDiagnosticCode(operation) + ' reason=' + details.reason +
-      ' error=' + details.code + ' http=' + details.status + ' kind=' + details.kind)
+      ' error=' + details.code + ' http=' + details.status + ' kind=' + details.kind +
+      ' interactionState=' + (error.interactionState !== undefined))
     return error
   }
 

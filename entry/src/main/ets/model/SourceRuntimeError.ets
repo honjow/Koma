@@ -94,6 +94,7 @@ export class SourceRuntimeError extends Error {
   readonly diagnostic: SourceFailureDetails
   readonly userText: string
   readonly challengeRequestId: string | undefined
+  readonly interactionState: string | undefined
 
   constructor(response: SourceRuntimeCallResponse) {
     const diagnostic = sourceFailureDetails(response)
@@ -104,6 +105,8 @@ export class SourceRuntimeError extends Error {
     this.userText = userText
     const challengeRequestId = response.error?.['challengeRequestId']
     this.challengeRequestId = typeof challengeRequestId === 'string' && challengeRequestId.length <= 64 ? challengeRequestId : undefined
+    const state = response.error?.['interactionState']
+    this.interactionState = typeof state === 'string' && /^[A-Za-z0-9_.:-]{1,128}$/.test(state) ? state : undefined
   }
 
   userTextFor(fallback: string): string {

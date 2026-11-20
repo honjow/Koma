@@ -1,5 +1,11 @@
 export type SourceWebChallengeScope = 'browse' | 'search' | 'detail'
 
+/** A completed foreground interaction can return one source-defined checkpoint. It grants no authorization. */
+export interface SourceInteractionResume {
+  kind: 'verification' | 'authentication'
+  state: string
+}
+
 /** Derive the verification identity from ArkWeb before loading the site. */
 export function sourceChallengeWebUserAgent(native: string, useNative: boolean): string {
   if (useNative || !/OpenHarmony/i.test(native) || /Android/i.test(native)) return native

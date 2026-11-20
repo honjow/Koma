@@ -10,7 +10,7 @@ const base = path.join(__dirname, '../entry/src/main/ets/sourceRuntime')
 function moduleFrom(name, requireMock, globals = {}) {
   const exports = {}
   const javascript = ts.transpileModule(fs.readFileSync(path.join(base, name + '.ets'), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS },
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText
   vm.runInNewContext(javascript, { exports, require: requireMock, Map, Date, JSON, Error, ...globals })
   return exports
@@ -624,7 +624,10 @@ function fixture(sdkApiVersion = 23) {
     const calls = [], instances = [], intercepts = []
     const trace = { info: (_event, detail) => diagnostics.push(detail), warn: (_event, detail) => diagnostics.push(detail), fail: () => {}, finish: (_state, detail) => diagnostics.push(detail) }
     const transport = moduleFrom('SourceRuntimeHttpTransport', name => {
-      if (name === '@kit.ArkTS') return { url: { URL } }
+      if (name === '@kit.ArkTS') return { url: { URL }, util: { Base64Helper: class {
+        encodeToStringSync(bytes) { return Buffer.from(bytes).toString('base64') }
+      } } }
+      if (name === './SourceHttpCookieJar') return moduleFrom('SourceHttpCookieJar', () => ({ url: { URL } }))
       if (name === './SourceRequestPolicy') return network.policy ?? moduleFrom('SourceRequestPolicy', () => ({ url: { URL } }))
       if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store, sourceWebOrigin: api.sourceWebOrigin, sourceWebPackageIdentity: api.sourceWebPackageIdentity }
       if (name === './SourceWebChallengeGate') return moduleFrom('SourceWebChallengeGate', () => ({}))
@@ -702,10 +705,11 @@ function fixture(sdkApiVersion = 23) {
       } }
       if (name === '@kit.BasicServicesKit') return {}
       throw Error('unexpected import: ' + name)
-    }, { setInterval, clearInterval, ...(network.clock ? { Date: network.clock } : {}) })
+    }, { setInterval, clearInterval, Uint8Array, ArrayBuffer, ...(network.clock ? { Date: network.clock } : {}) })
     transport.configureSourceRuntimeHttpTransport()
     const result = await callback(JSON.stringify({ url: 'https://site.invalid/a', method: 'GET', ...sourceRequest }), context)
-    const after = network.afterInitial === undefined ? undefined : await network.afterInitial({ transport, execute: callback })
+    const after = network.afterInitial === undefined ? undefined :
+      await network.afterInitial({ transport, execute: callback, initial: JSON.parse(result) })
     return { calls, instances, intercepts, result: JSON.parse(result), after }
   }
   return { privateHost, api, store, registry, writes, fetched, cookieReads, diagnostics, configured, identity, grant, http, guards,
@@ -2103,6 +2107,46 @@ test('effective response URL requires an installed HTTPS scope and keeps credent
   assert.equal(rejected.calls.length, 1)
 })
 
+test('verified document and final URL compose for one admitted request', async () => {
+  const f = fixture()
+  const url = 'https://site.invalid/a'
+  f.changeEntry(entry => ({ ...entry,
+    websitePolicy: { responseUrlOrigins: ['https://site.invalid'], renderedDocumentFallback: true },
+  }))
+  const handle = f.guards.newSourceRuntimeOperationGuardId()
+  const release = f.guards.registerSourceRuntimeOperationGuard(handle, () => true)
+  const { sourceId } = f.identity()
+  const context = JSON.stringify({ ...f.identity(), operationGuardId: handle })
+  const request = { url, method: 'GET', responseMetadata: { finalUrl: true }, wantChallengeRequestId: 'document' }
+  try {
+    const result = await f.http([response(403), response(404)], context, request, {
+      afterInitial: async ({ transport, execute, initial }) => {
+        // The successful result is the visible document at the same URL.
+        assert.ok(initial.challengeRequestId)
+        transport.selectSourceRejectedRequest(sourceId, handle, initial.challengeRequestId)
+        const pending = f.store.begin(f.registry, sourceId, url)
+        assert.equal(transport.stageSourceWebDocument(sourceId, pending.sessionId, handle,
+          'https://site.invalid/wrong', '<main>wrong request</main>'), false)
+        assert.equal(transport.stageSourceWebDocument(sourceId, pending.sessionId, handle,
+          url, '<main>authorized document</main>'), true)
+        f.store.complete(sourceId, pending.sessionId, url, 'ActualWebViewUA')
+        const once = JSON.parse(await execute(JSON.stringify(request), context))
+        const again = JSON.parse(await execute(JSON.stringify(request), context))
+        return { once, again }
+      },
+    })
+    assert.equal(result.result.status, 403)
+    assert.equal(result.result.responseUrl, url)
+    assert.equal(result.after.once.responseUrl, url)
+    assert.equal(result.after.once.bodyText, '<main>authorized document</main>')
+    assert.equal(result.after.once.networkPerformed, false)
+    assert.equal(result.after.again.status, 404)
+    assert.equal(result.calls.length, 2)
+  } finally {
+    release()
+  }
+})
+
 test('declared target does not authorize anonymous cross-origin POST redirect', async () => {
   const f = fixture()
   f.changeEntry(e => ({ ...e, webSessionOrigins: ['https://site.invalid', 'https://mobile.invalid'] }))
@@ -2111,4 +2155,55 @@ test('declared target does not authorize anonymous cross-origin POST redirect', 
     { method: 'POST', body: 'private-content' })
   assert.equal(r.calls.length, 1)
   assert.equal(r.result.error.code, 'web_session_redirect_rejected')
+})
+
+test('binary source HTTP preserves exact bytes and its cookie session survives a following request', async () => {
+  const f = fixture()
+  const bytes = Uint8Array.from([0, 255, 137, 80, 78, 71, 0, 128])
+  const context = JSON.stringify(f.identity())
+  const request = { session: 'source', responseKind: 'bodyBytes' }
+  const initial = { responseCode: 200, result: bytes.buffer, header: { 'Set-Cookie': ['own-session=one; Secure; HttpOnly; Path=/'] } }
+  const result = await f.http([initial, response()], context, request, {
+    afterInitial: async ({ execute }) => JSON.parse(await execute(JSON.stringify({
+      url: 'https://site.invalid/next', method: 'GET', session: 'source',
+    }), context)),
+  })
+  assert.deepEqual([...Buffer.from(result.result.bodyBase64, 'base64')], [...bytes])
+  assert.equal(result.result.bodyText, '')
+  assert.equal(result.after.status, 200)
+  assert.equal(result.calls[1].options.header.Cookie, 'own-session=one')
+  assert.equal(result.calls[1].options.header['User-Agent'], undefined)
+  assert.equal(result.calls[0].options.maxLimit, 1024 * 1024)
+  assert.equal(Object.hasOwn(result.calls[1].options, 'maxLimit'), false)
+  assert.equal(f.cookieReads.length, 0)
+})
+
+test('native source cookies isolate origin, installation and path, and honour deletion', () => {
+  const { SourceHttpCookieJar } = moduleFrom('SourceHttpCookieJar', () => ({ url: { URL } }))
+  const jar = new SourceHttpCookieJar()
+  const url = 'https://site.invalid/search/form'
+  jar.accept('source', 'package', url, { 'set-cookie': [
+    'token=one; Secure; HttpOnly; Path=/search; Max-Age=600',
+    'escape=secret; Domain=other.invalid; Path=/',
+  ] })
+  assert.equal(jar.headers('source', 'package', url, {}).Cookie, 'token=one')
+  for (const [source, pkg, target] of [
+    ['other', 'package', url], ['source', 'replacement', url],
+    ['source', 'package', 'https://site.invalid/searching'],
+    ['source', 'package', 'https://other.invalid/search/form'],
+  ]) assert.equal(jar.headers(source, pkg, target, {}).Cookie, undefined)
+  assert.equal(jar.headers('source', 'package', url, { Cookie: 'night=1' }).Cookie, 'token=one; night=1')
+  jar.accept('source', 'package', url, { 'Set-Cookie': ['token=gone; Path=/search; Max-Age=0'] })
+  assert.equal(jar.headers('source', 'package', url, {}).Cookie, undefined)
+  jar.accept('source', 'package', url, { 'Set-Cookie': ['default-path=one; Secure'] })
+  assert.equal(jar.headers('source', 'package', 'https://site.invalid/search', {}).Cookie, 'default-path=one')
+  assert.equal(jar.headers('source', 'package', 'https://site.invalid/searching', {}).Cookie, undefined)
+})
+
+test('a source HTTP cookie session rejects redirects to plain HTTP', async () => {
+  const f = fixture()
+  const result = await f.http([response(302, { Location: 'http://site.invalid/next' })],
+    JSON.stringify(f.identity()), { session: 'source' })
+  assert.equal(result.calls.length, 1)
+  assert.equal(result.result.error.code, 'invalid_response')
 })
