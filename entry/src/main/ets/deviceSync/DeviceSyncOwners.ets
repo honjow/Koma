@@ -99,13 +99,16 @@ function parseReadingSnapshot(directory: string, persistedText: string | null): 
 }
 
 @Concurrent
-function projectReadingSnapshot(directory: string, archive: string, facts: string[]): SyncProjectedReadingSnapshot {
+function projectReadingSnapshot(directory: string, projectionName: string, archive: string,
+  facts: string[]): SyncProjectedReadingSnapshot {
   // Keep the input files, UTF-8 decoding and row projection in one worker.
   // The caller only needs the revision and projected reading records.
-  const side = readFile(`${directory}/${SYNC_PROJECTION}`) ?? ''
-  const library = readFile(`${directory}/${LIBRARY_STORE_PERSISTENCE_FILE_NAME}`) ?? null
-  const reading = readFile(`${directory}/${READER_PROGRESS_PERSISTENCE_FILE_NAME}`) ?? null
-  return buildSyncReadingSnapshot(directory, library, reading, side, archive, facts)
+  const input = [projectionName, LIBRARY_STORE_PERSISTENCE_FILE_NAME, READER_PROGRESS_PERSISTENCE_FILE_NAME]
+    .map((name: string): string | null => {
+      const path = directory + '/' + name
+      return fs.accessSync(path) ? fs.readTextSync(path, { encoding: 'utf-8' }) : null
+    })
+  return buildSyncReadingSnapshot(directory, input[1], input[2], input[0] ?? '', archive, facts)
 }
 
 @Concurrent
@@ -565,7 +568,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const space = this.storage.load().active?.space
     const archive = this.storage.load().readingRestoreCandidates?.find((candidate: SyncReadingRestoreCandidate): boolean =>
       candidate.space === space)
-    const prepared = await taskpool.execute(projectReadingSnapshot, this.context.filesDir,
+    const prepared = await taskpool.execute(projectReadingSnapshot, this.context.filesDir, SYNC_PROJECTION,
       JSON.stringify(archive ?? null), factChunks) as SyncProjectedReadingSnapshot
     guard?.()
     const values: SyncLocalValue[] = []
