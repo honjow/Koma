@@ -5,6 +5,11 @@ import { isAvifFileType } from './ImageFileContent'
 export type RemoteImageCacheHeaders = Record<string, string>
 export type RemoteImageDownloadProgress = (loaded: number, total: number) => void
 
+export interface ReaderImageCacheSidecar {
+  seed: string
+  bytes: () => ArrayBuffer | undefined
+}
+
 /** Share a file and its latest byte count with consumers joining an in-flight request. */
 export class RemoteImageFileRequest {
   readonly file: Promise<string>
@@ -360,6 +365,7 @@ export class RemoteImageCacheStore {
     cacheKeySeed?: string,
     forceReload: boolean = false,
     onProgress?: RemoteImageDownloadProgress,
+    sidecar?: ReaderImageCacheSidecar,
   ): Promise<string> {
     const key = cacheKeyFor(url, headers, cacheKeySeed)
     // Reader requests carry the URL and headers resolved for this download.
@@ -381,6 +387,21 @@ export class RemoteImageCacheStore {
         if (cached !== undefined && cached.length > 0) return cached
       }
       const bytes = await fetchBytes(report)
+      if (sidecar !== undefined) {
+        // Publish the image and its descriptor in one cache operation so readers
+        // cannot pair an explicit reload with the previous descriptor.
+        return this.enqueue(async (): Promise<string> => {
+          const path = await this.putNow(key, url, bytes)
+          const metadataUrl = 'source-image-processing.json'
+          const metadataKey = cacheKeyFor(metadataUrl, undefined, sidecar.seed)
+          this.removeEntry(metadataKey)
+          const metadata = sidecar.bytes()
+          if (metadata !== undefined) {
+            try { await this.putNow(metadataKey, metadataUrl, metadata) } catch (_error) {}
+          }
+          return path
+        })
+      }
       return reuseKey ? this.enqueue(() => this.putNow(key, url, bytes)) :
         this.put(url, headers, bytes, cacheKeySeed)
     })

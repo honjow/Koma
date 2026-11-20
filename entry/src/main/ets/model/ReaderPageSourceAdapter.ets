@@ -41,6 +41,8 @@ import {
   RemoteImageCacheStats,
   RemoteImageCacheStore,
   RemoteImageDownloadProgress,
+  ReaderCachedPageFiles,
+  ReaderImageCacheSidecar,
   formatRemoteImageCacheSize,
 } from './RemoteImageCacheStore'
 import {
@@ -795,11 +797,12 @@ async function fetchReaderRemoteFile(
   forceReload: boolean,
   onSize?: (width: number, height: number) => void,
   onProgress?: RemoteImageDownloadProgress,
+  sidecar?: ReaderImageCacheSidecar,
 ): Promise<string> {
   let sizeMeasured = false
   const headerMeasured = (): void => { sizeMeasured = true }
   const path = await store.getOrFetch(url, headers, (progress: RemoteImageDownloadProgress): Promise<ArrayBuffer> =>
-    fetch(progress, headerMeasured), cacheKeySeed, forceReload, onProgress)
+    fetch(progress, headerMeasured), cacheKeySeed, forceReload, onProgress, sidecar)
   await maintainReaderImageCacheAfterWrite(path)
   // The owning download may already have measured these exact bytes. A cache
   // hit, a joined request or an unrecognized header still needs the file probe.
@@ -1174,6 +1177,32 @@ function sourceRemoteImageCacheKey(sourceId: string, uri: string, sourceImageId:
   return `source-page-v2:${JSON.stringify(identity)}`
 }
 
+function sourceBodyImageCacheKey(originalKey: string, entry: SourceRuntimeRegistryEntry | undefined,
+  fingerprint: string): string {
+  return originalKey + ':body:' + (entry === undefined ? '' : sourceWebPackageIdentity(entry)) + ':' + fingerprint
+}
+
+async function cachedSourceImage(store: RemoteImageCacheStore, originalKey: string, bodyKey: string,
+  metadataKey?: string): Promise<ReaderCachedPageFiles> {
+  const body = await store.getReaderPage(bodyKey, metadataKey)
+  // An empty cache record still needs the ordinary file lookup.
+  return body.imagePath !== undefined ? body : store.getReaderPage(originalKey, metadataKey)
+}
+
+function processedSourceImageCacheKey(entry: SourceRuntimeRegistryEntry, uri: string, pageId: string,
+  route: string | undefined, settings: string, tokenRevision: string): string {
+  const identity = ['source-processed-image-v1', entry.manifestVersion, entry.wasmPath ?? '', settings,
+    sourceRemoteImageCacheKey(entry.sourceId, uri, pageId, route)]
+  if (tokenRevision.length > 0) identity.push(tokenRevision)
+  return JSON.stringify(identity)
+}
+
+function sourceImageProcessingBytes(descriptor: SourceImageRequestDescriptor | undefined): ArrayBuffer {
+  const processing: SourceImageProcessingCache = { hint: descriptor?.imageProcessing ?? null,
+    requiredImageDecode: descriptor?.requiredImageDecode ?? null }
+  return new util.TextEncoder().encodeInto(JSON.stringify(processing)).buffer as ArrayBuffer
+}
+
 /** Opted-in sources resolve and apply a descriptor to the same response before publishing a cache entry. */
 async function fetchAndCacheSourceProcessedImage(entry: SourceRuntimeRegistryEntry, uri: string, sourceImageId: string,
   route: string | undefined, store: RemoteImageCacheStore, forceReload: boolean, priority: SourceWorkerPriority,
@@ -1183,10 +1212,8 @@ async function fetchAndCacheSourceProcessedImage(entry: SourceRuntimeRegistryEnt
   const tokenRevision = entry.authentication?.webToken === undefined ? '' : await loadSourceWebTokenRevision(entry)
   const current = (): boolean => sourceTextRequestCurrent(entry, settings) &&
     (tokenRevision.length === 0 || sourceWebTokenRevision(entry) === tokenRevision)
-  const identity = ['source-processed-image-v1', entry.manifestVersion, entry.wasmPath ?? '', settings,
-    sourceRemoteImageCacheKey(entry.sourceId, uri, sourceImageId, route)]
-  if (tokenRevision.length > 0) identity.push(tokenRevision)
-  const key = JSON.stringify(identity)
+  const key = processedSourceImageCacheKey(entry, uri, sourceImageId, route, settings, tokenRevision)
+  let metadata: ArrayBuffer | undefined
   const path = await store.getOrFetch('source-processed.img', undefined, async (report: RemoteImageDownloadProgress) => {
     if (!current()) throw new Error('source_required_decode_request_stale')
     const descriptor = await resolveSourceRuntimeImageRequest(entry.sourceId, uri, sourceImageId, route, priority)
@@ -1196,9 +1223,11 @@ async function fetchAndCacheSourceProcessedImage(entry: SourceRuntimeRegistryEnt
       onProgress === undefined ? undefined : report)
     const restored = await restoreSourceProcessorResponse(bytes, descriptor, entry)
     if (!current()) throw new Error('source_required_decode_request_stale')
+    if (!coverImage) metadata = sourceImageProcessingBytes(descriptor)
     onProcessing?.(descriptor.imageProcessing)
     return restored
-  }, key, forceReload, onProgress)
+  }, key, forceReload, onProgress, coverImage ? undefined : { seed: key + ':processing',
+    bytes: (): ArrayBuffer | undefined => metadata })
   if (!current()) throw new Error('source_required_decode_request_stale')
   await maintainReaderImageCacheAfterWrite(path)
   if (onSize !== undefined) void probeReaderImageFileSize(path, onSize)
@@ -1246,16 +1275,12 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   const cacheKeySeed = sourceRemoteImageCacheKey(sourceId, uri, sourceImageId, route)
   // Source-produced pixels may change with its algorithm/settings while the
   // original URL stays stable. Never reuse that result across package changes.
-  const bodyCacheKey = cacheKeySeed + ':body:' + (entry === undefined ? '' : sourceWebPackageIdentity(entry)) +
-    ':' + sourceImageProcessingFingerprint(sourceId)
-  const hintKey = cacheKeySeed + ':processing:' + sourceImageProcessingFingerprint(sourceId)
+  const fingerprint = sourceImageProcessingFingerprint(sourceId)
+  const bodyCacheKey = sourceBodyImageCacheKey(cacheKeySeed, entry, fingerprint)
+  const hintKey = cacheKeySeed + ':processing:' + fingerprint
   const needsHints = onProcessing !== undefined || onRequiredDecode !== undefined
-  const bodyCached = forceReload ? undefined : await readerImageCacheStore.getReaderPage(bodyCacheKey,
+  const cached = forceReload ? undefined : await cachedSourceImage(readerImageCacheStore, cacheKeySeed, bodyCacheKey,
     needsHints ? hintKey : undefined)
-  // A miss returns an empty record. Only a usable body file can skip the
-  // original cache lookup and avoid reacquiring a source ticket for cached bytes.
-  const cached = forceReload ? undefined : bodyCached?.imagePath !== undefined ? bodyCached :
-    await readerImageCacheStore.getReaderPage(cacheKeySeed, needsHints ? hintKey : undefined)
   const cachedFast = cached?.imagePath
   if (cachedFast !== undefined && cachedFast.length > 0) {
     if (onSize !== undefined) void probeReaderImageFileSize(cachedFast, onSize)
@@ -1286,13 +1311,11 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
     return cachedFast
   }
   onRequiredDecode?.(imageRequest?.requiredImageDecode)
-  if (onProcessing !== undefined || onRequiredDecode !== undefined) {
+  if (needsHints) {
     onProcessing?.(imageRequest?.imageProcessing)
-    const cachedProcessing: SourceImageProcessingCache = { hint: imageRequest?.imageProcessing ?? null,
-      requiredImageDecode: imageRequest?.requiredImageDecode ?? null }
-    const text = JSON.stringify(cachedProcessing)
-    const bytes = new util.TextEncoder().encodeInto(text)
-    await readerImageCacheStore.put('source-image-processing.json', undefined, bytes.buffer as ArrayBuffer, hintKey)
+    if (cachedFast !== undefined && cachedFast.length > 0) {
+      await readerImageCacheStore.put('source-image-processing.json', undefined, sourceImageProcessingBytes(imageRequest), hintKey)
+    }
   }
   if (cachedFast !== undefined && cachedFast.length > 0) return cachedFast
   if (imageRequest === undefined) {
@@ -1305,7 +1328,9 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
     (report, headerMeasured) => resolvedRequest.body !== undefined ? Promise.resolve(resolvedRequest.body) : downloadReaderRemoteBytes(resolvedRequest.url, cacheHeaders,
       sourceId, resolvedRequest.dnsOverride, chapterImage, resolvedRequest.responseErrors, coverImage, onSize,
       true, onProgress === undefined ? undefined : report, headerMeasured),
-    resolvedRequest.body === undefined ? cacheKeySeed : bodyCacheKey, forceReload, onSize, onProgress)
+    resolvedRequest.body === undefined ? cacheKeySeed : bodyCacheKey, forceReload, onSize, onProgress,
+    needsHints && resolvedRequest.body === undefined ? { seed: hintKey,
+      bytes: (): ArrayBuffer => sourceImageProcessingBytes(resolvedRequest) } : undefined)
 }
 
 /** Complete public cover requests can start without a separate WASM call for each card. */
@@ -1730,6 +1755,108 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
   return source.uri
 }
 
+async function readOfflineDownloadCache(path?: string): Promise<ArrayBuffer | undefined> {
+  if (path === undefined) return undefined
+  try {
+    const bytes = await readSourceImageBytes(path)
+    DiagnosticLogger.info('reader_offline', 'page_cache_hit', 'bytes=' + bytes.byteLength)
+    return bytes
+  } catch (_error) {
+    // The cache can be evicted between lookup and read. The download still owns the network fallback.
+    return undefined
+  }
+}
+
+function offlineDownloadCachedProcessing(cached?: ReaderCachedPageFiles): SourceImageProcessingCache | undefined {
+  if (cached?.metadataText === undefined) return undefined
+  try {
+    const value = JSON.parse(cached.metadataText) as SourceImageProcessingCache
+    if (value.hint === undefined || value.requiredImageDecode === undefined) return undefined
+    if (value.requiredImageDecode !== null) sourceRequiredImageDecode(value.requiredImageDecode)
+    return value
+  } catch (_error) {
+    return undefined
+  }
+}
+
+function retainOfflineDownloadProcessing(source: ReaderPageRenderSource, hint: ImageProcessingHint | undefined,
+  fingerprint: string): void {
+  source.imageProcessing = hint
+  source.imageProcessingResolved = true
+  source.imageProcessingFingerprint = fingerprint
+}
+
+async function fetchOfflineDownloadProcessedSource(source: ReaderPageRenderSource, entry: SourceRuntimeRegistryEntry,
+  pageId: string): Promise<ArrayBuffer> {
+  const settings = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(entry.sourceId))
+  const tokenRevision = entry.authentication?.webToken === undefined ? '' : await loadSourceWebTokenRevision(entry)
+  const current = (): boolean => sourceTextRequestCurrent(entry, settings) &&
+    (tokenRevision.length === 0 || sourceWebTokenRevision(entry) === tokenRevision)
+  if (!current()) throw new Error('source_required_decode_request_stale')
+  const key = processedSourceImageCacheKey(entry, source.imageUri, pageId,
+    sourceImageMangaRoute(source.sourceMangaUrl), settings, tokenRevision)
+  const cached = await readerImageCacheStore?.getReaderPage(key, key + ':processing')
+  const processing = offlineDownloadCachedProcessing(cached)
+  const bytes = await readOfflineDownloadCache(cached?.imagePath)
+  if (!current()) throw new Error('source_required_decode_request_stale')
+  if (bytes !== undefined && processing !== undefined) {
+    retainOfflineDownloadProcessing(source, processing.hint ?? undefined, sourceImageProcessingFingerprint(entry.sourceId))
+    if (processing.requiredImageDecode !== null) source.requiredImageDecodeResolved = true
+    return bytes
+  }
+  const request = await resolveSourceRuntimeImageRequest(entry.sourceId, source.imageUri, pageId, source.sourceMangaUrl)
+  if (request === undefined || !current()) throw new Error('source_required_decode_request_stale')
+  let restored = bytes
+  if (restored === undefined) {
+    const wire = request.body ?? await downloadReaderRemoteBytesWithRetry(request.url, request.headers, entry.sourceId,
+      request.dnsOverride, request.responseErrors)
+    restored = await restoreSourceProcessorResponse(wire, request, entry)
+  }
+  if (!current()) throw new Error('source_required_decode_request_stale')
+  retainOfflineDownloadProcessing(source, request.imageProcessing, sourceImageProcessingFingerprint(entry.sourceId))
+  if (request.requiredImageDecode !== undefined) source.requiredImageDecodeResolved = true
+  return restored
+}
+
+async function fetchOfflineDownloadSource(source: ReaderPageRenderSource, sourceId: string,
+  pageId: string): Promise<ArrayBuffer | undefined> {
+  const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+  if (entry?.requiredImageDecodes?.includes(SOURCE_IMAGE_PROCESSOR_KIND)) {
+    return fetchOfflineDownloadProcessedSource(source, entry, pageId)
+  }
+  const fingerprint = sourceImageProcessingFingerprint(sourceId)
+  const key = sourceRemoteImageCacheKey(sourceId, source.imageUri, pageId, sourceImageMangaRoute(source.sourceMangaUrl))
+  const bodyKey = sourceBodyImageCacheKey(key, entry, fingerprint)
+  const cached = await readerImageCacheStore?.getReaderPage(bodyKey)
+  const body = source.requiredImageDecode === undefined ? await readOfflineDownloadCache(cached?.imagePath) : undefined
+  if (body !== undefined && fingerprint === sourceImageProcessingFingerprint(sourceId)) {
+    // Source body responses cannot declare required decoding or optional processing hints.
+    retainOfflineDownloadProcessing(source, undefined, fingerprint)
+    return body
+  }
+  const original = await readerImageCacheStore?.getReaderPage(key, key + ':processing:' + fingerprint)
+  const processing = offlineDownloadCachedProcessing(original)
+  if (processing !== undefined) {
+    const bytes = await readOfflineDownloadCache(original?.imagePath)
+    if (bytes !== undefined && fingerprint === sourceImageProcessingFingerprint(sourceId)) {
+      retainRequiredDecode(source, processing.requiredImageDecode ?? undefined)
+      retainOfflineDownloadProcessing(source, processing.hint ?? undefined, fingerprint)
+      return bytes
+    }
+  }
+
+  // Older cached originals may still need the descriptor for the offline manifest.
+  const request = await resolveSourceRuntimeImageRequest(sourceId, source.imageUri, pageId, source.sourceMangaUrl)
+  if (request === undefined) return undefined
+  retainRequiredDecode(source, request.requiredImageDecode)
+  retainOfflineDownloadProcessing(source, request.imageProcessing, sourceImageProcessingFingerprint(sourceId))
+  if (request.body !== undefined) return request.body
+  const bytes = processing === undefined && fingerprint === sourceImageProcessingFingerprint(sourceId)
+    ? await readOfflineDownloadCache(original?.imagePath) : undefined
+  return bytes ?? downloadReaderRemoteBytesWithRetry(request.url, request.headers, sourceId,
+    request.dnsOverride, request.responseErrors)
+}
+
 export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSource, context?: common.UIAbilityContext): Promise<ArrayBuffer> {
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE || source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
     // Downloads own the original bytes even when normal presentation has a
@@ -1749,39 +1876,15 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
     }
   }
   if (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE) {
-    if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
-      const entry = appSourceRuntimeRegistry.lookup(source.sourceRuntimeId).entry
-      if (entry?.requiredImageDecodes?.includes(SOURCE_IMAGE_PROCESSOR_KIND)) {
-        const settings = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(entry.sourceId))
-        const tokenRevision = entry.authentication?.webToken === undefined ? '' : await loadSourceWebTokenRevision(entry)
-        const current = (): boolean => sourceTextRequestCurrent(entry, settings) &&
-          (tokenRevision.length === 0 || sourceWebTokenRevision(entry) === tokenRevision)
-        if (!current()) throw new Error('source_required_decode_request_stale')
-        const request = await resolveSourceRuntimeImageRequest(entry.sourceId, source.imageUri, source.pageId, source.sourceMangaUrl)
-        if (request === undefined || !current()) throw new Error('source_required_decode_request_stale')
-        const wire = request.body ?? await downloadReaderRemoteBytesWithRetry(request.url, request.headers, entry.sourceId,
-          request.dnsOverride, request.responseErrors)
-        const restored = await restoreSourceProcessorResponse(wire, request, entry)
-        if (!current()) throw new Error('source_required_decode_request_stale')
-        source.imageProcessing = request.imageProcessing
-        source.imageProcessingResolved = true
-        source.imageProcessingFingerprint = sourceImageProcessingFingerprint(entry.sourceId)
-        if (request.requiredImageDecode !== undefined) source.requiredImageDecodeResolved = true
-        return restored
-      }
-      const imageRequest = await resolveSourceRuntimeImageRequest(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl)
-      if (imageRequest !== undefined) {
-        retainRequiredDecode(source, imageRequest.requiredImageDecode)
-        source.imageProcessing = imageRequest.imageProcessing
-        source.imageProcessingResolved = true
-        source.imageProcessingFingerprint = sourceImageProcessingFingerprint(source.sourceRuntimeId)
-        if (imageRequest.body !== undefined) return imageRequest.body
-        return downloadReaderRemoteBytesWithRetry(imageRequest.url, imageRequest.headers, source.sourceRuntimeId,
-          imageRequest.dnsOverride, imageRequest.responseErrors)
-      }
+    const sourceId = source.sourceRuntimeId?.trim() ?? ''
+    if (sourceId.length > 0 && source.pageId !== undefined) {
+      const bytes = await fetchOfflineDownloadSource(source, sourceId, source.pageId)
+      if (bytes !== undefined) return bytes
     }
     const request = await resolveReaderRemoteRequest(source.imageUri, source, context)
-    return downloadReaderRemoteBytesWithRetry(request.requestUrl, request.headers, source.sourceRuntimeId ?? '')
+    const cached = await readerImageCacheStore?.get(request.url, request.headers)
+    const bytes = await readOfflineDownloadCache(cached)
+    return bytes ?? downloadReaderRemoteBytesWithRetry(request.requestUrl, request.headers, sourceId)
   }
   throw new Error('reader_page_source_unavailable')
 }

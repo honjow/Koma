@@ -112,15 +112,16 @@
       "reportedAt": null,
       "reportedDate": "2026-11-21",
       "reportedAtSource": "本会话用户报告刚退出漫画后续读偶发较久加载。",
-      "updatedAt": "2026-11-21T04:18:58+08:00",
-      "status": "用户实测确认书架续读明显改善，已核对共用取图范围",
+      "updatedAt": "2026-11-21T04:51:00+08:00",
+      "status": "用户实测确认书架续读改善，离线下载图片缓存复用已在 201 验证",
       "result": "日漫分类顶部卡片三轮续读同一页，每轮重新取得正文页表和九张图的票据，随后命中正文文件。目录补齐和取图共用同源串行队列。捕获的三轮超分使用已有结果，未见推理启动。已修复源生成文件未命中时跳过普通正文缓存的问题。",
-      "remaining": "其他书源已核对调用链及本地缓存回放，未逐源实机测速。收到同步进度的续读路径仍会刷新页表。离线下载通过另一入口取新图，已读图片只在阅读缓存时仍会再次请求书源。",
+      "remaining": "其他书源已核对调用链及本地缓存回放，未逐源实机测速。收到同步进度的续读路径仍会刷新页表。",
       "relatedItems": ["READER_TEMPORARY_ENHANCEMENT_REUSE", "HISTORY_RESUME_WAIT_FEEDBACK"],
       "evidence": [
         "本地执行验证了目录未返回时目标章可准备，目录返回后更新选章标题和相邻章节。",
         "本会话用户实测反馈：这一个加载速度好了很多。修复提交 67e9f33a。",
         "回放 46e31501 和修复后的正文取图，Komiic 与 MYCOMIC 的已有原图都从进入取图描述改为直接使用缓存。已核对预载、通过书源取图的封面及离线下载入口。",
+        "离线下载复用缓存原图并沿用原写盘规则。201 实测 Komiic 样章 5 页命中缓存，缺的 12 页各取图一次，完整下载 17 页。Koma 冷启动后从下载管理打开该章，成功显示本地正文。",
         ".hvigor/outputs/shelf-resume-latency-20261121/device200__HOP-AL10/unknown/portrait-1828x2584/shelf-resume-roundtrip/roundtrip-trace-003/resume-latency-summary.json"
       ]
     },

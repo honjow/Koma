@@ -81,7 +81,8 @@ test('ordinary cached chapter images skip ticket retrieval when the source-body 
   const { cache } = fileCache(directory)
   const entry = { enabled: true, manifestVersion: '1', wasmPath: '/installed/source.wasm' }
   const adapter = functions('model/ReaderPageSourceAdapter.ets',
-    ['sourceImageMangaRoute', 'sourceRemoteImageCacheKey', 'fetchAndCacheSourceRuntimeRemoteImage'], {
+    ['sourceImageMangaRoute', 'sourceRemoteImageCacheKey', 'sourceBodyImageCacheKey', 'cachedSourceImage',
+      'fetchAndCacheSourceRuntimeRemoteImage'], {
       readerImageCacheStore: cache,
       SourceWorkerPriority: { FOREGROUND: 0 },
       appSourceRuntimeRegistry: { lookup: () => ({ entry }) },
@@ -102,20 +103,115 @@ test('ordinary cached chapter images skip ticket retrieval when the source-body 
   }
 })
 
+test('offline downloads reuse reader originals and canonical source output, and request missing pages', async () => {
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'koma-offline-reader-cache-'))
+  const { cache } = fileCache(directory)
+  const required = load('model/SourceRequiredImageDecode.ets')
+  const kinds = { LOCAL_FILE_IMAGE: 'local', REMOTE_URL_IMAGE: 'remote', SOURCE_TEXT_REQUEST: 'text' }
+  const entry = { sourceId: 'test-source', enabled: true, manifestVersion: '1', wasmPath: '/installed/source.wasm' }
+  const wasm = { ...entry, sourceId: 'processor', requiredImageDecodes: ['wasm_image_v1'] }
+  const stripes = { kind: 'jm_stripes_v1', rows: 10 }
+  const processor = { kind: 'wasm_image_v1', bytes: 'processor-settings' }
+  const image = name => ({ kind: kinds.REMOTE_URL_IMAGE, sourceRuntimeId: entry.sourceId, pageId: name,
+    sourceMangaUrl: 'source://test-source/work', imageUri: 'https://images.invalid/' + name })
+  const requests = []
+  let evictedPath
+  const bytes = (...values) => Uint8Array.of(...values).buffer
+  const adapter = functions('model/ReaderPageSourceAdapter.ets', ['sourceImageMangaRoute', 'sourceRemoteImageCacheKey',
+    'sourceBodyImageCacheKey', 'sourceImageProcessingBytes', 'processedSourceImageCacheKey', 'retainRequiredDecode',
+    'readOfflineDownloadCache', 'offlineDownloadCachedProcessing', 'retainOfflineDownloadProcessing',
+    'fetchOfflineDownloadProcessedSource', 'fetchOfflineDownloadSource', 'fetchReaderRemoteSourceBytes'], {
+    ...required, readerImageCacheStore: cache, ReaderPageRenderKind: kinds, SOURCE_IMAGE_PROCESSOR_KIND: 'wasm_image_v1',
+    DiagnosticLogger: { info() {} }, appSourceRuntimeRegistry: {
+      lookup: id => ({ entry: id === wasm.sourceId ? wasm : entry }),
+    },
+    util: { TextEncoder: class { encodeInto(text) { return new TextEncoder().encode(text) } } },
+    sourceRequiredImageDecode: hint => hint.kind === 'wasm_image_v1' ? hint : required.sourceRequiredImageDecode(hint),
+    sourceImageProcessingFingerprint: () => 'fingerprint', sourceWebPackageIdentity: () => 'package',
+    appSourceSettingsStore: { loadForSource: () => ({}) }, sourceSettingsFingerprint: () => 'settings',
+    sourceTextRequestCurrent: () => true,
+    readSourceImageBytes: async file => {
+      if (file === evictedPath) fs.rmSync(file)
+      return Uint8Array.from(fs.readFileSync(file)).buffer
+    },
+    resolveSourceRuntimeImageRequest: async (_id, uri, pageId) => {
+      requests.push('descriptor:' + pageId)
+      return { url: uri, headers: { Referer: 'https://site.invalid' }, requiredImageDecode: pageId === 'evicted' ? stripes : undefined }
+    },
+    resolveReaderRemoteRequest: async uri => ({ url: uri, requestUrl: uri + '?private-token', headers: { Authorization: 'test' } }),
+    downloadReaderRemoteBytesWithRetry: async (url, headers) => {
+      requests.push('get:' + url.split('/').at(-1))
+      assert.deepEqual(headers, { Referer: 'https://site.invalid' })
+      return bytes(4, 5, 6)
+    },
+  })
+  const read = async source => [...new Uint8Array(await adapter.fetchReaderRemoteSourceBytes(source))]
+  const seedFor = source => adapter.sourceRemoteImageCacheKey(source.sourceRuntimeId, source.imageUri, source.pageId,
+    adapter.sourceImageMangaRoute(source.sourceMangaUrl))
+  const putOriginal = async (source, values, descriptor) => {
+    const key = seedFor(source)
+    return cache.getOrFetch(source.imageUri, undefined, async () => bytes(...values), key, false, undefined,
+      { seed: key + ':processing:fingerprint', bytes: () => adapter.sourceImageProcessingBytes(descriptor) })
+  }
+  try {
+    const cached = image('cached')
+    const banner = { rules: ['fixture'] }
+    await putOriginal(cached, [1, 2, 3], { imageProcessing: banner })
+    const scrambled = image('scrambled')
+    await putOriginal(scrambled, [7, 8, 9], { requiredImageDecode: stripes })
+    const evicted = image('evicted')
+    evictedPath = await putOriginal(evicted, [0], { requiredImageDecode: stripes })
+    const legacy = image('legacy')
+    await cache.put(legacy.imageUri, undefined, bytes(1, 3, 5), seedFor(legacy))
+    const body = image('body')
+    await cache.put(body.imageUri, undefined, bytes(6, 7), seedFor(body) + ':body:package:fingerprint')
+    const canonical = { ...image('canonical'), sourceRuntimeId: wasm.sourceId }
+    const processedKey = adapter.processedSourceImageCacheKey(wasm, canonical.imageUri, canonical.pageId,
+      adapter.sourceImageMangaRoute(canonical.sourceMangaUrl), 'settings', '')
+    await cache.getOrFetch('source-processed.img', undefined, async () => bytes(9, 8), processedKey, false,
+      undefined, { seed: processedKey + ':processing', bytes: () => adapter.sourceImageProcessingBytes({
+        imageProcessing: banner, requiredImageDecode: processor,
+      }) })
+    const direct = { ...image('direct'), sourceRuntimeId: undefined }
+    await cache.put(direct.imageUri, { Authorization: 'test' }, bytes(3, 2))
+    assert.deepEqual(await read(cached), [1, 2, 3])
+    assert.deepEqual(cached.imageProcessing, banner)
+    assert.equal(cached.imageProcessingResolved, true)
+    assert.deepEqual(await read(scrambled), [7, 8, 9])
+    assert.deepEqual(scrambled.requiredImageDecode, stripes)
+    assert.equal(scrambled.requiredImageDecodeResolved, undefined)
+    assert.deepEqual(await read(body), [6, 7])
+    assert.deepEqual(await read(canonical), [9, 8])
+    assert.deepEqual(canonical.imageProcessing, banner)
+    assert.equal(canonical.requiredImageDecodeResolved, true)
+    assert.deepEqual(await read(direct), [3, 2])
+    assert.deepEqual(requests, [])
+    assert.deepEqual(await read(legacy), [1, 3, 5])
+    assert.deepEqual(await read(evicted), [4, 5, 6])
+    assert.deepEqual(await read(image('missing')), [4, 5, 6])
+    assert.deepEqual(requests, ['descriptor:legacy', 'descriptor:evicted', 'get:evicted', 'descriptor:missing', 'get:missing'])
+  } finally {
+    await cache.clear()
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test('required image decoding discovers declared old cache, fails closed, and precedes optional processing', async () => {
   const required = load('model/SourceRequiredImageDecode.ets')
   let entry = { enabled: true, manifestVersion: '1', wasmPath: '/installed/source.wasm' }
   let sidecar, calls = 0, fail = false, rows = 10
   const decoded = [], hint = { kind: 'jm_stripes_v1', rows: 10 }
   const cache = { getReaderPage: async (_imageSeed, metadataSeed) => ({ imagePath: 'wire-cache',
-    metadataPath: metadataSeed === undefined || sidecar === undefined ? undefined : 'sidecar' }),
+    metadataText: metadataSeed === undefined || sidecar === undefined ? undefined : JSON.stringify(sidecar) }),
     put: async (_url, _headers, bytes) => { sidecar = JSON.parse(Buffer.from(bytes).toString()); return 'sidecar' } }
   const kinds = { LOCAL_FILE_IMAGE: 'local', REMOTE_URL_IMAGE: 'remote', SOURCE_TEXT_REQUEST: 'text' }
   const adapter = functions('model/ReaderPageSourceAdapter.ets', ['sourceImageMangaRoute', 'sourceRemoteImageCacheKey', 'fetchAndCacheSourceRuntimeRemoteImage',
+    'sourceBodyImageCacheKey', 'cachedSourceImage', 'sourceImageProcessingBytes',
     'retainRequiredDecode', 'prepareSourcePagePresentation', 'fetchAndCacheReaderRemoteSource'], {
     ...required, ReaderPageRenderKind: kinds, readerImageCacheStore: cache, SourceWorkerPriority: { FOREGROUND: 1 },
     appSourceRuntimeRegistry: { lookup: () => ({ entry }) }, sourceImageProcessingFingerprint: () => 'settings-identity',
-    fs: { readText: async () => JSON.stringify(sidecar) },
+    parsePdfPageUri: () => undefined,
+    sourceWebPackageIdentity: () => 'installed-package', SOURCE_IMAGE_PROCESSOR_KIND: 'wasm_image_v1',
     util: { TextEncoder: class { encodeInto(text) { return new TextEncoder().encode(text) } } },
     resolveSourceRuntimeImageRequest: async () => { calls++; if (fail) throw Error('descriptor failed'); return { url: 'image', requiredImageDecode: { ...hint, rows } } },
     SourceRequiredImageDecodeService: { prepare: async (raw, rule) => { decoded.push([raw, rule]); return 'canonical' } },

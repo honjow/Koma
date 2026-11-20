@@ -60,7 +60,7 @@ const hint = {kind:'jm_stripes_v1',rows:4}
 const requiredSource=fs.readFileSync(base+'SourceRequiredImageDecode.ets','utf8')
 const requiredTree=ts.createSourceFile('required.ets',requiredSource,ts.ScriptTarget.Latest,true)
 const requiredNode=requiredTree.statements.find(node=>node.name?.text==='sourceRequiredImageDecode')
-const required=load(requiredNode.getText(requiredTree),{})
+const required=load(requiredNode.getText(requiredTree),{ SOURCE_IMAGE_PROCESSOR_KIND: 'wasm_image_v1' })
 const library = load(fs.readFileSync(base+'LibraryPersistence.ets','utf8'), {
   ...models, sourceTextOverlay: actual.sourceTextOverlay, sourceRequiredImageDecode:required.sourceRequiredImageDecode, fs:io,
 })
