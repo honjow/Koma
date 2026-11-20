@@ -96,6 +96,7 @@ import {
   needsSourceCatalogChronology,
 } from '../model/ReaderChapterSequence'
 import { SourceBrowsePage } from './SourceBrowsePage'
+import { chapterReadingSortFor } from '../model/ChapterListPreferencesStore'
 import { SourceWebFetchBridgeHost } from '../components/SourceWebFetchBridgeHost'
 import { SourceSearchPage } from './SourceSearchPage'
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
@@ -834,7 +835,7 @@ struct Index {
       return progress.chapterId
     }
     return firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId),
-      (id: string): boolean => this.readerSessionStore.isChapterRead(comic.id, id))?.id
+      (id: string): boolean => this.readerSessionStore.isChapterRead(comic.id, id), chapterReadingSortFor(comic.id))?.id
   }
 
   private openLibraryContinueReading(comicId: ComicId): void {
@@ -1079,7 +1080,7 @@ struct Index {
       return progress.chapterId
     }
     const firstChapter = firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId),
-      (id: string): boolean => this.readerSessionStore.isChapterRead(comic.id, id))
+      (id: string): boolean => this.readerSessionStore.isChapterRead(comic.id, id), chapterReadingSortFor(comic.id))
     return firstChapter?.id
   }
 
@@ -1299,7 +1300,7 @@ struct Index {
       chapterIds,
       chapterTitles,
       continuationChapterIds: request.chaptersResolved === true && request.chapters !== undefined
-        ? continuationChapterIds(request.chapters, request.chapterId, true) : undefined,
+        ? continuationChapterIds(request.chapters, request.chapterId, true, chapterReadingSortFor(request.comicId)) : undefined,
       sourceChapterChronologyPending: needsSourceCatalogChronology(request.chapters?.find(
         (chapter: ReaderChapterDescriptor): boolean => chapter.id === request.chapterId)),
       title: request.title,
@@ -1548,7 +1549,7 @@ struct Index {
       updated.chaptersResolved = true
       this.activeSourceReaderRequest = updated
       this.rememberSharedChapterCatalog(updated)
-      return continuationChapterIds(catalog.chapters, target.unit, true)
+      return continuationChapterIds(catalog.chapters, target.unit, true, chapterReadingSortFor(target.work))
     }
     return new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
       this.ensureLibraryPersistenceService()).resolveChapterSequence(target.work, target.unit, isCurrent)

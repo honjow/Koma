@@ -61,6 +61,8 @@ export type MangaChapterDownloadStatus = 'queued' | 'downloading' | 'downloaded'
 export enum ChapterSortBasis {
   SOURCE_ORDER = 'source_order',
   CHAPTER_NUMBER = 'chapter_number',
+  UPLOAD_DATE = 'upload_date',
+  NAME = 'name',
 }
 
 export enum ChapterSortDirection {

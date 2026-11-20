@@ -10,7 +10,7 @@ const source = fs.readFileSync(path.join(base, 'components/ChapterListSection.et
   .replace('export struct ChapterListSection', 'export class ChapterListSection')
 const tree = ts.createSourceFile('chapter.ts', source, ts.ScriptTarget.Latest, true)
 const owner = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'ChapterListSection')
-const names = ['sortedChapterList','filteredChapterList','chapterNumberValue','setSortBasis','setSortDirection','hasActiveFilters',
+const names = ['sortedChapterList','filteredChapterList','setSortBasis','setSortDirection','hasActiveFilters',
   'resetFilters','normalizeMetadataValue','selectedIdsInFilter','reportDisplayOrder']
 const methods = owner.members.filter(n => ts.isMethodDeclaration(n) && names.includes(n.name.getText(tree)))
 const getters = owner.members.filter(n => ts.isGetAccessorDeclaration(n) &&
@@ -26,11 +26,18 @@ const js = ts.transpileModule(enums.map(n=>n.getText(modelTree)).join('\n') + '\
   '} exports.make=()=>{ const o=new Owner();o.presentation=new ChapterListPresentation();return o };',
   {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
 const exported = {}
+const comparison = {}
+const comparatorSource = fs.readFileSync(path.join(base, 'model/ChapterSortOrder.ets'), 'utf8')
+const comparatorJs = ts.transpileModule(comparatorSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+}).outputText
+new Function('exports', comparatorJs)(comparison)
 const readFilter = {ALL:'all',UNREAD:'unread',READ:'read',DOWNLOADED:'downloaded'}
-new Function('exports','ChapterReadFilter',js)(exported,readFilter)
-const SOURCE='source_order', NUMBER='chapter_number', FORWARD='forward', REVERSE='reverse'
+new Function('exports','ChapterReadFilter','compareChapterSort',js)(exported,readFilter,comparison.compareChapterSort)
+const SOURCE='source_order', NUMBER='chapter_number', UPLOAD='upload_date', NAME='name', FORWARD='forward', REVERSE='reverse'
 function make(chapters) {
   const o=exported.make();o.chapters=chapters
+  o.languageState={effectiveLocale:'zh-CN'}
   o.presentation.selectedChapterIds=new Set();o.rebuilds=0
   o.rebuildDataSource=()=>{o.rebuilds++}
   o.savePreferences=()=>{} // Persistence is exercised by its store contract, not this projection test.
@@ -70,9 +77,17 @@ test('filters and batch actions use the same reversed chapter identities without
   o.setSortDirection(REVERSE);o.reportDisplayOrder();assert.deepEqual(displayed,['d','c']);assert.deepEqual(o.selectedIdsInFilter(),['d','c'])
   o.setSortDirection(FORWARD);o.reportDisplayOrder();assert.deepEqual(displayed,['c','d']);assert.equal(input[0].isRead,true)
 })
-test('each state domain has exactly the two exposed choices, without hidden legacy defaults',()=>{
-  assert.deepEqual(Object.values(exported.ChapterSortBasis).sort(),[SOURCE,NUMBER].sort())
-  assert.deepEqual(Object.values(exported.ChapterSortDirection).sort(),[FORWARD,REVERSE].sort())
+test('upload date and localized name sort the view without changing the source list',()=>{
+  // The user requested the four Mihon sort choices in place of the old two-choice baseline.
+  const input=Object.freeze([chapter('b',2,{title:'猫',dateUpload:300}),chapter('a',1,{title:'狗',dateUpload:500}),
+    chapter('c',3,{title:'猪'})])
+  const o=make(input), ids=()=>o.sortedChapters.map(c=>c.id)
+  o.setSortBasis(UPLOAD);assert.deepEqual(ids(),['c','b','a'])
+  o.setSortDirection(REVERSE);assert.deepEqual(ids(),['a','b','c'])
+  o.setSortBasis(NAME);assert.deepEqual(ids(),['c','b','a'])
+  o.setSortDirection(FORWARD);assert.deepEqual(ids(),['a','b','c'])
+  o.setSortBasis(SOURCE);assert.deepEqual(ids(),['b','a','c'])
+  assert.equal(o.chapters,input)
 })
 test('new catalogs are projected through the current mode and direction without a separate mutable sorted copy',()=>{
   const o=make([chapter('old')]);o.setSortDirection(REVERSE)

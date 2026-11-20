@@ -11,6 +11,7 @@ import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { MihonImportRecord } from '../model/MihonBackupReader'
 import { mihonPlaceholder } from '../model/MihonImportPlanning'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { chapterReadingSortFor } from '../model/ChapterListPreferencesStore'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, TrackerSearchTitleFieldContentBuilder } from '../components/SearchTitleField'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
@@ -1946,8 +1947,11 @@ export struct MangaDetailPage {
   private get firstUnreadChapterValue(): string | undefined {
     void this.readerSessionStore
     void this.readerProgressRevision
+    // Follow a newly selected basis before its asynchronous preference flush.
+    void this.chapterPresentation.sortBasis
+    const comicId = this.currentComicId()
     return firstReaderChapter(this.chapters, sourceChapterOrderFor(this.manga?.sourceId),
-      (id: string): boolean => this.readerSessionStore.isChapterRead(this.currentComicId(), id))?.id
+      (id: string): boolean => this.readerSessionStore.isChapterRead(comicId, id), chapterReadingSortFor(comicId))?.id
   }
 
   private firstUnreadChapterId(): string | undefined {
@@ -2457,7 +2461,7 @@ export struct MangaDetailPage {
       eligible.has(chapter.id)).map((chapter: MangaChapterItem): string => chapter.id)
     for (let index = 0; index < limit; index++) {
       const chapter = firstReaderChapter(this.chapters, sourceChapterOrderFor(this.manga?.sourceId),
-        (id: string): boolean => !eligible.has(id))
+        (id: string): boolean => !eligible.has(id), chapterReadingSortFor(this.currentComicId()))
       if (chapter === undefined) break
       ids.push(chapter.id)
       eligible.delete(chapter.id)

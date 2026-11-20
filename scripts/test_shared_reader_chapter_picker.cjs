@@ -119,12 +119,7 @@ test('a newer picker target cancels preparation and is the only chapter opened',
 })
 
 function chapterSequence() {
-  const exports = {}
-  const source = fs.readFileSync(path.join(root, '../model/ReaderChapterSequence.ets'), 'utf8')
-  vm.runInNewContext(ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText, { exports })
-  return exports
+  return loadHostModel('ReaderChapterSequence', { './ChapterSortOrder': loadHostModel('ChapterSortOrder') })
 }
 
 test('first-read ignores catalog display direction and unknown negative ordinals, preserving a real chapter zero', () => {
@@ -705,6 +700,26 @@ test('ordinary first-read owners keep explicit chapter and resume before earlies
  assert.deepEqual([...detail.downloadUnreadChapterIds(1)],['down'],'download the next unread chapter without duplicating local files')
 })
 
+test('first reading uses a named source sequence after the catalogue has been reordered', () => {
+  const { firstReaderChapter, continuationChapterIds } = chapterSequence()
+  const rows = [
+    { id: 'latest', title: '第二十六章', readingGroup: 'baozi-main', readingOrder: 2, continuationEligible: true },
+    { id: 'notice', title: '公告', continuationEligible: false },
+    { id: 'second', title: '第二十五章', readingGroup: 'baozi-main', readingOrder: 1, continuationEligible: true },
+    { id: 'first', title: '第二十四章', readingGroup: 'baozi-main', readingOrder: 0, continuationEligible: true },
+  ]
+  assert.equal(firstReaderChapter(rows, 'oldest_first').id, 'first')
+  assert.equal(firstReaderChapter(rows, 'oldest_first', id => id === 'first').id, 'second')
+  assert.equal(firstReaderChapter(rows, 'oldest_first', id => id !== 'notice'), undefined)
+  rows[0].dateUpload = 1
+  rows[2].dateUpload = 2
+  rows[3].dateUpload = 3
+  const sort = { basis: 'upload_date' }
+  assert.equal(firstReaderChapter(rows, 'oldest_first', undefined, sort).id, 'latest')
+  assert.deepEqual(Array.from(continuationChapterIds(rows, 'second', true, sort)), ['latest', 'second', 'first'])
+  assert.deepEqual(Array.from(continuationChapterIds(rows, 'notice', true, sort)), ['notice'])
+})
+
 
 test('downloaded single-page lookahead prepares geometry without waiting for foreground decode', async () => {
   const seen = []
@@ -721,11 +736,7 @@ test('downloaded single-page lookahead prepares geometry without waiting for for
 })
 
 test('verified source reading order preserves duplicate numbers and unnumbered extras through continuation', () => {
-  const source = fs.readFileSync(path.join(root, '../model/ReaderChapterSequence.ets'), 'utf8')
-  const output = {}
-  vm.runInNewContext(ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText, { exports: output })
+  const output = chapterSequence()
   const chapters = [
     { id: 'end', chapterNumber: 3, readingOrder: 4 },
     { id: 'one-b', chapterNumber: 1, readingOrder: 1 },
@@ -774,11 +785,7 @@ test('reader prefers the current scanlator only among source-declared variants',
 })
 
 test('declared source chronology supplies the same chapter relation without edition metadata', () => {
-  const source = fs.readFileSync(path.join(root, '../model/ReaderChapterSequence.ets'), 'utf8')
-  const output = {}
-  vm.runInNewContext(ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText, { exports: output })
+  const output = chapterSequence()
   const chronology = {}
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, '../model/SourceChapterChronology.ets'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },

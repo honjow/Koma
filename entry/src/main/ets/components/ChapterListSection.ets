@@ -14,6 +14,7 @@ import { UIUtils } from '@kit.ArkUI'
 import { HdsListItemCard, SuffixCustomBuilder } from '@kit.UIDesignKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ChapterListPreferencesStore, ChapterReadFilter } from '../model/ChapterListPreferencesStore'
+import { ChapterSortPolicy, compareChapterSort } from '../model/ChapterSortOrder'
 import { previousUnreadChapterIds } from '../model/ReaderChapterSequence'
 export { ChapterReadFilter } from '../model/ChapterListPreferencesStore'
 
@@ -161,11 +162,11 @@ export struct ChapterListSection {
     if (this.presentation.sortBasis === ChapterSortBasis.SOURCE_ORDER &&
       this.presentation.sortDirection === ChapterSortDirection.FORWARD) return filtered
     const sorted = filtered === this.chapters ? filtered.slice() : filtered
-    if (this.presentation.sortBasis === ChapterSortBasis.CHAPTER_NUMBER) {
-      // Source position and optional chapter numbers are distinct inputs.
-      // Equal/missing numbers retain source order in this fixed baseline.
-      sorted.sort((left: MangaChapterItem, right: MangaChapterItem): number =>
-        this.chapterNumberValue(left) - this.chapterNumberValue(right))
+    if (this.presentation.sortBasis !== ChapterSortBasis.SOURCE_ORDER) {
+      const policy: ChapterSortPolicy = {
+        basis: this.presentation.sortBasis, locale: this.languageState.effectiveLocale || undefined,
+      }
+      sorted.sort((left: MangaChapterItem, right: MangaChapterItem): number => compareChapterSort(left, right, policy))
     }
     // Direction reverses the entire result, including all equal/missing values.
     // Neither the source catalog nor chapter IDs/reading state are mutated.
@@ -200,17 +201,23 @@ export struct ChapterListSection {
     return filtered
   }
 
-  private chapterNumberValue(chapter: MangaChapterItem): number {
-    return typeof chapter.chapterNumber === 'number' && Number.isFinite(chapter.chapterNumber) && chapter.chapterNumber >= 0
-      ? chapter.chapterNumber : -1
-  }
-
   private sortLabel(): string {
-    const basis = s(this.presentation.sortBasis === ChapterSortBasis.SOURCE_ORDER
-      ? 'chapter_list_sort_source_order' : 'chapter_list_sort_number')
     const direction = s(this.presentation.sortDirection === ChapterSortDirection.FORWARD
       ? 'chapter_list_sort_forward' : 'chapter_list_sort_reverse')
-    return basis + ' · ' + direction
+    return s(this.sortBasisLabel(this.presentation.sortBasis)) + ' · ' + direction
+  }
+
+  private sortBasisLabel(basis: ChapterSortBasis): string {
+    switch (basis) {
+      case ChapterSortBasis.CHAPTER_NUMBER:
+        return 'chapter_list_sort_number'
+      case ChapterSortBasis.UPLOAD_DATE:
+        return 'chapter_list_sort_upload_date'
+      case ChapterSortBasis.NAME:
+        return 'chapter_list_sort_name'
+      default:
+        return 'chapter_list_sort_source_order'
+    }
   }
 
   private filterLabel(): string {
@@ -421,19 +428,22 @@ export struct ChapterListSection {
   }
 
   @Builder
+  private SortBasisItem(basis: ChapterSortBasis) {
+    MenuItem({ content: s(this.sortBasisLabel(basis)) })
+      .selected(this.presentation.sortBasis === basis)
+      .selectIcon(true)
+      .enabled(this.presentation.sortBasis !== basis)
+      .onClick(() => { this.setSortBasis(basis) })
+  }
+
+  @Builder
   private SortMenu() {
     Menu() {
       MenuItemGroup({ header: () => { this.SortGroupHeader(s('chapter_list_sort_by')) } }) {
-        MenuItem({ content: s('chapter_list_sort_source_order') })
-          .selected(this.presentation.sortBasis === ChapterSortBasis.SOURCE_ORDER)
-          .selectIcon(true)
-          .enabled(this.presentation.sortBasis !== ChapterSortBasis.SOURCE_ORDER)
-          .onClick(() => { this.setSortBasis(ChapterSortBasis.SOURCE_ORDER) })
-        MenuItem({ content: s('chapter_list_sort_number') })
-          .selected(this.presentation.sortBasis === ChapterSortBasis.CHAPTER_NUMBER)
-          .selectIcon(true)
-          .enabled(this.presentation.sortBasis !== ChapterSortBasis.CHAPTER_NUMBER)
-          .onClick(() => { this.setSortBasis(ChapterSortBasis.CHAPTER_NUMBER) })
+        this.SortBasisItem(ChapterSortBasis.SOURCE_ORDER)
+        this.SortBasisItem(ChapterSortBasis.CHAPTER_NUMBER)
+        this.SortBasisItem(ChapterSortBasis.UPLOAD_DATE)
+        this.SortBasisItem(ChapterSortBasis.NAME)
       }
       MenuItemGroup({ header: () => { this.SortGroupHeader(s('chapter_list_sort_direction')) } }) {
         MenuItem({ content: s('chapter_list_sort_forward') })

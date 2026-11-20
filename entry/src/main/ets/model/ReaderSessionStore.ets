@@ -12,6 +12,7 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
 import { continuationChapterIds, firstReaderChapter, needsSourceCatalogChronology, ReaderChapterOpenIntent } from './ReaderChapterSequence'
+import { chapterReadingSortFor } from './ChapterListPreferencesStore'
 import {
   Chapter,
   ChapterId,
@@ -1502,16 +1503,17 @@ export function createReaderSessionConfigFromComic(
   chapterId?: ChapterId,
   preparedPages?: Page[],
 ): ReaderSessionConfig {
+  const sort = chapterReadingSortFor(comic.id)
   const targetChapterId = chapterId !== undefined && chapterId.length > 0
     ? chapterId
-    : (firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId))?.id ?? '')
+    : (firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId), undefined, sort)?.id ?? '')
   const chapter = comic.chapters.find((item) => item.id === targetChapterId)
   const pages = preparedPages ?? chapter?.pages ?? []
   return {
     comicId: comic.id,
     chapterId: targetChapterId,
     chapterIds: comic.chapters.map((item) => item.id),
-    continuationChapterIds: continuationChapterIds(comic.chapters, targetChapterId, true),
+    continuationChapterIds: continuationChapterIds(comic.chapters, targetChapterId, true, sort),
     sourceChapterChronologyPending: comic.sourceRuntimeId !== undefined && needsSourceCatalogChronology(chapter, true),
     chapterTitles: comic.chapters.map((item) => readerChapterDisplayTitle(item)),
     title: comic.title,

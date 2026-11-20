@@ -1,12 +1,10 @@
 import { SourceChapterOrder } from '../sourceRuntime/SourceChapterOrder'
 import type { Chapter } from './ComicModels'
+import { ChapterSortPolicy, compareChapterSort, SortableChapter } from './ChapterSortOrder'
 
 /** Complete manual catalog metadata; never derives edition or order from a title. */
-export interface ReaderChapterDescriptor {
+export interface ReaderChapterDescriptor extends SortableChapter {
   id: string
-  title: string
-  chapterNumber?: number
-  dateUpload?: number
   volumeNumber?: string
   readingOrder?: number
   readingGroup?: string
@@ -74,16 +72,38 @@ export function firstReaderChapter(
   chapters: ReaderChapterDescriptor[],
   sourceOrder?: SourceChapterOrder,
   isRead?: (chapterId: string) => boolean,
+  sort?: ChapterSortPolicy,
 ): ReaderChapterDescriptor | undefined {
-  const sourceCatalog = chapters.filter((chapter: ReaderChapterDescriptor): boolean =>
-    chapter.readingGroup === 'source-catalog' && chapter.continuationEligible === true &&
-    chapter.readingOrder !== undefined && Number.isFinite(chapter.readingOrder))
-  if (sourceCatalog.length > 0) {
-    // These are the source's saved chronological positions, not inferred
-    // chapter numbers or the library merge/display array's current position.
-    sourceCatalog.sort((left: ReaderChapterDescriptor, right: ReaderChapterDescriptor): number =>
-      (left.readingOrder as number) - (right.readingOrder as number))
-    return sourceCatalog.find((chapter: ReaderChapterDescriptor): boolean => isRead === undefined || !isRead(chapter.id))
+  if (sort !== undefined) {
+    // If the selected metadata is missing or tied, keep the existing start.
+    let first = firstReaderChapter(chapters, sourceOrder, isRead)
+    if (first?.continuationEligible === false) first = undefined
+    for (const chapter of chapters) {
+      if (chapter.continuationEligible === false || isRead?.(chapter.id)) continue
+      if (first === undefined || compareChapterSort(chapter, first, sort) < 0) first = chapter
+    }
+    return first
+  }
+  const eligible = chapters.filter((chapter: ReaderChapterDescriptor): boolean => chapter.continuationEligible === true)
+  const generated = eligible.filter((chapter: ReaderChapterDescriptor): boolean =>
+    chapter.readingGroup === 'source-catalog' && chapter.readingOrder !== undefined && Number.isFinite(chapter.readingOrder))
+  const sequence = generated.length > 0 ? generated : eligible
+  const group = sequence[0]?.readingGroup
+  const positions = new Set<number>()
+  let first: ReaderChapterDescriptor | undefined = undefined
+  // A single complete reading group can name its own positions. Several
+  // groups or alternative editions have independent positions and no shared start.
+  if (group && sequence.every((chapter: ReaderChapterDescriptor): boolean => {
+    const position = chapter.readingOrder
+    if (position === undefined) return false
+    if (generated.length === 0 && (chapter.readingGroup !== group || chapter.readingVariantGroup !== undefined ||
+      chapter.readingVariantSequence !== undefined || !Number.isFinite(position) || position < 0 || positions.has(position))) return false
+    positions.add(position)
+    if ((isRead === undefined || !isRead(chapter.id)) &&
+      (first === undefined || position < (first.readingOrder as number))) first = chapter
+    return true
+  })) {
+    return first
   }
   // Adopted Mihon rule: chronology belongs to the source contract, not the
   // user's display direction or inferred numbers. Existing resume/explicit
@@ -100,6 +120,7 @@ export function firstReaderChapter(
   let numbered: ReaderChapterDescriptor | undefined = undefined
   let dated: ReaderChapterDescriptor | undefined = undefined
   chapters.forEach((chapter: ReaderChapterDescriptor): void => {
+    if (isRead?.(chapter.id)) return
     const number = chapter.chapterNumber
     if (number !== undefined && Number.isFinite(number) && number >= 0 &&
       (numbered === undefined || number < (numbered.chapterNumber as number))) numbered = chapter
@@ -107,7 +128,7 @@ export function firstReaderChapter(
     if (date !== undefined && Number.isFinite(date) && date > 0 &&
       (dated === undefined || date < (dated.dateUpload as number))) dated = chapter
   })
-  return numbered ?? dated ?? chapters[0]
+  return numbered ?? dated ?? chapters.find((chapter: ReaderChapterDescriptor): boolean => !isRead?.(chapter.id))
 }
 
 function readingOrder(chapter: ReaderChapterDescriptor): number | undefined {
@@ -155,6 +176,7 @@ export function continuationChapterIds(
   chapters: ReaderChapterDescriptor[],
   currentId: string,
   preferScanlator: boolean = false,
+  sort?: ChapterSortPolicy,
 ): string[] | undefined {
   const current = chapters.find((chapter: ReaderChapterDescriptor): boolean => chapter.id === currentId)
   if (current === undefined) {
@@ -215,5 +237,13 @@ export function continuationChapterIds(
     sequence.push(chosen.id)
     start = end
   }
-  return sequence
+  if (sort === undefined) return sequence
+  // Apply the selected basis inside the already verified group. Preserve
+  // source positions for ties and keep the chosen variant at every slot.
+  const byId = new Map<string, ReaderChapterDescriptor>()
+  eligible.forEach((chapter: ReaderChapterDescriptor): void => { byId.set(chapter.id, chapter) })
+  const included = sequence.map((id: string): ReaderChapterDescriptor => byId.get(id)!)
+  return included
+    .sort((left: ReaderChapterDescriptor, right: ReaderChapterDescriptor): number => compareChapterSort(left, right, sort))
+    .map((chapter: ReaderChapterDescriptor): string => chapter.id)
 }
