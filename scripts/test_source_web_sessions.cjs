@@ -1701,6 +1701,50 @@ test('source-provided challenge ID selects only its own actual rejected GET', as
   release()
 })
 
+test('opted-in verification documents use their own URL regardless of HTTP status and wait for manual completion', async () => {
+  const f = fixture()
+  const id = f.guards.newSourceRuntimeOperationGuardId()
+  const release = f.guards.registerSourceRuntimeOperationGuard(id, () => true)
+  const context = JSON.stringify({ ...f.identity(), operationGuardId: id })
+  try {
+    const result = await f.http([response(200), response(200), response(202), response(200)], context, {
+      wantChallengeRequestId: 'document',
+    }, {
+      afterInitial: async ({ transport, execute }) => {
+        const normal = JSON.parse(await execute(JSON.stringify({
+          url: 'https://site.invalid/b', method: 'GET', wantChallengeRequestId: true,
+        }), context))
+        assert.equal(normal.challengeRequestId, undefined)
+        const accepted = JSON.parse(await execute(JSON.stringify({
+          url: 'https://site.invalid/form', method: 'GET', wantChallengeRequestId: 'document',
+        }), context))
+        const unrelated = JSON.parse(await execute(JSON.stringify({
+          url: 'https://other.invalid/form', method: 'GET', wantChallengeRequestId: 'document',
+        }), context))
+        assert.equal(unrelated.challengeRequestId, undefined)
+        return { transport, accepted }
+      },
+    })
+    const { transport, accepted } = result.after
+    assert.equal(transport.sourceRejectedRequestUrl('source.one', id), '')
+    for (const [requestId, url] of [[result.result.challengeRequestId, 'https://site.invalid/a'],
+      [accepted.challengeRequestId, 'https://site.invalid/form']]) {
+      assert.equal(typeof requestId, 'string')
+      transport.selectSourceRejectedRequest('source.one', id, requestId)
+      assert.equal(transport.sourceRejectedRequestUrl('source.one', id), url)
+      assert.equal(transport.sourceRejectedRequestRequiresManualCompletion('source.one', id), true)
+      const pending = f.store.begin(f.registry, 'source.one', url)
+      assert.equal(await transport.probeSourceWebSession('source.one', pending.sessionId, url, 'ActualUA', () => true, id), false)
+      f.store.cancel('source.one', pending.sessionId)
+    }
+    assert.equal(result.calls.length, 4)
+    transport.clearSourceRejectedRequest('source.one', id)
+    assert.equal(transport.sourceRejectedRequestUrl('source.one', id), '')
+  } finally {
+    release()
+  }
+})
+
 test('an unrelated concurrent search request cannot consume the verified original response', async () => {
   const f=fixture(26), context=JSON.stringify(f.identity())
   const pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')

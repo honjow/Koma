@@ -198,7 +198,9 @@ RPC 成功返回 `ok:true`，失败只返回 `ok:false,error:{code}`。`nowMs` �
 
 `source_detail_chapter_context_v1` 仅由详情页本次 `get_manga` 和随后的目录请求声明。源可在成功详情的 `data.chapterContext` 返回非敏感 JSON 对象，宿主仅在同一仍有效的详情事务中将其原样传入 `get_chapters` 的 `args.chapterContext`，分页共用；不写缓存或日志，不跨刷新、源包或设置变更、其他作品或精确章恢复使用。源须核对上下文的版本和作品身份，缺失或不完整时沿原请求路径处理；旧宿主不声明该特性。
 
-`source_http_challenge_cause_v1` 仅由可追踪生命周期的统一搜索、单源搜索及 `get_manga_list` 请求声明。源在单个 GET 中设置 `wantChallengeRequestId: true` 后，宿主仅为该源允许的网页 origin 上返回 401、403 或 503 的实际请求附加短 `challengeRequestId`。只有源最终由该次响应产生 challenge/auth 错误时，才可将同一个 ID 放在 `error.challengeRequestId`；不得推测其他请求的 ID。宿主按 ID、源和本次页面请求身份匹配原 GET，验证后的响应仅由该次请求的重试消费；多条不同失败 GET 缺乏明确 ID 时不能猜测。验证页在加载前选择系统 WebView UA。成功后会话保存实际 Web UA，后续获准的同源原生请求随 Cookie 一起复用该 UA。取消或请求失效清除关联。旧源不使用此字段，保留单个候选的既有兼容行为，旧宿主不声明该特性。
+`source_http_challenge_cause_v1` 由宿主为带操作生命周期的读请求声明，包括受跟踪的统一搜索、单源搜索、浏览、详情及阅读页表。源在单个 GET 中设置 `wantChallengeRequestId: true` 后，宿主仅为该源允许的网页 origin 上返回 401、403 或 503 的实际请求附加短 `challengeRequestId`。只有源最终由该次响应产生 challenge/auth 错误时，才可将同一个 ID 放在 `error.challengeRequestId`；不得推测其他请求的 ID。宿主按 ID、源和本次页面请求身份匹配原 GET，验证后的响应仅由该次请求的重试消费；多条不同失败 GET 缺乏明确 ID 时不能猜测。验证页在加载前选择系统 WebView UA。成功后会话保存实际 Web UA，后续获准的同源原生请求随 Cookie 一起复用该 UA。取消或请求失效清除关联。旧源不使用此字段，保留单个候选的既有兼容行为，旧宿主不声明该特性。
+
+站点的验证文档可能以不同 HTTP 状态返回。书源对可能呈现验证文档的 GET 设置 `wantChallengeRequestId: "document"`，宿主为实际收到的响应附加短 ID，不按状态码判断验证。书源识别表单后才把同一个 ID 附加到挑战错误，宿主校验本源声明的网页域和当前操作后，以该次实际请求地址打开网页，等待用户完成网站验证并手动重试。普通请求继续使用原策略。忽略此取值的旧宿主仍保留原有网页入口。
 
 `source_http_batch_v1` 在原 `http_request` import 上支持 `{version:1,requests:[单请求对象]}`，每组1至5个且不能嵌套，只用于彼此独立的请求；存在响应或会话依赖时仍逐个发送。宿主先校验整组基本请求格式，再并行复用原单请求通道；每项保留源身份、会话、限速、重定向及网络超时。响应为 `{ok:true,responses:[单请求响应对象]}`，顺序与输入一致；外层 `ok` 只表示组格式有效，每项仍可能是原HTTP或传输失败，源必须逐项检查。宿主不自动重试、不缓存组结果、不扩大网络权限；未声明此特性的旧Host沿原逐个请求路径，不需要新增WASM导入。
 

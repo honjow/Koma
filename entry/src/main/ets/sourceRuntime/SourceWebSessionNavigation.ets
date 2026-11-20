@@ -2,7 +2,7 @@ import { selectedSourceHomepage } from './SourceHomepageSelection'
 import { MangaWebRouteParam, RouterHelper, SourceWebSessionRouteParam } from '../common/RouterHelper'
 import { appSourceRuntimeRegistry, sourceDisplayName } from './SourceRuntimeAppRegistry'
 import { appSourceWebSessionStore } from './SourceWebSessionStore'
-import { sourceRejectedRequestUrl } from './SourceRuntimeHttpTransport'
+import { sourceRejectedRequestRequiresManualCompletion, sourceRejectedRequestUrl } from './SourceRuntimeHttpTransport'
 
 /** Prepare an origin-checked session without deciding how the host presents it. */
 export function prepareSourceWebSession(sourceId: string, title: string, requestHandle?: string): MangaWebRouteParam | undefined {
@@ -15,7 +15,10 @@ export function prepareSourceWebSession(sourceId: string, title: string, request
     const status = appSourceWebSessionStore.begin(appSourceRuntimeRegistry, sourceId, url)
     if (status.state !== 'pending') return undefined
     const sourceSession: SourceWebSessionRouteParam = { sourceId, sessionId: status.sessionId }
-    if (requestHandle !== undefined) sourceSession.requestHandle = requestHandle
+    if (requestHandle !== undefined) {
+      sourceSession.requestHandle = requestHandle
+      sourceSession.requiresManualCompletion = sourceRejectedRequestRequiresManualCompletion(sourceId, requestHandle)
+    }
     return { url, title: displayName, sourceSession }
   } catch (_error) {
     return undefined

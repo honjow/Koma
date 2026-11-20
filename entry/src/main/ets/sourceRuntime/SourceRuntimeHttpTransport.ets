@@ -46,7 +46,7 @@ interface SourceHttpRequestEnvelope {
   text?: string
   texts?: string[]
   requests?: SourceHttpRequestEnvelope[]
-  wantChallengeRequestId?: boolean
+  wantChallengeRequestId?: boolean | 'document'
   guestSearch?: boolean
   nativeSession?: boolean
   url?: Object | string | number | boolean | null
@@ -63,6 +63,7 @@ interface RejectedSourceGet {
   httpContextJson: string
   identity: SourceHttpIdentity
   rejectedUrl: string
+  requiresManualCompletion: boolean
 }
 
 interface SourceWebProbeContext {
@@ -103,6 +104,10 @@ function rejectedSourceGetKey(sourceId: string, requestHandle?: string): string 
 
 export function sourceRejectedRequestUrl(sourceId: string, requestHandle: string): string {
   return rejectedSourceGets.get(rejectedSourceGetKey(sourceId, requestHandle))?.rejectedUrl ?? ''
+}
+
+export function sourceRejectedRequestRequiresManualCompletion(sourceId: string, requestHandle: string): boolean {
+  return rejectedSourceGets.get(rejectedSourceGetKey(sourceId, requestHandle))?.requiresManualCompletion ?? false
 }
 
 export function clearSourceRejectedRequest(sourceId: string, requestHandle: string): void {
@@ -1051,8 +1056,13 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     const responseBody = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
     const accessSignal = sourceResponseAccessSignal(response.header)
     let challengeRequestId: string | undefined = undefined
-    const optedIn = envelope.wantChallengeRequestId === true && identity?.operationGuardId !== undefined
-    if (!guestSearch && !nativeSession && identity !== undefined && (response.responseCode === 403 ||
+    const trackedOperation = identity?.operationGuardId !== undefined
+    // The source identifies its own verification document. Transport only
+    // supplies an operation-scoped reference to a permitted GET it made.
+    const documentCandidate = trackedOperation && envelope.wantChallengeRequestId === 'document'
+    const optedIn = trackedOperation && envelope.wantChallengeRequestId === true
+    if (!guestSearch && !nativeSession && identity !== undefined && (documentCandidate ||
+      response.responseCode === 403 ||
       ((accessSignal === 'challenge_required' || optedIn) && (response.responseCode === 401 || response.responseCode === 503)))) {
       if (response.responseCode === 403 || accessSignal === 'challenge_required') {
         appSourceWebSessionStore.observeRejectedRequest(identity, currentUrl)
@@ -1062,8 +1072,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         origin.length > 0 && identity.webSessionOrigins.includes(origin)) {
         const key = rejectedSourceGetKey(identity.sourceId, identity.operationGuardId)
         const previous = rejectedSourceGets.get(key)
-        const rejected: RejectedSourceGet = { requestJson, httpContextJson, identity, rejectedUrl: currentUrl }
-        if (optedIn) {
+        const rejected: RejectedSourceGet = {
+          requestJson, httpContextJson, identity, rejectedUrl: currentUrl, requiresManualCompletion: documentCandidate
+        }
+        if (optedIn || documentCandidate) {
           rejectedSourceSequence += 1
           challengeRequestId = `request-${rejectedSourceSequence}`
           let candidates = rejectedSourceCandidates.get(key)
@@ -1075,10 +1087,12 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         }
         // Without a source-provided causal ID, two different rejected GETs
         // in one operation are ambiguous and must not be probed as one.
-        if (identity.operationGuardId !== undefined && previous !== undefined &&
-          (previous === null || previous.requestJson !== requestJson || previous.rejectedUrl !== currentUrl)) {
-          rejectedSourceGets.set(key, null)
-        } else rejectedSourceGets.set(key, rejected)
+        if (!documentCandidate) {
+          if (identity.operationGuardId !== undefined && previous !== undefined &&
+            (previous === null || previous.requestJson !== requestJson || previous.rejectedUrl !== currentUrl)) {
+            rejectedSourceGets.set(key, null)
+          } else rejectedSourceGets.set(key, rejected)
+        }
       }
     }
     if ((session !== undefined || dnsOverride !== undefined || freshHttp || guestSearch) &&
@@ -1180,7 +1194,7 @@ export async function probeSourceWebSession(sourceId: string, sessionId: string,
   userAgent: string, current: () => boolean, requestHandle?: string): Promise<boolean> {
   const key = rejectedSourceGetKey(sourceId, requestHandle)
   const request = rejectedSourceGets.get(key)
-  if (request === undefined || request === null || !current()) return false
+  if (request === undefined || request === null || request.requiresManualCompletion || !current()) return false
   const active: ActiveSourceWebProbe = { sourceId, sessionId }
   if (activeSourceWebProbe !== undefined) return false
   activeSourceWebProbe = active

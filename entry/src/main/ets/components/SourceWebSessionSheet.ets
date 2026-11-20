@@ -195,6 +195,9 @@ export struct SourceWebSessionSheet {
       ' matchingDocument=' + (event !== undefined && event.url === this.pageUrl) +
       ' sessionPresent=' + (this.params.sourceSession !== undefined))
     const endedSession = this.params.sourceSession
+    // Only the source knows what its verification document means.
+    // Wait for the user to complete it through the existing manual action.
+    if (endedSession?.requiresManualCompletion) return
     if (endedSession !== undefined && event !== undefined && event.url === this.pageUrl && !this.pageFailed) {
       void this.autoCompleteRenderedDocument(this.epoch, endedSession.sourceId, endedSession.sessionId)
     }
