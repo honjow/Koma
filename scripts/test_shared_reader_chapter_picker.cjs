@@ -366,6 +366,12 @@ test('source next-unit prefetch requires a verified sequence, warms only its con
   await adapter.preloadNextUnit(unit, 2, new sharedCore.ReaderCancellation())
   assert.equal(preparations, 0, 'the full manual picker catalog is not automatic adjacency')
   adapter.configs.set(id, chapterConfig('A'))
+  const catalog = []
+  await adapter.preloadNextUnit(unit, 0, new sharedCore.ReaderCancellation(),
+    (next, indexes) => catalog.push([next.key.unit, Array.from(indexes)]))
+  assert.deepEqual(catalog, [['B', []]])
+  assert.equal(preparations, 1)
+  assert.deepEqual(fetched, [])
   await adapter.preloadNextUnit(unit, 2, new sharedCore.ReaderCancellation())
   assert.equal(preparations, 1)
   assert.deepEqual(fetched, ['B0', 'B1'])

@@ -6148,25 +6148,31 @@
       "number": 107,
       "title": "接近章末预加载下一章及跨章请求复用",
       "priority": "P2（当前P0后，与跨章联动核查）",
-      "owner": "Root：原请求具名范围已交付，保未外推及实施授权边界",
+      "owner": "共享 Reader Kit 与 Koma 接入，197 本地候选已验证",
       "dependencies": [],
       "relatedItems": [
         "AUTO_CHAPTER_BOUNDARY_TARGET",
         "CONTINUOUS_PERFORMANCE"
       ],
-      "status": "近章尾预取及跨章ready复用已具名交付，inflight时序未外推",
+      "status": "章末提前准备与首图加载中跨章已在 197 验证",
       "kind": "accepted",
-      "result": "d3187726含505651f精确CI40021847034 success；274已恢复原14（原2/15）并close成功。鲜网络/ready采用具名范围保留，inflight join仍未自然命中。",
-      "remaining": "原近章尾预加载/跨章复用请求已由fresh与ready具名路径覆盖，无当前待办；inflight join仍未自然命中且未外推，仅新真实反例重开，不造并发/清缓存。",
+      "result": "包子漫画《大象無形》第27章33/36开始准备下一章页表。连续阅读第28章61/61只上划一次，下一章页表请求耗时3186 ms，返回后直接进入第29章1/48并显示图片加载状态。原图显示后才确认本次跨章。共享会话82项通过，额外核对全量套件的10项既有失败与原版相同。",
+      "remaining": "本地签名候选已验证，正式版本尚待同步独立 Reader Kit 依赖。",
       "reportedAt": "2026-10-23T05:33:34.382Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 381614824 重新读原文与时间戳，不是摘要/登记时间。",
       "firstEvidenceAt": "2026-10-23T05:33:34.382Z",
       "firstHandlingAt": "2026-10-23T18:06:01.504859+00:00",
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-25T21:52:22+00:00",
-      "evidencePoints": [],
+      "evidencePoints": [
+        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/24-candidate-prefetch-before-end/layout.json",
+        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/24-candidate-prefetch-before-end/hilog.txt",
+        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/25-cross-27-to-28/summary.json",
+        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/28-cold-cross-28-to-29/summary.json",
+        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/29-candidate-cold-cross-readback/layout.json"
+      ],
       "remainingActions": [
-        "原近章尾预加载/跨章复用请求已由fresh与ready具名路径覆盖，无当前待办；inflight join仍未自然命中且未外推，仅新真实反例重开，不造并发/清缓存。"
+        "将独立 Reader Kit 原仓的修复同步到正式 Koma 依赖后复核版本构建。"
       ],
       "boundaries": [
         "只预取严格continuation的下一章，不用完整手选目录回退；至多一章、顺序暖不超过既有预加载页数。",
@@ -6181,7 +6187,8 @@
       "reportedAgeAtAudit": "2天14小时0分17秒",
       "reportedAgeSecondsAtAudit": 223217,
       "reportedDate": "2026-10-23",
-      "reportedDateSource": "按上述原始UTC首报换算Asia/Shanghai日期，不使用登记日。"
+      "reportedDateSource": "按上述原始UTC首报换算Asia/Shanghai日期，不使用登记日。",
+      "reopenedAt": "2026-11-20T20:45:09+08:00"
     },
     {
       "id": "READER_PRESET_SHEET",
@@ -27681,6 +27688,21 @@
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/59-mh1234-name-webtoon-previous/layout.json",
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/60-mh1234-upload-date-sort/layout.json",
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/61-mh1234-chapter-number-sort/layout.json"
+      ]
+    },
+    {
+      "id": "next-chapter-loading-swipe-197-20261120",
+      "at": "2026-11-20T20:45:09+08:00",
+      "itemId": "NEXT_CHAPTER_PREFETCH_REUSE",
+      "title": "197 验证下一章首图加载中仍能跨章",
+      "detail": "Koma 1.5.6 本地签名候选，包子漫画 0.1.26。第27章33/36在滑动前发起页表准备，随后一次滑动进入第28章。第28章直达61/61后只上划一次，页表耗时3186 ms；录屏约4.9秒处已显示第29章1/48及正在加载图片，约6.1秒处正文出现并确认章节。无痕模式用于保留设备既有读态。加载结束前不提交新章读态的约束同时由会话回归覆盖。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/24-candidate-prefetch-before-end/layout.json",
+        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/24-candidate-prefetch-before-end/hilog.txt",
+        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/25-cross-27-to-28/summary.json",
+        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/28-cold-cross-28-to-29/summary.json",
+        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/29-candidate-cold-cross-readback/layout.json"
       ]
     }
   ],

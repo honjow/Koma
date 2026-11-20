@@ -492,12 +492,12 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       (config?.sourceKind === ComicSourceKind.LOCAL_FOLDER ? config.chapterIds : undefined)
     if (sequence === undefined) return
     const index = sequence.indexOf(unit.key.unit)
-    const budget = Number.isFinite(depth) ? Math.max(0, Math.floor(depth)) : 0
-    if (index < 0 || budget === 0) return
+    if (index < 0 || !Number.isFinite(depth) || depth < 0) return
+    const budget = Math.floor(depth)
     let remaining = budget
     let precedingPages = 0
     const warming: Promise<Error | undefined>[] = []
-    for (let chapter = index + 1; chapter < sequence.length && remaining > 0; chapter += 1) {
+    for (let chapter = index + 1; chapter < sequence.length; chapter += 1) {
       cancellation.check()
       if (!this.remotePreloadAllowed() && config?.sourceKind !== ComicSourceKind.LOCAL_FOLDER &&
         config?.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE) break
@@ -507,6 +507,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       const indexes: number[] = []
       for (let page = 0; page < count; page += 1) indexes.push(page)
       onPrepared?.(prepared.copy(), indexes, precedingPages)
+      if (count === 0) {
+        console.info('[KomaReaderPreload] next_unit_catalog result=ready')
+        return
+      }
       // Resolve the next chapter while this chapter's images warm; a series
       // of single-page chapters must not wait for every image serially.
       const warm = async (): Promise<void> => {
@@ -519,6 +523,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       warming.push(warm().then((): Error | undefined => undefined, (error: Error): Error | undefined => error))
       remaining -= count
       precedingPages += count
+      if (remaining === 0) break
     }
     const results = await Promise.all(warming)
     cancellation.check()
