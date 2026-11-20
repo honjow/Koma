@@ -20,7 +20,7 @@ import { url, util } from '@kit.ArkTS'
 import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { SourceRuntimeError } from './SourceRuntimeError'
-import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
+import { loadSourceWebTokenRevision, sourceHttpIdentityJson, sourceWebTokenRevision } from '../sourceRuntime/SourceWebSessionStore'
 import { sourceDnsOverride, sourceDnsBootstrapIp, requestSourceDnsHop, SourceDnsOverride,
   SourceDnsBootstrapScope } from '../sourceRuntime/SourceDnsBootstrapTransport'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -1169,20 +1169,26 @@ async function fetchAndCacheSourceProcessedImage(entry: SourceRuntimeRegistryEnt
   coverImage: boolean, onProcessing?: (hint: ImageProcessingHint | undefined) => void,
   onSize?: (width: number, height: number) => void, onProgress?: RemoteImageDownloadProgress): Promise<string> {
   const settings = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(entry.sourceId))
-  const key = JSON.stringify(['source-processed-image-v1', entry.manifestVersion, entry.wasmPath ?? '', settings,
-    sourceRemoteImageCacheKey(entry.sourceId, uri, sourceImageId, route)])
+  const tokenRevision = entry.authentication?.webToken === undefined ? '' : await loadSourceWebTokenRevision(entry)
+  const current = (): boolean => sourceTextRequestCurrent(entry, settings) &&
+    (tokenRevision.length === 0 || sourceWebTokenRevision(entry) === tokenRevision)
+  const identity = ['source-processed-image-v1', entry.manifestVersion, entry.wasmPath ?? '', settings,
+    sourceRemoteImageCacheKey(entry.sourceId, uri, sourceImageId, route)]
+  if (tokenRevision.length > 0) identity.push(tokenRevision)
+  const key = JSON.stringify(identity)
   const path = await store.getOrFetch('source-processed.img', undefined, async (report: RemoteImageDownloadProgress) => {
+    if (!current()) throw new Error('source_required_decode_request_stale')
     const descriptor = await resolveSourceRuntimeImageRequest(entry.sourceId, uri, sourceImageId, route, priority)
-    if (descriptor === undefined || !sourceTextRequestCurrent(entry, settings)) throw new Error('source_required_decode_request_stale')
+    if (descriptor === undefined || !current()) throw new Error('source_required_decode_request_stale')
     const bytes = await downloadReaderRemoteBytes(descriptor.url, descriptor.headers, entry.sourceId,
       descriptor.dnsOverride, !coverImage, descriptor.responseErrors, coverImage, undefined, true,
       onProgress === undefined ? undefined : report)
     const restored = await restoreSourceProcessorResponse(bytes, descriptor, entry)
-    if (!sourceTextRequestCurrent(entry, settings)) throw new Error('source_required_decode_request_stale')
+    if (!current()) throw new Error('source_required_decode_request_stale')
     onProcessing?.(descriptor.imageProcessing)
     return restored
   }, key, forceReload, onProgress)
-  if (!sourceTextRequestCurrent(entry, settings)) throw new Error('source_required_decode_request_stale')
+  if (!current()) throw new Error('source_required_decode_request_stale')
   await maintainReaderImageCacheAfterWrite(path)
   if (onSize !== undefined) void probeReaderImageFileSize(path, onSize)
   return path
@@ -1235,9 +1241,9 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   if (cachedFast !== undefined && cachedFast.length > 0) {
     if (onSize !== undefined) void probeReaderImageFileSize(cachedFast, onSize)
     if (!needsHints) return cachedFast
-    const hintPath = cached?.metadataPath
-    if (hintPath !== undefined) {
-      const value = JSON.parse(await fs.readText(hintPath)) as SourceImageProcessingCache
+    const hintText = cached?.metadataText
+    if (hintText !== undefined) {
+      const value = JSON.parse(hintText) as SourceImageProcessingCache
       onProcessing?.(value.hint ?? undefined)
       if (value.requiredImageDecode !== undefined) {
         onRequiredDecode?.(value.requiredImageDecode === null ? undefined : sourceRequiredImageDecode(value.requiredImageDecode))
@@ -1724,12 +1730,16 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
       const entry = appSourceRuntimeRegistry.lookup(source.sourceRuntimeId).entry
       if (entry?.requiredImageDecodes?.includes(SOURCE_IMAGE_PROCESSOR_KIND)) {
         const settings = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(entry.sourceId))
+        const tokenRevision = entry.authentication?.webToken === undefined ? '' : await loadSourceWebTokenRevision(entry)
+        const current = (): boolean => sourceTextRequestCurrent(entry, settings) &&
+          (tokenRevision.length === 0 || sourceWebTokenRevision(entry) === tokenRevision)
+        if (!current()) throw new Error('source_required_decode_request_stale')
         const request = await resolveSourceRuntimeImageRequest(entry.sourceId, source.imageUri, source.pageId, source.sourceMangaUrl)
-        if (request === undefined || !sourceTextRequestCurrent(entry, settings)) throw new Error('source_required_decode_request_stale')
+        if (request === undefined || !current()) throw new Error('source_required_decode_request_stale')
         const wire = await downloadReaderRemoteBytesWithRetry(request.url, request.headers, entry.sourceId,
           request.dnsOverride, request.responseErrors)
         const restored = await restoreSourceProcessorResponse(wire, request, entry)
-        if (!sourceTextRequestCurrent(entry, settings)) throw new Error('source_required_decode_request_stale')
+        if (!current()) throw new Error('source_required_decode_request_stale')
         source.imageProcessing = request.imageProcessing
         source.imageProcessingResolved = true
         source.imageProcessingFingerprint = sourceImageProcessingFingerprint(entry.sourceId)

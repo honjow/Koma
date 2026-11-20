@@ -17,7 +17,7 @@ function moduleFrom(name, requireMock, globals = {}) {
 }
 
 // The real private owner runs against an in-memory platform Asset backend. No input/state is written to disk.
-function credentialFixture() {
+function credentialFixture(verifyHop) {
   const crypto = require('node:crypto'), assets = new Map()
   const Tag = { ALIAS: 'alias', SECRET: 'secret', RETURN_TYPE: 'returnType', RETURN_LIMIT: 'returnLimit',
     ACCESSIBILITY: 'accessibility', CONFLICT_RESOLUTION: 'conflict' }
@@ -35,16 +35,20 @@ function credentialFixture() {
   const descriptor = moduleFrom('SourceAuthenticationDescriptor', () => ({ url: { URL } }))
   const mocks = name => {
     if (name === '@kit.AssetStoreKit') return { asset }
-    if (name === '@kit.ArkTS') return { buffer: { from }, util: { generateRandomUUID: () => crypto.randomUUID() } }
+    if (name === '@kit.ArkTS') return { buffer: { from }, util: { generateRandomUUID: () => crypto.randomUUID(),
+      Base64Helper: class { decodeSync(value) { return new Uint8Array(Buffer.from(value, 'base64')) } } } }
     if (name === '@kit.CryptoArchitectureKit') return { cryptoFramework: {
       createRandom: () => ({ generateRandom: async n => ({ data: new Uint8Array(crypto.randomBytes(n)) }) }),
-      createMd: () => { const hash = crypto.createHash('sha256'); return {
+      createMd: algorithm => { const hash = crypto.createHash(algorithm.toLowerCase()); return {
         update: async ({ data }) => { hash.update(data) }, digest: async () => ({ data: new Uint8Array(hash.digest()) }),
       } },
     } }
     if (name === './SourceAuthenticationDescriptor') return descriptor
+    if (name === './SourceWebToken') return webToken
     return {}
   }
+  const webToken = moduleFrom('SourceWebToken', name => name === './SourceRcpTransport' ?
+    { requestSourceRcpHop: verifyHop, sourceRcpResponseText: bytes => Buffer.from(bytes).toString('utf8') } : mocks(name))
   const { SourcePrivateSessionHost: host } = moduleFrom('SourcePrivateSessionHost', mocks, { Uint8Array, ArrayBuffer })
   const identity = { sourceId: 'source.credential', packageIdentity: 'installed-package-one' }
   const begin = extra => {
@@ -54,8 +58,153 @@ function credentialFixture() {
   const rpc = async (scope, op, fields = {}, current = () => true) => JSON.parse(await host.execute(
     JSON.stringify({ type: 'private_session', version: 1, op, ...fields }), scope, current))
   return { host, identity, begin, rpc, assets, setBeforeWrite: fn => { beforeWrite = fn },
-    setBeforeRemove: fn => { beforeRemove = fn }, setBeforeQuery: fn => { beforeQuery = fn }, descriptor }
+    setBeforeRemove: fn => { beforeRemove = fn }, setBeforeQuery: fn => { beforeQuery = fn }, descriptor, webToken }
 }
+
+const testWebToken = { version: 1, storageKey: 'accessToken', apiOrigin: 'https://api.fixture.test',
+  verifyPath: '/member', verifyIdentityPath: ['profile', 'accountId'], imageKeyDerivation: 'sha512_cbc' }
+
+function syntheticAccessToken(label, exp = Math.floor(Date.now() / 1000) + 600) {
+  return `fixture.${Buffer.from(JSON.stringify({ label, exp })).toString('base64url')}.signature`
+}
+
+test('a web token is private, exact-origin, installation and generation scoped', async () => {
+  const f = credentialFixture()
+  const { sourceId, packageIdentity } = f.identity
+  const firstToken = syntheticAccessToken('a')
+  assert.equal(await f.host.installWebToken(sourceId, packageIdentity, f.webToken.parseSourceWebAccessToken(firstToken), () => true), true)
+  const a = f.begin({ webToken: testWebToken, diagnosticOperation: 'get_image_request' })
+  const aIdentity = { ...f.identity, privateCallId: a.call.id }
+  const reply = await f.rpc(a.scope, 'web_token', { deriveImageKey: true })
+  assert.equal(reply.state, 'ready')
+  assert.equal(JSON.stringify(reply).includes(firstToken), false)
+  const digest = require('node:crypto').createHash('sha512').update(firstToken).digest()
+  assert.equal(reply.imageKeyHex, digest.subarray(0, 32).toString('hex'))
+  assert.equal(reply.imageIvHex, digest.subarray(15, 31).toString('hex'))
+  assert.deepEqual(await f.rpc(a.scope, 'peek'), { ok: true, state: 'empty' })
+  const url = testWebToken.apiOrigin + '/book/chapter/image/1'
+  for (const denied of ['http://api.fixture.test/member', 'https://www.fixture.test/member',
+    'https://api.fixture.test:8443/member', 'https://api.fixture.test.evil.test/member']) {
+    assert.equal(f.host.resolveWebTokenRequest(aIdentity, denied, reply.generation), undefined)
+  }
+  assert.equal(f.host.resolveWebTokenRequest({ ...aIdentity, sourceId: 'another-source' }, url, reply.generation), undefined)
+  assert.equal(f.host.resolveWebTokenRequest({ ...aIdentity, packageIdentity: 'replacement' }, url, reply.generation), undefined)
+  const grant = f.host.resolveWebTokenRequest(aIdentity, url, reply.generation)
+  assert.equal(grant.authorization, 'Bearer ' + firstToken)
+  const secondToken = syntheticAccessToken('b')
+  assert.equal(await f.host.installWebToken(sourceId, packageIdentity, f.webToken.parseSourceWebAccessToken(secondToken), () => true), true)
+  assert.equal(grant.current(), false)
+  assert.equal(f.host.webTokenResultIsCurrent(a.call.id), false)
+  await grant.rejectUnauthorized()
+  const b = f.begin({ webToken: testWebToken })
+  const bReply = await f.rpc(b.scope, 'web_token')
+  assert.notEqual(bReply.generation, reply.generation)
+  assert.equal((await f.rpc(b.scope, 'web_token', { deriveImageKey: true })).ok, false)
+  const bGrant = f.host.resolveWebTokenRequest({ ...f.identity, privateCallId: b.call.id }, url, bReply.generation)
+  assert.equal(bGrant.authorization, 'Bearer ' + secondToken)
+  await bGrant.rejectUnauthorized()
+  assert.equal(bGrant.current(), false)
+  const next = f.begin({ webToken: testWebToken })
+  assert.deepEqual(await f.rpc(next.scope, 'web_token'), { ok: true, state: 'empty' })
+})
+
+test('web token verification accepts only the declared bounded identity and cancellation preserves the prior Asset', async () => {
+  let profile = { profile: { accountId: 37 } }, status = 200
+  const f = credentialFixture(async (url, method, headers, body) => {
+    assert.equal(url, testWebToken.apiOrigin + testWebToken.verifyPath)
+    assert.equal(method, 'GET')
+    assert.equal(body, '')
+    assert.deepEqual(Object.keys(headers).sort(), ['Accept', 'Authorization', 'Cache-Control'])
+    return { status, bytes: Buffer.from(JSON.stringify(profile)) }
+  })
+  const loginUrl = 'https://www.fixture.test/login'
+  const makeDescriptor = webToken => f.descriptor.sourceAuthenticationDescriptor({ kind: 'web', loginUrl, webToken })
+  assert.ok(makeDescriptor(testWebToken))
+  assert.equal(makeDescriptor({ ...testWebToken, apiOrigin: 'https://api.attacker.test' }), undefined)
+  assert.equal(makeDescriptor({ ...testWebToken, verifyIdentityPath: ['__proto__', 'id'] }), undefined)
+  const token = f.webToken.parseSourceWebAccessToken(syntheticAccessToken('verified'))
+  assert.equal(await f.webToken.verifySourceWebAccessToken(testWebToken, token, () => true), true)
+  profile = { data: { id: 37 } }
+  assert.equal(await f.webToken.verifySourceWebAccessToken(testWebToken, token, () => true), false)
+  profile = { profile: { accountId: 'x'.repeat(129) } }
+  assert.equal(await f.webToken.verifySourceWebAccessToken(testWebToken, token, () => true), false)
+  profile = { profile: { accountId: 37 } }; status = 302
+  assert.equal(await f.webToken.verifySourceWebAccessToken(testWebToken, token, () => true), false)
+  const { sourceId, packageIdentity } = f.identity
+  await f.host.installWebToken(sourceId, packageIdentity, token, () => true)
+  const original = f.begin({ webToken: testWebToken })
+  const generation = (await f.rpc(original.scope, 'web_token')).generation
+  let current = true
+  f.setBeforeWrite(async attrs => {
+    if (Buffer.from(attrs.get('secret')).toString('utf8').startsWith('{"format":"private-v1"')) {
+      current = false
+      f.setBeforeWrite(undefined)
+    }
+  })
+  const candidate = f.webToken.parseSourceWebAccessToken(syntheticAccessToken('cancelled'))
+  assert.equal(await f.host.installWebToken(sourceId, packageIdentity, candidate, () => current), false)
+  assert.equal((await f.rpc(original.scope, 'web_token')).generation, generation)
+  await f.host.disconnectWebToken(sourceId, packageIdentity)
+  assert.equal(f.host.webTokenResultIsCurrent(original.call.id), false)
+  assert.equal(f.assets.size, 0)
+})
+
+test('native web-token HTTP attaches Bearer for its pinned API and delivers 401 after rejecting that generation', async () => {
+  const backend = fixture()
+  const { host, webToken } = credentialFixture()
+  backend.changeEntry(entry => ({ ...entry, authentication: { kind: 'web',
+    loginUrl: 'https://www.fixture.test/login', webToken: testWebToken }, webSessionOrigins: ['https://www.fixture.test'] }))
+  const install = backend.identity()
+  const jwt = syntheticAccessToken('transport')
+  await host.installWebToken(install.sourceId, install.packageIdentity, webToken.parseSourceWebAccessToken(jwt), () => true)
+  const call = host.beginCall(JSON.stringify({ ...install, webToken: testWebToken }))
+  const scope = { ...install, callId: call.id }
+  const rpc = JSON.parse(await host.execute('{"type":"private_session","version":1,"op":"web_token"}', scope, () => true))
+  const url = testWebToken.apiOrigin + '/book'
+  const request = { url, webTokenGeneration: rpc.generation, headers: { Accept: 'application/json' } }
+  const send = (responses, changes = {}) => backend.http(responses, call.httpContextJson, { ...request, ...changes }, { privateHost: host })
+  const success = await send([response(200)])
+  assert.equal(success.result.status, 200)
+  assert.equal(success.calls[0].options.header.Authorization, 'Bearer ' + jwt)
+  assert.equal(success.calls[0].options.header.Cookie, undefined)
+  for (const attempt of [
+    { url: 'https://www.fixture.test/book' }, { method: 'POST' }, { headers: { Cookie: 'attempt=blocked' } },
+  ]) {
+    assert.equal((await send([], attempt)).calls.length, 0)
+  }
+  const redirect = await send([response(302, { Location: 'https://other.test/book' })])
+  assert.equal(redirect.calls.length, 1)
+  assert.equal(redirect.result.ok, false)
+  const unauth = await send([response(401)])
+  assert.equal(unauth.result.status, 401)
+  assert.equal(host.webTokenResultIsCurrent(call.id), false)
+  assert.equal((await send([])).calls.length, 0)
+  assert(!backend.diagnostics.join('\n').includes(jwt))
+  host.finishCall(call.id)
+})
+
+test('worker discards stale web-token success but delivers a real authentication failure', async () => {
+  const f = credentialFixture()
+  const identity = { ...f.identity, webToken: testWebToken }
+  const req = JSON.stringify({ operation: 'get_pages' })
+  const authFailure = { ok: false, operation: 'get_pages', error: { code: 'auth_required', status: 401 } }
+  let workerResponse = authFailure
+  const { client } = sourceWorkerFixture(async (_fn, _request, _bytes, context) => {
+    const bound = JSON.parse(context)
+    const pin = await f.rpc({ ...identity, callId: bound.privateCallId }, 'web_token')
+    assert.equal(pin.state, 'ready')
+    const grant = f.host.resolveWebTokenRequest(bound, testWebToken.apiOrigin + '/book', pin.generation)
+    await grant.rejectUnauthorized()
+    return JSON.stringify(workerResponse)
+  }, {}, f.host)
+  const token = f.webToken.parseSourceWebAccessToken(syntheticAccessToken('worker'))
+  const run = () => client.executeSourceRequestInWorker(req, new Uint8Array(1), JSON.stringify(identity))
+  assert.equal(await f.host.installWebToken(identity.sourceId, identity.packageIdentity, token, () => true), true)
+  assert.deepEqual(JSON.parse(await run()), authFailure)
+  workerResponse = { ok: true, operation: 'get_pages', data: { pages: [] } }
+  assert.equal(await f.host.installWebToken(identity.sourceId, identity.packageIdentity, token, () => true), true)
+  await assert.rejects(run(), /source_request_cancelled/)
+})
 
 test('credential input is explicit, source/install/call scoped, exact-origin and retired on cancellation', async () => {
   const f = credentialFixture(), ordinary = f.begin()
@@ -435,6 +584,7 @@ function fixture(sdkApiVersion = 23) {
   let entry = { sourceId: 'source.one', manifestVersion: '1', enabled: true,
     wasmPath: '/app/packages/one/source.wasm', webSessionOrigins: ['https://site.invalid'] }
   const registry = { lookup: id => ({ entry: id === entry.sourceId ? entry : extraEntries.get(id) }) }
+  let privateHost
   const mocks = name => {
     if (name === '@kit.ArkTS') return { buffer: { from: (...args) => Buffer.from(...args) }, url: { URL }, util: { generateRandomUUID: () => String(++uuid) } }
     if (name === '@kit.BasicServicesKit') return { deviceInfo: { sdkApiVersion } }
@@ -452,13 +602,15 @@ function fixture(sdkApiVersion = 23) {
     } }
     if (name === './SourceAuthenticationDescriptor') return moduleFrom('SourceAuthenticationDescriptor', mocks)
     if (name === './SourceRequiredImageDecodeDeclaration') return moduleFrom('SourceRequiredImageDecodeDeclaration', () => ({}))
+    if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: privateHost }
+    if (name === './SourceWebToken') return {}
     if (name === '@kit.AssetStoreKit') return { asset: {} }
     if (name === '@kit.CryptoArchitectureKit') return { cryptoFramework: {} }
     if (name === './SourceRuntimeRegistry' || name === '@kit.AbilityKit') return {}
     throw Error('unexpected import: ' + name)
   }
+  privateHost = moduleFrom('SourcePrivateSessionHost', mocks).SourcePrivateSessionHost
   const api = moduleFrom('SourceWebSessionStore', mocks)
-  const privateHost = moduleFrom('SourcePrivateSessionHost', mocks).SourcePrivateSessionHost
   const store = new api.SourceWebSessionStore()
   store.configure({ filesDir: '/files' }, registry)
   const identity = () => ({ sourceId: entry.sourceId, sourceVersion: entry.manifestVersion,
@@ -1069,6 +1221,7 @@ function sourceWorkerFixture(execute, workers = {}, privateHost) {
     if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: privateHost ?? {
       callAdmission: () => () => true,
       beginCall: context => ({ id: '', httpContextJson: context }), finishCall: () => {},
+      webTokenResultIsCurrent: () => true,
     } }
     if (name === './SourceRuntimeWorker') return workers
     throw Error('unexpected worker dependency: ' + name)

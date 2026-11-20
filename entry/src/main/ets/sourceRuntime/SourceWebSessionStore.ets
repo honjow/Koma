@@ -1,5 +1,5 @@
 import { sourceRequiredImageDecodes } from './SourceRequiredImageDecodeDeclaration'
-import { sourceAuthenticationIdentity } from './SourceAuthenticationDescriptor'
+import { SourceWebTokenDescriptor, sourceAuthenticationIdentity } from './SourceAuthenticationDescriptor'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -8,6 +8,7 @@ import { url, util } from '@kit.ArkTS'
 import { webview } from '@kit.ArkWeb'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryEntry } from './SourceRuntimeRegistry'
+import { SourcePrivateSessionHost } from './SourcePrivateSessionHost'
 
 /** Ask the engine for this URL's first-party partition; never enumerate the global jar. */
 export function readSourceWebCookies(fullUrl: string): string {
@@ -26,6 +27,7 @@ export interface SourceWebSessionStatus {
 }
 
 export interface SourceHttpIdentity {
+  webToken?: SourceWebTokenDescriptor
   sourceId: string
   sourceVersion: string
   packageIdentity: string
@@ -101,11 +103,22 @@ export function sourceSessionStorageIdentity(entry: SourceRuntimeRegistryEntry):
   return entry.sessionStorageIdentity ?? sourceWebPackageIdentity(entry)
 }
 
+export function sourceWebTokenRevision(entry: SourceRuntimeRegistryEntry): string {
+  return entry.authentication?.webToken === undefined ? '' :
+    SourcePrivateSessionHost.webTokenRevision(entry.sourceId, sourceSessionStorageIdentity(entry))
+}
+
+export async function loadSourceWebTokenRevision(entry: SourceRuntimeRegistryEntry): Promise<string> {
+  return entry.authentication?.webToken === undefined ? '' :
+    SourcePrivateSessionHost.loadWebTokenRevision(entry.sourceId, sourceSessionStorageIdentity(entry))
+}
+
 export function sourceHttpIdentityJson(entry: SourceRuntimeRegistryEntry, operationGuardId?: string,
   detailChapterContext: boolean = false, diagnosticOperation?: string): string {
   const identity: SourceHttpIdentity = { sourceId: entry.sourceId, sourceVersion: entry.manifestVersion,
     packageIdentity: sourceWebPackageIdentity(entry), webSessionOrigins: entry.webSessionOrigins ?? [] }
   if (entry.sessionStorageIdentity !== undefined) identity.privateSessionIdentity = entry.sessionStorageIdentity
+  if (entry.authentication?.webToken !== undefined) identity.webToken = entry.authentication.webToken
   if (operationGuardId !== undefined) identity.operationGuardId = operationGuardId
   if (detailChapterContext) identity.detailChapterContext = true
   if ((entry.requestLimits?.length ?? 0) > 0) identity.requestLimitsDeclared = true
@@ -232,6 +245,13 @@ export class SourceWebSessionStore {
 
   cancel(sourceId: string, sessionId: string): void {
     if (this.pending.get(sourceId)?.status.sessionId === sessionId) this.pending.delete(sourceId)
+  }
+
+  isPendingLogin(entry: SourceRuntimeRegistryEntry, sessionId: string, documentUrl: string): boolean {
+    const pending = this.pending.get(entry.sourceId)
+    return pending !== undefined && pending.status.sessionId === sessionId && pending.entry === entry &&
+      pending.registry.lookup(entry.sourceId).entry === entry && entry.enabled &&
+      sourceWebOrigin(documentUrl) === pending.status.origin
   }
 
   revoke(sourceId: string): void {

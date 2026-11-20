@@ -113,9 +113,15 @@ async function runSourceWorker(requestJson: string, wasmBytes: Uint8Array,
     // reference until admission. Foreground image/detail callers pass a snapshot.
     const workerBytes = copyOnAdmission ? new Uint8Array(wasmBytes.byteLength) : wasmBytes
     if (copyOnAdmission) workerBytes.set(wasmBytes)
-    return browse
+    const response = browse
       ? await taskpool.execute(runBrowseSourceOperationTask, requestJson, workerBytes, call.httpContextJson) as string
       : await taskpool.execute(executeSourceRuntimeRequest, requestJson, workerBytes, call.httpContextJson) as string
+    if (!SourcePrivateSessionHost.webTokenResultIsCurrent(call.id)) {
+      const parsed = JSON.parse(response) as Record<string, Object>
+      // Preserve the 401 result that invalidated its own session. A late success must not reach the caller.
+      if (parsed?.['ok'] === true) throw new Error('source_request_cancelled')
+    }
+    return response
   } finally {
     if (call.id.length > 0) SourcePrivateSessionHost.finishCall(call.id)
   }

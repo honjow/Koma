@@ -5,7 +5,7 @@ import { configureSourceRequestPolicy } from '../sourceRuntime/SourceRequestPoli
 import { sourcePagePlanFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
 import { sourceTextPage, sourceTextPageRequest } from './SourceTextPageDescriptor'
 import { cacheSourceTextPageImage } from './ReaderPageSourceAdapter'
-import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
+import { loadSourceWebTokenRevision, sourceHttpIdentityJson, sourceWebTokenRevision } from '../sourceRuntime/SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   Chapter,
@@ -107,7 +107,8 @@ export interface SourceChapterPagesResolveResult extends SourceChapterPageFailur
 }
 
 function sourcePagePlanIdentity(entry: SourceRuntimeRegistryEntry): string {
-  return entry.manifestVersion + '|' + entry.wasmPath
+  const install = entry.manifestVersion + '|' + entry.wasmPath
+  return entry.authentication?.webToken === undefined ? install : install + '|web-token|' + sourceWebTokenRevision(entry)
 }
 
 /** Reuse prepared pages across opens only while their generating settings and
@@ -292,6 +293,8 @@ async function fetchSourceChapterPages(
   entry: SourceRuntimeRegistryEntry,
   request: SourceChapterPagesResolveRequest,
 ): Promise<SourceChapterPagesResolveResult> {
+  if (entry.authentication?.webToken !== undefined) await loadSourceWebTokenRevision(entry)
+  const planIdentity = sourcePagePlanIdentity(entry)
   const args: SourcePagesRequestArgs = { chapterId: request.chapterId }
   const mangaId = request.mangaId?.trim()
   if (mangaId !== undefined && mangaId.length > 0) {
@@ -334,8 +337,9 @@ async function fetchSourceChapterPages(
       sourceFailure: failure }
   }
   if (rows.length === 0) return { pages: [], reasonCode: 'source_pages_failed' }
-  return { pages: await pagesFromSourceRows(request.comicId, request.chapterId, rows),
-    settingsFingerprint: sourcePagePlanFingerprint(sourceRequest.settings, sourcePagePlanIdentity(entry)) }
+  const pages = await pagesFromSourceRows(request.comicId, request.chapterId, rows)
+  if (planIdentity !== sourcePagePlanIdentity(entry)) return { pages: [], reasonCode: 'source_pages_failed' }
+  return { pages, settingsFingerprint: sourcePagePlanFingerprint(sourceRequest.settings, planIdentity) }
 }
 
 export async function resolveSourceChapterPages(

@@ -6,7 +6,9 @@ import { appSourceSettingsStore, SourceSettingsRecord } from './SourceSettingsSt
 import { appSourceSettingObservationStore } from './SourceSettingObservationStore'
 import { SourceSettingObservations } from './SourceSettingObservations'
 import { SourcePrivateSessionHost } from './SourcePrivateSessionHost'
-import { sourceHttpIdentityJson, SourceHttpIdentity, sourceWebPackageIdentity } from './SourceWebSessionStore'
+import { appSourceWebSessionStore, sourceHttpIdentityJson, SourceHttpIdentity, sourceSessionStorageIdentity,
+  sourceWebPackageIdentity } from './SourceWebSessionStore'
+import { parseSourceWebAccessToken, verifySourceWebAccessToken } from './SourceWebToken'
 import { executeSourceRequestInWorker, SourceWorkerPriority } from './SourceRuntimeWorkerClient'
 import { sourceRequestWithHostFeatures } from './SourceHostFeatures'
 import { configureSourceRequestPolicy } from './SourceRequestPolicy'
@@ -91,6 +93,21 @@ export class SourceAuthenticationService {
     if (this.grantId.length > 0) SourcePrivateSessionHost.cancelCredentialGrant(this.grantId)
     this.grantId = ''
   }
+
+  async completeWebToken(sessionId: string, documentUrl: string, token: string, documentCurrent: () => boolean): Promise<boolean> {
+    const descriptor = this.descriptor.webToken
+    const candidate = parseSourceWebAccessToken(token)
+    const current = (): boolean => this.isCurrent() && documentCurrent() &&
+      appSourceWebSessionStore.isPendingLogin(this.entry, sessionId, documentUrl)
+    if (descriptor === undefined || candidate === undefined || !current()) return false
+    try {
+      if (!await verifySourceWebAccessToken(descriptor, candidate, current) || !current()) return false
+      if (!await SourcePrivateSessionHost.installWebToken(this.entry.sourceId, sourceSessionStorageIdentity(this.entry),
+        candidate, current) || !current()) return false
+      appSourceWebSessionStore.cancel(this.entry.sourceId, sessionId)
+      return true
+    } catch (_error) { return false }
+  }
   private sessionRevision(): string {
     return SourcePrivateSessionHost.authenticationRevision(this.entry.sourceId, this.entry.sessionStorageIdentity ?? this.packageIdentity)
   }
@@ -108,6 +125,14 @@ export class SourceAuthenticationService {
       needsRefresh: Date.now() - snapshot.checkedAt >= AUTHENTICATION_REFRESH_MS }
   }
   async run(operation: 'get_authentication' | 'authenticate' | 'logout', username: string = '', password: string = ''): Promise<boolean> {
+    if (operation === 'logout' && this.descriptor.webToken !== undefined) {
+      if (!this.isCurrent()) throw new Error('source_login_not_allowed')
+      // Drop a pending browser handoff before clearing the current private account.
+      const pending = appSourceWebSessionStore.pendingStatus(this.entry.sourceId)
+      appSourceWebSessionStore.cancel(this.entry.sourceId, pending.sessionId)
+      await SourcePrivateSessionHost.disconnectWebToken(this.entry.sourceId, sourceSessionStorageIdentity(this.entry))
+      return false
+    }
     if (!this.isCurrent() || this.grantId.length > 0 ||
       (this.descriptor.kind !== 'credentials' && operation !== 'get_authentication')) throw new Error('source_login_not_allowed')
     const target = operation === 'get_authentication' ? this.descriptor.loginUrl : this.loginUrl
@@ -147,6 +172,10 @@ export class SourceAuthenticationService {
         }
         if (descriptor.kind === 'web') {
           if (descriptor.userAgent !== this.descriptor.userAgent) throw new Error('source_login_invalid_response')
+          if ((descriptor.webToken !== undefined || this.descriptor.webToken !== undefined) &&
+            sourceAuthenticationIdentity(descriptor) !== sourceAuthenticationIdentity(this.descriptor)) {
+            throw new Error('source_login_invalid_response')
+          }
           if (!(this.entry.webSessionOrigins ?? []).includes(sourceAuthenticationOrigin(descriptor.loginUrl))) {
             throw new Error('source_login_origin_not_allowed')
           }

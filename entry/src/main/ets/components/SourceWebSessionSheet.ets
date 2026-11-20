@@ -16,6 +16,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomaModalScaffold } from './KomaModalScaffold'
 import { MangaWebView } from './MangaWebView'
 import { KomaActionButton } from './ui/KomaActionButton'
+import { readSourceWebAccessToken } from '../sourceRuntime/SourceWebToken'
 import { KomaIconButton } from './ui/KomaIconButton'
 
 /** Host begins/cancels the scoped grant and owns sheet dismissal and request retry. */
@@ -23,9 +24,13 @@ import { KomaIconButton } from './ui/KomaIconButton'
 export struct SourceWebSessionSheet {
   @Param params: MangaWebRouteParam = { url: '', title: '' }
   @Param autoRetryOnClearance: boolean = false
+  @Param webTokenStorageKey: string = ''
   @Event canProbeOriginal: () => boolean = (): boolean => false
   @Event onCompleted: (status: SourceWebSessionStatus) => void = () => {}
   @Event onClose: () => void = () => {}
+  @Event onWebToken: (sessionId: string, documentUrl: string, token: string, current: () => boolean) => Promise<boolean> =
+    async (): Promise<boolean> => false
+  @Event onWebTokenCompleted: () => void = () => {}
   @Local private loading: boolean = true
   @Local private controllerReady: boolean = false
   @Local private canBack: boolean = false
@@ -195,7 +200,8 @@ export struct SourceWebSessionSheet {
       ' matchingDocument=' + (event !== undefined && event.url === this.pageUrl) +
       ' sessionPresent=' + (this.params.sourceSession !== undefined))
     const endedSession = this.params.sourceSession
-    if (endedSession !== undefined && event !== undefined && event.url === this.pageUrl && !this.pageFailed) {
+    if (this.webTokenStorageKey.length === 0 && endedSession !== undefined && event !== undefined &&
+      event.url === this.pageUrl && !this.pageFailed) {
       void this.autoCompleteRenderedDocument(this.epoch, endedSession.sourceId, endedSession.sessionId)
     }
     // A document challenge needs a source-declared success marker. The fact
@@ -458,6 +464,31 @@ export struct SourceWebSessionSheet {
     const sessionId = this.params.sourceSession.sessionId
     this.completing = true
     try {
+      if (this.webTokenStorageKey.length > 0) {
+        if (automatic || this.pageFailed) return
+        const documentUrl = this.controller.getUrl()
+        const current = (): boolean => this.isCurrent(epoch, sourceId, sessionId) && this.controllerReady &&
+          !this.loading && !this.pageFailed && this.pageRevision === pageRevision &&
+          this.controller.getUrl() === documentUrl
+        const loginOrigin = sourceWebOrigin(this.params.url)
+        if (sourceWebOrigin(documentUrl) !== loginOrigin) throw new Error('source_web_session_failed')
+        const token = await readSourceWebAccessToken(this.controller, loginOrigin, this.webTokenStorageKey, current)
+        if (!current()) return
+        if (token.length === 0) {
+          this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_login_required') }))
+          return
+        }
+        if (!await this.onWebToken(sessionId, documentUrl, token, current)) {
+          if (current()) {
+            this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_login_failed') }))
+          }
+          return
+        }
+        if (!current()) return
+        this.completed = true
+        this.onWebTokenCompleted()
+        return
+      }
       try { webview.WebCookieManager.saveCookieSync() }
       catch (_error) { await webview.WebCookieManager.saveCookieAsync() }
       // Neither a close, unmount nor replacement session may complete an old grant.

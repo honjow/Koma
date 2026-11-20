@@ -1,5 +1,14 @@
 import { url } from '@kit.ArkTS'
 
+export interface SourceWebTokenDescriptor {
+  version: number
+  storageKey: string
+  apiOrigin: string
+  verifyPath: string
+  verifyIdentityPath: string[]
+  imageKeyDerivation?: 'sha512_cbc'
+}
+
 /** Package-declared login destination. Credentials never belong in this metadata or settings. */
 export interface SourceAuthenticationDescriptor {
   kind: 'web' | 'credentials'
@@ -10,6 +19,7 @@ export interface SourceAuthenticationDescriptor {
   userAgent?: string
   loginUrls?: string[]
   sessionCookieNames?: string[]
+  webToken?: SourceWebTokenDescriptor
 }
 
 export function sourceAuthenticationOrigin(value: string): string {
@@ -21,12 +31,44 @@ export function sourceAuthenticationOrigin(value: string): string {
   } catch (_error) { return '' }
 }
 
+function sourceWebTokenDescriptor(value: Object, loginUrl: string): SourceWebTokenDescriptor | undefined {
+  if (value === null || Array.isArray(value) || typeof value !== 'object') return undefined
+  const raw = value as Record<string, Object>
+  if (Object.keys(raw).some((key: string): boolean =>
+    !['version', 'storageKey', 'apiOrigin', 'verifyPath', 'verifyIdentityPath', 'imageKeyDerivation'].includes(key)) ||
+    raw['version'] !== 1 || typeof raw['storageKey'] !== 'string' ||
+    !/^[A-Za-z0-9_.-]{1,64}$/.test(raw['storageKey'] as string) ||
+    typeof raw['apiOrigin'] !== 'string' || sourceAuthenticationOrigin(raw['apiOrigin'] as string) !== raw['apiOrigin'] ||
+    typeof raw['verifyPath'] !== 'string' || !/^\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(raw['verifyPath'] as string) ||
+    (raw['verifyPath'] as string).length > 256 ||
+    !Array.isArray(raw['verifyIdentityPath']) ||
+    (raw['imageKeyDerivation'] !== undefined && raw['imageKeyDerivation'] !== 'sha512_cbc')) return undefined
+  const apiOrigin = raw['apiOrigin'] as string
+  const loginOrigin = sourceAuthenticationOrigin(loginUrl)
+  const keys = raw['verifyIdentityPath'] as Object[]
+  if (keys.length < 1 || keys.length > 4) return undefined
+  const verifyIdentityPath: string[] = []
+  for (const key of keys) {
+    if (typeof key !== 'string' || !/^[A-Za-z_][A-Za-z0-9_-]{0,63}$/.test(key) ||
+      ['__proto__', 'prototype', 'constructor'].includes(key)) return undefined
+    verifyIdentityPath.push(key)
+  }
+  // A package cannot export another site's storage to an arbitrary origin.
+  // This contract supports the same origin and the conventional www/api pair.
+  const website = /^https:\/\/www\.([a-z0-9-]+\.[a-z]{2,})$/.exec(loginOrigin)
+  if (apiOrigin !== loginOrigin && (website === null || apiOrigin !== 'https://api.' + website[1])) return undefined
+  const result: SourceWebTokenDescriptor = { version: 1, storageKey: raw['storageKey'] as string,
+    apiOrigin, verifyPath: raw['verifyPath'] as string, verifyIdentityPath }
+  if (raw['imageKeyDerivation'] === 'sha512_cbc') result.imageKeyDerivation = 'sha512_cbc'
+  return result
+}
+
 export function sourceAuthenticationDescriptor(value: Object | undefined): SourceAuthenticationDescriptor | undefined {
   if (value === undefined || value === null || Array.isArray(value) || typeof value !== 'object') return undefined
   const raw = value as Record<string, Object>
   if (Object.keys(raw).some((key: string): boolean =>
     !['kind', 'loginUrl', 'usernameLabel', 'passwordLabel', 'credentialStorage', 'userAgent',
-      'loginUrls', 'sessionCookieNames'].includes(key))) return undefined
+      'loginUrls', 'sessionCookieNames', 'webToken'].includes(key))) return undefined
   if ((raw['kind'] !== 'web' && raw['kind'] !== 'credentials') || typeof raw['loginUrl'] !== 'string' ||
     (raw['loginUrl'] as string).length > 4096 || sourceAuthenticationOrigin(raw['loginUrl'] as string).length === 0) return undefined
   const result: SourceAuthenticationDescriptor = { kind: raw['kind'] as 'web' | 'credentials', loginUrl: raw['loginUrl'] as string }
@@ -34,6 +76,12 @@ export function sourceAuthenticationDescriptor(value: Object | undefined): Sourc
     if (raw['credentialStorage'] !== 'private' && raw['credentialStorage'] !== 'memory') return undefined
     result.credentialStorage = raw['credentialStorage'] as 'private' | 'memory'
   } else if (raw['credentialStorage'] !== undefined) return undefined
+  if (raw['webToken'] !== undefined) {
+    if (result.kind !== 'web' || result.loginUrl.includes('#')) return undefined
+    const webToken = sourceWebTokenDescriptor(raw['webToken'], result.loginUrl)
+    if (webToken === undefined) return undefined
+    result.webToken = webToken
+  }
   if (raw['loginUrls'] !== undefined || raw['sessionCookieNames'] !== undefined) {
     const urls = raw['loginUrls']
     const names = raw['sessionCookieNames']
@@ -85,5 +133,6 @@ export function sourceAuthenticationIdentity(descriptor: SourceAuthenticationDes
     descriptor.credentialStorage ?? '', descriptor.userAgent ?? '']
   // Leave the Asset and WebView identity of existing sources byte-for-byte intact.
   if (descriptor.loginUrls !== undefined) base.push(JSON.stringify(descriptor.loginUrls), JSON.stringify(descriptor.sessionCookieNames))
+  if (descriptor.webToken !== undefined) base.push(JSON.stringify(descriptor.webToken))
   return JSON.stringify(base)
 }

@@ -1186,7 +1186,8 @@ function newSourceImportDirectory(context: common.UIAbilityContext): string {
 function sourceLoginScope(authentication: SourceAuthenticationDescriptor | undefined, webOrigins: string[]): string {
   return JSON.stringify([webOrigins.slice().sort(), authentication?.kind ?? '', authentication?.loginUrl ?? '',
     authentication?.credentialStorage ?? '', authentication?.userAgent ?? '',
-    (authentication?.loginUrls ?? []).slice().sort(), (authentication?.sessionCookieNames ?? []).slice().sort()])
+    (authentication?.loginUrls ?? []).slice().sort(), (authentication?.sessionCookieNames ?? []).slice().sort(),
+    authentication?.webToken ?? null])
 }
 
 async function sourceArchiveMatches(path: string, bytes: Uint8Array): Promise<boolean> {
@@ -1282,7 +1283,9 @@ async function registerSourcePackageFromBytes(
     const exactLocalRepair = sameLocalArchive && removedExisting === previous
     // A normal update keeps the session only for the same source and login
     // scope. The new package identity still fences previous WASM and HTTP calls.
-    const inheritedSession = removedExisting !== undefined && (exactLocalRepair ||
+    // A real package replacement requires a fresh approval for imported web tokens.
+    const inheritedSession = removedExisting !== undefined && removedExisting.authentication?.webToken === undefined &&
+      imported.manifest.permissions.authentication?.webToken === undefined && (exactLocalRepair ||
       preserveSessionOnUpdate) &&
       sourceLoginScope(removedExisting.authentication, removedExisting.webSessionOrigins ?? []) ===
         sourceLoginScope(imported.manifest.permissions.authentication, imported.manifest.permissions.webSessionOrigins ?? [])
@@ -1319,6 +1322,15 @@ async function registerSourcePackageFromBytes(
     committed = { ok: true, id: sourceId, name: imported.manifest.package.name }
     if (inheritedSession !== undefined && removedExisting !== undefined) {
       SourcePrivateSessionHost.retirePackageCalls(sourceId, sourceWebPackageIdentity(removedExisting))
+    }
+    if (removedExisting?.authentication?.webToken !== undefined) {
+      SourcePrivateSessionHost.retireWebTokenPackage(sourceId, sourceWebPackageIdentity(removedExisting),
+        sourceSessionStorageIdentity(removedExisting))
+      try { await SourcePrivateSessionHost.disconnectWebToken(sourceId, sourceSessionStorageIdentity(removedExisting)) }
+      catch (_error) {
+        DiagnosticLogger.warn('source_package', 'web_token_cleanup_failed', 'reason=private_storage_failed')
+        committed.refreshFailed = true
+      }
     }
     const persistSyncMs = Math.max(0, Date.now() - persistStartedAt)
     const cleanupStartedAt = Date.now()
@@ -1439,7 +1451,12 @@ export function setEnabled(context: common.UIAbilityContext, id: string, enabled
     appSourceRuntimeRegistry.setEnabled(id, previous)
     return false
   }
-  if (!enabled) appSourceWebSessionStore.revoke(id)
+  if (!enabled) {
+    if (entry.authentication?.webToken !== undefined) {
+      SourcePrivateSessionHost.retireWebTokenPackage(id, sourceWebPackageIdentity(entry), sourceSessionStorageIdentity(entry))
+    }
+    appSourceWebSessionStore.revoke(id)
+  }
   SourceRuntimeStateBridge.notifyChanged()
   DiagnosticLogger.info('source_package', 'step', '[SourceManager] step=' + (enabled ? 'enable' : 'disable') + ' id=' + id)
   return true
@@ -1501,7 +1518,7 @@ export async function remove(context: common.UIAbilityContext, id: string, befor
         throw new Error('source_remove_commit_failed')
       }
       appSourceRuntimeRegistry.remove(entry.sourceId)
-    }, entry.sessionStorageIdentity)
+    }, entry.sessionStorageIdentity, entry.authentication?.webToken !== undefined)
     appSourceWebSessionStore.revoke(entry.sourceId)
     clearSourceRuntimeDiagnostic(entry.sourceId)
     SourceRuntimeStateBridge.notifyChanged()

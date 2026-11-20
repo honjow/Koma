@@ -39,6 +39,7 @@ export struct SourceAuthenticationSheetHost {
   @Local private authenticated: boolean = false
   @Local private replacing: boolean = false
   @Local private web: boolean = false
+  @Local private webTokenStorageKey: string = ''
   @Local private webParams: MangaWebRouteParam = { url: '', title: '' }
   private service: SourceAuthenticationService | null = null
   private presented: SourceAuthenticationRequest | null = null
@@ -79,6 +80,7 @@ export struct SourceAuthenticationSheetHost {
     this.ready = false
     this.checkFailed = false
     this.autofillRequested = false
+    this.webTokenStorageKey = ''
     const epoch = ++this.epoch
     try {
       this.service = new SourceAuthenticationService(request.sourceId,
@@ -89,7 +91,8 @@ export struct SourceAuthenticationSheetHost {
       this.passwordLabel = descriptor.passwordLabel ?? AppStrings.get('common_password')
       this.loginOrigin = sourceAuthenticationOrigin(this.service.loginUrl)
       this.credentialStorage = descriptor.credentialStorage ?? ''
-      this.web = descriptor.kind === 'web'
+      this.webTokenStorageKey = descriptor.webToken?.storageKey ?? ''
+      this.web = descriptor.kind === 'web' && (!this.inSettings || this.webTokenStorageKey.length === 0)
       if (this.web) {
         this.opening = true
         void this.openWeb(epoch)
@@ -120,7 +123,7 @@ export struct SourceAuthenticationSheetHost {
       const url = this.service!.loginUrl
       const status = appSourceWebSessionStore.begin(appSourceRuntimeRegistry, sourceId, url, this.service!.descriptor.userAgent)
       this.webParams = { url, title: this.title, sourceSession: { sourceId, sessionId: status.sessionId } }
-      this.opening = false; this.shown = true; this.onPresentedChanged(true)
+      this.web = true; this.opening = false; this.shown = true; this.onPresentedChanged(true)
     } catch (error) {
       if (!this.current(epoch)) { if (this.epoch === epoch) this.close(); return }
       const key = error instanceof Error && error.message === 'source_login_origin_not_allowed'
@@ -165,6 +168,10 @@ export struct SourceAuthenticationSheetHost {
       return
     }
     if (this.checking || this.checkFailed) return
+    if (this.webTokenStorageKey.length > 0) {
+      this.startWebTokenLogin()
+      return
+    }
     if (this.username.trim().length === 0 || this.password.length === 0) return
     const username = this.username
     const password = this.password
@@ -181,6 +188,12 @@ export struct SourceAuthenticationSheetHost {
         ? error.userTextFor(AppStrings.get('source_login_failed')) : AppStrings.get('source_login_failed')
       else if (this.epoch === epoch) this.close()
     } finally { if (this.epoch === epoch) this.busy = false }
+  }
+
+  private startWebTokenLogin(): void {
+    if (!this.ready || this.opening || this.busy || this.checking || this.checkFailed || !this.current(this.epoch)) return
+    this.opening = true
+    void this.openWeb(this.epoch)
   }
 
   private credentialInputId(field: 'username' | 'password'): string {
@@ -262,6 +275,10 @@ export struct SourceAuthenticationSheetHost {
   private changeReplacement(replacing: boolean): void {
     if (!this.inSettings || !this.authenticated || !this.ready || this.busy || this.checking || this.checkFailed ||
       !this.current(this.epoch)) return
+    if (this.webTokenStorageKey.length > 0) {
+      if (replacing) this.startWebTokenLogin()
+      return
+    }
     // authenticate performs the existing atomic replacement; the current login survives cancellation and failure.
     this.autofillRequested = false
     this.username = ''; this.password = ''; this.errorText = ''; this.replacing = replacing
@@ -326,9 +343,11 @@ export struct SourceAuthenticationSheetHost {
       Text(AppStrings.format('source_login_destination', this.loginOrigin))
         .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
     }
-    Text(AppStrings.get(this.credentialStorage === 'private' ? 'source_login_storage_private' : 'source_login_storage_memory'))
-      .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
-    if (!this.authenticated || this.replacing) {
+    if (this.webTokenStorageKey.length === 0) {
+      Text(AppStrings.get(this.credentialStorage === 'private' ? 'source_login_storage_private' : 'source_login_storage_memory'))
+        .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+    }
+    if (this.webTokenStorageKey.length === 0 && (!this.authenticated || this.replacing)) {
       KomaFormTextField({ label: this.usernameLabel, value: this.username, isUsername: true,
         inputId: this.credentialInputId('username'), isEnabled: this.ready && !this.busy,
         automaticInputFill: !deviceInfo.apiAvailable('26.0.0'),
@@ -347,9 +366,10 @@ export struct SourceAuthenticationSheetHost {
     if (!this.inSettings || !this.authenticated || this.replacing) {
       KomaActionButton({ label: AppStrings.get(this.replacing ? 'source_account_switch' :
         this.authenticated ? 'source_login_continue' : 'source_login'), kind: 'primary',
-        fullWidth: true, busy: this.busy, isEnabled: this.ready && !this.busy &&
+        fullWidth: true, busy: this.busy, isEnabled: this.ready && !this.busy && !this.opening &&
           ((this.authenticated && !this.replacing) ||
-            (!this.checking && !this.checkFailed && this.username.trim().length > 0 && this.password.length > 0)),
+            (!this.checking && !this.checkFailed &&
+              (this.webTokenStorageKey.length > 0 || (this.username.trim().length > 0 && this.password.length > 0)))),
         action: () => { void this.authenticate() } })
     }
     if (this.replacing) {
@@ -358,10 +378,10 @@ export struct SourceAuthenticationSheetHost {
     } else if (this.authenticated) {
       if (this.inSettings) {
         KomaActionButton({ label: AppStrings.get('source_account_switch'), kind: 'ghost', fullWidth: true,
-          isEnabled: !this.busy && !this.checking && !this.checkFailed, action: () => { this.changeReplacement(true) } })
+          isEnabled: !this.busy && !this.opening && !this.checking && !this.checkFailed, action: () => { this.changeReplacement(true) } })
       }
       KomaActionButton({ label: AppStrings.get('source_logout'), kind: 'ghost', fullWidth: true,
-        isEnabled: !this.busy && !this.checking && !this.checkFailed, action: () => { void this.logout() } })
+        isEnabled: !this.busy && !this.opening && !this.checking && !this.checkFailed, action: () => { void this.logout() } })
     }
     if (this.checkFailed) {
       KomaActionButton({ label: AppStrings.get('common_retry'), kind: 'ghost', fullWidth: true,
@@ -373,6 +393,10 @@ export struct SourceAuthenticationSheetHost {
   private Content() {
     if (this.web) {
       SourceWebSessionSheet({ params: this.webParams, autoRetryOnClearance: false,
+        webTokenStorageKey: this.webTokenStorageKey,
+        onWebToken: async (sessionId: string, documentUrl: string, token: string, current: () => boolean): Promise<boolean> =>
+          await this.service?.completeWebToken(sessionId, documentUrl, token, current) === true,
+        onWebTokenCompleted: () => { this.finish(true) },
         onClose: () => { this.close() }, onCompleted: () => { this.finish(true) } })
     } else {
       KomaModalScaffold({ title: AppStrings.get(this.inSettings ? 'source_account_settings' : 'source_login'), subtitle: this.title,

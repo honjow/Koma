@@ -236,6 +236,10 @@ RPC 成功返回 `ok:true`，失败只返回 `ok:false,error:{code}`。`nowMs` �
 
 三个可选导出由SDK独立 `koma_source_authentication_exports!` 添加，不改变旧源宏。`get_authentication` 是0网络元数据操作，接收本源settings与公开settingObservations，成功返回 `data:{authentication:descriptor,authenticated:boolean}`。credentials的descriptor须与包完整一致；web可按同设置/安装快照返回当前镜像实际loginUrl，仅接受同kind和包已声明精确HTTPSorigin，未声明新域明确提示更新源/选择支持镜像，不改到默认别站、不以正则扩大授权。`authenticate/logout` 返回 `data.authenticated:true/false`，不得返回token或原私有响应。
 
+`source_web_token_v1` 供登录后由官网网页存放访问令牌的书源显式使用。包的 `authentication.webToken` 声明 `version:1`、单个 `storageKey`、精确 `apiOrigin`、只读 `verifyPath` 和 `verifyIdentityPath`。用户在原网页登录入口点完成后，宿主只从已声明的 HTTPS 顶层页面读取该键，通过同站 API 确认账户及令牌有效期，然后提交到本源私密会话。允许同一 origin 或同域的 `www` 与 `api` 配对。
+
+当前源调用使用私有 RPC `op:"web_token"` 获取会话状态和当前代标识；空会话或过期仍可按源的游客路径处理。无正文 GET 可用 `webTokenGeneration` 请求宿主仅向声明的 API origin 注入 Bearer，禁止重定向；401 只撤销实际发出该请求的一代，403 保留为服务端的权限结果。会话替换或断开后不得发布旧代的成功结果。可选的 `imageKeyDerivation:"sha512_cbc"` 仅向本次 `get_image_request` 提供 SHA-512 派生的解包参数，作品页表、图片 URL、普通设置、备份和日志均不携带原始令牌。
+
 `source_native_cookie_session_v1` 允许原生表单和账号请求使用所选站点的私有 Cookie。凭据声明可同时增加 `loginUrls`（最多 8 个精确 HTTPS URL，每个 origin 一项，包含包内默认 `loginUrl`）和 `sessionCookieNames`（最多 16 个 ASCII 名称）。`get_authentication` 可从该列表选当前 `loginUrl`，其余声明逐项相同。Host 在读取状态后显示实际域，并只给所选 origin 发放此次凭据授权；设置变化或取消仍使原授权失效。旧凭据声明与网页会话沿用原合同。
 
 源在相关 HTTP 请求传 `nativeSession:true`。Host 要求已安装包、当前调用、声明的精确 HTTPS origin 和白名单内的请求 Cookie，每次只发一跳。此请求不读写网页 Cookie，也不进入网页验证结果交接。正常 HTTP 响应附 `sessionSetCookies` 数组，只返回声明名称的同域或 host-only `Set-Cookie`，保留每条的 Path、Expires 等属性，不按逗号拆分。取消、安装变化和跳转不交付 Cookie。源负责遵守有效期及路径，按 origin 隔离会话，官网确认身份后才通过私有 Asset 提交新代；账号材料、会话和 CDN 图片凭证不得混入公开结果。依赖此能力的包最低 App 版本为 1.2.1。

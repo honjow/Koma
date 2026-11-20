@@ -3,7 +3,7 @@ import { url as urlKit } from '@kit.ArkTS'
 import { appSourceWebSessionStore, sourceWebOrigin, sourceWebPackageIdentity, SourceHttpIdentity, SourcePendingWebSessionRequest } from './SourceWebSessionStore'
 import { appSourceRuntimeRegistry } from './SourceRuntimeAppRegistry'
 import { sourceRuntimeEntryEnabled } from './SourceRuntimeRegistry'
-import { SourcePrivateSessionHost, SourcePrivateSessionScope } from './SourcePrivateSessionHost'
+import { SourcePrivateSessionHost, SourcePrivateSessionScope, SourceWebTokenHttpIdentity } from './SourcePrivateSessionHost'
 import { sourceAuthenticationOrigin } from './SourceAuthenticationDescriptor'
 import { sourceClearanceCookieState } from './SourceWebChallengeGate'
 import { sourceRuntimeOperationIsCurrent } from './SourceRuntimeOperationGuard'
@@ -50,6 +50,7 @@ interface SourceHttpRequestEnvelope {
   guestSearch?: boolean
   nativeSession?: boolean
   includeResponseUrl?: boolean
+  webTokenGeneration?: string
   url?: Object | string | number | boolean | null
   method?: Object | string | number | boolean | null
   headers?: Object | string | number | boolean | null
@@ -666,7 +667,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     }
     const result = await SourcePrivateSessionHost.execute(requestJson, scope, current)
     const op = typeof envelope.op === 'string' &&
-      ['begin', 'commit', 'abort', 'invalidate', 'clock', 'rsa_pkcs1', 'credential_input', 'process_scope', 'peek'].includes(envelope.op) ? envelope.op : 'unknown'
+      ['begin', 'commit', 'abort', 'invalidate', 'clock', 'rsa_pkcs1', 'credential_input', 'process_scope', 'peek', 'web_token'].includes(envelope.op) ? envelope.op : 'unknown'
     try {
       const summary = JSON.parse(result) as SourcePrivateResultSummary
       if (op === 'peek' && summary.ok === true) return result
@@ -722,7 +723,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     ? envelope.headers as Record<string, Object> : undefined
   const requestHeaderNames = headerRecord === undefined ? '' : Object.keys(headerRecord)
     .map((name: string): string => name.toLocaleLowerCase()).sort().join(',')
-  const privateTarget = envelope.includeResponseUrl === true
+  const privateTarget = envelope.webTokenGeneration !== undefined || envelope.includeResponseUrl === true
   const diagnosticTarget = (target: string): string => privateTarget ? 'target=declared' : sourceDiagnosticTarget(target)
   trace.info('request_target', diagnosticTarget(url) + ' method=' + method +
     ' source=' + (identity?.sourceId ?? '') + ' sourceVersion=' + (identity?.sourceVersion ?? '') +
@@ -753,17 +754,41 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   const installedEntry = installed !== undefined && identity !== undefined && sourceRuntimeEntryEnabled(installed) &&
     installed.manifestVersion === identity.sourceVersion && sourceWebPackageIdentity(installed) === identity.packageIdentity
     ? installed : undefined
+  const webToken = envelope.webTokenGeneration !== undefined
+  const webTokenHeaders = webToken ? sourceHeaders(envelope.headers) : undefined
+  if (webToken && (probe !== undefined || nativeSession || envelope.guestSearch === true ||
+    envelope.includeResponseUrl === true || envelope.dnsOverride !== undefined || identity?.credentialGrantId !== undefined ||
+    method !== 'GET' || body.length > 0 || typeof envelope.webTokenGeneration !== 'string' ||
+    !/^[0-9a-f]{32}$/.test(envelope.webTokenGeneration) || installedEntry?.authentication?.webToken === undefined ||
+    (webTokenHeaders !== undefined && Object.keys(webTokenHeaders).some((name: string): boolean =>
+      !/^[a-zA-Z0-9_-]+$/.test(name) || /[\u0000-\u001f\u007f]/.test(webTokenHeaders[name]) ||
+      ['authorization', 'proxy-authorization', 'cookie', 'host'].includes(name.toLowerCase()))))) {
+    trace.finish('rejected', 'reason=invalid_web_token_request')
+    return transportError('invalid_request', false)
+  }
+  const webTokenIdentity: SourceWebTokenHttpIdentity | undefined = webToken && identity !== undefined
+    ? { sourceId: identity.sourceId, packageIdentity: identity.packageIdentity, privateCallId: identity.privateCallId }
+    : undefined
+  const webTokenGrant = envelope.webTokenGeneration === undefined ? undefined :
+    SourcePrivateSessionHost.resolveWebTokenRequest(webTokenIdentity, url, envelope.webTokenGeneration)
+  if (webToken && webTokenGrant === undefined) {
+    trace.finish('rejected', 'reason=web_token_unavailable')
+    const unauthorized = new SourceHttpSuccessEnvelope(401, '')
+    unauthorized.networkPerformed = false
+    return JSON.stringify(unauthorized)
+  }
   const current = (): boolean => probe === undefined ?
     sourceRuntimeOperationIsCurrent(identity?.operationGuardId) &&
       (installedEntry === undefined || appSourceRuntimeRegistry.lookup(installedEntry.sourceId).entry === installedEntry) &&
       (nativeScope === undefined || (appSourceRuntimeRegistry.lookup(nativeScope.sourceId).entry === nativeEntry &&
         SourcePrivateSessionHost.callIsActive(nativeScope))) &&
+      (webTokenGrant === undefined || webTokenGrant.current()) &&
       SourcePrivateSessionHost.credentialRequestAllowed(identity?.privateCallId, identity?.credentialGrantId, url) : probe.current()
   if (!current()) {
     trace.finish('cancelled', 'reason=source_request_cancelled')
     return transportError('source_request_cancelled', false)
   }
-  const freshHttp = declaredSourceHttpProfile(installedEntry?.websitePolicy, url) === 'fresh_http11'
+  const freshHttp = !webToken && declaredSourceHttpProfile(installedEntry?.websitePolicy, url) === 'fresh_http11'
   const guestSearch = envelope.guestSearch === true
   const includeResponseUrl = envelope.includeResponseUrl === true
   const responseUrlOrigins = installedEntry?.websitePolicy?.responseUrlOrigins ?? []
@@ -776,7 +801,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   // A source that opted into the WebView bridge may read through its granted
   // session when the native transport is rejected. Misses fall through to the
   // existing network path; the bridge never widens permissions by itself.
-  if (installedEntry?.websitePolicy?.webFetchBridge === true && !includeResponseUrl && !guestSearch && !nativeSession &&
+  if (installedEntry?.websitePolicy?.webFetchBridge === true && !webToken && !includeResponseUrl && !guestSearch && !nativeSession &&
     probe === undefined && method === 'GET' && body.length === 0 && identity !== undefined) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       if (attempt > 0) {
@@ -824,7 +849,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       return transportError('invalid_request', false)
     }
   }
-  if (!guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceGet !== undefined) {
+  if (!webToken && !guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceGet !== undefined) {
     const ready = verifiedSourceGet
     if (identity !== undefined && ready.request.requestJson === requestJson &&
       ready.request.httpContextJson === httpContextJson) {
@@ -839,7 +864,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       }
     }
   }
-  if (!includeResponseUrl && !guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceDocument !== undefined) {
+  if (!webToken && !includeResponseUrl && !guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceDocument !== undefined) {
     const ready = verifiedSourceDocument
     const requestMatch = ready.request.requestJson === requestJson
     const byteContextMatch = ready.request.httpContextJson === httpContextJson
@@ -890,7 +915,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     }
   }
   // A native account uses its own private Cookie header, isolated from ArkWeb's cookie jar.
-  const session = guestSearch || freshHttp || nativeSession || identity === undefined ? undefined : probe === undefined
+  const session = guestSearch || freshHttp || nativeSession || webToken || identity === undefined ? undefined : probe === undefined
     ? appSourceWebSessionStore.requestSession(identity, url)
     : appSourceWebSessionStore.pendingRequestSession(identity, url, probe.proof)
   if (probe !== undefined && (session === undefined || !probe.current())) {
@@ -960,6 +985,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       const cookie = mergeDeclaredSourceCookies(installedEntry?.websitePolicy, currentUrl, originalHeaders, active.cookie)
       if (cookie.length > 0) headers['Cookie'] = cookie
     }
+    if (webTokenGrant !== undefined) headers['Authorization'] = webTokenGrant.authorization
     trace.info('session', 'identity=' + (identity === undefined ? 'none' : 'native') +
       ' session=' + (active === undefined ? 'none' : 'attached') +
       ' cookieState=' + (typeof headers['Cookie'] === 'string' && headers['Cookie'].length > 0 ? 'present' : 'empty') +
@@ -989,7 +1015,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     }
     // A package can select an implemented transport for its declared origin.
     // Network permission and credential/session scopes are checked separately.
-    const browserProfile = !nativeSession && currentMethod === 'GET' && currentBody.length === 0
+    const browserProfile = !nativeSession && !webToken && currentMethod === 'GET' && currentBody.length === 0
       ? declaredSourceHttpProfile(installedEntry?.websitePolicy, currentUrl) : ''
     if (response === undefined && browserProfile.length > 0 && browserProfile !== 'fresh_http11') {
       sourceBrowserHttpSequence += 1
@@ -1022,7 +1048,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         request.on('headersReceive', () => {
           if (firstHeaderMs < 0) firstHeaderMs = Math.max(0, Date.now() - hopStartedAt)
         })
-        if ((session !== undefined || guestSearch || nativeSession || includeResponseUrl) && !attachSourceRedirectStop(request)) {
+        if ((session !== undefined || guestSearch || nativeSession || webToken || includeResponseUrl) && !attachSourceRedirectStop(request)) {
           trace.finish('failed', 'reason=web_session_redirect_unavailable')
           return transportError('web_session_redirect_unavailable', false)
         }
@@ -1043,11 +1069,11 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     trace.info('hop_response', 'hop=' + redirects + ' status=' + response.responseCode + ' ' + diagnosticTarget(currentUrl) +
       ' headersReceived=' + (usedSourceBrowserHttp || firstHeaderMs >= 0) + ' firstHeaderMs=' + firstHeaderMs +
       ' elapsedMs=' + Math.max(0, Date.now() - hopStartedAt) + ' ' + sourceHttpTimingText(response.performanceTiming))
-    if ((nativeSession || includeResponseUrl) && !current()) {
+    if ((nativeSession || webToken || includeResponseUrl) && !current()) {
       trace.finish('cancelled', 'reason=source_request_cancelled')
       return transportError('source_request_cancelled', false)
     }
-    if (nativeSession && [301, 302, 303, 307, 308].includes(response.responseCode)) {
+    if ((nativeSession || webToken) && [301, 302, 303, 307, 308].includes(response.responseCode)) {
       trace.finish('failed', 'reason=source_login_redirect_rejected')
       return transportError('source_login_redirect_rejected', false)
     }
@@ -1069,6 +1095,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       else appSourceWebSessionStore.acceptPendingResponseCookies(identity, currentUrl, probe.proof, values)
     }
     const responseBody = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
+    if (webTokenGrant !== undefined && response.responseCode === 401) {
+      try { await webTokenGrant.rejectUnauthorized() }
+      catch (_error) { trace.warn('web_token', 'state=delete_failed') }
+    }
     const accessSignal = sourceResponseAccessSignal(response.header)
     let challengeRequestId: string | undefined = undefined
     const trackedOperation = identity?.operationGuardId !== undefined
@@ -1076,7 +1106,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     // supplies an operation-scoped reference to a permitted GET it made.
     const documentCandidate = trackedOperation && envelope.wantChallengeRequestId === 'document'
     const optedIn = trackedOperation && envelope.wantChallengeRequestId === true
-    if (!guestSearch && !nativeSession && identity !== undefined && (documentCandidate ||
+    if (!guestSearch && !nativeSession && !webToken && identity !== undefined && (documentCandidate ||
       response.responseCode === 403 ||
       ((accessSignal === 'challenge_required' || optedIn) && (response.responseCode === 401 || response.responseCode === 503)))) {
       if (response.responseCode === 403 || accessSignal === 'challenge_required') {

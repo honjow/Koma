@@ -2,21 +2,47 @@ import { asset } from '@kit.AssetStoreKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { buffer, util } from '@kit.ArkTS'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { sourceAuthenticationOrigin } from './SourceAuthenticationDescriptor'
+import { SourceWebTokenDescriptor, sourceAuthenticationOrigin } from './SourceAuthenticationDescriptor'
+import { parseSourceWebAccessToken, SourceWebTokenValue } from './SourceWebToken'
 
 export interface SourcePrivateSessionScope {
   sourceId: string; packageIdentity: string; callId: string; privateSessionIdentity?: string
+  webToken?: SourceWebTokenDescriptor
+  operation?: string
 }
 export interface SourcePrivateSessionCall { id: string; httpContextJson: string }
+export interface SourceWebTokenHttpIdentity {
+  sourceId: string
+  packageIdentity: string
+  privateCallId?: string
+}
+export interface SourceWebTokenRequestGrant {
+  authorization: string
+  current: () => boolean
+  rejectUnauthorized: () => Promise<void>
+}
 
 interface PrivateError { code: string }
 interface PrivateFailureFields { fixedCode?: string; name?: string }
 interface PrivateErrorResponse { ok: boolean; error: PrivateError }
 interface PrivateClock { nowMs: string; gts: string }
 interface PrivateResponse { ok: boolean; state?: string; value?: string; versionTag?: string; lease?: string; randomHex?: string; nowMs?: string; gts?: string }
-interface PrivateRequest { type: string; version: number; op: string; lease?: string; value?: string; versionTag?: string; replaceVersionTag?: string; publicKey?: string; plaintext?: string }
+interface PrivateRequest { type: string; version: number; op: string; lease?: string; value?: string; versionTag?: string; replaceVersionTag?: string; publicKey?: string; plaintext?: string; deriveImageKey?: boolean }
+interface WebTokenReply {
+  ok: boolean
+  state: 'empty' | 'expired' | 'ready'
+  generation?: string
+  imageKeyHex?: string
+  imageIvHex?: string
+}
+interface WebTokenPin {
+  state: PrivateState
+  value: PrivateValue | null
+  expiresAt: number
+}
 interface PrivateManifest { format: string; id: string; chunks: number; bytes: number; sha256: string }
-interface PrivateValue { value: string; versionTag: string }
+interface PrivateValue { value: string; versionTag: string; webToken?: SourceWebTokenValue }
+interface PrivatePublish { error: string; previous: PrivateManifest | null }
 interface BeginResult { response: string; wait: Promise<boolean> | null }
 interface PrivateOwner { callId: string; lease: string; done: Promise<boolean>; resolve: (ok: boolean) => void; expectedVersionTag?: string }
 interface SourceCredentialGrant {
@@ -37,6 +63,8 @@ class PrivateState {
   manifest: PrivateManifest | null = null
   revision: number = 0
   owner: PrivateOwner | null = null
+  blockedWebGeneration: string = ''
+  webToken: boolean = false
   queue: Promise<void> = Promise.resolve()
 }
 
@@ -56,11 +84,26 @@ export class SourcePrivateSessionHost {
   private static callCredentialGrants: Map<string, string> = new Map()
   private static removingScopes: Set<string> = new Set()
   private static removalVersions: Map<string, number> = new Map()
+  private static webTokenPins: Map<string, WebTokenPin> = new Map()
+  private static retiredWebCalls: Set<string> = new Set()
+
+  private static storageKey(sourceId: string, storageIdentity: string, webToken: boolean): string {
+    return webToken ? JSON.stringify([sourceId, storageIdentity, 'web_token']) : JSON.stringify([sourceId, storageIdentity])
+  }
 
   /** In-process cache fence. This exposes neither the private value nor its storage identifier. */
   static authenticationRevision(sourceId: string, packageIdentity: string): string {
     const key = JSON.stringify([sourceId, packageIdentity])
     return `${SourcePrivateSessionHost.removalVersions.get(key) ?? 0}:${SourcePrivateSessionHost.states.get(key)?.revision ?? 0}`
+  }
+
+  /** Non-secret cache fence for opt-in web-token sources. */
+  static webTokenRevision(sourceId: string, storageIdentity: string): string {
+    const state = SourcePrivateSessionHost.states.get(SourcePrivateSessionHost.storageKey(sourceId, storageIdentity, true))
+    if (state?.loaded !== true) return 'unloaded'
+    const value = state?.value
+    return value !== null && value !== undefined && state?.blockedWebGeneration !== value.versionTag &&
+      (value.webToken?.expiresAt ?? 0) > Date.now() ? value.versionTag : 'guest'
   }
 
   /** Uninstall retires queued calls even when the same package is reinstalled.
@@ -81,7 +124,7 @@ export class SourcePrivateSessionHost {
   /** Ordinary uninstall only. No RPC can select or remove a scope. The caller commits
    * public files/registry inside mutation; failures restore this exact generation in memory/Asset. */
   static async withScopeRemoved(sourceId: string, packageIdentity: string, mutation: () => Promise<void>,
-    storageIdentity: string = packageIdentity): Promise<void> {
+    storageIdentity: string = packageIdentity, webToken: boolean = false): Promise<void> {
     if (sourceId.length === 0 || packageIdentity.length === 0) throw new Error('source_remove_private_identity_invalid')
     const key = JSON.stringify([sourceId, storageIdentity])
     if (SourcePrivateSessionHost.removingScopes.has(key)) throw new Error('source_remove_private_busy')
@@ -89,14 +132,16 @@ export class SourcePrivateSessionHost {
     SourcePrivateSessionHost.removalVersions.set(key, (SourcePrivateSessionHost.removalVersions.get(key) ?? 0) + 1)
     SourcePrivateSessionHost.retirePackageCalls(sourceId, packageIdentity)
     try {
-      let state = SourcePrivateSessionHost.states.get(key)
+      const stateKey = SourcePrivateSessionHost.storageKey(sourceId, storageIdentity, webToken)
+      let state = SourcePrivateSessionHost.states.get(stateKey)
       if (state === undefined) {
-        state = new PrivateState(); state.key = key
-        try { state.root = PRIVATE_PREFIX + await SourcePrivateSessionHost.hash(SourcePrivateSessionHost.bytes(key)) }
+        state = new PrivateState(); state.key = stateKey
+        state.webToken = webToken
+        try { state.root = PRIVATE_PREFIX + await SourcePrivateSessionHost.hash(SourcePrivateSessionHost.bytes(stateKey)) }
         catch (_error) { throw new Error('source_remove_private_read_failed') }
-        const existing = SourcePrivateSessionHost.states.get(key)
+        const existing = SourcePrivateSessionHost.states.get(stateKey)
         if (existing !== undefined) state = existing
-        else SourcePrivateSessionHost.states.set(key, state)
+        else SourcePrivateSessionHost.states.set(stateKey, state)
       }
       const selected = state
       await SourcePrivateSessionHost.locked(selected, async (): Promise<void> => {
@@ -195,6 +240,8 @@ export class SourcePrivateSessionHost {
         context.privateSessionIdentity : context.packageIdentity
       const scope: SourcePrivateSessionScope = { sourceId: context.sourceId, packageIdentity: context.packageIdentity,
         privateSessionIdentity: storageIdentity, callId: id }
+      if (context.webToken !== undefined) scope.webToken = context.webToken as SourceWebTokenDescriptor
+      if (typeof context.diagnosticOperation === 'string') scope.operation = context.diagnosticOperation
       if (SourcePrivateSessionHost.removingScopes.has(JSON.stringify([scope.sourceId, storageIdentity]))) return { id: '', httpContextJson }
       if (context.credentialGrantId !== undefined) {
         if (typeof context.credentialGrantId !== 'string') return { id: '', httpContextJson }
@@ -212,6 +259,8 @@ export class SourcePrivateSessionHost {
   }
 
   static finishCall(id: string): void {
+    SourcePrivateSessionHost.retiredWebCalls.delete(id)
+    SourcePrivateSessionHost.webTokenPins.delete(id)
     SourcePrivateSessionHost.publicInitializationCalls.delete(id)
     const grantId = SourcePrivateSessionHost.callCredentialGrants.get(id)
     if (grantId !== undefined) SourcePrivateSessionHost.cancelCredentialGrant(grantId)
@@ -228,8 +277,17 @@ export class SourcePrivateSessionHost {
 
   static retirePackageCalls(sourceId: string, packageIdentity: string): void {
     SourcePrivateSessionHost.calls.forEach((scope: SourcePrivateSessionScope, id: string): void => {
-      if (scope.sourceId === sourceId && scope.packageIdentity === packageIdentity) SourcePrivateSessionHost.finishCall(id)
+      if (scope.sourceId === sourceId && scope.packageIdentity === packageIdentity) {
+        SourcePrivateSessionHost.finishCall(id)
+        if (scope.webToken !== undefined) SourcePrivateSessionHost.retiredWebCalls.add(id)
+      }
     })
+  }
+
+  static retireWebTokenPackage(sourceId: string, packageIdentity: string, storageIdentity: string): void {
+    const key = SourcePrivateSessionHost.storageKey(sourceId, storageIdentity, false)
+    SourcePrivateSessionHost.removalVersions.set(key, (SourcePrivateSessionHost.removalVersions.get(key) ?? 0) + 1)
+    SourcePrivateSessionHost.retirePackageCalls(sourceId, packageIdentity)
   }
 
   static callIsActive(scope: SourcePrivateSessionScope): boolean {
@@ -358,13 +416,186 @@ export class SourcePrivateSessionHost {
       bytes.set(chunk, i * CHUNK_BYTES)
     }
     if (await SourcePrivateSessionHost.hash(bytes) !== m.sha256) throw new PrivateReadFailure('load_chunk_sha')
-    state.value = { value: SourcePrivateSessionHost.text(bytes), versionTag: m.id }; state.manifest = m; state.loaded = true
+    const value: PrivateValue = { value: SourcePrivateSessionHost.text(bytes), versionTag: m.id }
+    if (state.webToken) {
+      value.webToken = parseSourceWebAccessToken(value.value)
+      if (value.webToken === undefined) throw new PrivateReadFailure('load_manifest_validation')
+    }
+    state.value = value; state.manifest = m; state.loaded = true
   }
   private static async locked<T>(state: PrivateState, fn: () => Promise<T>): Promise<T> {
     const task = state.queue.then(fn)
     state.queue = task.then((): void => {}, (): void => {})
     return task
   }
+
+  private static async webTokenState(sourceId: string, storageIdentity: string): Promise<PrivateState> {
+    const key = SourcePrivateSessionHost.storageKey(sourceId, storageIdentity, true)
+    let state = SourcePrivateSessionHost.states.get(key)
+    if (state !== undefined) return state
+    const root = PRIVATE_PREFIX + await SourcePrivateSessionHost.hash(SourcePrivateSessionHost.bytes(key))
+    state = SourcePrivateSessionHost.states.get(key)
+    if (state !== undefined) return state
+    state = new PrivateState(); state.key = key; state.root = root; state.webToken = true
+    SourcePrivateSessionHost.states.set(key, state)
+    return state
+  }
+
+  static async loadWebTokenRevision(sourceId: string, storageIdentity: string): Promise<string> {
+    const state = await SourcePrivateSessionHost.webTokenState(sourceId, storageIdentity)
+    if (!state.loaded) await SourcePrivateSessionHost.locked(state, (): Promise<void> => SourcePrivateSessionHost.load(state))
+    return SourcePrivateSessionHost.webTokenRevision(sourceId, storageIdentity)
+  }
+
+  /** Only the native login presenter can publish a verified token. Guest RPCs have no write path. */
+  static async installWebToken(sourceId: string, storageIdentity: string, token: SourceWebTokenValue,
+    current: () => boolean): Promise<boolean> {
+    const state = await SourcePrivateSessionHost.webTokenState(sourceId, storageIdentity)
+    const active = (): boolean => current() && token.expiresAt > Date.now() &&
+      !SourcePrivateSessionHost.removingScopes.has(SourcePrivateSessionHost.storageKey(sourceId, storageIdentity, false))
+    return SourcePrivateSessionHost.locked(state, async (): Promise<boolean> => {
+      if (!active()) return false
+      await SourcePrivateSessionHost.load(state)
+      if (!active()) return false
+      if (state.value?.value === token.token && state.blockedWebGeneration !== state.value.versionTag) return true
+      const result = await SourcePrivateSessionHost.publish(state, token.token, active, token)
+      if (result.error.length > 0) return false
+      if (result.previous !== null) await SourcePrivateSessionHost.removeChunks(state, result.previous)
+      return active()
+    })
+  }
+
+  private static async deleteWebToken(state: PrivateState, expected?: PrivateValue): Promise<void> {
+    await SourcePrivateSessionHost.locked(state, async (): Promise<void> => {
+      await SourcePrivateSessionHost.load(state)
+      const previous = state.manifest
+      const value = state.value
+      if (previous === null || value === null || (expected !== undefined && value !== expected)) return
+      state.blockedWebGeneration = value.versionTag
+      await SourcePrivateSessionHost.removeExact(state.root)
+      state.value = null; state.manifest = null; state.revision += 1
+      await SourcePrivateSessionHost.removeChunks(state, previous)
+    })
+  }
+
+  static async disconnectWebToken(sourceId: string, storageIdentity: string): Promise<void> {
+    await SourcePrivateSessionHost.deleteWebToken(await SourcePrivateSessionHost.webTokenState(sourceId, storageIdentity))
+  }
+
+  private static pinIsCurrent(pin: WebTokenPin): boolean {
+    return pin.state.loaded && pin.state.value === pin.value &&
+      (pin.expiresAt === 0 || (pin.expiresAt > Date.now() && pin.state.blockedWebGeneration !== pin.value?.versionTag))
+  }
+
+  /** Callers must also keep their existing exact operation/installation guard active.
+   * The returned Authorization value is for the single native request, never the guest response. */
+  static resolveWebTokenRequest(identity: SourceWebTokenHttpIdentity | undefined, fullUrl: string,
+    generation: string): SourceWebTokenRequestGrant | undefined {
+    const id = identity?.privateCallId
+    if (identity === undefined || id === undefined) return undefined
+    const call = SourcePrivateSessionHost.calls.get(id)
+    const pin = SourcePrivateSessionHost.webTokenPins.get(id)
+    const value = pin?.value
+    const token = value?.webToken
+    if (call === undefined || pin === undefined || value === undefined || value === null || token === undefined ||
+      pin.expiresAt === 0 || value.versionTag !== generation || call.sourceId !== identity.sourceId ||
+      call.packageIdentity !== identity.packageIdentity || call.webToken === undefined ||
+      sourceAuthenticationOrigin(fullUrl) !== call.webToken.apiOrigin) return undefined
+    const current = (): boolean => SourcePrivateSessionHost.callIsActive(call) && SourcePrivateSessionHost.pinIsCurrent(pin)
+    if (!current()) return undefined
+    return { authorization: 'Bearer ' + token.token, current, rejectUnauthorized: async (): Promise<void> => {
+      if (!current()) return
+      pin.state.blockedWebGeneration = value.versionTag
+      await SourcePrivateSessionHost.deleteWebToken(pin.state, value)
+    } }
+  }
+
+  static webTokenResultIsCurrent(callId: string): boolean {
+    const pin = SourcePrivateSessionHost.webTokenPins.get(callId)
+    return !SourcePrivateSessionHost.retiredWebCalls.has(callId) && (pin === undefined || SourcePrivateSessionHost.pinIsCurrent(pin))
+  }
+
+  private static async webTokenReply(req: PrivateRequest, scope: SourcePrivateSessionScope,
+    isCurrent: () => boolean): Promise<string> {
+    const call = SourcePrivateSessionHost.calls.get(scope.callId)
+    if (call?.webToken === undefined || (req.deriveImageKey !== undefined && req.deriveImageKey !== true) ||
+      (req.deriveImageKey === true && (call.webToken.imageKeyDerivation !== 'sha512_cbc' ||
+        call.operation !== 'get_image_request'))) {
+      return SourcePrivateSessionHost.fail('web_token_unavailable')
+    }
+    const state = await SourcePrivateSessionHost.webTokenState(scope.sourceId, call.privateSessionIdentity ?? scope.packageIdentity)
+    if (!state.loaded) await SourcePrivateSessionHost.locked(state, (): Promise<void> => SourcePrivateSessionHost.load(state))
+    if (!SourcePrivateSessionHost.active(scope, isCurrent)) return SourcePrivateSessionHost.fail('inactive')
+    const value = state.value
+    const token = value?.webToken
+    const expiresAt = token !== undefined && token.expiresAt > Date.now() &&
+      state.blockedWebGeneration !== value?.versionTag ? token.expiresAt : 0
+    const existing = SourcePrivateSessionHost.webTokenPins.get(scope.callId)
+    if (existing !== undefined && !SourcePrivateSessionHost.pinIsCurrent(existing)) return SourcePrivateSessionHost.fail('stale_version')
+    const pin: WebTokenPin = existing ?? { state, value, expiresAt }
+    SourcePrivateSessionHost.webTokenPins.set(scope.callId, pin)
+    const reply: WebTokenReply = { ok: true, state: value === null ? 'empty' : pin.expiresAt === 0 ? 'expired' : 'ready' }
+    if (reply.state === 'ready' && value !== null && token !== undefined) {
+      reply.generation = value.versionTag
+      if (req.deriveImageKey === true) {
+        const md = cryptoFramework.createMd('SHA512')
+        await md.update({ data: SourcePrivateSessionHost.bytes(token.token) })
+        const digest = (await md.digest()).data
+        if (!SourcePrivateSessionHost.active(scope, isCurrent) || !SourcePrivateSessionHost.pinIsCurrent(pin)) {
+          return SourcePrivateSessionHost.fail('stale_version')
+        }
+        reply.imageKeyHex = SourcePrivateSessionHost.hex(digest.slice(0, 32))
+        reply.imageIvHex = SourcePrivateSessionHost.hex(digest.slice(15, 31))
+      }
+    }
+    return JSON.stringify(reply)
+  }
+  // Every private value uses the same commit point. A canceled writer restores
+  // the previous index before another operation in this queue can read it.
+  private static async publish(state: PrivateState, value: string, current: () => boolean,
+    webToken?: SourceWebTokenValue): Promise<PrivatePublish> {
+    const bytes = SourcePrivateSessionHost.bytes(value)
+    const id = await SourcePrivateSessionHost.random(16)
+    const manifest: PrivateManifest = { format: 'private-v1', id, chunks: Math.ceil(bytes.length / CHUNK_BYTES),
+      bytes: bytes.length, sha256: await SourcePrivateSessionHost.hash(bytes) }
+    let staged = 0
+    try {
+      for (let i = 0; i < manifest.chunks; i++) {
+        if (!current()) throw new Error('inactive')
+        staged = i + 1
+        await SourcePrivateSessionHost.write(SourcePrivateSessionHost.chunk(state, id, i),
+          bytes.slice(i * CHUNK_BYTES, Math.min(bytes.length, (i + 1) * CHUNK_BYTES)))
+      }
+      if (!current()) throw new Error('inactive')
+      await SourcePrivateSessionHost.write(state.root, SourcePrivateSessionHost.bytes(JSON.stringify(manifest)))
+      if (!current()) {
+        try {
+          const currentRoot = await SourcePrivateSessionHost.read(state.root)
+          const currentManifest = currentRoot === null ? null :
+            JSON.parse(SourcePrivateSessionHost.text(currentRoot)) as PrivateManifest
+          if (currentManifest?.id !== manifest.id) throw new Error('generation_changed')
+          if (state.manifest === null) await asset.remove(SourcePrivateSessionHost.identity(state.root))
+          else await SourcePrivateSessionHost.write(state.root, SourcePrivateSessionHost.bytes(JSON.stringify(state.manifest)))
+        } catch (_restoreError) {
+          // Keep both sets of chunks if the index could not be restored.
+          state.loaded = false; state.value = null; state.manifest = null
+          if (state.webToken) state.blockedWebGeneration = id
+          return { error: 'rollback_failed', previous: null }
+        }
+        throw new Error('inactive')
+      }
+    } catch (_error) {
+      await SourcePrivateSessionHost.removeChunks(state, { format: manifest.format, id, chunks: staged,
+        bytes: manifest.bytes, sha256: manifest.sha256 })
+      return { error: 'storage_failed', previous: null }
+    }
+    const previous = state.manifest
+    state.manifest = manifest
+    state.value = { value, versionTag: id, webToken }
+    state.revision += 1
+    return { error: '', previous }
+  }
+
   private static clock(): PrivateClock {
     const d = new Date(); const pad = (v: number): string => v.toString().padStart(2, '0')
     return { nowMs: d.getTime().toString(), gts: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}+${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` }
@@ -374,6 +605,7 @@ export class SourcePrivateSessionHost {
     try {
       const req = JSON.parse(requestJson) as PrivateRequest
       if (req === null || req.type !== 'private_session' || req.version !== 1 || typeof req.op !== 'string') return SourcePrivateSessionHost.fail('invalid_request')
+      if (req.op === 'web_token') return await SourcePrivateSessionHost.webTokenReply(req, scope, isCurrent)
       if (req.op === 'process_scope') {
         if (SourcePrivateSessionHost.processTag.length === 0) SourcePrivateSessionHost.processTag = util.generateRandomUUID(true)
         return JSON.stringify({ ok: true, processTag: SourcePrivateSessionHost.processTag })
@@ -505,45 +737,15 @@ export class SourcePrivateSessionHost {
         }
         const bytes = SourcePrivateSessionHost.bytes(req.value)
         if (bytes.byteLength === 0 || bytes.byteLength > MAX_VALUE_BYTES) return SourcePrivateSessionHost.fail('invalid_request')
-        const id = await SourcePrivateSessionHost.random(16)
-        const m: PrivateManifest = { format: 'private-v1', id, chunks: Math.ceil(bytes.length / CHUNK_BYTES), bytes: bytes.length, sha256: await SourcePrivateSessionHost.hash(bytes) }
-        let staged = 0
-        try {
-          for (let i = 0; i < m.chunks; i++) {
-            if (!SourcePrivateSessionHost.active(scope, isCurrent) || selected.owner !== owner) throw new Error('inactive')
-            staged = i + 1
-            await SourcePrivateSessionHost.write(SourcePrivateSessionHost.chunk(selected, id, i), bytes.slice(i * CHUNK_BYTES, Math.min(bytes.length, (i + 1) * CHUNK_BYTES)))
-          }
-          if (!SourcePrivateSessionHost.active(scope, isCurrent) || selected.owner !== owner) throw new Error('inactive')
-          await SourcePrivateSessionHost.write(selected.root, SourcePrivateSessionHost.bytes(JSON.stringify(m)))
-          // Asset writes cannot be canceled. If the call ended during the root write,
-          // restore the previous root before allowing a later owner into this queue.
-          if (!SourcePrivateSessionHost.active(scope, isCurrent) || selected.owner !== owner) {
-            try {
-              const currentRoot = await SourcePrivateSessionHost.read(selected.root)
-              const currentManifest = currentRoot === null ? null : JSON.parse(SourcePrivateSessionHost.text(currentRoot)) as PrivateManifest
-              if (currentManifest === null || currentManifest.id !== m.id) throw new Error('generation_changed')
-              if (selected.manifest === null) await asset.remove(SourcePrivateSessionHost.identity(selected.root))
-              else await SourcePrivateSessionHost.write(selected.root, SourcePrivateSessionHost.bytes(JSON.stringify(selected.manifest)))
-            } catch (_restoreError) {
-              // Keep both generations: deleting a possibly published generation would corrupt it.
-              selected.loaded = false; selected.value = null; selected.manifest = null
-              return SourcePrivateSessionHost.fail('rollback_failed')
-            }
-            throw new Error('inactive')
-          }
-        } catch (_error) {
-          await SourcePrivateSessionHost.removeChunks(selected, { format: m.format, id: m.id, chunks: staged, bytes: m.bytes, sha256: m.sha256 })
-          if (selected.owner === owner) { selected.owner = null; owner.resolve(false) }
-          return SourcePrivateSessionHost.fail('storage_failed')
-        }
-        const previous = selected.manifest
-        selected.manifest = m; selected.value = { value: req.value, versionTag: id }
-        selected.revision += 1
-        if (selected.owner === owner) { selected.owner = null; owner.resolve(true) }
-        if (previous !== null) await SourcePrivateSessionHost.removeChunks(selected, previous)
+        const current = (): boolean => SourcePrivateSessionHost.active(scope, isCurrent) && selected.owner === owner
+        const result = await SourcePrivateSessionHost.publish(selected, req.value, current)
+        if (result.error === 'rollback_failed') return SourcePrivateSessionHost.fail(result.error)
+        if (selected.owner === owner) { selected.owner = null; owner.resolve(result.error.length === 0) }
+        if (result.error.length > 0) return SourcePrivateSessionHost.fail(result.error)
+        const versionTag = selected.value?.versionTag
+        if (result.previous !== null) await SourcePrivateSessionHost.removeChunks(selected, result.previous)
         if (!SourcePrivateSessionHost.active(scope, isCurrent)) return SourcePrivateSessionHost.fail('inactive')
-        return JSON.stringify({ ok: true, versionTag: id })
+        return JSON.stringify({ ok: true, versionTag })
       })
     } catch (_error) { return SourcePrivateSessionHost.fail('operation_failed') }
   }
