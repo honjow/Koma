@@ -6154,9 +6154,9 @@
         "AUTO_CHAPTER_BOUNDARY_TARGET",
         "CONTINUOUS_PERFORMANCE"
       ],
-      "status": "章末提前准备与首图加载中跨章已在 197 验证",
+      "status": "197 已验证页表在途时的手动拖动与惯性跨章",
       "kind": "accepted",
-      "result": "包子漫画《大象無形》第27章33/36开始准备下一章页表。连续阅读第28章61/61只上划一次，下一章页表请求耗时3186 ms，返回后直接进入第29章1/48并显示图片加载状态。原图显示后才确认本次跨章。共享会话82项通过，额外核对全量套件的10项既有失败与原版相同。",
+      "result": "原章末手势验证保留。本轮确认旧包在下一章页表及首图已可用后仍可停在上一章。最终候选用下一章加载区域接住手动拖动和惯性，保持到达位置。包子《大象無形》第32章手动拖动到第33章1/44，第33章惯性进入第34章1/49，首图显示后均留在目标章。共享会话83项和入场43项通过；全量套件的10项失败与基线相同。",
       "remaining": "本地签名候选已验证，正式版本尚待同步独立 Reader Kit 依赖。",
       "reportedAt": "2026-10-23T05:33:34.382Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 381614824 重新读原文与时间戳，不是摘要/登记时间。",
@@ -6169,7 +6169,15 @@
         ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/24-candidate-prefetch-before-end/hilog.txt",
         ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/25-cross-27-to-28/summary.json",
         ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/28-cold-cross-28-to-29/summary.json",
-        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/29-candidate-cold-cross-readback/layout.json"
+        ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/29-candidate-cold-cross-readback/layout.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/09-baseline-fling-29-to-30/summary.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/10-baseline-fling-readback/layout.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/29-final-fling-31-to-32/summary.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/30-final-fling-readback/layout.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/38-manual-32-to-33/summary.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/39-manual-final-readback/layout.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/40-anchored-fling-33-to-34/summary.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/41-anchored-fling-readback/layout.json"
       ],
       "remainingActions": [
         "将独立 Reader Kit 原仓的修复同步到正式 Koma 依赖后复核版本构建。"
@@ -6188,7 +6196,7 @@
       "reportedAgeSecondsAtAudit": 223217,
       "reportedDate": "2026-10-23",
       "reportedDateSource": "按上述原始UTC首报换算Asia/Shanghai日期，不使用登记日。",
-      "reopenedAt": "2026-11-20T20:45:09+08:00"
+      "reopenedAt": "2026-11-20T21:21:43+08:00"
     },
     {
       "id": "READER_PRESET_SHEET",
@@ -27703,6 +27711,24 @@
         ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/25-cross-27-to-28/summary.json",
         ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/28-cold-cross-28-to-29/summary.json",
         ".hvigor/outputs/chapter-preload-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/29-candidate-cold-cross-readback/layout.json"
+      ]
+    },
+    {
+      "id": "chapter-inertia-and-manual-197-20261120",
+      "at": "2026-11-20T21:21:43+08:00",
+      "itemId": "NEXT_CHAPTER_PREFETCH_REUSE",
+      "kind": "verification",
+      "title": "197 核实页表延迟时手动拖动及惯性跨章",
+      "detail": "旧签名包从包子漫画《大象無形》第29章47/48甩动，下一章页表3210 ms正常返回并准备首图，仍停在第29章。中间候选滚入加载区后，上一章末图尺寸到达可把视口顶回。最终候选在第32章45/45慢拉一次，先滚入第33章加载区，页表3268 ms返回，首图实际显示后留在第33章1/44。从第33章43/44甩动一次，松手后滚入第34章加载区，页表1668 ms返回，首图实际显示后留在第34章1/49。实机走无痕；真实图像观测仍是更新进度的条件。两条录屏均未注入第二次滑动。",
+      "evidence": [
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/09-baseline-fling-29-to-30/summary.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/10-baseline-fling-readback/layout.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/29-final-fling-31-to-32/summary.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/30-final-fling-readback/layout.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/38-manual-32-to-33/summary.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/39-manual-final-readback/layout.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/40-anchored-fling-33-to-34/summary.json",
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/41-anchored-fling-readback/layout.json"
       ]
     }
   ],
