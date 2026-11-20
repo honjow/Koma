@@ -1079,7 +1079,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       ' uaSource=' + (active === undefined ? 'source' : 'webview'))
     trace.info('owner', 'operation=' + (identity?.diagnosticOperation ?? 'unknown'))
     if (active !== undefined) trace.info('clearance_cookie', 'state=' + sourceClearanceCookieState(headers['Cookie'] ?? ''))
-    const remaining = session === undefined && !sourceSession && !binaryResponse && dnsOverride === undefined && !freshHttp && !guestSearch && !includeResponseUrl ? sourceTimeout(envelope.timeoutMs) :
+    const remaining = session === undefined && !sourceSession && !binaryResponse && !binaryRequest && dnsOverride === undefined && !freshHttp && !guestSearch && !includeResponseUrl ? sourceTimeout(envelope.timeoutMs) :
       Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt - policyWaitMs))
     let response: SourceHopResponse | undefined = undefined
     const hopStartedAt = Date.now()
@@ -1168,7 +1168,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     trace.info('hop_response', 'hop=' + redirects + ' status=' + response.responseCode + ' ' + diagnosticTarget(currentUrl) +
       ' headersReceived=' + (usedSourceBrowserHttp || firstHeaderMs >= 0) + ' firstHeaderMs=' + firstHeaderMs +
       ' elapsedMs=' + Math.max(0, Date.now() - hopStartedAt) + ' ' + sourceHttpTimingText(response.performanceTiming))
-    if ((sourceSession || binaryResponse || nativeSession || webToken || includeResponseUrl) && !current()) {
+    if ((sourceSession || binaryResponse || binaryRequest || nativeSession || webToken || includeResponseUrl || envelope.responseMetadata?.headers === true) && !current()) {
       trace.finish('cancelled', 'reason=source_request_cancelled')
       return transportError('source_request_cancelled', false)
     }
