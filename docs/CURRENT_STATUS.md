@@ -3244,7 +3244,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
-      "updatedAt": "2026-11-21T02:24:27+08:00",
+      "updatedAt": "2026-11-21T04:41:04+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -27921,6 +27921,22 @@
         ".hvigor/outputs/bilimanga-auto-237/publication/actual-wasm-search.json",
         ".hvigor/outputs/bilimanga-auto-237/publication/old-app-policy.json",
         ".hvigor/outputs/bilimanga-auto-237/publication/unified-features-check.log"
+      ]
+    },
+    {
+      "id": "source-composable-body-framework-20261121",
+      "at": "2026-11-21T04:41:04+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "implementation",
+      "title": "书源可组合 SDK 第一期已提交，237 阅读、下载及验证码链路已验",
+      "detail": "按用户批准的六类能力框架，第一期实现类型化HTTP、公开响应头、真二进制上传、按源/安装/调用隔离的BodyRef、多输入分块读写，以及成功图片向阅读、预载、下载共用缓存的一次性交接；会话和环境包装现有合同，普通URL图片保持原生直连。App本地提交938e7b3c、46e31501、fa9ea69b、edafa61e；独立源仓7039ba8、42adea8、a6cc468，本期未推送或发布。237真实源通过HTTP取图、源内分块复制后交付，已核热门封面、《與妳相戀到生命盡頭》49章目录、前两页正文、前五页预载及首章43/43页完整下载；收回第2页原文件实际解码成功。补齐本地文件尺寸发布后，从下载管理按第2/43页直接进入正常显示。最终导入关闭图片验证特性的普通构建，读回WASM一致；首次搜索实际经BodyRef取验证码、源内识别并提交，显示《葬送的芙莉蓮》及封面，重复搜索正常且未再次取验证码。旧能力四组合实际运行保持选项门控和手动回退。SDK11项、数据生命周期4项通过；原HTTP会话回归101项通过，两项改前已有诊断断言失败保留，未改期望放行。仅本次新下载取消、测试下载和导入文件已清理；原两组下载保留，全局暂停恢复，回原WebDAV同步页，读回10000ms/SLEEP并独立释租；新App与普通源保留。浏览器POST/二进制/DOM扩展和通用checkpoint为已记录后续阶段，未宣称完成。引用HTTP收取时落盘，WASM同步调用返回后才读，不能称下载中并发读取。",
+      "evidence": [
+        "docs/source-runtime-abi-design.md",
+        "docs/source-runtime-abi.md",
+        ".hvigor/outputs/source-body-framework/verification.json",
+        ".hvigor/outputs/source-body-framework/offline-final.png",
+        ".hvigor/outputs/source-body-framework/search-normal-first.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/body-86-final-device-restore/run-metadata.json"
       ]
     }
   ],
