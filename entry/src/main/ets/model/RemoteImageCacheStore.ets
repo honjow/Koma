@@ -164,12 +164,17 @@ function readUrlSource(url: string): string {
 function createStableCacheHash(value: string): string {
   let hashA = 2166136261
   let hashB = 2166136261 ^ 0x9e3779b9
+  // The existing prime is 0x193 + 2^24. The smaller multiplication is
+  // exact for int32 inputs, and the shift supplies its remaining low bits.
+  // Keep the existing on-disk key and UTF-16 code-unit order.
   for (let index = 0; index < value.length; index += 1) {
     const code = value.charCodeAt(index)
-    hashA = Math.imul((hashA ^ code) >>> 0, 16777619) >>> 0
-    hashB = Math.imul((hashB ^ (code + index)) >>> 0, 16777619) >>> 0
+    const mixedA = hashA ^ code
+    const mixedB = hashB ^ (code + index)
+    hashA = (mixedA * 0x193 + (mixedA << 24)) | 0
+    hashB = (mixedB * 0x193 + (mixedB << 24)) | 0
   }
-  return `${hashA.toString(16).padStart(8, '0')}${hashB.toString(16).padStart(8, '0')}`
+  return `${(hashA >>> 0).toString(16).padStart(8, '0')}${(hashB >>> 0).toString(16).padStart(8, '0')}`
 }
 
 function cacheKeyFor(url: string, headers: RemoteImageCacheHeaders | undefined, cacheKeySeed?: string): string {

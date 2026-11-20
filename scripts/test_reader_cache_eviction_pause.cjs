@@ -104,11 +104,12 @@ test('reader page lookup keeps the body usable after cached metadata is evicted'
 test('a seeded reader request finds and replaces the original cache file across mirrors', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-reader-cache-seed-'))
   const cache = loadCache(directory)
-  const seed = ' source:第十话/页1 '
+  const seed = ' source:第十话/页1🙂 '
   const original = new Uint8Array([1, 2, 3])
   const replacement = new Uint8Array([8, 9])
   try {
     const file = await cache.put('https://cache.invalid/a.jpg', undefined, original.buffer, seed)
+    assert.equal(path.basename(file), '36b978a5e1b2af4a.jpg')
     const mirror = 'https://mirror.invalid/a.jpg'
     const cached = await cache.getOrFetch(mirror, { Referer: mirror }, async () => {
       throw Error('the published image should be a cache hit')
