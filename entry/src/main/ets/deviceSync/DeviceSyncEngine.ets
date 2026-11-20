@@ -904,6 +904,7 @@ export class DeviceSyncEngine {
           !active.groups.some((group: SyncGroupState): boolean => configured.selected.includes(group.id) && group.pending.length > 0)) {
           if (remote.manifest !== undefined) this.retireLegacy(draft, remote.manifest, guard)
           if (remote.sharedHeads !== undefined) provider.scheduleSharedCollection(guard)
+          this.scheduleSharedRepair(provider, remote, configured.selected, guard)
           return
         }
         this.checkHighWater(this.active(), remote)
@@ -912,6 +913,7 @@ export class DeviceSyncEngine {
         }
         this.checkHighWater(this.active(), remote)
         await this.rememberRemote(provider.spaceId(), remote, guard)
+        if (active !== undefined) this.scheduleSharedRepair(provider, remote, configured.selected, guard)
         if (remote.manifest?.maintenance === true) throw new Error('sync_maintenance_running')
         const counter = this.storage.load().counter
         const groupErrors: SyncGroupError[] = []
@@ -1350,6 +1352,25 @@ export class DeviceSyncEngine {
     return error.message === 'sync_shard_missing' || error.message === 'sync_shard_damaged' ||
       error.message === 'sync_pack_not_found' || error.message === 'sync_pack_incomplete' ||
       error.message === 'sync_legacy_archive_unavailable' || error.message === 'sync_legacy_archive_incomplete'
+  }
+
+  private scheduleSharedRepair(provider: DeviceSyncWebDav, remote: SyncRemoteManifest, selected: SyncGroup[],
+    guard: SyncRequestGuard): void {
+    const cache = this.shardCache
+    const manifest = remote.manifest
+    if (cache === undefined || manifest === undefined || remote.sharedHeads === undefined) return
+    const groups = new Map<string, SyncGroup>()
+    for (const group of selected) {
+      for (const dataset of groupDatasets(manifest, group)) groups.set(dataset.id, group)
+      const cover = coverDatasetId(group)
+      if (cover !== '') groups.set(cover, group)
+    }
+    provider.scheduleSharedRepair(remote, Array.from(groups.keys()), guard,
+      async (id: string, ref: SyncShardRef): Promise<string | undefined> => {
+        const group = groups.get(id)
+        if (group === undefined) return undefined
+        try { return await cache.read(provider.cacheScope(), group, id, ref) } catch (_error) { return undefined }
+      })
   }
 
   private async loadGroup(provider: DeviceSyncWebDav, refs: SyncDatasetRef[], id: SyncGroup,

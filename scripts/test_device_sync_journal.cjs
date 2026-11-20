@@ -181,7 +181,7 @@ const clone = value => structuredClone(value)
 const response = (status, body = '') => ({ responseCode: status,
   result: Uint8Array.from(Buffer.from(body)).buffer, header: {} })
 
-function transportFixture(directoryUrl = 'https://local-fixture.invalid') {
+function transportFixture(directoryUrl = 'https://local-fixture.invalid', uptime) {
   const draft = { directory: directoryUrl, username: '', password: '' }
   const directory = draft.directory + '/'
   const root = directory + 'koma-device-sync-v2/'
@@ -305,7 +305,7 @@ function transportFixture(directoryUrl = 'https://local-fixture.invalid') {
     './DeviceSyncData': data, './DeviceSyncFacts': facts,
     './DeviceSyncHttpStream': stream, './DeviceSyncObjectPack': packs,
     './DeviceSyncLegacyArchive': legacyArchive, './DeviceSyncLegacyArchiveAdapter': legacyAdapter,
-    './DeviceSyncMetrics': metrics,
+    './DeviceSyncMetrics': uptime === undefined ? metrics : { ...metrics, syncMetricUptime: uptime },
     './DeviceSyncPublicationPack': publicationPack, './DeviceSyncPublicationPackCodec': publicationCodec,
     './DeviceSyncPackCompaction': compaction,
     './DeviceSyncGenericPackCompaction': genericCompaction,
@@ -1611,6 +1611,104 @@ test('shared sync migrates live legacy data, removes obsolete files, and updates
     for (let attempt = 0; attempt < 100 && blobs().length > 2; attempt++) await new Promise(setImmediate)
     assert.equal(blobs().length, 2)
   } finally { global.performance = clock }
+})
+
+test('automatic shared sync repairs missing and damaged objects from exact cached bytes', async () => {
+  let now = 1
+  const f = transportFixture('https://local-fixture.invalid/automatic-repair', () => now)
+  const cached = new Map()
+  const cacheKey = (scope, group, id, ref) => JSON.stringify([scope, group, id, ref.hash])
+  const cachePort = {
+    async read(scope, group, id, ref) { return cached.get(cacheKey(scope, group, id, ref)) },
+    async write(scope, group, id, ref, body) { cached.set(cacheKey(scope, group, id, ref), body) },
+  }
+  const position = data.syncKey(['position', 'org.example.source', 'work', 'chapter'])
+  const chapterPage = JSON.stringify({ page: 1, total: 8 })
+  const book = data.syncKey(['book', 'org.example.source', 'work'])
+  const label = JSON.stringify({ title: 'Shelf work', sourceName: 'Source' })
+  const holder = engineFixture(f.SharedWebDav, cachePort).replica(A, [
+    ['shelf', new Map([[book, label]])],
+    ['reading', new Map([[position, chapterPage]])],
+    ['reader-settings', new Map([[pageNumber, 'false']])],
+  ])
+  holder.engine.setSelection(['shelf', 'reading', 'reader-settings'])
+  await holder.engine.saveConfiguration(f.draft)
+  holder.engine.setEnabled(true)
+  await holder.engine.syncNow()
+  holder.engine.setSelection(['shelf', 'reader-settings'])
+  await holder.engine.syncNow()
+
+  const provider = new f.SharedWebDav(f.draft)
+  const remote = await provider.readSharedHead(noop)
+  const locate = id => {
+    const ref = remote.manifest.datasets.find(row => row.id === id).shards[0]
+    const address = f.sharedRoot + id + '-' + ref.bucket + '-' + ref.hash + '-' + ref.immutable + '.json'
+    const body = f.files.get(address)
+    assert.equal(wire.syncDigest(body), ref.hash)
+    return { address, ref, body }
+  }
+  const shelf = locate(data.SYNC_SHELF_CATALOG_DATASET)
+  const preferences = locate(data.SYNC_READER_SETTINGS_DATASET)
+  const reading = locate(data.SYNC_READING_DATASET)
+  const preferencesCache = cacheKey(provider.cacheScope(), 'reader-settings', data.SYNC_READER_SETTINGS_DATASET, preferences.ref)
+  const invalid = 'x'.repeat(preferences.ref.bytes)
+  assert.equal(cached.get(preferencesCache), preferences.body)
+  cached.set(preferencesCache, invalid)
+  f.files.delete(shelf.address)
+  f.files.delete(reading.address)
+  f.files.set(preferences.address, invalid)
+
+  const receiver = engineFixture(f.SharedWebDav).replica(B)
+  receiver.engine.setSelection(['shelf', 'reader-settings'])
+  await receiver.engine.saveConfiguration(f.draft)
+  receiver.engine.setEnabled(true)
+  await assert.rejects(receiver.engine.syncNow(), /sync_shard_missing/)
+
+  const writes = () => f.trace.filter(entry => entry.method === 'PUT')
+  const drain = async () => { for (let i = 0; i < 80; i++) await new Promise(setImmediate) }
+  f.trace.length = 0
+  await holder.engine.syncNow(true)
+  assert.deepEqual(f.trace.map(entry => entry.method), ['PROPFIND'])
+  now += 60001
+  await holder.engine.syncNow(true)
+  await drain()
+  assert.deepEqual(writes().map(entry => [entry.address, entry.body]), [[shelf.address, shelf.body]])
+  assert.equal(f.files.get(preferences.address), invalid)
+
+  cached.set(preferencesCache, preferences.body)
+  now += 60001
+  await holder.engine.syncNow(true)
+  await drain()
+  assert.deepEqual(writes().map(entry => [entry.address, entry.body]), [
+    [shelf.address, shelf.body], [preferences.address, preferences.body],
+  ])
+  assert.equal(f.files.has(reading.address), false)
+  assert.equal((await provider.readSharedHead(noop)).hash, remote.hash)
+  await receiver.engine.syncNow()
+  assert.equal(receiver.values.get('shelf').get(book), label)
+  assert.equal(receiver.values.get('reader-settings').get(pageNumber), 'false')
+
+  // An independent device publishes a newer shelf after the probe starts.
+  // The old immutable address must never be restored once that newer head
+  // has stopped referencing it.
+  f.trace.length = 0
+  f.files.delete(shelf.address)
+  const changed = JSON.stringify({ title: 'Updated shelf work', sourceName: 'Source' })
+  let replaced = false
+  f.onRequest(async (method, address) => {
+    if (method !== 'GET' || address !== shelf.address || replaced) return
+    replaced = true
+    receiver.values.get('shelf').set(book, changed)
+    receiver.engine.recordEdits('shelf', [{ key: book, kind: 'set', value: changed }])
+    await receiver.engine.syncNow()
+  })
+  now += 60001
+  await holder.engine.syncNow(true)
+  await drain()
+  assert.equal(replaced, true)
+  assert.equal(writes().some(entry => entry.address === shelf.address), false)
+  assert.equal(f.files.has(shelf.address), false)
+  assert.notEqual((await provider.readSharedHead(noop)).hash, remote.hash)
 })
 
 test('independent writer publications receive chapter and page without shared conditional writes', async () => {

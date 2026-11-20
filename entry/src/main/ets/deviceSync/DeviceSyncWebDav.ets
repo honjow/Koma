@@ -248,6 +248,18 @@ interface SharedCollectionSweep {
   unreferenced: Map<string, number>
 }
 const SHARED_SWEEPS = new Map<string, SharedCollectionSweep>()
+const SHARED_REPAIR_DELAY_MS = 60000
+const SHARED_REPAIR_BATCH_SIZE = 4
+interface SharedRepairState {
+  next: number
+  running: boolean
+  offset: number
+}
+interface SharedRepairTarget {
+  dataset: string
+  ref: SyncShardRef
+}
+const SHARED_REPAIRS = new Map<string, SharedRepairState>()
 const SEGMENT_SIZE = 128
 const LEGACY_DISCOVERY_MS = 5 * 60 * 1000
 const PACK_READERS: Map<string, SyncPackReader> = new Map<string, SyncPackReader>()
@@ -1450,6 +1462,72 @@ export class DeviceSyncWebDav {
       const response = await this.requestAt('DELETE', address, guard)
       if (response.status !== 404) requireSuccess(response.status)
       state.unreferenced.delete(address)
+    }
+  }
+
+  scheduleSharedRepair(remote: SyncRemoteManifest, selected: string[], guard: SyncRequestGuard,
+    cached: (id: string, ref: SyncShardRef) => Promise<string | undefined>): void {
+    if (remote.manifest === undefined || remote.sharedHeads === undefined || selected.length === 0) return
+    const scope = this.cacheScope()
+    const now = syncMetricUptime()
+    let state = SHARED_REPAIRS.get(scope)
+    if (state === undefined) {
+      if (SHARED_REPAIRS.size >= 8) SHARED_REPAIRS.delete(SHARED_REPAIRS.keys().next().value as string)
+      SHARED_REPAIRS.set(scope, { next: now + SHARED_REPAIR_DELAY_MS, running: false, offset: 0 })
+      return
+    }
+    if (state.running || now < state.next) return
+    state.next = now + SHARED_REPAIR_DELAY_MS
+    const targets: SharedRepairTarget[] = []
+    const paths = new Set<string>()
+    for (const dataset of remote.manifest.datasets.concat(remote.manifest.alternatives ?? [])) {
+      if (!selected.includes(dataset.id)) continue
+      for (const ref of dataset.shards) {
+        // A legacy slot can be reused by another writer. An immutable path
+        // can only be repaired with the exact bytes its name commits to.
+        if (ref.immutable === undefined) continue
+        const path = this.sharedObjectPath(dataset.id, ref)
+        if (paths.has(path)) continue
+        paths.add(path)
+        targets.push({ dataset: dataset.id, ref })
+      }
+    }
+    if (targets.length === 0) return
+    const batch: SharedRepairTarget[] = []
+    for (let i = 0; i < Math.min(targets.length, SHARED_REPAIR_BATCH_SIZE); i++) {
+      batch.push(targets[(state.offset + i) % targets.length])
+    }
+    state.offset = (state.offset + batch.length) % targets.length
+    const pass = state
+    pass.running = true
+    void this.repairSharedObjects(batch, guard, cached).catch((): void => {})
+      .finally((): void => { pass.running = false })
+  }
+
+  private async repairSharedObjects(batch: SharedRepairTarget[], guard: SyncRequestGuard,
+    cached: (id: string, ref: SyncShardRef) => Promise<string | undefined>): Promise<void> {
+    for (const target of batch) {
+      guard()
+      const ref = target.ref
+      const body = await cached(target.dataset, ref)
+      if (body === undefined || !(await validSyncObject(ref, body, guard))) continue
+      try {
+        await this.readSharedObject(target.dataset, ref, guard)
+        continue
+      } catch (error) {
+        guard()
+        const code = (error as Error).message
+        if (code !== 'sync_shard_missing' && code !== 'sync_shard_damaged') throw error as Error
+      }
+      const path = this.sharedObjectPath(target.dataset, ref)
+      const current = await this.readSharedHead(guard)
+      if (current.manifest?.datasets.concat(current.manifest.alternatives ?? []).some((dataset: SyncDatasetRef): boolean =>
+        dataset.id === target.dataset && dataset.shards.some((entry: SyncShardRef): boolean =>
+          entry.bytes === ref.bytes && entry.hash === ref.hash && this.sharedObjectPath(dataset.id, entry) === path)) !== true) {
+        continue
+      }
+      requireSuccess((await this.requestAt('PUT', path, guard, body)).status)
+      await this.readSharedObject(target.dataset, ref, guard)
     }
   }
 
