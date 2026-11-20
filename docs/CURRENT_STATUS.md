@@ -86,6 +86,55 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "WEBDAV_RESTORED_CATEGORY_DUPLICATES",
+      "number": 334,
+      "title": "恢复备份后接入 WebDAV 产生带编号的重复分类",
+      "kind": "pending_verification",
+      "priority": "用户报告的数据问题",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-20",
+      "reportedAtSource": "用户报告恢复备份后添加 WebDAV，分类被自动编号，错误已同步到远端。",
+      "registeredAt": "2026-11-20T10:25:24+08:00",
+      "updatedAt": "2026-11-20T11:15:43+08:00",
+      "status": "237 已在原 WebDAV 上自动归并分类",
+      "result": "237 自动同步将 10 个手动分类归并为 6 个，66 部作品和归并前的全部分类归属保留。恢复备份后的同名分类复用，旧端生成的本机序号自动收回。旧端已上传的编号名在共享 ID 可追溯到原分类时同步改回原名，保留用户自己命名的数字分类。",
+      "remaining": "237 数据已修复。其他设备在更新后同步应用修复。",
+      "evidence": [
+        ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/verified-comparison.json",
+        ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/actual-auto-sync/run-metadata.json",
+        ".hvigor/outputs/webdav-category-recovery-20261120/237-final-focus-regression.log",
+        ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/final-device-verification.json"
+      ]
+    },
+    {
+      "id": "WEBDAV_READING_PENDING_STATUS",
+      "number": 333,
+      "title": "WebDAV 待发送计数一直显示且失败原因不清楚",
+      "kind": "pending_verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-20",
+      "reportedAtSource": "用户报告一台设备点同步反复显示本机无法保存，另一台设备显示 23 项待发送。用户要求普通同步页取消条数提示。",
+      "registeredAt": "2026-11-20T10:25:24+08:00",
+      "updatedAt": "2026-11-20T11:17:58+08:00",
+      "status": "237 的两部作品已自动续到较新的云端位置",
+      "result": "237 原连接自动同步，两个卡住的续读位置分别采用第 51 话第 22 页和 Page 1 第 10 页，待发送和等待合并的阅读记录清空。最终包 WebDAV 页显示带时间的上次成功，取消普通同步的排队条数。区分本机保存、恢复和凭据问题，本机写入失败后可在下一轮恢复并保留尚未同步的内容。",
+      "remaining": "237 已通过原连接实测，用户提到的另一台设备需更新后同步。",
+      "relatedItems": [
+        "WEBDAV_AUTO_PROGRESS_STALE",
+        "WEBDAV_RESTORED_CATEGORY_DUPLICATES"
+      ],
+      "evidence": [
+        ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/final-auto-sync/run-metadata.json",
+        ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/install-final-focus-resume/run-metadata.json",
+        ".hvigor/outputs/webdav-category-recovery-20261120/237-final-focus-regression.log",
+        ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/final-device-verification.json",
+        ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/final-webdav-view/run-metadata.json"
+      ]
+    },
+    {
       "id": "SOURCE_BROWSE_RECYCLED_COVER",
       "number": 332,
       "title": "书源浏览翻页时短暂显示上一部作品的封面",

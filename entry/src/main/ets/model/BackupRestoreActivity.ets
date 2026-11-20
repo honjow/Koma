@@ -4,12 +4,14 @@ export class BackupRestoreActivity {
   private static writers: number = 0
   private static restoring: boolean = false
   private static blocked: boolean = false
+  private static syncRollbackPending: boolean = false
+  private static syncRollback?: Promise<void>
   private static deviceSyncCommit?: Promise<void>
   private static waitForIdle?: Promise<void>
   private static resolveIdle?: () => void
 
   static isRestoring(): boolean {
-    return BackupRestoreActivity.restoring || BackupRestoreActivity.blocked
+    return BackupRestoreActivity.restoring || BackupRestoreActivity.hasPendingRecovery()
   }
 
   static beginRestore(): void {
@@ -23,7 +25,7 @@ export class BackupRestoreActivity {
    * before it takes ownership, including a previous book's progress save. */
   static async beginRestoreWhenIdle(isCurrent?: () => boolean): Promise<boolean> {
     while (isCurrent === undefined || isCurrent()) {
-      if (BackupRestoreActivity.blocked) throw new Error('backup_recovery_pending')
+      if (BackupRestoreActivity.hasPendingRecovery()) throw new Error('backup_recovery_pending')
       if (!BackupRestoreActivity.isBusy()) {
         BackupRestoreActivity.beginRestore()
         return true
@@ -44,7 +46,7 @@ export class BackupRestoreActivity {
   }
 
   private static notifyIdle(): void {
-    if (!BackupRestoreActivity.blocked && BackupRestoreActivity.isBusy()) return
+    if (!BackupRestoreActivity.hasPendingRecovery() && BackupRestoreActivity.isBusy()) return
     const resolve = BackupRestoreActivity.resolveIdle
     BackupRestoreActivity.waitForIdle = undefined
     BackupRestoreActivity.resolveIdle = undefined
@@ -65,10 +67,36 @@ export class BackupRestoreActivity {
   }
 
   static hasPendingRecovery(): boolean {
-    return BackupRestoreActivity.blocked
+    return BackupRestoreActivity.blocked || BackupRestoreActivity.syncRollbackPending
+  }
+
+  static deferDeviceSyncRollback(): void {
+    BackupRestoreActivity.syncRollbackPending = true
+  }
+
+  static async recoverDeviceSyncRollback(rollback: () => Promise<void>): Promise<void> {
+    if (!BackupRestoreActivity.syncRollbackPending) return
+    const committing = BackupRestoreActivity.deviceSyncCommit
+    if (committing !== undefined) await committing
+    if (!BackupRestoreActivity.syncRollbackPending) return
+    if (BackupRestoreActivity.blocked || BackupRestoreActivity.restoring) throw new Error('sync_local_recovery_required')
+    if (BackupRestoreActivity.syncRollback !== undefined) return BackupRestoreActivity.syncRollback
+    // This flag keeps ordinary writers out until the uncommitted journal has
+    // restored its files. It cannot clear an unrelated backup recovery block.
+    const pending = Promise.resolve().then(rollback).then((): void => {
+      BackupRestoreActivity.syncRollbackPending = false
+    }).catch((): void => {
+      throw new Error('sync_local_rollback_pending')
+    }).finally((): void => {
+      BackupRestoreActivity.syncRollback = undefined
+      BackupRestoreActivity.notifyIdle()
+    })
+    BackupRestoreActivity.syncRollback = pending
+    return pending
   }
 
   static async runDeviceSyncCommit<T>(write: () => Promise<T>): Promise<T> {
+    if (BackupRestoreActivity.hasPendingRecovery()) throw new Error('sync_local_recovery_required')
     if (BackupRestoreActivity.isRestoring() || BackupRestoreActivity.writers > 0 ||
       BackupRestoreActivity.deviceSyncCommit !== undefined) throw new Error('sync_local_busy')
     let finish: () => void = () => {}

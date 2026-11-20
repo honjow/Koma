@@ -27,6 +27,7 @@ export const SYNC_SMART_CATEGORIES_DATASET = 'shelf-smart-categories'
 export const SYNC_READER_SETTINGS_DATASET = 'reader-settings-records'
 export const SYNC_SUBSCRIPTIONS_DATASET = 'source-subscriptions-records'
 export const SYNC_SEARCH_DATASET = 'search-history-records'
+export const CATEGORY_SYNC_PREFIX = 'custom_sync_'
 const READING_CREDENTIAL_PARAMETER = /(?:^|[/?&#;])(?:[a-z0-9_.-]*(?:token|secret|password|signature|credential)[a-z0-9_.-]*|auth|authorization|cookie|key|api[_-]?key|access[_-]?key|sign|sig|ticket|session(?:[_-]?id)?|hdnts|hdnea|hmac|policy|key-pair-id|x-amz-[^=&#;]+|x-goog-[^=&#;]+)\s*=/i
 
 export interface SyncWorkLabel {
@@ -54,6 +55,22 @@ export interface SyncSmartCategory {
   order: number
   createdAt: number
   filters: LibrarySmartFilter[]
+}
+
+export function syncStableId(text: string): string {
+  const hash = syncDigest(text)
+  return hash.substring(0, 8) + '-' + hash.substring(8, 12) + '-' + hash.substring(12, 16) + '-' +
+    hash.substring(16, 20) + '-' + hash.substring(20, 32)
+}
+
+export function syncSharedCategoryId(replica: string, local: string): string {
+  return syncStableId(replica + ':category:' + local)
+}
+
+// The exact name stored by legacy receivers, including trimming at 40 characters.
+export function syncNumberedCategoryName(name: string, index: string): string {
+  const suffix = ' (' + index + ')'
+  return name.trim().replace(/\s+/g, ' ').substring(0, 40 - suffix.length).trimEnd() + suffix
 }
 
 export interface SyncRecentValue {
@@ -257,16 +274,32 @@ export function syncGroupVisibleValue(group: SyncGroup, fact: SyncFact): string 
 
 /** One work's visible resume position, shared by full and targeted reads. */
 export function syncReadingWorkProgress(facts: SyncFact[], source: string, work: string): SyncReadingWorkProgress | undefined {
-  const recentFact = facts.find((fact: SyncFact): boolean => fact.key === syncKey(['recent', source, work]))
-  const recentValue = recentFact === undefined ? undefined : syncGroupVisibleValue('reading', recentFact)
+  return syncReadingProgressFromValues(source, work, (key: string): string | undefined => {
+    const fact = facts.find((row: SyncFact): boolean => row.key === key)
+    return fact === undefined ? undefined : syncGroupVisibleValue('reading', fact)
+  })
+}
+
+export function syncReadingProgressFromValues(source: string, work: string,
+  value: (key: string) => string | undefined): SyncReadingWorkProgress | undefined {
+  const recentValue = value(syncKey(['recent', source, work]))
   if (recentValue === undefined) return undefined
   const recent = JSON.parse(recentValue) as SyncRecentValue
-  const positionFact = facts.find((fact: SyncFact): boolean =>
-    fact.key === syncKey(['position', source, work, recent.chapter]))
-  const positionValue = positionFact === undefined ? undefined : syncGroupVisibleValue('reading', positionFact)
+  const positionValue = value(syncKey(['position', source, work, recent.chapter]))
   const position = positionValue === undefined ? undefined : JSON.parse(positionValue) as SyncPositionValue
   return { recent, position, chapter: recent.chapter, page: position?.page ?? recent.savedPage ?? 0,
     total: position?.total ?? 0, date: position?.date ?? recent.date }
+}
+
+// A timestamp alone may come from opening stale history. Only a complete
+// remote save, whose history and chapter page agree, can replace the local resume.
+export function hasNewerCompleteRemoteReading(local: SyncReadingWorkProgress, remote: SyncReadingWorkProgress,
+  localTarget?: SyncPositionValue): boolean {
+  const saved = local.position
+  const position = remote.position
+  return saved?.date !== undefined && saved.date > 0 && position?.date !== undefined && position.date > saved.date &&
+    position.date >= (localTarget?.date ?? 0) && (local.recent.savedPage === undefined || local.recent.savedPage === saved.page) &&
+    position.date === remote.recent.date && remote.recent.savedPage === position.page
 }
 
 function isSourceWork(parts: string[]): boolean {

@@ -4,7 +4,8 @@ import {
   applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleHeads, syncVisibleValue, SyncEdit,
   SyncEditKind, SyncFact, SyncGroup, SyncVersion, SYNC_GROUPS,
 } from './DeviceSyncFacts'
-import { checkSyncGroupFact, SyncPositionValue, SyncReadingWorkProgress, syncReadingWorkProgress, SyncRecentValue, SyncWorkLabel,
+import { checkSyncGroupFact, hasNewerCompleteRemoteReading, SyncPositionValue, SyncReadingWorkProgress, syncReadingWorkProgress,
+  SyncRecentValue, SyncWorkLabel,
   syncBucketKey, syncBusinessKey, syncGroupVisibleValue, syncKey, syncKeyParts, SYNC_SHELF_DATASET,
   SYNC_SMART_CATEGORIES_DATASET, syncShelfMove } from './DeviceSyncData'
 import {
@@ -121,12 +122,6 @@ export interface SyncPreview {
   beforeRestore: SyncMergeConflict[]
   earlierUnconfirmed: number
   migration?: boolean
-}
-
-export interface SyncReadingRound {
-  uploaded: number
-  downloaded: number
-  pending: number
 }
 
 interface PreparedSync {
@@ -367,7 +362,7 @@ export class DeviceSyncEngine {
   private prepared?: PreparedSync
   private running?: Promise<void>
   private focusRunning?: Promise<SyncReadingWorkResult>
-  lastReadingRound?: SyncReadingRound
+  lastRoundReadingPending?: boolean
   private appliedRemoteTag: string = ''
   private cache: DatasetCache[] = []
   private cacheSize: number = 0
@@ -853,7 +848,7 @@ export class DeviceSyncEngine {
   }
 
   private async runActiveCore(probeOnly: boolean): Promise<void> {
-    this.lastReadingRound = undefined
+    this.lastRoundReadingPending = undefined
     this.requireEnabled()
     await this.recoverIntent()
     const configured = this.configuration()
@@ -943,11 +938,17 @@ export class DeviceSyncEngine {
       guard()
       const active = this.active()
       if (active !== undefined) {
-        await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
-          if (state.active === undefined || state.active.lastError === (error as Error).message) return false
-          state.active.lastError = (error as Error).message
-          return true
-        }, guard)
+        try {
+          await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
+            if (state.active === undefined || state.active.lastError === (error as Error).message) return false
+            state.active.lastError = (error as Error).message
+            return true
+          }, guard)
+        } catch (_statusWriteError) {
+          // A storage failure can also prevent saving this status. Report the
+          // original sync failure and leave the pending intent available.
+          guard()
+        }
       }
       throw error as Error
     }
@@ -1011,6 +1012,17 @@ export class DeviceSyncEngine {
       fact.key === syncKey(['position', source, work, local.chapter]))
     const remotePositionKey = syncKey(['position', source, work, remote.chapter])
     const remotePosition = remoteFacts.find((fact: SyncFact): boolean => fact.key === remotePositionKey)
+    const localTargetPosition = localWork.find((fact: SyncFact): boolean => fact.key === remotePositionKey)
+    const savedTargetValue = localTargetPosition === undefined ? undefined :
+      syncGroupVisibleValue('reading', localTargetPosition)
+    const savedTarget = savedTargetValue === undefined ? undefined : JSON.parse(savedTargetValue) as SyncPositionValue
+    // Use the actual remote records for automatic selection. The alternate
+    // below only supplies a displayable position for an explicit choice.
+    if ((local.chapter !== remote.chapter || local.page !== remote.page) &&
+      hasNewerCompleteRemoteReading(local, remote, savedTarget)) {
+      await this.resolveReadingWork({ source, work, local, remote, facts: remoteFacts }, true, guard)
+      return { applied: true }
+    }
     const concurrent = (localRecent !== undefined && syncVisibleHeads(localRecent).length > 1) ||
       (remoteRecent !== undefined && syncVisibleHeads(remoteRecent).length > 1) ||
       (localPosition !== undefined && syncVisibleHeads(localPosition).length > 1) ||
@@ -1845,24 +1857,8 @@ export class DeviceSyncEngine {
         })
       }, guard)
     })
-    const before = proposal.groups.find((group: SyncGroupState): boolean => group.id === 'reading')?.pending ?? []
-    const after = proposal.remaining.find((group: SyncGroupState): boolean => group.id === 'reading')?.pending ?? []
-    const received = proposal.applies.find((group: SyncApplyGroup): boolean => group.group === 'reading')?.changes ?? []
-    const versionKey = (version: SyncVersion): string => version.replica + ':' + version.sequence.toString()
-    const uploaded = new Set<string>(before.filter((item: SyncPendingEdit): boolean =>
-      !after.some((remaining: SyncPendingEdit): boolean => remaining.key === item.key &&
-        remaining.version.replica === item.version.replica && remaining.version.sequence === item.version.sequence))
-      .map((item: SyncPendingEdit): string => versionKey(item.version))).size
-    const readingFacts = bySyncFact(proposal.groups.find((group: SyncGroupState): boolean => group.id === 'reading')?.facts ?? [])
-    const downloaded = new Set<string>(received.map((item: SyncLocalValue): string => {
-      const fact = readingFacts.get(item.key)
-      if (fact === undefined) return item.key
-      const heads = syncVisibleHeads(fact)
-      const winner = heads[heads.length - 1] ?? fact.barriers[fact.barriers.length - 1]
-      return winner === undefined ? item.key : versionKey(winner.version)
-    })).size
-    this.lastReadingRound = { uploaded, downloaded, pending: new Set<string>(
-      after.map((item: SyncPendingEdit): string => versionKey(item.version))).size }
+    this.lastRoundReadingPending = proposal.remaining.some((group: SyncGroupState): boolean =>
+      group.id === 'reading' && group.pending.length > 0)
     if (previousCredential !== undefined && previousCredential !== credential) {
       await this.removeUnusedCredential(previousCredential).catch((): void => {})
     }

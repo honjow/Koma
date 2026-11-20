@@ -3,7 +3,9 @@ import {
   SyncEditKind, SyncFact, SyncGroup, SyncVersion,
 } from './DeviceSyncFacts'
 import {
-  checkSyncGroupFact, SyncChapterCatalog, SyncPositionValue, SyncRecentValue, syncBucketKey, syncGroupVisibleValue, syncKey, syncKeyParts,
+  CATEGORY_SYNC_PREFIX, checkSyncGroupFact, hasNewerCompleteRemoteReading, SyncChapterCatalog, SyncPositionValue,
+  SyncRecentValue, syncBucketKey, syncGroupVisibleValue, syncKey, syncKeyParts, syncNumberedCategoryName,
+  syncReadingProgressFromValues, syncSharedCategoryId,
   SYNC_READING_DATASET, SYNC_SHELF_CATALOG_DATASET, SYNC_SMART_CATEGORIES_DATASET, SYNC_READER_SETTINGS_DATASET, SYNC_SUBSCRIPTIONS_DATASET,
   SYNC_SEARCH_DATASET, syncShelfMove, syncShelfMoveDestination,
 } from './DeviceSyncData'
@@ -299,6 +301,47 @@ export function bySyncFact(facts: SyncFact[]): Map<string, SyncFact> {
 
 function conflictChoice(choices: SyncMergeChoice[], group: SyncGroup, key: string): SyncMergeChoice | undefined {
   return choices.find((choice: SyncMergeChoice): boolean => choice.group === group && choice.key === key)
+}
+
+interface NumberedSyncCategory {
+  name: string
+  index: string
+  replica: string
+}
+
+function restoredCategoryNameRepairs(records: SyncFact[], held: (key: string) => boolean): SyncLocalValue[] {
+  const definitions = new Map<string, SyncEdit>()
+  const numbered = new Map<string, NumberedSyncCategory>()
+  const replicas = new Set<string>()
+  for (const record of records) {
+    if (!record.key.startsWith('["category",') || held(record.key)) continue
+    const heads = syncVisibleHeads(record)
+    if (heads.length !== 1) continue
+    const definition = heads[0]
+    definitions.set(syncKeyParts(record.key)[1], definition)
+    const name = JSON.parse(definition.value) as string
+    const suffix = / \(([2-9]|[1-9][0-9]+)\)$/.exec(name)
+    // A subsequent rename is a real edit. Old backup copies published their
+    // numbered names on the first set of a newly derived wire identity.
+    if (suffix === null || definition.observed.length > 0) continue
+    numbered.set(record.key, { name, index: suffix[1], replica: definition.version.replica })
+    replicas.add(definition.version.replica)
+  }
+  const repairs: SyncLocalValue[] = []
+  for (const replica of replicas) {
+    definitions.forEach((definition: SyncEdit, id: string): void => {
+      const key = syncKey(['category', syncSharedCategoryId(replica, CATEGORY_SYNC_PREFIX + id)])
+      const copy = numbered.get(key)
+      if (copy?.replica !== replica) return
+      // Recover only a copy whose old local ID embeds the original wire ID.
+      // The number in a name alone cannot identify an automatic rename.
+      const original = JSON.parse(definition.value) as string
+      if (copy.name === syncNumberedCategoryName(original, copy.index)) {
+        repairs.push({ key, value: definition.value })
+      }
+    })
+  }
+  return repairs
 }
 
 export function restorableEdits(local: SyncLocalSnapshot): SyncRestoreEdit[] {
@@ -613,7 +656,16 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
       staged.push({ id: row.id, facts: Array.from(edits.values()), baseline: localValueRows(prior),
         pending: pending.slice(), deferred: row.previous?.deferred, deferredRoots: row.previous?.deferredRoots })
     }
-    const facts = mergeSyncFacts(Array.from(edits.values()), row.remote)
+    let facts = mergeSyncFacts(Array.from(edits.values()), row.remote)
+    if (row.id === 'shelf') {
+      const repairs = restoredCategoryNameRepairs(facts, (key: string): boolean =>
+        isDeferred(key) || protectedKeys.has(key) || conflictChoice(choices, row.id, key)?.useLocal === true)
+      if (repairs.length > 0) {
+        const merged = bySyncFact(facts)
+        for (const repair of repairs) editFact(repair.key, 'set', repair.value, merged.get(repair.key))
+        facts = mergeSyncFacts(Array.from(edits.values()), row.remote)
+      }
+    }
     const divergentReadingWorks = new Set<string>()
     if (transport?.shared === true && automaticMerge && row.id === 'reading') {
       for (const fact of facts) {
@@ -627,6 +679,35 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
           heads.some((head: SyncEdit): boolean => !sameReadingLocation(kind, head.value, saved))) {
           divergentReadingWorks.add(syncBucketKey(fact.key))
         }
+      }
+      const conflicted = new Set<string>(Array.from(heldReadingWorks).concat(Array.from(divergentReadingWorks)))
+      if (conflicted.size > 0) {
+        const merged = bySyncFact(facts)
+        let resolved = false
+        for (const bucket of conflicted) {
+          const id = syncKeyParts(bucket)
+          const saved = syncReadingProgressFromValues(id[0], id[1], (key: string): string | undefined => local.get(key))
+          const published = syncReadingProgressFromValues(id[0], id[1], (key: string): string | undefined => {
+            const fact = remote.get(key)
+            return fact === undefined ? undefined : syncGroupVisibleValue('reading', fact)
+          })
+          if (saved === undefined || published?.position === undefined) continue
+          const recentKey = syncKey(['recent', id[0], id[1]])
+          const positionKey = syncKey(['position', id[0], id[1], published.chapter])
+          const oldPosition = local.get(positionKey)
+          const savedTarget = oldPosition === undefined ? undefined : JSON.parse(oldPosition) as SyncPositionValue
+          if (protectedKeys.has(recentKey) || protectedKeys.has(positionKey) || deferred.has(recentKey) || deferred.has(positionKey) ||
+            !hasNewerCompleteRemoteReading(saved, published, savedTarget)) continue
+          // Resolve the same two records as an explicit resume choice. The
+          // new version observes both sides and releases their original outbox dots.
+          const version: SyncVersion = { replica, sequence: ++counter }
+          editFact(recentKey, 'set', JSON.stringify(published.recent), merged.get(recentKey), undefined, version)
+          editFact(positionKey, 'set', JSON.stringify(published.position), merged.get(positionKey), undefined, version)
+          heldReadingWorks.delete(bucket)
+          divergentReadingWorks.delete(bucket)
+          resolved = true
+        }
+        if (resolved) facts = mergeSyncFacts(Array.from(edits.values()), row.remote)
       }
     }
     const accepted = bySyncFact(facts)

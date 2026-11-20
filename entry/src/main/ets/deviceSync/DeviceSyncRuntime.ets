@@ -7,7 +7,7 @@ import { ReadingProgress } from '../model/ComicModels'
 import { appReaderSessionStore } from '../model/ReaderSessionStore'
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import { getInstalledSourcePackage } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingRound,
+import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview,
   SyncReadingWorkConflict, SyncReadingWorkResult, syncRequiresExplicitReview } from './DeviceSyncEngine'
 import { DeviceSyncShardCache } from './DeviceSyncShardCache'
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
@@ -51,7 +51,7 @@ export class DeviceSyncViewState {
   @Trace searchHistoryRevision: number = 0
   @Trace shelfRemovals: SyncShelfRemoval[] = []
   @Trace blockedReadings: SyncBlockedReading[] = []
-  @Trace manualReadingResult?: SyncReadingRound
+  @Trace readingSyncIncomplete: boolean = false
 }
 
 interface ActiveReadingSync {
@@ -267,7 +267,7 @@ class DeviceSyncRuntime {
       await this.needed().saveConfiguration(draft)
       if (previous !== this.needed().configuration()?.endpointIdentity) {
         this.view.error = ''
-        this.view.manualReadingResult = undefined
+        this.view.readingSyncIncomplete = false
       }
     })
   }
@@ -340,8 +340,11 @@ class DeviceSyncRuntime {
     const generation = this.changeGeneration
     this.view.transferInFlight = true
     const active = this.task(async (): Promise<void> => {
+      await this.owners?.recoverPendingLocalRollback?.()
       await this.recordPositions()
-      await this.needed().syncNow(allowIdle && generation === this.syncedGeneration)
+      const engine = this.needed()
+      await engine.syncNow(allowIdle && generation === this.syncedGeneration)
+      if (engine.lastRoundReadingPending !== undefined) this.view.readingSyncIncomplete = engine.lastRoundReadingPending
       this.syncedGeneration = generation
     }).finally((): void => {
       this.activeSync = undefined
@@ -368,29 +371,13 @@ class DeviceSyncRuntime {
 
   private async runManualSync(): Promise<void> {
     this.view.manualInProgress = true
-    this.view.manualReadingResult = undefined
     try {
       while (this.activeSync === undefined && this.taskDone !== undefined) await this.taskDone
       await this.sync()
-      if (this.changeGeneration !== this.syncedGeneration || this.needed().lastReadingRound === undefined) await this.sync()
-      this.updateManualReadingResult()
+      if (this.changeGeneration !== this.syncedGeneration || this.needed().lastRoundReadingPending === undefined) await this.sync()
     } finally {
       this.view.manualInProgress = false
     }
-  }
-
-  private updateManualReadingResult(): void {
-    const context = this.context
-    const engine = this.needed()
-    const report = engine.lastReadingRound
-    if (context === undefined || report === undefined || !this.view.selected.includes('reading')) return
-    const reader = appReaderSessionStore(context.filesDir)
-    const space = engine.active()?.space
-    const unsettled = reader.pendingDeviceSyncPositions().filter((row: SyncReadingCapture): boolean =>
-      row.space === space && this.owners?.readingAcknowledged(row) !== true).length +
-      reader.pendingDeviceSyncActions().filter((row: SyncReadingActionCapture): boolean =>
-        row.space === space && this.owners?.readingActionAcknowledged(row) !== true).length
-    this.view.manualReadingResult = { uploaded: report.uploaded, downloaded: report.downloaded, pending: report.pending + unsettled }
   }
 
   disconnect(): Promise<void> {
@@ -398,7 +385,7 @@ class DeviceSyncRuntime {
     // not arrived. The engine keeps the old intent separate.
     return this.needed().disconnect().then((): void => {
       this.view.error = ''
-      this.view.manualReadingResult = undefined
+      this.view.readingSyncIncomplete = false
       this.refresh()
     })
   }
@@ -423,7 +410,7 @@ class DeviceSyncRuntime {
     this.needed().setSelection(selected)
     this.cancelTimer()
     this.refresh()
-    if (!selected.includes('reading')) this.view.manualReadingResult = undefined
+    if (!selected.includes('reading')) this.view.readingSyncIncomplete = false
     if (this.activeSync === undefined) this.schedule(0)
     else void this.waitForCurrentTransfer().then((): void => { this.schedule(0) })
   }
@@ -773,7 +760,7 @@ class DeviceSyncRuntime {
       if (engine.readingScope() !== scope) throw new Error('sync_connection_changed')
     }
     const reader = appReaderSessionStore(context.filesDir)
-    if (!(await reader.flushAsync())) throw new Error('sync_local_busy')
+    if (!(await reader.flushAsync())) throw new Error('sync_local_reading_save_failed')
     const actions = reader.pendingDeviceSyncActions()
     await this.recordReaderActions(actions, scope, guard)
     guard()
@@ -796,7 +783,12 @@ class DeviceSyncRuntime {
       const recentKey = syncKey(['recent', capture.source, capture.work])
       const readKey = syncKey(['read'].concat(suffix))
       const position = syncReadingPosition(capture.page, capture.total, capture.date)
-      if (position === undefined || !syncReadingIdentity(capture.source, capture.work, capture.chapterId)) continue
+      if (position === undefined || !syncReadingIdentity(capture.source, capture.work, capture.chapterId)) {
+        // A legacy capture that cannot form a valid wire record will not become
+        // sendable on retry. Retire that capture only and leave reading data intact.
+        await engine.recordReadingEdits([], { key: deviceSyncCaptureKey(capture), id: capture.id }, guard)
+        continue
+      }
       const recent = owners.localReadingRecent(capture)
       const saved = reader.getProgress(capture.comicId)
       const edits: DeviceSyncLocalEdit[] = []
@@ -922,13 +914,14 @@ class DeviceSyncRuntime {
     }
     for (const action of actions) {
       if (action.kind === 'remove-category') {
-        const category = owners.sharedCategory(action.category ?? '')
-        if (category === undefined) continue
-        const key = syncKey(['category', category])
-        if (engine.observed('shelf', key).length > 0) add(key, 'delete', '')
+        const categories = new Set<string>(owners.sharedCategories(action.category ?? ''))
+        for (const category of categories) {
+          const key = syncKey(['category', category])
+          if (engine.observed('shelf', key).length > 0) add(key, 'delete', '')
+        }
         engine.knownGroupKeys('shelf').forEach((item: string): void => {
           const parts = syncKeyParts(item)
-          if (parts[0] === 'member' && parts[3] === category) add(item, 'delete', '')
+          if (parts[0] === 'member' && categories.has(parts[3])) add(item, 'delete', '')
         })
         continue
       }
@@ -958,12 +951,15 @@ class DeviceSyncRuntime {
           }
         }
       } else {
-        const category = owners.sharedCategory(action.category ?? '')
-        if (category === undefined) continue
-        const key = syncKey(['member', source, work, category])
         if (action.kind === 'remove-member') {
-          if (engine.observed('shelf', key).length > 0) add(key, 'delete', '')
-        } else if (owners.shelfWorkLabel(source, work) !== undefined) add(key, 'set', 'true')
+          for (const category of owners.sharedCategories(action.category ?? '')) {
+            const key = syncKey(['member', source, work, category])
+            if (engine.observed('shelf', key).length > 0) add(key, 'delete', '')
+          }
+        } else if (owners.shelfWorkLabel(source, work) !== undefined) {
+          const category = owners.sharedCategory(action.category ?? '')
+          if (category !== undefined) add(syncKey(['member', source, work, category]), 'set', 'true')
+        }
       }
     }
     if (scope !== engine.groupScope('shelf')) return

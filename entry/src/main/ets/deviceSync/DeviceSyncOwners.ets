@@ -26,7 +26,7 @@ import { isValidHttpUrl, normalizeIndexUrl, SourceIndexRepository, subscriptionI
 import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncOwner'
 import { isSyncReplica, SyncEdit, SyncFact, SyncGroup } from './DeviceSyncFacts'
 import {
-  safeSyncSearch, syncCatalogAddress, syncCatalogRecordKey, syncCoverAddress, SyncChapterCatalog, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSearchValue, SyncSubscription,
+  CATEGORY_SYNC_PREFIX, safeSyncSearch, syncCatalogAddress, syncCatalogRecordKey, syncCoverAddress, SyncChapterCatalog, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSearchValue, SyncSubscription,
   SyncWorkLabel, syncKey, syncKeyParts, syncPublicLabel, syncReadingIdentity, syncReadingPosition,
   syncSearchIdentity, syncShelfLabel, syncShelfMove, syncShelfMoveDestination,
   syncGroupVisibleValue, SyncShelfMove, SyncSmartCategory, SyncWorkSlice,
@@ -42,7 +42,8 @@ import {
   rememberLibraryIdentity, rememberChapterIdentity, rememberHistoryIdentity, rememberFactIdentity,
   SyncLocalReadingWork, SyncProjectedReadingSnapshot, validDate,
 } from './DeviceSyncReadingSnapshot'
-import { CATEGORY_SYNC_PREFIX, FAVORITE, READ_LATER, emptySyncLibrary, matchesShelfWork, PreparedSyncShelf,
+import { FAVORITE, READ_LATER, categoryAliases, categoryMembershipAliases,
+  emptySyncLibrary, matchesShelfWork, originalCategoryName, PreparedSyncShelf,
   prepareSyncShelfDocument, sharedCategoryRecord, shelfSourceCover, shelfWork, smartCategoryKey,
   SyncKeptShelfDetails, SyncLocalCategory, SyncProjection, SyncResumeProof, SyncSourceIdentity, toLocalCategory,
   toSharedCategory } from './DeviceSyncShelfApply'
@@ -324,6 +325,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
 
   async snapshot(group: SyncGroup, verify: boolean, guard?: () => void, shelfSpace?: string,
     includeReadingLabels: boolean = true): Promise<SyncLocalSnapshot> {
+    await this.recoverPendingLocalRollback()
+    guard?.()
     // An explicit first-merge read has a per-review cancellation guard. It does
     // not turn the service on or grant unrelated owner requests permission.
     const values: SyncLocalValue[] = []
@@ -373,14 +376,15 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         b: PersistedLibraryCategory): number => a.sortOrder - b.sortOrder || a.createdAt - b.createdAt)
       const order: string[] = []
       const protectedKeys: string[] = []
+      const replica = this.storage.load().replica
       categories.forEach((category: PersistedLibraryCategory): void => {
-        const key = sharedCategoryRecord(category.id, projection, this.storage.load().replica)
-        if (key === undefined) return
-        order.push(key)
-        const mapping = projection.categories.find((item: SyncLocalCategory): boolean => item.local === category.id)
-        const name = mapping?.displayedName === category.name ? mapping.originalName ?? category.name : category.name
-        row(values, ['category', key], name)
-        labels[syncKey(['category', key])] = name
+        if (sharedCategoryRecord(category.id, projection, replica) === undefined) return
+        for (const alias of categoryAliases(category.id, projection, replica)) {
+          order.push(alias.shared)
+          const name = originalCategoryName(category.name, alias)
+          row(values, ['category', alias.shared], name)
+          labels[syncKey(['category', alias.shared])] = name
+        }
       })
       if (order.length > 0) row(values, ['order'],
         JSON.stringify(order) === JSON.stringify(projection.projectedOrder) ? projection.categoryOrder ?? order : order)
@@ -414,8 +418,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         labels[syncKey(['book', identity.source, identity.work])] = label.title
         for (const catalog of parsed.catalogs?.[comic.id] ?? []) values.push(catalog)
         comic.categoryIds?.forEach((category: string): void => {
-          const key = toSharedCategory(category, projection, this.storage.load().replica)
-          if (key !== undefined) {
+          for (const key of categoryMembershipAliases(category, comic.id, projection, replica)) {
             row(values, ['member', identity.source, identity.work, key], true)
             labels[syncKey(['member', identity.source, identity.work, key])] = label.title + ' · ' +
               (categories.find((item: PersistedLibraryCategory): boolean => item.id === category)?.name ?? category)
@@ -448,10 +451,11 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         }
         const book = library.comics.find((comic: PersistedComic): boolean => matchesShelfWork(comic, target.toSource, target.toWork))
         const memberships: string[] = []
-        book?.categoryIds?.forEach((id: string): void => {
-          const category = toSharedCategory(id, projection, this.storage.load().replica)
-          if (category !== undefined) memberships.push(category)
-        })
+        if (book !== undefined) {
+          for (const id of book.categoryIds ?? []) {
+            memberships.push(...categoryMembershipAliases(id, book.id, projection, replica))
+          }
+        }
         const value = JSON.stringify({ toSource: target.toSource, toWork: target.toWork,
           categories: Array.from(new Set<string>(memberships)).sort() } as SyncShelfMove)
         if (value.length > 8192) protectedKeys.push(key)
@@ -665,7 +669,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       }
       if (parts[0] === 'category') {
         return !(library.customCategories ?? []).some((category: PersistedLibraryCategory): boolean =>
-          toSharedCategory(category.id, projection, this.storage.load().replica) === parts[1]) &&
+          categoryAliases(category.id, projection, this.storage.load().replica).some(row => row.shared === parts[1])) &&
           !projection.categories.some((category: SyncLocalCategory): boolean => category.shared === parts[1] && category.localOnly)
       }
       if (parts[0] !== 'book' && parts[0] !== 'member') return false
@@ -845,6 +849,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
 
   async commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], prepareCursor: (id: string) => Promise<SyncPreparedReceipt>,
     acceptedRemoval: string = '', stillAllowed?: () => boolean): Promise<void> {
+    await this.recoverPendingLocalRollback()
     const reader = appReaderSessionStore(this.context.filesDir)
     if (!reader.flush()) throw new Error('sync_local_busy')
     const readerRevision = reader.currentDeviceSyncRevision()
@@ -880,7 +885,12 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       let previousSubscriptions: SourceIndexDeviceSyncSnapshot | undefined
       let nextSubscriptions: SourceIndexDeviceSyncSnapshot | undefined
       for (const group of groups) {
-        if (group.changes.length === 0) continue
+        // An older client may already have applied both category IDs. Its
+        // first complete shelf sync can repair them even with no incoming diff.
+        const repairCategories = group.group === 'shelf' && admittedFiles[0] !== undefined &&
+          projection.categories.some((row: SyncLocalCategory): boolean => !row.local.startsWith('smart:') &&
+            row.mergedInto === undefined && row.originalName !== undefined && row.originalName !== row.displayedName)
+        if (group.changes.length === 0 && !repairCategories) continue
         if (group.group === 'shelf') {
           const raw = admittedFiles[0]
           const prepared = await taskpool.execute(prepareSyncShelf, raw ?? null, group.changes,
@@ -944,14 +954,19 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         try {
           await this.recoverBeforeStartup()
         } catch (_recoveryError) {
-          BackupRestoreActivity.blockUntilRestart()
-          throw new Error('sync_local_recovery_required')
+          if (this.storage.load().localReceipt === id) {
+            BackupRestoreActivity.blockUntilRestart()
+            throw new Error('sync_local_recovery_required')
+          }
+          BackupRestoreActivity.deferDeviceSyncRollback()
+          throw new Error('sync_local_rollback_pending')
         }
         throw error as Error
       } finally {
         await receipt?.dispose()
       }
-      const changed = groups.filter((group: SyncApplyGroup): boolean => group.changes.length > 0)
+      const changed = groups.filter((group: SyncApplyGroup): boolean => group.changes.length > 0 ||
+        (group.group === 'shelf' && files.some((image: SyncFileImage): boolean => image.name === LIBRARY_STORE_PERSISTENCE_FILE_NAME)))
         .map((group: SyncApplyGroup): SyncGroup => group.group)
       if (changed.includes('reading')) reader.reload()
       if (nextPreferences !== undefined) await new ReaderPreferencesStore(this.context).load()
@@ -962,6 +977,11 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       // the original live owner. Flush only once the short write fence is gone.
       if (reader.currentDeviceSyncRevision() !== readerRevision) reader.flush()
     }
+  }
+
+  async recoverPendingLocalRollback(): Promise<void> {
+    await BackupRestoreActivity.recoverDeviceSyncRollback((): Promise<void> => this.recoverBeforeStartup())
+    if (BackupRestoreActivity.hasPendingRecovery()) throw new Error('sync_local_recovery_required')
   }
 
   async recoverBeforeStartup(): Promise<void> {
@@ -1077,6 +1097,10 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return toSharedCategory(id, this.projection(), this.storage.load().replica)
   }
 
+  sharedCategories(id: string): string[] {
+    return categoryAliases(id, this.projection(), this.storage.load().replica).map((row: SyncLocalCategory): string => row.shared)
+  }
+
   shelfWorkLabel(source: string, work: string): SyncWorkLabel | undefined {
     const comic = this.library().comics.find((item: PersistedComic): boolean => matchesShelfWork(item, source, work))
     return comic === undefined ? undefined : shelfLabel(comic, source)
@@ -1086,10 +1110,11 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const comic = this.library().comics.find((item: PersistedComic): boolean => matchesShelfWork(item, source, work))
     const projection = this.projection()
     const categories: string[] = []
-    comic?.categoryIds?.forEach((id: string): void => {
-      const category = toSharedCategory(id, projection, this.storage.load().replica)
-      if (category !== undefined) categories.push(category)
-    })
+    if (comic !== undefined) {
+      for (const id of comic.categoryIds ?? []) {
+        categories.push(...categoryMembershipAliases(id, comic.id, projection, this.storage.load().replica))
+      }
+    }
     return categories
   }
 

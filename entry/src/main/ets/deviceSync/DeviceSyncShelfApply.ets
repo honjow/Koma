@@ -5,13 +5,12 @@ import { ComicSourceKind, ReadingDirection, libraryCategoryNameKey, normalizeLib
 import { sourceLibraryComicId } from '../model/SourceLibraryComic'
 import type { LibrarySmartCategory, LibrarySmartFilter } from '../model/LibrarySmartCategory'
 import { isSyncReplica } from './DeviceSyncFacts'
-import { syncCoverAddress, SyncChapterCatalog, SyncSmartCategory, SyncWorkLabel, syncKey, syncKeyParts, syncShelfIdentity,
-  syncShelfMove } from './DeviceSyncData'
+import { CATEGORY_SYNC_PREFIX, syncCoverAddress, SyncChapterCatalog, SyncSmartCategory, SyncWorkLabel, syncKey, syncKeyParts,
+  syncNumberedCategoryName, syncSharedCategoryId, syncShelfIdentity, syncShelfMove, syncStableId } from './DeviceSyncData'
 import type { SyncLocalShelfMove } from './DeviceSyncSignals'
 import type { SyncLocalValue } from './DeviceSyncStorage'
 import { syncDigest } from './DeviceSyncWire'
 
-export const CATEGORY_SYNC_PREFIX = 'custom_sync_'
 export const FAVORITE = 'favorite'
 export const READ_LATER = 'read_later'
 
@@ -21,6 +20,8 @@ export interface SyncLocalCategory {
   localOnly: boolean
   originalName?: string
   displayedName?: string
+  mergedInto?: string
+  members?: string[]
 }
 
 export interface SyncSourceIdentity {
@@ -59,12 +60,6 @@ export function emptySyncLibrary(): PersistedLibraryStoreDocument {
   return { schemaVersion: LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION, comics: [], customCategories: [] }
 }
 
-function syncUuid(text: string): string {
-  const hash = syncDigest(text)
-  return hash.substring(0, 8) + '-' + hash.substring(8, 12) + '-' + hash.substring(12, 16) + '-' +
-    hash.substring(16, 20) + '-' + hash.substring(20, 32)
-}
-
 export function shelfWork(comic: PersistedComic): SyncSourceIdentity | undefined {
   const source = comic.sourceRuntimeId
   const work = comic.remoteResourceId
@@ -95,10 +90,32 @@ function indexShelfWorks(comics: PersistedComic[]): Map<string, PersistedComic> 
 
 export function toSharedCategory(local: string, projection: SyncProjection, replica: string): string | undefined {
   const existing = projection.categories.find((row: SyncLocalCategory): boolean => row.local === local)
-  if (existing?.localOnly === true) return undefined
+  if (existing?.localOnly === true) {
+    return projection.categories.find((row: SyncLocalCategory): boolean => row.mergedInto === local && !row.localOnly)?.shared
+  }
   if (local === FAVORITE) return 'builtin-favorite'
   if (local === READ_LATER) return 'builtin-read-later'
-  return existing?.shared ?? syncUuid(replica + ':category:' + local)
+  return existing?.shared ?? syncSharedCategoryId(replica, local)
+}
+
+export function categoryAliases(local: string, projection: SyncProjection, replica: string): SyncLocalCategory[] {
+  const current = projection.categories.find((row: SyncLocalCategory): boolean => row.local === local)
+  const aliases = projection.categories.filter((row: SyncLocalCategory): boolean => row.mergedInto === local && !row.localOnly)
+  if (current !== undefined) return current.localOnly ? aliases : [current].concat(aliases)
+  const shared = toSharedCategory(local, projection, replica)
+  if (shared === undefined) return aliases
+  return [{ local, shared, localOnly: false } as SyncLocalCategory].concat(aliases)
+}
+
+export function categoryMembershipAliases(local: string, comicId: string, projection: SyncProjection, replica: string): string[] {
+  const aliases = categoryAliases(local, projection, replica)
+  if (aliases.length <= 1) return aliases.map((row: SyncLocalCategory): string => row.shared)
+  const members = aliases.filter((row: SyncLocalCategory): boolean => row.members?.includes(comicId) === true)
+  return (members.length > 0 ? members : aliases.slice(0, 1)).map((row: SyncLocalCategory): string => row.shared)
+}
+
+export function originalCategoryName(name: string, mapping?: SyncLocalCategory): string {
+  return mapping?.displayedName === name ? mapping.originalName ?? name : name
 }
 
 export function sharedCategoryRecord(local: string, projection: SyncProjection, replica: string): string | undefined {
@@ -112,6 +129,8 @@ export function toLocalCategory(shared: string, library: PersistedLibraryStoreDo
   replica: string): string {
   if (shared === 'builtin-favorite') return FAVORITE
   if (shared === 'builtin-read-later') return READ_LATER
+  const alias = projection.categories.find((row: SyncLocalCategory): boolean => row.shared === shared && !row.localOnly)
+  if (alias?.mergedInto !== undefined && library.customCategories?.some(row => row.id === alias.mergedInto)) return alias.mergedInto
   const existing = (library.customCategories ?? []).find((row: PersistedLibraryCategory): boolean =>
     toSharedCategory(row.id, projection, replica) === shared)
   if (existing !== undefined) return existing.id
@@ -128,7 +147,7 @@ export function smartCategoryKey(id: string): string {
   const shared = id.slice('smart:'.length)
   // Existing local IDs also travel in backups. Derive the same identity
   // when the same old smart category is restored on two devices.
-  return syncKey(['smart-category', isSyncReplica(shared) ? shared : syncUuid('smart-category:' + id)])
+  return syncKey(['smart-category', isSyncReplica(shared) ? shared : syncStableId('smart-category:' + id)])
 }
 
 function applyChapterCatalogs(changes: SyncLocalValue[], library: PersistedLibraryStoreDocument): void {
@@ -167,11 +186,141 @@ function uniqueCategoryName(name: string, used: Set<string>): string {
   let value = original
   let index = 2
   while (used.has(libraryCategoryNameKey(value))) {
-    const suffix = ' (' + index++ + ')'
-    value = original.substring(0, 40 - suffix.length).trimEnd() + suffix
+    value = syncNumberedCategoryName(original, (index++).toString())
   }
   used.add(libraryCategoryNameKey(value))
   return value
+}
+
+// A restored shelf and WebDAV may carry different wire IDs for the same manual
+// category. Keep those wire IDs and their member sets so an older peer's change
+// to one ID cannot erase another ID's members. Only the local view is merged.
+function expandCategoryAliases(library: PersistedLibraryStoreDocument, projection: SyncProjection, replica: string): void {
+  const categories = library.customCategories ?? []
+  const aliases = projection.categories.filter((row: SyncLocalCategory): boolean => row.mergedInto !== undefined)
+  if (aliases.length === 0) return
+  const byId = new Map<string, PersistedLibraryCategory>(categories.map(category => [category.id, category]))
+  const virtualIds = new Map<string, string>()
+  for (const alias of aliases) {
+    const primary = byId.get(alias.mergedInto ?? '')
+    if (primary === undefined) continue
+    virtualIds.set(alias.shared, alias.local)
+    if (byId.has(alias.local)) continue
+    const name = originalCategoryName(primary.name, alias)
+    categories.push({ id: alias.local, name, sortOrder: primary.sortOrder, createdAt: primary.createdAt, updatedAt: primary.updatedAt })
+  }
+  for (const comic of library.comics) {
+    if (shelfWork(comic) === undefined) continue
+    comic.categoryIds = comic.categoryIds?.flatMap((id: string): string[] => {
+      if (!aliases.some((alias: SyncLocalCategory): boolean => alias.mergedInto === id)) return [id]
+      const rows = categoryMembershipAliases(id, comic.id, projection, replica)
+      const keepLocal = projection.categories.some((row: SyncLocalCategory): boolean => row.local === id && row.localOnly)
+      const result = rows.map((shared: string): string => virtualIds.get(shared) ?? id)
+      if (keepLocal || result.length === 0) result.push(id)
+      return result
+    })
+  }
+  projection.categories = projection.categories.filter((row: SyncLocalCategory): boolean =>
+    row.mergedInto === undefined || virtualIds.has(row.shared))
+  for (const alias of aliases) {
+    const primary = byId.get(alias.mergedInto ?? '')
+    if (primary !== undefined) {
+      const name = originalCategoryName(primary.name, alias)
+      alias.originalName = name
+      alias.displayedName = name
+    }
+    alias.mergedInto = undefined
+  }
+}
+
+function mergeCategoryAliases(library: PersistedLibraryStoreDocument, projection: SyncProjection, replica: string,
+  admittedIds: Set<string>): void {
+  const categories = library.customCategories ?? []
+  const mappings = new Map<string, SyncLocalCategory>(projection.categories.map(row => [row.local, row]))
+  const byName = new Map<string, PersistedLibraryCategory[]>()
+  const order = categories.slice().sort((a: PersistedLibraryCategory, b: PersistedLibraryCategory): number =>
+    a.sortOrder - b.sortOrder || a.createdAt - b.createdAt)
+  const used = new Set<string>((library.smartCategories ?? []).map(group => libraryCategoryNameKey(group.name)))
+  for (const category of order) {
+    if (category.id === FAVORITE || category.id === READ_LATER) {
+      used.add(libraryCategoryNameKey(category.name))
+      continue
+    }
+    const name = libraryCategoryNameKey(originalCategoryName(category.name, mappings.get(category.id)))
+    const group = byName.get(name) ?? []
+    group.push(category)
+    byName.set(name, group)
+  }
+  const remap = new Map<string, string>()
+  const mergedRows = new Map<string, SyncLocalCategory>()
+  const sharedOrder = order.flatMap((category: PersistedLibraryCategory): string[] =>
+    sharedCategoryRecord(category.id, projection, replica) === undefined ? [] :
+      categoryAliases(category.id, projection, replica).map((row: SyncLocalCategory): string => row.shared))
+  for (const groups of byName.values()) {
+    if (groups.length === 1) used.add(libraryCategoryNameKey(groups[0].name))
+  }
+  for (const entry of byName) {
+    const name = entry[0]
+    const group = entry[1]
+    if (group.length < 2) continue
+    const admitted = group.filter((category: PersistedLibraryCategory): boolean => admittedIds.has(category.id))
+    const candidates = admitted.length > 0 ? admitted : group
+    const primary = candidates.find((category: PersistedLibraryCategory): boolean =>
+      libraryCategoryNameKey(category.name) === name) ?? candidates[0]
+    const original = originalCategoryName(primary.name, mappings.get(primary.id))
+    primary.sortOrder = group[0].sortOrder
+    primary.name = uniqueCategoryName(original, used)
+    for (const category of group) {
+      const mapping = mappings.get(category.id)
+      const shared = mapping?.shared ?? toSharedCategory(category.id, projection, replica)
+      if (shared === undefined) continue
+      const name = category === primary ? original : originalCategoryName(category.name, mapping)
+      const row: SyncLocalCategory = { local: category.id, shared, localOnly: mapping?.localOnly === true, originalName: name,
+        displayedName: primary.name, members: [] }
+      if (category !== primary) {
+        row.mergedInto = primary.id
+        remap.set(category.id, primary.id)
+      }
+      mergedRows.set(category.id, row)
+    }
+  }
+  if (remap.size === 0) return
+  projection.categories = projection.categories.filter((row: SyncLocalCategory): boolean => !mergedRows.has(row.local))
+  projection.categories.push(...Array.from(mergedRows.values()))
+  library.customCategories = categories.filter((category: PersistedLibraryCategory): boolean => !remap.has(category.id))
+  for (const comic of library.comics) {
+    if (comic.categoryIds === undefined) continue
+    const shared = shelfWork(comic) !== undefined
+    const next = new Set<string>()
+    for (const id of comic.categoryIds) {
+      if (shared) mergedRows.get(id)?.members?.push(comic.id)
+      next.add(remap.get(id) ?? id)
+    }
+    comic.categoryIds = Array.from(next)
+  }
+  for (const group of library.smartCategories ?? []) {
+    for (const rule of group.filters) {
+      if (rule.method === 'category' && rule.value !== undefined) rule.value = remap.get(rule.value) ?? rule.value
+    }
+  }
+  const strategies = library.categoryDisplayStrategies
+  if (strategies !== undefined) {
+    const claimed = new Set<string>(strategies.filter(item => !remap.has(item.categoryId)).map(item => item.categoryId))
+    library.categoryDisplayStrategies = strategies.filter(item => {
+      const primary = remap.get(item.categoryId)
+      if (primary === undefined) return true
+      if (claimed.has(primary)) return false
+      claimed.add(primary)
+      item.categoryId = primary
+      return true
+    })
+  }
+  if (JSON.stringify(sharedOrder) !== JSON.stringify(projection.projectedOrder)) projection.categoryOrder = sharedOrder
+  projection.projectedOrder = library.customCategories.slice().sort((a: PersistedLibraryCategory, b: PersistedLibraryCategory): number =>
+    a.sortOrder - b.sortOrder || a.createdAt - b.createdAt)
+    .flatMap((category: PersistedLibraryCategory): string[] =>
+      sharedCategoryRecord(category.id, projection, replica) === undefined ? [] :
+        categoryAliases(category.id, projection, replica).map((row: SyncLocalCategory): string => row.shared))
 }
 
 function applySmartCategories(changes: SyncLocalValue[], library: PersistedLibraryStoreDocument,
@@ -399,8 +548,11 @@ export function prepareSyncShelfDocument(raw: string | null, changes: SyncLocalV
   acceptedRemoval: string, replica: string): PreparedSyncShelf {
   const library = raw === null ? emptySyncLibrary() : readLibraryStoreDocument(raw)
   const projection = JSON.parse(projectionText) as SyncProjection
+  const admittedIds = new Set<string>((library.customCategories ?? []).map(category => category.id))
+  expandCategoryAliases(library, projection, replica)
   applyShelf(changes, library, projection, acceptedRemoval, replica)
   applySmartCategories(changes, library, projection, replica)
+  mergeCategoryAliases(library, projection, replica, admittedIds)
   applyChapterCatalogs(changes, library)
   const libraryText = JSON.stringify(library)
   assertValidLibraryStoreJson(libraryText)

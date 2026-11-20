@@ -498,7 +498,11 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     }, access: async file => files.has(file), readText: async file => files.get(file),
     accessSync: file => files.has(file), readTextSync: file => files.get(file),
     unlinkSync: file => files.delete(file) }
-  const writeAppTextFile = (file, content) => files.set(file, content)
+  let beforeWrite = noop
+  const writeAppTextFile = (file, content) => {
+    beforeWrite(file, content)
+    files.set(file, content)
+  }
   const nativeFs = { fileIo }
   const signals = compile('DeviceSyncSignals')
   const backup = compile('../model/BackupRestoreActivity')
@@ -580,7 +584,8 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     signals.connectDeviceSyncOwnerEdits(actions => runtime.recordLibrary(actions), noop, noop,
       () => replica.engine.groupScope('shelf') ? replica.engine.active()?.space : undefined)
   }
-  return { ...replica, runtime, reader, coldReader, coldShelf, persistence, owner }
+  return { ...replica, runtime, reader, coldReader, coldShelf, persistence, owner, files, filesDir,
+    onWrite: handler => { beforeWrite = handler } }
 }
 
 test('background page turns retain chapter order and cannot replace a newer durable edit', async () => {
@@ -891,6 +896,279 @@ test('source shelf and category survive an interrupted move; retry publishes bot
   await a.engine.syncNow()
   await c.engine.syncNow()
   for (const device of [a, b, c]) assert.deepEqual(device.coldShelf().shelf.getComic(original.id).categoryIds ?? [], [])
+})
+
+test('shelf sync merges restored manual categories and repairs old automatic numbering without losing memberships', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.WriterWebDav)
+  const a = readingDevice(fixture, A, new Map(), true)
+  const b = readingDevice(fixture, B, new Map(), true)
+  const source = 'com.example.public'
+  async function connect(device) {
+    await device.engine.testConnection(transport.draft)
+    const preview = await device.engine.prepare(transport.draft, ['shelf'])
+    await device.engine.confirm(preview.token, preview.conflicts.map(conflict =>
+      ({ group: conflict.group, key: conflict.key, useLocal: true })))
+  }
+  function add(device, work, category) {
+    const { shelf, service } = device.coldShelf()
+    const comic = shelfComic(source, work, [category])
+    device.persistence.upsertComicAndPersistLibraryStore(shelf, service, comic)
+    return comic.id
+  }
+  const original = a.coldShelf()
+  const category = original.shelf.createCustomCategory('Reading')
+  const numberedByUser = original.shelf.createCustomCategory('Reading (2)')
+  original.service.persist()
+  const backup = a.persistence.libraryStoreBackupPayload(a.persistence.serializeLibraryStore(original.shelf))
+  const restored = b.coldShelf()
+  b.persistence.hydrateLibraryStoreFromJson(restored.shelf, backup)
+  restored.service.persist()
+  const local = add(b, 'local', category.id)
+  const remote = add(a, 'remote', category.id)
+  const separate = add(b, 'separate', numberedByUser.id)
+  const shared = add(a, 'shared', category.id)
+  add(b, 'shared', category.id)
+  const partlyRemoved = add(a, 'partly-removed', category.id)
+  add(b, 'partly-removed', category.id)
+  await connect(a)
+  await connect(b)
+  const assertShelf = (device, name = 'Reading') => {
+    const shelf = device.coldShelf().shelf
+    assert.deepEqual(shelf.listCustomCategories().map(item => item.name).sort(), [name, 'Reading (2)'].sort())
+    assert.deepEqual(shelf.getComic(local).categoryIds, [category.id])
+    assert.deepEqual(shelf.getComic(remote).categoryIds, [category.id])
+    assert.deepEqual(shelf.getComic(separate).categoryIds, [numberedByUser.id])
+    return shelf
+  }
+  assert.deepEqual(assertShelf(b).getComic(shared).categoryIds, [category.id])
+  const beforeReceivingAlias = a.coldShelf()
+  a.persistence.upsertComicAndPersistLibraryStore(beforeReceivingAlias.shelf, beforeReceivingAlias.service,
+    { ...beforeReceivingAlias.shelf.getComic(partlyRemoved), categoryIds: [] })
+  await a.runtime.libraryEdits
+  await a.engine.syncNow()
+  await b.engine.syncNow()
+  for (const device of [a, b]) assert.deepEqual(assertShelf(device).getComic(partlyRemoved).categoryIds, [category.id])
+
+  // A clean client joining this already-populated WebDAV has no backup or
+  // local projection. It must still see one category and both writers' books.
+  const remoteOnly = readingDevice(fixture, C, new Map(), true)
+  await connect(remoteOnly)
+  const fromServer = remoteOnly.coldShelf().shelf
+  const serverCategory = fromServer.listCustomCategories().find(item => item.name === 'Reading')
+  assert.deepEqual(fromServer.listCustomCategories().map(item => item.name).sort(), ['Reading', 'Reading (2)'])
+  for (const id of [local, remote, shared, partlyRemoved]) assert.deepEqual(fromServer.getComic(id).categoryIds, [serverCategory.id])
+
+  // Replay a persisted pre-upgrade shelf with both original wire IDs. The
+  // server already has every member, so a receive-only diff cannot fix it.
+  const libraryFile = b.filesDir + '/' + b.persistence.LIBRARY_STORE_PERSISTENCE_FILE_NAME
+  const projectionFile = b.filesDir + '/device-sync-projection.v1.json'
+  const library = JSON.parse(b.files.get(libraryFile))
+  const projection = JSON.parse(b.files.get(projectionFile))
+  const alias = projection.categories.find(row => row.mergedInto === category.id)
+  const primary = projection.categories.find(row => row.local === category.id)
+  assert.ok(alias && primary)
+  const oldName = 'Reading (3)'
+  const old = library.customCategories.find(item => item.id === category.id)
+  library.customCategories.push({ ...old, id: alias.local, name: oldName, sortOrder: library.customCategories.length })
+  for (const row of library.comics) {
+    if (!row.categoryIds.includes(category.id)) continue
+    row.categoryIds = [primary, alias].filter(item => item.members.includes(row.id)).map(item => item.local)
+  }
+  alias.displayedName = oldName
+  delete alias.mergedInto
+  delete alias.members
+  delete primary.members
+  b.files.set(libraryFile, JSON.stringify(library))
+  b.files.set(projectionFile, JSON.stringify(projection))
+  await b.engine.syncNow()
+  assert.deepEqual(assertShelf(b).getComic(shared).categoryIds, [category.id])
+
+  const next = b.coldShelf()
+  b.persistence.renameCustomCategoryAndPersistLibraryStore(next.shelf, next.service, category.id, 'Current')
+  b.persistence.upsertComicAndPersistLibraryStore(next.shelf, next.service, { ...next.shelf.getComic(shared), categoryIds: [] })
+  await b.runtime.libraryEdits
+  await b.engine.syncNow()
+  await a.engine.syncNow()
+  for (const device of [a, b]) assert.deepEqual(assertShelf(device, 'Current').getComic(shared).categoryIds ?? [], [])
+  const published = transport.trace.filter(request => request.method === 'PUT').length
+  await a.engine.syncNow()
+  await b.engine.syncNow()
+  assert.equal(transport.trace.filter(request => request.method === 'PUT').length, published)
+})
+
+test('an already-published legacy backup alias is repaired in WebDAV and keeps both shelves intact', async () => {
+  const transport = transportFixture()
+  const writer = new transport.WriterWebDav(transport.draft, [], undefined, A)
+  const original = A
+  const copied = data.syncSharedCategoryId(B, 'custom_sync_' + original)
+  const originalKey = data.syncKey(['category', original])
+  const copiedKey = data.syncKey(['category', copied])
+  const manualKey = data.syncKey(['category', C])
+  const source = 'com.example.public'
+  const values = [
+    [originalKey, '"Reading"', A],
+    [copiedKey, '"Reading (3)"', B],
+    [manualKey, '"Reading (2)"', B],
+    [data.syncKey(['book', source, 'original']), '{"title":"Original","sourceName":"Public"}', A],
+    [data.syncKey(['book', source, 'copy']), '{"title":"Copy","sourceName":"Public"}', B],
+    [data.syncKey(['member', source, 'original', original]), 'true', A],
+    [data.syncKey(['member', source, 'copy', copied]), 'true', B],
+  ]
+  const seeded = wire.buildSyncDataset(data.SYNC_SHELF_CATALOG_DATASET, values.map(([key, value, replica], i) =>
+    edit(facts.emptySyncFact(key), dot(replica, i + 1), 'set', value)), 1, undefined, data.syncBucketKey)
+  for (const object of seeded.objects) await writer.storeObject(object, noop)
+  await writer.publish(manifest(writer.spaceId(), [seeded.ref]), '', noop, noop, [seeded.ref.id])
+  const receiver = readingDevice(engineFixture(transport.WriterWebDav), C, new Map(), true)
+  receiver.engine.setSelection(['shelf'])
+  await receiver.engine.saveConfiguration(transport.draft)
+  receiver.engine.setEnabled(true)
+  transport.faults.push('before-accept')
+  await assert.rejects(receiver.engine.syncNow(), /sync_remote_result_unknown/)
+  await receiver.engine.syncNow()
+  const shelf = receiver.coldShelf().shelf
+  assert.deepEqual(shelf.listCustomCategories().map(item => item.name).sort(), ['Reading', 'Reading (2)'])
+  const category = shelf.listCustomCategories().find(item => item.name === 'Reading')
+  for (const work of ['original', 'copy']) assert.deepEqual(shelf.getComic(source + ':' + work).categoryIds, [category.id])
+
+  const readback = new transport.WriterWebDav(transport.draft, [], undefined, C)
+  const own = (await readback.readManifest(noop)).own
+  const ref = own.datasets.find(item => item.id === seeded.ref.id)
+  const repaired = (await Promise.all(ref.shards.map(async shard =>
+    wire.decodeSyncShard(ref.id, shard, await readback.readObject(shard, noop), data.syncBucketKey)))).flat()
+  assert.equal(facts.syncVisibleValue(repaired.find(fact => fact.key === copiedKey)), '"Reading"')
+  const puts = transport.trace.filter(row => row.method === 'PUT').length
+  await receiver.engine.syncNow()
+  assert.equal(transport.trace.filter(row => row.method === 'PUT').length, puts)
+})
+
+test('an unsendable legacy reading capture is settled once without changing saved reading progress', async () => {
+  const transport = transportFixture()
+  const device = readingDevice(engineFixture(transport.WriterWebDav), A, new Map(), true)
+  await device.engine.testConnection(transport.draft)
+  await device.engine.confirm((await device.engine.prepare(transport.draft, ['reading'])).token, [])
+  device.runtime.refresh()
+  const source = 'com.example.public', work = 'legacy-book', chapterId = 'chapter'
+  const comicId = source + ':' + work
+  const file = device.filesDir + '/reader-sessions.v1.json'
+  const reader = JSON.parse(device.files.get(file))
+  const progress = { comicId, chapterId, pageIndex: 1, totalPages: 2, updatedAt: 10, progressRatio: 1, completed: false }
+  const capture = { id: 'old-invalid-capture', space: device.engine.active().space, source, work, comicId, chapterId,
+    page: 9, total: 2, date: 10, complete: false, observedActions: [], positionSeen: [], recentSeen: [], recentCleared: [], readSeen: [] }
+  reader.progress = [progress]
+  reader.syncPositions = [capture]
+  device.files.set(file, JSON.stringify(reader))
+  device.reader.reload()
+  await device.runtime.syncManually()
+  assert.equal(device.owner.readingAcknowledged(capture), true)
+  assert.equal(device.runtime.view.readingSyncIncomplete, false)
+  assert.equal(device.coldReader().getProgress(comicId).pageIndex, 1)
+  const receipts = device.store.load().readingReceipts.length
+  await device.runtime.syncManually()
+  assert.equal(device.store.load().readingReceipts.length, receipts)
+  assert.equal(device.coldReader().getProgress(comicId).pageIndex, 1)
+})
+
+test('automatic and focused sync take clearly newer cloud resume positions without overriding a newer local branch', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.SharedWebDav)
+  const a = readingDevice(fixture, A, new Map(), true)
+  const b = readingDevice(fixture, B, new Map(), true)
+  const source = 'com.example.public', chapter = 'chapter'
+  for (const device of [a, b]) {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['reading'])).token, [])
+  }
+  const save = (device, work, page, date) => {
+    const comicId = source + ':' + work
+    device.reader.saveSourceHistory({ comicId, sourceId: source, mangaId: work, title: work, sourceName: 'Public',
+      chapterId: chapter, chapterTitle: 'Chapter' })
+    device.reader.saveProgress({ comicId, chapterId: chapter, pageIndex: page, totalPages: 30, updatedAt: date,
+      progressRatio: (page + 1) / 30, completed: false })
+    assert.equal(device.reader.flush(), true)
+    device.engine.recordEdits('reading', [
+      { key: data.syncKey(['recent', source, work]), kind: 'set',
+        value: JSON.stringify(data.syncReadingRecent(source, chapter, date, work, 'Public', 'Chapter', page)) },
+      { key: data.syncKey(['position', source, work, chapter]), kind: 'set',
+        value: JSON.stringify(data.syncReadingPosition(page, 30, date)) },
+    ])
+  }
+  for (const work of ['automatic', 'focused', 'newer-local']) {
+    save(a, work, 21, 200)
+    save(b, work, 7, work === 'newer-local' ? 300 : 100)
+  }
+  await a.engine.syncNow()
+  const focused = await b.engine.syncReadingWork(source, 'focused')
+  assert.equal(focused.applied, true)
+  assert.equal(focused.conflict, undefined)
+  await b.engine.syncNow()
+  for (const work of ['automatic', 'focused']) {
+    assert.equal(b.coldReader().getProgress(source + ':' + work).pageIndex, 21)
+  }
+  assert.equal(b.coldReader().getProgress(source + ':newer-local').pageIndex, 7)
+  const heldWorks = () => Array.from(new Set(b.engine.active().groups.find(g => g.id === 'reading').pending.map(item =>
+    data.syncKeyParts(item.key)[2])))
+  assert.deepEqual(heldWorks(), ['newer-local'])
+  assert.ok((await b.engine.syncReadingWork(source, 'newer-local')).conflict)
+  await b.engine.syncNow()
+  assert.deepEqual(heldWorks(), ['newer-local'])
+})
+
+test('the next manual sync completes an interrupted local rollback and preserves a later Reader save', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.WriterWebDav)
+  const a = readingDevice(fixture, A, new Map(), true)
+  const b = readingDevice(fixture, B, new Map(), true)
+  const original = b.coldShelf()
+  const kept = original.shelf.createCustomCategory('Local')
+  original.service.persist()
+  for (const device of [a, b]) {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['shelf'])).token, [])
+  }
+  await a.engine.syncNow()
+  const shelfChange = a.coldShelf()
+  const category = a.persistence.createCustomCategoryAndPersistLibraryStore(shelfChange.shelf, shelfChange.service, 'Shared')
+  const added = shelfComic('com.example.public', 'new', [category.id])
+  a.persistence.upsertComicAndPersistLibraryStore(shelfChange.shelf, shelfChange.service, added)
+  await a.runtime.libraryEdits
+  await a.engine.syncNow()
+
+  let projectionFailed = false
+  let failedRollbacks = 0
+  let storageRecovered = false
+  b.onWrite(file => {
+    if (!projectionFailed && file.endsWith('/device-sync-projection.v1.json')) {
+      projectionFailed = true
+      throw new Error('volume became unavailable')
+    }
+    if (projectionFailed && !storageRecovered && file.endsWith('/library-store.v1.json')) {
+      failedRollbacks++
+      throw new Error('volume still unavailable during rollback')
+    }
+  })
+  b.runtime.refresh()
+  await assert.rejects(b.runtime.syncManually(), /sync_local_rollback_pending/)
+  assert.equal(b.runtime.view.error, 'sync_local_rollback_pending')
+  assert.equal(failedRollbacks, 1)
+  const journal = b.filesDir + '/device-sync-local-commit.v1.json'
+  assert.equal(b.files.has(journal), true)
+
+  b.reader.saveProgress({ comicId: 'local-reader-book', chapterId: 'chapter', pageIndex: 2, totalPages: 5,
+    updatedAt: Date.now(), progressRatio: 0.6, completed: false })
+  await assert.rejects(b.runtime.syncManually(), /sync_local_rollback_pending/)
+  assert.equal(failedRollbacks, 2)
+  assert.equal(b.files.has(journal), true)
+
+  storageRecovered = true
+  await b.runtime.syncManually()
+  assert.equal(b.files.has(journal), false)
+  assert.equal(b.runtime.view.error, '')
+  const received = b.coldShelf().shelf
+  const receivedCategory = received.listCustomCategories().find(item => item.name === 'Shared')
+  assert.equal(received.listCustomCategories().find(item => item.name === 'Local').id, kept.id)
+  assert.deepEqual(received.getComic(added.id).categoryIds, [receivedCategory.id])
+  assert.equal(b.coldReader().getProgress('local-reader-book').pageIndex, 2)
 })
 
 test('shelf sync round-trips smart rule changes using each device’s local category IDs', async () => {

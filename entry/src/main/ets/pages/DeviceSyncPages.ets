@@ -66,6 +66,12 @@ function errorText(code: string): string {
   if (code === 'sync_maintenance_running') return t('device_sync_error_maintenance')
   if (code === 'sync_invalid_username' || code === 'sync_credentials_too_long') return t('device_sync_error_credentials')
   if (code === 'sync_select_contents') return t('device_sync_no_selection')
+  if (code === 'sync_local_busy') return t('device_sync_error_local_busy')
+  if (code === 'sync_local_reading_save_failed') return t('device_sync_error_reading_save')
+  if (code === 'sync_local_rollback_pending') return t('device_sync_error_local_rollback')
+  if (code === 'sync_local_recovery_required') return t('device_sync_error_local_recovery')
+  if (code === 'sync_local_state_invalid' || code === 'sync_local_journal_invalid') return t('device_sync_error_local_state')
+  if (code === 'sync_credential_missing' || code === 'sync_credential_read_failed') return t('device_sync_error_credential_read')
   if (code.startsWith('sync_local_') || code.startsWith('sync_credential_')) return t('device_sync_error_local')
   if (code.startsWith('sync_invalid_') || code.startsWith('sync_shard_')) return t('device_sync_error_damaged')
   return t('device_sync_error_retry')
@@ -220,20 +226,12 @@ export struct DeviceSyncWebDavPage {
   }
 
   private statusDetail(): string {
+    if (this.state.manualInProgress || this.state.transferInFlight) return t('device_sync_running')
     if (this.state.error !== '') return errorText(this.state.error)
-    if (this.state.manualInProgress) return t('device_sync_running')
+    if (this.state.requiresExplicitReview || this.state.unresolvedCommit) return stateText(this.state)
+    if (this.state.enabled && this.state.readingSyncIncomplete) return t('device_sync_reading_incomplete')
     if (this.state.lastSuccess === 0) return stateText(this.state)
-    return new Date(this.state.lastSuccess).toLocaleString()
-  }
-
-  private readingRoundText(): string {
-    const report = this.state.manualReadingResult
-    if (report === undefined) return ''
-    const items: string[] = []
-    if (report.uploaded > 0) items.push(t('device_sync_summary_upload').replace('%s', report.uploaded.toString()))
-    if (report.downloaded > 0) items.push(t('device_sync_summary_download').replace('%s', report.downloaded.toString()))
-    if (report.pending > 0) items.push(t('device_sync_reading_round_pending').replace('%s', report.pending.toString()))
-    return items.length > 0 ? items.join(' · ') : t('device_sync_reading_round_empty')
+    return t('device_sync_last_success_time').replace('%s', new Date(this.state.lastSuccess).toLocaleString())
   }
 
   build() {
@@ -259,7 +257,7 @@ export struct DeviceSyncWebDavPage {
           ConciseListRow({ title: t('device_sync_last_result'), subtitle: this.statusDetail(), subtitleMaxLines: 5, showChevron: false })
           ListDivider()
           ConciseListRow({ title: t('device_sync_now'), showChevron: false,
-            subtitle: this.state.selected.length === 0 ? t('device_sync_choose_in_overview') : this.readingRoundText(),
+            subtitle: this.state.selected.length === 0 ? t('device_sync_choose_in_overview') : undefined,
             isEnabled: this.state.configured && this.state.enabled && this.state.selected.length > 0 &&
               !this.state.manualInProgress && !this.state.requiresExplicitReview,
             action: (): void => { void appDeviceSync.syncManually().catch((): void => {}) } })
