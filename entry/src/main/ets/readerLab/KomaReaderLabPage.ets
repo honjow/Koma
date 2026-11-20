@@ -54,6 +54,7 @@ import { KomaReaderSuperResolutionConfiguration, KomaReaderSuperResolutionProvid
 import { readerSuperResolutionSetInteractionPaused } from '../model/ReaderSuperResolutionService'
 import { ReaderPreloadNetworkMonitor, readerRemotePreloadAllowed } from '../model/ReaderPreloadNetwork'
 import { setReaderImageCacheEvictionPaused } from '../model/ReaderPageSourceAdapter'
+import { setDeviceSyncReaderMoving } from '../deviceSync/DeviceSyncMetrics'
 import { GazePageTurnController, GazeTurnUiState } from '../readerGaze/GazePageTurnController'
 import { GazePageTurnIndicator } from '../readerGaze/GazePageTurnIndicator'
 import { GazePhase } from '../readerGaze/GazePageTurnEngine'
@@ -1292,6 +1293,7 @@ export struct KomaReaderLabPage {
     this.cacheSettleTimer = -1
     setReaderImageCacheEvictionPaused(busy)
     if (busy) {
+      setDeviceSyncReaderMoving(true)
       readerSuperResolutionSetInteractionPaused(true)
       return
     }
@@ -1300,15 +1302,17 @@ export struct KomaReaderLabPage {
       this.enhancementInteractionTimer = -1
       readerSuperResolutionSetInteractionPaused(false)
     }, 420)
-    // Continuous swipes leave ~440ms gaps between gestures; the cache gate uses
-    // a longer settle so eviction and manifest writes cannot leak into them.
+    // The shared busy signal ends on touch-up, before native List inertia.
+    // Keep sync slices paced through the existing cache settle window.
     this.cacheSettleTimer = setTimeout((): void => {
       this.cacheSettleTimer = -1
+      setDeviceSyncReaderMoving(false)
       setReaderImageCacheEvictionPaused(false)
     }, 1600)
   }
 
   private releaseEnhancementInteraction(): void {
+    setDeviceSyncReaderMoving(false)
     this.volumeTurnVSync.close()
     if (this.enhancementInteractionTimer >= 0) clearTimeout(this.enhancementInteractionTimer)
     this.enhancementInteractionTimer = -1

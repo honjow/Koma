@@ -4,9 +4,20 @@ import { systemDateTime } from '@kit.BasicServicesKit'
 export function syncMetricUptime(): number {
   try { return systemDateTime.getUptime(systemDateTime.TimeType.STARTUP) } catch (_error) { return 0 }
 }
+
+const SYNC_SLICE_MS: number = 4
+const READER_MOTION_SLICE_MS: number = 2
+const READER_MOTION_YIELD_MS: number = 9
+let readerMoving = false
+
+export function setDeviceSyncReaderMoving(moving: boolean): void {
+  readerMoving = moving
+}
+
 export class DeviceSyncSliceBudget {
   readonly started = syncMetricUptime()
   yields = 0
+  motionYields = 0
   private sliceStarted = this.started
   private longestSlice = 0
   private readonly guard: () => void
@@ -16,11 +27,17 @@ export class DeviceSyncSliceBudget {
   }
 
   yieldIfNeeded(): Promise<void> | undefined {
+    const moving = readerMoving
     const elapsed = syncMetricUptime() - this.sliceStarted
-    if (elapsed < 4) return undefined
+    if (elapsed < (moving ? READER_MOTION_SLICE_MS : SYNC_SLICE_MS)) return undefined
     this.longestSlice = Math.max(this.longestSlice, elapsed)
     this.yields++
-    return new Promise<void>((resume: () => void): void => { setTimeout(resume, 0) }).then((): void => {
+    if (moving) this.motionYields++
+    // A zero-delay yield can immediately run the next serialization slice.
+    // During reader motion, leave one 120 Hz frame for input and layout.
+    return new Promise<void>((resume: () => void): void => {
+      setTimeout(resume, moving ? READER_MOTION_YIELD_MS : 0)
+    }).then((): void => {
       this.guard()
       this.sliceStarted = syncMetricUptime()
     })

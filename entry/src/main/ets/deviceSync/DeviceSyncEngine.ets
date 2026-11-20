@@ -1564,6 +1564,7 @@ export class DeviceSyncEngine {
     const input = await packSyncPlanInput(groups, () => encode.yieldIfNeeded())
     guard()
     hiTraceMeter.traceByValue('KomaDeviceSyncPlanInputEncodeSliceMs', encode.peak())
+    if (encode.motionYields > 0) hiTraceMeter.traceByValue('KomaDeviceSyncPlanInputMotionYields', encode.motionYields)
     hiTraceMeter.traceByValue('KomaDeviceSyncPlanInputEncodeMs', syncMetricUptime() - encode.started)
     const checked = await taskpool.execute(prepareSyncPlan, input, remote.manifest, choices,
       space, state.replica, state.counter, transport) as CheckedPlan
@@ -1574,6 +1575,7 @@ export class DeviceSyncEngine {
     guard()
     hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeSliceMs', decode.peak())
     hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeYields', decode.yields)
+    if (decode.motionYields > 0) hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeMotionYields', decode.motionYields)
     hiTraceMeter.traceByValue('KomaDeviceSyncPlanDecodeMs', syncMetricUptime() - decode.started)
     if (replans.length > 0) {
       if (!remote.writer || remote.ownWritable === false) throw new Error('sync_remote_result_unknown')

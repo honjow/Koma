@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-20T09:50:37+08:00",
+  "updatedAt": "2026-11-20T09:59:57+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -5448,14 +5448,14 @@
       "id": "CONTINUOUS_PERFORMANCE",
       "number": 1,
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "237 已验证同步长帧压降，连续快甩仍有较短掉帧",
+      "status": "237 定位 WebDAV 计划解包和同步状态编码长帧，惯性期间让出待复验",
       "stage": "已验证同步与超分优化的真机候选",
       "kind": "active",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "正文缓存检查和落盘已移到后台，未变的短图行少做更新，已测新页连续加载。 连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
-      "remaining": "新页快甩受控场景未再出现同步快照造成的 50 ms 长间隔。剩余最大约 31 ms 的间隔中，多个后台结果回调在主线程接连执行。整体条漫性能继续按普通阅读反例核对。",
+      "result": "237《遇强则强》第 87 话低惯性 24 次从第 1 页到第 61 页。最大出帧间隔 64.589 ms，UI 实际运行 55.770 ms，区间对齐 WebDAV 合并计划解包 27 ms、约 996 万字符状态编码 34 ms 的完成标记，CPU 采样定位到同步规划与存储路径。第 89 话实际快甩 16 次从第 1 页到第 39 页，最大 32.378 ms。此区间内 ArkUI List 预建阶段释放一块约 37.4 MB 的图像缓冲，释放本身用时 10.693 ms。另三次约 22 ms 的间隔有 13–20 ms 是 TaskPool 完成回调。首版让出仅绑定手指接触，237 第 92 话复测发现松手后路由未触发让出，未把不同章的较低峰值归为修复收益。已接入既有惯性等待窗口，用更短的时间片并让出一个显示周期，保留重检连接和原子提交。 正文缓存检查和落盘已移到后台，未变的短图行少做更新，已测新页连续加载。 连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
+      "remaining": "用干净同签候选核对惯性中实际出现等待帧的分时标记。快滑的连续出图回调和原生图像缓冲释放仍须独立检查。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -5683,8 +5683,12 @@
         "date": "2026-10-26"
       },
       "previousClosedAt": "2026-11-08T08:35:59+08:00",
-      "updatedAt": "2026-11-20T04:54:08+08:00",
+      "updatedAt": "2026-11-20T09:59:57+08:00",
       "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-residual-slow-20261120T093628540982/wide-audit/profile-window-summary.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-residual-slow-20261120T093628540982/wide-audit/residual-frame-accounting.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-residual-fast-preparation-20261120T094240584893/wide-audit/residual-frame-accounting.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sync-paced-slow-20261120T095027101424/wide-audit/summary.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
         "原结果｜共同Kit a9d7c641已推main；N226c4df0/40220116846、E59a7a679/40220118407、K79ea6dc7/40220162027均同head completed/success。三宿主签名Release及原进度/偏好/数据保持已核，197170/237322正常timeout120000无override并释租。N同起点六组8000反向主线程均值4.229→3.224ms、最大24.686→17.883ms；顺序暖缓存，非cleanAB/显示FPS。N141、E073、K147普通/快回翻未再见首候选133短空。E模式黑屏另由独立加载修复处理；K147固定黑边已核为第7张原图。 本轮用户反馈条漫仍偶发小卡顿，关掉图片处理和超分后改善不明显。Reader Kit 139669e 去掉每次可见位置采样的快照复制，复用同一次测量中的裁边数据。现有相关检查与 Koma Release 构建通过。 197 原包实测《歸還者的魔法要特別》001 01，图像增强关闭、无已安装图片插件。六次滑动追踪内识别 4 段惯性滚动，段内相邻 App 帧最大间隔 22.27ms。原包读取被设备拒绝，未覆盖安装。已回到第19页、恢复原超时与睡眠并释租。 复查 197 追踪，两个较长的惯性滚动帧间隔前均出现第 21 页的预建，仍未证实因果。02:05 原包已找到并核对留档哈希；197 安装时间随后变为 13:38:06，对应包尚未找到可恢复副本。139669e 候选重新构建并留档，本轮只读检查后释租。 197 保留最新开发包，完成同一作品第19页起点、相同手势的两版实测。原包、位置采样优化、再移除图片就绪回调投影复制三次采样的惯性段最长应用帧间隔为22.27、18.45、18.80ms，应用帧处理最长9.28、8.57、9.74ms；最后一轮仍有2帧超过8.33ms。剩余长间隔附近仍有原生相邻页预建，第二处优化未显示进一步改善。六项数据恢复并逐字读回，电源已恢复并释租。 70df155 让加载条进入视口后才启动不定进度动画。197 同作品第19页、同样六次滑动对比上一候选，惯性段应用帧 P99 5.18→4.48ms、最慢9.74→8.12ms，超8.33ms由2/900降至0/1115。全段同参数900ms动画事件25→6，最长相邻应用帧间隔18.80→16.50ms。197保留新开发包，六项数据逐字读回，恢复超时与睡眠并释租。 重析 197 已有 70df155 trace，将 APP_LIST_FLING 截到下一次按下前。最长应用 VSync 接收间隔 16.501 ms，两侧应用帧处理 3.489 和 4.993 ms。对应 VSync 从渲染服务发出到应用收到用 8.318 ms；第 21 页预建在发出前已结束 1.859 ms。该区间有渲染服务帧，不能由此得出实际显示帧率，也不能归因给该次预建。原设备 HDC 离线后已通过同目标重连恢复并释租。 用相同的事件配对方式重析原包和第二版候选。原包最长应用接收间隔 22.268 ms，VSync 发送到接收 14.116 ms；第二版分别为 18.805 和 10.724 ms；第三版分别为 16.501 和 8.318 ms。三个样本最大间隔两侧应用帧均在预算内。不同运行不能作为受控性能对照，确认的是跨样本均存在发送后的接收延迟。 按设备分工只读复核了 197。设备更新时刻与 detail-install 安装回执完全一致，回执指向的 HAP 为非调试 Release。设备自带 HiPerf 帮助也明确 --app 需要可调试应用。基线休眠和超时未改，读取后释租。 本次遗留复核：最近一次197安装回执与正常包元数据表明，该次留机包已为debug；此前非调试Release的采样限制属于旧包记录，不能直接作为当前阻碍。未操作设备，当前实际包身份仍应在下一设备会话门禁实时读回。 从旧197同一长帧原始trace补核内核调度。VSync发送至应用接收8.318ms内主线程被调度8.299ms，两次运行之间仅0.019ms runnable。该样本不支持“线程没分到CPU”，但未标注的运行区间执行内容仍未知。 两段快滑实测：197 最终测试包从《装备我最强》002 第 10 页连续六次 8000 px/s 向下滑至第 23 页，705 次 UI 帧处理有 22 次超过 8.3 ms，最长 13.102 ms，帧内界面节点更新 11.218 ms。13 次图像解码均在后台线程，最慢 15.88 ms。慢滑 600 px/s 的结果单独保留。快滑独立调用栈文件为空，HiTrace 可读；尚未确定触发更新的具体业务回调。 补采从第 23 页继续快滑至第 34 页，693 次 UI 帧处理有 19 次超过 8.3 ms，最长 15.822 ms，其中界面节点更新 13.100 ms。12 次新图解码均在后台线程。补采取得完整独立采样，观察到 ArkUI 状态管理调用；不同采样时钟仅能做近似对齐，不能据此断定某个业务回调触发全部长帧。设备原电源和超时已恢复并释租，保留授权样本实际续读位置。 同签 Release 复验不采独立 CPU 栈，同一话从第 34 页六次 8000 px/s 连续前读至第 43 页。730 次界面帧处理中 13 次超过 8.3 ms，最长 13.977 ms，其中界面节点更新 12.248 ms。九次解码均在后台线程。不同页段与采样配置不能用来算构建性能差值。Release 候选留在 197，原电源和超时已恢复。",
@@ -12089,6 +12093,20 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "continuous-237-sync-inertia-attribution-20261120",
+      "at": "2026-11-20T09:59:57+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "237 归因慢滑同步长帧和快滑像素缓冲释放",
+      "detail": "237《遇强则强》第 87 话低惯性 24 次从第 1 页到第 61 页。最大出帧间隔 64.589 ms，UI 实际运行 55.770 ms，区间对齐 WebDAV 合并计划解包 27 ms、约 996 万字符状态编码 34 ms 的完成标记，CPU 采样定位到同步规划与存储路径。第 89 话实际快甩 16 次从第 1 页到第 39 页，最大 32.378 ms。此区间内 ArkUI List 预建阶段释放一块约 37.4 MB 的图像缓冲，释放本身用时 10.693 ms。另三次约 22 ms 的间隔有 13–20 ms 是 TaskPool 完成回调。首版让出仅绑定手指接触，237 第 92 话复测发现松手后路由未触发让出，未把不同章的较低峰值归为修复收益。已接入既有惯性等待窗口，用更短的时间片并让出一个显示周期，保留重检连接和原子提交。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-residual-slow-20261120T093628540982/wide-audit/profile-window-summary.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-residual-slow-20261120T093628540982/wide-audit/residual-frame-accounting.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-residual-fast-preparation-20261120T094240584893/wide-audit/residual-frame-accounting.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sync-paced-slow-20261120T095027101424/wide-audit/summary.json"
+      ]
+    },
     {
       "id": "reader-image-progress-237-preparation-20261120",
       "at": "2026-11-20T09:50:37+08:00",

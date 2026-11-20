@@ -472,6 +472,7 @@ export class DeviceSyncStorage {
     hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeChars',
       body.parts.reduce((count: number, part: string): number => count + part.length, 0))
     hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeSliceMs', budget.peak())
+    if (budget.motionYields > 0) hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeMotionYields', budget.motionYields)
     hiTraceMeter.traceByValue('KomaDeviceSyncStateEncodeMs', syncMetricUptime() - budget.started)
     const error = await taskpool.execute(stageSyncState, path, body.parts) as string
     if (error.length > 0) throw new Error(error)
