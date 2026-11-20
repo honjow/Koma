@@ -1,6 +1,8 @@
 import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
+import { connectLibraryPrivacyState, LibraryPrivacyState } from '../state/LibraryPrivacyState'
+import { privateLibraryCategoryIds, showLibraryComic } from '../model/LibraryPrivacyVisibility'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { PullRefresh } from '../components/PullRefresh'
@@ -89,6 +91,7 @@ export struct HistoryPage {
   @Param scroller: Scroller = new Scroller()
   @Event onRootScroll: (offset: number, state: ScrollState) => void = (_offset: number, _state: ScrollState) => {}
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
+  @Param libraryRevision: number = 0
   @Param active: boolean = false
   @Param rootNavigation: RootNavigationState = new RootNavigationState()
   @Param readerSessionStore?: ReaderSessionStore = undefined
@@ -98,6 +101,7 @@ export struct HistoryPage {
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   @Local private scrollEnabled: boolean = true
   @Local private historyItems: HistoryItem[] = []
+  @Local private privacy: LibraryPrivacyState = connectLibraryPrivacyState()
   @Local private failedCoverUris: string[] = []
   @Event onOpenDetail: (comicId: ComicId, source?: SourceReadHistoryEntry, remote?: RemoteReadHistoryEntry) => void = () => {}
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
@@ -123,6 +127,21 @@ export struct HistoryPage {
   private onReaderProgressRevisionChanged(): void {
     if (!this.active || !this.rootNavigation.visible) return
     this.reloadHistory('reader_progress')
+  }
+
+  @Monitor('libraryRevision', 'privacy.categoryId', 'privacy.unlocked')
+  private onVisibilityChanged(): void {
+    if (this.active && this.rootNavigation.visible) this.reloadHistory('visibility_changed')
+  }
+
+  @Computed
+  private get privateCategoryIds(): Set<string> {
+    void this.libraryRevision
+    return privateLibraryCategoryIds(this.libraryStore.listCustomCategories())
+  }
+
+  private canShowHistory(comicId: ComicId, visibleCategoryId: string): boolean {
+    return showLibraryComic(this.libraryStore.getComic(comicId), this.privateCategoryIds, visibleCategoryId)
   }
 
   private createReaderSessionStore(): ReaderSessionStore | undefined {
@@ -180,6 +199,7 @@ export struct HistoryPage {
       })
     }
     this.historyItems = libraryItems.concat(sourceItems, remoteItems)
+      .filter((item: HistoryItem): boolean => this.canShowHistory(item.comicId, this.privacy.visibleCategoryId))
       .sort((a: HistoryItem, b: HistoryItem): number => {
         return (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0)
       })
@@ -306,6 +326,7 @@ export struct HistoryPage {
   }
 
   private openHistoryItem(item: HistoryItem): void {
+    if (!this.canShowHistory(item.comicId, this.privacy.visibleCategoryId)) return
     const chapterId = item.progress === undefined ? undefined : item.progress.chapterId
     console.info(`[History] step=open_resume comic=${item.comicId} chapter=${chapterId ?? ''} page=${item.progress?.pageIndex ?? 0}`)
     if (item.remoteHistory !== undefined) {
@@ -323,6 +344,7 @@ export struct HistoryPage {
   }
 
   private removeHistoryItem(item: HistoryItem): void {
+    if (!this.canShowHistory(item.comicId, this.privacy.visibleCategoryId)) return
     const sessionStore = this.createReaderSessionStore()
     if (sessionStore === undefined) {
       return
@@ -365,11 +387,12 @@ export struct HistoryPage {
       .concat(sessionStore.listSourceHistory().map((entry: SourceReadHistoryEntry): ComicId => entry.comicId),
         sessionStore.listRemoteHistory().map((entry: RemoteReadHistoryEntry): ComicId => entry.comicId),
         sessionStore.listReadingSessions().map((entry): ComicId => entry.comicId))
+      .filter((id: ComicId): boolean => this.canShowHistory(id, ''))
     if (!sessionStore.removeHistoryEntries(comicIds, true)) {
       this.showHistorySaveFailed()
       return
     }
-    this.historyItems = []
+    this.reloadHistory('clear_public')
     console.info('[History] step=clear')
   }
 
@@ -382,12 +405,13 @@ export struct HistoryPage {
   }
 
   private confirmClearHistory(): void {
-    if (this.historyItems.length === 0) {
+    const publicCount = this.historyItems.filter((item: HistoryItem): boolean => this.canShowHistory(item.comicId, '')).length
+    if (publicCount === 0) {
       return
     }
     this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('history_clear_title'),
-      message: s('history_clear_message').replace('%s', `${this.historyItems.length}`),
+      message: s('history_clear_message').replace('%s', `${publicCount}`),
       autoCancel: true,
       primaryButton: {
         value: s('common_cancel'),
@@ -448,6 +472,7 @@ export struct HistoryPage {
       }
     })
     this.historyItems.forEach((item: HistoryItem) => {
+      if (!this.canShowHistory(item.comicId, this.privacy.visibleCategoryId)) return
       const key = this.historyGroupKey(item.lastReadAt)
       const section = sections.find((candidate: HistorySection): boolean => candidate.key === key)
       if (section !== undefined) {

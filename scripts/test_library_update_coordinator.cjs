@@ -35,7 +35,7 @@ async function until(predicate) {
 // Only network/provider execution and platform IO are mocked.
 const serviceFile = ts.createSourceFile('LibraryUpdateService.ts', source('model/LibraryUpdateService'),
   ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-const helperNames = ['countLibraryUpdateNewChapters', 'summarizeLibraryUpdateProviders', 'safeLibraryUpdateFailureCode']
+const helperNames = ['countLibraryUpdateNewChapters', 'summarizeLibraryUpdateProviders', 'safeLibraryUpdateFailureCode', 'summarizeResults']
 const helpers = compile(serviceFile.statements.filter((node) => helperNames.includes(node.name?.text))
   .map((node) => node.getText(serviceFile)).join('\n'), {})
 function summary(statuses) {
@@ -94,7 +94,8 @@ async function environment(autoCheckEnabled = true) {
       return storage.get(key)
     } } },
   })
-  const request = { context: { filesDir: '/test/koma-files' }, libraryStore: { listComics: () => [] },
+  const request = { context: { filesDir: '/test/koma-files' }, libraryStore: { listComics: () => [],
+    listCustomCategories: () => controls.categories ?? [], getComic: (id) => controls.comics?.get(id) },
     sourceRegistry: { lookup: () => ({ ok: false }) }, libraryPersistenceService: {}, reason: 'manual' }
   class PreferencesStore extends preferences.LibraryUpdatePreferencesStore {
     async load(strict) {
@@ -140,13 +141,18 @@ async function environment(autoCheckEnabled = true) {
     '@kit.ArkData': arkData, './BackupRestoreActivity': { BackupRestoreActivity: activity },
     './LibraryAutomationPolicy': automationPolicy,
   })
+  const contentStorage = { ensureKomaContentStorageBase: async (context) => context.filesDir,
+    komaRuntimeStorageKey: (context) => context.filesDir }
   const automaticDownload = compile(source('model/LibraryAutomaticDownload'), {
     './LibraryAutomationPreferencesStore': automationStore, './LibraryAutomationPolicy': automationPolicy,
     './LibraryBatchDownloadQueue': { LibraryBatchDownloadQueue: class {} },
     '@kit.CoreFileKit': { fileIo: {} },
     './AppFileTextPersistence': { writeAppTextFile: () => {} },
+    './KomaContentStorage': contentStorage,
   })
   const coordinator = compile(source('model/LibraryUpdateCoordinator'), {
+    './KomaContentStorage': contentStorage,
+    './LibraryPrivacyVisibility': compile(source('model/LibraryPrivacyVisibility'), {}),
     './LibraryChapterUpdates': chapterUpdates,
     './LibraryAutomationPolicy': automationPolicy,
     './LibraryAutomationPreferencesStore': automationStore,
@@ -183,8 +189,9 @@ async function environment(autoCheckEnabled = true) {
     } },
     './LibraryUpdatePreferencesStore': { ...preferences, LibraryUpdatePreferencesStore: PreferencesStore },
     './LibraryUpdateResultStore': { ...results, LibraryUpdateResultStore: ResultStore,
-      publishLibraryUpdateNotification: async () => {
+      publishLibraryUpdateNotification: async (visibleSummary) => {
         calls.notify++
+        controls.notificationSummary = visibleSummary
         if (controls.notifyGate) await controls.notifyGate.promise
         if (controls.notifyError) throw new Error('notification failed')
         return { delivered: false, code: 'disabled' }
@@ -210,6 +217,16 @@ async function environment(autoCheckEnabled = true) {
 }
 
 async function main() {
+  {
+    const env = await environment()
+    env.controls.statuses = ['updated', 'updated']
+    env.controls.categories = [{ id: 'private', isPrivate: true }]
+    env.controls.comics = new Map([['comic-0', { id: 'comic-0', categoryIds: ['private'] }]])
+    const result = await env.run()
+    assert.equal(result.summary.updatedCount, 2, 'private books still receive updates')
+    assert.equal(env.controls.notificationSummary.updatedCount, 1)
+    assert.deepEqual(env.controls.notificationSummary.results.map((item) => item.comicId), ['comic-1'])
+  }
   {
     const firstReason = 'manual'
     const env = await environment()

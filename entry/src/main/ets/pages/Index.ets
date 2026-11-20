@@ -172,6 +172,9 @@ import {
 } from '../model/LocalLibraryFolderAccessService'
 import { LocalLibraryFolderRescanActionResult } from '../model/LocalLibraryRefreshService'
 import { LibraryStore } from '../model/LibraryStore'
+import { privateLibraryCategoryIds, showLibraryComic } from '../model/LibraryPrivacyVisibility'
+import { connectLibraryPrivacyState, LibraryPrivacyAuthResult, LibraryPrivacyState, libraryPrivacyAuthMessage } from '../state/LibraryPrivacyState'
+import { KomaIconButton } from '../components/ui/KomaIconButton'
 import {
   AppFilesLibraryStorePersistenceAdapter,
   LibraryStorePersistenceService,
@@ -374,6 +377,8 @@ struct Index {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private appForegroundState: AppForegroundState = connectAppForegroundState()
+  @Local private libraryPrivacy: LibraryPrivacyState = connectLibraryPrivacyState()
+  private handledForegroundReauthRevision: number = 0
   @Local private incognito: IncognitoState = connectIncognitoState()
   @Local private libraryUpdateState: LibraryUpdateState = connectLibraryUpdateState()
   @Local private libraryUpdatesUnseen: boolean = false
@@ -775,7 +780,17 @@ struct Index {
 
   @Computed
   private get continueReadingCard(): ContinueReadingCardViewModel {
-    // Both resume entries use the complete shelf, independent of the visible category or filters.
+    return this.latestVisibleContinueReadingCard('')
+  }
+
+  @Computed
+  private get scopedContinueReadingCard(): ContinueReadingCardViewModel | undefined {
+    const scope = this.libraryPrivacy.visibleCategoryId
+    return scope.length > 0 ? this.latestVisibleContinueReadingCard(scope) : undefined
+  }
+
+  private latestVisibleContinueReadingCard(scope: string): ContinueReadingCardViewModel {
+    // A private work can contribute only while its current category is unlocked.
     void this.libraryRevision
     void this.readerProgressRevision
     void this.languageState.effectiveLocale
@@ -783,7 +798,8 @@ struct Index {
     let latest: number | undefined
     this.shelfReadingProgress.forEach((progress: ReadingProgress, id: ComicId): void => {
       const comic = this.libraryStore.getComic(id)
-      if (comic === undefined || (latest !== undefined && progress.updatedAt < latest)) return
+      if (comic === undefined || !showLibraryComic(comic, this.privateCategoryIds, scope) ||
+        (latest !== undefined && progress.updatedAt < latest)) return
       if (latest === undefined || progress.updatedAt > latest) {
         candidates.length = 0
         latest = progress.updatedAt
@@ -794,6 +810,22 @@ struct Index {
     candidates.sort((left: Comic, right: Comic): number =>
       left.sortTitle.localeCompare(right.sortTitle) || left.createdAt - right.createdAt)
     return createLibraryContinueReadingCard(candidates, this.readerSessionStore, this.presentationByComicId)
+  }
+
+  @Computed
+  private get privateCategoryIds(): Set<string> {
+    void this.libraryRevision
+    return privateLibraryCategoryIds(this.libraryStore.listCustomCategories())
+  }
+
+  @Monitor('libraryRevision')
+  private reconcileLibraryPrivacy(): void {
+    const scope = this.libraryPrivacy.categoryId
+    if (scope.length > 0 && !this.privateCategoryIds.has(scope)) this.libraryPrivacy.leaveCategory()
+  }
+
+  private canOpenLibraryComic(comicId: ComicId): boolean {
+    return showLibraryComic(this.libraryStore.getComic(comicId), this.privateCategoryIds, this.libraryPrivacy.visibleCategoryId)
   }
 
   private readerChapterIdForComic(comic: Comic): string | undefined {
@@ -815,9 +847,17 @@ struct Index {
     void this.openReader(comicId, chapterId)
   }
 
+  private resumeMiniBarCard(): ContinueReadingCardViewModel {
+    const scoped = this.scopedContinueReadingCard
+    if (this.libraryPrivacy.visibleCategoryId.length > 0 && scoped !== undefined &&
+      this.canOpenLibraryComic(scoped.comicId)) return scoped
+    return this.continueReadingCard
+  }
+
   private canShowResumeMiniBar(): boolean {
     // This device's bottom MiniBar preference is independent of the shelf card.
-    return this.appearanceState.showResumeMiniBar && this.continueReadingCard.comicId.length > 0 &&
+    const comicId = this.resumeMiniBarCard().comicId
+    return this.appearanceState.showResumeMiniBar && comicId.length > 0 && this.canOpenLibraryComic(comicId) &&
       (this.selectedTab !== TabIndex.LIBRARY || !this.libraryTitleBar.selectionMode)
   }
 
@@ -839,11 +879,11 @@ struct Index {
   @Builder
   private ResumeMiniBarContent() {
     LibraryResumeMiniBar({
-      info: this.continueReadingCard,
+      info: this.resumeMiniBarCard(),
       expanded: this.resumeMiniBarExpanded,
       onContinueReading: (comicId: ComicId): void => {
         if (this.resumeMiniBarExpanded && this.canShowResumeMiniBar() &&
-          comicId === this.continueReadingCard.comicId) {
+          comicId === this.resumeMiniBarCard().comicId) {
           this.tabController.applyMiniBarStyle(HdsBarStyle.COLLAPSE)
           this.openLibraryContinueReading(comicId)
         }
@@ -1641,6 +1681,7 @@ struct Index {
     intent: ReaderChapterOpenIntent = 'resume',
     comicSnapshot?: Comic,
   ): Promise<void> {
+    if (!this.canOpenLibraryComic(comicId)) return
     if (comicId.startsWith('mihon:')) {
       if (!await this.openMihonImportedWork(comicId)) this.showToast(AppStrings.get('mihon_import_resume_failed'))
       return
@@ -1659,6 +1700,7 @@ struct Index {
           title: comic.title, chapterId: syncChapter, chapterIds: [syncChapter],
           chapterTitles: [comic.chapters.find((item: Chapter): boolean => item.id === syncChapter)?.title ?? ''] }
         const conflict = await appDeviceSync.waitForReadingSync(syncRequest)
+        if (!this.canOpenLibraryComic(comicId)) return
         if (conflict !== undefined) {
           this.showReadingResumeConflict(conflict, syncRequest)
           return
@@ -1756,6 +1798,7 @@ struct Index {
     request: SourceReaderSessionRequest,
     intent: ReaderChapterOpenIntent = 'resume',
   ): Promise<void> {
+    if (!this.canOpenLibraryComic(request.comicId)) return
     const nextRequest = cloneSourceReaderSessionRequest(request)
     if (nextRequest.sourceId.trim().length === 0 ||
       nextRequest.mangaId.trim().length === 0 ||
@@ -1814,6 +1857,7 @@ struct Index {
   }
 
   private async resumeSourceFromHistory(request: SourceReaderSessionRequest): Promise<void> {
+    if (!this.canOpenLibraryComic(request.comicId)) return
     if (request.sourceId.startsWith('mihon:')) {
       await this.resumeMihonFromHistory(request.comicId)
       return
@@ -1825,7 +1869,8 @@ struct Index {
     }
     const generation = ++this.sourceReaderOpenRequest
     const isCurrent = (): boolean => generation === this.sourceReaderOpenRequest &&
-      this.selectedTab === TabIndex.HISTORY && this.rootNavigation.visible && this.appForegroundState.active
+      this.selectedTab === TabIndex.HISTORY && this.rootNavigation.visible && this.appForegroundState.active &&
+      this.canOpenLibraryComic(request.comicId)
     const timer = this.startHistoryResumeLoading(isCurrent)
     let conflict: SyncReadingWorkConflict | undefined
     try {
@@ -1945,6 +1990,7 @@ struct Index {
   }
 
   private openHistoryDetail(comicId: ComicId, source?: SourceReadHistoryEntry, remote?: RemoteReadHistoryEntry): void {
+    if (!this.canOpenLibraryComic(comicId)) return
     this.cancelHistoryResume()
     if (comicId.startsWith('mihon:')) {
       void this.openMihonImportedWork(comicId, false, true)
@@ -1966,6 +2012,7 @@ struct Index {
   }
 
   private openRemoteHistory(entry: RemoteReadHistoryEntry, resume: boolean = true): void {
+    if (!this.canOpenLibraryComic(entry.comicId)) return
     const history = copyRemoteReadHistoryEntry(entry)
     if (history === undefined || (resume && this.readerSessionStore.getProgress(history.comicId)?.chapterId !== history.chapterId)) return
     const resumeChapterId = resume ? history.chapterId : undefined
@@ -2433,6 +2480,7 @@ struct Index {
   }
 
   private openLibraryMangaDetail(comicId: ComicId, newInstance: boolean = false): void {
+    if (!this.canOpenLibraryComic(comicId)) return
     // Existing search rows can still refer to the imported ID after a
     // successful link has replaced the corresponding shelf entry.
     if (comicId.startsWith('mihon:')) {
@@ -3549,6 +3597,7 @@ struct Index {
         initialSourceFilter: param.sourceFilter,
         onOpenLibraryResult: (comicId: string) => { this.openLibraryMangaDetail(comicId) },
         libraryStore: this.libraryStore,
+        libraryRevision: this.libraryRevision,
         libraryPersistenceService: this.ensureLibraryPersistenceService(),
         onLibraryChanged: () => {
           this.refreshLibrarySnapshot()
@@ -3585,7 +3634,8 @@ struct Index {
       SearchPage({ chrome: param.chrome, migrationSources: param.sourceIds,
         onMigrationShelfResults: param.onShelfResults,
         automaticallyOpenWebChallenge: !param.fromMihon,
-        libraryStore: this.libraryStore, libraryPersistenceService: this.ensureLibraryPersistenceService(),
+        libraryStore: this.libraryStore, libraryRevision: this.libraryRevision,
+        libraryPersistenceService: this.ensureLibraryPersistenceService(),
         onMangaSelected: (manga: SourceManga): void => {
           if (this.closeMigrationSearch(param)) param.onMangaSelected(manga)
         },
@@ -4394,6 +4444,82 @@ struct Index {
     return true
   }
 
+  private showPrivateRouteLock(): boolean {
+    const scope = this.libraryPrivacy.categoryId
+    if (scope.length === 0 || this.libraryPrivacy.visibleCategoryId === scope || this.rootNavigation.visible) return false
+    const paths = this.appPathStack.getAllPathName()
+    const destination = paths[paths.length - 1]
+    if (destination === RouteName.READER) return !this.canOpenLibraryComic(this.readerSessionConfig.comicId)
+    if (destination !== RouteName.MANGA_DETAIL) return false
+    const detail = this.appPathStack.getParamByIndex(paths.length - 1) as MangaDetailRouteParam | undefined
+    if (detail === undefined) return false
+    const sourceId = detail.sourceId?.trim() ?? ''
+    const comic = sourceId.length > 0 ? this.libraryStore.findBySourceManga(sourceId, detail.mangaId) :
+      this.libraryStore.getComic(detail.mangaId)
+    return !showLibraryComic(comic, this.privateCategoryIds)
+  }
+
+  @Monitor('libraryPrivacy.foregroundReauthRevision', 'libraryPrivacy.presenting')
+  private offerAutomaticShelfReauth(): void {
+    const revision = this.libraryPrivacy.foregroundReauthRevision
+    if (!this.libraryPrivacy.presenting || this.handledForegroundReauthRevision === revision) return
+    // Consume the foreground request once, even if the user came back to a
+    // different tab or dismisses the system authentication.
+    this.handledForegroundReauthRevision = revision
+    if (this.libraryPrivacy.categoryId.length > 0 && this.isShelfForeground()) {
+      void this.unlockPrivateCategory((): boolean => this.isShelfForeground())
+    }
+  }
+
+  private isShelfForeground(): boolean {
+    return this.rootNavigation.visible && this.selectedTab === TabIndex.LIBRARY
+  }
+
+  private async unlockPrivateCategory(isCurrent: () => boolean): Promise<void> {
+    const category = this.libraryPrivacy.categoryId
+    const result = await this.libraryPrivacy.openCategory(this.getUIContext().getHostContext() as common.UIAbilityContext,
+      category, (): boolean => isCurrent() && this.libraryPrivacy.categoryId === category &&
+        this.privateCategoryIds.has(category))
+    const message = libraryPrivacyAuthMessage(result)
+    if (result !== LibraryPrivacyAuthResult.SUCCESS && message.length > 0) this.showToast(message)
+  }
+
+  @Builder
+  private PrivateRouteLock() {
+    Column() {
+      Row() {
+        KomaIconButton({
+          icon: $r('sys.symbol.chevron_left'),
+          accessibilityLabel: AppStrings.get('common_back'),
+          action: (): void => {
+            if (this.isReaderRouteVisible()) this.closeReader()
+            else this.appPathStack.pop(false)
+          },
+        })
+      }
+      .width('100%')
+      .padding({ left: ThemeConstants.SPACE_MD, top: this.layoutSafeArea.topAvoidHeight })
+      .justifyContent(FlexAlign.Start)
+      Column() {
+        KomaIconButton({
+          icon: $r('sys.symbol.lock'),
+          accessibilityLabel: AppStrings.get('library_privacy_unlock'),
+          kind: 'secondary',
+          controlSize: ThemeConstants.BUTTON_HEIGHT,
+          isEnabled: this.libraryPrivacy.presenting && !this.libraryPrivacy.authenticating,
+          action: (): void => { void this.unlockPrivateCategory((): boolean => this.showPrivateRouteLock()) },
+        })
+      }
+      .width('100%')
+      .layoutWeight(1)
+      .justifyContent(FlexAlign.Center)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(ThemeConstants.BG_SUB)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+  }
+
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
       // Application-scoped bridged WebView: history and shelf reader entries
@@ -4415,6 +4541,7 @@ struct Index {
                 readerProgressRevision: this.readerProgressRevision,
                 shelfReadingProgress: this.shelfReadingProgress,
                 continueReadingCard: this.continueReadingCard,
+                scopedContinueReadingCard: this.scopedContinueReadingCard,
                 presentationByComicId: this.presentationByComicId,
                 sourceRegistry: this.sourceRegistry,
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
@@ -4503,6 +4630,7 @@ struct Index {
                 scroller: this.rootTabScrollers[TabIndex.HISTORY],
                 onRootScroll: (offset: number, state: ScrollState): void => { this.onRootTabScroll(TabIndex.HISTORY, offset, state) },
                 libraryStore: this.libraryStore,
+                libraryRevision: this.libraryRevision,
                 active: this.selectedTab === TabIndex.HISTORY,
                 rootNavigation: this.rootNavigation,
                 readerSessionStore: this.readerSessionStore,
@@ -4621,6 +4749,7 @@ struct Index {
           operation: NavigationOperation): NavigationAnimatedTransition | undefined =>
           this.readerOrdinaryNavTransition(from, to, operation))
         .mode(NavigationMode.Stack)
+        .accessibilityLevel(this.showPrivateRouteLock() ? 'no-hide-descendants' : 'auto')
         .onNavBarStateChange((visible: boolean) => {
           this.rootNavigation.visible = visible
           if (visible) {
@@ -4652,6 +4781,7 @@ struct Index {
       if (!this.readerOpen && !this.readerRouteVisible) {
         IncognitoStatusBarOverlay()
       }
+      if (this.showPrivateRouteLock()) this.PrivateRouteLock()
     }
     .width('100%')
     .height('100%')

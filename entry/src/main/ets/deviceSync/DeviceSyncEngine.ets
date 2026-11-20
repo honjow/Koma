@@ -1479,6 +1479,10 @@ export class DeviceSyncEngine {
         }
         const theirs = syncGroupVisibleValue(entry.id, fact)
         if (theirs === value || sameShelfBook(entry.id, key, value, theirs)) return
+        if (entry.requiresPreview && key.startsWith('["category-privacy",') && theirs !== undefined) {
+          effects.push({ key, value: value === 'true' ? 'upload' : 'download' })
+          return
+        }
         const moving = shelfMoveValue(entry.id, key, theirs)
         const retainedDeletion = theirs === undefined && entry.local.retainedDeletionKeys?.includes(key) === true
         const unchangedRetainedValue = retainedDeletion && (entry.previous?.baseline.some((item: SyncLocalValue): boolean =>

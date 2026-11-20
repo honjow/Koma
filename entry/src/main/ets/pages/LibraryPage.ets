@@ -5,7 +5,9 @@ import { LibrarySortMenuItems, librarySortLabel, librarySortSummary } from '../c
 import { cachedLibraryChapterUpdateTimes } from '../model/LibraryChapterUpdates'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
-import { FrameCallback } from '@kit.ArkUI'
+import { privateLibraryCategoryIds, showLibraryComic } from '../model/LibraryPrivacyVisibility'
+import { connectLibraryPrivacyState, LibraryPrivacyAuthResult, LibraryPrivacyState, libraryPrivacyAuthMessage } from '../state/LibraryPrivacyState'
+import { FrameCallback, SymbolGlyphModifier } from '@kit.ArkUI'
 import { KomaMenuController, KomaMenuAction as LibraryTitleMenuItem, komaTitleMoreIcon } from '../components/ui/KomaMenuController'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { PullRefresh } from '../components/PullRefresh'
@@ -284,6 +286,7 @@ struct ContinueReadingShelfCard {
         if (this.shouldShowCover()) {
           CachedCoverImage({
             uri: this.info.coverUri ?? '',
+            coverOwnerId: this.info.comicId,
             objectFit: ImageFit.Cover,
             sourceRuntimeId: this.info.sourceRuntimeId ?? '',
             sourceImageId: this.info.sourceImageId ?? this.info.comicId,
@@ -354,6 +357,7 @@ export struct LibraryPage {
   @Param readerProgressRevision: number = 0
   @Param shelfReadingProgress: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
   @Param continueReadingCard: ContinueReadingCardViewModel = { title: '', detail: '', progress: 0, color: '', comicId: '' }
+  @Param scopedContinueReadingCard: ContinueReadingCardViewModel | undefined = undefined
   @Param active: boolean = true
   @Param rootNavigation: RootNavigationState = new RootNavigationState()
   @Local private languageState: LanguageState = connectLanguageState()
@@ -361,6 +365,8 @@ export struct LibraryPage {
   @Local private displayedRevision: number = 0
   private gridRows: LibraryGridRows = new LibraryGridRows()
   private pendingGridCategory: Comic[] | undefined = undefined
+  @Local private privacy: LibraryPrivacyState = connectLibraryPrivacyState()
+  private categoryRequest: number = 0
   private gridUpdateGeneration: number = 0
   private shelfCategoryProjection?: LibraryCategoryProjection
   private displayedLibraryStore?: LibraryStore
@@ -549,12 +555,36 @@ export struct LibraryPage {
     this.beginFilterPreferencesRestore()
   }
 
+  @Computed
+  private get privateCategoryIds(): Set<string> {
+    void this.libraryRevision
+    return privateLibraryCategoryIds(this.libraryStore.listCustomCategories())
+  }
+
+  @Monitor('privacy.unlocked', 'privacy.categoryId')
+  private refreshPrivacyProjection(): void {
+    if (!this.privacy.unlocked && this.privateCategoryIds.has(this.filterCategory)) {
+      this.categoryEditorShown = false
+      this.exitSelectionMode()
+    }
+    this.refreshDisplayedSnapshotFromStore()
+  }
+
+  @Monitor('privacy.presenting')
+  private refreshResumedPrivacyProjection(): void {
+    if (this.privacy.visibleCategoryId === this.filterCategory) this.refreshDisplayedSnapshotFromStore()
+  }
+
   private refreshDisplayedSnapshotFromStore(): void {
     const category = this.validCategoryFilter()
     const strategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory)
     this.applyCategorySort(strategy)
     const nextComics = this.orderedCategoryComics(category)
-    const categoryComics = this.filterSmartCategoryComics(nextComics)
+    const privateIds = this.privateCategoryIds
+    const visibleScope = this.privacy.visibleCategoryId === category ? category : ''
+    const visibleComics = privateIds.size === 0 ? nextComics :
+      nextComics.filter((comic: Comic): boolean => showLibraryComic(comic, privateIds, visibleScope))
+    const categoryComics = this.filterSmartCategoryComics(visibleComics)
     this.hasCategoryContents = categoryComics.length > 0
     const sourceKinds = this.sourceKindsForFilter()
     const scopedComics = sourceKinds === undefined && this.filterReadState === 'all' ? categoryComics :
@@ -774,6 +804,10 @@ export struct LibraryPage {
   private validCategoryFilter(): LibraryCategoryFilter {
     if (this.selectedSmartCategory() !== undefined) return 'all'
     if (this.filterCategory === 'all') return 'all'
+    if (this.privateCategoryIds.has(this.filterCategory) && this.privacy.categoryId !== this.filterCategory) {
+      this.filterCategory = 'all'
+      return 'all'
+    }
     const categoryExists = this.libraryStore.listCustomCategories().some((category: CustomLibraryCategory): boolean => {
       return category.id === this.filterCategory
     })
@@ -947,7 +981,21 @@ export struct LibraryPage {
     console.info(`[Library] step=filter_changed source=${this.filterSource} readState=${readState}`)
   }
 
-  private setCategoryFilter(category: LibraryCategoryFilter): void {
+  private async setCategoryFilter(category: LibraryCategoryFilter): Promise<void> {
+    const request = ++this.categoryRequest
+    const isPrivate = this.privateCategoryIds.has(category)
+    if (isPrivate) {
+      const result = await this.privacy.openCategory(this.getUIContext().getHostContext() as common.UIAbilityContext, category,
+        (): boolean => request === this.categoryRequest && this.active && this.rootNavigation.visible &&
+          this.privateCategoryIds.has(category))
+      if (request !== this.categoryRequest || result !== LibraryPrivacyAuthResult.SUCCESS) {
+        const message = libraryPrivacyAuthMessage(result)
+        if (request === this.categoryRequest && message.length > 0) this.showToast(message)
+        return
+      }
+    } else {
+      this.privacy.leaveCategory()
+    }
     if (this.filterCategory === category) {
       return
     }
@@ -958,7 +1006,7 @@ export struct LibraryPage {
     if (this.viewMode !== 'list' && this.displayedComics.length > this.libraryGridColumnCount()) {
       this.pendingGridCategory = this.displayedComics
     }
-    this.saveFilterPreferences({ category })
+    if (!isPrivate) this.saveFilterPreferences({ category })
     console.info(`[Library] step=filter_changed category=${category}`)
   }
 
@@ -1422,7 +1470,9 @@ export struct LibraryPage {
   }
 
   private canSelectComic(comicId: ComicId): boolean {
-    return this.displayedRevision >= 0 && this.libraryStore.getComic(comicId) !== undefined
+    const comic = this.libraryStore.getComic(comicId)
+    return this.displayedRevision >= 0 && comic !== undefined &&
+      showLibraryComic(comic, this.privateCategoryIds, this.privacy.visibleCategoryId)
   }
 
   private removeMissingSelectedComics(): void {
@@ -1540,11 +1590,21 @@ export struct LibraryPage {
       isRemovableShelfComic(this.libraryStore.getComic(comicId)))
   }
 
-  private removeSelectedComics(): void {
+  private async verifyShelfRemoval(ids: ComicId[]): Promise<boolean> {
+    if (ids.every((id: ComicId): boolean => showLibraryComic(this.libraryStore.getComic(id), this.privateCategoryIds))) return true
+    const result = await this.privacy.verify(this.getUIContext().getHostContext() as common.UIAbilityContext)
+    const message = libraryPrivacyAuthMessage(result)
+    if (message.length > 0) this.showToast(message)
+    return result === LibraryPrivacyAuthResult.SUCCESS && this.active && this.rootNavigation.visible &&
+      ids.every((id: ComicId): boolean => this.canSelectComic(id))
+  }
+
+  private async removeSelectedComics(): Promise<void> {
     const comicIds = this.selectedRemovableIds()
     if (comicIds.length === 0) {
       return
     }
+    if (!await this.verifyShelfRemoval(comicIds)) return
     console.info(`[Library] step=batch_remove count=${comicIds.length}`)
     const removedCount = this.onRemoveComicsRequested(comicIds)
     this.exitSelectionMode()
@@ -1566,7 +1626,14 @@ export struct LibraryPage {
     this.categoryEditorShown = true
   }
 
-  private saveCategoryEditor(added: string[], removed: string[]): void {
+  private async saveCategoryEditor(added: string[], removed: string[]): Promise<void> {
+    const selected = this.categoryEditComicIds
+    if (removed.some((id: string): boolean => this.privateCategoryIds.has(id))) {
+      const result = await this.privacy.verify(this.getUIContext().getHostContext() as common.UIAbilityContext)
+      const message = libraryPrivacyAuthMessage(result)
+      if (message.length > 0) this.showToast(message)
+      if (result !== LibraryPrivacyAuthResult.SUCCESS || !this.categoryEditorShown || selected !== this.categoryEditComicIds) return
+    }
     try {
       this.onEditCategoriesRequested(this.categoryEditComicIds, added, removed)
       this.categoryEditorShown = false
@@ -1582,7 +1649,7 @@ export struct LibraryPage {
       title: s('library_action_categories'),
       confirmLabel: s('common_save'),
       choices: this.categoryChoices,
-      onConfirm: (added: string[], removed: string[]): void => { this.saveCategoryEditor(added, removed) },
+      onConfirm: (added: string[], removed: string[]): void => { void this.saveCategoryEditor(added, removed) },
       onClose: (): void => { this.categoryEditorShown = false },
       onManageCategories: (): void => {
         this.categoryEditorShown = false
@@ -1654,7 +1721,7 @@ export struct LibraryPage {
         value: s('common_remove'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
-          this.removeSelectedComics()
+          void this.removeSelectedComics()
         },
       },
     })
@@ -1743,9 +1810,9 @@ export struct LibraryPage {
         value: s('common_remove'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
-          if (this.onRemoveComicRequested(comic.id)) {
-            this.refreshDisplayedSnapshotFromStore()
-          }
+          void this.verifyShelfRemoval([comic.id]).then((confirmed: boolean): void => {
+            if (confirmed && this.onRemoveComicRequested(comic.id)) this.refreshDisplayedSnapshotFromStore()
+          })
         },
       },
     })
@@ -1915,8 +1982,9 @@ export struct LibraryPage {
       MenuItemGroup() {
         this.CategoryMenuItem('all', s('common_all'))
         ForEach(this.libraryStore.listCustomCategories(), (category: CustomLibraryCategory) => {
-          this.CategoryMenuItem(category.id, category.name)
-        }, (category: CustomLibraryCategory) => category.id)
+          this.CategoryMenuItem(category.id, category.name, category.isPrivate === true)
+        }, (category: CustomLibraryCategory) => category.id + ':' + category.name + ':' +
+          (category.isPrivate === true ? 'private' : 'public'))
       }
       if (this.libraryStore.listSmartCategories().length > 0) {
         MenuItemGroup() {
@@ -1933,11 +2001,12 @@ export struct LibraryPage {
   }
 
   @Builder
-  private CategoryMenuItem(categoryId: string, title: string) {
-    MenuItem({ content: title })
+  private CategoryMenuItem(categoryId: string, title: string, isPrivate: boolean = false) {
+    MenuItem({ content: title,
+      symbolStartIcon: isPrivate ? new SymbolGlyphModifier($r('sys.symbol.lock')) : undefined })
       .selected(this.filterCategory === categoryId)
       .selectIcon(true)
-      .onClick(() => { this.setCategoryFilter(categoryId) })
+      .onClick(() => { void this.setCategoryFilter(categoryId) })
   }
 
   private titleMenuItems(key: string): LibraryTitleMenuItem[] {
@@ -1975,6 +2044,11 @@ export struct LibraryPage {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .constraintSize({ maxWidth: 'calc(100% - 20vp)' })
+      if (this.privateCategoryIds.has(this.filterCategory)) {
+        SymbolGlyph($r('sys.symbol.lock'))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor([ThemeConstants.TEXT_TERTIARY])
+      }
       SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .fontColor([ThemeConstants.TEXT_TERTIARY])
@@ -2233,11 +2307,48 @@ export struct LibraryPage {
   private LibraryContinueReadingCard(compactList: boolean = false) {
     ContinueReadingShelfCard({
       compactList: compactList,
-      info: this.continueReadingCard,
+      info: this.visibleContinueReadingCard(),
       onOpenReader: (comicId: ComicId) => {
         if (!this.selectionMode) this.onContinueReading(comicId)
       },
     })
+  }
+
+  private visibleContinueReadingCard(): ContinueReadingCardViewModel {
+    const scope = this.privacy.visibleCategoryId
+    const scoped = this.scopedContinueReadingCard
+    if (scope.length > 0 && scope === this.filterCategory && scoped !== undefined &&
+      showLibraryComic(this.libraryStore.getComic(scoped.comicId), this.privateCategoryIds, scope)) return scoped
+    return this.continueReadingCard
+  }
+
+  private canShowContinueReading(): boolean {
+    if (!this.showContinueReadingCard) return false
+    const comic = this.libraryStore.getComic(this.visibleContinueReadingCard().comicId)
+    const scope = this.privacy.visibleCategoryId
+    return comic !== undefined && showLibraryComic(comic, this.privateCategoryIds, scope === this.filterCategory ? scope : '')
+  }
+
+  private lockedCategoryWorks(): boolean {
+    return this.privateCategoryIds.has(this.filterCategory) && this.privacy.visibleCategoryId !== this.filterCategory
+  }
+
+  @Builder
+  private LibraryUnlockWorks() {
+    Row() {
+      KomaIconButton({
+        icon: $r('sys.symbol.lock'),
+        accessibilityLabel: s('library_privacy_unlock'),
+        kind: 'secondary',
+        controlSize: 48,
+        iconSize: 32,
+        isEnabled: this.privacy.presenting && !this.privacy.authenticating,
+        action: (): void => { void this.setCategoryFilter(this.filterCategory) },
+      })
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding({ top: 80, bottom: ThemeConstants.SPACE_XXL })
   }
 
   @Builder
@@ -2246,7 +2357,7 @@ export struct LibraryPage {
       Blank()
         .height(this.layoutSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT)
         .width('100%')
-      if (this.showContinueReadingCard && this.continueReadingCard.comicId.length > 0) {
+      if (this.canShowContinueReading()) {
         this.LibraryContinueReadingCard()
       }
       this.LibraryViewControls()
@@ -2257,11 +2368,15 @@ export struct LibraryPage {
 
   @Builder
   private LibraryGridFooter() {
-    Blank()
-      .height(this.layoutSafeArea.bottomAvoidHeight + ThemeConstants.SPACE_XL +
-        ThemeConstants.SPACE_LG - this.libraryGridRowGap() +
-        ThemeConstants.FLOATING_TAB_BAR_CLEARANCE + Math.max(0, this.layoutSafeArea.keyboardHeight))
-      .width('100%')
+    Column() {
+      if (this.lockedCategoryWorks()) this.LibraryUnlockWorks()
+      Blank()
+        .height(this.layoutSafeArea.bottomAvoidHeight + ThemeConstants.SPACE_XL +
+          ThemeConstants.SPACE_LG - this.libraryGridRowGap() +
+          ThemeConstants.FLOATING_TAB_BAR_CLEARANCE + Math.max(0, this.layoutSafeArea.keyboardHeight))
+        .width('100%')
+    }
+    .width('100%')
   }
 
   @Builder
@@ -2270,16 +2385,18 @@ export struct LibraryPage {
     // Category switches update only the keyed virtual rows inside that group.
     List({ space: 0, scroller: this.libraryScroller }) {
       ListItemGroup({ header: this.LibraryGridHeader(), footer: this.LibraryGridFooter() }) {
-        LazyForEach(this.gridRows, (index: number) => {
-          ListItem() {
-            if (this.gridRows.comicAt(index) !== undefined) {
-              this.LibraryGridCell(index, this.retainGridComic(index, this.gridRows.comicAt(index) as Comic))
+        if (!this.lockedCategoryWorks()) {
+          LazyForEach(this.gridRows, (index: number) => {
+            ListItem() {
+              if (this.gridRows.comicAt(index) !== undefined && this.canSelectComic(this.gridRows.comicAt(index)!.id)) {
+                this.LibraryGridCell(index, this.retainGridComic(index, this.gridRows.comicAt(index) as Comic))
+              }
             }
-          }
-          .visibility(this.gridRows.isPublished(index) ? Visibility.Visible : Visibility.Hidden)
-          .padding({ bottom: this.libraryGridRowGap() })
-          .clip(false)
-        }, (index: number): string => `${index}`)
+            .visibility(this.gridRows.isPublished(index) ? Visibility.Visible : Visibility.Hidden)
+            .padding({ bottom: this.libraryGridRowGap() })
+            .clip(false)
+          }, (index: number): string => `${index}`)
+        }
       }
       .clip(false)
     }
@@ -2394,7 +2511,7 @@ export struct LibraryPage {
         .each((row: RepeatItem<ComicCoverInfo>) => {
           ListItem() {
             // A virtual row must keep the live item when ArkUI reuses its node.
-            this.LibraryListRow(row)
+            if (this.canSelectComic(row.item.id)) this.LibraryListRow(row)
           }
         })
         .key((comic: ComicCoverInfo): string => `list:${comic.id}`)
@@ -2465,11 +2582,14 @@ export struct LibraryPage {
   }
 
   private applyFilterPreferences(preferencesValue: LibraryFilterPreferences): boolean {
+    // A restored preference never grants access to a private category.
+    const category = this.privacy.categoryId.length > 0 ? this.privacy.categoryId :
+      this.privateCategoryIds.has(preferencesValue.category) ? 'all' : preferencesValue.category
     const projectionChanged = this.defaultSort.sortBy !== preferencesValue.sortBy ||
       this.defaultSort.sortDirection !== preferencesValue.sortDirection ||
       this.defaultSort.sortConfigured !== preferencesValue.sortConfigured ||
       this.filterSource !== preferencesValue.source || this.filterReadState !== preferencesValue.readState ||
-      this.filterCategory !== preferencesValue.category || this.filterAvailability !== preferencesValue.availability ||
+      this.filterCategory !== category || this.filterAvailability !== preferencesValue.availability ||
       this.filterMetadataStatus !== preferencesValue.metadataStatus
     this.defaultSort = preferencesValue
     this.viewMode = preferencesValue.viewMode
@@ -2478,7 +2598,7 @@ export struct LibraryPage {
     this.showContinueReadingCard = preferencesValue.showContinueReadingCard
     this.filterSource = preferencesValue.source
     this.filterReadState = preferencesValue.readState
-    this.filterCategory = preferencesValue.category
+    this.filterCategory = category
     this.filterAvailability = preferencesValue.availability
     this.filterMetadataStatus = preferencesValue.metadataStatus
     console.info(
@@ -2561,12 +2681,12 @@ export struct LibraryPage {
         bottomPadding: ThemeConstants.SPACE_XL,
         floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
       }) {
-        if (this.isProjectionPending()) {
+        if (!this.lockedCategoryWorks() && this.isProjectionPending()) {
           ListItem() {
             this.LibraryProjectionLoading()
           }
         } else if (this.hasLibraryContent) {
-          if (this.showContinueReadingCard && this.continueReadingCard.comicId.length > 0) {
+          if (this.canShowContinueReading()) {
             ListItem() {
               this.LibraryContinueReadingCard(this.viewMode === 'list')
             }
@@ -2576,7 +2696,11 @@ export struct LibraryPage {
             this.LibraryViewControls()
           }
 
-          if (this.hasVisibleLibraryContent) {
+          if (this.lockedCategoryWorks()) {
+            ListItem() {
+              this.LibraryUnlockWorks()
+            }
+          } else if (this.hasVisibleLibraryContent) {
             this.LibraryList()
           } else if (!this.hasCategoryContents && this.filterCategory !== 'all') {
             ListItem() {
@@ -2592,7 +2716,9 @@ export struct LibraryPage {
             this.CategorySelector()
           }
           ListItem() {
-            if (this.filterCategory === 'all') {
+            if (this.lockedCategoryWorks()) {
+              this.LibraryUnlockWorks()
+            } else if (this.filterCategory === 'all') {
               this.EmptyLibrary()
             } else {
               this.EmptyCategory()
@@ -2610,8 +2736,9 @@ export struct LibraryPage {
         onRefresh: async (): Promise<void> => { await this.onRefresh() },
         onScrollEnableChange: (enabled: boolean): void => { this.scrollEnabled = enabled },
       }) {
-        if (this.viewMode !== 'list' && !this.isProjectionPending() &&
-          this.hasLibraryContent && this.hasVisibleLibraryContent) {
+        // Keep the same shelf header and scroller when removing private rows.
+        if (this.viewMode !== 'list' && this.hasLibraryContent &&
+          (this.lockedCategoryWorks() || !this.isProjectionPending() && this.hasVisibleLibraryContent)) {
           this.LibraryGrid()
         } else {
           this.LibraryListSurface()

@@ -85,6 +85,7 @@ export interface PersistedLibraryCategory {
   sortOrder: number
   createdAt: number
   updatedAt: number
+  isPrivate?: boolean
 }
 
 export interface PersistedCategoryDisplayStrategy {
@@ -628,6 +629,7 @@ function persistLibraryCategory(category: CustomLibraryCategory): PersistedLibra
     sortOrder: category.sortOrder,
     createdAt: category.createdAt,
     updatedAt: category.updatedAt,
+    isPrivate: category.isPrivate,
   }
 }
 
@@ -639,6 +641,7 @@ function hydrateLibraryCategory(row: PersistedLibraryCategory): CustomLibraryCat
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    isPrivate: row.isPrivate,
   }
 }
 
@@ -649,6 +652,9 @@ function assertValidPersistedLibraryCategory(row: PersistedLibraryCategory): voi
   assertNumberField(row.sortOrder, 'category.sortOrder')
   assertNumberField(row.createdAt, 'category.createdAt')
   assertNumberField(row.updatedAt, 'category.updatedAt')
+  if (row.isPrivate !== undefined && typeof row.isPrivate !== 'boolean') {
+    throw new Error('Invalid library store persistence category.isPrivate: expected boolean')
+  }
   if (!isManualLibraryCategoryId(row.id)) {
     throw new Error('Invalid library store persistence category.id: expected custom category id')
   }
@@ -1422,6 +1428,24 @@ export function renameCustomCategoryAndPersistLibraryStore(
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
     throw error as Error
   }
+}
+
+export function setCustomCategoryPrivacyAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistence: LibraryStorePersistenceService,
+  categoryId: string,
+  isPrivate: boolean,
+): boolean {
+  const previous = serializeLibraryStore(libraryStore)
+  if (!libraryStore.setCustomCategoryPrivacy(categoryId, isPrivate)) return false
+  try {
+    persistence.persist()
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previous)
+    throw error as Error
+  }
+  signalDeviceSyncLibrary([{ kind: 'category-privacy', category: categoryId, isPrivate }])
+  return true
 }
 
 export function moveCustomCategoryAndPersistLibraryStore(

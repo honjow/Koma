@@ -384,6 +384,10 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
           const name = originalCategoryName(category.name, alias)
           row(values, ['category', alias.shared], name)
           labels[syncKey(['category', alias.shared])] = name
+          if (category.isPrivate !== undefined) {
+            row(values, ['category-privacy', alias.shared], category.isPrivate)
+            labels[syncKey(['category-privacy', alias.shared])] = name
+          }
         }
       })
       if (order.length > 0) row(values, ['order'],
@@ -667,7 +671,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         return !(library.smartCategories ?? []).some((category: LibrarySmartCategory): boolean =>
           smartCategoryKey(category.id) === key)
       }
-      if (parts[0] === 'category') {
+      if (parts[0] === 'category' || parts[0] === 'category-privacy') {
         return !(library.customCategories ?? []).some((category: PersistedLibraryCategory): boolean =>
           categoryAliases(category.id, projection, this.storage.load().replica).some(row => row.shared === parts[1])) &&
           !projection.categories.some((category: SyncLocalCategory): boolean => category.shared === parts[1] && category.localOnly)

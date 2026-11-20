@@ -13,6 +13,8 @@
       { "name": "ohos.permission.FILE_ACCESS_PERSIST" },
       { "name": "ohos.permission.VIBRATE" },
       { "name": "ohos.permission.HDR_BRIGHTNESS" },
+      { "name": "ohos.permission.ACCESS_BIOMETRIC", "reason": "$string:library_privacy_auth_permission", "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" } },
+      { "name": "ohos.permission.PRIVACY_WINDOW", "reason": "$string:library_privacy_window_permission", "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" } },
       { "name": "ohos.permission.CAMERA", "reason": "$string:camera_permission_reason", "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" } }
     ],
     "abilities": [

@@ -29,6 +29,7 @@ import { configureSourceRuntimeHttpTransport } from '../sourceRuntime/SourceRunt
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
 import { AppForegroundStateBridge } from '../state/AppForegroundState'
+import { connectLibraryPrivacyState } from '../state/LibraryPrivacyState'
 import { connectAppearanceState } from '../state/AppearanceState'
 import {
   captureKomaDeviceVerificationIsolation,
@@ -148,6 +149,7 @@ export default class EntryAbility extends UIAbility {
   onWindowStageCreate(windowStage: window.WindowStage): void {
     try {
       const win = windowStage.getMainWindowSync()
+      void connectLibraryPrivacyState().attach(win, windowStage)
       win.setWindowLayoutFullScreen(true)
       win.setWindowSystemBarProperties({
         statusBarColor: TRANSPARENT_COLOR,
@@ -206,6 +208,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageDestroy(): void {
+    connectLibraryPrivacyState().detach()
     this.unbindLayoutWindow()
     unbindReaderThemeWindow()
   }
@@ -213,6 +216,7 @@ export default class EntryAbility extends UIAbility {
   onForeground(): void {
     DiagnosticLogger.info('app', 'foreground', '')
     updateReaderLabForeground(true, this.context.applicationInfo.debug)
+    connectLibraryPrivacyState().onForeground()
     AppForegroundStateBridge.onForeground()
     const syncGeneration = ++this.syncForegroundGeneration
     if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
@@ -227,7 +231,12 @@ export default class EntryAbility extends UIAbility {
     }
   }
 
+  onWillBackground(): void {
+    connectLibraryPrivacyState().onBackground()
+  }
+
   onBackground(): void {
+    connectLibraryPrivacyState().onBackground()
     this.syncForegroundGeneration++
     DiagnosticLogger.info('app', 'background', '')
     updateReaderLabForeground(false, this.context.applicationInfo.debug)

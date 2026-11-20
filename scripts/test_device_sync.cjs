@@ -56,6 +56,19 @@ function edit(fact, version, kind, value, observed = fact.seen) {
   return facts.applySyncEdit(fact, { version, kind, value, observed })
 }
 
+test('concurrent privacy edits retain protection until an explicit change observes it', () => {
+  const key = data.syncKey(['category-privacy', B])
+  const initial = facts.emptySyncFact(key)
+  const privateEdit = edit(initial, dot(A, 1), 'set', 'true')
+  const publicEdit = edit(initial, dot(B, 1), 'set', 'false')
+  const concurrent = facts.mergeSyncFact(privateEdit, publicEdit)
+  data.checkSyncGroupFact('shelf', concurrent)
+  assert.throws(() => data.checkSyncGroupFact('shelf', concurrent, true), /sync_update_required/)
+  assert.equal(data.syncGroupVisibleValue('shelf', concurrent), 'true')
+  const enabled = edit(concurrent, dot(B, 2), 'set', 'false')
+  assert.equal(data.syncGroupVisibleValue('shelf', enabled), 'false')
+})
+
 test('the worker plan preserves pending receipts and restores one shared fact table', async () => {
   const fact = edit(facts.emptySyncFact(key), dot(A, 1), 'set', position(2))
   const remote = [fact]

@@ -207,7 +207,8 @@ function expandCategoryAliases(library: PersistedLibraryStoreDocument, projectio
     virtualIds.set(alias.shared, alias.local)
     if (byId.has(alias.local)) continue
     const name = originalCategoryName(primary.name, alias)
-    categories.push({ id: alias.local, name, sortOrder: primary.sortOrder, createdAt: primary.createdAt, updatedAt: primary.updatedAt })
+    categories.push({ id: alias.local, name, sortOrder: primary.sortOrder, createdAt: primary.createdAt,
+      updatedAt: primary.updatedAt, isPrivate: primary.isPrivate })
   }
   for (const comic of library.comics) {
     if (shelfWork(comic) === undefined) continue
@@ -270,6 +271,7 @@ function mergeCategoryAliases(library: PersistedLibraryStoreDocument, projection
     const original = originalCategoryName(primary.name, mappings.get(primary.id))
     primary.sortOrder = group[0].sortOrder
     primary.name = uniqueCategoryName(original, used)
+    if (group.some((category: PersistedLibraryCategory): boolean => category.isPrivate === true)) primary.isPrivate = true
     for (const category of group) {
       const mapping = mappings.get(category.id)
       const shared = mapping?.shared ?? toSharedCategory(category.id, projection, replica)
@@ -415,6 +417,13 @@ function applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDoc
       projection.categories = projection.categories.filter((row: SyncLocalCategory): boolean => row.local !== id)
       projection.categories.push({ local: id, shared, localOnly: false, originalName, displayedName: name })
     })
+  changes.forEach((change: SyncLocalValue): void => {
+    const key = syncKeyParts(change.key)
+    if (key[0] !== 'category-privacy' || change.value === '') return
+    const id = toLocalCategory(key[1], library, projection, replica)
+    const category = categories.find((row: PersistedLibraryCategory): boolean => row.id === id)
+    if (category !== undefined) category.isPrivate = change.value === 'true'
+  })
   changes.forEach((change: SyncLocalValue): void => {
     const key = syncKeyParts(change.key)
     if (key[0] !== 'book' || syncShelfMove(change.value) !== undefined) return

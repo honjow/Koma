@@ -86,6 +86,35 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "LIBRARY_PRIVATE_CATEGORIES",
+      "number": 335,
+      "title": "书架隐私分类与系统解锁",
+      "kind": "pending_verification",
+      "priority": "用户直接要求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-20",
+      "reportedAtSource": "用户提出隐私分类，确认入口、跨设备同步和后台宽限后要求实施并登记。",
+      "registeredAt": "2026-11-20T11:50:12+08:00",
+      "updatedAt": "2026-11-20T13:25:14+08:00",
+      "status": "237 已验证隐私书架、续读联动和超时自动认证",
+      "result": "普通自定义分类可设为隐私。管理列表和书架分类菜单有锁标记，启用确认只保留标题和操作。237 人脸未识别可回退系统密码，最近任务卡片屏蔽隐私内容。锁定时原书架头部、公开续读和分类栏保留，只收起隐私作品。顶部续读与迷你栏同时更新，锁定时显示公开记录。前台同分类保持解锁，后台满 30 秒收回授权，设备锁屏、换分类或重启同样收回。超时直接回原分类会自动唤起一次系统验证；取消后可点 32 大小、48 点击区的锁图标重试。返回历史时只显示公开记录，设置和分类切换可用。已核对备份序列化、双实例 WebDAV 初次同步和反向取消隐私。",
+      "remaining": "237 已删除临时分类、作品、阅读记录和 CBZ，恢复最近阅读排序、10 秒息屏超时和休眠并释租，保留最终候选。生物识别成功和双真机同步未核对。最早读取的回前台布局未露出隐私作品，系统遮蔽录屏，物理屏幕首帧未逐帧核对。启用前须更新同一同步目录的所有设备。",
+      "relatedItems": [
+        "WEBDAV_SMART_CATEGORY_SYNC",
+        "LIBRARY_SORT_STALE_PROJECTION"
+      ],
+      "evidence": [
+        ".hvigor/outputs/library-privacy-20261120/host-verified.log",
+        ".hvigor/outputs/library-privacy-20261120/sync-shelf-final.log",
+        ".hvigor/outputs/library-privacy-20261120/build-auto-reauth.log",
+        ".hvigor/outputs/library-privacy-20261120/host-auto-reauth.log",
+        ".hvigor/outputs/library-privacy-20261120/Koma-library-privacy-auto-reauth-signed.hap",
+        ".hvigor/outputs/library-privacy-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/private-shelf/auto-reauth-expired-confirmed-home/run-metadata.json",
+        ".hvigor/outputs/library-privacy-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/private-shelf/auto-reauth-timeout-on-history/run-metadata.json"
+      ]
+    },
+    {
       "id": "WEBDAV_RESTORED_CATEGORY_DUPLICATES",
       "number": 334,
       "title": "恢复备份后接入 WebDAV 产生带编号的重复分类",
@@ -12162,6 +12191,48 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-private-categories-237-reauth-acceptance-20261120",
+      "at": "2026-11-20T13:25:14+08:00",
+      "itemId": "LIBRARY_PRIVATE_CATEGORIES",
+      "title": "237 验证隐私分类超时自动认证与续读联动",
+      "detail": "用合成漫画核对两处分类锁标记、无正文启用确认、系统密码回退、全部与历史隐藏、解锁恢复、短暂后台保留授权和系统锁屏立即收回。超时返回仍保留书架头部，顶部卡片和展开迷你栏同时切回同一公开作品。确认进入系统桌面后等待 39 秒，只返回 Koma 就出现原生认证，关闭后继续锁定，图标可手动重试。历史页确认后台 34 秒后返回保持可操作并隐藏测试记录，随后切书架没有补弹。最近任务卡片屏蔽作品。已清理测试数据、还原原排序和电源，237 释租并保留同签最终包。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/library-privacy-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/private-shelf/final-shelf-lock-marker/screen.png",
+        ".hvigor/outputs/library-privacy-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/private-shelf/final-management-lock-marker/screen.png",
+        ".hvigor/outputs/library-privacy-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/private-shelf/synced-resume-expired/layout.json",
+        ".hvigor/outputs/library-privacy-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/private-shelf/auto-reauth-expired-confirmed-home/run-metadata.json",
+        ".hvigor/outputs/library-privacy-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/private-shelf/auto-reauth-cancel-keeps-content-locked/layout.json",
+        ".hvigor/outputs/library-privacy-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/private-shelf/auto-reauth-fallback-restores-private-history/layout.json",
+        ".hvigor/outputs/library-privacy-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/private-shelf/auto-reauth-timeout-on-history/run-metadata.json",
+        ".hvigor/outputs/library-privacy-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/private-shelf/final-independent-device-restoration/run-metadata.json"
+      ]
+    },
+    {
+      "id": "library-private-categories-device-routing-20261120",
+      "itemId": "LIBRARY_PRIVATE_CATEGORIES",
+      "at": "2026-11-20T12:14:57+08:00",
+      "title": "#335 确认使用先空闲的测试机",
+      "detail": "用户允许 197、237 哪台先空闲就用哪台。已确认两台都在线且其他任务仍在实际使用，候选包和本地测试样本已准备。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-private-categories-candidate-20261120",
+      "itemId": "LIBRARY_PRIVATE_CATEGORIES",
+      "at": "2026-11-20T12:08:15+08:00",
+      "title": "#335 隐私分类候选已构建",
+      "detail": "本地回归覆盖隐私可见性、后台 30 秒和锁屏收回、通知过滤及分类写入回滚。双实例 WebDAV 核对标记与作品归属一起到达、反向取消隐私和普通智能分类同步。197 当前被其他测试占用，真机认证、任务预览和双真机未验。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-private-categories-approved-20261120",
+      "itemId": "LIBRARY_PRIVATE_CATEGORIES",
+      "at": "2026-11-20T11:50:12+08:00",
+      "title": "#335 开始实施书架隐私分类",
+      "detail": "用户批准从现有分类管理进入，隐私随书架同步；沿用 NextE 系统认证和后台起算的锁定方式。",
+      "kind": "checkpoint"
+    },
     {
       "id": "continuous-237-new-page-native-release-20261120",
       "at": "2026-11-20T11:56:08+08:00",

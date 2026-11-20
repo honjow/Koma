@@ -1,6 +1,7 @@
 import { taskpool } from '@kit.ArkTS'
 import { normalizeSearchText } from './CrossSearchText'
 import { LocalLibrarySearchDocument, LocalLibrarySearchMatch, searchLocalLibraryTask } from './LocalLibrarySearchTask'
+import { privateLibraryCategoryIds, showLibraryComic } from './LibraryPrivacyVisibility'
 import { LibrarySearchSource, parseLibrarySearchQuery, libraryQueryNeedsReadState } from './LibrarySearchQuery'
 import { comicSmartSourceKey } from './LibrarySmartCategory'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGate'
@@ -385,7 +386,8 @@ export class CrossSearchService {
   private async searchLocal(query: string, source: LibrarySearchSource | undefined = undefined): Promise<SourceSearchOutcome> {
     const libraryStore = this.libraryStore
     const startedAt = Date.now()
-    const comics = libraryStore.listComics(false)
+    const privateIds = privateLibraryCategoryIds(libraryStore.listCustomCategories())
+    const comics = libraryStore.listComics(false).filter((comic: Comic): boolean => showLibraryComic(comic, privateIds))
     const plan = parseLibrarySearchQuery(query)
     const needsReadState = libraryQueryNeedsReadState(plan.root)
     const documents: LocalLibrarySearchDocument[] = comics.map((comic: Comic): LocalLibrarySearchDocument => ({
@@ -403,7 +405,10 @@ export class CrossSearchService {
       AppStrings.get('search_local_subtitle'), source) as LocalLibrarySearchMatch[]
     const byId = new Map<string, Comic>()
     comics.forEach((comic: Comic): void => { byId.set(comic.id, comic) })
-    const items = this.sortSearchResultItems(plan.rankingText, matches.map((match: LocalLibrarySearchMatch): CrossSearchResultItem => {
+    const currentPrivateIds = privateLibraryCategoryIds(libraryStore.listCustomCategories())
+    const visible = matches.filter((match: LocalLibrarySearchMatch): boolean =>
+      showLibraryComic(libraryStore.getComic(match.comicId), currentPrivateIds))
+    const items = this.sortSearchResultItems(plan.rankingText, visible.map((match: LocalLibrarySearchMatch): CrossSearchResultItem => {
       const comic = byId.get(match.comicId)!
       return { id: `local:${comic.id}`, title: comic.title, subtitle: match.subtitle,
         sourceKind: 'local', sourceLabel: AppStrings.get('tab_library'),

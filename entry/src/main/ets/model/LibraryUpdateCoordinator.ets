@@ -9,7 +9,8 @@ import { LibraryStore } from './LibraryStore'
 import { LibraryStorePersistenceService } from './LibraryPersistence'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { RemoteServerStore } from './RemoteServerStore'
-import { LibraryUpdateService, LibraryUpdateSummary, countLibraryUpdateNewChapters } from './LibraryUpdateService'
+import { LibraryUpdateService, LibraryUpdateSummary, countLibraryUpdateNewChapters, summarizeResults } from './LibraryUpdateService'
+import { privateLibraryCategoryIds, showLibraryComic } from './LibraryPrivacyVisibility'
 import {
   LibraryUpdatePreferences,
   LibraryUpdatePreferencesStore,
@@ -243,7 +244,13 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
   }
   if (!connectAppForegroundState().active) {
     try {
-      result.notification = await publishLibraryUpdateNotification(summary)
+      const privateIds = privateLibraryCategoryIds(request.libraryStore.listCustomCategories())
+      const publicResults = privateIds.size === 0 ? summary.results : summary.results.filter(result =>
+        showLibraryComic(request.libraryStore.getComic(result.comicId), privateIds))
+      const visibleSummary = publicResults.length === summary.results.length ? summary : summarizeResults(summary.checkedAt, publicResults)
+      if (visibleSummary.totalCount > 0 || privateIds.size === 0) {
+        result.notification = await publishLibraryUpdateNotification(visibleSummary)
+      }
     } catch (_error) {
       result.notification = { delivered: false, code: 'publish_failed' }
     }

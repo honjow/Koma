@@ -30,6 +30,7 @@ import { KomgaSeriesRouteParam } from './KomgaSeriesPage'
 import { KavitaBrowseRouteParam } from './KavitaBrowsePage'
 import { OpdsBrowseRouteParam } from './OpdsBrowsePage'
 import { LibraryStore } from '../model/LibraryStore'
+import { privateLibraryCategoryIds, showLibraryComic } from '../model/LibraryPrivacyVisibility'
 import { LibrarySearchSource, copyLibrarySearchSource, parseLibrarySearchQuery } from '../model/LibrarySearchQuery'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
@@ -134,6 +135,7 @@ export struct SearchPage {
   @Local private syncView: DeviceSyncViewState = appDeviceSync.view
   @Local private incognito: IncognitoState = connectIncognitoState()
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
+  @Param libraryRevision: number = 0
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
   @Event onOpenLibraryResult: (comicId: string) => void = (_comicId: string) => {}
@@ -141,10 +143,23 @@ export struct SearchPage {
   @Event onOpenKavitaResult: (param: KavitaBrowseRouteParam) => void = (_param: KavitaBrowseRouteParam) => {}
   @Event onOpenOpdsResult: (param: OpdsBrowseRouteParam) => void = (_param: OpdsBrowseRouteParam) => {}
 
-  @Monitor('sections', 'migrationSources', 'chrome.resultsOnly')
+  @Monitor('sections', 'migrationSources', 'chrome.resultsOnly', 'libraryRevision')
   private updateResultRows(): void {
-    this.resultRows.update(this.sections, this.chrome.resultsOnly)
+    this.resultRows.update(this.publicSearchSections(), this.chrome.resultsOnly)
     this.resultRowCount = this.resultRows.totalCount()
+  }
+
+  private publicSearchSections(): CrossSearchSection[] {
+    const privateIds = privateLibraryCategoryIds(this.libraryStore.listCustomCategories())
+    if (privateIds.size === 0) return this.sections
+    return this.sections.map((section: CrossSearchSection): CrossSearchSection => {
+      const items = section.items.filter((item: CrossSearchResultItem): boolean => item.localComicId === undefined ||
+        showLibraryComic(this.libraryStore.getComic(item.localComicId), privateIds))
+      if (items.length === section.items.length) return section
+      return { id: section.id, title: section.title, sourceKind: section.sourceKind,
+        loading: section.loading, state: section.state, resultCount: items.length, diagnosticCode: section.diagnosticCode,
+        errorText: section.errorText, items, webChallenge: section.webChallenge, authentication: section.authentication }
+    })
   }
 
   aboutToAppear(): void {
@@ -835,7 +850,7 @@ export struct SearchPage {
 
   private totalResultCount(): number {
     let count = 0
-    this.sections.forEach((section: CrossSearchSection) => {
+    this.publicSearchSections().forEach((section: CrossSearchSection) => {
       count += section.items.length
     })
     return count

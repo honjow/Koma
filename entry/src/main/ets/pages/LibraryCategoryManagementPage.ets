@@ -1,3 +1,4 @@
+import { common } from '@kit.AbilityKit'
 import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
@@ -12,6 +13,7 @@ import {
   deleteCustomCategoryAndPersistLibraryStore,
   moveCustomCategoryAndPersistLibraryStore,
   renameCustomCategoryAndPersistLibraryStore,
+  setCustomCategoryPrivacyAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
@@ -21,6 +23,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { LibrarySmartCategorySection } from '../components/LibrarySmartCategorySection'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { connectLibraryPrivacyState, LibraryPrivacyAuthResult, LibraryPrivacyState, libraryPrivacyAuthMessage } from '../state/LibraryPrivacyState'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -46,6 +49,7 @@ export struct LibraryCategoryManagementPage {
   private pageVisible: boolean = false
   @Local private editingCategoryId: string = ''
   @Local private languageState: LanguageState = connectLanguageState()
+  @Local private privacy: LibraryPrivacyState = connectLibraryPrivacyState()
 
   @Monitor('libraryRevision')
   private refreshCategories(): void {
@@ -143,10 +147,48 @@ export struct LibraryCategoryManagementPage {
         value: s('library_category_action_delete'),
         fontColor: $r('app.color.koma_danger'),
         action: () => {
-          this.persistDelete(category.id)
+          void this.deleteAfterPrivacyCheck(category.id)
         },
       },
     })
+  }
+
+  private async verifyPrivacyChange(): Promise<boolean> {
+    const result = await this.privacy.verify(this.getUIContext().getHostContext() as common.UIAbilityContext)
+    const message = libraryPrivacyAuthMessage(result)
+    if (message.length > 0 && this.pageVisible) this.showToast(message)
+    return this.pageVisible && result === LibraryPrivacyAuthResult.SUCCESS
+  }
+
+  private async deleteAfterPrivacyCheck(id: string): Promise<void> {
+    const current = this.libraryStore?.listCustomCategories().find((item: CustomLibraryCategory): boolean => item.id === id)
+    if (current?.isPrivate === true && !await this.verifyPrivacyChange()) return
+    if (this.pageVisible) this.persistDelete(id)
+  }
+
+  private confirmPrivacyChange(category: CustomLibraryCategory): void {
+    const enabled = category.isPrivate !== true
+    const title = s(enabled ? 'library_privacy_set' : 'library_privacy_unset')
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(), title,
+      message: enabled ? undefined : s('library_privacy_disable_message'),
+      primaryButton: { value: s('common_cancel'), action: () => {} },
+      secondaryButton: { value: s('common_confirm'), action: () => { void this.persistPrivacyChange(category.id, enabled) } },
+    })
+  }
+
+  private async persistPrivacyChange(id: string, enabled: boolean): Promise<void> {
+    if (!await this.verifyPrivacyChange()) return
+    const store = this.libraryStore
+    const persistence = this.libraryPersistenceService
+    if (store === undefined || persistence === undefined) return
+    try {
+      if (setCustomCategoryPrivacyAndPersistLibraryStore(store, persistence, id, enabled)) {
+        this.refreshCategories()
+        this.onLibraryChanged()
+      }
+    } catch (error) {
+      this.showToast(this.categoryMutationErrorMessage(error as Error))
+    }
   }
 
   private persistDelete(categoryId: string): void {
@@ -211,6 +253,9 @@ export struct LibraryCategoryManagementPage {
     Menu() {
       MenuItem({ content: s('library_category_action_rename') })
         .onClick((): void => { this.openCategoryDialog(category) })
+      MenuItem({ content: s(category.isPrivate !== true ? 'library_privacy_set' : 'library_privacy_unset'),
+        startIcon: $r('sys.symbol.lock') })
+        .onClick((): void => { this.confirmPrivacyChange(category) })
       MenuItem({ content: s('library_category_action_delete') })
         .contentFontColor(ThemeConstants.DANGER)
         .onClick((): void => { this.confirmDelete(category) })
@@ -263,7 +308,9 @@ export struct LibraryCategoryManagementPage {
     ConciseListRow({
       title: category.name,
       wrapTitle: true,
-      subtitle: AppStrings.format('library_count_books', this.categoryUsageCount(category.id)),
+      leadingIcon: category.isPrivate === true ? $r('sys.symbol.lock') : undefined,
+      subtitle: category.isPrivate === true && this.privacy.visibleCategoryId !== category.id ? '' :
+        AppStrings.format('library_count_books', this.categoryUsageCount(category.id)),
       showChevron: false,
       surfaceRadius: ThemeConstants.GROUPED_LIST_INNER_RADIUS,
       suffixBuilderParam: (): void => { this.CategoryActions(category) },
@@ -301,8 +348,8 @@ export struct LibraryCategoryManagementPage {
             }
           }
         } else {
-          // The native onMove callback needs direct ListItem children. Stable
-          // keys preserve each row during a drag, while a rename updates its row.
+          // Native onMove needs direct ListItem children. Keep keys stable across a drag.
+          // Rebuild the row and its bound menu when the name or privacy changes.
           ForEach(this.categories, (category: CustomLibraryCategory) => {
             ListItem() {
               Column() {
@@ -320,7 +367,8 @@ export struct LibraryCategoryManagementPage {
               bottomLeft: this.isLastCategory(category) ? ThemeConstants.RADIUS_CARD : 0,
               bottomRight: this.isLastCategory(category) ? ThemeConstants.RADIUS_CARD : 0,
             })
-          }, (category: CustomLibraryCategory): string => category.id + ':' + category.name)
+          }, (category: CustomLibraryCategory): string => category.id + ':' + category.name + ':' +
+            (category.isPrivate === true ? 'private' : 'public'))
             .onMove((from: number, to: number): void => { this.persistMove(from, to) })
         }
         ListItem() {

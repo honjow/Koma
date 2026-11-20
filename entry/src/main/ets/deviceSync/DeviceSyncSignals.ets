@@ -134,10 +134,11 @@ export function deviceSyncReadingActionAcknowledged(capture: SyncReadingActionCa
 }
 
 export interface SyncLibrarySignal {
-  kind: 'add-book' | 'remove-book' | 'remove-category' | 'add-member' | 'remove-member'
+  kind: 'add-book' | 'remove-book' | 'remove-category' | 'category-privacy' | 'add-member' | 'remove-member'
   source?: string
   work?: string
   category?: string
+  isPrivate?: boolean
 }
 
 export interface SyncLocalShelfMove {

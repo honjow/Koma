@@ -109,6 +109,7 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
     syncRemoteProgressInBackground() {}
     ${['onForeground', 'onBackground'].map((name) => method('entryability/EntryAbility', name)).join('\n')}
   }`, { ...isolation, AppForegroundStateBridge: bridge.AppForegroundStateBridge,
+    connectLibraryPrivacyState: () => ({ onForeground() {}, onBackground() {} }),
     appDeviceSync: { onForeground() {} }, synchronizeBackgroundMaintenance: async () => {},
     updateReaderLabForeground: () => {}, setTimeout: () => 0 }).Entry
   const entry = new Entry()

@@ -1231,6 +1231,35 @@ test('shelf sync round-trips smart rule changes using each device’s local cate
   assert.equal(transport.trace.filter(request => request.method === 'PUT').length, writes)
 })
 
+test('shelf sync transfers category privacy and membership together, including a reverse change', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.SharedWebDav)
+  const a = readingDevice(fixture, A, new Map(), true)
+  const b = readingDevice(fixture, B, new Map(), true)
+  const first = a.coldShelf()
+  const source = 'com.example.public'
+  const manual = first.shelf.createCustomCategory('Private shelf')
+  const work = shelfComic(source, 'private-work', [manual.id])
+  first.shelf.addComic(work)
+  a.persistence.setCustomCategoryPrivacyAndPersistLibraryStore(first.shelf, first.service, manual.id, true)
+  for (const device of [a, b]) {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['shelf'])).token, [])
+  }
+  const received = b.coldShelf()
+  const category = received.shelf.listCustomCategories().find(row => row.name === 'Private shelf')
+  assert.notEqual(category.id, manual.id)
+  assert.equal(category.isPrivate, true)
+  assert.deepEqual(received.shelf.getComic(work.id).categoryIds, [category.id])
+  b.persistence.setCustomCategoryPrivacyAndPersistLibraryStore(received.shelf, received.service, category.id, false)
+  await b.runtime.libraryEdits
+  await b.engine.syncNow()
+  await a.engine.syncNow()
+  const restored = a.coldShelf().shelf
+  assert.equal(restored.listCustomCategories().find(row => row.id === manual.id).isPrivate, false)
+  assert.deepEqual(restored.getComic(work.id).categoryIds, [manual.id])
+})
+
 test('a move keeps the original if the destination was independently removed, including a receiver with local notes', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.WriterWebDav)

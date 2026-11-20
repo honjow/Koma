@@ -913,11 +913,19 @@ class DeviceSyncRuntime {
       output.push({ key, kind, value })
     }
     for (const action of actions) {
-      if (action.kind === 'remove-category') {
+      if (action.kind === 'remove-category' || action.kind === 'category-privacy') {
         const categories = new Set<string>(owners.sharedCategories(action.category ?? ''))
+        if (action.kind === 'category-privacy') {
+          for (const category of categories) {
+            add(syncKey(['category-privacy', category]), 'set', JSON.stringify(action.isPrivate === true))
+          }
+          continue
+        }
         for (const category of categories) {
           const key = syncKey(['category', category])
           if (engine.observed('shelf', key).length > 0) add(key, 'delete', '')
+          const privacy = syncKey(['category-privacy', category])
+          if (engine.observed('shelf', privacy).length > 0) add(privacy, 'delete', '')
         }
         engine.knownGroupKeys('shelf').forEach((item: string): void => {
           const parts = syncKeyParts(item)

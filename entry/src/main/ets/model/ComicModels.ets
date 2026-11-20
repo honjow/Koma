@@ -240,6 +240,8 @@ export interface CustomLibraryCategory {
   sortOrder: number
   createdAt: number
   updatedAt: number
+  // Undefined means an older or never-private category. False is an explicit change.
+  isPrivate?: boolean
 }
 
 export function normalizeLibraryCategoryName(name: string): string {

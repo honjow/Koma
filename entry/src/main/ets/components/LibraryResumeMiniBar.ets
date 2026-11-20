@@ -24,6 +24,7 @@ export struct LibraryResumeMiniBar {
       if (this.info.coverUri !== undefined && this.info.coverUri.length > 0) {
         CachedCoverImage({
           uri: this.info.coverUri,
+          coverOwnerId: this.info.comicId,
           objectFit: ImageFit.Cover,
           sourceRuntimeId: this.info.sourceRuntimeId ?? '',
           sourceImageId: this.info.sourceImageId ?? this.info.comicId,

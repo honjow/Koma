@@ -43,6 +43,8 @@ import { ChapterArchiveActions, chapterArchiveFailureText } from '../model/Chapt
 import { selectComicCover, saveComicPersonalization, discardUncommittedComicCover } from '../model/ComicPersonalization'
 import { ColorMetrics, ComponentContent, FrameCallback, LengthMetrics, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
+import { privateLibraryCategoryIds, showLibraryComic } from '../model/LibraryPrivacyVisibility'
+import { connectLibraryPrivacyState, LibraryPrivacyAuthResult, libraryPrivacyAuthMessage } from '../state/LibraryPrivacyState'
 import { hiTraceMeter } from '@kit.PerformanceAnalysisKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
 import { systemShare } from '@kit.ShareKit'
@@ -2059,8 +2061,10 @@ export struct MangaDetailPage {
     }
     const title = normalizeSearchText(this.manga?.title ?? '')
     const comicId = this.currentComicId()
+    const privateIds = privateLibraryCategoryIds(this.libraryStore?.listCustomCategories() ?? [])
     const matches = title.length === 0 ? [] : (this.libraryStore?.listComics(false) ?? [])
-      .filter((comic: Comic): boolean => comic.id !== comicId && normalizeSearchText(comic.title) === title)
+      .filter((comic: Comic): boolean => comic.id !== comicId && showLibraryComic(comic, privateIds) &&
+        normalizeSearchText(comic.title) === title)
     if (matches.length > 0) {
       this.favoriteMatches = matches
       this.favoriteMatchesShown = true
@@ -2147,6 +2151,12 @@ export struct MangaDetailPage {
     const manga = this.manga
     if (library === undefined || manga === undefined) return
     const comicId = this.currentComicId()
+    if (!showLibraryComic(library.getComic(comicId), privateLibraryCategoryIds(library.listCustomCategories()))) {
+      const result = await connectLibraryPrivacyState().verify(this.getUIContext().getHostContext() as common.UIAbilityContext)
+      const message = libraryPrivacyAuthMessage(result)
+      if (message.length > 0 && this.chrome.visible) this.showToast(message)
+      if (result !== LibraryPrivacyAuthResult.SUCCESS || !this.chrome.visible || this.currentComicId() !== comicId) return
+    }
     try {
       const removed = this.libraryPersistenceService === undefined
         ? library.getComic(comicId) !== undefined

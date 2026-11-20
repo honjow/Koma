@@ -388,7 +388,8 @@ export function dependsOnConflict(key: string, root: string): boolean {
   const parts = syncKeyParts(key)
   const conflict = syncKeyParts(root)
   return (conflict[0] === 'book' && parts[0] === 'member' && parts[1] === conflict[1] && parts[2] === conflict[2]) ||
-    (conflict[0] === 'category' && (parts[0] === 'order' || (parts[0] === 'member' && parts[3] === conflict[1]))) ||
+    (conflict[0] === 'category' && (parts[0] === 'order' || (parts[0] === 'member' && parts[3] === conflict[1]) ||
+      (parts[0] === 'category-privacy' && parts[1] === conflict[1]))) ||
     (conflict[0] === 'recent' && parts.length === 4 && parts[1] === conflict[1] && parts[2] === conflict[2])
 }
 
@@ -474,7 +475,7 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
       conflictChoice(choices, row.id, edit.key)?.useBeforeRestore === true ||
       (edit.bundle !== undefined && selectedBundles.has(edit.bundle))
     local.forEach((value: string, key: string): void => {
-      if (isCoverKey(key) || protectedKeys.has(key) ||
+      if (isCoverKey(key) || key.startsWith('["category-privacy",') || protectedKeys.has(key) ||
         restoreEdits.some((edit: SyncRestoreEdit): boolean => edit.key === key && useBeforeRestore(edit))) return
       const remoteFact = remote.get(key)
       const theirs = remoteFact === undefined ? undefined : syncGroupVisibleValue(row.id, remoteFact)
@@ -539,6 +540,12 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
       const recorded = edits.get(key)
       if (isCoverKey(key)) {
         if (row.coverUnavailable !== true && remoteFact === undefined && recorded === undefined) editFact(key, 'set', value)
+        return
+      }
+      // A first connection offers no unprotect action. Keep the protected
+      // value on either device until an explicit, observed edit removes it.
+      if (row.requiresPreview && key.startsWith('["category-privacy",') && theirs !== undefined) {
+        if (value === 'true' && theirs !== value) editFact(key, 'set', value, remoteFact)
         return
       }
       // A fresh device's built-in defaults are not new edits. Once it has

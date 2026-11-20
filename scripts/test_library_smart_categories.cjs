@@ -28,6 +28,7 @@ function load(file){
 const clone=v=>JSON.parse(JSON.stringify(v)),smart=load('model/LibrarySmartCategory'),models=load('model/ComicModels')
 const {InMemoryLibraryStore}=load('model/LibraryStore'),{InMemoryReaderSessionStore}=load('model/ReaderSessionStore')
 const persistence=load('model/LibraryPersistence'),{TrackerPreferencesStore}=load('model/TrackerModels')
+const { privateLibraryCategoryIds, showLibraryComic } = load('model/LibraryPrivacyVisibility')
 function book(id,source=id){return {id,title:id,sortTitle:id,sourceKind:models.ComicSourceKind.PRIVATE_LIBRARY,sourceRuntimeId:source,
  sourcePath:'https://owned.invalid/'+id,preferredDirection:'right_to_left',chapterCount:2,pageCount:2,createdAt:1,updatedAt:1,lastImportedAt:1,
  chapters:[0,1].map(index=>({id:id+index,comicId:id,title:''+index,index,pageCount:1,pages:[],createdAt:1,updatedAt:1,sortKey:''+index,sourcePath:''+index}))}}
@@ -83,6 +84,7 @@ test('the shelf publishes the selected sort and direction in the same refresh', 
  Object.assign(shelf, {
   active: true, rootNavigation: { visible: true },
   libraryStore: library, libraryRevision: 1, readerSessionStore: reader, readerProgressRevision: 1,
+  privacy: { visibleCategoryId: '' }, privateCategoryIds: new Set(),
   shelfReadingProgress: progress, filterCategory: 'all', filterReadState: 'all', filterAvailability: 'all', displayedRevision: 0,
   defaultSort: { sortBy: 'lastRead', sortDirection: 'desc', sortConfigured: true },
   validCategoryFilter() { return this.filterCategory },
@@ -111,6 +113,91 @@ test('the shelf publishes the selected sort and direction in the same refresh', 
  shelf.shelfReadingProgress = publishedProgress
  shelf.syncDisplayedSnapshotFromProps()
  assert.deepEqual(ids(), ['b', 'a'])
+})
+
+test('privacy survives a rename and backup restore without removing any memberships', () => {
+ const store = new InMemoryLibraryStore()
+ const publicCategory = store.createCustomCategory('Public')
+ const firstPrivate = store.createCustomCategory('Private one')
+ const secondPrivate = store.createCustomCategory('Private two')
+ const comic = book('both')
+ comic.categoryIds = [publicCategory.id, firstPrivate.id]
+ store.addComic(comic)
+ const disk = { persist() {} }
+ const setPrivacy = persistence.setCustomCategoryPrivacyAndPersistLibraryStore
+ setPrivacy(store, disk, firstPrivate.id, true)
+ setPrivacy(store, disk, secondPrivate.id, true)
+ store.renameCustomCategory(firstPrivate.id, 'Renamed')
+ const restored = new InMemoryLibraryStore()
+ persistence.hydrateLibraryStoreFromJson(restored, persistence.serializeLibraryStore(store))
+ const restoredComic = restored.getComic(comic.id)
+ const ids = privateLibraryCategoryIds(restored.listCustomCategories())
+ assert.equal(showLibraryComic(restoredComic, ids), false)
+ assert.equal(showLibraryComic(restoredComic, ids, publicCategory.id), false)
+ assert.equal(showLibraryComic(restoredComic, ids, secondPrivate.id), false)
+ assert.equal(showLibraryComic(restoredComic, ids, firstPrivate.id), true)
+ assert.deepEqual(clone(restoredComic.categoryIds), comic.categoryIds)
+ assert.throws(() => setPrivacy(restored, { persist() { throw Error('disk full') } }, firstPrivate.id, false), /disk full/)
+ assert.equal(restored.listCustomCategories().find(category => category.id === firstPrivate.id).isPrivate, true)
+ assert.equal(setPrivacy(restored, disk, firstPrivate.id, false), true)
+ assert.equal(showLibraryComic(restoredComic, privateLibraryCategoryIds(restored.listCustomCategories())), true)
+})
+
+test('a privacy session spends its grace in the background and expires immediately on screen lock', async () => {
+ let time = 0
+ let screenLock
+ let stageEvent
+ const stageEvents = { ACTIVE: 2, PAUSED: 6, HIDDEN: 4, RESUMED: 5 }
+ ports['@kit.ArkUI'] = { window: { WindowStageEventType: stageEvents } }
+ ports['@kit.BasicServicesKit'] = {
+  systemDateTime: { TimeType: { STARTUP: 0 }, getUptime: () => time },
+  commonEventManager: { Support: {}, createSubscriber: async () => ({}),
+   async subscribeToEvent(_subscriber, onLock) { screenLock = onLock }, unsubscribe() {} },
+ }
+ const { LibraryPrivacyState, LibraryPrivacyAuthResult } = load('state/LibraryPrivacyState')
+ const privacy = new LibraryPrivacyState()
+ const windowProtection = []
+ await privacy.attach({ async setWindowPrivacyMode(enabled) { windowProtection.push(enabled) } },
+  { on(_event, callback) { stageEvent = callback }, off() {} })
+ privacy.verify = async () => LibraryPrivacyAuthResult.SUCCESS
+ assert.equal(await privacy.openCategory({}, 'first', () => true), LibraryPrivacyAuthResult.SUCCESS)
+ assert.deepEqual(windowProtection, [true])
+ time += 90000
+ stageEvent(stageEvents.PAUSED)
+ assert.equal(privacy.visibleCategoryId, '')
+ assert.equal(privacy.unlocked, true)
+ privacy.onBackground()
+ time += 29999
+ stageEvent(stageEvents.ACTIVE)
+ assert.equal(privacy.visibleCategoryId, '')
+ privacy.onForeground()
+ assert.equal(privacy.visibleCategoryId, 'first')
+ assert.equal(privacy.foregroundReauthRevision, 0)
+ privacy.onBackground()
+ stageEvent(stageEvents.HIDDEN)
+ time += 30000
+ privacy.onForeground()
+ stageEvent(stageEvents.RESUMED)
+ assert.equal(privacy.categoryId, 'first')
+ assert.equal(privacy.visibleCategoryId, '')
+ assert.equal(privacy.foregroundReauthRevision, 1)
+ assert.equal(await privacy.openCategory({}, 'first', () => true), LibraryPrivacyAuthResult.SUCCESS)
+ screenLock()
+ assert.equal(privacy.visibleCategoryId, '')
+ privacy.onBackground()
+ time += 30000
+ privacy.onForeground()
+ assert.equal(privacy.foregroundReauthRevision, 1)
+ let finish
+ privacy.verify = () => new Promise(resolve => { finish = resolve })
+ const pending = privacy.openCategory({}, 'second', () => true)
+ privacy.leaveCategory()
+ finish(LibraryPrivacyAuthResult.SUCCESS)
+ assert.equal(await pending, LibraryPrivacyAuthResult.CANCELED)
+ assert.equal(privacy.visibleCategoryId, '')
+ assert.equal(windowProtection.at(-1), false)
+ delete ports['@kit.BasicServicesKit']
+ delete ports['@kit.ArkUI']
 })
 test('positive source/category values are OR, methods are AND and exclusions do not rewrite manual membership',()=>{
  const a=book('a'),b=book('b'),c=book('c');a.categoryIds=['favorite'];b.categoryIds=['read_later']

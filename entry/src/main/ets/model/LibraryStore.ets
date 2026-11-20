@@ -79,6 +79,7 @@ export interface LibraryStore {
   replaceCustomCategories(categories: CustomLibraryCategory[]): void
   createCustomCategory(name: string, now?: number): CustomLibraryCategory
   renameCustomCategory(categoryId: string, name: string, now?: number): CustomLibraryCategory
+  setCustomCategoryPrivacy(categoryId: string, isPrivate: boolean, now?: number): boolean
   moveCustomCategory(categoryId: string, destinationId: string, now?: number): boolean
   deleteCustomCategory(categoryId: string): boolean
   listCategoryDisplayStrategies(): LibraryCategoryDisplayStrategy[]
@@ -373,9 +374,18 @@ export class InMemoryLibraryStore implements LibraryStore {
       sortOrder: previous.sortOrder,
       createdAt: previous.createdAt,
       updatedAt: now,
+      isPrivate: previous.isPrivate,
     }
     this.customCategories.set(categoryId, next)
     return this.cloneCustomCategory(next)
+  }
+
+  setCustomCategoryPrivacy(categoryId: string, isPrivate: boolean, now: number = Date.now()): boolean {
+    const category = this.customCategories.get(categoryId)
+    if (category === undefined || (category.isPrivate === true) === isPrivate) return false
+    category.isPrivate = isPrivate
+    category.updatedAt = now
+    return true
   }
 
   moveCustomCategory(categoryId: string, destinationId: string, now: number = Date.now()): boolean {
@@ -486,13 +496,15 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   private cloneCustomCategory(category: CustomLibraryCategory): CustomLibraryCategory {
-    return {
+    const clone: CustomLibraryCategory = {
       id: category.id,
       name: category.name,
       sortOrder: category.sortOrder,
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
     }
+    if (category.isPrivate !== undefined) clone.isPrivate = category.isPrivate
+    return clone
   }
 
   private nextCustomCategorySortOrder(): number {
@@ -588,6 +600,7 @@ export class InMemoryLibraryStore implements LibraryStore {
       sortOrder: category.sortOrder,
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
+      isPrivate: category.isPrivate,
     }
   }
 

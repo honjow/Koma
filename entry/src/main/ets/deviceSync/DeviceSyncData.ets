@@ -250,6 +250,9 @@ export function syncGroupVisibleValue(group: SyncGroup, fact: SyncFact): string 
   const heads = syncVisibleHeads(fact)
   const value = syncVisibleValue(fact, heads)
   const kind = syncKeyParts(fact.key)[0]
+  // A concurrent edit can keep a category private. An explicit later edit
+  // that has observed that change can still make it public.
+  if (kind === 'category-privacy' && heads.some((edit: SyncEdit): boolean => edit.value === 'true')) return 'true'
   if (value !== undefined && (kind === 'recent' || kind === 'position' || kind === 'query' || kind === 'chapter-catalog')) {
     // A single head or fallback reset already won. Only concurrent values need date comparison.
     if (heads.length <= 1) return value
@@ -370,6 +373,7 @@ function validShelfValue(parts: string[], value: Object, legacy: boolean): boole
   }
   if (parts[0] === 'member') return value === true
   if (parts[0] === 'category') return checkText(value as string, 40)
+  if (parts[0] === 'category-privacy') return typeof value === 'boolean'
   const ordered = value as string[]
   return Array.isArray(ordered) && ordered.length <= 1024 && ordered.every(validCategory) &&
     new Set<string>(ordered).size === ordered.length
@@ -444,6 +448,7 @@ function validKey(group: SyncGroup, parts: string[], legacyShelf: boolean): bool
     parts.length === 3 && isSourceWork(parts)
   if (group === 'shelf') {
     if (kind === 'smart-category') return !legacyShelf && parts.length === 2 && isSyncReplica(parts[1])
+    if (kind === 'category-privacy') return !legacyShelf && parts.length === 2 && isSyncReplica(parts[1])
     if (kind === 'chapter-catalog' || kind === 'chapter-catalog-block') {
       return !legacyShelf && isSourceWork(parts) && ((kind === 'chapter-catalog' && parts.length === 3) ||
         (kind === 'chapter-catalog-block' && parts.length === 5 && isSyncDigest(parts[3]) && /^\d+$/.test(parts[4])))

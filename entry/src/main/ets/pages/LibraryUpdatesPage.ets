@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { Chapter, Comic, ComicSourceKind } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
+import { privateLibraryCategoryIds, showLibraryComic } from '../model/LibraryPrivacyVisibility'
 import { ChapterReadMutation, ReaderSessionStore } from '../model/ReaderSessionStore'
 import { OfflineDownloadChapterBatch, OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
@@ -85,12 +86,25 @@ export struct LibraryUpdatesPage {
   }
 
   @Computed
+  private get privateCategoryIds(): Set<string> {
+    void this.libraryRevision
+    return privateLibraryCategoryIds(this.libraryStore.listCustomCategories())
+  }
+
+  @Computed
+  private get visibleFailures(): LibraryUpdateComicResult[] {
+    return this.failures.results.filter((item: LibraryUpdateComicResult): boolean =>
+      showLibraryComic(this.libraryStore.getComic(item.comicId), this.privateCategoryIds))
+  }
+
+  @Computed
   private get rows(): ChapterUpdateRow[] {
     void this.libraryRevision
     const rows: ChapterUpdateRow[] = []
     const chaptersByComic = new Map<string, Map<string, Chapter>>()
     this.records.forEach((record: LibraryChapterUpdate): void => {
       const comic = this.libraryStore.getComic(record.comicId)
+      if (!showLibraryComic(comic, this.privateCategoryIds)) return
       if (comic !== undefined && !chaptersByComic.has(comic.id)) {
         const chapters = new Map<string, Chapter>()
         comic.chapters.forEach((chapter: Chapter): void => { chapters.set(chapter.id, chapter) })
@@ -295,7 +309,8 @@ export struct LibraryUpdatesPage {
           }
         }
       } else {
-        Repeat<LibraryUpdateComicResult>(this.openedFailures.results)
+        Repeat<LibraryUpdateComicResult>(this.openedFailures.results.filter((item: LibraryUpdateComicResult): boolean =>
+          showLibraryComic(this.libraryStore.getComic(item.comicId), this.privateCategoryIds)))
           .each((row: RepeatItem<LibraryUpdateComicResult>) => {
             ListItem() {
               GroupedListSection({ inModal: true }) {
@@ -328,11 +343,11 @@ export struct LibraryUpdatesPage {
             }
           }
           if (!this.chrome.selecting &&
-            (this.failures.results.length > 0 || this.failures.checkFailureCode !== undefined)) {
+            (this.visibleFailures.length > 0 || this.failures.checkFailureCode !== undefined)) {
             ListItem() {
               GroupedListSection() {
-                ConciseListRow({ title: this.failures.results.length > 0
-                    ? AppStrings.format('library_update_failures_count', this.failures.results.length)
+                ConciseListRow({ title: this.visibleFailures.length > 0
+                    ? AppStrings.format('library_update_failures_count', this.visibleFailures.length)
                     : AppStrings.get('library_updates_check_failed'),
                   action: (): void => {
                     this.openedFailures = this.failures
