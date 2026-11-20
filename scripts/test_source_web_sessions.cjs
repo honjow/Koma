@@ -624,6 +624,8 @@ function fixture(sdkApiVersion = 23) {
     const calls = [], instances = [], intercepts = []
     const trace = { info: (_event, detail) => diagnostics.push(detail), warn: (_event, detail) => diagnostics.push(detail), fail: () => {}, finish: (_state, detail) => diagnostics.push(detail) }
     const transport = moduleFrom('SourceRuntimeHttpTransport', name => {
+      if (name === './SourceBodyHost') return { SourceBodyHost: {} }
+      if (name === './SourceHttpBodyStream') return { requestSourceBodyStream: () => { throw Error('unexpected body stream in legacy fixture') } }
       if (name === '@kit.ArkTS') return { url: { URL }, util: { Base64Helper: class {
         encodeToStringSync(bytes) { return Buffer.from(bytes).toString('base64') }
       } } }
@@ -1220,6 +1222,7 @@ function declarations(relative, names, owner) {
 function sourceWorkerFixture(execute, workers = {}, privateHost) {
   const identity = moduleFrom('SourceRuntimeExecutionIdentity', () => ({}))
   const client = moduleFrom('SourceRuntimeWorkerClient', name => {
+    if (name === './SourceBodyHost') return { SourceBodyHost: { handoff: response => response, finishCall: () => {} } }
     if (name === '@kit.ArkTS') return { taskpool: { execute } }
     if (name === './SourceRuntimeExecutionIdentity') return identity
     if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: privateHost ?? {

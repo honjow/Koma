@@ -26,6 +26,7 @@ import { requestRemoteProgressBootstrapSync } from '../model/RemoteProgressBoots
 import { bootstrapSourceRuntimeAppRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntimeDeviceSmoke'
 import { configureSourceRuntimeHttpTransport } from '../sourceRuntime/SourceRuntimeHttpTransport'
+import { SourceBodyHost } from '../sourceRuntime/SourceBodyHost'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
 import { AppForegroundStateBridge } from '../state/AppForegroundState'
@@ -105,6 +106,7 @@ export default class EntryAbility extends UIAbility {
       DiagnosticLogger.warn('app', 'startup_load_failed', '[LibraryCover] startup_load_failed retained_previous_runtime=true')
     })
     configureSourceSettingsStore(this.context)
+    SourceBodyHost.configure(this.context.cacheDir)
     configureSourceRuntimeHttpTransport()
     bootstrapSourceRuntimeAppRegistry(this.context)
     this.openLaunchRouteFromWant(want)

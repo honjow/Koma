@@ -24,6 +24,8 @@ import { loadSourceWebTokenRevision, sourceHttpIdentityJson, sourceWebTokenRevis
 import { sourceDnsOverride, sourceDnsBootstrapIp, requestSourceDnsHop, SourceDnsOverride,
   SourceDnsBootstrapScope } from '../sourceRuntime/SourceDnsBootstrapTransport'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { SourceBodyHost } from '../sourceRuntime/SourceBodyHost'
+import { sourceWebPackageIdentity } from '../sourceRuntime/SourceWebSessionStore'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { http } from '@kit.NetworkKit'
@@ -906,6 +908,7 @@ class SourceImageRequestDescriptor {
   requiredImageDecode?: SourceRequiredImageDecode
   dnsOverride?: SourceDnsOverride
   responseErrors?: SourceImageResponseErrors
+  body?: ArrayBuffer
 
   constructor(url: string, headers?: RemoteImageCacheHeaders, processing?: Object, requiredDecode?: Object, dns?: Object,
     responseErrors?: SourceImageResponseErrors) {
@@ -1092,7 +1095,15 @@ async function resolveSourceRuntimeImageRequest(
   const data = response.data as Record<string, Object> | undefined
   if (data?.['requiredImageDecode'] !== undefined) sourceRequiredImageDecode(data['requiredImageDecode'])
   if (data?.['dnsOverride'] !== undefined) sourceDnsOverride(data['dnsOverride'])
-  const descriptor = parseSourceImageRequestDescriptor(responseJson)
+  let descriptor = parseSourceImageRequestDescriptor(responseJson)
+  if (typeof data?.['hostImageBody'] === 'string' && (data['hostImageBody'] as string).length > 0) {
+    const latest = appSourceRuntimeRegistry.lookup(sourceId).entry
+    if (latest !== lookup.entry || data['requiredImageDecode'] !== undefined) throw new Error('body_image_request_invalid')
+    const bytes = SourceBodyHost.takeImage(data['hostImageBody'] as string, sourceId, sourceWebPackageIdentity(lookup.entry))
+    descriptor = new SourceImageRequestDescriptor(uri)
+    descriptor.body = bytes
+    DiagnosticLogger.info('reader_image_request', 'body_claimed', 'source=' + sourceId + ' bytes=' + bytes.byteLength)
+  }
   if (descriptor === undefined && descriptorRequired) throw new Error('reader_source_image_request_invalid')
   if (descriptor?.requiredImageDecode?.kind === 'wasm_image_v1' && !processorDeclared) {
     throw new Error('source_required_decode_module_undeclared')
@@ -1283,7 +1294,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   const resolvedRequest = imageRequest
   const cacheHeaders = resolvedRequest.headers
   return fetchReaderRemoteFile(readerImageCacheStore, resolvedRequest.url, cacheHeaders,
-    (report, headerMeasured) => downloadReaderRemoteBytes(resolvedRequest.url, cacheHeaders,
+    (report, headerMeasured) => resolvedRequest.body !== undefined ? Promise.resolve(resolvedRequest.body) : downloadReaderRemoteBytes(resolvedRequest.url, cacheHeaders,
       sourceId, resolvedRequest.dnsOverride, chapterImage, resolvedRequest.responseErrors, coverImage, onSize,
       true, onProgress === undefined ? undefined : report, headerMeasured),
     cacheKeySeed, forceReload, onSize, onProgress)
@@ -1752,6 +1763,7 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
         source.imageProcessing = imageRequest.imageProcessing
         source.imageProcessingResolved = true
         source.imageProcessingFingerprint = sourceImageProcessingFingerprint(source.sourceRuntimeId)
+        if (imageRequest.body !== undefined) return imageRequest.body
         return downloadReaderRemoteBytesWithRetry(imageRequest.url, imageRequest.headers, source.sourceRuntimeId,
           imageRequest.dnsOverride, imageRequest.responseErrors)
       }

@@ -1,5 +1,6 @@
 import { taskpool } from '@kit.ArkTS'
 import { SourcePrivateSessionHost } from './SourcePrivateSessionHost'
+import { SourceBodyHost } from './SourceBodyHost'
 import { executeSourceRuntimeRequest, runBrowseSourceOperationTask, runLocalCoverOperationTask } from './SourceRuntimeWorker'
 import { sourceRuntimeExecutionHasDnsBootstrap, sourceRuntimeExecutionSourceId } from './SourceRuntimeExecutionIdentity'
 
@@ -121,9 +122,14 @@ async function runSourceWorker(requestJson: string, wasmBytes: Uint8Array,
       // Preserve the 401 result that invalidated its own session. A late success must not reach the caller.
       if (parsed?.['ok'] === true) throw new Error('source_request_cancelled')
     }
-    return response
+    return call.id.length === 0 ? response : SourceBodyHost.handoff(response, requestJson,
+      { sourceId: sourceRuntimeExecutionSourceId(call.httpContextJson),
+        packageIdentity: (JSON.parse(call.httpContextJson) as Record<string, string>)['packageIdentity'], callId: call.id })
   } finally {
-    if (call.id.length > 0) SourcePrivateSessionHost.finishCall(call.id)
+    if (call.id.length > 0) {
+      SourceBodyHost.finishCall(call.id)
+      SourcePrivateSessionHost.finishCall(call.id)
+    }
   }
 }
 
