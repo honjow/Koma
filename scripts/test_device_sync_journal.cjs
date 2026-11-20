@@ -1801,6 +1801,69 @@ test('an unrelated 409 still blocks both the connection test and sync discovery'
   assert.equal(f.trace.some(row => row.method === 'PUT'), false)
 })
 
+test('a new Nutstore root connection tests, saves and syncs in the same Koma folder', async () => {
+  const root = 'https://dav.jianguoyun.com/dav'
+  const f = transportFixture(root + '/Koma')
+  f.directories.clear()
+  f.directories.add(root + '/')
+  const { replica } = engineFixture(f.SharedWebDav)
+  const writer = replica(A, [['reader-settings', new Map([[pageNumber, 'true']])]])
+  writer.engine.setSelection(['reader-settings'])
+  const draft = { ...f.draft, directory: root }
+
+  // Nutstore returns 409 when the top-level sync collection is absent.
+  f.responseStatus((method, address) =>
+    method === 'PROPFIND' && address === root + '/koma-device-sync-v5/heads/' ?
+      response(409, '<d:error><s:exception>AncestorsNotFound</s:exception></d:error>') : undefined)
+  await assert.rejects(new f.SharedWebDav(draft).readSyncState(noop), /sync_server_http_409/)
+  f.trace.length = 0
+
+  await writer.engine.testConnection(draft)
+  assert.deepEqual(f.trace.filter(row => row.method === 'MKCOL').map(row => row.address),
+    [f.draft.directory + '/', f.sharedRoot, f.sharedRoot + 'heads/'])
+  assert.equal(f.files.size, 0)
+  const testedRequests = f.trace.length
+  await writer.engine.saveConfiguration(draft)
+  assert.equal(f.trace.length, testedRequests)
+  const reopened = writer.restart()
+  assert.deepEqual(await reopened.connectionDraft(), f.draft)
+  reopened.setEnabled(true)
+  await reopened.syncNow()
+
+  const reader = replica(B)
+  reader.engine.setSelection(['reader-settings'])
+  await reader.engine.saveConfiguration(f.draft)
+  reader.engine.setEnabled(true)
+  await reader.engine.syncNow()
+  assert.equal(reader.values.get('reader-settings')?.get(pageNumber), 'true')
+  assert.ok(f.trace.every(row => row.address.startsWith(f.draft.directory + '/')))
+})
+
+test('Nutstore credential edits preserve existing root and explicit subdirectory connections', async () => {
+  const root = 'https://dav.jianguoyun.com/dav'
+  for (const directory of [root, root + '/Existing']) {
+    const f = transportFixture(directory)
+    const { replica, assets } = engineFixture(f.SharedWebDav)
+    const { engine, store } = replica(A)
+    const credential = randomUUID()
+    const original = { ...f.draft, username: 'reader@example.test', password: 'old' }
+    const endpointIdentity = wire.syncDigest(JSON.stringify([original.directory, original.username]))
+    assets.set(credential, original)
+    store.update(state => {
+      state.pendingConfiguration = { credential, endpointIdentity, selected: ['reader-settings'], automatic: false, enabled: false }
+    })
+
+    const changed = { ...original, password: 'new' }
+    await engine.saveConfiguration(changed)
+    assert.deepEqual(await engine.connectionDraft(), changed)
+    assert.equal(engine.configuration().endpointIdentity, endpointIdentity)
+    assert.equal(engine.configuration().automatic, false)
+    assert.ok(f.trace.some(row => row.method === 'PUT'))
+    assert.ok(f.trace.every(row => row.address.startsWith(directory + '/') &&
+      !row.address.startsWith(directory + '/Koma/')))
+  }
+})
+
 test('a failed head probe is reported and a later cleanup removes a probe left in heads', async () => {
   const f = transportFixture()
   const provider = new f.SharedWebDav(f.draft, [], undefined, A)

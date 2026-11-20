@@ -462,8 +462,22 @@ export class DeviceSyncEngine {
     this.prepared = undefined
   }
 
-  async testConnection(raw: SyncConnectionDraft, _input: SyncGroup[] = []): Promise<boolean> {
+  private configurationDraft(raw: SyncConnectionDraft): SyncConnectionDraft {
     const draft = checkedSyncDraft(raw)
+    if (draft.directory !== 'https://dav.jianguoyun.com/dav') return draft
+    // Apply the default only to a new root draft. Existing connection identities
+    // and cleanup credentials keep their original directory.
+    const endpoint = endpointIdentity(draft)
+    if (this.configuration()?.endpointIdentity === endpoint ||
+      this.storage.load().archives?.some((item: SyncSavedConnection): boolean => item.endpointIdentity === endpoint)) {
+      return draft
+    }
+    draft.directory += '/Koma'
+    return checkedSyncDraft(draft)
+  }
+
+  async testConnection(raw: SyncConnectionDraft, _input: SyncGroup[] = []): Promise<boolean> {
+    const draft = this.configurationDraft(raw)
     this.tested = undefined
     const generationGuard = this.guard(this.generation)
     const probe = ++this.probeGeneration
@@ -504,7 +518,7 @@ export class DeviceSyncEngine {
   cancelConnectionTest(): void { this.probeGeneration++; this.tested = undefined }
 
   async saveConfiguration(raw: SyncConnectionDraft): Promise<void> {
-    const draft = checkedSyncDraft(raw)
+    const draft = this.configurationDraft(raw)
     const guard = this.guard(this.generation)
     if (this.tested === undefined || !sameConnection(this.tested, draft) || this.tested.password !== draft.password) {
       await this.testConnection(draft)
@@ -616,7 +630,7 @@ export class DeviceSyncEngine {
   async prepare(raw: SyncConnectionDraft, input: SyncGroup[], savedReview: boolean = false, reviewPermit?: number): Promise<SyncPreview> {
     if (reviewPermit !== undefined && reviewPermit !== this.reviewGeneration) throw new Error('sync_preview_changed')
     this.prepared = undefined
-    const draft = checkedSyncDraft(raw)
+    const draft = this.configurationDraft(raw)
     const review = reviewPermit ?? ++this.reviewGeneration
     const outstanding = this.storage.load().intent
     if (savedReview && this.isEnabled() && outstanding !== undefined && !outstanding.detached &&
