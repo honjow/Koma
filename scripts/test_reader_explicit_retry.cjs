@@ -253,6 +253,14 @@ test('image streaming reports early body bytes even when the platform progress e
   advance(50)
   assert.deepEqual(updates, [[0, 200], [30, 200], [120, 200], [0, 200]])
   assert.equal(timers.size, 0)
+
+  const singleChunk = []
+  const fastRequest = exports.observeReaderImageProgress((loaded, total) => singleChunk.push([loaded, total]))
+  fastRequest.report(0, 200)
+  fastRequest.report(200, 200)
+  fastRequest.complete()
+  fastRequest.close()
+  assert.deepEqual(singleChunk, [[0, 200], [200, 200]])
 })
 
 test('a measured download skips its own file probe while joined readers and cache hits still get dimensions', async () => {

@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-20T04:54:08+08:00",
+  "updatedAt": "2026-11-20T09:50:37+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -684,11 +684,15 @@
       "reportedDate": "2026-11-15",
       "reportedAtSource": "用户在本会话报告，原始时刻未核实。",
       "registeredAt": "2026-11-15T21:55:14+08:00",
-      "updatedAt": "2026-11-20T03:02:31+08:00",
-      "status": "237 已核对条漫进度补报及收完状态，哔咔分流 2 待实测",
-      "result": "再次报告条漫进度停在第一个数字。确认旧节流会丢弃 50 ms 内的后续进度，且正文收完后一直保留上一数值。宿主节流改为保留并补发最新字节，已经显示的百分比在确认正文收完时更新到 100%。237 同签 Release 候选在《遇强则强》第 53 话录到同一张图 42%→100%→正文，数字变化相隔约 34 ms。9 次惯性前翻由第 1 到第 26 页，两段日志共 40 条正文成功响应。原第 2 话第 120 页、无痕开关、桌面、10 秒超时和休眠已核对恢复，已释租，保留候选包。7 项相关本地测试及签名构建通过，扩展脚本中的 7 项历史失败与基线相同。 正文流能取得同口径的响应头长度时，由响应头和实际数据块提供百分比。第一次增长不受节流限制，之后的同一请求更新间隔从 100 ms 缩到 50 ms。图像就绪时立即显示。201《遇强则强》第 27 话首图录到 1% 和 49% 后正常显示，连续前翻至第 57 页。最后一段实时日志确认 27 次新图请求全部返回 200，响应头至收完正文的中位数为 23 ms，范围为 1–182 ms。 Koma 宿主将真实下载字节接入共享阅读器现有百分比。当前页可接续预载的进度，缓存仍在接收完整图片后发布。签名 Debug HAP 构建通过。本地验证覆盖重试、预载接续、完整文件发布和流式接收上限，扩展运行有 8 项与改动前相同的失败。237 分页实测《碧藍之海》第105话首图从 2% 更新到 26%，Komiic 的响应总大小未知，显示循环加载后正常出图。同包条漫实测瓜子漫画《从姑获鸟开始》334 鬼梦貘，从循环加载切换到 72%，随后正常出图并能连续滚动；可见两张正文图。哔哩漫画第105、106话在本轮条漫对照中部分请求等不到响应头，保留循环加载。已恢复本书原单页从右到左、无痕开关、书架第56话第3页及 10000ms 休眠超时，释租，保留测试包。",
-      "remaining": "单块或短时集中到达仍可能直接跨格。哔咔分流 2 尚待可用账号下核对实际传输回报。",
+      "updatedAt": "2026-11-20T09:50:37+08:00",
+      "status": "237 已验证正文收完后切换加载、准备提示，随后正常出图",
+      "result": "用户再次报告百分比会停在 100% 数秒。Koma 仍回报真实收取字节数，reader-kit 6327ca6 仅在传输进行时显示百分比，收完后沿用现有循环条及加载、准备文案，图片就绪立即显示。已知长度的单块传输在收完时也终止百分比，重定向后清掉旧响应的统计。237 同签 Release 在《遇强则强》第 89 话首图实录 84% → 正在加载图片 → 正在准备图片 → 正文。从第 1 页向前 16 次快甩和 12 次较低惯性到第 54 页。加载占位分支实执行和 7 项宿主用例通过。原阅读位置、无痕、书架分类、桌面、10 秒超时和休眠已核对恢复，已释租。此前在 201 已验早期进度，237 已验条漫和分页的字节回报。 ",
+      "remaining": "本次录屏验证了传输与出图反馈交接，用户报告的数秒等待长度未在该章复现。哔咔分流 2 尚待可用账号下核对实际传输回报。",
       "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-image-progress/progress-preparation-chapter-89-open-20261120T094226825766/progress-preparation-chapter-89-open-20261120T094226825766.mp4",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/image-progress-89-phase-detail.jpg",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/image-progress-preparation-237-route.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/image-progress-preparation-237-install.json",
         ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-image-progress/progress-chapter-53-open-20261120T030030608865/progress-chapter-53-open-20261120T030030608865.mp4",
         ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-image-progress/progress-chapter-53-open-20261120T030030608865/progress-frame-evidence.jpg",
         ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-image-progress/progress-chapter-53-forward-20261120T030043182527/progress-chapter-53-forward-20261120T030043182527.mp4",
@@ -12085,6 +12089,20 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-image-progress-237-preparation-20261120",
+      "at": "2026-11-20T09:50:37+08:00",
+      "itemId": "READER_REMOTE_IMAGE_DOWNLOAD_PROGRESS",
+      "title": "237 核对条漫正文收完后的准备反馈",
+      "detail": "用户再次报告百分比会停在 100% 数秒。Koma 仍回报真实收取字节数，reader-kit 6327ca6 仅在传输进行时显示百分比，收完后沿用现有循环条及加载、准备文案，图片就绪立即显示。已知长度的单块传输在收完时也终止百分比，重定向后清掉旧响应的统计。237 同签 Release 在《遇强则强》第 89 话首图实录 84% → 正在加载图片 → 正在准备图片 → 正文。从第 1 页向前 16 次快甩和 12 次较低惯性到第 54 页。加载占位分支实执行和 7 项宿主用例通过。原阅读位置、无痕、书架分类、桌面、10 秒超时和休眠已核对恢复，已释租。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-image-progress/progress-preparation-chapter-89-open-20261120T094226825766/progress-preparation-chapter-89-open-20261120T094226825766.mp4",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/image-progress-89-phase-detail.jpg",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/image-progress-preparation-237-route.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/image-progress-preparation-237-install.json"
+      ]
+    },
     {
       "id": "continuous-237-reading-worker-final-20261120",
       "at": "2026-11-20T04:54:08+08:00",

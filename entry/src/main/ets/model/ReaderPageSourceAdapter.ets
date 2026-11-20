@@ -504,13 +504,15 @@ function observeReaderImageProgress(receive: RemoteImageDownloadProgress): Reade
     report,
     reset: (): void => {
       cancelPending()
-      if (lastPercent > 0) publish(0, lastTotal, 0)
+      if (lastPercent > 0) receive(0, lastTotal)
+      lastPercent = -1
+      lastTotal = 0
     },
     complete: (): void => {
       cancelPending()
-      // Show the completed transfer during any cache/decode wait, without
-      // introducing a percentage for an image that arrived in one block.
-      if (!closed && lastPercent > 0 && lastPercent < 100) publish(lastTotal, lastTotal, 100)
+      // Let the shared placeholder switch from byte progress to image preparation
+      // as soon as the transfer completes.
+      if (!closed && lastTotal > 0 && lastPercent < 100) publish(lastTotal, lastTotal, 100)
     },
     close: (): void => { closed = true; cancelPending() },
   }
