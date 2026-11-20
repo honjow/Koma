@@ -1699,7 +1699,11 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
       return rendered
     }
     if (source.sourceText !== undefined) return cacheSourceTextPageImage(source.sourceText, forceReload)
-    return prepareSourcePagePresentation(source, source.imageUri, context, presentation)
+    const prepared = await prepareSourcePagePresentation(source, source.imageUri, context, presentation)
+    // Local originals have the same size-publication contract as downloaded
+    // HTTP cache entries. A manifest need not already contain dimensions.
+    if (onSize !== undefined) void probeReaderImageFileSize(prepared, onSize)
+    return prepared
   }
   if (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE) {
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
