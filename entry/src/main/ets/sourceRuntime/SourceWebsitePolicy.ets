@@ -60,6 +60,8 @@ export interface SourceWebsitePolicy {
   // page actually contains the declared content. No background WebView opens.
   // See stageSourceWebDocument for the binding rules.
   renderedDocumentFallback?: boolean | SourceRenderedDocumentPolicy
+  // A ready document can complete a user verification without handing HTML back.
+  webSessionReadySelector?: string
   // Legacy package fields remain readable. The verification WebView derives
   // its default identity from the current ArkWeb engine for every source.
   webSessionUserAgent?: string
@@ -197,6 +199,10 @@ export function sourceDnsTarget(policy: SourceDnsBootstrap, fullUrl: string): bo
     (target.hostname === policy.domain || target.hostname.endsWith('.' + policy.domain))
 }
 
+function validWebSessionReadySelector(value: Object | undefined): boolean {
+  return typeof value === 'string' && value.length > 0 && value.length <= 256 && !/[<\\\r\n]/.test(value)
+}
+
 export function validSourceWebsitePolicy(value?: Object): boolean {
   if (value === undefined) return true
   const policy = asRecord(value)
@@ -207,10 +213,10 @@ export function validSourceWebsitePolicy(value?: Object): boolean {
   const renderedDocument = policy['renderedDocumentFallback']
   if (renderedDocument !== undefined && typeof renderedDocument !== 'boolean') {
     const rule = asRecord(renderedDocument)
-    const selector = rule?.['readySelector']
-    if (rule === undefined || typeof selector !== 'string' || selector.length === 0 || selector.length > 256 ||
-      /[<\\\r\n]/.test(selector)) return false
+    if (!validWebSessionReadySelector(rule?.['readySelector'])) return false
   }
+  const sessionReady = policy['webSessionReadySelector']
+  if (sessionReady !== undefined && !validWebSessionReadySelector(sessionReady)) return false
   const sessionAgent = policy['webSessionUserAgent']
   if (sessionAgent !== undefined && (typeof sessionAgent !== 'string' || sessionAgent.length === 0 ||
     sessionAgent.length > 256 || /[\r\n]/.test(sessionAgent))) return false

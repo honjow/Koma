@@ -29,7 +29,7 @@ export interface SourceWebSessionRouteParam {
   sourceId: string
   sessionId: string
   allowClearanceRetry?: boolean
-  requiresManualCompletion?: boolean
+  requiresDocumentReadiness?: boolean
   requestHandle?: string
 }
 

@@ -195,12 +195,12 @@ export struct SourceWebSessionSheet {
       ' matchingDocument=' + (event !== undefined && event.url === this.pageUrl) +
       ' sessionPresent=' + (this.params.sourceSession !== undefined))
     const endedSession = this.params.sourceSession
-    // Only the source knows what its verification document means.
-    // Wait for the user to complete it through the existing manual action.
-    if (endedSession?.requiresManualCompletion) return
     if (endedSession !== undefined && event !== undefined && event.url === this.pageUrl && !this.pageFailed) {
       void this.autoCompleteRenderedDocument(this.epoch, endedSession.sourceId, endedSession.sessionId)
     }
+    // A document challenge needs a source-declared success marker. The fact
+    // that a native GET succeeds at HTTP level cannot complete this sheet.
+    if (endedSession?.requiresDocumentReadiness) return
     // A declared readiness selector owns automatic completion; clearance/probe
     // remains the path for sources that only declare the boolean fallback.
     if (renderedDocumentReadySelector(endedSession === undefined ? undefined :
@@ -353,17 +353,28 @@ export struct SourceWebSessionSheet {
   /** Close the verification sheet only after the declared content actually exists. */
   private async autoCompleteRenderedDocument(epoch: number, sourceId: string, sessionId: string): Promise<void> {
     const policy = appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy
-    const selector = renderedDocumentReadySelector(policy)
+    const verification = this.params.sourceSession?.requiresDocumentReadiness === true
+    const selector = verification ? (policy?.webSessionReadySelector ?? '') : renderedDocumentReadySelector(policy)
     if (selector.length === 0 || this.autoRetryStarted || this.loading || this.pageFailed || this.completing ||
       this.completed) return
+    const documentUrl = this.pageUrl
+    const revision = this.pageRevision
+    const initialOrigin = sourceWebOrigin(this.params.url)
+    if (verification && (initialOrigin.length === 0 || sourceWebOrigin(documentUrl) !== initialOrigin)) return
     const attempt = this.autoDocumentAttempt + 1
     this.autoDocumentAttempt = attempt
+    const current = (): boolean => this.isCurrent(epoch, sourceId, sessionId) && !this.autoRetryStarted &&
+      !this.loading && !this.pageFailed && !this.completing && this.autoDocumentAttempt === attempt &&
+      this.pageRevision === revision && this.pageUrl === documentUrl
     for (let index = 0; index < 4; index += 1) {
-      if (!this.isCurrent(epoch, sourceId, sessionId) || this.autoRetryStarted || this.loading ||
-        this.pageFailed || this.completing || this.autoDocumentAttempt !== attempt) return
-      if (await this.renderedDocumentReady(selector)) {
+      if (!current()) return
+      const ready = await this.renderedDocumentReady(selector)
+      if (!current()) return
+      if (ready) {
         this.autoRetryStarted = true
-        await this.completeSourceSession(true, false, false, true)
+        // Verification can redirect to same-origin results. Retry the original
+        // request with the verified session instead of staging that HTML.
+        await this.completeSourceSession(true, false, false, !verification)
         return
       }
       await this.delay(600)
@@ -456,6 +467,8 @@ export struct SourceWebSessionSheet {
       const customUa = this.controller.getCustomUserAgent()
       const actualUa = customUa.length > 0 ? customUa : this.controller.getUserAgent()
       const documentUrl = this.controller.getUrl()
+      if (automatic && this.params.sourceSession?.requiresDocumentReadiness &&
+        sourceWebOrigin(documentUrl) !== sourceWebOrigin(this.params.url)) return
       const redirectedDocument = sourceWebOrigin(documentUrl) !== sourceWebOrigin(this.params.url) && this.canProbeOriginal() &&
         appSourceWebSessionStore.canProbeRedirectedDocument(sourceId, sessionId, documentUrl)
       let documentStaged = false

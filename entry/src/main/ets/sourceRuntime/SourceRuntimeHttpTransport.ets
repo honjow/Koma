@@ -63,7 +63,7 @@ interface RejectedSourceGet {
   httpContextJson: string
   identity: SourceHttpIdentity
   rejectedUrl: string
-  requiresManualCompletion: boolean
+  requiresDocumentReadiness: boolean
 }
 
 interface SourceWebProbeContext {
@@ -106,8 +106,8 @@ export function sourceRejectedRequestUrl(sourceId: string, requestHandle: string
   return rejectedSourceGets.get(rejectedSourceGetKey(sourceId, requestHandle))?.rejectedUrl ?? ''
 }
 
-export function sourceRejectedRequestRequiresManualCompletion(sourceId: string, requestHandle: string): boolean {
-  return rejectedSourceGets.get(rejectedSourceGetKey(sourceId, requestHandle))?.requiresManualCompletion ?? false
+export function sourceRejectedRequestRequiresDocumentReadiness(sourceId: string, requestHandle: string): boolean {
+  return rejectedSourceGets.get(rejectedSourceGetKey(sourceId, requestHandle))?.requiresDocumentReadiness ?? false
 }
 
 export function clearSourceRejectedRequest(sourceId: string, requestHandle: string): void {
@@ -1073,7 +1073,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         const key = rejectedSourceGetKey(identity.sourceId, identity.operationGuardId)
         const previous = rejectedSourceGets.get(key)
         const rejected: RejectedSourceGet = {
-          requestJson, httpContextJson, identity, rejectedUrl: currentUrl, requiresManualCompletion: documentCandidate
+          requestJson, httpContextJson, identity, rejectedUrl: currentUrl, requiresDocumentReadiness: documentCandidate
         }
         if (optedIn || documentCandidate) {
           rejectedSourceSequence += 1
@@ -1194,7 +1194,7 @@ export async function probeSourceWebSession(sourceId: string, sessionId: string,
   userAgent: string, current: () => boolean, requestHandle?: string): Promise<boolean> {
   const key = rejectedSourceGetKey(sourceId, requestHandle)
   const request = rejectedSourceGets.get(key)
-  if (request === undefined || request === null || request.requiresManualCompletion || !current()) return false
+  if (request === undefined || request === null || request.requiresDocumentReadiness || !current()) return false
   const active: ActiveSourceWebProbe = { sourceId, sessionId }
   if (activeSourceWebProbe !== undefined) return false
   activeSourceWebProbe = active

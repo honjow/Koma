@@ -1701,7 +1701,7 @@ test('source-provided challenge ID selects only its own actual rejected GET', as
   release()
 })
 
-test('opted-in verification documents use their own URL regardless of HTTP status and wait for manual completion', async () => {
+test('opted-in verification documents use their own URL regardless of status and cannot complete on HTTP success alone', async () => {
   const f = fixture()
   const id = f.guards.newSourceRuntimeOperationGuardId()
   const release = f.guards.registerSourceRuntimeOperationGuard(id, () => true)
@@ -1732,7 +1732,7 @@ test('opted-in verification documents use their own URL regardless of HTTP statu
       assert.equal(typeof requestId, 'string')
       transport.selectSourceRejectedRequest('source.one', id, requestId)
       assert.equal(transport.sourceRejectedRequestUrl('source.one', id), url)
-      assert.equal(transport.sourceRejectedRequestRequiresManualCompletion('source.one', id), true)
+      assert.equal(transport.sourceRejectedRequestRequiresDocumentReadiness('source.one', id), true)
       const pending = f.store.begin(f.registry, 'source.one', url)
       assert.equal(await transport.probeSourceWebSession('source.one', pending.sessionId, url, 'ActualUA', () => true, id), false)
       f.store.cancel('source.one', pending.sessionId)
