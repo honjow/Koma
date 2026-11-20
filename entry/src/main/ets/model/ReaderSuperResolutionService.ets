@@ -54,17 +54,19 @@ function allocateSystemSuperResolutionPixels(bytes: number): ArrayBuffer {
   return new ArrayBuffer(bytes)
 }
 
-/** Keep the Core Vision normalization buffer and JPEG encoder on this worker. */
+/** Own the normalized buffer, encoder and their disposal on the same worker. */
 @Concurrent
-async function packSystemSuperResolution(source: sendableImage.PixelMap, width: number, height: number,
+async function packSystemSuperResolution(source: sendableImage.PixelMap | ArrayBuffer, width: number, height: number,
   path: string): Promise<void> {
   let pixels: image.PixelMap | undefined = undefined
   let packer: image.ImagePacker | undefined = undefined
   let file: fileIo.File | undefined = undefined
   try {
-    const bytes = new ArrayBuffer(width * height * 4)
-    await source.readPixelsToBuffer(bytes)
-    await source.release()
+    const bytes = source instanceof ArrayBuffer ? source : new ArrayBuffer(width * height * 4)
+    if (!(source instanceof ArrayBuffer)) {
+      await source.readPixelsToBuffer(bytes)
+      await source.release()
+    }
     pixels = await image.createPixelMap(bytes, {
       size: { width, height },
       srcPixelFormat: image.PixelMapFormat.RGBA_8888,
@@ -824,9 +826,6 @@ export class ReaderSuperResolutionService {
       new ReaderSuperResolutionEventLoopProbe()
     let source: image.ImageSource | undefined = undefined
     let outputPixelMap: image.PixelMap | undefined = undefined
-    let normalizedPixelMap: image.PixelMap | undefined = undefined
-    let packer: image.ImagePacker | undefined = undefined
-    let outputFile: fileIo.File | null = null
     const tmpPath: string = `${outputPath}.part`
     let sourceWidth: number = 0
     let sourceHeight: number = 0
@@ -931,21 +930,11 @@ export class ReaderSuperResolutionService {
           outputPixelMap = undefined
         } catch (_releaseError) { /* Retry disposal in finally. */ }
         await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
-        normalizedPixelMap = await image.createPixelMap(normalizedBuffer, {
-          size: { width: outputWidth, height: outputHeight },
-          srcPixelFormat: image.PixelMapFormat.RGBA_8888,
-          pixelFormat: image.PixelMapFormat.RGBA_8888,
-          editable: false,
-        })
-        await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
-        ReaderSuperResolutionService.removeIfExists(tmpPath)
-        processingStage = 'output_file'
-        outputFile = await fileIo.open(tmpPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-        packer = image.createImagePacker()
-        processingStage = 'output_pack'
-        await packer.packToFile(normalizedPixelMap, outputFile.fd, { format: 'image/jpeg', quality: 98 })
-        await fileIo.close(outputFile)
-        outputFile = null
+        // TaskPool transfers this one-use ArrayBuffer. The original native map
+        // cannot be serialized above the PixelMap limit, so only its copied
+        // pixels go back to a worker for normalization, packing and disposal.
+        processingStage = 'system_worker_pack_buffer'
+        await taskpool.execute(packSystemSuperResolution, normalizedBuffer, outputWidth, outputHeight, tmpPath)
       }
       ReaderSuperResolutionService.ensureTaskActive(inFlight)
       if (ReaderSuperResolutionService.fileSize(tmpPath) <= 0) throw new Error('enhanced image file is empty')
@@ -966,7 +955,7 @@ export class ReaderSuperResolutionService {
         'process_success',
         `model=${ReaderSuperResolutionModel.SYSTEM_CORE_VISION} ` +
           `source=${sourceWidth}x${sourceHeight} output=${outputWidth}x${outputHeight} ` +
-          `backend=system normalize=${shared !== undefined ? 'worker' : 'local'} bytes=${outputBytes} elapsedMs=${elapsedMs} ` +
+          `backend=system normalize=${shared !== undefined ? 'worker' : 'worker-buffer'} bytes=${outputBytes} elapsedMs=${elapsedMs} ` +
           `keyHash=${readerProcessingOwnerHash(sourceKey)}`,
       )
       await ReaderSuperResolutionService.pruneToLimit(context, outputPath)
@@ -1017,21 +1006,6 @@ export class ReaderSuperResolutionService {
           `maxDelayMs=${eventLoopProbe.maximumDelayMs()} ` +
           `keyHash=${readerProcessingOwnerHash(sourceKey)}`,
       )
-      if (outputFile !== null) {
-        try {
-          await fileIo.close(outputFile)
-        } catch (_error) {}
-      }
-      if (packer !== undefined) {
-        try {
-          await packer.release()
-        } catch (_releaseError) {}
-      }
-      if (normalizedPixelMap !== undefined) {
-        try {
-          await normalizedPixelMap.release()
-        } catch (_releaseError) {}
-      }
       if (outputPixelMap !== undefined) {
         try {
           await outputPixelMap.release()
