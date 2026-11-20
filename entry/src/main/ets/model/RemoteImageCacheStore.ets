@@ -61,17 +61,20 @@ interface RemoteImageCacheManifestDocument {
 export interface ReaderCachedPageFiles {
   imagePath?: string
   metadataPath?: string
+  metadataText?: string
 }
 
 interface ReaderCacheFileAvailability {
   image: boolean
   metadata: boolean
+  metadataText?: string
 }
 
 @Concurrent
 function checkReaderCacheFiles(imagePath: string, metadataPath: string): ReaderCacheFileAvailability {
   const image = fs.accessSync(imagePath)
-  return { image, metadata: image && metadataPath.length > 0 && fs.accessSync(metadataPath) }
+  const metadata = image && metadataPath.length > 0 && fs.accessSync(metadataPath)
+  return { image, metadata, metadataText: metadata ? fs.readTextSync(metadataPath, { encoding: 'utf-8' }) : undefined }
 }
 
 async function readerCacheFileAvailability(imagePath: string, metadataPath: string): Promise<ReaderCacheFileAvailability> {
@@ -79,7 +82,8 @@ async function readerCacheFileAvailability(imagePath: string, metadataPath: stri
     return await taskpool.execute(checkReaderCacheFiles, imagePath, metadataPath) as ReaderCacheFileAvailability
   } catch (_error) {
     const image = await fs.access(imagePath)
-    return { image, metadata: image && metadataPath.length > 0 && await fs.access(metadataPath) }
+    const metadata = image && metadataPath.length > 0 && await fs.access(metadataPath)
+    return { image, metadata, metadataText: metadata ? await fs.readText(metadataPath) : undefined }
   }
 }
 
@@ -268,8 +272,8 @@ export class RemoteImageCacheStore {
     return this.enqueue(() => this.getNow(cacheKeyFor(url, headers, cacheKeySeed)))
   }
 
-  /** Keep existence checks authoritative after OS cache eviction. A short-page
-   * run can need both files per row, so return one worker result to the UI. */
+  /** Keep existence checks authoritative after OS cache eviction. Return any
+   * small processing descriptor with the body lookup to avoid a second UI callback. */
   getReaderPage(imageSeed: string, metadataSeed?: string): Promise<ReaderCachedPageFiles> {
     return this.enqueue(async (): Promise<ReaderCachedPageFiles> => {
       const imageKey = cacheKeyFor('', undefined, imageSeed)
@@ -282,7 +286,7 @@ export class RemoteImageCacheStore {
       const imagePath = await this.finishLookup(imageKey, image, availability.image)
       if (imagePath === undefined || metadata === undefined) return { imagePath }
       const metadataPath = await this.finishLookup(metadataKey, metadata, availability.metadata)
-      return { imagePath, metadataPath }
+      return { imagePath, metadataPath, metadataText: metadataPath === undefined ? undefined : availability.metadataText }
     })
   }
 

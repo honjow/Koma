@@ -12,6 +12,13 @@ import { connectImageRuleState } from '../state/ImageRuleState'
 
 interface ProcessedPluginBytes { bytes: ArrayBuffer; extension: string }
 
+interface ImagePluginExecutionPlan {
+  moduleBase64: string
+  moduleSha256: string
+  configuration: string
+  output?: ImagePluginOutput
+}
+
 export function imagePluginPlans(snapshot: ImageRuleSnapshot, policy: BannerFilterMode,
   hint?: ImageProcessingHint): ImagePluginPlan[] {
   if (policy === 'off') return []
@@ -36,7 +43,8 @@ export function imagePluginPlans(snapshot: ImageRuleSnapshot, policy: BannerFilt
 }
 
 @Concurrent
-async function processImagePlugins(path: string, plansJson: string, expectedHash: string): Promise<ProcessedPluginBytes> {
+async function processImagePlugins(path: string, plans: ImagePluginExecutionPlan[],
+  expectedHash: string): Promise<ProcessedPluginBytes> {
   const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
   let original: ArrayBuffer
   try {
@@ -64,18 +72,18 @@ async function processImagePlugins(path: string, plansJson: string, expectedHash
     await decoded.release(); decoded = undefined
     let changed = false
     let encoding: ImagePluginOutput = { format: 'image/png', quality: 100 }
-    for (const plan of JSON.parse(plansJson) as ImagePluginPlan[]) {
-      const module = new util.Base64Helper().decodeSync(plan.plugin.processor.moduleBase64 ?? '')
+    for (const plan of plans) {
+      const module = new util.Base64Helper().decodeSync(plan.moduleBase64)
       const moduleDigest = cryptoFramework.createMd('SHA256')
       moduleDigest.updateSync({ data: module })
       const moduleHash = Array.from(moduleDigest.digestSync().data).map((v: number): string => v.toString(16).padStart(2, '0')).join('')
-      if (moduleHash !== plan.plugin.processor.sha256) throw new Error('image_plugin_module_changed')
-      const result = imagePluginNative.runImageProcessor(module, pixels, width, height, JSON.stringify(plan.configuration))
+      if (moduleHash !== plan.moduleSha256) throw new Error('image_plugin_module_changed')
+      const result = imagePluginNative.runImageProcessor(module, pixels, width, height, plan.configuration)
       if (!result.ok) throw new Error('image_plugin_' + result.reason)
       if (!result.changed) continue
       pixels = result.pixels; width = result.width; height = result.height
       changed = true
-      encoding = plan.plugin.output ?? { format: 'image/png', quality: 100 }
+      encoding = plan.output ?? { format: 'image/png', quality: 100 }
     }
     if (!changed) return { bytes: new ArrayBuffer(0), extension: '' }
     output = await image.createPixelMap(pixels, { size: { width, height }, pixelFormat: image.PixelMapFormat.RGBA_8888,
@@ -111,11 +119,11 @@ export class ImagePluginService {
   }
   static prepare(path: string, plans: ImagePluginPlan[], cache: RemoteImageCacheStore): Promise<string> {
     if (plans.length === 0) return Promise.resolve(path)
-    const plansJson = JSON.stringify(plans)
-    const pendingKey = JSON.stringify([path, ImagePluginService.identity(plans)])
+    const identity = ImagePluginService.identity(plans)
+    const pendingKey = JSON.stringify([path, identity])
     const pending = ImagePluginService.inFlight.get(pendingKey)
     if (pending) return pending
-    const request = ImagePluginService.process(path, plans, plansJson, cache)
+    const request = ImagePluginService.process(path, plans, identity, cache)
     ImagePluginService.inFlight.set(pendingKey, request)
     const retire = (): void => { if (ImagePluginService.inFlight.get(pendingKey) === request) ImagePluginService.inFlight.delete(pendingKey) }
     void request.then(retire, retire)
@@ -126,13 +134,14 @@ export class ImagePluginService {
     return JSON.stringify(plans.map((plan: ImagePluginPlan): string =>
       JSON.stringify([plan.plugin.processor.abi, plan.plugin.processor.sha256, plan.plugin.output, plan.configuration])))
   }
-  private static async process(path: string, plans: ImagePluginPlan[], plansJson: string, cache: RemoteImageCacheStore): Promise<string> {
+  private static async process(path: string, plans: ImagePluginPlan[], identity: string,
+    cache: RemoteImageCacheStore): Promise<string> {
     try {
       const content = await taskpool.execute<[string], string>(imageFileContentHash, path)
-      const key = JSON.stringify(['koma-image-v1', content, ImagePluginService.identity(plans)])
+      const key = JSON.stringify(['koma-image-v1', content, identity])
       let pending = ImagePluginService.transforms.get(key)
       if (pending === undefined) {
-        pending = ImagePluginService.transform(path, plansJson, content, key, cache)
+        pending = ImagePluginService.transform(path, plans, content, key, cache)
         ImagePluginService.transforms.set(key, pending)
         const current = pending
         const retire = (): void => { if (ImagePluginService.transforms.get(key) === current) ImagePluginService.transforms.delete(key) }
@@ -147,7 +156,7 @@ export class ImagePluginService {
       return path
     }
   }
-  private static async transform(path: string, plansJson: string, content: string, key: string,
+  private static async transform(path: string, plans: ImagePluginPlan[], content: string, key: string,
     cache: RemoteImageCacheStore): Promise<string | undefined> {
     // The nonempty seed identifies the cached result independently of its
     // encoding. The cache returns the published path with its real extension.
@@ -160,7 +169,16 @@ export class ImagePluginService {
     else ImagePluginService.active += 1
     let result: ProcessedPluginBytes
     try {
-      result = await taskpool.execute<[string, string, string], ProcessedPluginBytes>(processImagePlugins, path, plansJson, content)
+      // Only real cache misses send the WASM to a worker. Pass its bytes as
+      // Base64 without serializing the entire installed plugin for each page.
+      const execution = plans.map((plan: ImagePluginPlan): ImagePluginExecutionPlan => ({
+        moduleBase64: plan.plugin.processor.moduleBase64 ?? '',
+        moduleSha256: plan.plugin.processor.sha256,
+        configuration: JSON.stringify(plan.configuration),
+        output: plan.plugin.output,
+      }))
+      result = await taskpool.execute<[string, ImagePluginExecutionPlan[], string], ProcessedPluginBytes>(
+        processImagePlugins, path, execution, content)
     } finally {
       const next = ImagePluginService.waiters.shift()
       if (next) next()

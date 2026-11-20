@@ -76,15 +76,18 @@ test('reader page lookup keeps the body usable after cached metadata is evicted'
   const cache = loadCache(directory)
   try {
     const image = await cache.put('https://cache.invalid/page.jpg', undefined, new Uint8Array(4).buffer, 'page')
-    const metadata = await cache.put('source-image-processing.json', undefined, new Uint8Array(8).buffer, 'metadata')
+    const descriptor = '{"hint":{"kind":"短图","mode":"remove"},"requiredImageDecode":null}'
+    const metadata = await cache.put('source-image-processing.json', undefined, new TextEncoder().encode(descriptor).buffer, 'metadata')
     const cachedPage = await cache.getReaderPage('page', 'metadata')
     assert.equal(cachedPage.imagePath, image)
     assert.equal(cachedPage.metadataPath, metadata)
+    assert.equal(cachedPage.metadataText, descriptor)
 
     fs.unlinkSync(metadata)
     const imageOnly = await cache.getReaderPage('page', 'metadata')
     assert.equal(imageOnly.imagePath, image)
     assert.equal(imageOnly.metadataPath, undefined)
+    assert.equal(imageOnly.metadataText, undefined)
     assert.equal((await cache.stats()).entryCount, 1)
 
     fs.unlinkSync(image)
