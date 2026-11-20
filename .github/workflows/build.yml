@@ -7,9 +7,14 @@ on:
   pull_request:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      native_image_digest:
+        description: Optional SHA-256 digest of the HarmonyOS image to check in this run
+        required: false
+        type: string
 
 concurrency:
-  group: build-ohos-${{ github.ref }}
+  group: build-ohos-${{ github.ref }}${{ inputs.native_image_digest && '-image-check' || '' }}
   cancel-in-progress: true
 
 permissions:
@@ -22,7 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:
-      image: ghcr.io/honjow/harmonyos-build-env:26.0-api26
+      # Only set this to a verified HarmonyOS image with the build tools preinstalled.
+      image: ${{ (inputs.native_image_digest && format('ghcr.io/honjow/harmonyos-build-env@{0}', inputs.native_image_digest)) || vars.KOMA_OHOS_BUILD_IMAGE || 'ghcr.io/honjow/harmonyos-build-env:26.0-api26' }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -50,7 +56,8 @@ jobs:
       - name: Check release preflight
         run: bash scripts/check_release_preflight.sh
 
-      - name: Install native build dependencies
+      - name: Install native build dependencies (legacy image)
+        if: inputs.native_image_digest == '' && vars.KOMA_OHOS_BUILD_IMAGE == ''
         run: |
           # The build container uses Ubuntu's direct sources rather than the
           # host runner's mirror list. Keep apt usable during ubuntu.com DNS outages.
@@ -60,6 +67,16 @@ jobs:
           done
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential xxd pkg-config curl ca-certificates patch perl python3 zstd
+
+      - name: Check native build tools
+        run: |
+          for tool in cc c++ make xxd pkg-config curl patch perl python3 zstd; do
+            if ! command -v "$tool" >/dev/null; then
+              echo "::error::The HarmonyOS build image is missing $tool. Use the verified native image or clear KOMA_OHOS_BUILD_IMAGE."
+              exit 1
+            fi
+          done
+          test -s /etc/ssl/certs/ca-certificates.crt
 
       - name: Identify native build toolchain
         id: native_toolchain

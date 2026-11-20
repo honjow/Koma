@@ -14,3 +14,7 @@
 **未经用户明确允许，禁止手动发布或调整已发布版本。** 包括手动创建、编辑、删除 Release，修改正文、附件、发布状态或 latest 指向，以及移动、删除已发布标签。重跑 CI 如果会改动已有 Release，同样须先取得明确允许。用户授权发布时，按上述流程创建并推送新标签以触发 CI。
 
 本文不授权自动打 tag 或发布。版本日志只维护一份正文，GitHub Release 不再自动拼接提交清单。
+
+## GitHub 构建镜像
+
+在 [harmonyos-oci-images](https://github.com/honjow/harmonyos-oci-images) 发布预装系统工具的 API 26 镜像后，手动运行主分支的 Build OHOS，填写 `native_image_digest`（含 `sha256:` 前缀），让这次普通构建使用候选镜像。核对 HAP 和实际 Reader Kit 提交后，再将 Koma 仓库变量 `KOMA_OHOS_BUILD_IMAGE` 设为完整镜像引用 `ghcr.io/honjow/harmonyos-build-env@sha256:…`。使用预装镜像时，构建只检查工具是否齐全，不再运行 APT；如需回退，清空该变量即可恢复原镜像和安装步骤。
