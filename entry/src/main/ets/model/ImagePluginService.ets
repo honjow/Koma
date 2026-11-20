@@ -149,10 +149,10 @@ export class ImagePluginService {
   }
   private static async transform(path: string, plansJson: string, content: string, key: string,
     cache: RemoteImageCacheStore): Promise<string | undefined> {
-    for (const extension of ['jpg', 'png', 'webp']) {
-      const cached = await cache.get('image-plugin.' + extension, undefined, key)
-      if (cached) return cached
-    }
+    // The nonempty seed identifies the cached result independently of its
+    // encoding. The cache returns the published path with its real extension.
+    const cached = await cache.get('image-plugin.jpg', undefined, key)
+    if (cached) return cached
     if (await cache.get('image-plugin.nohit', undefined, key + ':nohit')) return undefined
     // Queue before TaskPool: native-slot waiters must not occupy every common
     // worker and delay source HTTP or other foreground work.

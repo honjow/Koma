@@ -97,3 +97,48 @@ test('reader page lookup keeps the body usable after cached metadata is evicted'
     fs.rmSync(directory, { recursive: true, force: true })
   }
 })
+
+test('a seeded reader request finds and replaces the original cache file across mirrors', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-reader-cache-seed-'))
+  const cache = loadCache(directory)
+  const seed = ' source:第十话/页1 '
+  const original = new Uint8Array([1, 2, 3])
+  const replacement = new Uint8Array([8, 9])
+  try {
+    const file = await cache.put('https://cache.invalid/a.jpg', undefined, original.buffer, seed)
+    const mirror = 'https://mirror.invalid/a.jpg'
+    const cached = await cache.getOrFetch(mirror, { Referer: mirror }, async () => {
+      throw Error('the published image should be a cache hit')
+    }, seed.trim())
+    assert.equal(cached, file)
+    const refreshed = await cache.getOrFetch(mirror, undefined, async () => replacement.buffer, seed, true)
+    assert.equal(refreshed, file)
+    assert.deepEqual(fs.readFileSync(file), Buffer.from(replacement))
+    assert.equal((await cache.getReaderPage(seed)).imagePath, file)
+  } finally {
+    await cache.clear()
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('an unseeded reader request reuses the original header-scoped cache entry', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-reader-cache-headers-'))
+  const cache = loadCache(directory)
+  const url = 'https://cache.invalid/page.jpg'
+  const headers = { Referer: 'https://a.invalid/' }
+  const otherHeaders = { Referer: 'https://b.invalid/' }
+  try {
+    const old = await cache.put(url, headers, new Uint8Array([1, 2]).buffer)
+    assert.equal(await cache.getOrFetch(url, headers, async () => {
+      throw Error('the original header scope should still hit')
+    }), old)
+    const fresh = await cache.getOrFetch(url, otherHeaders, async () => new Uint8Array([8, 9]).buffer)
+    assert.notEqual(fresh, old)
+    assert.deepEqual(fs.readFileSync(old), Buffer.from([1, 2]))
+    assert.deepEqual(fs.readFileSync(fresh), Buffer.from([8, 9]))
+    assert.equal(await cache.get(url, otherHeaders), fresh)
+  } finally {
+    await cache.clear()
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})

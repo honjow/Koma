@@ -265,7 +265,7 @@ export class RemoteImageCacheStore {
   }
 
   get(url: string, headers?: RemoteImageCacheHeaders, cacheKeySeed?: string): Promise<string | undefined> {
-    return this.enqueue(() => this.getNow(url, headers, cacheKeySeed))
+    return this.enqueue(() => this.getNow(cacheKeyFor(url, headers, cacheKeySeed)))
   }
 
   /** Keep existence checks authoritative after OS cache eviction. A short-page
@@ -313,8 +313,7 @@ export class RemoteImageCacheStore {
     return true
   }
 
-  private async getNow(url: string, headers?: RemoteImageCacheHeaders, cacheKeySeed?: string): Promise<string | undefined> {
-    const key = cacheKeyFor(url, headers, cacheKeySeed)
+  private async getNow(key: string): Promise<string | undefined> {
     const entry = this.entries.get(key)
     if (entry !== undefined && this.trackAvif) {
       // Preload and processed readers also use single-file hits as a page
@@ -354,6 +353,10 @@ export class RemoteImageCacheStore {
     onProgress?: RemoteImageDownloadProgress,
   ): Promise<string> {
     const key = cacheKeyFor(url, headers, cacheKeySeed)
+    // Reader requests carry the URL and headers resolved for this download.
+    // Use that same identity for coalescing, lookup and publication, including
+    // plain remote reader URLs that do not have a source-provided seed.
+    const reuseKey = this.trackAvif || (cacheKeySeed !== undefined && cacheKeySeed.trim().length > 0)
     const refreshing = this.reloadRequests.get(key)
     if (refreshing !== undefined) return refreshing.wait(onProgress)
     const pending = this.imageRequests.get(key)
@@ -364,11 +367,13 @@ export class RemoteImageCacheStore {
         try { await pending.file } catch (_error) {}
       }
       if (!forceReload) {
-        const cached = await this.get(url, headers, cacheKeySeed)
+        const cached = await (reuseKey ? this.enqueue(() => this.getNow(key)) :
+          this.get(url, headers, cacheKeySeed))
         if (cached !== undefined && cached.length > 0) return cached
       }
       const bytes = await fetchBytes(report)
-      return this.put(url, headers, bytes, cacheKeySeed)
+      return reuseKey ? this.enqueue(() => this.putNow(key, url, bytes)) :
+        this.put(url, headers, bytes, cacheKeySeed)
     })
     this.imageRequests.set(key, request)
     if (forceReload) this.reloadRequests.set(key, request)
@@ -382,11 +387,10 @@ export class RemoteImageCacheStore {
   }
 
   put(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer, cacheKeySeed?: string): Promise<string> {
-    return this.enqueue(() => this.putNow(url, headers, bytes, cacheKeySeed))
+    return this.enqueue(() => this.putNow(cacheKeyFor(url, headers, cacheKeySeed), url, bytes))
   }
 
-  private async putNow(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer, cacheKeySeed?: string): Promise<string> {
-    const key = cacheKeyFor(url, headers, cacheKeySeed)
+  private async putNow(key: string, url: string, bytes: ArrayBuffer): Promise<string> {
     const filePath = joinSandboxPath(this.rootDir, `${key}.${extensionForUrl(url)}`)
     if (this.trackAvif) {
       // The reader can finish several downloads during one fling. Keep their
