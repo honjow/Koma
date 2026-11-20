@@ -27468,6 +27468,20 @@
         ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/17-bakamh-200-response-and-cleanup-entry/native-response.txt",
         ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/16-bakamh-200-native-with-verified-site/layout.json"
       ]
+    },
+    {
+      "id": "source-bakamh-native-edge-deny-200-20261120",
+      "at": "2026-11-20T14:02:04+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "title": "200 巴卡原生首页和目录均命中拒绝页",
+      "detail": "WebView 打开官网首页和漫画归档。诊断包保留原目录 POST 并加两条普通 GET 对照，日志逐条确认保存的网页会话、Cookie、WebView UA。GET 首页 /、GET /manga/ 和 POST admin-ajax 均为 403，正文命中 Cloudflare 拒绝页标志，同时未见挑战脚本、等待页标题或宿主识别的挑战响应头。相同首页的 GET 请求已复现，无需依赖书源的 POST 表单。站方具体规则未取得，诊断代码仅存在临时测试包。",
+      "kind": "investigation",
+      "evidence": [
+        ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/32-bakamh-200-cause-webview-and-inspector/layout.json",
+        ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/34-bakamh-200-official-archive-cards/layout.json",
+        ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/40-bakamh-200-v2-web-reopen/layout.json",
+        ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/41-bakamh-200-v2-save-session-and-classify/native-response-markers.txt"
+      ]
     }
   ],
   "reportAgeAudit": {
