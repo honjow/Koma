@@ -27393,6 +27393,81 @@
       "detail": "按用户要求只改 AppScope/app.json5 的 versionCode 15→16、versionName 1.4.2→1.4.3，未构建、未提交、未发布。",
       "kind": "checkpoint",
       "evidence": "AppScope/app.json5"
+    },
+    {
+      "id": "source-bakamh-197-web-post-403-20261120",
+      "at": "2026-11-20T03:26:13+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "title": "巴卡漫画通过网页验证，原生目录 POST 仍为 403",
+      "detail": "按普通文件导入未发布候选。197 原生目录 POST 被拒，内置网页出现真人复选框，验证后进入 AJAX 地址并显示 GET 的 0。完成网页会话后，原生同站 POST 确认附带 Cookie 和 WebView UA，仍返回 403。现有网页转发只支持无请求体的同源 GET，无法覆盖这个上游 POST。保留源码及候选，未发布。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/two-source-browse-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/two-source-browse/117-baka-197-challenge-readback/layout.json",
+        ".hvigor/outputs/two-source-browse-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/two-source-browse/118-baka-197-normal-verification/layout.json",
+        ".hvigor/outputs/two-source-browse-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/two-source-browse/120-baka-197-native-after-session/hilog.txt"
+      ]
+    },
+    {
+      "id": "source-bakamh-get-equivalence-20261120",
+      "at": "2026-11-20T09:08:03+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "title": "巴卡漫画未取得功能等价的 GET 入口",
+      "detail": "官网地址发布页可达，五个公告入口下的实测目录、搜索、分页、作品和章节样本获得 Cloudflare 挑战。固定与当前 Mihon 上游仍用 madara_load_more POST 做热门、最新、复合搜索和相关作品。197 前案已保存网页 Cookie 和 UA，原生 POST 仍被拒，网页 AJAX GET 返回 0。本轮没有在已通过人工验证的网页会话重测普通 GET。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-candidates-20261120/bakamh/RESULT.md",
+        ".hvigor/outputs/source-candidates-20261120/bakamh/http-results.json"
+      ]
+    },
+    {
+      "id": "source-bakamh-upstream-parity-20261120",
+      "at": "2026-11-20T10:06:04+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "title": "对照巴卡漫画上游 POST 与公开 GET 的实际范围",
+      "detail": "热门、最新、复合筛选和相关作品沿用 Madara POST；作品与章节为 GET。当前未取得等价可用的 GET，原生 POST 403 无法证明通过源改动解决，未减少功能或改宿主。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-candidates-20261120/bakamh/20261120-source-only-equivalence.md"
+      ]
+    },
+    {
+      "id": "source-bakamh-catalogue-errors-20261120",
+      "at": "2026-11-20T12:12:51+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "title": "巴卡漫画保留真实目录错误",
+      "detail": "上游使用 Madara POST，原生 403 仍存在，先前浏览器 GET 的 0 不是有效目录。候选包的列表与搜索已本机回放三种响应：403 返回 forbidden 和 HTTP 403，200 加单个 0 返回 invalid_response，200 空白仍为有效末页。没有通过线上列表和阅读验收。",
+      "kind": "investigation",
+      "evidence": [
+        ".hvigor/outputs/source-candidates-20261120/bakamh/20261120-source-only-equivalence.md",
+        ".hvigor/outputs/source-candidates-20261120/bakamh/catalogue-error-build.log"
+      ]
+    },
+    {
+      "id": "source-bakamh-proxy-retest-197-20261120",
+      "at": "2026-11-20T13:30:11+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "title": "197 换代理节点后巴卡目录仍返回 403",
+      "detail": "导入原候选 0.1.0。原生热门首次请求显示 HTTP 403。官网 WebView 完成 Cloudflare 验证后打开同一 AJAX 地址，页面只显示 0。将网页会话保存后，热门按 Mihon 的 POST 方式重试，日志显示使用 WebView UA 且已附 Cookie，站点仍响应 HTTP 403。未改变书源或代理设置。",
+      "kind": "investigation",
+      "evidence": [
+        ".hvigor/outputs/source-candidates-20261120/host-implementation/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/211-bakamh-proxy-197-native-fresh/layout.json",
+        ".hvigor/outputs/source-candidates-20261120/host-implementation/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/215-bakamh-proxy-197-web-after-verification/screen.jpeg",
+        ".hvigor/outputs/source-candidates-20261120/host-implementation/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/217-bakamh-proxy-197-native-with-session/hilog.txt"
+      ]
+    },
+    {
+      "id": "source-bakamh-official-rank-native-403-200-20261120",
+      "at": "2026-11-20T13:39:08+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "title": "200 巴卡漫画官网排行有作品，Koma 同会话目录 POST 仍 403",
+      "detail": "候选 0.1.0 先从源管理进入官网首页，Cloudflare 通过后打开「排行」，可见三个榜期及作品卡。完成网页会话后，在同机打开原生热门，日志确认原生 POST 带 clearance Cookie、uaSource=webview，约 600 毫秒收到 HTTP 403。已确认官网可访问，当前原生列表加载仍失败。",
+      "kind": "investigation",
+      "evidence": [
+        ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/12-bakamh-200-web-after-checkbox/layout.json",
+        ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/14-bakamh-200-official-ranked-cards/layout.json",
+        ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/17-bakamh-200-response-and-cleanup-entry/native-response.txt",
+        ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/16-bakamh-200-native-with-verified-site/layout.json"
+      ]
     }
   ],
   "reportAgeAudit": {
