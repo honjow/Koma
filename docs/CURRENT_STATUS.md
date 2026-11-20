@@ -1323,9 +1323,9 @@
       "reportedDate": "2026-11-13",
       "reportedAtSource": "本会话用户报告并指定 237 开无痕模式复测，原始消息时刻未核实。",
       "registeredAt": "2026-11-13T11:58:20+08:00",
-      "updatedAt": "2026-11-13T13:57:05+08:00",
-      "status": "包子漫画 0.1.22 和其余 17 个章节顺序修复已发布，公开包回放通过",
-      "result": "237 上 Koma 1.4.5 与包子漫画 0.1.21 在无痕模式下复现第十章末页无法翻入第十一章，手动选择第十一章可读。官网的最新章节区和完整目录方向不同。0.1.22 在完整主目录中验证同作品的连续槽位后提供阅读顺序，沿用原章节 ID。最终包已核对第十章与第十一章的条漫与分页跨章；停在第十三章 38/38 时第十四章前四图已入缓存，翻页后显示第十四章 1/46。已恢复无痕开关、亮屏超时和休眠，原历史仍为第十章 37/38，临时导入文件已删，237 保留新源。 章节接口增加编译检查。核查 96 个已发布源，18 个缺少阅读顺序的源变体完成修复和目录回放，18 个新版本均已进入公开订阅，安装包与其中的 WASM 已逐个核对并重新回放。",
+      "updatedAt": "2026-11-20T19:49:52+08:00",
+      "status": "包子 0.1.26 已发布，第 24→25 章已在 197 实测",
+      "result": "237 上 Koma 1.4.5 与包子漫画 0.1.21 在无痕模式下复现第十章末页无法翻入第十一章，手动选择第十一章可读。官网的最新章节区和完整目录方向不同。0.1.22 在完整主目录中验证同作品的连续槽位后提供阅读顺序，沿用原章节 ID。最终包已核对第十章与第十一章的条漫与分页跨章；停在第十三章 38/38 时第十四章前四图已入缓存，翻页后显示第十四章 1/46。已恢复无痕开关、亮屏超时和休眠，原历史仍为第十章 37/38，临时导入文件已删，237 保留新源。 章节接口增加编译检查。核查 96 个已发布源，18 个缺少阅读顺序的源变体完成修复和目录回放，18 个新版本均已进入公开订阅，安装包与其中的 WASM 已逐个核对并重新回放。 《大象无形》官网初始目录仅 24 个槽位，展开区余下 580 个。包子漫画 0.1.26 验证两区连续槽位，保持原 ID。197 在无痕下由第二十四章 34/34 自然滑入第二十五章 3/35；该机安装的是目录修复候选。最后构建同时识别明确的中文数字章号。 正式订阅仅更新了包子。公开包的同作品完整目录、ID、章节编号和续章位置与最终候选一致。",
       "remaining": "包子漫画从历史详情首次进阅读曾临时只有一章，重开后读取 603 章并可跨章，首次触发条件未确定。官网无完整主目录的作品仍按手动选章处理。公开 0.1.22 与 237 候选的 WASM 字节不同，公开版未另上机。NoyAcg 的同源 WebView 会话复用已做本地回放，登录后的真实接口和目录待核对。",
       "evidence": [
         ".hvigor/outputs/baozi-daxiang-incognito-237/summary.json",
@@ -1339,7 +1339,13 @@
         "https://github.com/honjow/koma-sources/actions/runs/43374638343",
         ".hvigor/outputs/source-chapter-contract-20261113/publication.json",
         ".hvigor/outputs/source-chapter-contract-20261113/local/web-session-controlled.log",
-        "https://github.com/honjow/koma-sources/releases/tag/sources-8f720ab447380fbc4989f17837c1a2733efff342"
+        "https://github.com/honjow/koma-sources/releases/tag/sources-8f720ab447380fbc4989f17837c1a2733efff342",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/10-baozi-import-confirm",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/22-baozi-seek-last",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/24-baozi-beyond-last-page",
+        ".hvigor/outputs/elephant-chronology-20261120/final-source-catalogue-replay.json",
+        "https://github.com/honjow/koma-sources/actions/runs/44730110255",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-f999e3ba4127e62bba40df90e326e01fa58f1c79"
       ]
     },
     {
@@ -5881,23 +5887,21 @@
       "id": "CHAPTER_SORT_MENU",
       "number": 103,
       "title": "章节排序菜单无作用",
-      "status": "本轮限定修复已推送，三宿主构建与精确CI成功",
-      "kind": "done",
+      "status": "197 四项排序和按名称双向切章已验证，App 已本地提交",
+      "kind": "accepted",
       "priority": "P0（人类再次复现：通用排序及菜单状态）",
       "owner": "Root：包子012具名范围冻结；未知metadata继续原项",
       "dependencies": [],
-      "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。",
-      "remaining": "已具名路径冻结；只按新反馈或相关依赖变化重开。Reader跨季年代、旧系统/暗色及未打开菜单分支未外推。",
+      "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。 对照 Mihon 的四种章排序，Koma 增加「按上传日期」「名称」并对齐「按图源」「按章节编号」。保留默认按图源及原生菜单正反序。所选依据用于同一已核实阅读组的阅读起点和正向邻章，反转显示不改变邻章。漫画1234 0.1.15 的 711 条具名目录遵守原站及 Keiyoushi 顺序，章节 ID 与阅读位置先后保持。 197 使用本轮同签候选和漫画1234 0.1.15。默认按图源的首行是第五百七十六章。无记录开始阅读打开原站入口《鸽之魔界大门—— 2》。按名称后列表前两项是《40进20PK赛》和《超紧急事态！！》。反转显示后仍从前者开始，末页滑到后者，后者首页滑回前者末页。章节编号和上传日期选项也在真机选中。该目录未提供上传时间，日期比较另外用有日期值和缺日期值的执行用例覆盖。",
+      "remaining": "漫画1234 0.1.15 和 App 本轮提交为本地候选。197 的旧版无记录路径从原站入口打开，未复现直接进入最新章。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": "2026-10-24T19:25:24.086002+00:00",
+      "closedAt": "2026-11-20T19:57:50+08:00",
       "evidencePoints": [],
-      "remainingActions": [
-        "已具名路径冻结；只按新反馈或相关依赖变化重开。Reader跨季年代、旧系统/暗色及未打开菜单分支未外推。"
-      ],
+      "remainingActions": [],
       "boundaries": [
         "本次新反馈明确重开通用展示反序与菜单状态，不继续按源补章号来掩盖菜单缺陷。",
         "原始章节对象/ID/源返回顺序、持久阅读数据和Reader自动邻章语义保持；跨季年代不能由显示反序推定。",
@@ -5909,7 +5913,21 @@
         "originalReason": "话数语义比较保留；源目录和可选数值不能混为同一排序输入。旧二项菜单未同步默认状态。",
         "reopenEvidence": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
         "allowedDifference": "SOURCE_ORDER/CHAPTER_NUMBER与FORWARD/REVERSE独立，整表反转；原生选中标记、当前项无重选；排序分组小号常规字及公共材质。保其他布局、ID、读态和Reader邻章语义。"
-      }
+      },
+      "updatedAt": "2026-11-20T19:57:50+08:00",
+      "evidence": [
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/37-mh1234-baseline-chapter-title/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/46-mh1234-final-native-catalogue/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/47-four-sort-bases/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/49-mh1234-default-chapter-title/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/50-mh1234-name-sort/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/51-mh1234-name-display-reverse/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/53-mh1234-name-first-title/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/57-mh1234-name-webtoon-next/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/59-mh1234-name-webtoon-previous/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/60-mh1234-upload-date-sort/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/61-mh1234-chapter-number-sort/layout.json"
+      ]
     },
     {
       "id": "APP_POPUP_SYSTEM_MATERIAL",
@@ -27607,6 +27625,62 @@
         ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/34-bakamh-200-official-archive-cards/layout.json",
         ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/40-bakamh-200-v2-web-reopen/layout.json",
         ".hvigor/outputs/source-candidates-20261120/host-implementation/device200__HOP-AL10/unknown/portrait-1264x1848/candidate-host/41-bakamh-200-v2-save-session-and-classify/native-response-markers.txt"
+      ]
+    },
+    {
+      "id": "baozi-elephant-complete-catalog-20261120",
+      "at": "2026-11-20T19:34:19+08:00",
+      "itemId": "BAOZIMH_DAXIANG_INCOGNITO_CHAPTER_20261113",
+      "title": "包子《大象无形》跨越第 24 章目录断点",
+      "detail": "《大象无形》官网初始目录仅 24 个槽位，展开区余下 580 个。包子漫画 0.1.26 验证两区连续槽位，保持原 ID。197 在无痕下由第二十四章 34/34 自然滑入第二十五章 3/35；该机安装的是目录修复候选。最后构建同时识别明确的中文数字章号。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/24-baozi-beyond-last-page/layout.json"
+      ]
+    },
+    {
+      "id": "chapter-sort-mihon-order-20261120",
+      "at": "2026-11-20T19:34:19+08:00",
+      "itemId": "CHAPTER_SORT_MENU",
+      "title": "按 Mihon 核对四种章排序及阅读关系",
+      "detail": "对照 Mihon 的四种章排序，Koma 增加「按上传日期」「名称」并对齐「按图源」「按章节编号」。保留默认按图源及原生菜单正反序。所选依据用于同一已核实阅读组的阅读起点和正向邻章，反转显示不改变邻章。漫画1234 0.1.15 的 711 条具名目录遵守原站及 Keiyoushi 顺序，章节 ID 与阅读位置先后保持。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/elephant-chronology-20261120/mh1234-catalogue-replay.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/16-baozi-sort-menu-baseline/layout.json"
+      ]
+    },
+    {
+      "id": "baozi-only-0126-published-20261120",
+      "at": "2026-11-20T19:49:52+08:00",
+      "itemId": "BAOZIMH_DAXIANG_INCOGNITO_CHAPTER_20261113",
+      "title": "包子 0.1.26 单独发布",
+      "detail": "正式订阅读回 0.1.26，最低 App 1.4.1。新旧公开索引版本比对中只有包子变动。公开包 WASM 以具名官网目录执行，输出与最终候选一致。",
+      "kind": "delivery",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/releases/tag/sources-f999e3ba4127e62bba40df90e326e01fa58f1c79",
+        ".hvigor/outputs/elephant-chronology-20261120/final-source-catalogue-replay.json"
+      ]
+    },
+    {
+      "id": "chapter-sort-mihon-device197-20261120",
+      "at": "2026-11-20T19:57:50+08:00",
+      "itemId": "CHAPTER_SORT_MENU",
+      "title": "197 核对四种排序及名称排序双向跨章",
+      "detail": "同签 App 1.5.6 候选。漫画1234 0.1.15 真机读取 711 项，默认按图源与 Mihon 目录方向一致。无历史起点对照原站。名称反序只改显示，阅读双向跨章均符合正向名称关系。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/37-mh1234-baseline-chapter-title/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/46-mh1234-final-native-catalogue/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/47-four-sort-bases/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/49-mh1234-default-chapter-title/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/50-mh1234-name-sort/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/51-mh1234-name-display-reverse/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/53-mh1234-name-first-title/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/57-mh1234-name-webtoon-next/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/59-mh1234-name-webtoon-previous/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/60-mh1234-upload-date-sort/layout.json",
+        ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/61-mh1234-chapter-number-sort/layout.json"
       ]
     }
   ],
