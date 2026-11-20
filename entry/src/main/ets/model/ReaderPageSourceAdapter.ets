@@ -400,7 +400,7 @@ function readerImageTicketBytes(headers?: RemoteImageCacheHeaders): number {
 
 async function downloadDnsOverrideImage(fullUrl: string, extraHeaders: RemoteImageCacheHeaders | undefined,
   sourceId: string, hint: SourceDnsOverride, responseErrors?: SourceImageResponseErrors,
-  onProgress?: RemoteImageDownloadProgress): Promise<ArrayBuffer> {
+  progress?: ReaderImageProgressObserver): Promise<ArrayBuffer> {
   const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
   const policy = entry?.websitePolicy?.dnsBootstrap
   if (entry === undefined || policy === undefined || !entry.enabled) throw new Error('reader_source_image_request_rejected')
@@ -429,12 +429,13 @@ async function downloadDnsOverrideImage(fullUrl: string, extraHeaders: RemoteIma
     const remaining = 60000 - (Date.now() - started)
     if (remaining <= 0) throw new Error('reader_remote_image_fetch_failed_2300028')
     const response = await requestSourceDnsHop(target, 'GET', headers, '', remaining, scope.current, ip,
-      128 * 1024 * 1024, onProgress)
+      128 * 1024 * 1024, progress?.report)
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const fields = response.headers as Record<string, Object>
       const key = Object.keys(fields).find((name: string): boolean => name.toLowerCase() === 'location')
       const location = key === undefined ? undefined : fields[key]
       if (typeof location !== 'string' || redirects >= 20) throw new Error('reader_remote_image_redirect_failed')
+      progress?.reset()
       target = new url.URL(location, target).toString()
       continue
     }
@@ -454,24 +455,64 @@ const READER_IMAGE_PROGRESS_INTERVAL_MS: number = 50
 
 interface ReaderImageResponse { status: number; bytes: ArrayBuffer }
 
-function observeReaderImageProgress(receive: RemoteImageDownloadProgress): RemoteImageDownloadProgress {
+interface ReaderImageProgressObserver {
+  report: RemoteImageDownloadProgress
+  reset: () => void
+  complete: () => void
+  close: () => void
+}
+
+function observeReaderImageProgress(receive: RemoteImageDownloadProgress): ReaderImageProgressObserver {
   let lastPercent = -1
   let lastTotal = 0
   let lastUpdate = 0
-  return (loaded: number, total: number): void => {
-    if (!Number.isSafeInteger(loaded) || !Number.isSafeInteger(total) || loaded < 0 || loaded >= total) return
-    const percent = Math.round(100 * loaded / total)
-    const now = Date.now()
-    // Headers can establish 0%, then the first real increase can arrive in the
-    // same interval. Bound subsequent updates as short pages share the list.
-    // The image presentation still takes over as soon as its pixels are ready.
-    if (percent >= 100 || (total === lastTotal && percent === lastPercent)) return
-    if (total === lastTotal && lastPercent > 0 && percent > 0 &&
-      now - lastUpdate < READER_IMAGE_PROGRESS_INTERVAL_MS) return
+  let pendingLoaded = 0
+  let timer = -1
+  let closed = false
+  const cancelPending = (): void => {
+    if (timer >= 0) clearTimeout(timer)
+    timer = -1
+  }
+  const publish = (loaded: number, total: number, percent: number): void => {
     lastPercent = percent
     lastTotal = total
-    lastUpdate = now
+    lastUpdate = Date.now()
     receive(loaded, total)
+  }
+  const report = (loaded: number, total: number): void => {
+    if (closed || !Number.isSafeInteger(loaded) || !Number.isSafeInteger(total) || loaded < 0 || loaded >= total) return
+    const percent = Math.round(100 * loaded / total)
+    if (percent >= 100 || (total === lastTotal && percent <= lastPercent)) return
+    if (total === lastTotal && lastPercent > 0 && percent > 0) {
+      const remaining = READER_IMAGE_PROGRESS_INTERVAL_MS - (Date.now() - lastUpdate)
+      if (remaining > 0) {
+        // A pause in the receive callbacks must still publish the latest bytes.
+        pendingLoaded = timer < 0 ? loaded : Math.max(pendingLoaded, loaded)
+        if (timer < 0) {
+          timer = setTimeout((): void => {
+            timer = -1
+            publish(pendingLoaded, total, Math.round(100 * pendingLoaded / total))
+          }, Math.min(remaining, READER_IMAGE_PROGRESS_INTERVAL_MS))
+        }
+        return
+      }
+    }
+    cancelPending()
+    publish(loaded, total, percent)
+  }
+  return {
+    report,
+    reset: (): void => {
+      cancelPending()
+      if (lastPercent > 0) publish(0, lastTotal, 0)
+    },
+    complete: (): void => {
+      cancelPending()
+      // Show the completed transfer during any cache/decode wait, without
+      // introducing a percentage for an image that arrived in one block.
+      if (!closed && lastPercent > 0 && lastPercent < 100) publish(lastTotal, lastTotal, 100)
+    },
+    close: (): void => { closed = true; cancelPending() },
   }
 }
 
@@ -607,13 +648,17 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
   if (installedSource?.packageManifestUnavailable === true) {
     throw new SourceRuntimeError({ ok: false, reasonCode: 'source_manifest_unavailable' })
   }
-  let progressTotal: number = 0
-  const progress = onProgress === undefined ? undefined : observeReaderImageProgress((loaded: number, total: number): void => {
-    progressTotal = total
-    onProgress(loaded, total)
-  })
-  if (dnsOverride !== undefined) return downloadDnsOverrideImage(url, extraHeaders, sourceId, dnsOverride,
-    chapterImage ? responseErrors : undefined, progress)
+  const progress = onProgress === undefined ? undefined : observeReaderImageProgress(onProgress)
+  if (dnsOverride !== undefined) {
+    try {
+      const bytes = await downloadDnsOverrideImage(url, extraHeaders, sourceId, dnsOverride,
+        chapterImage ? responseErrors : undefined, progress)
+      progress?.complete()
+      return bytes
+    } finally {
+      progress?.close()
+    }
+  }
   await waitForSourceRequestSlot(installedSource?.requestLimits, url, undefined, extraHeaders)
   const readTimeout = chapterImage ? LARGE_READER_IMAGE_READ_TIMEOUT_MS :
     (coverImage ? COVER_IMAGE_READ_TIMEOUT_MS : READER_IMAGE_READ_TIMEOUT_MS)
@@ -643,6 +688,7 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
   let normalDeadline: number = -1
   try {
     httpRequest.on('headersReceive', (headers: Object) => {
+      if (responseStarted) progress?.reset()
       responseStarted = true
       declaredBytes = -1
       streamBytes = 0
@@ -653,7 +699,7 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
       } catch (_error) {
         // A malformed diagnostic header must not affect the image request.
       }
-      if (streamBytes > 0) progress?.(0, streamBytes)
+      if (streamBytes > 0) progress?.report(0, streamBytes)
       trace.info('response', 'declaredBytes=' + declaredBytes)
     })
   } catch (error) {
@@ -676,7 +722,7 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
       ? httpRequest.request(url, options).then((response: http.HttpResponse): ReaderImageResponse => {
         return { status: response.responseCode, bytes: response.result as ArrayBuffer }
       })
-      : requestReaderImageStream(httpRequest, url, options, probeSize, progress, () => streamBytes)
+      : requestReaderImageStream(httpRequest, url, options, probeSize, progress.report, () => streamBytes)
     // Give a site-declared large chapter image extra time on the same GET.
     // Covers, ordinary responses and missing/malformed lengths retain the
     // existing deadline. A timeout leaves no partial file in the image cache.
@@ -698,7 +744,8 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
       if (response.status === 404 && fallbackUrl !== undefined) {
         DiagnosticLogger.info('reader_image', 'host_fallback', 'status=404 retry=alternate-host')
         trace.finish('fallback', 'status=404 retry=alternate-host')
-        if (progressTotal > 0) onProgress?.(0, progressTotal)
+        progress?.reset()
+        progress?.close()
         return await downloadReaderRemoteBytes(fallbackUrl, extraHeaders, sourceId, dnsOverride, chapterImage,
           responseErrors, coverImage, onSize, false, onProgress, onHeaderMeasured)
       }
@@ -713,6 +760,7 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
     trace.finish('completed', 'status=' + response.status + ' ' + diagnosticTarget + ' elapsedMs=' + (Date.now() - diagnosticStartedAt) +
       ' bytes=' + response.bytes.byteLength +
       ' responseStarted=' + responseStarted + ' declaredBytes=' + declaredBytes)
+    if (streamBytes === 0 || streamBytes === response.bytes.byteLength) progress?.complete()
     if (headerProbe?.size() !== undefined) onHeaderMeasured?.()
     return response.bytes
   } catch (error) {
@@ -728,6 +776,7 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
     DiagnosticLogger.warn('reader_page_source_adapter', 'http_request_failed', `[ReaderImage] step=http_request_failed code=${code === undefined ? 'unknown' : code}`)
     throw new Error(`reader_remote_image_fetch_failed_${code === undefined ? 'unknown' : code}`)
   } finally {
+    progress?.close()
     if (normalDeadline >= 0) clearTimeout(normalDeadline)
     httpRequest.destroy()
   }

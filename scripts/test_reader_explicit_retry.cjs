@@ -179,6 +179,16 @@ test('foreground joins the preload byte count before the cache publishes a file'
 
 test('image streaming reports early body bytes even when the platform progress event skips them', async () => {
   let now = 1000
+  let timerId = 0
+  const timers = new Map()
+  const advance = ms => {
+    now += ms
+    for (const [id, [due, callback]] of timers) {
+      if (due > now) continue
+      timers.delete(id)
+      callback()
+    }
+  }
   const file = 'model/ReaderPageSourceAdapter.ets'
   const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets', file), 'utf8')
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
@@ -190,7 +200,9 @@ test('image streaming reports early body bytes even when the platform progress e
   vm.runInNewContext(ts.transpileModule(declarations.map(node => node.getText(tree)).join('\n') +
     '\nexport { readerImageResponseLength, observeReaderImageProgress, requestReaderImageStream }', {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText, { exports, Date: { now: () => now } })
+  }).outputText, { exports, Date: { now: () => now },
+    setTimeout: (callback, delay) => { timers.set(++timerId, [now + delay, callback]); return timerId },
+    clearTimeout: id => timers.delete(id) })
 
   for (const encoded of [false, true]) {
     const length = exports.readerImageResponseLength({ 'Content-Length': '200', ...(encoded && { 'Content-Encoding': 'gzip' }) })
@@ -201,10 +213,10 @@ test('image streaming reports early body bytes even when the platform progress e
       requestInStream: () => Promise.resolve(200),
     }
     const result = exports.requestReaderImageStream(request, 'https://images.invalid/page', {}, () => {},
-      progress, () => length.stream)
+      progress.report, () => length.stream)
     const chunk = count => events.get('dataReceive')(new ArrayBuffer(count))
     const platform = (receiveSize, totalSize) => events.get('dataReceiveProgress')({ receiveSize, totalSize })
-    if (length.stream > 0) progress(0, length.stream)
+    if (length.stream > 0) progress.report(0, length.stream)
     chunk(12)
     now += 25
     chunk(24)
@@ -216,7 +228,31 @@ test('image streaming reports early body bytes even when the platform progress e
     events.get('dataEnd')()
     assert.equal((await result).bytes.byteLength, 200)
     assert.deepEqual(reports, encoded ? [[80, 200]] : [[0, 200], [12, 200], [72, 200]])
+    progress.complete()
+    progress.close()
+    advance(50)
+    assert.deepEqual(reports.at(-1), [200, 200])
   }
+
+  const updates = []
+  const request = exports.observeReaderImageProgress((loaded, total) => updates.push([loaded, total]))
+  request.report(0, 200)
+  request.report(30, 200)
+  advance(10)
+  request.report(100, 200)
+  request.report(120, 200)
+  advance(39)
+  assert.deepEqual(updates, [[0, 200], [30, 200]])
+  advance(1)
+  assert.deepEqual(updates.at(-1), [120, 200])
+  request.report(180, 200)
+  request.reset()
+  request.report(200, 200)
+  request.complete()
+  request.close()
+  advance(50)
+  assert.deepEqual(updates, [[0, 200], [30, 200], [120, 200], [0, 200]])
+  assert.equal(timers.size, 0)
 })
 
 test('a measured download skips its own file probe while joined readers and cache hits still get dimensions', async () => {

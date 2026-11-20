@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-20T04:14:41+08:00",
+  "updatedAt": "2026-11-20T04:54:08+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -684,11 +684,15 @@
       "reportedDate": "2026-11-15",
       "reportedAtSource": "用户在本会话报告，原始时刻未核实。",
       "registeredAt": "2026-11-15T21:55:14+08:00",
-      "updatedAt": "2026-11-19T23:36:15+08:00",
-      "status": "201 已核对条漫新页的早期百分比，哔咔分流 2 仍待实测",
-      "result": "正文流能取得同口径的响应头长度时，由响应头和实际数据块提供百分比。第一次增长不受节流限制，之后的同一请求更新间隔从 100 ms 缩到 50 ms。图像就绪时立即显示。201《遇强则强》第 27 话首图录到 1% 和 49% 后正常显示，连续前翻至第 57 页。最后一段实时日志确认 27 次新图请求全部返回 200，响应头至收完正文的中位数为 23 ms，范围为 1–182 ms。 Koma 宿主将真实下载字节接入共享阅读器现有百分比。当前页可接续预载的进度，缓存仍在接收完整图片后发布。签名 Debug HAP 构建通过。本地验证覆盖重试、预载接续、完整文件发布和流式接收上限，扩展运行有 8 项与改动前相同的失败。237 分页实测《碧藍之海》第105话首图从 2% 更新到 26%，Komiic 的响应总大小未知，显示循环加载后正常出图。同包条漫实测瓜子漫画《从姑获鸟开始》334 鬼梦貘，从循环加载切换到 72%，随后正常出图并能连续滚动；可见两张正文图。哔哩漫画第105、106话在本轮条漫对照中部分请求等不到响应头，保留循环加载。已恢复本书原单页从右到左、无痕开关、书架第56话第3页及 10000ms 休眠超时，释租，保留测试包。",
-      "remaining": "快回包或分批集中到达时，显示的百分比会跨格。哔咔分流 2 仍需在可用账号下实测实际传输回报。",
+      "updatedAt": "2026-11-20T03:02:31+08:00",
+      "status": "237 已核对条漫进度补报及收完状态，哔咔分流 2 待实测",
+      "result": "再次报告条漫进度停在第一个数字。确认旧节流会丢弃 50 ms 内的后续进度，且正文收完后一直保留上一数值。宿主节流改为保留并补发最新字节，已经显示的百分比在确认正文收完时更新到 100%。237 同签 Release 候选在《遇强则强》第 53 话录到同一张图 42%→100%→正文，数字变化相隔约 34 ms。9 次惯性前翻由第 1 到第 26 页，两段日志共 40 条正文成功响应。原第 2 话第 120 页、无痕开关、桌面、10 秒超时和休眠已核对恢复，已释租，保留候选包。7 项相关本地测试及签名构建通过，扩展脚本中的 7 项历史失败与基线相同。 正文流能取得同口径的响应头长度时，由响应头和实际数据块提供百分比。第一次增长不受节流限制，之后的同一请求更新间隔从 100 ms 缩到 50 ms。图像就绪时立即显示。201《遇强则强》第 27 话首图录到 1% 和 49% 后正常显示，连续前翻至第 57 页。最后一段实时日志确认 27 次新图请求全部返回 200，响应头至收完正文的中位数为 23 ms，范围为 1–182 ms。 Koma 宿主将真实下载字节接入共享阅读器现有百分比。当前页可接续预载的进度，缓存仍在接收完整图片后发布。签名 Debug HAP 构建通过。本地验证覆盖重试、预载接续、完整文件发布和流式接收上限，扩展运行有 8 项与改动前相同的失败。237 分页实测《碧藍之海》第105话首图从 2% 更新到 26%，Komiic 的响应总大小未知，显示循环加载后正常出图。同包条漫实测瓜子漫画《从姑获鸟开始》334 鬼梦貘，从循环加载切换到 72%，随后正常出图并能连续滚动；可见两张正文图。哔哩漫画第105、106话在本轮条漫对照中部分请求等不到响应头，保留循环加载。已恢复本书原单页从右到左、无痕开关、书架第56话第3页及 10000ms 休眠超时，释租，保留测试包。",
+      "remaining": "单块或短时集中到达仍可能直接跨格。哔咔分流 2 尚待可用账号下核对实际传输回报。",
       "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-image-progress/progress-chapter-53-open-20261120T030030608865/progress-chapter-53-open-20261120T030030608865.mp4",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-image-progress/progress-chapter-53-open-20261120T030030608865/progress-frame-evidence.jpg",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-image-progress/progress-chapter-53-forward-20261120T030043182527/progress-chapter-53-forward-20261120T030043182527.mp4",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/image-progress-237-observed.json",
         ".hvigor/outputs/reader-image-progress-306/device201__LMR-AL00/not-applicable/portrait-1276x2848/reader-image-progress/chapter-27-open-233152386094/chapter-27-open-233152386094.mp4",
         ".hvigor/outputs/reader-image-progress-306/device201__LMR-AL00/not-applicable/portrait-1276x2848/reader-image-progress/chapter-27-forward-233426325038/chapter-27-forward-233426325038.mp4",
         ".hvigor/outputs/reader-image-progress-306/device201__LMR-AL00/not-applicable/portrait-1276x2848/reader-image-progress/chapter-27-forward-233426325038/network-summary.json",
@@ -5440,14 +5444,14 @@
       "id": "CONTINUOUS_PERFORMANCE",
       "number": 1,
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "237 已验证书架后台合并，条漫长帧继续定位",
-      "stage": "定位惯性滚动中的其余长帧",
+      "status": "237 已验证同步长帧压降，连续快甩仍有较短掉帧",
+      "stage": "已验证同步与超分优化的真机候选",
       "kind": "active",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
       "result": "正文缓存检查和落盘已移到后台，未变的短图行少做更新，已测新页连续加载。 连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
-      "remaining": "低惯性仍有 49.5 和 47.3 ms 间隔。需要把滚动期间主线程剩余未标记的计算拆到函数级，并区分同步计划、共享堆 GC 与图片回调各自占用的帧预算。",
+      "remaining": "新页快甩受控场景未再出现同步快照造成的 50 ms 长间隔。剩余最大约 31 ms 的间隔中，多个后台结果回调在主线程接连执行。整体条漫性能继续按普通阅读反例核对。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -5456,6 +5460,17 @@
       "closedAt": null,
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-validation-237-frames.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-projection-237-natural-sync.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-projection-237-install.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-projection-237-overlap.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-projection-237-motion-sync.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-validation-237-frames.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-validation-237-install.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-profile-fresh-reader-20261120T031239259645/reading-checkpoint.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-profile-fresh-reader-20261120T031239259645/wide-audit/profile-window-summary.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-profile-fresh-reader-20261120T031239259645/wide-audit/profile-arkts-offsets.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/koma-001-profile-237-fresh-reader.perf",
         ".hvigor/outputs/continuous-short-images-20261119/qa/taskpool-237-shelf-background-evidence.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/taskpool-237-shelf-worker-frames.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/taskpool-237-shelf-worker-tail.json",
@@ -5584,6 +5599,9 @@
       ],
       "latestCounterexampleAt": "2026-11-08T21:10:00+08:00",
       "evidencePoints": [
+        "Koma 提交 4b6b12a6 和 b7f08002。阅读快照保留原回执与合并校验，常规同步把文件解析、作品身份映射、事实投影、编码和摘要放进同一后台任务。阅读设置合并读取，搜索历史解析归并和超分缓存淘汰也在后台。旧候选一次 51.639 ms 快甩出帧间隔内观察到 709381 字节的阅读快照结构回传，随后处理 4329 条事实。最终候选自然同步确认两次生成 4329 条事实对应的分批投影结果，之后用第 85 话新页同次捕获真实快甩与自然同步。快甩 16 次从第 1 页到第 84 页，实际 82 个正文 HTTP 200，超分实际启动，快照标记落在原生惯性中，当时出帧间隔 16.617 ms。该轮最大间隔 31.470 ms，超过 33.3 ms 为 0 次，超过 16.7 ms 为 34 次，最长 Preferences 回调 0.470 ms。最大剩余间隔里有多个后台结果回调，单次最长 7.099 ms。此前 16 次低惯性在第 67 话最大 22.393 ms，最终包还完成第 81 话连续低惯性 24 次，从第 1 页向前到第 63 页。不同新章的手势对照保留具体页数，不当作同页重复 A/B。共享行几何试验在原样编译包上缺少稳定收益，保存试验并恢复正式依赖。最终包保留于 237，原续读第 2 话第 120 页、无痕、书架分类、桌面、10 秒超时和休眠均已核对恢复，租约已释放。",
+        "237 同签候选在《遇强则强》第 55、57、60 话连续完成 88 次向前惯性滚动，四段分别加载 61、81、63、124 张新图，沿用原超分设置并实际启动。同机同作品不同新章节，低速记录 24 次，最大出帧间隔 49.534→35.731 ms，超过 33.3 ms 从 2 次降到 1 次。快甩记录 16 次，最大 31.796→27.378 ms，超过 33.3 ms 均为 0 次。读快照覆盖 4329 条已知事实。剩余 35.731 ms 包含连续后台完成回调，其中最长 11.165 ms。另有最长 20.049 ms 的 Preferences 完成回调。续读第 2 话第 120 页、原无痕开关、全部分类、桌面、休眠与 10 秒超时已核对恢复，已释租。",
+        "237 沿用已安装的同签 Release 包，《遇强则强》第 54 话从第 1 页低惯性前翻 24 次到第 63 页，日志记录 69 次正文 HTTP 200。同步采集 HTrace 与应用进程 500 Hz HiPerf 调用栈，以 BootTime 对齐。HTrace 保留 14 次惯性，其中 11 次与 CPU 采样窗口有重叠。62.953 ms 出帧间隔内 UI 实际在 CPU 运行 62.752 ms，31 个主线程样本中有 28 个能用当前候选包 ABC 的指令范围映射到 ArkTS。18 个栈含 DeviceSyncOwners.snapshot，15 个含 validReadingValue，9 个含 validKey；同一采样栈可能同时含多个函数。50.663 ms 间隔含 20.050 ms PreferencesGetValue 完成回调，另有多条较短回调，尚不能按业务函数拆完。旧 47.3 ms 录制未含采样，本轮证实新的同步快照校验长帧。并行录制用于归因，无性能对照。原续读、无痕、桌面、10 秒超时及休眠已核对恢复，已释租。",
         "旧版带标记的 parseSyncLibrary 返回 2,012,414 字节结构化对象，主线程回调 55.217 ms，中间重新打包 29.823 ms；上轮无生产者标记的滚动回调具有相同大小及调用顺序，44.900 ms 中主线程实际在 CPU 运行 44.819 ms。书架解码、远端变更合并、章节目录及输出校验改为在同一个 TaskPool 任务完成。237 新包在两次冷启动同步及一次第 50 话滚动中返回约 410 万字符的书架文本，序列化结构都是 216 字节，主线程接收 0.012–0.021 ms，对应回调 12.862、13.559 和 8.826 ms，未在该回调重新打包书架。相同手势的不同新章对照中，低惯性 24 甩及 61 张新图，最长出帧间隔 62.2→49.5 ms、超过 16.7 ms 27→18、超过 33.3 ms 2→2；快甩 16 次，84→82 张新图，最长 35.6→31.8 ms、超过 16.7 ms 19→28、超过 33.3 ms 1→0。第 52 话持续 36 甩到第 94 页，合计 76 次惯性滚动和 235 张新图 HTTP 200。低惯性最长间隔包含多条短回调并与共享堆 GC 重叠，另一次 47.305 ms 间隔主线程运行 47.231 ms，同期有同步计划解包和状态编码，当前 trace 没有调用栈样本可归因全部耗时。90 项相关测试和签名构建通过。237 保留同签候选，读回恢复原续读、无痕、桌面、10 秒超时和休眠，并完成释租。",
         "回执先分批编码并在后台写入验证过的同目录临时文件，正式业务写入前再检查阅读和本机版本。原事务日志和原子发布顺序照常执行。模拟回执替换失败可回滚书架并在下一轮成功收取。旧回执主线程耗时 40–62 ms，237 最终包冷启动 2–6 ms，两组低速中的三次真实回执为 3–4 ms。回执准备耗时计入完整一轮，主线程承担分片编码及最后替换。同手势低速前后各 48 甩、分别加载 122 和 124 张新图。超过 16.7 ms 53→53，超过 33.3 ms 9→4，最长 70.1→62.2 ms。快甩各 16 次，最长 64.5→35.6 ms，超过 33.3 ms 4→1。不同新章的片长和超分任务量会影响样本。最终包做了 100 次惯性与 302 个新图 HTTP 200，第 48 话连续 36 甩到第 96 页。低速另录得 49.771 ms 间隔，其 44.900 ms TaskPool 回执接收 2,012,414 字节并在主线程再次序列化 22.676 ms。该回执生产者未在此包上打点认领。237 留最终同签包，原续读、无痕、桌面、超时和休眠校验通过并释租。90 项相关本地测试通过。",
         "对照包给合并解析后、本机状态暂存前加了计时。237 低速里约 989 万字符的状态一次编码耗时 37–86 ms，第一组同步紧接计划解析后的样本为 65 ms。候选按批编码、由后台拼接并原子落盘，相同字符量单批 4–5 ms，编码全程 21–33 ms。冷启动最慢单批 12 ms。同步真实回执已持久化，其中独立的主线程回执写盘仍耗时 40–62 ms。第 40 与 41 话先做基线再做候选，第 44 与 45 话反向复测。基线和候选各 48 次同手势低速惯性，分别收齐 125 和 122 个新图 HTTP 200。超过 16.7 ms 的间隔 62→53，超过 33.3 ms 为 8→9，最慢 87.3→70.1 ms。含快甩和持续阅读共验证候选 100 次惯性和 297 个新图 HTTP 200。已在 237 留下同签候选，并恢复原桌面、续读位置、无痕与原屏幕超时，设备已释租。仓库 89 项同步用例与现有额外并发暂存用例通过。额外的旧归档维护用例在此次改动前后均停在同一个 DELETE 等待断言。",
@@ -5608,6 +5626,9 @@
         "同包同作品向下跨章，197 实滑 11 分 17 秒、最长停顿 1.80 秒；200 实滑 10 分 41 秒、最长停顿 1.59 秒。两机都出现刷新信号已发出、应用主线程迟迟未处理。"
       ],
       "remainingActions": [
+        "新页快甩受控场景未再出现同步快照造成的 50 ms 长间隔。剩余最大约 31 ms 的间隔中，多个后台结果回调在主线程接连执行。整体条漫性能继续按普通阅读反例核对。",
+        "阅读设置合并为一次读取，搜索历史的解析归并已移至后台。继续在 237 新页复测这些回调，并定位多项后台完成回调集中占用主线程的来源。",
+        "短窗口继续使用同次 HTrace 和 HiPerf，先核事件窗口覆盖，再在同步快照已知阅读事实枚举、取可见值及校验段加起止时间片。继续确认 50.7 ms 间隔内 Preferences 回调和其他任务各自的耗时。",
         "低惯性仍有 49.5 和 47.3 ms 间隔。需要把滚动期间主线程剩余未标记的计算拆到函数级，并区分同步计划、共享堆 GC 与图片回调各自占用的帧预算。",
         "继续定位并削减主线程约 2 MB 的 TaskPool 结果往返及其余长帧。左右分页沿原独立调查和固定窗口撤回决定。",
         "继续定位并缩短已测到的本机回执同步写盘，以及独立的超帧预算回调。左右分页保留原独立调查及固定窗口撤回决定。",
@@ -5658,7 +5679,7 @@
         "date": "2026-10-26"
       },
       "previousClosedAt": "2026-11-08T08:35:59+08:00",
-      "updatedAt": "2026-11-20T02:42:14+08:00",
+      "updatedAt": "2026-11-20T04:54:08+08:00",
       "evidence": [
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
@@ -12065,6 +12086,21 @@
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
     {
+      "id": "continuous-237-reading-worker-final-20261120",
+      "at": "2026-11-20T04:54:08+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "237 验证后台阅读快照和新页滚动",
+      "detail": "Koma 提交 4b6b12a6 和 b7f08002。阅读快照保留原回执与合并校验，常规同步把文件解析、作品身份映射、事实投影、编码和摘要放进同一后台任务。阅读设置合并读取，搜索历史解析归并和超分缓存淘汰也在后台。旧候选一次 51.639 ms 快甩出帧间隔内观察到 709381 字节的阅读快照结构回传，随后处理 4329 条事实。最终候选自然同步确认两次生成 4329 条事实对应的分批投影结果，之后用第 85 话新页同次捕获真实快甩与自然同步。快甩 16 次从第 1 页到第 84 页，实际 82 个正文 HTTP 200，超分实际启动，快照标记落在原生惯性中，当时出帧间隔 16.617 ms。该轮最大间隔 31.470 ms，超过 33.3 ms 为 0 次，超过 16.7 ms 为 34 次，最长 Preferences 回调 0.470 ms。最大剩余间隔里有多个后台结果回调，单次最长 7.099 ms。此前 16 次低惯性在第 67 话最大 22.393 ms，最终包还完成第 81 话连续低惯性 24 次，从第 1 页向前到第 63 页。不同新章的手势对照保留具体页数，不当作同页重复 A/B。共享行几何试验在原样编译包上缺少稳定收益，保存试验并恢复正式依赖。最终包保留于 237，原续读第 2 话第 120 页、无痕、书架分类、桌面、10 秒超时和休眠均已核对恢复，租约已释放。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-validation-237-frames.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-projection-237-natural-sync.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-projection-237-install.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-projection-237-overlap.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-projection-237-motion-sync.json"
+      ]
+    },
+    {
       "id": "source-browse-recycled-cover-device-confirmation-20261120",
       "at": "2026-11-20T04:14:41+08:00",
       "itemId": "SOURCE_BROWSE_RECYCLED_COVER",
@@ -12081,6 +12117,18 @@
       "kind": "checkpoint"
     },
     {
+      "id": "continuous-237-reading-projection-20261120",
+      "at": "2026-11-20T04:05:49+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "237 验证阅读同步优化及 88 次新页惯性滚动",
+      "detail": "237 同签候选在《遇强则强》第 55、57、60 话连续完成 88 次向前惯性滚动，四段分别加载 61、81、63、124 张新图，沿用原超分设置并实际启动。同机同作品不同新章节，低速记录 24 次，最大出帧间隔 49.534→35.731 ms，超过 33.3 ms 从 2 次降到 1 次。快甩记录 16 次，最大 31.796→27.378 ms，超过 33.3 ms 均为 0 次。读快照覆盖 4329 条已知事实。剩余 35.731 ms 包含连续后台完成回调，其中最长 11.165 ms。另有最长 20.049 ms 的 Preferences 完成回调。续读第 2 话第 120 页、原无痕开关、全部分类、桌面、休眠与 10 秒超时已核对恢复，已释租。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-validation-237-frames.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/reading-validation-237-install.json"
+      ]
+    },
+    {
       "id": "library-sort-stale-projection-device-confirmation-20261120",
       "at": "2026-11-20T04:03:19+08:00",
       "itemId": "LIBRARY_SORT_STALE_PROJECTION",
@@ -12095,6 +12143,34 @@
       "title": "#331 修复书架切换排序时复用旧顺序",
       "detail": "本地使用书架排序入口复现并核对修复，签名调试包已构建，真机未验。",
       "kind": "checkpoint"
+    },
+    {
+      "id": "continuous-237-dual-profiler-20261120",
+      "at": "2026-11-20T03:19:16+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "237 同时采集帧时间线与 UI 调用栈",
+      "detail": "237 沿用已安装的同签 Release 包，《遇强则强》第 54 话从第 1 页低惯性前翻 24 次到第 63 页，日志记录 69 次正文 HTTP 200。同步采集 HTrace 与应用进程 500 Hz HiPerf 调用栈，以 BootTime 对齐。HTrace 保留 14 次惯性，其中 11 次与 CPU 采样窗口有重叠。62.953 ms 出帧间隔内 UI 实际在 CPU 运行 62.752 ms，31 个主线程样本中有 28 个能用当前候选包 ABC 的指令范围映射到 ArkTS。18 个栈含 DeviceSyncOwners.snapshot，15 个含 validReadingValue，9 个含 validKey；同一采样栈可能同时含多个函数。50.663 ms 间隔含 20.050 ms PreferencesGetValue 完成回调，另有多条较短回调，尚不能按业务函数拆完。旧 47.3 ms 录制未含采样，本轮证实新的同步快照校验长帧。并行录制用于归因，无性能对照。原续读、无痕、桌面、10 秒超时及休眠已核对恢复，已释租。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-profile-fresh-reader-20261120T031239259645/reading-checkpoint.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-profile-fresh-reader-20261120T031239259645/wide-audit/profile-window-summary.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-profile-fresh-reader-20261120T031239259645/wide-audit/profile-arkts-offsets.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/koma-001-profile-237-fresh-reader.perf"
+      ]
+    },
+    {
+      "id": "reader-image-progress-237-coalesced-20261120",
+      "at": "2026-11-20T03:02:31+08:00",
+      "itemId": "READER_REMOTE_IMAGE_DOWNLOAD_PROGRESS",
+      "title": "复查条漫图片进度停在首个百分比",
+      "detail": "再次报告条漫进度停在第一个数字。确认旧节流会丢弃 50 ms 内的后续进度，且正文收完后一直保留上一数值。宿主节流改为保留并补发最新字节，已经显示的百分比在确认正文收完时更新到 100%。237 同签 Release 候选在《遇强则强》第 53 话录到同一张图 42%→100%→正文，数字变化相隔约 34 ms。9 次惯性前翻由第 1 到第 26 页，两段日志共 40 条正文成功响应。原第 2 话第 120 页、无痕开关、桌面、10 秒超时和休眠已核对恢复，已释租，保留候选包。7 项相关本地测试及签名构建通过，扩展脚本中的 7 项历史失败与基线相同。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-image-progress/progress-chapter-53-open-20261120T030030608865/progress-chapter-53-open-20261120T030030608865.mp4",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-image-progress/progress-chapter-53-open-20261120T030030608865/progress-frame-evidence.jpg",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-image-progress/progress-chapter-53-forward-20261120T030043182527/progress-chapter-53-forward-20261120T030043182527.mp4",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/image-progress-237-observed.json"
+      ]
     },
     {
       "id": "continuous-237-shelf-worker-20261120",
