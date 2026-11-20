@@ -214,6 +214,7 @@ test('errors preserve platform code, known cause and code frames without arbitra
   assert.equal(summary.includes('secret'), false)
   assert.match(redactor.errorSummary(new Error('reader_remote_image_http_403')), /reason=reader_remote_image_http_403/)
   assert.match(redactor.errorSummary(new Error('koma_reader_source_chapter_unsupported')), /reason=koma_reader_source_chapter_unsupported/)
+  assert.match(redactor.errorSummary(new Error('sync_partial:sync_pack_not_found')), /reason=sync_partial:sync_pack_not_found/)
   const message = redactor.sanitizeString('comic=privateComic chapter=privateChapter uri=privateUri count=3')
   assert.equal(message.includes('private'), false)
   assert.match(message, /count=3/)

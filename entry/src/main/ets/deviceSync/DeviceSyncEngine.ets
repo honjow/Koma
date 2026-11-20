@@ -124,6 +124,15 @@ export interface SyncPreview {
   migration?: boolean
 }
 
+export class SyncGroupError extends Error {
+  readonly group: SyncGroup
+
+  constructor(group: SyncGroup, message: string) {
+    super(message)
+    this.group = group
+  }
+}
+
 interface PreparedSync {
   preview: SyncPreview
   generation: number
@@ -905,7 +914,7 @@ export class DeviceSyncEngine {
         await this.rememberRemote(provider.spaceId(), remote, guard)
         if (remote.manifest?.maintenance === true) throw new Error('sync_maintenance_running')
         const counter = this.storage.load().counter
-        const groupErrors: string[] = []
+        const groupErrors: SyncGroupError[] = []
         let groups: PreparedGroup[]
         try {
           groups = await this.prepareGroups(provider, configured.selected, this.active() ?? connection,
@@ -923,7 +932,7 @@ export class DeviceSyncEngine {
           try { await this.owner.validateChanges?.(apply) } catch (error) {
             guard()
             rejected.add(apply.group)
-            groupErrors.push((error as Error).message)
+            groupErrors.push(new SyncGroupError(apply.group, (error as Error).message))
           }
         }
         if (rejected.size > 0) {
@@ -931,12 +940,13 @@ export class DeviceSyncEngine {
           proposal = await this.preparePlan(groups, remote, [], provider.spaceId(), guard, configured.endpointIdentity)
           if (counter !== this.storage.load().counter) continue
         }
-        if (groups.length === 0 && groupErrors.length > 0) throw new Error(groupErrors[0])
+        const groupError = groupErrors[0]
+        if (groups.length === 0 && groupError !== undefined) throw groupError
         try {
           await this.execute(provider, this.active() ?? connection, configured.credential, configured.selected, remote,
             proposal, guard, false, configured.endpointIdentity, [], active === undefined)
           if (remote.warning) throw new Error(remote.warning)
-          if (groupErrors.length > 0) throw new Error('sync_partial:' + groupErrors[0])
+          if (groupError !== undefined) throw new SyncGroupError(groupError.group, 'sync_partial:' + groupError.message)
           const changed = appliedTag !== this.appliedRemoteTag
           this.appliedRemoteTag = proposal.publish || groups.some((group: PreparedGroup): boolean =>
             group.coverUnavailable === true) ? '' : appliedTag
@@ -1351,7 +1361,7 @@ export class DeviceSyncEngine {
 
   private async prepareGroups(provider: DeviceSyncWebDav, selected: SyncGroup[], connection: SyncSavedConnection | undefined,
     manifest: SyncManifest | undefined, guard: SyncRequestGuard, verifyPublic: boolean, transport?: SyncRemoteManifest,
-    automatic: boolean = false, groupErrors?: string[], endpoint: string = ''): Promise<PreparedGroup[]> {
+    automatic: boolean = false, groupErrors?: SyncGroupError[], endpoint: string = ''): Promise<PreparedGroup[]> {
     provider.beginShardReadRound()
     let budget = SYNC_MAX_ROUND_BYTES
     const groups: PreparedGroup[] = []
@@ -1380,7 +1390,7 @@ export class DeviceSyncEngine {
           const failure = error as Error
           if (!automatic || groupErrors === undefined || !this.damagedGroup(failure) ||
             transport?.writerHeads === undefined) throw failure
-          groupErrors.push(failure.message)
+          groupErrors.push(new SyncGroupError(id, failure.message))
           // A receiver that has already applied this group keeps its durable
           // projection and pending edits. Only a fresh group needs a preview
           // of the last complete publication.
@@ -1454,7 +1464,7 @@ export class DeviceSyncEngine {
         // round against freshly discovered heads, not apply a partial group.
         if ((error as Error).message === 'sync_remote_changed') throw error as Error
         if (groupErrors === undefined) throw error as Error
-        groupErrors.push((error as Error).message)
+        groupErrors.push(new SyncGroupError(id, (error as Error).message))
       }
     }
     return groups
@@ -2147,7 +2157,9 @@ export class DeviceSyncEngine {
 
   async assertReadingUnprotected(keys: string[]): Promise<void> {
     const local = await this.owner.snapshot('reading', false)
-    if (keys.some((key: string): boolean => local.protectedKeys?.includes(key) === true)) throw new Error('sync_reading_proof_pending')
+    if (keys.some((key: string): boolean => local.protectedKeys?.includes(key) === true)) {
+      throw new Error('sync_reading_local_change_pending')
+    }
   }
 
   readingWritePending(version: SyncVersion | undefined): boolean {

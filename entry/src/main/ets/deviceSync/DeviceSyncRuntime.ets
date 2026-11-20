@@ -7,7 +7,8 @@ import { ReadingProgress } from '../model/ComicModels'
 import { appReaderSessionStore } from '../model/ReaderSessionStore'
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import { getInstalledSourcePackage } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview,
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncGroupError, SyncMergeChoice, SyncPreview,
   SyncReadingWorkConflict, SyncReadingWorkResult, syncRequiresExplicitReview } from './DeviceSyncEngine'
 import { DeviceSyncShardCache } from './DeviceSyncShardCache'
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
@@ -47,11 +48,11 @@ export class DeviceSyncViewState {
   @Trace requiresExplicitReview: boolean = false
   @Trace lastSuccess: number = 0
   @Trace error: string = ''
+  @Trace errorGroup?: SyncGroup
   @Trace revision: number = 0
   @Trace searchHistoryRevision: number = 0
   @Trace shelfRemovals: SyncShelfRemoval[] = []
   @Trace blockedReadings: SyncBlockedReading[] = []
-  @Trace readingSyncIncomplete: boolean = false
 }
 
 interface ActiveReadingSync {
@@ -125,7 +126,7 @@ class DeviceSyncRuntime {
       // Optional sync metadata is isolated from normal shelf and Reader startup.
       this.engine = undefined
       this.owners = undefined
-      this.view.error = 'sync_local_state_invalid'
+      this.setError('sync_local_state_invalid')
       return
     }
     connectDeviceSyncSignals((group: SyncGroup): void => { this.changed(group) })
@@ -216,6 +217,11 @@ class DeviceSyncRuntime {
     return this.engine
   }
 
+  private setError(message: string = '', group?: SyncGroup): void {
+    this.view.error = message
+    this.view.errorGroup = group
+  }
+
   private async task<T>(action: () => Promise<T>, publishError: boolean = true, resumeRecovery: boolean = true): Promise<T> {
     if (this.view.busy) throw new Error('sync_already_running')
     let finish: () => void = (): void => {}
@@ -223,7 +229,7 @@ class DeviceSyncRuntime {
     const stateGuard = this.engine?.stateGuard()
     this.view.busy = true
     // Draft requests share the task lock, while their errors belong to the form.
-    if (publishError) this.view.error = ''
+    if (publishError) this.setError()
     try {
       const result = await action()
       this.refresh()
@@ -231,7 +237,11 @@ class DeviceSyncRuntime {
     } catch (error) {
       let current = true
       try { stateGuard?.() } catch (_changed) { current = false }
-      if (publishError && current && this.engine?.active()?.enabled !== false) this.view.error = (error as Error).message
+      const group = error instanceof SyncGroupError ? error.group : undefined
+      if (publishError && current && this.engine?.active()?.enabled !== false) {
+        this.setError((error as Error).message, group)
+      }
+      if (current) DiagnosticLogger.exception('device-sync', group === undefined ? 'task-failed' : group + '-failed', error as Error)
       this.refresh()
       throw error as Error
     } finally {
@@ -249,6 +259,9 @@ class DeviceSyncRuntime {
       const result = await action()
       this.refresh()
       return result
+    } catch (error) {
+      DiagnosticLogger.exception('device-sync', 'connection-failed', error as Error)
+      throw error as Error
     } finally { this.editingConnection = false }
   }
 
@@ -266,8 +279,7 @@ class DeviceSyncRuntime {
       const previous = this.needed().configuration()?.endpointIdentity
       await this.needed().saveConfiguration(draft)
       if (previous !== this.needed().configuration()?.endpointIdentity) {
-        this.view.error = ''
-        this.view.readingSyncIncomplete = false
+        this.setError()
       }
     })
   }
@@ -286,7 +298,7 @@ class DeviceSyncRuntime {
   recoverLastSync(): Promise<void> {
     return this.task(async (): Promise<void> => {
       await this.needed().recoverOnForeground()
-      this.view.error = ''
+      this.setError()
     })
   }
 
@@ -304,7 +316,7 @@ class DeviceSyncRuntime {
   confirm(token: string, choices: SyncMergeChoice[], publishError: boolean = true): Promise<void> {
     return this.task(async (): Promise<void> => {
       await this.needed().confirm(token, choices)
-      this.view.error = ''
+      this.setError()
     }, publishError).then((): void => { this.schedule(0) })
   }
 
@@ -344,7 +356,6 @@ class DeviceSyncRuntime {
       await this.recordPositions()
       const engine = this.needed()
       await engine.syncNow(allowIdle && generation === this.syncedGeneration)
-      if (engine.lastRoundReadingPending !== undefined) this.view.readingSyncIncomplete = engine.lastRoundReadingPending
       this.syncedGeneration = generation
     }).finally((): void => {
       this.activeSync = undefined
@@ -384,8 +395,7 @@ class DeviceSyncRuntime {
     // Invalidate queued work immediately even if an earlier HTTP response has
     // not arrived. The engine keeps the old intent separate.
     return this.needed().disconnect().then((): void => {
-      this.view.error = ''
-      this.view.readingSyncIncomplete = false
+      this.setError()
       this.refresh()
     })
   }
@@ -410,7 +420,6 @@ class DeviceSyncRuntime {
     this.needed().setSelection(selected)
     this.cancelTimer()
     this.refresh()
-    if (!selected.includes('reading')) this.view.readingSyncIncomplete = false
     if (this.activeSync === undefined) this.schedule(0)
     else void this.waitForCurrentTransfer().then((): void => { this.schedule(0) })
   }
@@ -680,7 +689,7 @@ class DeviceSyncRuntime {
       this.blockedReading = undefined
       this.view.blockedReadings = (this.storage?.load().blockedReadings ?? []).filter((item: SyncBlockedReading): boolean =>
         item.capture.space === active.space)
-    } catch (_error) { this.view.error = 'sync_local_recovery_required' }
+    } catch (_error) { this.setError('sync_local_recovery_required') }
   }
 
   recoverBlockedReading(item: SyncBlockedReading): Promise<void> {
@@ -898,7 +907,7 @@ class DeviceSyncRuntime {
       }
       if (scope !== '') await this.applyLibraryActions(actions, scope)
     })
-      .catch((error: Error): void => { this.view.error = error.message })
+      .catch((error: Error): void => { this.setError(error.message) })
   }
 
   private async applyLibraryActions(actions: SyncLibrarySignal[], scope: string): Promise<void> {
@@ -979,7 +988,7 @@ class DeviceSyncRuntime {
     const scope = this.engine?.groupScope('reader-settings') ?? ''
     if (scope === '') return
     this.bookModeEdits = this.bookModeEdits.then((): Promise<void> => this.applyBookMode(action, scope))
-      .catch((error: Error): void => { this.view.error = error.message })
+      .catch((error: Error): void => { this.setError(error.message) })
   }
 
   private async applyBookMode(action: SyncBookModeSignal, scope: string): Promise<void> {
@@ -1012,7 +1021,7 @@ class DeviceSyncRuntime {
       engine.recordEdits('source-subscriptions', known.map((item: string): DeviceSyncLocalEdit =>
         ({ key: item, kind: 'delete', value: '' })))
       this.changed('source-subscriptions')
-    } catch (error) { this.view.error = (error as Error).message }
+    } catch (error) { this.setError((error as Error).message) }
   }
 
   private removeSharedSearch(query?: string): void {
@@ -1025,7 +1034,7 @@ class DeviceSyncRuntime {
     try {
       engine.recordEdits('search-history', keys.map((key: string): DeviceSyncLocalEdit => ({ key, kind, value: '' })))
       this.changed('search-history')
-    } catch (error) { this.view.error = (error as Error).message }
+    } catch (error) { this.setError((error as Error).message) }
   }
 
 }

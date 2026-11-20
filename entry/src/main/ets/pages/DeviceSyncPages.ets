@@ -1,4 +1,5 @@
 import { AppStrings } from '../i18n/AppStrings'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
@@ -27,7 +28,12 @@ function groupKey(group: SyncGroup): string {
 
 function errorText(code: string): string {
   if (code === '') return ''
-  if (code.startsWith('sync_partial:')) return t('device_sync_partial_result').replace('%s', errorText(code.substring(13)))
+  // The engine keeps successful groups and retries failed groups independently.
+  // Show the cause of the failure rather than asking the user to repeat the round.
+  if (code.startsWith('sync_partial:')) {
+    const cause = code.substring('sync_partial:'.length)
+    return cause === '' ? t('device_sync_error_unknown') : errorText(cause)
+  }
   if (code === 'sync_probe_cleanup_pending') return t('device_sync_error_cleanup_pending')
   if (code.startsWith('sync_probe_cleanup_')) {
     return t('device_sync_error_cleanup').replace('%s', errorText(code.substring('sync_probe_cleanup_'.length)))
@@ -63,6 +69,7 @@ function errorText(code: string): string {
   if (code === 'sync_catalog_unavailable') return t('device_sync_error_catalog_unavailable')
   if (code === 'sync_public_work_unavailable') return t('device_sync_error_public_work')
   if (code === 'sync_reading_proof_pending') return t('device_sync_error_reading_proof_pending')
+  if (code === 'sync_reading_local_change_pending') return t('device_sync_error_reading_local_change_pending')
   if (code === 'sync_maintenance_running') return t('device_sync_error_maintenance')
   if (code === 'sync_invalid_username' || code === 'sync_credentials_too_long') return t('device_sync_error_credentials')
   if (code === 'sync_select_contents') return t('device_sync_no_selection')
@@ -73,21 +80,29 @@ function errorText(code: string): string {
   if (code === 'sync_local_state_invalid' || code === 'sync_local_journal_invalid') return t('device_sync_error_local_state')
   if (code === 'sync_credential_missing' || code === 'sync_credential_read_failed') return t('device_sync_error_credential_read')
   if (code.startsWith('sync_local_') || code.startsWith('sync_credential_')) return t('device_sync_error_local')
-  if (code.startsWith('sync_invalid_') || code.startsWith('sync_shard_')) return t('device_sync_error_damaged')
-  return t('device_sync_error_retry')
+  if (code === 'sync_shard_missing' || code === 'sync_pack_not_found' ||
+    code === 'sync_legacy_archive_unavailable') return t('device_sync_error_file_missing') + '\n' + t('device_sync_error_report')
+  if (code === 'sync_pack_incomplete' || code === 'sync_legacy_archive_incomplete') {
+    return t('device_sync_error_file_incomplete') + '\n' + t('device_sync_error_report')
+  }
+  if (code.startsWith('sync_invalid_') || code === 'sync_pack_invalid' ||
+    code === 'sync_legacy_archive_invalid') return t('device_sync_error_file_invalid') + '\n' + t('device_sync_error_report')
+  if (code.startsWith('sync_shard_') || code === 'sync_pack_damaged' ||
+    code === 'sync_legacy_archive_damaged') return t('device_sync_error_damaged') + '\n' + t('device_sync_error_report')
+  return t('device_sync_error_unknown')
 }
 
 function stateText(state: DeviceSyncViewState): string {
-  if (!state.ready) return state.error === '' ? t('device_sync_loading') : errorText(state.error)
+  if (state.manualInProgress || state.transferInFlight || state.unresolvedCommit && state.busy) return t('device_sync_running')
+  if (state.error !== '') return t('device_sync_failed')
+  if (!state.ready) return t('device_sync_loading')
   if (!state.configured) return t('device_sync_unconfigured')
-  if (state.unresolvedCommit && !state.transferInFlight) return t('device_sync_review_last')
+  if (state.unresolvedCommit) return t('device_sync_previous_interrupted')
   if (state.awaitingFirstMerge && !state.enabled) return t('device_sync_saved_pending')
   if (!state.enabled) return t('device_sync_paused')
   if (state.selected.length === 0) return t('device_sync_no_selection')
-  if (state.manualInProgress || state.busy && !state.transferInFlight) return t('device_sync_running')
   if (state.requiresExplicitReview) return t('device_sync_review_required')
-  if (state.error.length > 0) return t('device_sync_needs_attention')
-  if (!state.connected) return t(state.transferInFlight ? 'device_sync_running' : 'device_sync_waiting_first_run')
+  if (!state.connected) return t('device_sync_waiting_first_run')
   if (!state.automatic) return t('device_sync_manual')
   return t('device_sync_connected')
 }
@@ -173,8 +188,9 @@ export struct DeviceSyncOverviewPage {
     if (current.includes(group) === value) return
     try {
       appDeviceSync.setSelection(value ? current.concat(group) : current.filter((id: SyncGroup): boolean => id !== group))
-    } catch (_error) {
+    } catch (error) {
       this.state.selected = current.slice()
+      DiagnosticLogger.exception('device-sync', 'save-selection-failed', error as Error)
       this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: t('device_sync_scope_save_failed') }))
     }
   }
@@ -226,11 +242,18 @@ export struct DeviceSyncWebDavPage {
   }
 
   private statusDetail(): string {
-    if (this.state.manualInProgress || this.state.transferInFlight) return t('device_sync_running')
-    if (this.state.error !== '') return errorText(this.state.error)
-    if (this.state.requiresExplicitReview || this.state.unresolvedCommit) return stateText(this.state)
-    if (this.state.enabled && this.state.readingSyncIncomplete) return t('device_sync_reading_incomplete')
-    if (this.state.lastSuccess === 0) return stateText(this.state)
+    if (this.state.manualInProgress || this.state.transferInFlight || this.state.unresolvedCommit && this.state.busy) {
+      return t('device_sync_running')
+    }
+    if (this.state.error !== '') {
+      const scope = this.state.errorGroup === undefined ? '' : t(groupKey(this.state.errorGroup)) + ' · '
+      return t('device_sync_failed') + '\n' + scope + errorText(this.state.error)
+    }
+    if (this.state.unresolvedCommit) {
+      return t('device_sync_previous_interrupted') + '\n' + t('device_sync_previous_resume_detail')
+    }
+    if (this.state.requiresExplicitReview || !this.state.enabled || this.state.selected.length === 0 ||
+      this.state.lastSuccess === 0) return stateText(this.state)
     return t('device_sync_last_success_time').replace('%s', new Date(this.state.lastSuccess).toLocaleString())
   }
 
@@ -388,7 +411,7 @@ export struct DeviceSyncConnectionPage {
       if (this.chrome.busy || this.error.length > 0) {
         ListItem() {
           GroupedListSection({ inModal: this.inModal }) {
-            ConciseListRow({ title: t(this.chrome.busy ? 'device_sync_saving' : 'device_sync_needs_attention'),
+            ConciseListRow({ title: t(this.chrome.busy ? 'device_sync_saving' : 'device_sync_connection_failed'),
               subtitle: errorText(this.error), subtitleMaxLines: 6, showChevron: false })
           }
         }
@@ -706,13 +729,15 @@ export struct DeviceSyncReviewPage {
       if (this.loading || this.error.length > 0 || this.state.unresolvedCommit) {
         ListItem() {
           GroupedListSection({ inModal: this.inModal }) {
-            ConciseListRow({ title: t(this.loading ? 'device_sync_preparing' :
-                this.state.unresolvedCommit ? 'device_sync_review_last' : 'device_sync_needs_attention'),
-              subtitle: errorText(this.error || (this.state.unresolvedCommit ? 'sync_remote_result_unknown' : '')),
+            ConciseListRow({ title: t(this.loading ? 'device_sync_preparing' : this.error.length > 0 ?
+                'device_sync_failed' : 'device_sync_previous_interrupted'),
+              subtitle: this.error.length > 0 ? errorText(this.error) :
+                this.state.unresolvedCommit ? t('device_sync_previous_resume_detail') : '',
               subtitleMaxLines: 6, showChevron: false })
             if (!this.loading && this.preview === undefined && (this.state.unresolvedCommit || this.reviewError)) {
               ListDivider()
-              ConciseListRow({ title: t(this.state.unresolvedCommit ? 'device_sync_review_last' : 'common_retry'), showChevron: false,
+              ConciseListRow({ title: t(this.state.unresolvedCommit ? 'device_sync_continue_previous' : 'device_sync_preview'),
+                showChevron: false,
                 isEnabled: !this.state.busy && (this.state.enabled ||
                   (this.state.awaitingFirstMerge || this.state.requiresExplicitReview) && !this.state.unresolvedCommit),
                 action: (): void => { if (this.state.unresolvedCommit) void this.recover(); else void this.load() } })

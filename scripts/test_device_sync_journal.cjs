@@ -520,6 +520,7 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     './SourceTextOverlay': {}, './SourceRequiredImageDecode': {}, './SourceTextPageDescriptor': {},
     '../sourceRuntime/SourceRuntimeAppRegistry': registry, '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn: noop } },
     './ReaderChapterSequence': {}, '../i18n/AppStrings': {}, './RemoteReaderSession': {}, './ChapterReadStateStore': {},
+    './ChapterListPreferencesStore': { chapterReadingSortFor: () => undefined },
   })
   files.set(filesDir + '/' + sessions.READER_PROGRESS_PERSISTENCE_FILE_NAME, sessions.serializeReaderSessionForDevice({
     progress: [], sourceHistory: [], chapters: [],
@@ -738,14 +739,21 @@ test('a missing settings shard keeps that group pending while the received books
   b.engine.setSelection(groups)
   await b.engine.saveConfiguration(f.draft)
   b.engine.setEnabled(true)
+  const runtime = runtimeFixture({
+    './DeviceSyncEngine': { SyncGroupError: fixture.SyncGroupError, syncRequiresExplicitReview: () => false },
+  })
+  runtime.engine = b.engine
   // A published shard may have moved to a temporarily invisible pack; keep
   // it pending while independent shelf data still lands.
-  await assert.rejects(b.engine.syncNow(), /sync_partial:sync_pack_not_found/)
+  await assert.rejects(runtime.syncManually(), { message: 'sync_partial:sync_pack_not_found', group: 'reader-settings' })
+  assert.equal(runtime.view.errorGroup, 'reader-settings')
   assert.equal(b.values.get('shelf').get(book), label)
   assert.equal(b.values.get('reader-settings')?.get(pageNumber), undefined)
   f.files.set(path, body)
-  await b.engine.syncNow()
+  await runtime.syncManually()
   assert.equal(b.values.get('reader-settings').get(pageNumber), 'false')
+  assert.equal(runtime.view.error, '')
+  assert.equal(runtime.view.errorGroup, undefined)
 })
 
 test('a damaged current group falls back across writer segments for a new device without rewinding an existing one', async () => {
@@ -1061,7 +1069,7 @@ test('an unsendable legacy reading capture is settled once without changing save
   device.reader.reload()
   await device.runtime.syncManually()
   assert.equal(device.owner.readingAcknowledged(capture), true)
-  assert.equal(device.runtime.view.readingSyncIncomplete, false)
+  assert.equal(device.engine.active().groups.find(group => group.id === 'reading').pending.length, 0)
   assert.equal(device.coldReader().getProgress(comicId).pageIndex, 1)
   const receipts = device.store.load().readingReceipts.length
   await device.runtime.syncManually()

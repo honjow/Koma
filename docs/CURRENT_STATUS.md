@@ -147,10 +147,10 @@
       "reportedDate": "2026-11-20",
       "reportedAtSource": "用户报告一台设备点同步反复显示本机无法保存，另一台设备显示 23 项待发送。用户要求普通同步页取消条数提示。",
       "registeredAt": "2026-11-20T10:25:24+08:00",
-      "updatedAt": "2026-11-20T11:17:58+08:00",
-      "status": "237 的两部作品已自动续到较新的云端位置",
-      "result": "237 原连接自动同步，两个卡住的续读位置分别采用第 51 话第 22 页和 Page 1 第 10 页，待发送和等待合并的阅读记录清空。最终包 WebDAV 页显示带时间的上次成功，取消普通同步的排队条数。区分本机保存、恢复和凭据问题，本机写入失败后可在下一轮恢复并保留尚未同步的内容。",
-      "remaining": "237 已通过原连接实测，用户提到的另一台设备需更新后同步。",
+      "updatedAt": "2026-11-21T00:23:53+08:00",
+      "status": "237 原连接已实测成功，故障回放能指出实际受影响的内容",
+      "result": "237 原连接自动同步，两个卡住的续读位置分别采用第 51 话第 22 页和 Page 1 第 10 页，待发送和等待合并的阅读记录清空。最终包 WebDAV 页显示带时间的上次成功，取消普通同步的排队条数。区分本机保存、恢复和凭据问题，本机写入失败后可在下一轮恢复并保留尚未同步的内容。 移除「部分内容已同步」「同步没有完成，请重试」和阅读等待提示。同步失败时同时显示已知受影响的同步范围和实际原因，区分远端数据缺失、没读全、格式无效及内容不符。模拟服务端缺少阅读偏好文件时，书架仍正常更新，设置页只把失败标到阅读偏好，文件重新可用后错误消失。上次写入结果未确认时，由 Koma 继续同步前向服务器确认。普通页保留立即同步，未知原因可导出诊断日志。237 同签最终包从设置打开原 WebDAV，页面显示「上次同步成功」及新时间。",
+      "remaining": "237 已用原连接实测正常状态。最新错误范围与对应文案通过故障回放及状态输出核对。",
       "relatedItems": [
         "WEBDAV_AUTO_PROGRESS_STALE",
         "WEBDAV_RESTORED_CATEGORY_DUPLICATES"
@@ -160,7 +160,13 @@
         ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/install-final-focus-resume/run-metadata.json",
         ".hvigor/outputs/webdav-category-recovery-20261120/237-final-focus-regression.log",
         ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/final-device-verification.json",
-        ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/final-webdav-view/run-metadata.json"
+        ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/final-webdav-view/run-metadata.json",
+        ".hvigor/outputs/webdav-status-copy-20261120/clear-owner-status-output.log",
+        ".hvigor/outputs/webdav-status-copy-20261120/clear-owner-tests.log",
+        ".hvigor/outputs/webdav-category-recovery-20261120/device237__VDE-AL00/not-applicable/portrait-1320x2120/production-sync-repair/status-clear-owner-verification.json",
+        ".hvigor/outputs/webdav-status-copy-20261120/observed-errors-status-output.log",
+        ".hvigor/outputs/webdav-status-copy-20261120/observed-errors-final-tests.log",
+        ".hvigor/outputs/webdav-status-copy-20261120/sync-diagnostic-reason.log"
       ]
     },
     {

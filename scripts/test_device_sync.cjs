@@ -178,11 +178,12 @@ function runtimeFixture(extra = {}, globals = {}) {
     '@kit.NetworkKit': {}, '@kit.ArkTS': {}, '@kit.BackgroundTasksKit': {},
     '../model/ReaderSessionStore': {}, '../model/SearchHistoryStore': {},
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceRuntimeAppRegistry': {},
-    './DeviceSyncEngine': { syncRequiresExplicitReview: () => false },
+    './DeviceSyncEngine': { SyncGroupError: class extends Error {}, syncRequiresExplicitReview: () => false },
     './DeviceSyncFacts': facts, './DeviceSyncOwners': {}, './DeviceSyncStorage': {},
     './DeviceSyncShardCache': { DeviceSyncShardCache: class {} },
     './DeviceSyncData': data, './DeviceSyncSignals': {},
     '../sourceRuntime/SourceIndexMetadata': {},
+    '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { exception() {} } },
     ...extra,
   }, { ObservedV2: value => value, Trace: () => {}, ...globals }).appDeviceSync
 }
@@ -404,7 +405,7 @@ function engineFixture(providerOverride, shardCache) {
     },
     clearSyncCredential: async ref => { assets.delete(ref) },
   }
-  const { DeviceSyncEngine } = compile('DeviceSyncEngine', {
+  const { DeviceSyncEngine, SyncGroupError } = compile('DeviceSyncEngine', {
     './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncWire': wire,
     './DeviceSyncPlanner': compile('DeviceSyncPlanner', {
       './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncWire': wire,
@@ -471,7 +472,7 @@ function engineFixture(providerOverride, shardCache) {
     return { engine: new DeviceSyncEngine(store, owner, shardCache), values, store, snapshotExtras,
       restart: () => new DeviceSyncEngine(store, owner, shardCache) }
   }
-  return { replica, draft, servers, assets }
+  return { replica, draft, servers, assets, SyncGroupError }
 }
 
 test('saved zero-scope configuration survives a new engine and stays off until a confirmed first merge', async () => {

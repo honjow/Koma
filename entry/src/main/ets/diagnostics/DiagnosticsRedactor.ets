@@ -23,7 +23,8 @@ export class DiagnosticsRedactor {
     try {
       const fields = error as DiagnosticErrorFields
       const code = fields.code === undefined ? 'none' : DiagnosticsRedactor.safeToken(String(fields.code))
-      const reason = /^(?:reader_|koma_reader_|source_|backup_|download_|cache_|file_|search_)[a-z0-9_]+$/.test(error.message) || ['missing_chapter_page', 'network_error', 'http_error', 'timeout', 'unsupported', 'not_found', 'invalid_request', 'parse_error'].includes(error.message)
+      const syncReason = /^(?:sync_partial:)?sync_(?:[a-z_]+|server_http_[1-5][0-9]{2})$/.test(error.message)
+      const reason = syncReason || /^(?:reader_|koma_reader_|source_|backup_|download_|cache_|file_|search_)[a-z0-9_]+$/.test(error.message) || ['missing_chapter_page', 'network_error', 'http_error', 'timeout', 'unsupported', 'not_found', 'invalid_request', 'parse_error'].includes(error.message)
         ? error.message : 'unclassified'
       // The first stack line repeats an arbitrary message. Keep only code frames, never that header.
       const frames = (error.stack || '').split('\n').filter((line: string) => /^\s*at\s/.test(line))

@@ -5220,7 +5220,7 @@ struct Index {
     if (reason === 'scope') return 'device_sync_review_scope_title'
     if (reason === 'restore') return 'device_sync_review_restore_title'
     if (reason === 'pending') return 'device_sync_pending_items'
-    if (reason === 'recovery') return 'device_sync_review_last'
+    if (reason === 'recovery') return 'device_sync_continue_previous'
     return 'device_sync_review_differences'
   }
 
