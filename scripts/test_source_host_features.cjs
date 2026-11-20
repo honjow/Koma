@@ -76,6 +76,32 @@ test('host capability handoff preserves requests and validates plain text withou
   assert.throws(() => sourceTextPage({ ...spec, paragraphs: ['x'.repeat(64001)] }))
 })
 
+test('ordinary cached chapter images skip ticket retrieval when the source-body cache misses', async () => {
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'reader-wire-cache-'))
+  const { cache } = fileCache(directory)
+  const entry = { enabled: true, manifestVersion: '1', wasmPath: '/installed/source.wasm' }
+  const adapter = functions('model/ReaderPageSourceAdapter.ets',
+    ['sourceImageMangaRoute', 'sourceRemoteImageCacheKey', 'fetchAndCacheSourceRuntimeRemoteImage'], {
+      readerImageCacheStore: cache,
+      SourceWorkerPriority: { FOREGROUND: 0 },
+      appSourceRuntimeRegistry: { lookup: () => ({ entry }) },
+      sourceWebPackageIdentity: () => 'installed-package',
+      sourceImageProcessingFingerprint: () => 'settings',
+      resolveSourceRuntimeImageRequest: async () => { throw new Error('unnecessary image ticket request') },
+    })
+  const source = 'test-source', uri = 'https://images.invalid/chapter/page', pageId = 'page'
+  try {
+    const seed = adapter.sourceRemoteImageCacheKey(source, uri, pageId)
+    const original = await cache.put(uri, undefined, Uint8Array.of(1, 2, 3, 4).buffer, seed)
+    assert.equal(await adapter.fetchAndCacheSourceRuntimeRemoteImage(source, uri, pageId), original)
+    const body = await cache.put(uri, undefined, Uint8Array.of(5, 6).buffer, seed + ':body:installed-package:settings')
+    assert.equal(await adapter.fetchAndCacheSourceRuntimeRemoteImage(source, uri, pageId), body)
+  } finally {
+    await cache.clear()
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test('required image decoding discovers declared old cache, fails closed, and precedes optional processing', async () => {
   const required = load('model/SourceRequiredImageDecode.ets')
   let entry = { enabled: true, manifestVersion: '1', wasmPath: '/installed/source.wasm' }

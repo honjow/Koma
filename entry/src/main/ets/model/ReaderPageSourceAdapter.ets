@@ -1252,8 +1252,10 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   const needsHints = onProcessing !== undefined || onRequiredDecode !== undefined
   const bodyCached = forceReload ? undefined : await readerImageCacheStore.getReaderPage(bodyCacheKey,
     needsHints ? hintKey : undefined)
-  const cached = forceReload ? undefined : bodyCached ?? await readerImageCacheStore.getReaderPage(cacheKeySeed,
-    needsHints ? hintKey : undefined)
+  // A miss returns an empty record. Only a usable body file can skip the
+  // original cache lookup and avoid reacquiring a source ticket for cached bytes.
+  const cached = forceReload ? undefined : bodyCached?.imagePath !== undefined ? bodyCached :
+    await readerImageCacheStore.getReaderPage(cacheKeySeed, needsHints ? hintKey : undefined)
   const cachedFast = cached?.imagePath
   if (cachedFast !== undefined && cachedFast.length > 0) {
     if (onSize !== undefined) void probeReaderImageFileSize(cachedFast, onSize)

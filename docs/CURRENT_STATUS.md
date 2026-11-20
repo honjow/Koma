@@ -112,12 +112,15 @@
       "reportedAt": null,
       "reportedDate": "2026-11-21",
       "reportedAtSource": "本会话用户报告刚退出漫画后续读偶发较久加载。",
-      "updatedAt": "2026-11-21T03:55:00+08:00",
-      "status": "已让在线历史入口优先准备正文，待测首图时间",
-      "result": "有目标章的在线历史入口先准备当前章，完整目录在后台补齐手动选章和连读顺序。诊断日志提供进度同步和正文页表耗时。",
-      "remaining": "真机对照退出后从历史和书架续读的首图时间，查清用户当时的具体等待阶段。",
+      "updatedAt": "2026-11-21T04:10:07+08:00",
+      "status": "200 已复现书架续读慢，已修正正文缓存回归",
+      "result": "日漫分类顶部卡片三轮续读同一页，每轮重新取得正文页表和九张图的票据，随后命中正文文件。目录补齐和取图共用同源串行队列。捕获的三轮超分使用已有结果，未见推理启动。已修复源生成文件未命中时跳过普通正文缓存的问题。",
+      "remaining": "200 用原安装包取证并回到原分类和第 19 页记录。缓存修复尚未装机复测，收到同步进度的续读路径仍会刷新页表。",
       "relatedItems": ["READER_TEMPORARY_ENHANCEMENT_REUSE", "HISTORY_RESUME_WAIT_FEEDBACK"],
-      "evidence": ["本地执行验证了目录未返回时目标章可准备，目录返回后更新选章标题和相邻章节。"]
+      "evidence": [
+        "本地执行验证了目录未返回时目标章可准备，目录返回后更新选章标题和相邻章节。",
+        ".hvigor/outputs/shelf-resume-latency-20261121/device200__HOP-AL10/unknown/portrait-1828x2584/shelf-resume-roundtrip/roundtrip-trace-003/resume-latency-summary.json"
+      ]
     },
     {
       "id": "LIBRARY_PRIVATE_CATEGORIES",
