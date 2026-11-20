@@ -5448,14 +5448,14 @@
       "id": "CONTINUOUS_PERFORMANCE",
       "number": 1,
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "237 验证 WebDAV 在惯性期间分时执行，继续定位出图回调",
-      "stage": "已验证同步与超分优化的真机候选",
+      "status": "同步读文件修复已通过构建，等待 237 完成 WebDAV 分类修复",
+      "stage": "后台快照读文件候选已同签名核验",
       "kind": "active",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "Koma 524574f2 由 CI 44657841941 干净构建并以 237 原证书签名。《遇强则强》第 94 话较低惯性 20 次从第 1 页到第 25 页，24 个正文请求返回 200，超分完成 2 次。WebDAV 计划解包和状态编码确实触发让出并与原生惯性重叠。重叠期间最大出帧间隔 18.027 ms。全段 3183 个出帧间隔中 7 个超过 16.7 ms，最高 30.377 ms，无超过 33.3 ms。该最高间隔内 fs.readText 完成回调占 14.398 ms，TaskPool 完成回调占 9.112 ms。第 87、94 话都是向前读新图，帧数和峰值按独立样本保留。候选仍保留在 237，原第 2 话第 120 页、无痕、书架分类、桌面、10 秒超时及休眠已核对恢复，已释租。 237《遇强则强》第 87 话低惯性 24 次从第 1 页到第 61 页。最大出帧间隔 64.589 ms，UI 实际运行 55.770 ms，区间对齐 WebDAV 合并计划解包 27 ms、约 996 万字符状态编码 34 ms 的完成标记，CPU 采样定位到同步规划与存储路径。第 89 话实际快甩 16 次从第 1 页到第 39 页，最大 32.378 ms。此区间内 ArkUI List 预建阶段释放一块约 37.4 MB 的图像缓冲，释放本身用时 10.693 ms。另三次约 22 ms 的间隔有 13–20 ms 是 TaskPool 完成回调。首版让出仅绑定手指接触，237 第 92 话复测发现松手后路由未触发让出，未把不同章的较低峰值归为修复收益。已接入既有惯性等待窗口，用更短的时间片并让出一个显示周期，保留重检连接和原子提交。 正文缓存检查和落盘已移到后台，未变的短图行少做更新，已测新页连续加载。 连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
-      "remaining": "继续细化 fs.readText 主线程回执的业务调用方。快滑仍要压连续结果回调和 ArkUI 原生释放大图缓冲的开销。",
+      "result": "较低惯性基线在前 6 秒收到 13 次 UI 线程 fs.readText 完成回调，累计 78.447 ms，最长单次 18.380 ms。a6d83422、f6640f24 将自动阅读快照的 3 个持久文件读取、UTF-8 解码和快照生成合并到同一后台任务。CI 44662386645 通过并完成同签名核验。237 正由 WebDAV 分类修复任务占用，本候选尚未安装。旧快滑轨迹确认 ArkUI 回收过期 LazyForEach 项时 在 UI 线程释放一块 35.7 MiB 图片缓冲，耗时 10.693 ms。容量与同段 2560×3656 的全尺寸超分解码相符。 Koma 524574f2 由 CI 44657841941 干净构建并以 237 原证书签名。《遇强则强》第 94 话较低惯性 20 次从第 1 页到第 25 页，24 个正文请求返回 200，超分完成 2 次。WebDAV 计划解包和状态编码确实触发让出并与原生惯性重叠。重叠期间最大出帧间隔 18.027 ms。全段 3183 个出帧间隔中 7 个超过 16.7 ms，最高 30.377 ms，无超过 33.3 ms。该最高间隔内 fs.readText 完成回调占 14.398 ms，TaskPool 完成回调占 9.112 ms。第 87、94 话都是向前读新图，帧数和峰值按独立样本保留。候选仍保留在 237，原第 2 话第 120 页、无痕、书架分类、桌面、10 秒超时及休眠已核对恢复，已释租。 237《遇强则强》第 87 话低惯性 24 次从第 1 页到第 61 页。最大出帧间隔 64.589 ms，UI 实际运行 55.770 ms，区间对齐 WebDAV 合并计划解包 27 ms、约 996 万字符状态编码 34 ms 的完成标记，CPU 采样定位到同步规划与存储路径。第 89 话实际快甩 16 次从第 1 页到第 39 页，最大 32.378 ms。此区间内 ArkUI List 预建阶段释放一块约 37.4 MB 的图像缓冲，释放本身用时 10.693 ms。另三次约 22 ms 的间隔有 13–20 ms 是 TaskPool 完成回调。首版让出仅绑定手指接触，237 第 92 话复测发现松手后路由未触发让出，未把不同章的较低峰值归为修复收益。已接入既有惯性等待窗口，用更短的时间片并让出一个显示周期，保留重检连接和原子提交。 正文缓存检查和落盘已移到后台，未变的短图行少做更新，已测新页连续加载。 连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
+      "remaining": "237 完成分类修复并可安全测试后，用未读章节验证同步确实发生时主线程读文件回调是否减少，并复查快滑时的原生图片缓冲释放。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -5464,6 +5464,10 @@
       "closedAt": null,
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/koma-001-ci-f6640f24/build-manifest.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/candidate/Koma-1.5.5-issue-001-sync-worker-read-ci-signed.hap",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sync-paced-inertia-slow-20261120T101059853707/wide-audit/residual-frame-accounting.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-residual-fast-preparation-20261120T094240584893/wide-audit/trace.db",
         ".hvigor/outputs/continuous-short-images-20261119/qa/reading-validation-237-frames.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/reading-projection-237-natural-sync.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/reading-projection-237-install.json",
@@ -5603,6 +5607,7 @@
       ],
       "latestCounterexampleAt": "2026-11-08T21:10:00+08:00",
       "evidencePoints": [
+        "较低惯性基线在前 6 秒收到 13 次 UI 线程 fs.readText 完成回调，累计 78.447 ms，最长单次 18.380 ms。a6d83422、f6640f24 将自动阅读快照的 3 个持久文件读取、UTF-8 解码和快照生成合并到同一后台任务。CI 44662386645 通过并完成同签名核验。237 正由 WebDAV 分类修复任务占用，本候选尚未安装。旧快滑轨迹确认 ArkUI 回收过期 LazyForEach 项时 在 UI 线程释放一块 35.7 MiB 图片缓冲，耗时 10.693 ms。容量与同段 2560×3656 的全尺寸超分解码相符。",
         "Koma 提交 4b6b12a6 和 b7f08002。阅读快照保留原回执与合并校验，常规同步把文件解析、作品身份映射、事实投影、编码和摘要放进同一后台任务。阅读设置合并读取，搜索历史解析归并和超分缓存淘汰也在后台。旧候选一次 51.639 ms 快甩出帧间隔内观察到 709381 字节的阅读快照结构回传，随后处理 4329 条事实。最终候选自然同步确认两次生成 4329 条事实对应的分批投影结果，之后用第 85 话新页同次捕获真实快甩与自然同步。快甩 16 次从第 1 页到第 84 页，实际 82 个正文 HTTP 200，超分实际启动，快照标记落在原生惯性中，当时出帧间隔 16.617 ms。该轮最大间隔 31.470 ms，超过 33.3 ms 为 0 次，超过 16.7 ms 为 34 次，最长 Preferences 回调 0.470 ms。最大剩余间隔里有多个后台结果回调，单次最长 7.099 ms。此前 16 次低惯性在第 67 话最大 22.393 ms，最终包还完成第 81 话连续低惯性 24 次，从第 1 页向前到第 63 页。不同新章的手势对照保留具体页数，不当作同页重复 A/B。共享行几何试验在原样编译包上缺少稳定收益，保存试验并恢复正式依赖。最终包保留于 237，原续读第 2 话第 120 页、无痕、书架分类、桌面、10 秒超时和休眠均已核对恢复，租约已释放。",
         "237 同签候选在《遇强则强》第 55、57、60 话连续完成 88 次向前惯性滚动，四段分别加载 61、81、63、124 张新图，沿用原超分设置并实际启动。同机同作品不同新章节，低速记录 24 次，最大出帧间隔 49.534→35.731 ms，超过 33.3 ms 从 2 次降到 1 次。快甩记录 16 次，最大 31.796→27.378 ms，超过 33.3 ms 均为 0 次。读快照覆盖 4329 条已知事实。剩余 35.731 ms 包含连续后台完成回调，其中最长 11.165 ms。另有最长 20.049 ms 的 Preferences 完成回调。续读第 2 话第 120 页、原无痕开关、全部分类、桌面、休眠与 10 秒超时已核对恢复，已释租。",
         "237 沿用已安装的同签 Release 包，《遇强则强》第 54 话从第 1 页低惯性前翻 24 次到第 63 页，日志记录 69 次正文 HTTP 200。同步采集 HTrace 与应用进程 500 Hz HiPerf 调用栈，以 BootTime 对齐。HTrace 保留 14 次惯性，其中 11 次与 CPU 采样窗口有重叠。62.953 ms 出帧间隔内 UI 实际在 CPU 运行 62.752 ms，31 个主线程样本中有 28 个能用当前候选包 ABC 的指令范围映射到 ArkTS。18 个栈含 DeviceSyncOwners.snapshot，15 个含 validReadingValue，9 个含 validKey；同一采样栈可能同时含多个函数。50.663 ms 间隔含 20.050 ms PreferencesGetValue 完成回调，另有多条较短回调，尚不能按业务函数拆完。旧 47.3 ms 录制未含采样，本轮证实新的同步快照校验长帧。并行录制用于归因，无性能对照。原续读、无痕、桌面、10 秒超时及休眠已核对恢复，已释租。",
@@ -5630,6 +5635,7 @@
         "同包同作品向下跨章，197 实滑 11 分 17 秒、最长停顿 1.80 秒；200 实滑 10 分 41 秒、最长停顿 1.59 秒。两机都出现刷新信号已发出、应用主线程迟迟未处理。"
       ],
       "remainingActions": [
+        "237 完成分类修复并可安全测试后，用未读章节验证同步确实发生时主线程读文件回调是否减少，并复查快滑时的原生图片缓冲释放。",
         "新页快甩受控场景未再出现同步快照造成的 50 ms 长间隔。剩余最大约 31 ms 的间隔中，多个后台结果回调在主线程接连执行。整体条漫性能继续按普通阅读反例核对。",
         "阅读设置合并为一次读取，搜索历史的解析归并已移至后台。继续在 237 新页复测这些回调，并定位多项后台完成回调集中占用主线程的来源。",
         "短窗口继续使用同次 HTrace 和 HiPerf，先核事件窗口覆盖，再在同步快照已知阅读事实枚举、取可见值及校验段加起止时间片。继续确认 50.7 ms 间隔内 Preferences 回调和其他任务各自的耗时。",
@@ -5683,7 +5689,7 @@
         "date": "2026-10-26"
       },
       "previousClosedAt": "2026-11-08T08:35:59+08:00",
-      "updatedAt": "2026-11-20T10:23:15+08:00",
+      "updatedAt": "2026-11-20T10:49:47+08:00",
       "evidence": [
         ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sync-paced-inertia-slow-20261120T101059853707/wide-audit/sync-pacing-verification.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/sync-motion-pacing-inertia-237-install.json",
@@ -12096,6 +12102,20 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "continuous-237-worker-read-ci-20261120",
+      "at": "2026-11-20T10:49:47+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "自动阅读快照文件读取移到后台，待 237 新页实测",
+      "detail": "较低惯性基线在前 6 秒收到 13 次 UI 线程 fs.readText 完成回调，累计 78.447 ms，最长单次 18.380 ms。a6d83422、f6640f24 将自动阅读快照的 3 个持久文件读取、UTF-8 解码和快照生成合并到同一后台任务。CI 44662386645 通过并完成同签名核验。237 正由 WebDAV 分类修复任务占用，本候选尚未安装。旧快滑轨迹确认 ArkUI 回收过期 LazyForEach 项时 在 UI 线程释放一块 35.7 MiB 图片缓冲，耗时 10.693 ms。容量与同段 2560×3656 的全尺寸超分解码相符。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/koma-001-ci-f6640f24/build-manifest.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/candidate/Koma-1.5.5-issue-001-sync-worker-read-ci-signed.hap",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sync-paced-inertia-slow-20261120T101059853707/wide-audit/residual-frame-accounting.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-residual-fast-preparation-20261120T094240584893/wide-audit/trace.db"
+      ]
+    },
     {
       "id": "continuous-237-sync-inertia-verified-20261120",
       "at": "2026-11-20T10:23:15+08:00",
