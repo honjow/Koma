@@ -99,9 +99,13 @@ function parseReadingSnapshot(directory: string, persistedText: string | null): 
 }
 
 @Concurrent
-function projectReadingSnapshot(directory: string, rawLibrary: string | null, rawReading: string | null,
-  side: string, archive: string, facts: string[]): SyncProjectedReadingSnapshot {
-  return buildSyncReadingSnapshot(directory, rawLibrary, rawReading, side, archive, facts)
+function projectReadingSnapshot(directory: string, archive: string, facts: string[]): SyncProjectedReadingSnapshot {
+  // Keep the input files, UTF-8 decoding and row projection in one worker.
+  // The caller only needs the revision and projected reading records.
+  const side = readFile(`${directory}/${SYNC_PROJECTION}`) ?? ''
+  const library = readFile(`${directory}/${LIBRARY_STORE_PERSISTENCE_FILE_NAME}`) ?? null
+  const reading = readFile(`${directory}/${READER_PROGRESS_PERSISTENCE_FILE_NAME}`) ?? null
+  return buildSyncReadingSnapshot(directory, library, reading, side, archive, facts)
 }
 
 @Concurrent
@@ -345,18 +349,17 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       })
       return { values, labels, revision: syncDigest(JSON.stringify(snapshot)), skipped }
     }
-    const side = await readSnapshotFile(this.path(SYNC_PROJECTION))
-    const rawLibrary = await readSnapshotFile(this.path(LIBRARY_STORE_PERSISTENCE_FILE_NAME))
     if (group === 'reading' && !includeReadingLabels && (!verify || !this.readingRestoreArchive())) {
       if (verify && !BackupRestoreActivity.deviceSyncIsCommitting() &&
         !appReaderSessionStore(this.context.filesDir).flush()) throw new Error('sync_local_busy')
-      const rawReading = await readSnapshotFile(this.path(READER_PROGRESS_PERSISTENCE_FILE_NAME))
       guard?.()
-      const snapshot = await this.automaticReadingSnapshot(rawLibrary, rawReading, side, guard)
+      const snapshot = await this.automaticReadingSnapshot(guard)
       if (!verify || !this.readingRestoreArchive()) return snapshot
       // A restore can appear while the worker runs. Keep the explicit proof
       // path, including its comparison to the archived reading identities.
     }
+    const side = await readSnapshotFile(this.path(SYNC_PROJECTION))
+    const rawLibrary = await readSnapshotFile(this.path(LIBRARY_STORE_PERSISTENCE_FILE_NAME))
     const projection = this.projection(side ?? null)
     const parsed = await this.libraryForSnapshot(rawLibrary, group === 'shelf')
     const library = parsed.library
@@ -554,8 +557,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return Array.from(protectedKeys)
   }
 
-  private async automaticReadingSnapshot(rawLibrary: string | undefined, rawReading: string | undefined,
-    side: string | undefined, guard?: () => void): Promise<SyncLocalSnapshot> {
+  private async automaticReadingSnapshot(guard?: () => void): Promise<SyncLocalSnapshot> {
     const work = new SyncWorkSlice()
     const facts = this.readingFacts()
     const factChunks = await packInputRows(facts, (): Promise<void> | undefined => work.pause())
@@ -563,8 +565,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const space = this.storage.load().active?.space
     const archive = this.storage.load().readingRestoreCandidates?.find((candidate: SyncReadingRestoreCandidate): boolean =>
       candidate.space === space)
-    const prepared = await taskpool.execute(projectReadingSnapshot, this.context.filesDir, rawLibrary ?? null,
-      rawReading ?? null, side ?? '', JSON.stringify(archive ?? null), factChunks) as SyncProjectedReadingSnapshot
+    const prepared = await taskpool.execute(projectReadingSnapshot, this.context.filesDir,
+      JSON.stringify(archive ?? null), factChunks) as SyncProjectedReadingSnapshot
     guard?.()
     const values: SyncLocalValue[] = []
     for (const chunk of prepared.valueChunks) {
