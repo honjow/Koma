@@ -628,6 +628,7 @@ function fixture(sdkApiVersion = 23) {
       if (name === './SourceHttpBodyStream') return { requestSourceBodyStream: () => { throw Error('unexpected body stream in legacy fixture') } }
       if (name === '@kit.ArkTS') return { url: { URL }, util: { Base64Helper: class {
         encodeToStringSync(bytes) { return Buffer.from(bytes).toString('base64') }
+        decodeSync(value) { return Uint8Array.from(Buffer.from(value, 'base64')) }
       } } }
       if (name === './SourceHttpCookieJar') return moduleFrom('SourceHttpCookieJar', () => ({ url: { URL } }))
       if (name === './SourceRequestPolicy') return network.policy ?? moduleFrom('SourceRequestPolicy', () => ({ url: { URL } }))
@@ -1222,7 +1223,7 @@ function declarations(relative, names, owner) {
 function sourceWorkerFixture(execute, workers = {}, privateHost) {
   const identity = moduleFrom('SourceRuntimeExecutionIdentity', () => ({}))
   const client = moduleFrom('SourceRuntimeWorkerClient', name => {
-    if (name === './SourceBodyHost') return { SourceBodyHost: { handoff: response => response, finishCall: () => {} } }
+    if (name === './SourceBodyHost') return { SourceBodyHost: { available: () => false, handoff: response => response, finishCall: () => {} } }
     if (name === '@kit.ArkTS') return { taskpool: { execute } }
     if (name === './SourceRuntimeExecutionIdentity') return identity
     if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: privateHost ?? {
@@ -2179,6 +2180,24 @@ test('binary source HTTP preserves exact bytes and its cookie session survives a
   assert.equal(result.calls[0].options.maxLimit, 1024 * 1024)
   assert.equal(Object.hasOwn(result.calls[1].options, 'maxLimit'), false)
   assert.equal(f.cookieReads.length, 0)
+})
+
+test('binary upload reaches NetworkKit as bytes and public response headers retain error data without cookies', async () => {
+  const f = fixture(), context = JSON.stringify(f.identity())
+  const request = { method: 'POST', requestBytes: 'AP+A', responseMetadata: { headers: true } }
+  const result = await f.http([{ responseCode: 404, result: 'not found', header: {
+    'Content-Type': ['application/octet-stream', 'image/png'], 'Set-Cookie': ['private=secret; Secure'],
+  } }], context, request)
+  assert.deepEqual([...new Uint8Array(result.calls[0].options.extraData)], [0, 255, 128])
+  assert.equal(result.result.status, 404)
+  assert.equal(result.result.bodyText, 'not found')
+  assert.deepEqual([...result.result.headers['content-type']], ['application/octet-stream', 'image/png'])
+  assert.equal(Object.hasOwn(result.result.headers, 'set-cookie'), false)
+  for (const invalid of [{ ...request, requestBytes: 'A===' }, { ...request, method: 'GET' }]) {
+    const rejected = await f.http([], context, invalid)
+    assert.equal(rejected.calls.length, 0)
+    assert.equal(rejected.result.ok, false)
+  }
 })
 
 test('native source cookies isolate origin, installation and path, and honour deletion', () => {

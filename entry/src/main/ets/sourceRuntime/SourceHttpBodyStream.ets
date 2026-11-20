@@ -9,7 +9,8 @@ export interface SourceBodyHop { status: number; headers: Object; bodyRef: Sourc
  * it does not promise concurrent reads while the import is still blocked.
  */
 export async function requestSourceBodyStream(request: http.HttpRequest, target: string,
-  options: http.HttpRequestOptions, scope: SourcePrivateSessionScope, current: () => boolean): Promise<SourceBodyHop> {
+  options: http.HttpRequestOptions, scope: SourcePrivateSessionScope, current: () => boolean,
+  onHeaders?: () => void): Promise<SourceBodyHop> {
   const body = SourceBodyHost.create(scope)
   let headers: Object = {} as Record<string, Object>
   let resolveEnd: () => void = (): void => {}
@@ -21,7 +22,7 @@ export async function requestSourceBodyStream(request: http.HttpRequest, target:
   }, 100)
   const deadline = setTimeout((): void => rejectFailure(new Error('timeout')),
     Math.max(1, options.readTimeout ?? 20000) + 1000)
-  request.on('headersReceive', (value: Object): void => { headers = value })
+  request.on('headersReceive', (value: Object): void => { headers = value; onHeaders?.() })
   request.on('dataEnd', resolveEnd)
   request.on('dataReceive', (chunk: ArrayBuffer): void => {
     try {
@@ -43,6 +44,7 @@ export async function requestSourceBodyStream(request: http.HttpRequest, target:
   } finally {
     clearInterval(timer)
     clearTimeout(deadline)
+    resolveEnd()
     request.off('dataReceive')
     request.off('dataEnd')
     if (!accepted) SourceBodyHost.close(scope, body.id)

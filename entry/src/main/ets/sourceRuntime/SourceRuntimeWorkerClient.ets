@@ -31,6 +31,18 @@ const pendingLocalCovers: (() => Promise<void>)[] = []
 const localCoverFallbackTails: Map<string, Promise<void>> = new Map<string, Promise<void>>()
 let activeLocalCovers: number = 0
 
+function contextWithBodySupport(contextJson: string): string {
+  try {
+    const original = JSON.parse(contextJson) as Record<string, Object>
+    const context: Record<string, Object> = {}
+    for (const key of Object.keys(original)) {
+      if (key !== 'sourceBodyAvailable') context[key] = original[key]
+    }
+    if (SourceBodyHost.available()) context['sourceBodyAvailable'] = true
+    return JSON.stringify(context)
+  } catch (_error) { return contextJson }
+}
+
 function startWaitingLocalCovers(): void {
   while (activeLocalCovers < LOCAL_COVER_CONCURRENCY && pendingLocalCovers.length > 0) {
     const run = pendingLocalCovers.shift()
@@ -90,7 +102,7 @@ function enqueueSourceWorker(requestJson: string, wasmBytes: Uint8Array, httpCon
   const current = (): boolean => scopeCurrent() && (isActive === undefined || isActive())
   return new Promise<string>((resolve, reject) => {
     pendingOperations.push({ sourceId: sourceRuntimeExecutionSourceId(httpContextJson), requestJson, wasmBytes,
-      httpContextJson, browse, priority, isActive: current, resolve, reject })
+      httpContextJson: contextWithBodySupport(httpContextJson), browse, priority, isActive: current, resolve, reject })
     startWaitingSourceOperations()
   })
 }
@@ -155,7 +167,7 @@ export function executeSourceCoverRequestInWorker(requestJson: string, wasmBytes
       }
       try {
         resolve(await taskpool.execute(runLocalCoverOperationTask, requestJson, new Uint8Array(wasmBytes),
-          httpContextJson) as string)
+          contextWithBodySupport(httpContextJson)) as string)
       } catch (_error) {
         resolve('')
       }

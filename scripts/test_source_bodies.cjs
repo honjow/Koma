@@ -21,23 +21,36 @@ function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-body-'))
   const io = {
     OpenMode: { CREATE: 1, READ_WRITE: 2, TRUNC: 4, READ_ONLY: 8 },
-    mkdirSync: p => fs.mkdirSync(p, { recursive: true }), listFileSync: p => fs.readdirSync(p),
+    mkdirSync: p => fs.mkdirSync(p), listFileSync: p => fs.readdirSync(p),
+    accessSync: p => fs.existsSync(p),
     unlinkSync: p => fs.unlinkSync(p), closeSync: f => fs.closeSync(f.fd ?? f),
     openSync: (p, mode) => ({ fd: fs.openSync(p, mode & 4 ? 'w+' : mode & 8 ? 'r' : 'r+') }),
     writeSync: (fd, data, o) => fs.writeSync(fd, Buffer.from(data), 0, o.length, o.offset),
     readSync: (fd, data, o) => fs.readSync(fd, Buffer.from(data), 0, o.length, o.offset),
   }
-  const { SourceBodyHost: host } = load('SourceBodyHost', name => name === '@kit.CoreFileKit' ? { fileIo: io } : {
+  const makeHost = () => load('SourceBodyHost', name => name === '@kit.CoreFileKit' ? { fileIo: io } : {
     util: { generateRandomUUID: () => crypto.randomUUID(), Base64Helper: class {
       encodeToStringSync(bytes) { return Buffer.from(bytes).toString('base64') }
       decodeSync(value) { return Uint8Array.from(Buffer.from(value, 'base64')) }
     } },
-  })
+  }).SourceBodyHost
+  const host = makeHost()
   const scope = { sourceId: 'fixture', packageIdentity: 'pkg1', callId: 'call1' }
   host.configure(root)
   t.after(() => { host.finishCall('call1'); host.finishCall('call2'); fs.rmSync(root, { recursive: true, force: true }) })
-  return { root, host, scope }
+  return { root, host, scope, restart: () => { const next = makeHost(); next.configure(root); return next } }
 }
+test('cold start reuses its directory and clears data abandoned by a departed process', t => {
+  const f = fixture(t), input = f.host.create(f.scope)
+  f.host.append(f.scope, input.id, new ArrayBuffer(3))
+  const next = f.restart()
+  assert.equal(next.available(), true)
+  assert.equal(fs.readdirSync(f.root + '/source-bodies-v1').length, 0)
+  const output = next.create(f.scope)
+  next.append(f.scope, output.id, new ArrayBuffer(4))
+  next.finishCall(f.scope.callId)
+  assert.equal(fs.readdirSync(f.root + '/source-bodies-v1').length, 0)
+})
 test('multiple inputs, offsets and image handoff preserve bytes after call retirement', t => {
   const { root, host, scope } = fixture(t)
   const a = host.create(scope), b = host.create(scope)

@@ -9,6 +9,11 @@ export function sourceRuntimeExecutionSourceId(httpContextJson: string): string 
   }
 }
 
+export function sourceRuntimeExecutionHasBodySupport(contextJson: string): boolean {
+  try { return (JSON.parse(contextJson) as Record<string, Object>)['sourceBodyAvailable'] === true }
+  catch (_error) { return false }
+}
+
 /** Only the host-created unified-search context enables request correlation. */
 export function sourceRuntimeExecutionHasGuard(httpContextJson: string): boolean {
   try {

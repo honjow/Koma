@@ -1,5 +1,6 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { util } from '@kit.ArkTS'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { SourcePrivateSessionScope } from './SourcePrivateSessionHost'
 
 export interface SourceBodyRef { id: string; length: number }
@@ -30,12 +31,18 @@ export class SourceBodyHost {
   static configure(cacheDir: string): void {
     if (SourceBodyHost.root.length > 0) return
     const root = cacheDir + '/source-bodies-v1'
-    fs.mkdirSync(root, true)
-    // No references survive process death. Only our own flat, generated files.
-    for (const name of fs.listFileSync(root)) {
-      if (/^[0-9a-f-]+\.body$/.test(name)) fs.unlinkSync(root + '/' + name)
+    try {
+      if (!fs.accessSync(root)) fs.mkdirSync(root, true)
+      // No references survive process death. Only our own flat, generated files.
+      for (const name of fs.listFileSync(root)) {
+        if (/^[0-9a-f-]+\.body$/.test(name)) fs.unlinkSync(root + '/' + name)
+      }
+      SourceBodyHost.root = root
+    } catch (_error) {
+      // A data-cache failure must not put the whole app behind backup recovery.
+      // Worker capability negotiation then omits these optional data operations.
+      DiagnosticLogger.warn('source_body', 'configure_failed', 'state=unavailable')
     }
-    SourceBodyHost.root = root
   }
 
   static available(): boolean { return SourceBodyHost.root.length > 0 }

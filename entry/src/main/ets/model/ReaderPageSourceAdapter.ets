@@ -1191,7 +1191,7 @@ async function fetchAndCacheSourceProcessedImage(entry: SourceRuntimeRegistryEnt
     if (!current()) throw new Error('source_required_decode_request_stale')
     const descriptor = await resolveSourceRuntimeImageRequest(entry.sourceId, uri, sourceImageId, route, priority)
     if (descriptor === undefined || !current()) throw new Error('source_required_decode_request_stale')
-    const bytes = await downloadReaderRemoteBytes(descriptor.url, descriptor.headers, entry.sourceId,
+    const bytes = descriptor.body ?? await downloadReaderRemoteBytes(descriptor.url, descriptor.headers, entry.sourceId,
       descriptor.dnsOverride, !coverImage, descriptor.responseErrors, coverImage, undefined, true,
       onProgress === undefined ? undefined : report)
     const restored = await restoreSourceProcessorResponse(bytes, descriptor, entry)
@@ -1244,9 +1244,15 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
       priority, coverImage, onProcessing, onSize, onProgress)
   }
   const cacheKeySeed = sourceRemoteImageCacheKey(sourceId, uri, sourceImageId, route)
+  // Source-produced pixels may change with its algorithm/settings while the
+  // original URL stays stable. Never reuse that result across package changes.
+  const bodyCacheKey = cacheKeySeed + ':body:' + (entry === undefined ? '' : sourceWebPackageIdentity(entry)) +
+    ':' + sourceImageProcessingFingerprint(sourceId)
   const hintKey = cacheKeySeed + ':processing:' + sourceImageProcessingFingerprint(sourceId)
   const needsHints = onProcessing !== undefined || onRequiredDecode !== undefined
-  const cached = forceReload ? undefined : await readerImageCacheStore.getReaderPage(cacheKeySeed,
+  const bodyCached = forceReload ? undefined : await readerImageCacheStore.getReaderPage(bodyCacheKey,
+    needsHints ? hintKey : undefined)
+  const cached = forceReload ? undefined : bodyCached ?? await readerImageCacheStore.getReaderPage(cacheKeySeed,
     needsHints ? hintKey : undefined)
   const cachedFast = cached?.imagePath
   if (cachedFast !== undefined && cachedFast.length > 0) {
@@ -1297,7 +1303,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
     (report, headerMeasured) => resolvedRequest.body !== undefined ? Promise.resolve(resolvedRequest.body) : downloadReaderRemoteBytes(resolvedRequest.url, cacheHeaders,
       sourceId, resolvedRequest.dnsOverride, chapterImage, resolvedRequest.responseErrors, coverImage, onSize,
       true, onProgress === undefined ? undefined : report, headerMeasured),
-    cacheKeySeed, forceReload, onSize, onProgress)
+    resolvedRequest.body === undefined ? cacheKeySeed : bodyCacheKey, forceReload, onSize, onProgress)
 }
 
 /** Complete public cover requests can start without a separate WASM call for each card. */
@@ -1747,7 +1753,7 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
         if (!current()) throw new Error('source_required_decode_request_stale')
         const request = await resolveSourceRuntimeImageRequest(entry.sourceId, source.imageUri, source.pageId, source.sourceMangaUrl)
         if (request === undefined || !current()) throw new Error('source_required_decode_request_stale')
-        const wire = await downloadReaderRemoteBytesWithRetry(request.url, request.headers, entry.sourceId,
+        const wire = request.body ?? await downloadReaderRemoteBytesWithRetry(request.url, request.headers, entry.sourceId,
           request.dnsOverride, request.responseErrors)
         const restored = await restoreSourceProcessorResponse(wire, request, entry)
         if (!current()) throw new Error('source_required_decode_request_stale')

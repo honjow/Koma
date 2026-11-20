@@ -61,6 +61,7 @@ interface SourceHttpRequestEnvelope {
   responseMetadata?: SourceHttpResponseMetadata
   responseKind?: string
   requestBytes?: string
+  requestBodyRef?: string
   session?: string
   webTokenGeneration?: string
   url?: Object | string | number | boolean | null
@@ -773,7 +774,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   const includeResponseUrl = envelope.includeResponseUrl === true || reportsDocumentUrl
   const bodyResponse = envelope.responseKind === 'bodyRef'
   const binaryResponse = envelope.responseKind === 'bodyBytes' || bodyResponse
-  const binaryRequest = envelope.requestBytes !== undefined
+  const binaryRequest = envelope.requestBytes !== undefined || envelope.requestBodyRef !== undefined
   const sourceSession = envelope.session === 'source'
   const privateTarget = envelope.webTokenGeneration !== undefined || sourceSession || binaryResponse || includeResponseUrl
   const diagnosticTarget = (target: string): string => privateTarget ? 'target=declared' : sourceDiagnosticTarget(target)
@@ -851,12 +852,20 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   }
   if (binaryRequest) {
     const value = envelope.requestBytes
+    if (envelope.requestBodyRef !== undefined) {
+      if (value !== undefined || typeof envelope.requestBodyRef !== 'string' || bodyScope === undefined ||
+        !SourcePrivateSessionHost.callIsActive(bodyScope) || body.length !== 0 ||
+        !['POST', 'PUT', 'PATCH'].includes(method)) return transportError('invalid_request', false)
+      try { requestBytes = SourceBodyHost.bytes(bodyScope, envelope.requestBodyRef) }
+      catch (_error) { return transportError('body_not_found', false) }
+    } else {
     if (typeof value !== 'string' || body.length !== 0 || value.length > 1398104 ||
       !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value) ||
       !['POST', 'PUT', 'PATCH'].includes(method)) return transportError('invalid_request', false)
     const decoded = new util.Base64Helper().decodeSync(value)
     if (decoded.byteLength > 1048576) return transportError('request_too_large', false)
     requestBytes = decoded.buffer as ArrayBuffer
+    }
   }
   if (!current()) {
     trace.finish('cancelled', 'reason=source_request_cancelled')
@@ -1123,7 +1132,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       if (remainingForFallback <= 0) throw new SourceBrowserHttpFailure(2300028)
       const request = http.createHttp()
       try {
-        request.on('headersReceive', () => {
+        if (!bodyResponse) request.on('headersReceive', () => {
           if (firstHeaderMs < 0) firstHeaderMs = Math.max(0, Date.now() - hopStartedAt)
         })
         if ((binaryRequest || bodyResponse || sourceSession || session !== undefined || guestSearch || nativeSession || webToken || includeResponseUrl) && !attachSourceRedirectStop(request)) {
@@ -1141,7 +1150,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         if (binaryResponse && !bodyResponse) options.maxLimit = 1024 * 1024
         if (bodyResponse && bodyScope !== undefined) {
           const streamed = await requestSourceBodyStream(request, currentUrl, options, bodyScope,
-            (): boolean => current() && SourcePrivateSessionHost.callIsActive(bodyScope))
+            (): boolean => current() && SourcePrivateSessionHost.callIsActive(bodyScope),
+            (): void => { if (firstHeaderMs < 0) firstHeaderMs = Math.max(0, Date.now() - hopStartedAt) })
           const hop = new SourceHopResult(streamed.status, '', streamed.headers)
           hop.bodyRef = streamed.bodyRef
           response = hop
@@ -1251,7 +1261,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         return transportError('web_session_redirect_rejected', false)
       }
       const nextTarget = new urlKit.URL(location, currentUrl)
-      if ((sourceSession || freshHttp) && (nextTarget.protocol !== 'https:' || nextTarget.username.length > 0 || nextTarget.password.length > 0)) {
+      if ((binaryResponse || binaryRequest || sourceSession || freshHttp) && (nextTarget.protocol !== 'https:' || nextTarget.username.length > 0 || nextTarget.password.length > 0)) {
         return rcpFailure(new SourceRcpTransportFailure('invalid_response', true))
       }
       const nextUrl = nextTarget.toString()
@@ -1333,6 +1343,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     }
   } catch (_error) {
     const bodyFailure = (_error as Error).message
+    if (bodyFailure === 'source_request_cancelled' || bodyFailure === 'timeout') {
+      trace.finish(bodyFailure === 'timeout' ? 'failed' : 'cancelled', 'reason=' + bodyFailure)
+      return transportError(bodyFailure, bodyFailure === 'timeout')
+    }
     if (['body_limit_exceeded', 'body_not_found', 'body_io_failed', 'body_write_failed',
       'response_headers_too_large'].includes(bodyFailure)) {
       trace.finish('failed', 'reason=' + bodyFailure)

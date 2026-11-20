@@ -13,14 +13,14 @@ export function sourceHostFeatures(): string[] {
   return ['text_page_image_v1', 'text_page_image_zaimanhua_comments_v1', 'source_text_page_request_v1', 'source_setting_observations_v1', 'source_chapter_exclusions_v1', 'source_setting_uuid_list_v1', 'source_public_cookie_override_v1', 'source_homepage_choices_v1', 'source_settings_context_v1', 'source_http_batch_v1', 'source_filter_scope_header_v1', 'source_filter_fetching_v1', 'source_filter_tristate_v1', 'chapter_reading_order_v1', 'chapter_reading_variants_v1', 'source_private_session_v1', 'source_page_image_processing_v1', 'source_chapter_identity_v1', 'source_java_regex_v1', 'source_page_text_overlay_v1', 'source_authentication_v1', 'source_private_session_process_v1', 'source_private_session_replace_v1', 'source_required_image_decode_jm_stripes_v1', 'source_setting_positive_integer_v1', 'source_dns_bootstrap_v1',
     'source_anonymous_http_v1', 'source_native_cookie_session_v1', 'source_http_response_url_v1',
     'source_http_response_metadata_v1', 'source_web_token_v1',
-    'source_http_bytes_v1', 'source_http_cookie_session_v1', 'source_body_v1',
-    'source_http_body_v1', 'source_http_headers_v1', 'source_http_request_bytes_v1', 'source_image_body_v1',
+    'source_http_bytes_v1', 'source_http_cookie_session_v1',
+    'source_http_headers_v1', 'source_http_request_bytes_v1',
     'source_related_manga_v1', 'source_image_response_errors_v1', 'source_web_document_handoff_v1',
     'source_web_fetch_bridge_v1', 'source_comments_v1', SOURCE_IMAGE_PROCESSOR_FEATURE]
 }
 
 export function sourceRequestWithHostFeatures(requestJson: string, challengeCause: boolean = false,
-  detailChapterContext: boolean = false, requestLimitsDeclared: boolean = false): string {
+  detailChapterContext: boolean = false, requestLimitsDeclared: boolean = false, bodyAvailable: boolean = false): string {
   try {
     const request = JSON.parse(requestJson) as Record<string, Object>
     if (request !== null && !Array.isArray(request) &&
@@ -30,6 +30,7 @@ export function sourceRequestWithHostFeatures(requestJson: string, challengeCaus
       // Request-scoped preferences can affect metadata as well as pages. All
       // consumers must see the same support; an old Host keeps its old output.
       const features = sourceHostFeatures()
+      if (bodyAvailable) features.push('source_body_v1', 'source_http_body_v1', 'source_image_body_v1')
       features.push('source_public_cover_user_agent_v1')
       features.push('source_public_cover_client_headers_v1')
       features.push('source_filter_search_without_query_v1')

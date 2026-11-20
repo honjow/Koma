@@ -287,11 +287,11 @@ RPC 成功返回 `ok:true`，失败只返回 `ok:false,error:{code}`。`nowMs` �
 本节是包含本期实现的构建合同，未随已发布 App 自动生效。基础 import、源操作信封和 ABI 不变；源逐项查询 `hostFeatures`，可选增强缺能力时走旧路径。核心路径依赖新能力的包须等相应 App 正式版本明确后再声明最低版本和发布。
 
 - `source_http_headers_v1`：请求 `responseMetadata.headers:true`，返回 `headers`，名称小写、值为字符串数组，保留多值，不把 Set-Cookie 交给源。它仍由原授权会话或源 Cookie jar 接收。头部总字符数最多 65536。
-- `source_http_request_bytes_v1`：`requestBytes` 为严格 Base64，解码后最多 1 MiB，作为 POST/PUT/PATCH 的真实二进制正文发出，不能同时带旧正文。旧 `bodyBase64` 字段的历史文本语义保持不变。跳转受原准入，二进制请求额外拒绝跨 origin 跳转；303 及 POST 301/302 转 GET 时清掉正文。
+- `source_http_request_bytes_v1`：`requestBytes` 为严格 Base64，解码后最多 1 MiB，作为 POST/PUT/PATCH 的真实二进制正文发出，不能同时带旧正文。也可用 requestBodyRef 引用本次调用的 BodyRef（最大 128 MiB），宿主在发送阶段读取为二进制；这不是流式上传，两种形式互斥。旧 `bodyBase64` 字段的历史文本语义保持不变。跳转受原准入，二进制请求额外拒绝跨 origin 跳转；303 及 POST 301/302 转 GET 时清掉正文。
 - `source_http_body_v1`：`responseKind:"bodyRef"` 返回 `bodyRef:{id,length}`，取代内联 bodyBase64。成功和 HTTP 错误正文都可读取，HTTP 状态不自动变成传输失败。使用原请求/限速/会话/跳转/取消检查，普通二进制请求已有的不兼容传输组合仍拒绝。
 - `source_body_v1`：复用 `http_request` 调本地 RPC：`{type:"source_body",version:1,op,...}`。create 返回 bodyRef；read 使用 id/offset/length，返回 base64；write 使用 id/offset/base64，返回 ok；close 使用 id。读块最大 65536 字节，写块同限；offset 是文件中的字节位置，允许在已存在范围内覆盖或在末尾追加，禁止空洞。
-- 数据限制由调用的 `hostCapabilities:{version:1,body:{chunkBytes,maxBytes,callBytes,callObjects},http:{inlineBytes,requestBytes}}` 告知，缺失表示未知，不能推断支持。当前单体 128 MiB、单调用 256 MiB/16 项、进程 512 MiB/64 项。引用仅属于创建它的源/安装/调用，不可序列化保存给后一次调用。进程启动清理上次遗留的专属暂存文件。
-- `source_image_body_v1`：成功 `get_image_request` 可返回 `data:{image:{kind:"body",ref:id}}`，内容必须是已完成处理的标准可解码图片。不能和 requiredImageDecode 同用。宿主在调用退役前交接所有权，消费方只能认领一次，且核对当前安装身份；未认领 60 秒自动删除。阅读、预载、封面和下载复用现有图片缓存/解码/离线路径。旧 URL 描述及必需还原处理器继续按原合同执行。
+- 数据限制由调用的 `hostCapabilities:{version:1,body:{chunkBytes,maxBytes,callBytes,callObjects},http:{inlineBytes,requestBytes}}` 告知，缺失表示未知，不能推断支持。当前单体 128 MiB、单调用 256 MiB/16 项、进程 512 MiB/64 项。引用仅属于创建它的源/安装/调用，不可序列化保存给后一次调用。进程启动复用专属目录并清理上次遗留的暂存文件；初始化失败时保持普通 App 路径可用，并从该次 Worker 的能力中省略数据和图片引用能力。
+- `source_image_body_v1`：成功 `get_image_request` 可返回 `data:{image:{kind:"body",ref:id}}`，内容必须是已完成处理的标准可解码图片。不能和 requiredImageDecode 同用。宿主在调用退役前交接所有权，消费方只能认领一次，且核对当前安装身份；未认领 60 秒自动删除。源产物缓存绑定实际包和设置身份，阅读、预载、封面和下载复用现有图片缓存/解码/离线路径。旧 URL 描述及必需还原处理器继续按原合同执行。
 
 源 SDK：`http::RequestSpec::get(url).encode(buffer)` 生成原拦截器可接收的 Request；设置 method/headers/body/response/session 后仍走 `Client.send`。`Response.body_ref()` 返回不含路径的 BodyRef；其 read/write/close 接受调用方缓冲，`image_result` 生成图片 data。`runtime::Context::from_request` 查询 feature/limit；`session::PrivateSession` 封装既有私有会话事务。加解密、压缩、签名与格式解释由源内库实现，宿主不增加站点分支。
 
