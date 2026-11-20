@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-21T01:49:47+08:00",
+  "updatedAt": "2026-11-21T02:24:27+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3205,7 +3205,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
-      "updatedAt": "2026-11-21T01:49:47+08:00",
+      "updatedAt": "2026-11-21T02:24:27+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -3400,7 +3400,7 @@
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
         "巴卡漫画（bakamh）｜200 同一设备的已验证 WebView 可打开官网首页、排行和连载目录。Koma 带网页验证 Cookie 与 WebView UA 请求首页 GET、归档 GET 及 Mihon 的目录 POST，三条均返回带拒绝页标志的 HTTP 403，未收到挑战脚本。失败发生在原生网络访问，普通 GET 同样受影响。站方安全规则的具体命中条件需要站方日志，候选未发布。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
-        "哔哩漫画（bilimanga）｜0.1.11 手动验证及成功标志已发布。0.1.12 候选移植 Keiyoushi 1aba299d 的自动输入搜索验证码，默认关闭，旧宿主保留手动路径。App 提供可组合的二进制 HTTP 响应与按源隔离的原生 Cookie 会话；PNG 解码、字模识别、表单隐藏字段和最多三次尝试均在源内。237 安装最终 Koma 1.5.6（25）候选并从文件导入 0.1.12，回读 WASM 与构建一致。全自动搜索「芙莉蓮」无需人工输入或 WebView；同词重搜及换词「魔法」正常，复用验证结果且不再取图提交。详情和 147 章目录已核对，本轮未重验正文及下载。源已在独立原仓本地提交 33f173e。App 新能力与源候选均未公开发布；正式订阅仍为 0.1.11。",
+        "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
         "Hanime1.me（hanime1）｜237 和普通浏览器都收到直接拒绝，未出现可操作的挑战。目录和阅读仍待可访问条件。",
         "Hikarinagi（hikarinagi）｜本机已验列表、详情、270 章目录及登录要求。登录后的图片 POST、正文和下载待验。",
@@ -27865,6 +27865,23 @@
         ".hvigor/outputs/bilimanga-auto-237/old-host-compatibility.json",
         ".hvigor/outputs/bilimanga-auto-237/primitive-tests-final.txt",
         ".hvigor/outputs/bilimanga-auto-237/sdk-http-tests.txt"
+      ]
+    },
+    {
+      "id": "source-bilimanga-optional-auto-published-20261121",
+      "at": "2026-11-21T02:24:27+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "publication",
+      "title": "哔哩漫画 0.1.12 作为可选增强正式发布",
+      "detail": "按用户确认，能力不足时不展示自动输入验证码设置，执行搜索仍再次检查，两项能力齐备才可启用，默认关闭；不提高基础书源的最低 App 1.4.1。最终发布 revisions 为 ddc0546e04b05a41283f72614d1cefda885d351b，功能提交 2fb8e12。发布中修正了 CI 的 HTTP 镜像 403（改用已核可用的 HTTPS）与全仓 miniz_oxide 功能合并时 BiliManga 缺全局分配器的问题，补 dlmalloc 并保持 PNG 固定缓冲；没有绕过门禁。完整 CI 44791352435 成功，公开 latest 为 sources-ddc0546e04b05a41283f72614d1cefda885d351b。下载正式 index.json、0.1.12 包及图标，119 个可安装源；源包 SHA-256 d7ec52de560069b4b7554da507a48069c2c4301764545aadb7a0ab4eac23375d，与索引一致，最低版本正确，清单与已验候选相同，图标字节未变。公开 WASM 122aec0f…实际执行四种能力组合，缺任何一项均不显示开关，保存值为 true 也只走原 GET 手动路径；两项齐备显示设置。公开 WASM 对真实站点完成 GET 搜索、GET 图、POST 表单，返回《葬送的芙莉蓮》。旧 1.4.1 的实际生产清单策略校验函数接受可选声明，属于函数回放，未在旧 App 真机安装。237 真机范围沿用此前功能验收，本轮未再安装公开包。仅相关源/SDK及必要 schema、CI 改动进入公开 master，其余未发布提交留本机；167 个既有 WIP 文件均保留，Cargo.lock 只额外加入本源分配器依赖，其余原内容不变。App 新能力 97da5605 仍仅本地提交，本轮未推送或发布 App。",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/releases/tag/sources-ddc0546e04b05a41283f72614d1cefda885d351b",
+        "https://github.com/honjow/koma-sources/actions/runs/44791352435",
+        ".hvigor/outputs/bilimanga-auto-237/publication/verification.json",
+        ".hvigor/outputs/bilimanga-auto-237/publication/optional-feature-matrix.json",
+        ".hvigor/outputs/bilimanga-auto-237/publication/actual-wasm-search.json",
+        ".hvigor/outputs/bilimanga-auto-237/publication/old-app-policy.json",
+        ".hvigor/outputs/bilimanga-auto-237/publication/unified-features-check.log"
       ]
     }
   ],
