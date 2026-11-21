@@ -87,7 +87,7 @@ export class SourceSettingObservationStore {
     else if (sourceId === undefined) sourceObservationPersistence.replace(records, sources)
     else {
       const value = sources[sourceId]
-      records.put(sourceId, value === undefined ? undefined : JSON.stringify(value))
+      records.put(sourceId, value)
     }
     if (scope !== this.scope) throw new Error('source_setting_observations_stale')
     this.document = sources

@@ -1,5 +1,6 @@
-import { PersistedComic, PersistedChapter, readLibraryStoreDocument } from '../model/LibraryPersistence'
-import { AppFilesReaderSessionPersistenceAdapter, ChapterReadingState } from '../model/ReaderSessionStore'
+import { PersistedComic, PersistedChapter, PersistedLibraryStoreDocument, readLibraryStoreDocument } from '../model/LibraryPersistence'
+import type { LibraryReadingMetadata } from '../model/LibraryRdbStorage'
+import { AppFilesReaderSessionPersistenceAdapter, ChapterReadingState, ReaderSessionDocumentSnapshot } from '../model/ReaderSessionStore'
 import { ReadingProgress } from '../model/ComicModels'
 import { SourceReadHistoryEntry } from '../model/SourceReaderSession'
 import { sourceLibraryComicId } from '../model/SourceLibraryComic'
@@ -10,12 +11,17 @@ import {
 } from './DeviceSyncData'
 import { emptySyncLibrary, shelfSourceCover, SyncSourceIdentity } from './DeviceSyncShelfApply'
 import { SyncReadingActionCapture, SyncReadingCapture } from './DeviceSyncSignals'
-import { SyncLocalValue } from './DeviceSyncStorage'
+import { DATABASE_READING_REVISION_PREFIX, SyncLocalValue } from './DeviceSyncStorage'
 import { syncDigest } from './DeviceSyncWire'
 
 export interface SyncLocalReadingWork extends SyncSourceIdentity {
   comic?: PersistedComic
+  shelf?: LibraryReadingMetadata
   history?: SourceReadHistoryEntry
+}
+
+export function rememberReadingMetadata(result: Map<string, SyncLocalReadingWork>, shelf: LibraryReadingMetadata): void {
+  result.set(shelf.comicId, { source: shelf.source, work: shelf.work, shelf })
 }
 
 export function validDate(date: number): number {
@@ -39,7 +45,7 @@ export function rememberChapterIdentity(result: Map<string, SyncLocalReadingWork
 
 export function rememberHistoryIdentity(result: Map<string, SyncLocalReadingWork>, entry: SourceReadHistoryEntry): void {
   result.set(entry.comicId, { source: entry.sourceId, work: entry.mangaId, history: entry,
-    comic: result.get(entry.comicId)?.comic })
+    comic: result.get(entry.comicId)?.comic, shelf: result.get(entry.comicId)?.shelf })
 }
 
 export function rememberFactIdentity(result: Map<string, SyncLocalReadingWork>, fact: SyncFact): void {
@@ -52,11 +58,13 @@ export function recentFromLocal(source: string, chapter: string, date: number, p
   work?: SyncLocalReadingWork): SyncRecentValue {
   const history = work?.history
   const comic = work?.comic
+  const shelf = work?.shelf
   const chapterTitle = history?.chapterId === chapter ? history.chapterTitle : undefined
-  return syncReadingRecent(source, chapter, validDate(date), history?.title ?? comic?.title ?? source,
-    history?.sourceName ?? comic?.sourceMetadata?.sourceName ?? source,
-    chapterTitle ?? comic?.chapters.find((row: PersistedChapter): boolean => row.id === chapter)?.title ?? '',
-    page, history?.mangaUrl ?? comic?.sourcePath)
+  return syncReadingRecent(source, chapter, validDate(date), history?.title ?? shelf?.title ?? comic?.title ?? source,
+    history?.sourceName ?? shelf?.sourceName ?? comic?.sourceMetadata?.sourceName ?? source,
+    chapterTitle ?? (shelf?.chapterId === chapter ? shelf?.chapterTitle : undefined) ??
+      comic?.chapters.find((row: PersistedChapter): boolean => row.id === chapter)?.title ?? '',
+    page, history?.mangaUrl ?? shelf?.path ?? comic?.sourcePath)
 }
 
 function row(values: SyncLocalValue[], key: string[], value: string | boolean | Object): void {
@@ -77,7 +85,7 @@ export function appendReadingProgress(values: SyncLocalValue[], progress: Readin
     return 1
   }
   const recentKey = syncKey(['recent', identity.source, identity.work])
-  const cover = shelfSourceCover(identity.comic) ?? syncCoverAddress(identity.history?.coverUri)
+  const cover = syncCoverAddress(identity.shelf?.cover) ?? shelfSourceCover(identity.comic) ?? syncCoverAddress(identity.history?.coverUri)
   if (cover !== undefined) row(values, ['cover', identity.source, identity.work], cover)
   const known = knownValue(facts, recentKey)
   const saved = known === undefined ? undefined : JSON.parse(known) as SyncRecentValue
@@ -116,6 +124,27 @@ export function appendReadingChapter(values: SyncLocalValue[], chapter: ChapterR
   }
 }
 
+/** Reading sync needs work identity and chapter labels, never the shelf's page tables. */
+export function readingLibrarySnapshot(library: PersistedLibraryStoreDocument,
+  reading: ReaderSessionDocumentSnapshot): string {
+  const ids = new Set<string>()
+  reading.progress.forEach(row => ids.add(row.comicId))
+  reading.chapters.forEach(row => ids.add(row.comicId))
+  reading.sourceHistory.forEach(row => ids.add(row.comicId))
+  const comics: PersistedComic[] = library.comics.filter(comic => ids.has(comic.id)).map((comic: PersistedComic): PersistedComic => ({
+    id: comic.id, title: comic.title, sourceKind: comic.sourceKind, sourcePath: comic.sourcePath,
+    sourceRuntimeId: comic.sourceRuntimeId, remoteServerId: comic.remoteServerId,
+    remoteResourceId: comic.remoteResourceId, coverUri: comic.coverUri, sourceCoverUri: comic.sourceCoverUri,
+    sourceMetadata: comic.sourceMetadata === undefined ? undefined : { sourceName: comic.sourceMetadata.sourceName },
+    sortTitle: '', preferredDirection: comic.preferredDirection,
+    chapters: comic.chapters.map((chapter: PersistedChapter): PersistedChapter => ({ id: chapter.id, comicId: comic.id, title: chapter.title,
+      index: 0, sourcePath: '', sortKey: '', pages: [], pageCount: 0, createdAt: 0, updatedAt: 0 })),
+    chapterCount: 0, pageCount: 0, createdAt: 0, updatedAt: 0, lastImportedAt: 0,
+  }))
+  const document: PersistedLibraryStoreDocument = { schemaVersion: library.schemaVersion, comics, customCategories: [] }
+  return JSON.stringify(document)
+}
+
 export interface SyncProjectedReadingSnapshot {
   valueChunks: string[]
   skipped: number
@@ -133,6 +162,28 @@ export function buildSyncReadingSnapshot(directory: string, rawLibrary: string |
   const reading = new AppFilesReaderSessionPersistenceAdapter(directory).loadSnapshot(rawReading)
   const identities = new Map<string, SyncLocalReadingWork>()
   for (const comic of library.comics) rememberLibraryIdentity(identities, comic)
+  return projectReadingRows(reading, identities, factChunks,
+    syncDigest([readingLibrarySnapshot(library, reading), rawReading ?? '', side, archive].join('')))
+}
+
+export function databaseReadingRevision(works: LibraryReadingMetadata[], reading: ReaderSessionDocumentSnapshot,
+  side: string, archive: string): string {
+  return databaseReadingShelfRevision(works) + syncDigest(JSON.stringify(reading) + side + archive)
+}
+
+export function databaseReadingShelfRevision(works: LibraryReadingMetadata[]): string {
+  return DATABASE_READING_REVISION_PREFIX + syncDigest(JSON.stringify(works)) + ':'
+}
+
+export function projectDatabaseReading(works: LibraryReadingMetadata[], reading: ReaderSessionDocumentSnapshot,
+  side: string, archive: string, factChunks: string[]): SyncProjectedReadingSnapshot {
+  const identities = new Map<string, SyncLocalReadingWork>()
+  for (const shelf of works) rememberReadingMetadata(identities, shelf)
+  return projectReadingRows(reading, identities, factChunks, databaseReadingRevision(works, reading, side, archive))
+}
+
+function projectReadingRows(reading: ReaderSessionDocumentSnapshot, identities: Map<string, SyncLocalReadingWork>,
+  factChunks: string[], revision: string): SyncProjectedReadingSnapshot {
   for (const chapter of reading.chapters) rememberChapterIdentity(identities, chapter)
   for (const entry of reading.sourceHistory) rememberHistoryIdentity(identities, entry)
   const facts = new Map<string, SyncFact>()
@@ -150,7 +201,7 @@ export function buildSyncReadingSnapshot(directory: string, rawLibrary: string |
   for (let start = 0; start < values.length; start += 64) {
     valueChunks.push(JSON.stringify(values.slice(start, start + 64)))
   }
-  return { valueChunks, skipped, revision: syncDigest([rawLibrary ?? '', rawReading ?? '', side, archive].join('')),
+  return { valueChunks, skipped, revision,
     historyKeys: reading.sourceHistory.map((entry: SourceReadHistoryEntry): string =>
       syncKey(['recent', entry.sourceId, entry.mangaId])),
     positions: reading.syncPositions ?? [], actions: reading.syncActions ?? [] }

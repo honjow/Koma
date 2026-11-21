@@ -14,7 +14,7 @@ import {
   SyncDatasetRef, SyncManifest, SyncObject, SyncShardRef, SYNC_MAX_ROUND_BYTES,
 } from './DeviceSyncWire'
 import {
-  DeviceSyncStorage, SyncArchivePending, SyncArchiveSeen, SyncCommitIntent, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision,
+  DATABASE_READING_REVISION_PREFIX, DeviceSyncStorage, SyncArchivePending, SyncArchiveSeen, SyncCommitIntent, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision,
   SyncPendingEdit, SyncPreparedReceipt, SyncProbeRecord, SyncReadingReceipt, SyncRestoreEdit, SyncSavedConfiguration, SyncSavedConnection, SyncStagedRecovery, checkedSyncDraft, copySyncConnection,
   readSyncCredential, writeSyncCredential, clearSyncCredential,
 } from './DeviceSyncStorage'
@@ -1703,7 +1703,8 @@ export class DeviceSyncEngine {
   private async assertRevisions(revisions: SyncOwnerRevision[]): Promise<SyncLocalSnapshot[]> {
     const snapshots: SyncLocalSnapshot[] = []
     for (const item of revisions) {
-      const snapshot = await this.owner.snapshot(item.group, false, undefined, undefined, false)
+      const includeReadingLabels = item.group === 'reading' && !item.revision.startsWith(DATABASE_READING_REVISION_PREFIX)
+      const snapshot = await this.owner.snapshot(item.group, false, undefined, undefined, includeReadingLabels, item.revision)
       if (snapshot.revision !== item.revision) throw new Error('sync_preview_changed')
       snapshots.push(snapshot)
     }
@@ -2202,7 +2203,7 @@ export class DeviceSyncEngine {
   }
 
   async assertReadingUnprotected(keys: string[]): Promise<void> {
-    const local = await this.owner.snapshot('reading', false)
+    const local = await this.owner.snapshot('reading', false, undefined, undefined, false)
     if (keys.some((key: string): boolean => local.protectedKeys?.includes(key) === true)) {
       throw new Error('sync_reading_local_change_pending')
     }

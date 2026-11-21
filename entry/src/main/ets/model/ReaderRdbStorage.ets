@@ -5,27 +5,47 @@ import type { SourceReadHistoryEntry } from './SourceReaderSession'
 import type { RemoteReadHistoryEntry } from './RemoteReaderSession'
 import type { ReadingSessionRecord } from './ReadingStatistics'
 import type { SyncReadingActionCapture, SyncReadingCapture } from '../deviceSync/DeviceSyncSignals'
+import { collectLocalRows } from './LocalDataRows'
+import { orderedReaderSessions, readerChapterStates, readerPositions, readerRemoteHistory, readerRemotePaths,
+  readerSessions, readerSourceHistory, readRemoteHistory, remoteHistoryRows, remotePathRows } from './ReaderDataRows'
+import { ReaderOutboxRows, readActionOutbox, readPositionOutbox } from './ReaderOutboxRows'
+import { hasUserDataMigration } from './UserDataDatabase'
+import { writeUserRecords } from './UserKeyedRecords'
 
-const READER_MIGRATION = 'reading-from-json-v1'
-const WORK_UPSERT = 'INSERT INTO reading_works (kind, comic_id, payload) VALUES (?, ?, ?) ' +
-  'ON CONFLICT(kind, comic_id) DO UPDATE SET payload=excluded.payload WHERE payload<>excluded.payload'
-const CHAPTER_UPSERT = 'INSERT INTO reading_chapter_states (comic_id, chapter_id, payload) VALUES (?, ?, ?) ' +
-  'ON CONFLICT(comic_id, chapter_id) DO UPDATE SET payload=excluded.payload WHERE payload<>excluded.payload'
-const LOCAL_UPSERT = 'INSERT INTO reading_local_records (kind, list_order, payload) VALUES (?, ?, ?) ' +
-  'ON CONFLICT(kind, list_order) DO UPDATE SET payload=excluded.payload WHERE payload<>excluded.payload'
+const OLD_READER_MIGRATION = 'reading-from-json-v1'
+const READER_MIGRATION = 'reader-relational-v1'
 
-interface WorkRecord {
+export interface ReaderSyncWorkScope {
   comicId: string
+  chapterIds: string[]
 }
 
-function payloadList<T>(rows: relationalStore.ResultSet): T[] {
-  const values: T[] = []
-  try {
-    while (rows.goToNextRow()) values.push(JSON.parse(rows.getString(0)) as T)
-  } finally {
-    rows.close()
+async function legacyRows<T>(transaction: relationalStore.Transaction, sql: string, args?: string[]): Promise<T[]> {
+  return collectLocalRows(await transaction.querySql(sql, args),
+    (row: relationalStore.ResultSet): T => JSON.parse(row.getString(0)) as T)
+}
+
+async function readPreviousDatabase(transaction: relationalStore.Transaction): Promise<ReaderSessionDocumentSnapshot> {
+  const work = 'SELECT payload FROM reading_works WHERE kind = ? ORDER BY rowid'
+  const local = 'SELECT payload FROM reading_local_records WHERE kind = ? ORDER BY list_order'
+  return {
+    progress: await legacyRows<ReadingProgress>(transaction, work, ['progress']),
+    sourceHistory: await legacyRows<SourceReadHistoryEntry>(transaction, work, ['source']),
+    remoteHistory: await legacyRows<RemoteReadHistoryEntry>(transaction, work, ['remote']),
+    chapters: await legacyRows<ChapterReadingState>(transaction, 'SELECT payload FROM reading_chapter_states ORDER BY rowid'),
+    readingSessions: await legacyRows<ReadingSessionRecord>(transaction, local, ['session']),
+    syncPositions: await legacyRows<SyncReadingCapture>(transaction, local, ['position']),
+    syncActions: await legacyRows<SyncReadingActionCapture>(transaction, local, ['action']),
   }
-  return values
+}
+
+async function hasMarker(transaction: relationalStore.Transaction, name: string): Promise<boolean> {
+  const result = await transaction.querySql('SELECT name FROM local_data_migrations WHERE name = ?', [name])
+  try {
+    return result.goToNextRow()
+  } finally {
+    result.close()
+  }
 }
 
 export class ReaderRdbStorage {
@@ -35,34 +55,33 @@ export class ReaderRdbStorage {
     this.store = store
   }
 
-  async migrated(): Promise<boolean> {
-    const result = await this.store.querySql('SELECT name FROM local_data_migrations WHERE name = ?', [READER_MIGRATION])
-    try {
-      return result.goToNextRow()
-    } finally {
-      result.close()
-    }
+  migrated(): boolean {
+    return hasUserDataMigration(this.store, READER_MIGRATION)
   }
 
-  async migrate(snapshot: ReaderSessionDocumentSnapshot): Promise<void> {
-    const transaction = await this.store.createTransaction()
+  usesPreviousDatabase(): boolean {
+    return hasUserDataMigration(this.store, OLD_READER_MIGRATION)
+  }
+
+  async migrate(legacy?: ReaderSessionDocumentSnapshot): Promise<void> {
+    const transaction = await this.store.createTransaction({ transactionType: relationalStore.TransactionType.IMMEDIATE })
     try {
-      await this.importWorkRows(transaction, 'progress', snapshot.progress)
-      await this.importWorkRows(transaction, 'source', snapshot.sourceHistory)
-      await this.importWorkRows(transaction, 'remote', snapshot.remoteHistory ?? [])
-      for (let start = 0; start < snapshot.chapters.length; start += 128) {
-        const part = snapshot.chapters.slice(start, start + 128)
-        const args: relationalStore.ValueType[] = []
-        part.forEach((chapter: ChapterReadingState): void => {
-          args.push(chapter.comicId, chapter.chapterId, JSON.stringify(chapter))
-        })
-        await transaction.execute('INSERT OR REPLACE INTO reading_chapter_states (comic_id, chapter_id, payload) VALUES ' +
-          part.map((): string => '(?, ?, ?)').join(', '), args)
+      if (!await hasMarker(transaction, READER_MIGRATION)) {
+        // The persisted domain marker has priority even when the old rows are
+        // empty. Retained files can contain records the user already removed.
+        const snapshot = await hasMarker(transaction, OLD_READER_MIGRATION) ?
+          await readPreviousDatabase(transaction) : legacy
+        if (snapshot === undefined) throw new Error('reader_migration_source_missing')
+        const remote = snapshot.remoteHistory ?? []
+        await readerPositions.importRows(transaction, snapshot.progress)
+        await readerSourceHistory.importRows(transaction, snapshot.sourceHistory)
+        await readerRemoteHistory.importRows(transaction, remoteHistoryRows(remote))
+        await readerRemotePaths.importRows(transaction, remotePathRows(remote))
+        await readerChapterStates.importRows(transaction, snapshot.chapters)
+        await readerSessions.importRows(transaction, orderedReaderSessions(snapshot.readingSessions ?? []))
+        await new ReaderOutboxRows(snapshot.syncPositions ?? [], snapshot.syncActions ?? []).importRows(transaction)
+        await transaction.execute('INSERT INTO local_data_migrations (name) VALUES (?)', [READER_MIGRATION])
       }
-      await this.importLocalRecords(transaction, 'session', snapshot.readingSessions ?? [])
-      await this.importLocalRecords(transaction, 'position', snapshot.syncPositions ?? [])
-      await this.importLocalRecords(transaction, 'action', snapshot.syncActions ?? [])
-      await transaction.execute('INSERT INTO local_data_migrations (name) VALUES (?)', [READER_MIGRATION])
       await transaction.commit()
     } catch (error) {
       await transaction.rollback()
@@ -70,137 +89,102 @@ export class ReaderRdbStorage {
     }
   }
 
-  private async importWorkRows<T extends WorkRecord>(transaction: relationalStore.Transaction, kind: string, rows: T[]): Promise<void> {
-    for (let start = 0; start < rows.length; start += 128) {
-      const part = rows.slice(start, start + 128)
-      const args: relationalStore.ValueType[] = []
-      part.forEach((row: T): void => { args.push(kind, row.comicId, JSON.stringify(row)) })
-      await transaction.execute('INSERT OR REPLACE INTO reading_works (kind, comic_id, payload) VALUES ' +
-        part.map((): string => '(?, ?, ?)').join(', '), args)
-    }
-  }
-
-  private async importLocalRecords<T>(transaction: relationalStore.Transaction, kind: string, rows: T[]): Promise<void> {
-    for (let start = 0; start < rows.length; start += 128) {
-      const part = rows.slice(start, start + 128)
-      const args: relationalStore.ValueType[] = []
-      part.forEach((row: T, index: number): void => { args.push(kind, start + index, JSON.stringify(row)) })
-      await transaction.execute('INSERT INTO reading_local_records (kind, list_order, payload) VALUES ' +
-        part.map((): string => '(?, ?, ?)').join(', '), args)
+  readForSync(): ReaderSessionDocumentSnapshot {
+    const syncPositions = readPositionOutbox(this.store)
+    const syncActions = readActionOutbox(this.store)
+    return {
+      progress: readerPositions.read(this.store),
+      sourceHistory: readerSourceHistory.read(this.store),
+      chapters: readerChapterStates.read(this.store),
+      syncPositions: syncPositions.length === 0 ? undefined : syncPositions,
+      syncActions: syncActions.length === 0 ? undefined : syncActions,
     }
   }
 
   read(): ReaderSessionDocumentSnapshot {
-    const syncPositions = this.localRecords<SyncReadingCapture>('position')
-    const syncActions = this.localRecords<SyncReadingActionCapture>('action')
+    const reading = this.readForSync()
+    reading.remoteHistory = readRemoteHistory(this.store)
+    reading.readingSessions = readerSessions.read(this.store).map(record => record.session)
+    return reading
+  }
+
+  readWorkForSync(comicId: string): ReaderSessionDocumentSnapshot {
     return {
-      progress: this.workRows<ReadingProgress>('progress'),
-      sourceHistory: this.workRows<SourceReadHistoryEntry>('source'),
-      remoteHistory: this.workRows<RemoteReadHistoryEntry>('remote'),
-      chapters: payloadList<ChapterReadingState>(
-        this.store.querySqlSync('SELECT payload FROM reading_chapter_states ORDER BY rowid')),
-      readingSessions: this.localRecords<ReadingSessionRecord>('session'),
-      syncPositions: syncPositions.length > 0 ? syncPositions : undefined,
-      syncActions: syncActions.length > 0 ? syncActions : undefined,
+      progress: [],
+      sourceHistory: readerSourceHistory.read(this.store, 'comic_id = ?', [comicId]),
+      chapters: readerChapterStates.read(this.store, 'comic_id = ?', [comicId]),
     }
   }
 
-  private workRows<T>(kind: string): T[] {
-    return payloadList<T>(this.store.querySqlSync('SELECT payload FROM reading_works WHERE kind = ? ORDER BY rowid', [kind]))
+  /** WebDAV receipts only touch the works and chapters mentioned by remote edits.
+   * Remote server history and local reading statistics have separate owners. */
+  readSyncEdits(scope: ReaderSyncWorkScope[]): ReaderSessionDocumentSnapshot {
+    const reading: ReaderSessionDocumentSnapshot = { progress: [], chapters: [], sourceHistory: [] }
+    for (const work of scope) {
+      reading.progress.push(...readerPositions.read(this.store, 'comic_id = ?', [work.comicId]))
+      reading.sourceHistory.push(...readerSourceHistory.read(this.store, 'comic_id = ?', [work.comicId]))
+      for (const chapterId of work.chapterIds) {
+        reading.chapters.push(...readerChapterStates.read(this.store, 'comic_id = ? AND chapter_id = ?',
+          [work.comicId, chapterId]))
+      }
+    }
+    reading.syncPositions = readPositionOutbox(this.store)
+    reading.syncActions = readActionOutbox(this.store)
+    return reading
   }
 
-  private localRecords<T>(kind: string): T[] {
-    return payloadList<T>(this.store.querySqlSync('SELECT payload FROM reading_local_records WHERE kind = ? ORDER BY list_order', [kind]))
-  }
-
-  save(snapshot: ReaderSessionDocumentSnapshot, pageTurns?: ChapterReadingState[]): void {
-    this.store.beginTransaction()
-    try {
-      if (pageTurns === undefined) {
-        this.saveWorks('progress', snapshot.progress)
-        this.saveWorks('source', snapshot.sourceHistory)
-        this.saveWorks('remote', snapshot.remoteHistory ?? [])
-        this.replaceChapters(snapshot.chapters)
-        this.saveLocalRecords('session', snapshot.readingSessions ?? [])
-      } else {
-        // A page-only batch may touch multiple chapters of one work.
-        // The same transaction advances the per-chapter and latest positions.
-        for (const chapter of pageTurns) {
-          if (chapter.position === undefined) continue
-          this.store.executeSync(CHAPTER_UPSERT, [chapter.comicId, chapter.chapterId, JSON.stringify(chapter)])
-          this.store.executeSync(WORK_UPSERT, ['progress', chapter.comicId, JSON.stringify(chapter.position)])
+  writeSyncEdits(scope: ReaderSyncWorkScope[], reading: ReaderSessionDocumentSnapshot): void {
+    writeUserRecords(this.store, (): void => {
+      const progress = new Map<string, ReadingProgress>()
+      const history = new Map<string, SourceReadHistoryEntry>()
+      const chapters = new Map<string, Map<string, ChapterReadingState>>()
+      for (const row of reading.progress) progress.set(row.comicId, row)
+      for (const row of reading.sourceHistory) history.set(row.comicId, row)
+      for (const row of reading.chapters) {
+        let work = chapters.get(row.comicId)
+        if (work === undefined) {
+          work = new Map<string, ChapterReadingState>()
+          chapters.set(row.comicId, work)
+        }
+        work.set(row.chapterId, row)
+      }
+      for (const work of scope) {
+        const position = progress.get(work.comicId)
+        if (position === undefined) readerPositions.remove(this.store, [work.comicId])
+        else readerPositions.put(this.store, position)
+        const source = history.get(work.comicId)
+        if (source === undefined) readerSourceHistory.remove(this.store, [work.comicId])
+        else readerSourceHistory.put(this.store, source)
+        for (const chapterId of work.chapterIds) {
+          const chapter = chapters.get(work.comicId)?.get(chapterId)
+          if (chapter === undefined) readerChapterStates.remove(this.store, [work.comicId, chapterId])
+          else readerChapterStates.put(this.store, chapter)
         }
       }
-      this.saveLocalRecords('position', snapshot.syncPositions ?? [])
-      this.saveLocalRecords('action', snapshot.syncActions ?? [])
-      this.store.commit()
-    } catch (error) {
-      this.store.rollBack()
-      throw error as Error
-    }
-  }
-
-  private saveWorks<T extends WorkRecord>(kind: string, next: T[]): void {
-    const previous = new Map<string, string>()
-    const rows = this.store.querySqlSync('SELECT comic_id, payload FROM reading_works WHERE kind = ?', [kind])
-    try {
-      while (rows.goToNextRow()) previous.set(rows.getString(0), rows.getString(1))
-    } finally {
-      rows.close()
-    }
-    for (const row of next) {
-      const payload = JSON.stringify(row)
-      const current = previous.get(row.comicId)
-      previous.delete(row.comicId)
-      if (current !== payload) this.store.executeSync(WORK_UPSERT, [kind, row.comicId, payload])
-    }
-    for (const comicId of previous.keys()) {
-      this.store.executeSync('DELETE FROM reading_works WHERE kind = ? AND comic_id = ?', [kind, comicId])
-    }
-  }
-
-  private replaceChapters(next: ChapterReadingState[]): void {
-    const previous = new Map<string, Map<string, string>>()
-    const rows = this.store.querySqlSync('SELECT comic_id, chapter_id, payload FROM reading_chapter_states')
-    try {
-      while (rows.goToNextRow()) {
-        const comicId = rows.getString(0)
-        let chapters = previous.get(comicId)
-        if (chapters === undefined) {
-          chapters = new Map<string, string>()
-          previous.set(comicId, chapters)
-        }
-        chapters.set(rows.getString(1), rows.getString(2))
-      }
-    } finally {
-      rows.close()
-    }
-    for (const row of next) {
-      const known = previous.get(row.comicId)
-      const current = known?.get(row.chapterId)
-      const payload = JSON.stringify(row)
-      known?.delete(row.chapterId)
-      if (current !== payload) this.store.executeSync(CHAPTER_UPSERT, [row.comicId, row.chapterId, payload])
-    }
-    previous.forEach((chapters: Map<string, string>, comicId: string): void => {
-      for (const chapter of chapters.keys()) {
-        this.store.executeSync('DELETE FROM reading_chapter_states WHERE comic_id = ? AND chapter_id = ?', [comicId, chapter])
-      }
+      new ReaderOutboxRows(reading.syncPositions ?? [], reading.syncActions ?? []).replace(this.store)
     })
   }
 
-  private saveLocalRecords<T>(kind: string, rows: T[]): void {
-    const previous = new Map<number, string>()
-    const result = this.store.querySqlSync('SELECT list_order, payload FROM reading_local_records WHERE kind = ?', [kind])
-    try {
-      while (result.goToNextRow()) previous.set(result.getLong(0), result.getString(1))
-    } finally {
-      result.close()
-    }
-    for (let index = 0; index < rows.length; index += 1) {
-      const payload = JSON.stringify(rows[index])
-      if (previous.get(index) !== payload) this.store.executeSync(LOCAL_UPSERT, [kind, index, payload])
-    }
-    this.store.executeSync('DELETE FROM reading_local_records WHERE kind = ? AND list_order >= ?', [kind, rows.length])
+  save(snapshot: ReaderSessionDocumentSnapshot, pageTurns?: ChapterReadingState[]): void {
+    writeUserRecords(this.store, (): void => {
+      if (pageTurns === undefined) {
+        const remote = snapshot.remoteHistory ?? []
+        readerPositions.replace(this.store, snapshot.progress)
+        readerSourceHistory.replace(this.store, snapshot.sourceHistory)
+        readerRemoteHistory.replace(this.store, remoteHistoryRows(remote))
+        readerRemotePaths.replace(this.store, remotePathRows(remote))
+        readerChapterStates.replace(this.store, snapshot.chapters)
+        readerSessions.replace(this.store, orderedReaderSessions(snapshot.readingSessions ?? []))
+      } else {
+        // The chapter position, current position and outbox advance together.
+        for (const chapter of pageTurns) {
+          if (chapter.position === undefined) continue
+          readerChapterStates.put(this.store, chapter)
+          readerPositions.put(this.store, chapter.position)
+        }
+        for (const history of snapshot.sourceHistory) readerSourceHistory.put(this.store, history)
+      }
+      new ReaderOutboxRows(snapshot.syncPositions ?? [], snapshot.syncActions ?? []).replace(this.store)
+    })
   }
 }

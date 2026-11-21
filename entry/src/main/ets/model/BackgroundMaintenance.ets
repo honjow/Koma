@@ -110,6 +110,7 @@ async function mergeBackgroundResults(context: common.UIAbilityContext, library:
   for (const name of names) journals.push(JSON.parse(await fs.readText(`${directory}/${name}`)) as BackgroundLibraryJournal)
   await BackupRestoreActivity.runWrite(async (): Promise<void> => {
     const appliedBefore: Map<string, Comic> = new Map<string, Comic>()
+    const appliedWorks: Comic[] = []
     const chapterIds: Map<string, Set<string>> = new Map()
     const results: LibraryUpdateComicResult[] = []
     let stale = false
@@ -123,13 +124,16 @@ async function mergeBackgroundResults(context: common.UIAbilityContext, library:
           const current = library.getComic(change.before.id)
           if (current === undefined || !sameComicIdentity(current, change.before)) continue
           if (current.updatedAt !== change.before.updatedAt) { stale = true; continue }
-          if (!appliedBefore.has(current.id)) appliedBefore.set(current.id, change.before)
+          appliedBefore.set(current.id, current)
           chapterIds.set(current.id, new Set<string>(current.chapters.map((chapter: Chapter): string => chapter.id)))
           library.upsertComic(change.after)
+          appliedWorks.push(change.after)
         }
         results.push(observation.result)
       }
-      if (appliedBefore.size > 0) persistence.persist()
+      // Background results are already selected by work. Commit that batch
+      // without rewriting unrelated shelf entries and their catalogs.
+      if (appliedWorks.length > 0) persistence.persistExistingWorks(appliedWorks)
     } catch (error) {
       appliedBefore.forEach((before: Comic): void => { library.upsertComic(before) })
       throw error as Error

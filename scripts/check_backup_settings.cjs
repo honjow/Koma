@@ -195,6 +195,7 @@ async function verifyRoundTrip() {
   let mutations = 0
   const rdb = createRdbPort()
   const ports = {
+    '@kit.CoreFileKit': { fileIo: fs },
     '@kit.ArkData': { relationalStore: rdb.relationalStore, preferences: { getPreferences: async (_context, name) => {
       if (!stores.has(name)) stores.set(name, {})
       const values = stores.get(name)
@@ -226,10 +227,15 @@ async function verifyRoundTrip() {
     './SourcePackageMetadata': packageMetadata,
     './SourceLocalizedNames': evaluate(read('sourceRuntime/SourceLocalizedNames.ets'), {}),
   })
+  ports['./LocalDataRows'] = evaluate(read('model/LocalDataRows.ets'), ports)
+  ports['./ReaderDisplaySettings'] = evaluate(read('model/ReaderDisplaySettings.ets'), ports)
+  ports['./ReaderPreferenceColumns'] = evaluate(read('model/ReaderPreferenceColumns.ets'), ports)
   const database = evaluate(read('model/UserDataDatabase.ets'), ports)
   const keyed = evaluate(read('model/UserKeyedRecords.ets'), ports)
   ports['../model/UserDataDatabase'] = ports['./UserDataDatabase'] = database
   ports['../model/UserKeyedRecords'] = ports['./UserKeyedRecords'] = keyed
+  ports['./LibraryUpdateReportRows'] = evaluate(read('model/LibraryUpdateReportRows.ets'), ports)
+  ports['./PreferenceColumnRows'] = evaluate(read('model/PreferenceColumnRows.ets'), ports)
   ports['../sourceRuntime/SourceSubscriptionStorage'] = evaluate(read('sourceRuntime/SourceSubscriptionStorage.ets'), {
     ...ports, './SourceIndexMetadata': ports['../sourceRuntime/SourceIndexMetadata'],
   })

@@ -173,12 +173,14 @@ import {
 } from '../model/LocalLibraryFolderAccessService'
 import { LocalLibraryFolderRescanActionResult } from '../model/LocalLibraryRefreshService'
 import { LibraryStore } from '../model/LibraryStore'
+import type { LibraryShelfSyncEdits } from '../model/LibraryRdbStorage'
 import { privateLibraryCategoryIds, showLibraryComic } from '../model/LibraryPrivacyVisibility'
 import { connectLibraryPrivacyState, LibraryPrivacyAuthResult, LibraryPrivacyState, libraryPrivacyAuthMessage } from '../state/LibraryPrivacyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import {
   AppFilesLibraryStorePersistenceAdapter,
   LibraryStorePersistenceService,
+  applyLibraryShelfSyncEdits,
   editComicCategoriesAndPersistLibraryStore,
   isRemovableLocalComic,
   isRemovableShelfComic,
@@ -205,6 +207,7 @@ import {
   appReaderSessionStore,
   InMemoryReaderSessionStore,
   ReaderSessionConfig,
+  ReadingPresentationChange,
   ReaderSessionStore,
   cloneReaderSessionConfig,
   createReaderSessionConfigFromComic,
@@ -397,9 +400,11 @@ struct Index {
   // close path has flushed so LibraryPage can rebuild `lastRead` ordering from
   // the same in-memory snapshot rather than reopening a second store.
   @Local private readerProgressRevision: number = 0
+  @Local private readingPresentationChange?: ReadingPresentationChange = undefined
   @Local private libraryRevision: number = 0
   private libraryPresentationPending: boolean = false
   private readingPresentationPending: boolean = false
+  private pendingReadingComicIds?: string[]
   @Local private imageRuleState: ImageRuleState = connectImageRuleState()
   @Local private sourcePackageManagerCache: SourcePackageManagerCache = appSourcePackageManagerCache
   private migrationOpening: boolean = false
@@ -770,12 +775,16 @@ struct Index {
     void this.libraryRevision
     void this.readerProgressRevision
     const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
-    this.libraryStore.listComics(false).forEach((comic: Comic) => {
+    // Start with works that have a saved position. Progress updates must not
+    // enumerate an unrelated shelf or reload it from the database.
+    for (const position of this.readerSessionStore.listProgress()) {
+      const comic = this.libraryStore.getComic(position.comicId)
+      if (comic === undefined) continue
       const progress = this.readerSessionStore.getComicProgress(comic)
       if (progress !== undefined) {
         progressByComicId.set(comic.id, progress)
       }
-    })
+    }
     return progressByComicId
   }
 
@@ -892,9 +901,18 @@ struct Index {
     })
   }
 
-  private refreshReadingPresentation(): void {
+  private queueReadingPresentation(comicIds?: string[]): void {
+    if (!this.readingPresentationPending) this.pendingReadingComicIds = comicIds
+    else if (comicIds === undefined) this.pendingReadingComicIds = undefined
+    else if (this.pendingReadingComicIds !== undefined) {
+      this.pendingReadingComicIds = Array.from(new Set(this.pendingReadingComicIds.concat(comicIds)))
+    }
     this.readingPresentationPending = true
-    if (!this.isReaderRouteVisible()) this.publishDeferredReaderBackgroundPresentation()
+  }
+
+  private refreshReadingPresentation(comicIds?: string[], immediate: boolean = false): void {
+    this.queueReadingPresentation(comicIds)
+    if (immediate || !this.isReaderRouteVisible()) this.publishDeferredReaderBackgroundPresentation()
   }
 
   /** The stores and sync continue live. Refresh the covered views when Reader yields the route. */
@@ -905,6 +923,9 @@ struct Index {
     }
     if (this.readingPresentationPending) {
       this.readingPresentationPending = false
+      const ids = this.pendingReadingComicIds
+      this.pendingReadingComicIds = undefined
+      this.readingPresentationChange = ids === undefined ? undefined : { revision: this.readerProgressRevision + 1, comicIds: ids }
       this.readerProgressRevision += 1
     }
   }
@@ -2264,8 +2285,7 @@ struct Index {
     }
     this.cleanupProgressCommitted = committed && !sourceIncognito
     this.readerTrackerProgress?.close(committed)
-    this.readingPresentationPending = true
-    this.publishDeferredReaderBackgroundPresentation()
+    this.refreshReadingPresentation([this.readerSessionConfig.comicId], true)
     this.readerClosing = true
     this.readerRouteVisible = false
     this.appPathStack.pop(true)
@@ -3392,12 +3412,13 @@ struct Index {
     if (!this.readerSessionPersistenceReady) {
       this.reloadReaderSessionStore('app_appear')
     }
-    appDeviceSync.attachPublisher((groups: SyncGroup[]): void => {
+    appDeviceSync.attachPublisher((groups: SyncGroup[], readingComicIds?: string[], shelfEdits?: LibraryShelfSyncEdits): void => {
       if (groups.includes('shelf')) {
-        this.ensureLibraryPersistenceService()?.restore()
+        if (shelfEdits === undefined) this.ensureLibraryPersistenceService()?.restore()
+        else applyLibraryShelfSyncEdits(context.filesDir, this.libraryStore, shelfEdits)
         this.refreshLibrarySnapshot()
       }
-      if (groups.includes('reading')) this.refreshReadingPresentation()
+      if (groups.includes('reading')) this.refreshReadingPresentation(readingComicIds)
     })
     this.loadLibraryChapterUpdateHistory(context)
     configureSourceSettingsStore(context)
@@ -3771,7 +3792,7 @@ struct Index {
               // The detail reads the committed live stores. Reproject the
               // covered shelf and history when the root becomes visible.
               this.libraryPresentationPending = true
-              this.readingPresentationPending = true
+              this.queueReadingPresentation()
               if (this.rootNavigation.visible) this.publishDeferredReaderBackgroundPresentation()
               return true
             } catch (error) {
@@ -4589,6 +4610,7 @@ struct Index {
                 libraryRevision: this.libraryRevision,
                 readerSessionStore: this.readerSessionStore,
                 readerProgressRevision: this.readerProgressRevision,
+                readingPresentationChange: this.readingPresentationChange,
                 shelfReadingProgress: this.shelfReadingProgress,
                 continueReadingCard: this.continueReadingCard,
                 scopedContinueReadingCard: this.scopedContinueReadingCard,
@@ -4685,6 +4707,7 @@ struct Index {
                 rootNavigation: this.rootNavigation,
                 readerSessionStore: this.readerSessionStore,
                 readerProgressRevision: this.readerProgressRevision,
+                readingPresentationChange: this.readingPresentationChange,
                 onRefresh: async (): Promise<void> => { await this.syncFromRootRefresh() },
                 onOpenDetail: (comicId: ComicId, source?: SourceReadHistoryEntry, remote?: RemoteReadHistoryEntry) => {
                   this.openHistoryDetail(comicId, source, remote)

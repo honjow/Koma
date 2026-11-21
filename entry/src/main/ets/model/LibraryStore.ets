@@ -21,6 +21,13 @@ import { SyncLocalShelfMove } from '../deviceSync/DeviceSyncSignals'
 import { MihonImportRecord } from './MihonBackupReader'
 
 export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source' | 'lastUpdate' | 'latestChapter' | 'unreadCount' | 'chapterCount'
+
+/** Unknown times stay after known times in either direction. */
+export function compareShelfTime(a: number | undefined, b: number | undefined, direction: LibrarySortDirection): number {
+  if (a === undefined) return b === undefined ? 0 : 1
+  if (b === undefined) return -1
+  return (direction === 'asc' ? 1 : -1) * (a - b)
+}
 export type LibrarySortDirection = 'asc' | 'desc'
 
 export function isLibrarySortBy(value: string | undefined): boolean {
@@ -75,6 +82,7 @@ export interface LibraryStore {
   addComic(comic: Comic): void
   upsertComic(comic: Comic): void
   removeComic(comicId: ComicId): void
+  orderComics(comicIds: ComicId[]): void
   listCustomCategories(): CustomLibraryCategory[]
   replaceCustomCategories(categories: CustomLibraryCategory[]): void
   createCustomCategory(name: string, now?: number): CustomLibraryCategory
@@ -271,11 +279,7 @@ export class InMemoryLibraryStore implements LibraryStore {
     return rows.sort((a: LibraryItem, b: LibraryItem): number => {
       const left = values.get(a.comicId)
       const right = values.get(b.comicId)
-      // Unknown dates and incomplete unread counts stay after known values
-      // in either direction. Direction affects the chosen key, not the tie break.
-      if (left === undefined) return right === undefined ? this.compareByAddedDesc(a, b) : 1
-      if (right === undefined) return -1
-      return multiplier * (left - right) || this.compareByAddedDesc(a, b)
+      return compareShelfTime(left, right, direction) || this.compareByAddedDesc(a, b)
     })
   }
 
@@ -322,6 +326,18 @@ export class InMemoryLibraryStore implements LibraryStore {
 
   removeComic(comicId: ComicId): void {
     this.comics.delete(comicId)
+  }
+
+  orderComics(comicIds: ComicId[]): void {
+    const ordered = new Map<ComicId, Comic>()
+    for (const id of comicIds) {
+      const comic = this.comics.get(id)
+      if (comic !== undefined) ordered.set(id, comic)
+    }
+    this.comics.forEach((comic: Comic, id: ComicId): void => {
+      if (!ordered.has(id)) ordered.set(id, comic)
+    })
+    this.comics = ordered
   }
 
   listCustomCategories(): CustomLibraryCategory[] {

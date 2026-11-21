@@ -15,6 +15,7 @@ import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncGroupError, SyncMergeChoice,
 import { DeviceSyncShardCache } from './DeviceSyncShardCache'
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { KomaDeviceSyncOwners, SyncShelfRemoval } from './DeviceSyncOwners'
+import type { LibraryShelfSyncEdits } from '../model/LibraryRdbStorage'
 import {
   DeviceSyncStorage, SyncBlockedReading, SyncGroupState, SyncLocalDocument, SyncReadingRestoreCandidate,
 } from './DeviceSyncStorage'
@@ -25,7 +26,7 @@ import {
 } from './DeviceSyncData'
 import { connectDeviceSyncOwnerEdits, connectDeviceSyncProgress, connectDeviceSyncReadingCapture, connectDeviceSyncRestore,
   connectDeviceSyncSignals, connectDeviceSyncSearchHistory, deviceSyncActionCaptureKey, deviceSyncCaptureKey, SyncBookModeSignal, SyncCapturedReadingEdit,
-  SyncLibrarySignal, SyncReadingActionCapture, SyncReadingCapture, SyncReadingSignal } from './DeviceSyncSignals'
+  SyncLibrarySignal, SyncReadingActionCapture, SyncReadingCapture, SyncReadingSignal, SyncReadingSource } from './DeviceSyncSignals'
 import { SyncConnectionDraft } from './DeviceSyncWebDav'
 import { subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
 
@@ -179,11 +180,11 @@ class DeviceSyncRuntime {
     void this.task((): Promise<void> => this.needed().recoverOnForeground()).catch((): void => {})
   }
 
-  attachPublisher(publish: (groups: SyncGroup[]) => void): void {
-    const publishGroups = (groups: SyncGroup[]): void => {
+  attachPublisher(publish: (groups: SyncGroup[], readingComicIds?: string[], shelfEdits?: LibraryShelfSyncEdits) => void): void {
+    const publishGroups = (groups: SyncGroup[], readingComicIds?: string[], shelfEdits?: LibraryShelfSyncEdits): void => {
       this.view.revision++
       if (groups.includes('search-history')) this.view.searchHistoryRevision++
-      publish(groups)
+      publish(groups, readingComicIds, shelfEdits)
     }
     this.owners?.publishWith(publishGroups)
     appHuaweiCloudSync.attachPublisher(publishGroups)
@@ -867,9 +868,17 @@ class DeviceSyncRuntime {
     const active = engine?.active()
     if (actions.length === 0 || engine === undefined || active === undefined || engine.readingScope() === '') return []
     const captured: SyncReadingActionCapture[] = []
-    const identities = this.owners?.readingIdentities()
+    const sources = new Map<string, SyncReadingSource | undefined>()
     for (const action of actions) {
-      const identity = action.identity ?? identities?.get(action.comicId)
+      let identity = action.identity
+      if (identity === undefined) {
+        if (!sources.has(action.comicId)) {
+          const found = this.owners?.sourceIdentity(action.comicId)
+          const source: SyncReadingSource | undefined = found === undefined ? undefined : { source: found.source, work: found.work }
+          sources.set(action.comicId, source)
+        }
+        identity = sources.get(action.comicId)
+      }
       if (identity === undefined || !syncReadingIdentity(identity.source, identity.work, action.chapterId || undefined)) continue
       const source = identity.source
       const work = identity.work

@@ -6,8 +6,9 @@ import { common } from '@kit.AbilityKit'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { Chapter, Comic, ComicId } from './ComicModels'
 import { sourceLibraryComicId } from './SourceLibraryComic'
-import { openUserDataDatabase } from './UserDataDatabase'
-import { UserKeyedRecords, UserRecordValues, writeUserRecords } from './UserKeyedRecords'
+import { hasUserDataMigration, markUserDataMigration, openUserDataDatabase } from './UserDataDatabase'
+import { UserKeyedRecords, writeUserRecords } from './UserKeyedRecords'
+import { booleanColumn, booleanValue, LocalColumnValue, LocalDataRows, textColumn } from './LocalDataRows'
 import type { relationalStore } from '@kit.ArkData'
 import {
   OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
@@ -178,86 +179,166 @@ const QUEUE_NEXT_ORDER = 'next-order'
 const QUEUE_TASK_PREFIX = 'chapter/'
 const sqliteQueues = new Map<string, OfflineQueueRdbStorage>()
 
-function queueRecordKey(task: OfflineDownloadTaskId): string {
-  return QUEUE_TASK_PREFIX + offlineDownloadTaskKey(task)
+interface OfflineTaskRow {
+  queueId: string
+  occurrence: number
+  order: number
+  entry: OfflineDownloadQueueEntry
 }
+
+const offlineTasks = new LocalDataRows<OfflineTaskRow>('offline_download_tasks',
+  ['queue_id', 'comic_id', 'chapter_id', 'task_occurrence'], [
+    'list_order', 'is_automatic', 'paused_by_user', 'is_canceling', 'request_id', 'source_name', 'source_id',
+    'source_manga_id', 'source_manga_url', 'comic_title', 'chapter_title', 'status', 'page_count', 'downloaded_page_count',
+    'updated_at', 'failure_reason_code',
+  ], 'list_order',
+  (row: OfflineTaskRow): LocalColumnValue[] => {
+    const entry = row.entry
+    return [row.queueId, entry.comicId, entry.chapterId, row.occurrence, row.order, booleanValue(entry.automatic),
+      booleanValue(entry.pausedByUser), booleanValue(entry.canceling), entry.requestId ?? null, entry.sourceName ?? null,
+      entry.sourceId ?? null, entry.sourceMangaId ?? null, entry.sourceMangaUrl ?? null, entry.comicTitle ?? null,
+      entry.chapterTitle ?? null, entry.status, entry.pageCount, entry.downloadedPageCount, entry.updatedAt,
+      entry.failureReasonCode ?? null]
+  },
+  (row: relationalStore.ResultSet): OfflineTaskRow => ({
+    queueId: row.getString(0), occurrence: row.getLong(3), order: row.getLong(4),
+    entry: { comicId: row.getString(1), chapterId: row.getString(2), automatic: booleanColumn(row, 5),
+      pausedByUser: booleanColumn(row, 6), canceling: booleanColumn(row, 7), requestId: textColumn(row, 8),
+      sourceName: textColumn(row, 9), sourceId: textColumn(row, 10), sourceMangaId: textColumn(row, 11),
+      sourceMangaUrl: textColumn(row, 12), comicTitle: textColumn(row, 13), chapterTitle: textColumn(row, 14),
+      status: row.getString(15) as OfflineDownloadStatus, pageCount: row.getLong(16), downloadedPageCount: row.getLong(17),
+      updatedAt: row.getLong(18), failureReasonCode: textColumn(row, 19) },
+  }))
+
+interface QueueStateRow {
+  queueId: string
+  nextOrder: number
+  preferences: OfflineDownloadQueuePreferences
+}
+
+const offlineQueueState = new LocalDataRows<QueueStateRow>('offline_download_queues', ['queue_id'],
+  ['next_order', 'concurrency_limit', 'is_paused', 'wifi_only'], 'queue_id',
+  (row: QueueStateRow): LocalColumnValue[] => [row.queueId, row.nextOrder, row.preferences.foregroundConcurrencyLimit,
+    booleanValue(row.preferences.isPaused), booleanValue(row.preferences.wifiOnly)],
+  (row: relationalStore.ResultSet): QueueStateRow => ({
+    queueId: row.getString(0), nextOrder: row.getLong(1),
+    preferences: { foregroundConcurrencyLimit: row.getLong(2), isPaused: row.getLong(3) !== 0, wifiOnly: row.getLong(4) !== 0 },
+  }))
 
 class OfflineQueueRdbStorage {
   private readonly database: relationalStore.RdbStore
-  private readonly records: UserKeyedRecords
+  private readonly queueId: string
+  private readonly marker: string
+  private readonly previous: UserKeyedRecords
   private migrated: boolean = false
 
   constructor(database: relationalStore.RdbStore, relativePath: string) {
     this.database = database
-    this.records = new UserKeyedRecords(database, 'offline-queue/' + relativePath)
+    this.queueId = relativePath
+    this.marker = 'offline-download-relational/' + relativePath
+    this.previous = new UserKeyedRecords(database, 'offline-queue/' + relativePath)
   }
 
   isMigrated(): boolean {
-    if (!this.migrated) this.migrated = this.records.isMigrated()
+    if (!this.migrated) this.migrated = hasUserDataMigration(this.database, this.marker)
     return this.migrated
   }
 
+  usesPreviousDatabase(): boolean {
+    return this.previous.isMigrated()
+  }
+
   migrate(document: OfflineDownloadQueueDocument | undefined): void {
-    this.records.migrate(this.collectRows(document))
+    writeUserRecords(this.database, (): void => {
+      if (hasUserDataMigration(this.database, this.marker)) return
+      if (this.previous.isMigrated()) {
+        const values = this.previous.entries()
+        if (values !== undefined) {
+          const rows: OfflineQueueRow[] = []
+          values.forEach((value: string, key: string): void => {
+            if (key.startsWith(QUEUE_TASK_PREFIX)) rows.push(JSON.parse(value) as OfflineQueueRow)
+          })
+          rows.sort((left: OfflineQueueRow, right: OfflineQueueRow): number => left.order - right.order)
+          const prefs = values.get(QUEUE_PREFERENCES_ROW)
+          this.replaceRows(rows, normalizePreferences(prefs === undefined ? undefined :
+            JSON.parse(prefs) as OfflineDownloadQueuePreferences), Number(values.get(QUEUE_NEXT_ORDER) ?? '0'))
+        }
+      } else {
+        this.replaceDocument(document)
+      }
+      markUserDataMigration(this.database, this.marker)
+    })
     this.migrated = true
   }
 
+  private state(): QueueStateRow | undefined {
+    return offlineQueueState.read(this.database, 'queue_id = ?', [this.queueId])[0]
+  }
+
   read(): OfflineDownloadQueueDocument | undefined {
-    const values = this.records.entries()
-    if (values === undefined) return undefined
-    const prefs = values.get(QUEUE_PREFERENCES_ROW)
-    const entries: OfflineQueueRow[] = []
-    values.forEach((value: string, key: string): void => {
-      if (key.startsWith(QUEUE_TASK_PREFIX)) entries.push(JSON.parse(value) as OfflineQueueRow)
-    })
-    entries.sort((left: OfflineQueueRow, right: OfflineQueueRow): number => left.order - right.order)
-    return { schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
-      preferences: normalizePreferences(prefs === undefined ? undefined : JSON.parse(prefs) as OfflineDownloadQueuePreferences),
-      entries: entries.map((row: OfflineQueueRow): OfflineDownloadQueueEntry => row.entry) }
+    const state = this.state()
+    if (state === undefined) return undefined
+    return { schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION, preferences: state.preferences,
+      entries: offlineTasks.read(this.database, 'queue_id = ?', [this.queueId]).map((row: OfflineTaskRow) => row.entry) }
+  }
+
+  private taskRow(task: OfflineDownloadTaskId): OfflineTaskRow | undefined {
+    return offlineTasks.read(this.database, 'queue_id = ? AND comic_id = ? AND chapter_id = ? AND task_occurrence = 0',
+      [this.queueId, task.comicId, task.chapterId])[0]
   }
 
   entry(task: OfflineDownloadTaskId): OfflineDownloadQueueEntry | undefined {
-    const value = this.records.get(queueRecordKey(task))
-    return value === undefined ? undefined : (JSON.parse(value) as OfflineQueueRow).entry
+    return this.taskRow(task)?.entry
   }
 
   preferences(): OfflineDownloadQueuePreferences {
-    const value = this.records.get(QUEUE_PREFERENCES_ROW)
-    return normalizePreferences(value === undefined ? undefined : JSON.parse(value) as OfflineDownloadQueuePreferences)
+    return normalizePreferences(this.state()?.preferences)
   }
 
   savePreferences(value: OfflineDownloadQueuePreferences): void {
-    this.records.put(QUEUE_PREFERENCES_ROW, JSON.stringify(value))
+    writeUserRecords(this.database, (): void => {
+      offlineQueueState.put(this.database, { queueId: this.queueId, nextOrder: this.state()?.nextOrder ?? 0, preferences: value })
+    })
   }
 
   saveEntry(entry: OfflineDownloadQueueEntry): void {
-    const key = queueRecordKey(entry)
     writeUserRecords(this.database, (): void => {
-      const previous = this.records.get(key)
-      const order = previous === undefined ? Number(this.records.get(QUEUE_NEXT_ORDER) ?? '0')
-        : (JSON.parse(previous) as OfflineQueueRow).order
-      const row: OfflineQueueRow = { order, entry }
-      if (previous === undefined) this.records.putInTransaction(QUEUE_NEXT_ORDER, String(order + 1))
-      this.records.putInTransaction(key, JSON.stringify(row))
+      const previous = this.taskRow(entry)
+      const state = this.state()
+      const order = previous?.order ?? state?.nextOrder ?? 0
+      if (previous === undefined) {
+        offlineQueueState.put(this.database, { queueId: this.queueId, nextOrder: order + 1,
+          preferences: normalizePreferences(state?.preferences) })
+      }
+      offlineTasks.put(this.database, { queueId: this.queueId, occurrence: 0, order, entry })
     })
   }
 
   save(document: OfflineDownloadQueueDocument | undefined): void {
-    this.records.replace(this.collectRows(document))
+    writeUserRecords(this.database, (): void => this.replaceDocument(document))
   }
 
-  private collectRows(document: OfflineDownloadQueueDocument | undefined): UserRecordValues | undefined {
-    if (document === undefined) return undefined
-    const values: UserRecordValues = new Map()
-    values.set(QUEUE_PREFERENCES_ROW, JSON.stringify(normalizePreferences(document.preferences)))
-    values.set(QUEUE_NEXT_ORDER, String(document.entries.length))
-    document.entries.forEach((entry: OfflineDownloadQueueEntry, order: number): void => {
-      const row: OfflineQueueRow = { order, entry: normalizeEntry(entry) }
-      let key = queueRecordKey(entry)
-      if (values.has(key)) key += ':' + order
-      values.set(key, JSON.stringify(row))
+  private replaceDocument(document: OfflineDownloadQueueDocument | undefined): void {
+    if (document === undefined) {
+      offlineTasks.replace(this.database, [], 'queue_id', this.queueId)
+      offlineQueueState.replace(this.database, [], 'queue_id', this.queueId)
+      return
+    }
+    const rows = document.entries.map((entry: OfflineDownloadQueueEntry, order: number): OfflineQueueRow =>
+      ({ order, entry: normalizeEntry(entry) }))
+    this.replaceRows(rows, normalizePreferences(document.preferences), rows.length)
+  }
+
+  private replaceRows(rows: OfflineQueueRow[], preferences: OfflineDownloadQueuePreferences, nextOrder: number): void {
+    offlineQueueState.put(this.database, { queueId: this.queueId, nextOrder, preferences })
+    const occurrences = new Map<string, number>()
+    const tasks = rows.map((row: OfflineQueueRow): OfflineTaskRow => {
+      const key = offlineDownloadTaskKey(row.entry)
+      const occurrence = occurrences.get(key) ?? 0
+      occurrences.set(key, occurrence + 1)
+      return { queueId: this.queueId, occurrence, order: row.order, entry: row.entry }
     })
-    return values
+    offlineTasks.replace(this.database, tasks, 'queue_id', this.queueId)
   }
 }
 
@@ -265,7 +346,9 @@ export async function prepareOfflineQueueDatabase(context: common.Context): Prom
   const database = await openUserDataDatabase(context)
   for (const path of [SANDBOX_CONTENT_QUEUE_PATH, PUBLIC_CONTENT_QUEUE_PRIVATE_PATH]) {
     const absolute = context.filesDir + '/' + path
-    if (!sqliteQueues.has(absolute)) sqliteQueues.set(absolute, new OfflineQueueRdbStorage(database, path))
+    const queue = sqliteQueues.get(absolute) ?? new OfflineQueueRdbStorage(database, path)
+    if (!queue.isMigrated() && queue.usesPreviousDatabase()) queue.migrate(undefined)
+    sqliteQueues.set(absolute, queue)
   }
 }
 

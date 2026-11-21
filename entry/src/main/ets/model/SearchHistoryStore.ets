@@ -3,9 +3,10 @@ import { syncSearchIdentity } from '../deviceSync/DeviceSyncData'
 import { signalDeviceSyncChange, signalDeviceSyncSearchRemoved } from '../deviceSync/DeviceSyncSignals'
 import { common } from '@kit.AbilityKit'
 import { preferences, relationalStore } from '@kit.ArkData'
+import { taskpool } from '@kit.ArkTS'
 import { CrossSearchSourceFilter } from './CrossSearchService'
 import { LibrarySearchSource, copyLibrarySearchSource } from './LibrarySearchQuery'
-import { openUserDataDatabase } from './UserDataDatabase'
+import { openUserDataDatabase, openUserDataSnapshotDatabase } from './UserDataDatabase'
 
 export interface SearchHistoryScope {
   syncSourceSet?: string
@@ -160,6 +161,32 @@ interface StoredSearchHistoryEntry {
   value: SearchHistoryEntry
 }
 
+/** WebDAV also reads search history while the reader is moving. Keep the
+ * ResultSet iteration and native completion callback off the UI thread. */
+@Concurrent
+async function readSearchHistoryRows(context: common.UIAbilityContext): Promise<StoredSearchHistoryEntry[]> {
+  const store = await openUserDataSnapshotDatabase(context)
+  try {
+    const result = store.querySqlSync('SELECT entry_key, query, updated_at, list_order, source_filter, ' +
+      'library_source_key, library_source_name, sync_source_set FROM search_history ORDER BY updated_at DESC, list_order')
+    const rows: StoredSearchHistoryEntry[] = []
+    try {
+      while (result.goToNextRow()) {
+        const value: SearchHistoryEntry = { query: result.getString(1), updatedAt: result.getLong(2) }
+        if (!result.isColumnNull(4)) value.sourceFilter = result.getString(4) as CrossSearchSourceFilter
+        if (!result.isColumnNull(5)) value.librarySource = { key: result.getString(5), name: result.getString(6) }
+        if (!result.isColumnNull(7)) value.syncSourceSet = result.getString(7)
+        rows.push({ key: result.getString(0), order: result.getLong(3), value })
+      }
+    } finally {
+      result.close()
+    }
+    return rows
+  } finally {
+    await store.close()
+  }
+}
+
 // Search pages and WebDAV share one write order, including the first migration.
 const searchHistoryOperations: Map<string, Promise<void>> = new Map()
 
@@ -179,7 +206,7 @@ export class SearchHistoryStore {
 
   async load(): Promise<SearchHistoryEntry[]> {
     return this.ordered(async (): Promise<SearchHistoryEntry[]> => {
-      return this.listEntries(await this.historyStore())
+      return this.listEntries()
     })
   }
 
@@ -202,26 +229,17 @@ export class SearchHistoryStore {
     return store
   }
 
-  private async readRows(store: relationalStore.RdbStore): Promise<StoredSearchHistoryEntry[]> {
-    const result = await store.querySql('SELECT entry_key, query, updated_at, list_order, source_filter, ' +
-      'library_source_key, library_source_name, sync_source_set FROM search_history ORDER BY updated_at DESC, list_order')
-    const rows: StoredSearchHistoryEntry[] = []
-    try {
-      while (result.goToNextRow()) {
-        const value: SearchHistoryEntry = { query: result.getString(1), updatedAt: result.getLong(2) }
-        if (!result.isColumnNull(4)) value.sourceFilter = normalizeSearchSourceFilter(result.getString(4))
-        if (!result.isColumnNull(5)) value.librarySource = { key: result.getString(5), name: result.getString(6) }
-        if (!result.isColumnNull(7)) value.syncSourceSet = result.getString(7)
-        rows.push({ key: result.getString(0), order: result.getLong(3), value })
-      }
-    } finally {
-      result.close()
+  private async readRows(): Promise<StoredSearchHistoryEntry[]> {
+    const rows = await taskpool.execute(readSearchHistoryRows, this.context) as StoredSearchHistoryEntry[]
+    for (const row of rows) {
+      if (row.value.sourceFilter !== undefined) row.value.sourceFilter = normalizeSearchSourceFilter(row.value.sourceFilter)
     }
     return rows
   }
 
-  private async listEntries(store: relationalStore.RdbStore): Promise<SearchHistoryEntry[]> {
-    const rows = await this.readRows(store)
+  private async listEntries(): Promise<SearchHistoryEntry[]> {
+    await this.historyStore()
+    const rows = await this.readRows()
     return normalizeSearchHistoryEntries(rows.map((row: StoredSearchHistoryEntry): SearchHistoryEntry => row.value))
   }
 
@@ -263,13 +281,13 @@ export class SearchHistoryStore {
 
   /** Capture the persisted value under the same ordering as UI reads and edits. */
   captureDeviceSyncPayload(): Promise<string> {
-    return this.ordered(async (): Promise<string> => JSON.stringify(await this.listEntries(await this.historyStore())))
+    return this.ordered(async (): Promise<string> => JSON.stringify(await this.listEntries()))
   }
 
   async record(query: string, scope?: SearchHistoryScope): Promise<SearchHistoryEntry[]> {
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<SearchHistoryEntry[]> => {
       const store = await this.historyStore()
-      const previous = await this.readRows(store)
+      const previous = await this.readRows()
       const entries = addSearchHistoryEntry(previous.map((row: StoredSearchHistoryEntry): SearchHistoryEntry => row.value),
         query, Date.now(), scope)
       this.writeHistory(store, previous, entries)
@@ -281,7 +299,7 @@ export class SearchHistoryStore {
   async clear(): Promise<void> {
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<void> => {
       const store = await this.historyStore()
-      this.writeHistory(store, await this.readRows(store), [])
+      this.writeHistory(store, await this.readRows(), [])
       signalDeviceSyncSearchRemoved()
     }))
   }
@@ -289,7 +307,7 @@ export class SearchHistoryStore {
   async remove(query: string, scope?: SearchHistoryScope): Promise<SearchHistoryEntry[]> {
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<SearchHistoryEntry[]> => {
       const store = await this.historyStore()
-      const previous = await this.readRows(store)
+      const previous = await this.readRows()
       const entries = removeSearchHistoryEntry(previous.map((row: StoredSearchHistoryEntry): SearchHistoryEntry => row.value),
         query, scope)
       this.writeHistory(store, previous, entries)
@@ -303,7 +321,7 @@ export class SearchHistoryStore {
   async applyDeviceSyncEntries(entries: SearchHistoryEntry[]): Promise<void> {
     return this.ordered(async (): Promise<void> => {
       const store = await this.historyStore()
-      this.writeHistory(store, await this.readRows(store), normalizeSearchHistoryEntries(entries))
+      this.writeHistory(store, await this.readRows(), normalizeSearchHistoryEntries(entries))
     })
   }
 

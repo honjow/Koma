@@ -1,7 +1,8 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { openUserDataDatabase } from './UserDataDatabase'
-import { UserKeyedRecords, UserRecordValues } from './UserKeyedRecords'
+import type { UserRecordValues } from './UserKeyedRecords'
+import { PreferenceColumnRows } from './PreferenceColumnRows'
 import { loadSourceSubscriptionPreferences, recoverSourceSubscriptionPreferences,
   SOURCE_INDEX_PREFERENCES, SOURCE_INDEX_REPOSITORIES, SOURCE_INDEX_URL } from '../sourceRuntime/SourceSubscriptionStorage'
 
@@ -22,11 +23,25 @@ export function decodePreferenceRecordMap(value: LegacyPreferenceValue | undefin
   return records
 }
 
+function canonicalPreference(value: Object | null): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) {
+    return '[' + (value as Object[]).map((row: Object): string => canonicalPreference(row)).join(',') + ']'
+  }
+  const row = value as Record<string, Object>
+  return '{' + Object.keys(row).sort().map((key: string): string =>
+    JSON.stringify(key) + ':' + canonicalPreference(row[key])).join(',') + '}'
+}
+
 function sameRecords(actual: UserRecordValues | undefined, expected: UserRecordValues | undefined): boolean {
   if (actual === undefined || expected === undefined) return actual === expected
   if (actual.size !== expected.size) return false
   for (const key of expected.keys()) {
-    if (actual.get(key) !== expected.get(key)) return false
+    const left = actual.get(key)
+    const right = expected.get(key)
+    if (left === right) continue
+    if (left === undefined || right === undefined ||
+      canonicalPreference(JSON.parse(left) as Object) !== canonicalPreference(JSON.parse(right) as Object)) return false
   }
   return true
 }
@@ -76,8 +91,8 @@ export function orderedPreferenceRecords(identityFields: string[]): PreferenceRe
 }
 
 export class MigratedPreferenceRecords {
-  private readonly opened = new Map<string, UserKeyedRecords>()
-  private readonly opening = new Map<string, Promise<UserKeyedRecords>>()
+  private readonly opened = new Map<string, PreferenceColumnRows>()
+  private readonly opening = new Map<string, Promise<PreferenceColumnRows>>()
   readonly name: string
   readonly key: string
   private readonly excludedKeys: string[]
@@ -90,15 +105,15 @@ export class MigratedPreferenceRecords {
     this.codec = codec
   }
 
-  private async open(context: common.Context): Promise<UserKeyedRecords> {
-    return new UserKeyedRecords(await openUserDataDatabase(context), 'preferences/' + this.name + '/' + this.key)
+  private async open(context: common.Context): Promise<PreferenceColumnRows> {
+    return new PreferenceColumnRows(await openUserDataDatabase(context), this.name, this.key)
   }
 
-  prepared(filesDir: string): UserKeyedRecords | undefined {
+  prepared(filesDir: string): PreferenceColumnRows | undefined {
     return this.opened.get(filesDir)
   }
 
-  prepare(context: common.Context): Promise<UserKeyedRecords> {
+  prepare(context: common.Context): Promise<PreferenceColumnRows> {
     const directory = context.filesDir
     const existing = this.opening.get(directory)
     if (existing !== undefined) return existing
@@ -110,15 +125,17 @@ export class MigratedPreferenceRecords {
     return opening
   }
 
-  private async migrate(context: common.Context): Promise<UserKeyedRecords> {
+  private async migrate(context: common.Context): Promise<PreferenceColumnRows> {
     const records = await this.open(context)
     if (!records.isMigrated()) {
-      const legacy = await preferences.getPreferences(context, this.name)
       let values: UserRecordValues | undefined
-      if (this.key === '') {
-        values = this.flatValues(await legacy.getAll() as Record<string, LegacyPreferenceValue>)
-      } else if (await legacy.has(this.key)) {
-        values = this.codec.decode(await legacy.get(this.key, '') as LegacyPreferenceValue)
+      if (!records.usesPreviousDatabase()) {
+        const legacy = await preferences.getPreferences(context, this.name)
+        if (this.key === '') {
+          values = this.flatValues(await legacy.getAll() as Record<string, LegacyPreferenceValue>)
+        } else if (await legacy.has(this.key)) {
+          values = this.codec.decode(await legacy.get(this.key, '') as LegacyPreferenceValue)
+        }
       }
       records.migrate(values)
     }
@@ -130,7 +147,7 @@ export class MigratedPreferenceRecords {
     return this.readPreparedValue(await this.prepare(context))
   }
 
-  readPreparedValue(records: UserKeyedRecords): string | undefined {
+  readPreparedValue(records: PreferenceColumnRows): string | undefined {
     return this.codec.encode(records.entries())
   }
 
@@ -140,6 +157,7 @@ export class MigratedPreferenceRecords {
 
   async recoverMigratedValue(context: common.Context, value: LegacyPreferenceValue | undefined): Promise<boolean> {
     const records = await this.open(context)
+    if (!records.isMigrated() && records.usesPreviousDatabase()) records.migrate(undefined)
     if (!records.isMigrated()) return false
     // Older prepared checkpoints can precede migration. Only a previously
     // migrated field must be rolled back in the database.
@@ -173,6 +191,7 @@ export class MigratedPreferenceRecords {
   async recoverFlatCheckpoint(context: common.Context, values: Record<string, LegacyPreferenceValue>,
     legacyKeys: string[], recovered: Set<string>): Promise<void> {
     const records = await this.open(context)
+    if (!records.isMigrated() && records.usesPreviousDatabase()) records.migrate(undefined)
     if (!records.isMigrated()) return
     const expected = this.flatValues(values)
     records.replace(expected)

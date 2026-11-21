@@ -18,9 +18,16 @@ const arkdata = {preferences:{async getPreferences(context){
   return {async has(k){return row.has(k)}, async get(k,d){return row.has(k)?row.get(k):d}, async getAll(){return Object.fromEntries(row)}};
  }}};
 arkdata.relationalStore = rdb.relationalStore;
-const database = evaluate(model+'UserDataDatabase.ets',{'@kit.ArkData':arkdata});
 const keyed = evaluate(model+'UserKeyedRecords.ets',{});
+const localRows = evaluate(model+'LocalDataRows.ets',{});
+const readerColumns = evaluate(model+'ReaderPreferenceColumns.ets',{'./LocalDataRows':localRows,'./ReaderDisplaySettings':display});
+const database = evaluate(model+'UserDataDatabase.ets',{'@kit.ArkData':arkdata,'@kit.CoreFileKit':{fileIo:fs},
+ './ReaderPreferenceColumns':readerColumns});
+const updateReports = evaluate(model+'LibraryUpdateReportRows.ets',{'./LocalDataRows':localRows});
+const preferenceRows = evaluate(model+'PreferenceColumnRows.ets',{'./UserDataDatabase':database,'./UserKeyedRecords':keyed,
+ './LocalDataRows':localRows,'./LibraryUpdateReportRows':updateReports,'./ReaderPreferenceColumns':readerColumns});
 const migrations = evaluate(model+'MigratedPreferenceRecords.ets',{'@kit.ArkData':arkdata,'./UserDataDatabase':database,'./UserKeyedRecords':keyed,
+ './PreferenceColumnRows':preferenceRows,
  '../sourceRuntime/SourceSubscriptionStorage':{SOURCE_INDEX_PREFERENCES:'koma_source_package_manager_v1'}});
 const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
  '../deviceSync/DeviceSyncSignals':evaluate('entry/src/main/ets/deviceSync/DeviceSyncSignals.ets',{}),
@@ -132,7 +139,7 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  await store.save(mod.DEFAULT_READER_PREFERENCES);
  const seed=await store.loadForComic('book-B');
  await store.saveChangesForComic('book-B',seed,{...seed,pageMode:'vertical_page'});
- const readRows=()=>rdb.readRows(ctx.filesDir);
+ const readRows=()=>rdb.readReaderPreferences(ctx.filesDir);
  const beforeBookEdit=readRows();
  const aBefore=await store.loadForComic('book-A');
  failCommit();published.length=0;

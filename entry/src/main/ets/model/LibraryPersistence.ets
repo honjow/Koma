@@ -15,7 +15,8 @@ import { MihonImportRecord } from './MihonBackupReader'
 import { LibrarySmartCategory, validateLibrarySmartCategories } from './LibrarySmartCategory'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { common } from '@kit.AbilityKit'
-import { LibraryRdbStorage } from './LibraryRdbStorage'
+import { LibraryMembershipEdit, LibraryRdbStorage, LibraryReadingMetadata, LibraryShelfSyncEdits,
+  LibraryShelfSyncImage } from './LibraryRdbStorage'
 import { openUserDataDatabase } from './UserDataDatabase'
 import {
   Chapter,
@@ -78,18 +79,23 @@ const liveLibraryStorage = new Map<string, LibraryRdbStorage>()
 export async function prepareLiveLibraryStorage(context: common.Context, migrate: boolean): Promise<void> {
   if (liveLibraryStorage.has(context.filesDir)) return
   const storage = new LibraryRdbStorage(await openUserDataDatabase(context))
-  if (!await storage.migrated()) {
-    if (!migrate) return
-    const legacyPath = context.filesDir + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME
+  if (!storage.migrated()) {
+    const previousDatabase = storage.usesPreviousDatabase()
+    if (!previousDatabase && !migrate) return
     try {
-      const raw = await fs.access(legacyPath) ? await fs.readText(legacyPath, { encoding: 'utf-8' }) : undefined
-      const document = raw === undefined ? undefined : parseValidatedLibraryStoreDocument(raw)
+      let document: PersistedLibraryStoreDocument | undefined
+      if (!previousDatabase) {
+        const legacyPath = context.filesDir + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME
+        if (await fs.access(legacyPath)) {
+          document = parseValidatedLibraryStoreDocument(await fs.readText(legacyPath, { encoding: 'utf-8' }))
+        }
+      }
       await storage.migrate(document)
       DiagnosticLogger.info('persistence', 'library_rdb_migrated',
-        'works=' + (document?.comics.length ?? 0) + ' categories=' + (document?.customCategories?.length ?? 0))
+        previousDatabase ? 'source=database' : 'source=legacy_file')
     } catch (error) {
       DiagnosticLogger.exception('persistence', 'library_rdb_migration_failed', error as Error)
-      return
+      throw error as Error
     }
   }
   liveLibraryStorage.set(context.filesDir, storage)
@@ -97,6 +103,54 @@ export async function prepareLiveLibraryStorage(context: common.Context, migrate
 
 export function usesLibraryDatabase(filesDir: string): boolean {
   return liveLibraryStorage.has(filesDir)
+}
+
+export function liveLibraryWriteRevision(filesDir: string): number | undefined {
+  return liveLibraryStorage.get(filesDir)?.currentWriteRevision()
+}
+
+export function readLiveShelfSync(filesDir: string): PersistedLibraryStoreDocument | undefined {
+  const document = liveLibraryStorage.get(filesDir)?.readShelfSync()
+  return document === undefined ? undefined : withLegacyLibraryCategories(document)
+}
+
+export function readLiveShelfSyncWork(filesDir: string, comicId: string): PersistedComic | undefined {
+  return liveLibraryStorage.get(filesDir)?.readWork(comicId, false)
+}
+
+export function writeLiveLibrarySyncEdits(filesDir: string, edits: LibraryShelfSyncEdits, image: LibraryShelfSyncImage): void {
+  const storage = liveLibraryStorage.get(filesDir)
+  if (storage === undefined) throw new Error('shelf_database_unavailable')
+  storage.saveSyncEdits(edits, image)
+}
+
+/** Publish the rows already committed by WebDAV without reopening the library. */
+export function applyLibraryShelfSyncEdits(filesDir: string, library: LibraryStore, edits: LibraryShelfSyncEdits): void {
+  const image = edits.after
+  if (image.categories !== undefined) library.replaceCustomCategories((image.categories ?? []).map(hydrateLibraryCategory))
+  if (image.displayStrategies !== undefined) library.replaceCategoryDisplayStrategies(
+    (image.displayStrategies ?? []).map(hydrateCategoryDisplayStrategy))
+  if (image.smartCategories !== undefined) library.replaceSmartCategories(image.smartCategories ?? [])
+  if (image.moves !== undefined) library.replaceSyncShelfMoves(image.moves ?? [])
+  const changed = new Map<ComicId, PersistedComic>(image.works.map((work: PersistedComic): [ComicId, PersistedComic] => [work.id, work]))
+  const unchangedCatalogs = new Set(edits.unchangedCatalogs)
+  for (const id of edits.comicIds) {
+    const work = changed.get(id)
+    if (work === undefined) {
+      library.removeComic(id)
+    } else if (unchangedCatalogs.has(id)) {
+      const old = library.getComic(id)
+      if (old !== undefined) {
+        const comic = hydrateComic(work)
+        comic.chapters = old.chapters
+        library.upsertComic(comic)
+      } else {
+        const stored = liveLibraryStorage.get(filesDir)?.readWork(id)
+        if (stored !== undefined) library.upsertComic(hydrateComic(stored))
+      }
+    } else library.upsertComic(hydrateComic(work))
+  }
+  if (image.order !== undefined) library.orderComics(image.order)
 }
 
 /** Compatibility snapshot for backup and sync. The old JSON file becomes a read-only migration input. */
@@ -108,6 +162,12 @@ export function readLiveLibrarySnapshot(filesDir: string): string | undefined {
   }
   const path = filesDir + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME
   return fs.accessSync(path) ? fs.readTextSync(path, { encoding: 'utf-8' }) : undefined
+}
+
+export function liveReadingMetadata(filesDir: string, comicId?: string, chapterId?: string): LibraryReadingMetadata[] {
+  const storage = liveLibraryStorage.get(filesDir)
+  if (storage === undefined) throw new Error('reading_shelf_database_unavailable')
+  return storage.readReadingMetadata(comicId, chapterId)
 }
 
 export function writeLiveLibrarySnapshot(filesDir: string, payload?: string): void {
@@ -788,6 +848,11 @@ function assertUniquePersistedCategoryDisplayStrategies(rows: PersistedCategoryD
 
 function parseValidatedLibraryStoreDocument(payload: string): PersistedLibraryStoreDocument {
   const document = JSON.parse(payload) as PersistedLibraryStoreDocument
+  validateLibraryStoreDocument(document)
+  return document
+}
+
+function validateLibraryStoreDocument(document: PersistedLibraryStoreDocument): void {
   assertPersistedObject(document as Object, 'document')
   assertSupportedLibraryStoreDocument(document)
   if (document.customCategories !== undefined && !Array.isArray(document.customCategories)) {
@@ -837,7 +902,6 @@ function parseValidatedLibraryStoreDocument(payload: string): PersistedLibrarySt
       !Array.isArray(row.work.tracking) || !Array.isArray(row.work.genres) || !Array.isArray(row.work.categoryIds)))) {
     throw new Error('Invalid library store persistence mihonImports')
   }
-  return document
 }
 
 export function assertValidLibraryStoreJson(payload: string): void {
@@ -853,7 +917,10 @@ export function libraryStoreBackupPayload(payload: string): string {
 }
 
 export function readLibraryStoreDocument(payload: string): PersistedLibraryStoreDocument {
-  const document = parseValidatedLibraryStoreDocument(payload)
+  return withLegacyLibraryCategories(parseValidatedLibraryStoreDocument(payload))
+}
+
+function withLegacyLibraryCategories(document: PersistedLibraryStoreDocument): PersistedLibraryStoreDocument {
   const categories = document.customCategories ?? []
   const names = new Set<string>(categories.map((category: PersistedLibraryCategory): string => libraryCategoryNameKey(category.name)))
   document.smartCategories?.forEach((category: LibrarySmartCategory): void => {
@@ -883,7 +950,10 @@ export function readLibraryStoreDocument(payload: string): PersistedLibraryStore
 }
 
 export function hydrateLibraryStoreFromJson(libraryStore: LibraryStore, payload: string): void {
-  const document = readLibraryStoreDocument(payload)
+  hydrateLibraryStoreFromDocument(libraryStore, readLibraryStoreDocument(payload))
+}
+
+function hydrateLibraryStoreFromDocument(libraryStore: LibraryStore, document: PersistedLibraryStoreDocument): void {
   const customCategories = document.customCategories === undefined ? [] : document.customCategories.map((row: PersistedLibraryCategory) => {
     return hydrateLibraryCategory(row)
   })
@@ -905,8 +975,11 @@ export function hydrateLibraryStoreFromJson(libraryStore: LibraryStore, payload:
 export interface LibraryStorePersistenceAdapter {
   load(): string | undefined
   save(payload: string): void
+  loadForRestore?(): PersistedLibraryStoreDocument | string | undefined
+  loadWorksForRestore?(comicIds: ComicId[]): PersistedComic[] | undefined
   saveDocument?(document: PersistedLibraryStoreDocument): void
   saveExistingWorks?(comics: PersistedComic[]): boolean
+  saveMemberships?(edits: LibraryMembershipEdit[]): boolean
 }
 
 function joinLibraryPersistencePath(parent: string, child: string): string {
@@ -933,6 +1006,22 @@ export class AppFilesLibraryStorePersistenceAdapter implements LibraryStorePersi
       return undefined
     }
     return fs.readTextSync(this.filePath, { encoding: 'utf-8' })
+  }
+
+  loadForRestore(): PersistedLibraryStoreDocument | string | undefined {
+    const database = this.libraryDirectory === undefined ? undefined : liveLibraryStorage.get(this.libraryDirectory)
+    return database === undefined ? this.load() : database.read()
+  }
+
+  loadWorksForRestore(comicIds: ComicId[]): PersistedComic[] | undefined {
+    const database = this.libraryDirectory === undefined ? undefined : liveLibraryStorage.get(this.libraryDirectory)
+    if (database === undefined) return undefined
+    const works: PersistedComic[] = []
+    comicIds.forEach((id: ComicId): void => {
+      const work = database.readWork(id)
+      if (work !== undefined) works.push(work)
+    })
+    return works
   }
 
   save(payload: string): void {
@@ -963,6 +1052,15 @@ export class AppFilesLibraryStorePersistenceAdapter implements LibraryStorePersi
     signalDeviceSyncChange('shelf')
     return true
   }
+
+  saveMemberships(edits: LibraryMembershipEdit[]): boolean {
+    const database = this.libraryDirectory === undefined ? undefined : liveLibraryStorage.get(this.libraryDirectory)
+    if (database === undefined) return false
+    if (BackupRestoreActivity.hasPendingRecovery()) throw new Error('sync_local_busy')
+    database.saveMemberships(edits)
+    signalDeviceSyncChange('shelf')
+    return true
+  }
 }
 
 export class LibraryStorePersistenceService {
@@ -975,11 +1073,15 @@ export class LibraryStorePersistenceService {
   }
 
   restore(): void {
-    const payload = this.adapter.load()
-    if (payload === undefined || payload.length === 0) {
-      return
+    const saved = this.adapter.loadForRestore === undefined ? this.adapter.load() : this.adapter.loadForRestore()
+    if (typeof saved === 'string') {
+      if (saved.length > 0) hydrateLibraryStoreFromJson(this.libraryStore, saved)
+    } else if (saved !== undefined) {
+      // Normal RDB reads consume the decoded rows directly. The exchange
+      // format stays at backup, legacy file, and sync boundaries.
+      validateLibraryStoreDocument(saved)
+      hydrateLibraryStoreFromDocument(this.libraryStore, withLegacyLibraryCategories(saved))
     }
-    hydrateLibraryStoreFromJson(this.libraryStore, payload)
   }
 
   persist(): void {
@@ -1000,6 +1102,29 @@ export class LibraryStorePersistenceService {
     if (this.adapter.saveExistingWorks?.(comics.map((comic: Comic): PersistedComic => persistComic(comic))) !== true) {
       this.persist()
     }
+  }
+
+  restoreFailedWorkUpdates(previous: Comic[]): void {
+    // Remote checks can span local edits. After a rolled-back transaction,
+    // the still-committed rows include edits saved during the network requests.
+    const saved = this.adapter.loadWorksForRestore?.(previous.map((comic: Comic): ComicId => comic.id))
+    if (saved === undefined) {
+      previous.forEach((comic: Comic): void => { this.libraryStore.upsertComic(comic) })
+      return
+    }
+    const byId = new Map<ComicId, PersistedComic>(saved.map((comic: PersistedComic): [ComicId, PersistedComic] => [comic.id, comic]))
+    previous.forEach((comic: Comic): void => {
+      const restored = byId.get(comic.id)
+      if (restored === undefined) this.libraryStore.removeComic(comic.id)
+      else this.libraryStore.upsertComic(hydrateComic(restored))
+    })
+  }
+
+  persistMemberships(comics: Comic[]): void {
+    const edits = comics.map((comic: Comic): LibraryMembershipEdit => ({
+      comicId: comic.id, categoryIds: comic.categoryIds, updatedAt: comic.updatedAt,
+    }))
+    if (this.adapter.saveMemberships?.(edits) !== true) this.persistExistingWorks(comics)
   }
 }
 
@@ -1489,7 +1614,7 @@ export function editComicCategoriesAndPersistLibraryStore(
   edits.forEach((comic: Comic): void => { libraryStore.upsertComic(comic) })
   if (persistenceService === undefined) return edits.length
   try {
-    persistenceService.persistExistingWorks(edits)
+    persistenceService.persistMemberships(edits)
     signalDeviceSyncLibrary(syncEdits)
     return edits.length
   } catch (error) {

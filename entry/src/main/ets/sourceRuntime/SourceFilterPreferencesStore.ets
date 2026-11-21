@@ -389,7 +389,7 @@ export class SourceFilterPreferencesStore {
     if (!this.isConfigured()) return
     const database = sourceFilterPersistence.database(this.storagePath)
     if (database !== undefined) {
-      database.put(id, value === undefined ? undefined : JSON.stringify(value))
+      database.put(id, value)
       return
     }
     const current = this.readDocument()

@@ -3,11 +3,12 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
-const { DatabaseSync } = require('node:sqlite')
+const { createRdbPort } = require('./user_data_rdb_fixture.cjs')
 const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
   '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const root = path.resolve(__dirname, '../entry/src/main/ets/model')
 const modules = new Map()
+const historyRdb = createRdbPort()
 function load(name) {
   if (modules.has(name)) return modules.get(name)
   const exports = {}
@@ -16,9 +17,10 @@ function load(name) {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020,
   } }).outputText
   vm.runInNewContext(code, { exports, ObservedV2: value => value, Trace() {}, require: dependency => {
+    if (dependency === '@kit.ArkTS') return { taskpool: { execute: async (worker, ...args) => worker(...args) } }
     if (dependency === '@kit.ArkData') return {
       preferences: { getPreferences: async () => prefs },
-      relationalStore: { SecurityLevel: { S3: 3 }, getRdbStore: async () => database },
+      relationalStore: historyRdb.relationalStore,
     }
     if (dependency === '../deviceSync/DeviceSyncSignals') return { signalDeviceSyncChange() {}, signalDeviceSyncSearchRemoved() {} }
     if (dependency === '../deviceSync/DeviceSyncData') return { syncSearchIdentity: value => value }
@@ -107,36 +109,14 @@ const prefs = {
   flush: async () => {},
   delete: async key => persisted.delete(key),
 }
-const sqlite = new DatabaseSync(':memory:')
-let failCommit = false
-const database = {
-  version: 0,
-  executeSync: (sql, args = []) => sqlite.prepare(sql).run(...args),
-  execute: async (sql, args = []) => database.executeSync(sql, args),
-  querySql: async (sql, args = []) => {
-    const rows = sqlite.prepare(sql).all(...args).map(row => Object.values(row))
-    let index = -1
-    return {
-      goToNextRow: () => ++index < rows.length,
-      getString: column => rows[index][column],
-      getLong: column => rows[index][column],
-      isColumnNull: column => rows[index][column] === null,
-      close() {},
-    }
-  },
-  beginTransaction: () => sqlite.exec('BEGIN'),
-  commit: () => {
-    if (failCommit) { failCommit = false; throw Error('fixture save failure') }
-    sqlite.exec('COMMIT')
-  },
-  rollBack: () => sqlite.exec('ROLLBACK'),
-}
 async function historyScope() {
   const { SearchHistoryStore, SEARCH_HISTORY_QUERIES_KEY, SEARCH_SOURCE_FILTER_KEY } = load('SearchHistoryStore')
   persisted.set(SEARCH_HISTORY_QUERIES_KEY, JSON.stringify([{ query: 'legacy', updatedAt: 1 }]))
   persisted.set(SEARCH_SOURCE_FILTER_KEY, 'private')
-  const store = new SearchHistoryStore({ filesDir: '/fixture/library-search' })
-  failCommit = true
+  const context = { filesDir: '/fixture/library-search' }
+  await load('UserDataDatabase').openUserDataDatabase(context)
+  const store = new SearchHistoryStore(context)
+  historyRdb.failNextCommit('fixture save failure')
   await assert.rejects(store.load(), /fixture save failure/)
   assert.deepEqual(plain(await store.load()), [{ query: 'legacy', updatedAt: 1 }])
   await store.record('', { sourceFilter: 'local', librarySource: { key: 'source:a', name: '漫画160' } })
@@ -152,7 +132,7 @@ async function historyScope() {
   await fresh.remove(removed.query, removed)
   assert.equal((await fresh.load()).filter(e => e.query === 'alpha').length, 1)
   const beforeFailure = await fresh.captureDeviceSyncPayload()
-  failCommit = true
+  historyRdb.failNextCommit('fixture save failure')
   await assert.rejects(fresh.record('failed', { sourceFilter: 'local' }))
   assert.equal(await fresh.captureDeviceSyncPayload(), beforeFailure)
   await fresh.clear()

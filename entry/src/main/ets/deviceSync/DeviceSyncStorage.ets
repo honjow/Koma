@@ -123,6 +123,8 @@ export interface SyncCommitIntent {
   staged?: SyncGroupState[]
 }
 
+export const DATABASE_READING_REVISION_PREFIX = 'reading-rdb:'
+
 export interface SyncOwnerRevision {
   group: SyncGroup
   revision: string

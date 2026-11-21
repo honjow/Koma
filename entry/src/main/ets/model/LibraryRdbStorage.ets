@@ -1,187 +1,285 @@
 import { relationalStore } from '@kit.ArkData'
-import { PersistedChapter, PersistedComic, PersistedLibraryStoreDocument, PersistedLibraryCategory,
-  PersistedCategoryDisplayStrategy } from './LibraryPersistence'
-import { LibrarySmartCategory } from './LibrarySmartCategory'
-import { SyncLocalShelfMove } from '../deviceSync/DeviceSyncSignals'
-import { MihonImportRecord } from './MihonBackupReader'
+import type { PersistedCategoryDisplayStrategy, PersistedChapter, PersistedComic, PersistedLibraryCategory,
+  PersistedLibraryStoreDocument, PersistedPage } from './LibraryPersistence'
+import type { LibrarySmartCategory } from './LibrarySmartCategory'
+import type { SyncLocalShelfMove } from '../deviceSync/DeviceSyncSignals'
+import type { MihonImportRecord } from './MihonBackupReader'
+import { shelfChapters, shelfPages, shelfWorks, ShelfChapterRow, ShelfPageRow, ShelfWorkRow } from './LibraryCoreRows'
+import { appendMetadataItem, appendPageContent, metadataItems, metadataRow, shelfMemberships, shelfMetadataLists,
+  shelfPageBalloons, shelfPageKey, shelfPageLines, ShelfMembershipRow, ShelfPageBalloon, ShelfPageLine, ShelfWorkListValue, ShelfWorkMetadata } from './LibraryRelations'
+import { orderShelfRows, readShelfMoves, readSmartCategories, shelfCategories, shelfCollectionRow, shelfCollections,
+  shelfDisplayStrategies, shelfMoveCategories, shelfMoveCategoryRows, shelfMoves, shelfSmartCategories, shelfSmartFilters,
+  smartFilterRows } from './LibraryListRows'
+import { readMihonImports, ShelfMihonImports } from './LibraryMihonRows'
+import { collectLocalRows, textColumn } from './LocalDataRows'
+import { hasUserDataMigration } from './UserDataDatabase'
+import { writeUserRecords } from './UserKeyedRecords'
 
-const MIGRATION_NAME = 'library-from-json-v1'
-const CATEGORY_LIST = 'categories'
-const DISPLAY_LIST = 'display'
-const SMART_LIST = 'smart'
-const IMPORT_LIST = 'mihon'
-const MOVE_LIST = 'moves'
-const CATEGORY_MASK = 1
-const DISPLAY_MASK = 2
-const SMART_MASK = 4
-const IMPORT_MASK = 8
-const MOVE_MASK = 16
+const OLD_MIGRATION = 'library-from-json-v1'
+const MIGRATION = 'library-relational-v1'
+const LIST_MASK_CATEGORIES = 1
+const LIST_MASK_DISPLAY = 2
+const LIST_MASK_SMART = 4
+const LIST_MASK_MIHON = 8
+const LIST_MASK_MOVES = 16
 
-const WORK_UPSERT = 'INSERT INTO library_works (id, list_order, payload, has_categories) VALUES (?, ?, ?, ?) ' +
-  'ON CONFLICT(id) DO UPDATE SET list_order=excluded.list_order, payload=excluded.payload, has_categories=excluded.has_categories'
-
-interface LibraryWorkRow {
-  id: string
-  order: number
-  payload: string
-  chapters: string[]
-  categories: string[] | undefined
+export interface LibraryReadingMetadata {
+  comicId: string
+  source: string
+  work: string
+  title?: string
+  sourceName?: string
+  path?: string
+  cover?: string
+  chapterId?: string
+  chapterTitle?: string
 }
 
-interface LibraryList {
-  kind: string
-  rows: string[]
+export interface LibraryMembershipEdit {
+  comicId: string
+  categoryIds?: string[]
+  updatedAt: number
 }
 
-function workRow(comic: PersistedComic, order: number): LibraryWorkRow {
-  // Chapter descriptors and category memberships each have their own rows.
-  const metadata: PersistedComic = {
-    id: comic.id, title: comic.title, subtitle: comic.subtitle, author: comic.author,
-    sourceKind: comic.sourceKind, sourcePath: comic.sourcePath, sourceRuntimeId: comic.sourceRuntimeId,
-    remoteServerId: comic.remoteServerId, remoteResourceId: comic.remoteResourceId, coverUri: comic.coverUri,
-    personalNotes: comic.personalNotes, customCoverUri: comic.customCoverUri, sourceCoverUri: comic.sourceCoverUri,
-    updateSchedule: comic.updateSchedule, localMetadata: comic.localMetadata,
-    localImportOrigin: comic.localImportOrigin, sourceMetadata: comic.sourceMetadata,
-    sortTitle: comic.sortTitle, preferredDirection: comic.preferredDirection, chapters: [],
-    chapterCount: comic.chapterCount, pageCount: comic.pageCount, createdAt: comic.createdAt,
-    updatedAt: comic.updatedAt, lastImportedAt: comic.lastImportedAt,
-  }
-  return {
-    id: comic.id, order, payload: JSON.stringify(metadata), categories: comic.categoryIds,
-    chapters: comic.chapters.map((chapter: PersistedChapter): string => JSON.stringify(chapter)),
-  }
+// Undefined leaves an existing collection alone. Null is an absent collection,
+// which must remain distinct from an explicitly empty collection on recovery.
+export interface LibraryShelfSyncImage {
+  present: boolean
+  works: PersistedComic[]
+  order?: string[]
+  categories?: PersistedLibraryCategory[] | null
+  displayStrategies?: PersistedCategoryDisplayStrategy[] | null
+  smartCategories?: LibrarySmartCategory[] | null
+  moves?: SyncLocalShelfMove[] | null
 }
 
-function encodeList<T>(kind: string, values: T[] | undefined): LibraryList {
-  return { kind, rows: (values ?? []).map((row: T): string => JSON.stringify(row)) }
+export interface LibraryShelfSyncEdits {
+  comicIds: string[]
+  unchangedCatalogs: string[]
+  before: LibraryShelfSyncImage
+  after: LibraryShelfSyncImage
 }
 
-function collectLists(document: PersistedLibraryStoreDocument): LibraryList[] {
-  return [
-    encodeList(CATEGORY_LIST, document.customCategories), encodeList(DISPLAY_LIST, document.categoryDisplayStrategies),
-    encodeList(SMART_LIST, document.smartCategories), encodeList(IMPORT_LIST, document.mihonImports),
-    encodeList(MOVE_LIST, document.syncShelfMoves),
-  ]
+function addToGroup<T>(groups: Map<string, T[]>, key: string, record: T): void {
+  const rows = groups.get(key)
+  if (rows === undefined) groups.set(key, [record])
+  else rows.push(record)
 }
 
-function listMask(document: PersistedLibraryStoreDocument): number {
-  return (document.customCategories === undefined ? 0 : CATEGORY_MASK) |
-    (document.categoryDisplayStrategies === undefined ? 0 : DISPLAY_MASK) |
-    (document.smartCategories === undefined ? 0 : SMART_MASK) | (document.mihonImports === undefined ? 0 : IMPORT_MASK) |
-    (document.syncShelfMoves === undefined ? 0 : MOVE_MASK)
-}
-
-function keyValues(result: relationalStore.ResultSet): Map<string, string[]> {
-  const rows = new Map<string, string[]>()
+function legacyGroup(rows: relationalStore.ResultSet): Map<string, string[]> {
+  const groups = new Map<string, string[]>()
   try {
-    while (result.goToNextRow()) {
-      const key = result.getString(0)
-      let values = rows.get(key)
-      if (values === undefined) {
-        values = []
-        rows.set(key, values)
-      }
-      values.push(result.getString(1))
-    }
-    return rows
+    while (rows.goToNextRow()) addToGroup(groups, rows.getString(0), rows.getString(1))
   } finally {
-    result.close()
+    rows.close()
   }
+  return groups
 }
 
-const CHAPTER_QUERY = 'SELECT comic_id, payload FROM library_chapters ORDER BY comic_id, list_order'
-const MEMBER_QUERY = 'SELECT comic_id, category_id FROM library_memberships ORDER BY comic_id, list_order'
-const LIST_QUERY = 'SELECT kind, payload FROM library_lists ORDER BY kind, list_order'
-const WORK_QUERY = 'SELECT id, list_order, payload, has_categories FROM library_works ORDER BY list_order'
-const DOCUMENT_QUERY = 'SELECT list_mask FROM library_document WHERE id = 1'
-
-function readWorkRows(result: relationalStore.ResultSet, chapters: Map<string, string[]>,
-  categories: Map<string, string[]>): Map<string, LibraryWorkRow> {
-  const rows = new Map<string, LibraryWorkRow>()
-  try {
-    while (result.goToNextRow()) {
-      const id = result.getString(0)
-      rows.set(id, { id, order: result.getLong(1), payload: result.getString(2),
-        chapters: chapters.get(id) ?? [], categories: result.getLong(3) === 0 ? undefined : categories.get(id) ?? [] })
-    }
-    return rows
-  } finally {
-    result.close()
-  }
-}
-
-function parseList<T>(values: string[] | undefined): T[] {
+function decodeLegacyList<T>(values: string[] | undefined): T[] {
   return (values ?? []).map((value: string): T => JSON.parse(value) as T)
 }
 
-function assembleDocument(mask: number, works: Map<string, LibraryWorkRow>,
-  lists: Map<string, string[]>): PersistedLibraryStoreDocument {
-  const comics: PersistedComic[] = []
-  works.forEach((work: LibraryWorkRow): void => {
-    const comic = JSON.parse(work.payload) as PersistedComic
-    comic.chapters = parseList<PersistedChapter>(work.chapters)
-    comic.categoryIds = work.categories
-    comics.push(comic)
-  })
-  return { schemaVersion: 1, comics,
-    customCategories: (mask & CATEGORY_MASK) !== 0 ? parseList<PersistedLibraryCategory>(lists.get(CATEGORY_LIST)) : undefined,
-    categoryDisplayStrategies: (mask & DISPLAY_MASK) !== 0
-      ? parseList<PersistedCategoryDisplayStrategy>(lists.get(DISPLAY_LIST)) : undefined,
-    smartCategories: (mask & SMART_MASK) !== 0 ? parseList<LibrarySmartCategory>(lists.get(SMART_LIST)) : undefined,
-    mihonImports: (mask & IMPORT_MASK) !== 0 ? parseList<MihonImportRecord>(lists.get(IMPORT_LIST)) : undefined,
-    syncShelfMoves: (mask & MOVE_MASK) !== 0 ? parseList<SyncLocalShelfMove>(lists.get(MOVE_LIST)) : undefined,
-  }
-}
-
-function readMask(result: relationalStore.ResultSet): number {
+async function oldShelf(transaction: relationalStore.Transaction): Promise<PersistedLibraryStoreDocument | undefined> {
+  const header = await transaction.querySql('SELECT list_mask FROM library_document WHERE id = 1')
+  let mask = -1
   try {
-    return result.goToNextRow() ? result.getLong(0) : -1
+    if (header.goToNextRow()) mask = header.getLong(0)
   } finally {
-    result.close()
+    header.close()
+  }
+  if (mask < 0) return undefined
+  const chapters = legacyGroup(await transaction.querySql(
+    'SELECT comic_id, payload FROM library_chapters ORDER BY comic_id, list_order'))
+  const memberships = legacyGroup(await transaction.querySql(
+    'SELECT comic_id, category_id FROM library_memberships ORDER BY comic_id, list_order'))
+  const lists = legacyGroup(await transaction.querySql('SELECT kind, payload FROM library_lists ORDER BY kind, list_order'))
+  const works = collectLocalRows(await transaction.querySql(
+    'SELECT id, payload, has_categories FROM library_works ORDER BY list_order'), (row: relationalStore.ResultSet): PersistedComic => {
+    const id = row.getString(0)
+    const work = JSON.parse(row.getString(1)) as PersistedComic
+    work.chapters = decodeLegacyList<PersistedChapter>(chapters.get(id))
+    work.categoryIds = row.getLong(2) === 0 ? undefined : memberships.get(id) ?? []
+    return work
+  })
+  return { schemaVersion: 1, comics: works,
+    customCategories: (mask & LIST_MASK_CATEGORIES) === 0 ? undefined :
+      decodeLegacyList<PersistedLibraryCategory>(lists.get('categories')),
+    categoryDisplayStrategies: (mask & LIST_MASK_DISPLAY) === 0 ? undefined :
+      decodeLegacyList<PersistedCategoryDisplayStrategy>(lists.get('display')),
+    smartCategories: (mask & LIST_MASK_SMART) === 0 ? undefined : decodeLegacyList<LibrarySmartCategory>(lists.get('smart')),
+    mihonImports: (mask & LIST_MASK_MIHON) === 0 ? undefined : decodeLegacyList<MihonImportRecord>(lists.get('mihon')),
+    syncShelfMoves: (mask & LIST_MASK_MOVES) === 0 ? undefined : decodeLegacyList<SyncLocalShelfMove>(lists.get('moves')),
   }
 }
 
-const UPSERT_DOCUMENT = 'INSERT INTO library_document (id, list_mask) VALUES (1, ?) ' +
-  'ON CONFLICT(id) DO UPDATE SET list_mask=excluded.list_mask'
+function allocateOccurrence(occurrences: Map<string, number>, id: string): number {
+  const count = occurrences.get(id) ?? 0
+  occurrences.set(id, count + 1)
+  return count
+}
 
-/** RDB owns the live shelf. Snapshots are exchanged at the existing backup and WebDAV boundaries. */
+function membershipRows(comicId: string, categoryIds?: string[]): ShelfMembershipRow[] {
+  const occurrences = new Map<string, number>()
+  return (categoryIds ?? []).map((categoryId: string, order: number): ShelfMembershipRow =>
+    ({ comicId, categoryId, order, occurrence: allocateOccurrence(occurrences, categoryId) }))
+}
+
+function chapterKey(comicId: string, chapterId: string, occurrence: number): string {
+  return JSON.stringify([comicId, chapterId, occurrence])
+}
+
+class ShelfWorkRows {
+  private readonly works: ShelfWorkRow[] = []
+  private readonly chapters: ShelfChapterRow[] = []
+  private readonly pages: ShelfPageRow[] = []
+  private readonly members: ShelfMembershipRow[] = []
+  private readonly metadataList: ShelfWorkListValue[] = []
+  private readonly lines: ShelfPageLine[] = []
+  private readonly balloons: ShelfPageBalloon[] = []
+
+  constructor(works: PersistedComic[], existingOrder?: number) {
+    const ids = new Set<string>()
+    works.forEach((work: PersistedComic, order: number): void => {
+      if (ids.has(work.id)) throw new Error('library_duplicate_work')
+      ids.add(work.id)
+      this.works.push({ work, order: existingOrder ?? order, hasCategories: work.categoryIds !== undefined })
+      const metadata = metadataRow(work)
+      metadataItems(metadata, this.metadataList)
+      this.members.push(...membershipRows(work.id, work.categoryIds))
+      const chapters = new Map<string, number>()
+      work.chapters.forEach((chapter: PersistedChapter, index: number): void => {
+        // Older snapshots may repeat a chapter ID. The occurrence within
+        // that ID preserves those rows without using catalog position as identity.
+        const occurrence = allocateOccurrence(chapters, chapter.id)
+        this.chapters.push({ ownerId: work.id, chapter, occurrence, order: index })
+        const pages = new Map<string, number>()
+        chapter.pages.forEach((page: PersistedPage, position: number): void => {
+          const row: ShelfPageRow = { ownerId: work.id, ownerChapterId: chapter.id, chapterOccurrence: occurrence,
+            page, occurrence: allocateOccurrence(pages, page.id), order: position }
+          this.pages.push(row)
+          appendPageContent(row, this.lines, this.balloons)
+        })
+      })
+    })
+  }
+
+  async importRows(transaction: relationalStore.Transaction): Promise<void> {
+    await shelfWorks.importRows(transaction, this.works)
+    await shelfMetadataLists.importRows(transaction, this.metadataList)
+    await shelfMemberships.importRows(transaction, this.members)
+    await shelfChapters.importRows(transaction, this.chapters)
+    await shelfPages.importRows(transaction, this.pages)
+    await shelfPageLines.importRows(transaction, this.lines)
+    await shelfPageBalloons.importRows(transaction, this.balloons)
+  }
+
+  replace(store: relationalStore.RdbStore, comicId?: string, replaceCatalog: boolean = true): void {
+    const scope = comicId === undefined ? undefined : 'comic_id'
+    shelfWorks.replace(store, this.works, scope, comicId)
+    shelfMetadataLists.replace(store, this.metadataList, scope, comicId)
+    shelfMemberships.replace(store, this.members, scope, comicId)
+    if (!replaceCatalog) return
+    shelfChapters.replace(store, this.chapters, scope, comicId)
+    shelfPages.replace(store, this.pages, scope, comicId)
+    shelfPageLines.replace(store, this.lines, scope, comicId)
+    shelfPageBalloons.replace(store, this.balloons, scope, comicId)
+  }
+}
+
+function readWorkCatalogs(store: relationalStore.RdbStore, where?: string, args?: string[]): Map<string, PersistedChapter[]> {
+  const pages = new Map<string, PersistedPage[]>()
+  const byPage = new Map<string, PersistedPage>()
+  for (const row of shelfPages.read(store, where, args)) {
+    const key = shelfPageKey(row.ownerId, row.ownerChapterId, row.chapterOccurrence, row.page.id, row.occurrence)
+    byPage.set(key, row.page)
+    addToGroup(pages, chapterKey(row.ownerId, row.ownerChapterId, row.chapterOccurrence), row.page)
+  }
+  for (const row of shelfPageLines.read(store, where, args)) {
+    byPage.get(shelfPageKey(row.comicId, row.chapterId, row.chapterOccurrence, row.pageId, row.pageOccurrence))
+      ?.sourceText?.paragraphs.push(row.text)
+  }
+  for (const row of shelfPageBalloons.read(store, where, args)) {
+    byPage.get(shelfPageKey(row.comicId, row.chapterId, row.chapterOccurrence, row.pageId, row.pageOccurrence))
+      ?.sourceTextOverlay?.balloons.push(row.balloon)
+  }
+  const chapters = new Map<string, PersistedChapter[]>()
+  for (const row of shelfChapters.read(store, where, args)) {
+    row.chapter.pages = pages.get(chapterKey(row.ownerId, row.chapter.id, row.occurrence)) ?? []
+    addToGroup(chapters, row.ownerId, row.chapter)
+  }
+  return chapters
+}
+
+function readWorks(store: relationalStore.RdbStore, comicId?: string, catalog: boolean = true): PersistedComic[] {
+  const where = comicId === undefined ? undefined : 'comic_id = ?'
+  const args = comicId === undefined ? undefined : [comicId]
+  const chapters = catalog ? readWorkCatalogs(store, where, args) : undefined
+  const memberships = new Map<string, string[]>()
+  for (const row of shelfMemberships.read(store, where, args)) addToGroup(memberships, row.comicId, row.categoryId)
+  const workRows = shelfWorks.read(store, where, args)
+  const details = new Map<string, ShelfWorkMetadata>()
+  for (const row of workRows) details.set(row.work.id, metadataRow(row.work))
+  for (const item of shelfMetadataLists.read(store, where, args)) {
+    const owner = details.get(item.comicId)
+    if (owner !== undefined) appendMetadataItem(owner, item)
+  }
+  return workRows.map((row: ShelfWorkRow): PersistedComic => {
+    const work = row.work
+    work.chapters = chapters?.get(work.id) ?? []
+    work.categoryIds = row.hasCategories ? memberships.get(work.id) ?? [] : undefined
+    return work
+  })
+}
+
+async function hasMarker(transaction: relationalStore.Transaction, marker: string): Promise<boolean> {
+  const rows = await transaction.querySql('SELECT name FROM local_data_migrations WHERE name = ?', [marker])
+  try {
+    return rows.goToNextRow()
+  } finally {
+    rows.close()
+  }
+}
+
+/** Durable shelf columns back normal mutations; compatibility snapshots remain at existing callers. */
 export class LibraryRdbStorage {
   private readonly store: relationalStore.RdbStore
+  private writeRevision: number = 0
 
   constructor(store: relationalStore.RdbStore) {
     this.store = store
   }
 
-  async migrated(): Promise<boolean> {
-    const result = await this.store.querySql('SELECT name FROM local_data_migrations WHERE name = ?', [MIGRATION_NAME])
-    try {
-      return result.goToNextRow()
-    } finally {
-      result.close()
-    }
+  currentWriteRevision(): number {
+    return this.writeRevision
   }
 
-  async migrate(document: PersistedLibraryStoreDocument | undefined): Promise<void> {
-    const transaction = await this.store.createTransaction()
+  migrated(): boolean {
+    return hasUserDataMigration(this.store, MIGRATION)
+  }
+
+  usesPreviousDatabase(): boolean {
+    return hasUserDataMigration(this.store, OLD_MIGRATION)
+  }
+
+  async migrate(legacy?: PersistedLibraryStoreDocument): Promise<void> {
+    const transaction = await this.store.createTransaction({ transactionType: relationalStore.TransactionType.IMMEDIATE })
     try {
-      if (document !== undefined) {
-        await transaction.execute(UPSERT_DOCUMENT, [listMask(document)])
-        const works = new Set<string>()
-        for (let index = 0; index < document.comics.length; index += 1) {
-          const row = workRow(document.comics[index], index)
-          if (works.has(row.id)) throw new Error('library_legacy_duplicate_work')
-          works.add(row.id)
-          await transaction.execute(WORK_UPSERT, [row.id, row.order, row.payload, row.categories === undefined ? 0 : 1])
-          await this.insertRows(transaction, 'library_chapters', 'comic_id', 'payload', row.id, row.chapters)
-          if (row.categories !== undefined) {
-            await this.insertRows(transaction, 'library_memberships', 'comic_id', 'category_id', row.id, row.categories)
-          }
+      if (!await hasMarker(transaction, MIGRATION)) {
+        const document = await hasMarker(transaction, OLD_MIGRATION) ? await oldShelf(transaction) : legacy
+        if (document !== undefined) {
+          await new ShelfWorkRows(document.comics).importRows(transaction)
+          await shelfCategories.importRows(transaction, orderShelfRows(document.customCategories))
+          await shelfDisplayStrategies.importRows(transaction, orderShelfRows(document.categoryDisplayStrategies))
+          await shelfSmartCategories.importRows(transaction, orderShelfRows(document.smartCategories))
+          await shelfSmartFilters.importRows(transaction, smartFilterRows(document.smartCategories))
+          await shelfMoves.importRows(transaction, orderShelfRows(document.syncShelfMoves))
+          await shelfMoveCategories.importRows(transaction, shelfMoveCategoryRows(document.syncShelfMoves))
+          await new ShelfMihonImports(document.mihonImports ?? []).importRows(transaction)
+          await shelfCollections.importRows(transaction, [shelfCollectionRow(document)])
         }
-        for (const list of collectLists(document)) {
-          await this.insertRows(transaction, 'library_lists', 'kind', 'payload', list.kind, list.rows)
-        }
+        await transaction.execute('INSERT INTO local_data_migrations (name) VALUES (?)', [MIGRATION])
       }
-      await transaction.execute('INSERT INTO local_data_migrations (name) VALUES (?)', [MIGRATION_NAME])
       await transaction.commit()
     } catch (error) {
       await transaction.rollback()
@@ -189,115 +287,163 @@ export class LibraryRdbStorage {
     }
   }
 
-  private async insertRows(transaction: relationalStore.Transaction, table: string, keyColumn: string, valueColumn: string,
-    key: string, values: string[]): Promise<void> {
-    for (let start = 0; start < values.length; start += 128) {
-      const end = Math.min(start + 128, values.length)
-      const placeholders: string[] = []
-      const args: relationalStore.ValueType[] = []
-      for (let index = start; index < end; index += 1) {
-        placeholders.push('(?, ?, ?)')
-        args.push(key, index, values[index])
-      }
-      await transaction.execute('INSERT INTO ' + table + ' (' + keyColumn + ', list_order, ' + valueColumn +
-        ') VALUES ' + placeholders.join(', '), args)
-    }
-  }
-
   read(): PersistedLibraryStoreDocument | undefined {
-    const mask = readMask(this.store.querySqlSync(DOCUMENT_QUERY))
-    if (mask < 0) return undefined
-    const works = this.readWorks()
-    return assembleDocument(mask, works, keyValues(this.store.querySqlSync(LIST_QUERY)))
+    return this.readDocument(true)
   }
 
-  private readWorks(): Map<string, LibraryWorkRow> {
-    const chapters = keyValues(this.store.querySqlSync(CHAPTER_QUERY))
-    const categories = keyValues(this.store.querySqlSync(MEMBER_QUERY))
-    return readWorkRows(this.store.querySqlSync(WORK_QUERY), chapters, categories)
+  /** WebDAV shares chapter identities from work metadata. Local chapter and
+   * page rows and Mihon originals belong to the device and backup. */
+  readShelfSync(): PersistedLibraryStoreDocument | undefined {
+    return this.readDocument(false)
   }
 
-  /** Use one synchronous transaction to keep existing in-memory rollback and revision fences valid. */
+  private readDocument(catalog: boolean): PersistedLibraryStoreDocument | undefined {
+    const header = shelfCollections.read(this.store)[0]
+    if (header === undefined) return undefined
+    return { schemaVersion: 1, comics: readWorks(this.store, undefined, catalog),
+      customCategories: header.categories ? shelfCategories.read(this.store).map(row => row.entry) : undefined,
+      categoryDisplayStrategies: header.display ? shelfDisplayStrategies.read(this.store).map(row => row.entry) : undefined,
+      smartCategories: header.smart ? readSmartCategories(this.store) : undefined,
+      mihonImports: catalog && header.mihon ? readMihonImports(this.store) : undefined,
+      syncShelfMoves: header.moves ? readShelfMoves(this.store) : undefined,
+    }
+  }
+
+  readWork(comicId: string, catalog: boolean = true): PersistedComic | undefined {
+    return readWorks(this.store, comicId, catalog)[0]
+  }
+
+  /** Reading sync joins only its work identifiers and the saved chapter's label.
+   * Opening the reader or recording progress must never reconstruct the shelf. */
+  readReadingMetadata(comicId?: string, chapterId?: string): LibraryReadingMetadata[] {
+    const scope = comicId === undefined
+      ? '(SELECT comic_id FROM reader_current_positions UNION SELECT comic_id FROM reader_chapter_states)'
+      : '(SELECT ? AS comic_id)'
+    const chapter = chapterId === undefined ? 'p.chapter_id' : '?'
+    const args: string[] = []
+    if (chapterId !== undefined) args.push(chapterId)
+    if (comicId !== undefined) args.push(comicId)
+    // Occurrence zero is the first title in older catalogs with duplicate IDs.
+    const rows = this.store.querySqlSync('SELECT work.*, (SELECT c.title FROM shelf_chapters c ' +
+      'WHERE c.comic_id = work.comic_id AND c.chapter_id = work.saved_chapter AND c.chapter_occurrence = 0) ' +
+      'FROM (SELECT w.comic_id, w.source_runtime_id, w.remote_resource_id, w.title, ' +
+      'CASE WHEN w.has_source_metadata != 0 THEN w.source_name END, w.source_path, ' +
+      'COALESCE(w.source_cover_uri, CASE WHEN w.custom_cover_uri IS NULL THEN w.cover_uri END), ' +
+      chapter + ' AS saved_chapter ' +
+      'FROM ' + scope + ' r CROSS JOIN shelf_works w ON w.comic_id = r.comic_id ' +
+      'LEFT JOIN reader_current_positions p ON p.comic_id = w.comic_id ' +
+      'WHERE w.source_runtime_id IS NOT NULL AND w.remote_resource_id IS NOT NULL) work ORDER BY work.comic_id', args)
+    return collectLocalRows(rows, (row: relationalStore.ResultSet): LibraryReadingMetadata => ({
+      comicId: row.getString(0), source: row.getString(1), work: row.getString(2), title: textColumn(row, 3),
+      sourceName: textColumn(row, 4), path: textColumn(row, 5), cover: textColumn(row, 6),
+      chapterId: textColumn(row, 7), chapterTitle: textColumn(row, 8),
+    }))
+  }
+
   save(document: PersistedLibraryStoreDocument | undefined): void {
-    this.store.beginTransaction()
+    writeUserRecords(this.store, (): void => {
+      new ShelfWorkRows(document?.comics ?? []).replace(this.store)
+      shelfCategories.replace(this.store, orderShelfRows(document?.customCategories))
+      shelfDisplayStrategies.replace(this.store, orderShelfRows(document?.categoryDisplayStrategies))
+      shelfSmartCategories.replace(this.store, orderShelfRows(document?.smartCategories))
+      shelfSmartFilters.replace(this.store, smartFilterRows(document?.smartCategories))
+      shelfMoves.replace(this.store, orderShelfRows(document?.syncShelfMoves))
+      shelfMoveCategories.replace(this.store, shelfMoveCategoryRows(document?.syncShelfMoves))
+      new ShelfMihonImports(document?.mihonImports ?? []).replace(this.store)
+      shelfCollections.replace(this.store, document === undefined ? [] : [shelfCollectionRow(document)])
+    })
+    this.writeRevision += 1
+  }
+
+  private existingWorkOrder(comicId: string): number {
+    const result = this.store.querySqlSync('SELECT list_order FROM shelf_works WHERE comic_id = ?', [comicId])
     try {
-      if (document === undefined) {
-        this.store.executeSync('DELETE FROM library_chapters')
-        this.store.executeSync('DELETE FROM library_memberships')
-        this.store.executeSync('DELETE FROM library_works')
-        this.store.executeSync('DELETE FROM library_lists')
-        this.store.executeSync('DELETE FROM library_document')
-      } else {
-        this.saveDocument(document)
-      }
-      this.store.commit()
-    } catch (error) {
-      this.store.rollBack()
-      throw error as Error
+      if (!result.goToNextRow()) throw new Error('library_work_missing')
+      return result.getLong(0)
+    } finally {
+      result.close()
     }
   }
 
-  private saveDocument(document: PersistedLibraryStoreDocument): void {
-    const previousWorks = this.readWorks()
-    const previousLists = keyValues(this.store.querySqlSync(LIST_QUERY))
-    for (let index = 0; index < document.comics.length; index += 1) {
-      const next = workRow(document.comics[index], index)
-      const previous = previousWorks.get(next.id)
-      previousWorks.delete(next.id)
-      this.updateWork(next, previous)
-    }
-    for (const id of previousWorks.keys()) {
-      this.store.executeSync('DELETE FROM library_chapters WHERE comic_id = ?', [id])
-      this.store.executeSync('DELETE FROM library_memberships WHERE comic_id = ?', [id])
-      this.store.executeSync('DELETE FROM library_works WHERE id = ?', [id])
-    }
-    for (const list of collectLists(document)) {
-      this.updateRows('library_lists', 'kind', 'payload', list.kind, previousLists.get(list.kind) ?? [], list.rows)
-    }
-    this.store.executeSync(UPSERT_DOCUMENT, [listMask(document)])
-  }
-
-  /** Existing-work edits preserve order, work count and every other domain's rows. */
   saveExistingWorks(comics: PersistedComic[]): void {
-    this.store.beginTransaction()
-    try {
+    writeUserRecords(this.store, (): void => {
       for (const comic of comics) {
-        const chapters = keyValues(this.store.querySqlSync(
-          'SELECT comic_id, payload FROM library_chapters WHERE comic_id = ? ORDER BY list_order', [comic.id]))
-        const categories = keyValues(this.store.querySqlSync(
-          'SELECT comic_id, category_id FROM library_memberships WHERE comic_id = ? ORDER BY list_order', [comic.id]))
-        const previous = readWorkRows(this.store.querySqlSync(
-          'SELECT id, list_order, payload, has_categories FROM library_works WHERE id = ?', [comic.id]),
-          chapters, categories).get(comic.id)
-        if (previous === undefined) throw new Error('library_work_missing')
-        this.updateWork(workRow(comic, previous.order), previous)
+        new ShelfWorkRows([comic], this.existingWorkOrder(comic.id)).replace(this.store, comic.id)
       }
-      this.store.commit()
-    } catch (error) {
-      this.store.rollBack()
-      throw error as Error
+    })
+    this.writeRevision += 1
+  }
+
+  saveMemberships(edits: LibraryMembershipEdit[]): void {
+    writeUserRecords(this.store, (): void => {
+      for (const edit of edits) {
+        const result = this.store.querySqlSync('SELECT 1 FROM shelf_works WHERE comic_id = ?', [edit.comicId])
+        try {
+          if (!result.goToNextRow()) throw new Error('library_work_missing')
+        } finally {
+          result.close()
+        }
+        // The category editor owns these columns and the selected works' memberships.
+        this.store.executeSync('UPDATE shelf_works SET has_categories = ?, updated_at = ? WHERE comic_id = ?',
+          [edit.categoryIds === undefined ? 0 : 1, edit.updatedAt, edit.comicId])
+        shelfMemberships.replace(this.store, membershipRows(edit.comicId, edit.categoryIds), 'comic_id', edit.comicId)
+      }
+    })
+    this.writeRevision += 1
+  }
+
+  saveSyncEdits(edits: LibraryShelfSyncEdits, image: LibraryShelfSyncImage): void {
+    const unchanged = new Set(edits.unchangedCatalogs)
+    writeUserRecords(this.store, (): void => {
+      const works = new Map<string, PersistedComic>(image.works.map((work: PersistedComic): [string, PersistedComic] =>
+        [work.id, work]))
+      const order = new Map<string, number>()
+      image.order?.forEach((id: string, position: number): void => { order.set(id, position) })
+      for (const id of edits.comicIds) {
+        const work = works.get(id)
+        if (work === undefined) new ShelfWorkRows([]).replace(this.store, id)
+        else new ShelfWorkRows([work], order.get(id) ?? this.existingWorkOrder(id)).replace(this.store, id, !unchanged.has(id))
+      }
+      if (image.order !== undefined) this.saveSyncWorkOrder(image.order)
+      this.saveSyncCollections(image)
+    })
+    this.writeRevision += 1
+  }
+
+  private saveSyncWorkOrder(order: string[]): void {
+    // Only ordinal columns are involved when an insert or delete shifts ranks.
+    for (let start = 0; start < order.length; start += 180) {
+      const ids = order.slice(start, start + 180)
+      const cases = ids.map((): string => 'WHEN ? THEN ?').join(' ')
+      const when: (string | number)[] = []
+      ids.forEach((id: string, offset: number): void => { when.push(id, start + offset) })
+      this.store.executeSync('UPDATE shelf_works SET list_order = CASE comic_id ' + cases +
+        ' END WHERE comic_id IN (' + ids.map((): string => '?').join(',') +
+        ') AND list_order IS NOT CASE comic_id ' + cases + ' END', [...when, ...ids, ...when])
     }
   }
 
-  private updateWork(next: LibraryWorkRow, previous?: LibraryWorkRow): void {
-    const hasCategories = next.categories !== undefined
-    if (previous === undefined || previous.payload !== next.payload || previous.order !== next.order ||
-      (previous.categories !== undefined) !== hasCategories) {
-      this.store.executeSync(WORK_UPSERT, [next.id, next.order, next.payload, hasCategories ? 1 : 0])
+  private saveSyncCollections(image: LibraryShelfSyncImage): void {
+    const current = shelfCollections.read(this.store)[0] ?? shelfCollectionRow({ schemaVersion: 1, comics: [] })
+    if (image.categories !== undefined) {
+      current.categories = image.categories !== null
+      shelfCategories.replace(this.store, orderShelfRows(image.categories ?? undefined))
     }
-    this.updateRows('library_chapters', 'comic_id', 'payload', next.id, previous?.chapters ?? [], next.chapters)
-    this.updateRows('library_memberships', 'comic_id', 'category_id', next.id, previous?.categories ?? [], next.categories ?? [])
-  }
-
-  private updateRows(table: string, keyColumn: string, valueColumn: string, key: string,
-    previous: string[], next: string[]): void {
-    const upsert = 'INSERT INTO ' + table + ' (' + keyColumn + ', list_order, ' + valueColumn +
-      ') VALUES (?, ?, ?) ON CONFLICT(' + keyColumn + ', list_order) DO UPDATE SET ' + valueColumn + '=excluded.' + valueColumn
-    for (let index = 0; index < next.length; index += 1) {
-      if (previous[index] !== next[index]) this.store.executeSync(upsert, [key, index, next[index]])
+    if (image.displayStrategies !== undefined) {
+      current.display = image.displayStrategies !== null
+      shelfDisplayStrategies.replace(this.store, orderShelfRows(image.displayStrategies ?? undefined))
     }
-    if (next.length < previous.length) {
-      this.store.executeSync('DELETE FROM ' + table + ' WHERE ' + keyColumn + ' = ? AND list_order >= ?', [key, next.length])
+    if (image.smartCategories !== undefined) {
+      current.smart = image.smartCategories !== null
+      shelfSmartCategories.replace(this.store, orderShelfRows(image.smartCategories ?? undefined))
+      shelfSmartFilters.replace(this.store, smartFilterRows(image.smartCategories ?? undefined))
     }
+    if (image.moves !== undefined) {
+      current.moves = image.moves !== null
+      shelfMoves.replace(this.store, orderShelfRows(image.moves ?? undefined))
+      shelfMoveCategories.replace(this.store, shelfMoveCategoryRows(image.moves ?? undefined))
+    }
+    if (image.present) shelfCollections.put(this.store, current)
+    else shelfCollections.remove(this.store, [1])
   }
 }

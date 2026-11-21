@@ -46,6 +46,7 @@ import {
 import {
   LibraryCategoryFilter,
   LibraryCategoryDisplayStrategy,
+  compareShelfTime,
   InMemoryLibraryStore,
   LibraryListOptions,
   LibraryReadStateFilter,
@@ -90,6 +91,7 @@ import {
 } from '../model/LibraryPersistence'
 import {
   InMemoryReaderSessionStore,
+  ReadingPresentationChange,
   ReaderSessionStore,
   ChapterReadMutation,
 } from '../model/ReaderSessionStore'
@@ -355,6 +357,7 @@ export struct LibraryPage {
   @Param libraryPreferencesRevision: number = 0
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param readerProgressRevision: number = 0
+  @Param readingPresentationChange?: ReadingPresentationChange = undefined
   @Param shelfReadingProgress: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
   @Param continueReadingCard: ContinueReadingCardViewModel = { title: '', detail: '', progress: 0, color: '', comicId: '' }
   @Param scopedContinueReadingCard: ContinueReadingCardViewModel | undefined = undefined
@@ -530,11 +533,54 @@ export struct LibraryPage {
     'active', 'rootNavigation.visible')
   private syncDisplayedSnapshotFromProps(): void {
     if (!this.active || !this.rootNavigation.visible) return
-    if (this.displayedLibraryStore === this.libraryStore && this.displayedLibraryRevision === this.libraryRevision &&
-      this.displayedProgressRevision === this.readerProgressRevision &&
-      this.displayedReadingProgress === this.shelfReadingProgress &&
-      this.displayedSessionStore === this.readerSessionStore && !this.usesLiveShelfFiltersOrSort()) return
+    const sameShelf = this.displayedLibraryStore === this.libraryStore && this.displayedLibraryRevision === this.libraryRevision &&
+      this.displayedSessionStore === this.readerSessionStore
+    if (sameShelf && !this.usesLiveShelfFiltersOrSort()) {
+      if (this.displayedProgressRevision === this.readerProgressRevision &&
+        this.displayedReadingProgress === this.shelfReadingProgress) return
+      if (this.applyWorkReadingChange()) return
+    }
     this.refreshDisplayedSnapshotFromStore()
+  }
+
+  /** Progress alone changes neither category membership nor static filters. */
+  private applyWorkReadingChange(): boolean {
+    const change = this.readingPresentationChange
+    if (change?.revision !== this.readerProgressRevision || this.displayedProgressRevision + 1 !== change.revision ||
+      change.comicIds.length !== 1 || this.filterReadState !== 'all' || this.sortBy === 'unreadCount' ||
+      this.selectedSmartCategory()?.filters.some(filter => filter.method === 'hasUnread' || filter.method === 'started') === true) {
+      return false
+    }
+    const id = change.comicIds[0]
+    const positions = this.shelfReadingProgress
+    const updatedAt = positions.get(id)?.updatedAt
+    if (this.sortBy === 'lastRead' && this.displayedReadingProgress?.get(id)?.updatedAt !== updatedAt) {
+      const index = this.displayedComics.findIndex((comic: Comic): boolean => comic.id === id)
+      if (index >= 0) {
+        const work = this.displayedComics[index]
+        const next = this.displayedComics.slice()
+        next.splice(index, 1)
+        let lower = 0
+        let upper = next.length
+        while (lower < upper) {
+          const mid = Math.floor((lower + upper) / 2)
+          const other = next[mid]
+          const order = compareShelfTime(updatedAt, positions.get(other.id)?.updatedAt, this.sortDirection) ||
+            (other.createdAt - work.createdAt) || work.sortTitle.localeCompare(other.sortTitle)
+          if (order === 0) return false
+          if (order < 0) upper = mid
+          else lower = mid + 1
+        }
+        if (lower !== index) {
+          next.splice(lower, 0, work)
+          this.displayedComics = next
+          this.displayedRevision += 1
+        }
+      }
+    }
+    this.displayedProgressRevision = this.readerProgressRevision
+    this.displayedReadingProgress = positions
+    return true
   }
 
   private usesLiveShelfFiltersOrSort(): boolean {

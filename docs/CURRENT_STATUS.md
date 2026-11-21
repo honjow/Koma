@@ -112,6 +112,39 @@
       ]
     },
     {
+      "id": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "number": 339,
+      "title": "重做本地关系表和自动迁移",
+      "kind": "verified",
+      "priority": "用户要求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-21",
+      "reportedAtSource": "本会话用户要求先重做本地数据库和迁移，检查通过后再处理华为云同步。",
+      "registeredAt": "2026-11-21T23:05:00+08:00",
+      "updatedAt": "2026-11-22T03:24:45+08:00",
+      "status": "本地重做和具名设备验证完成，结构待核对",
+      "result": "普通阅读 WebDAV 按作品与章节键读取、落盘和回执。历史、书架按阅读记录变动更新。201 同一话 212 页真实条漫做两次快速下读和回翻，搜索历史查询移到后台后，8 次快甩中的最大帧间隔从 41.96ms 降至 19.77ms。旧章冲突缩到相关页位后，201 自动发出第 2 话第 89 页，103 原包收到并显示相同正文，第 4 话仍分别保留第 28 页和第 58 页。103 回翻至第 88 页后，201 接收时同步映射变动曾误触发整库恢复。发布改为以书库实际落盘为准后，复测四轮同步没有重建历史，主线程最长事件回调由 697.77ms 降至 70.30ms。197 与 103 的旧库样本在本机重放与再次启动校验通过。",
+      "remaining": "实际表、键、索引和旧数据去向已在对话列出，待用户核对本地结构。华为云同步单独安排。",
+      "evidence": [
+        "docs/plans/active/local-data-governance.md",
+        ".hvigor/outputs/local-data-governance/local-database-schema.md",
+        ".hvigor/outputs/local-data-governance/renamed-database-host-v5.jsonl",
+        ".hvigor/outputs/local-data-governance/webdav-shelf-scoped-rdb.log",
+        ".hvigor/outputs/local-data-governance/library-update-scoped-rdb.log",
+        ".hvigor/outputs/local-data-governance/reader-kit-normal-build.json",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/peer-restoration-and-real-reader-final/shelf-receive-structural-check.json",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/fixed-resume-real-short-page-88/reader.jpeg",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/fixed-explicit-short-page-seek/run-metadata.json",
+        ".hvigor/outputs/local-data-governance/device103__MLR-AL00/not-applicable/landscape-2560x1600/rdb-peer-continue/peer-final-synced-reading-baseline/final-readback.json",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/business-database-rename/native-structural-compare.json",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/business-database-rename/fixed-resume/run-metadata.json",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/history-shelf-noop-publication-fixed/run-metadata.json",
+        ".hvigor/outputs/local-data-governance/device103__MLR-AL00/not-applicable/landscape-2560x1600/rdb-peer-continue/peer-verify-real-page-image/reader.jpeg",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/cold-auto-recover-pending-receipt/run-metadata.json"
+      ]
+    },
+    {
       "id": "READER_HISTORY_CATALOG_WEB_VERIFICATION",
       "number": 338,
       "title": "历史续读遇到网页验证后目录只剩当前章",
@@ -29096,6 +29129,122 @@
       "detail": "目录异常与页表失败共用阅读器原请求验证；并发同源验证合并，失败可从目录重试。共享输入修复在独立reader-kit原仓提交并推送8c9425e，Koma按提交更新依赖并构建，正在197验收。",
       "evidence": [
         ".hvigor/outputs/reader-catalog-cf/device197__ALN-AL80/not-applicable/portrait-1260x2720/scenario.json"
+      ]
+    },
+    {
+      "id": "local-data-relational-upgrade-20261121",
+      "at": "2026-11-21T23:06:26+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "verification",
+      "title": "本地关系表已通过三种旧存储重放及 201 覆盖升级",
+      "detail": "沿用 NextE 的业务键、业务列和交换格式转换边界。按数据域从旧文件、Preferences 或旧库导入，每域在一笔事务内写新行和完成标记。201 实际从库版本 4 升到 5，保留 71 部作品、9,156 章、3,413 条章节状态。两次启动完成标记一致，SQLite 完整性通过，原有 WebDAV 自动同步成功。测试漫画从历史接上第 2 章第 3 页，翻页退出后读回新值，最终恢复原页、亮屏设置并释租。197 和 103 的旧库仅在本机回放。",
+      "evidence": [
+        "docs/plans/active/local-data-governance.md",
+        ".hvigor/outputs/local-data-governance/relational-upgrade-host.jsonl",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/relational-upgrade/native-restore-confirmation/run-metadata.json"
+      ]
+    },
+    {
+      "id": "local-business-database-rename-20261121",
+      "at": "2026-11-21T23:52:26+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "verification",
+      "title": "本地 Koma.db 改名、合表与同签升级已验",
+      "detail": "把库版本 2/4/5 的业务表和迁移标记按批迁入 Koma.db 的一笔事务中。阅读显示 JSON 已拆字段，作品与 Mihon 一对一记录合并，按书选项合用业务行。201 首轮读错来源，一度通过原 WebDAV 提交 62 条书架变更，回装原包用完整原库重新自动提交，书架键集合恢复、队列归零。最终签名包从原库重迁并冷启动，逐列核对书架、目录、分类、归属、登记一致，次轮 WebDAV 成功。历史续读画面及数据库为第 2 章第 3 页。亮屏时长恢复并已释租。",
+      "evidence": [
+        ".hvigor/outputs/local-data-governance/local-database-schema.md",
+        ".hvigor/outputs/local-data-governance/renamed-database-host-v5.jsonl",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/business-database-rename/readback-recovered-webdav/run-metadata.json",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/business-database-rename/fixed-resume/run-metadata.json"
+      ]
+    },
+    {
+      "id": "local-rdb-reading-scope-20261122",
+      "at": "2026-11-22T00:31:00+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "implementation",
+      "title": "移除普通阅读 WebDAV 路径的整书架读取和整份阅读回写",
+      "detail": "读取用已保存的阅读行关联作品与章标题。接收侧按作品、章节键更新，回执失败回滚受影响的行。201 留存库验证查询使用作品和章节主键，签名包构建成功；等待真机性能对照。",
+      "evidence": [
+        "entry/src/main/ets/model/LibraryRdbStorage.ets",
+        "entry/src/main/ets/deviceSync/DeviceSyncOwners.ets"
+      ]
+    },
+    {
+      "id": "local-rdb-real-reading-webdav-20261122",
+      "at": "2026-11-22T01:55:17+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "verification",
+      "title": "真实长条漫同章同页续读，移除同步回执导致的整库恢复",
+      "detail": "201 保存第 2 话时已见远端版本，真正冲突是第 4 话两端各自独立保存。缩小暂缓范围后第 2 话第 89 页上传，103 加装现有订阅中同一书源后实际显示该页。103 回翻至第 88 页并同步，201 的关系库、续读卡片均接上。前后书架行一致，回执后却触发四次 615–698ms 主线程整库恢复。候选只在书架内容落盘后发布，复测四轮成功同步没有再触发历史重建，最长主线程回调 70ms。下拉滚动触发原书架刷新占用写入，201 冷启动自动恢复，01:55:17 读回最后错误为空、待回执清空。候选留装于 201，保留两台测试进度。",
+      "evidence": [
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/real-title-chapter-conflict-retry/run-metadata.json",
+        ".hvigor/outputs/local-data-governance/device103__MLR-AL00/not-applicable/landscape-2560x1600/rdb-peer-continue/peer-verify-real-page-image/reader.json",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/history-shelf-real-webdav-apply/trace.htrace",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/history-shelf-noop-publication-fixed/trace.htrace",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/cold-auto-recover-pending-receipt/run-metadata.json"
+      ]
+    },
+    {
+      "id": "local-rdb-shelf-restore-membership-20261122",
+      "at": "2026-11-22T02:16:00+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "verification",
+      "title": "书架恢复移除 JSON 往返，分类编辑仅写作品归属",
+      "detail": "201 冷启动正常书架和历史，续读为真实第 2 话第 88 页，WebDAV 无错误及待回执。197 留存库的 1123 部作品、47434 章、23 个分类及 2267 条 Mihon 关联，两条恢复路径对照一致。103 留存 69 部、5087 章对照一致。201 从正常书架批量选择面板修改真实测试作品分类，前后 136 章和 8054 页逐行一致。本机事务注入失败验证分类归属整批回滚。",
+      "evidence": [
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/direct-rdb-shelf-cold-start/run-metadata.json",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/membership-change-saved/run-metadata.json"
+      ]
+    },
+    {
+      "id": "local-webdav-shelf-scoped-rdb-20261122",
+      "at": "2026-11-22T02:40:49+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "implementation",
+      "title": "WebDAV 收到的书架变更按作品落盘和恢复",
+      "detail": "日常同步只读取共享所需书架字段，提交受影响作品或分类集合。分类归属变化保留原 136 章及 8054 页，真正删除才取该作品完整数据恢复。201 真实库副本的分类和删除结果与原写法逐行一致，注入提交失败均回滚。该样本同步的书架输入从 9613235 字节降至 349120 字节。正常签名构建、本机回归通过，最新包尚待真机验证。",
+      "evidence": [
+        "entry/src/main/ets/model/LibraryRdbStorage.ets",
+        "entry/src/main/ets/deviceSync/DeviceSyncOwners.ets",
+        ".hvigor/outputs/local-data-governance/webdav-shelf-scoped-rdb.log"
+      ]
+    },
+    {
+      "id": "local-webdav-shelf-live-rdb-20261122",
+      "at": "2026-11-22T03:00:34+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "verification",
+      "title": "103 发出一本漫画的真实书架变更，201 接收并恢复原归属",
+      "detail": "201 同签名包 SHA-256 1b047c907f7e751da41dc3f830511f48601d6f3cc437101688ac49dc4e752553。103 原包从书架移除测试漫画的国漫归属，自动发出。201 冷启动收到，后续在自动同步中收到加回，136 章和 8054 页逐列一致。两台原分类顺序和筛选恢复，书架待发送为空。真实库副本重放书架检查，无更新时零写入，有更新只写指定一部，注入提交失败从已存行恢复并保留先前保存的编辑。201 最后从书架续读时才观察到第 88 页变第 90 页，单独跟踪该入场路径。",
+      "evidence": [
+        ".hvigor/outputs/local-data-governance/library-update-scoped-rdb.log",
+        ".hvigor/outputs/local-data-governance/device103__MLR-AL00/not-applicable/landscape-2560x1600/rdb-peer-continue/peer-restore-original-memberships-and-filter/run-metadata.json",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/peer-restoration-and-real-reader-final/shelf-receive-structural-check.json"
+      ]
+    },
+    {
+      "id": "local-real-webtoon-short-page-position-20261122",
+      "at": "2026-11-22T03:16:27+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "verification",
+      "title": "同一真实条漫验证短页续读和跳转保持第 88 页",
+      "detail": "原条漫定位仍加 220vp 最小行高推算的留白，但真实第 88 页只有约 242px 高，截图和布局证实被滚出屏幕，普通续读及明确点缩略图都落到 90。按真实行尺寸计算，201 同签本机验证包 7221d7d7f5900d97a770be2cec655dc91c913bcdd4ac6dc06236180e0bd9f9ca 两条入口均显示 88/212，退出后书架、续读表和章状态均为 88，WebDAV 自动同步成功，恢复原超时和休眠并释租。独立 reader-kit 本地提交 b32b218，验证包从该原仓构建，构建后临时依赖路径已恢复。",
+      "evidence": [
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/restore-original-reading-position-and-sync/reader.json",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/fixed-resume-real-short-page-88/reader.jpeg",
+        ".hvigor/outputs/local-data-governance/device201__LMR-AL00/not-applicable/portrait-1276x2848/rdb-reading-recheck/fixed-explicit-short-page-seek/run-metadata.json"
+      ]
+    },
+    {
+      "id": "local-real-webtoon-dependency-delivery-20261122",
+      "at": "2026-11-22T03:24:45+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "delivery",
+      "title": "共享短图定位修复已推送，Koma 更新正常构建依赖",
+      "detail": "经用户确认，只推送共享原仓 b32b218 到 origin/main。SSH 和 Koma 配置的 HTTPS 地址均读回同一提交。Koma 按该提交检出和构建签名 HAP，归档完整性通过，依赖更新单独提交 ef3bd93f。201 实机保留同源码的已验包，103 保留原版。",
+      "evidence": [
+        ".hvigor/outputs/local-data-governance/reader-kit-normal-build.json"
       ]
     },
     {

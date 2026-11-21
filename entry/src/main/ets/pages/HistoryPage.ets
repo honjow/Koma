@@ -15,6 +15,7 @@ import {
   Chapter,
   ComicId,
   ComicSourceKind,
+  comicToLibraryItem,
   LibraryItem,
   ReadingProgress,
 } from '../model/ComicModels'
@@ -22,6 +23,7 @@ import { LibraryStore } from '../model/LibraryStore'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
 import {
   appReaderSessionStore,
+  ReadingPresentationChange,
   ReaderSessionStore,
 } from '../model/ReaderSessionStore'
 import {
@@ -56,10 +58,15 @@ interface HistorySection {
   items: HistoryItem[]
 }
 
-interface HistoryListRow {
-  key: string
-  section?: HistorySection
-  item?: HistoryItem
+@ObservedV2
+class HistoryListRow {
+  readonly key: string
+  @Trace section?: HistorySection = undefined
+  @Trace item?: HistoryItem = undefined
+
+  constructor(key: string) {
+    this.key = key
+  }
 }
 
 /**
@@ -96,11 +103,15 @@ export struct HistoryPage {
   @Param rootNavigation: RootNavigationState = new RootNavigationState()
   @Param readerSessionStore?: ReaderSessionStore = undefined
   @Param readerProgressRevision: number = 0
+  @Param readingPresentationChange?: ReadingPresentationChange = undefined
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   @Local private scrollEnabled: boolean = true
-  @Local private historyItems: HistoryItem[] = []
+  private historyItems: HistoryItem[] = []
+  @Local private historyRows: HistoryListRow[] = []
+  private presentedReadingRevision: number = -1
+  private presentedLibraryRevision: number = -1
   @Local private privacy: LibraryPrivacyState = connectLibraryPrivacyState()
   @Local private failedCoverUris: string[] = []
   @Event onOpenDetail: (comicId: ComicId, source?: SourceReadHistoryEntry, remote?: RemoteReadHistoryEntry) => void = () => {}
@@ -112,7 +123,10 @@ export struct HistoryPage {
   @Monitor('active', 'rootNavigation.visible')
   private onActiveChanged(): void {
     if (this.active && this.rootNavigation.visible) {
-      this.reloadHistory('tab_active')
+      if (this.presentedLibraryRevision === this.libraryRevision) {
+        this.onReaderProgressRevisionChanged()
+        this.publishHistoryRows()
+      } else this.reloadHistory('tab_active')
     }
   }
 
@@ -125,8 +139,13 @@ export struct HistoryPage {
 
   @Monitor('readerProgressRevision')
   private onReaderProgressRevisionChanged(): void {
-    if (!this.active || !this.rootNavigation.visible) return
-    this.reloadHistory('reader_progress')
+    if (!this.active || !this.rootNavigation.visible || this.presentedReadingRevision === this.readerProgressRevision) return
+    const change = this.readingPresentationChange
+    if (change?.revision === this.readerProgressRevision && this.presentedReadingRevision + 1 === change.revision &&
+      this.presentedLibraryRevision === this.libraryRevision) {
+      this.applyReadingChanges(change.comicIds)
+      this.presentedReadingRevision = this.readerProgressRevision
+    } else this.reloadHistory('reader_progress')
   }
 
   @Monitor('libraryRevision', 'privacy.categoryId', 'privacy.unlocked')
@@ -163,6 +182,8 @@ export struct HistoryPage {
   }
 
   private reloadHistory(reason: string): void {
+    this.presentedReadingRevision = this.readerProgressRevision
+    this.presentedLibraryRevision = this.libraryRevision
     console.info(`[History] step=load_start reason=${reason}`)
     const sessionStore = this.createReaderSessionStore()
     const sourceEntries = sessionStore?.listSourceHistory() ?? []
@@ -192,19 +213,62 @@ export struct HistoryPage {
       sessionStore.listRemoteHistory().forEach((entry: RemoteReadHistoryEntry): void => {
         const progress = progressByComicId.get(entry.comicId)
         if (!libraryComicIds.has(entry.comicId) && progress !== undefined && progress.chapterId === entry.chapterId) {
-          remoteItems.push({ id: `remote-history:${entry.comicId}`, comicId: entry.comicId,
-            title: entry.title, sourceName: '', remoteServerId: entry.serverId, chapterCount: 1,
-            pageCount: progress.totalPages, lastReadAt: progress.updatedAt, progress, remoteHistory: entry })
+          remoteItems.push(this.remoteHistoryItem(entry, progress))
         }
       })
     }
-    this.historyItems = libraryItems.concat(sourceItems, remoteItems)
+    this.publishHistoryItems(libraryItems.concat(sourceItems, remoteItems)
       .filter((item: HistoryItem): boolean => this.canShowHistory(item.comicId, this.privacy.visibleCategoryId))
       .sort((a: HistoryItem, b: HistoryItem): number => {
         return (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0)
       })
-      .slice(0, HISTORY_LIMIT)
+      .slice(0, HISTORY_LIMIT))
     console.info(`[History] step=load_done count=${this.historyItems.length}`)
+  }
+
+  private applyReadingChanges(comicIds: ComicId[]): void {
+    const store = this.createReaderSessionStore()
+    if (store === undefined || comicIds.length === 0) return
+    const changed = new Set(comicIds)
+    const next = this.historyItems.filter((item: HistoryItem): boolean => !changed.has(item.comicId))
+    for (const id of changed) {
+      const updated = this.historyItemsForWork(store, id)
+      const old = this.historyItems.find((item: HistoryItem): boolean => item.comicId === id)
+      // A shortened capped list may need rows outside its current window.
+      if (old !== undefined && this.historyItems.length === HISTORY_LIMIT &&
+        (updated.length !== this.historyItems.filter((item: HistoryItem): boolean => item.comicId === id).length ||
+          updated.some((item: HistoryItem): boolean => (item.lastReadAt ?? 0) < (old.lastReadAt ?? 0)))) {
+        this.reloadHistory('history_window_changed')
+        return
+      }
+      // Preserve the original library/source/remote tie order on exact dates.
+      if (updated.some((item: HistoryItem): boolean => next.some((row: HistoryItem): boolean => row.lastReadAt === item.lastReadAt))) {
+        this.reloadHistory('history_date_tie')
+        return
+      }
+      next.push(...updated)
+    }
+    this.publishHistoryItems(next.sort((a: HistoryItem, b: HistoryItem): number =>
+      (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0)).slice(0, HISTORY_LIMIT))
+  }
+
+  private historyItemsForWork(store: ReaderSessionStore, id: ComicId): HistoryItem[] {
+    const progress = store.getProgress(id)
+    if (progress === undefined || !this.canShowHistory(id, this.privacy.visibleCategoryId)) return []
+    const comic = this.libraryStore.getComic(id)
+    const history = store.getSourceHistory(id)
+    if (comic !== undefined) return [this.libraryHistoryItem(comicToLibraryItem(comic, progress), history)]
+    const rows: HistoryItem[] = []
+    if (history !== undefined) rows.push(this.sourceHistoryItem(store.getSourceHistoryForResume(id) ?? history, progress))
+    const remote = store.getRemoteHistory(id)
+    if (remote?.chapterId === progress.chapterId) rows.push(this.remoteHistoryItem(remote, progress))
+    return rows
+  }
+
+  private remoteHistoryItem(entry: RemoteReadHistoryEntry, progress: ReadingProgress): HistoryItem {
+    return { id: `remote-history:${entry.comicId}`, comicId: entry.comicId,
+      title: entry.title, sourceName: '', remoteServerId: entry.serverId, chapterCount: 1,
+      pageCount: progress.totalPages, lastReadAt: progress.updatedAt, progress, remoteHistory: entry }
   }
 
   private historySourceName(sourceId?: string, savedName?: string, historyName?: string): string {
@@ -353,9 +417,9 @@ export struct HistoryPage {
       this.showHistorySaveFailed()
       return
     }
-    this.historyItems = this.historyItems.filter((historyItem: HistoryItem): boolean => {
+    this.publishHistoryItems(this.historyItems.filter((historyItem: HistoryItem): boolean => {
       return historyItem.comicId !== item.comicId
-    })
+    }))
     console.info('[History] step=remove_item')
   }
 
@@ -482,17 +546,41 @@ export struct HistoryPage {
     return sections.filter((section: HistorySection): boolean => section.items.length > 0)
   }
 
-  @Computed
-  private get historyRows(): HistoryListRow[] {
-    void this.languageState.effectiveLocale
+  private publishHistoryItems(items: HistoryItem[]): void {
+    this.historyItems = items
+    this.publishHistoryRows()
+  }
+
+  @Monitor('languageState.effectiveLocale')
+  private publishHistoryRows(): void {
+    const existing = new Map<string, HistoryListRow>()
+    for (const row of this.historyRows) existing.set(row.key, row)
     const rows: HistoryListRow[] = []
     this.historySections().forEach((section: HistorySection): void => {
-      rows.push({ key: `group:${section.key}`, section })
+      const key = `group:${section.key}`
+      const header = existing.get(key) ?? new HistoryListRow(key)
+      if (header.section?.title !== section.title || header.section.items.length !== section.items.length) {
+        header.section = section
+      }
+      rows.push(header)
       section.items.forEach((item: HistoryItem): void => {
-        rows.push({ key: `item:${item.id}`, item })
+        const key = `item:${item.id}`
+        const row = existing.get(key) ?? new HistoryListRow(key)
+        if (row.item !== item) row.item = item
+        rows.push(row)
       })
     })
-    return rows
+    // Repeat observes row fields independently. Change list slots only when
+    // records really move or date headers enter or leave the list.
+    let start = 0
+    while (start < this.historyRows.length && start < rows.length && this.historyRows[start] === rows[start]) start++
+    let oldEnd = this.historyRows.length
+    let newEnd = rows.length
+    while (oldEnd > start && newEnd > start && this.historyRows[oldEnd - 1] === rows[newEnd - 1]) {
+      oldEnd--
+      newEnd--
+    }
+    if (oldEnd > start || newEnd > start) this.historyRows.splice(start, oldEnd - start, ...rows.slice(start, newEnd))
   }
 
   private shouldShowCoverUri(
@@ -727,7 +815,7 @@ export struct HistoryPage {
       bottomPadding: ThemeConstants.SPACE_XL,
       floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
     }) {
-      if (this.historyItems.length === 0) {
+      if (this.historyRows.length === 0) {
         ListItem() {
           this.EmptyHistory()
         }

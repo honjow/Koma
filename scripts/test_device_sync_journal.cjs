@@ -486,7 +486,7 @@ test('a v4 receipt advances only its writer while retaining old and other writer
     [one, other, after].sort())
 })
 
-function readingDevice(fixture, id, installed, withShelf = false, afterReaderStage = async () => {}) {
+function readingDevice(fixture, id, installed, withShelf = false, afterReaderStage = async () => {}, database) {
   const filesDir = '/' + id
   const files = new Map()
   const fileIo = { OpenMode: { WRITE_ONLY: 1, CREATE: 2, TRUNC: 4 },
@@ -557,8 +557,9 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
   const readingSnapshot = compile('DeviceSyncReadingSnapshot', {
     '../model/LibraryPersistence': persistence, '../model/ReaderSessionStore': sessions,
     '../model/SourceLibraryComic': sourceComic, './DeviceSyncData': data, './DeviceSyncShelfApply': shelfApply,
-    './DeviceSyncWire': wire,
+    './DeviceSyncWire': wire, './DeviceSyncStorage': { DATABASE_READING_REVISION_PREFIX: 'reading-rdb:' },
   })
+  const forbiddenSnapshot = () => { throw new Error('unexpected_full_snapshot') }
   const { KomaDeviceSyncOwners } = compile('DeviceSyncOwners', {
     '@kit.PerformanceAnalysisKit': { hiTraceMeter: { traceByValue() {} } },
     '@kit.CoreFileKit': nativeFs, '@kit.ArkTS': {
@@ -566,12 +567,24 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
       taskpool: { execute: async (fn, ...args) => fn(...args) },
     },
     '../model/AppFileTextPersistence': { writeAppTextFile }, '../model/BackupRestoreActivity': backup,
-    '../model/LibraryPersistence': persistence,
-    '../model/ReaderSessionStore': sessions, '../model/ReaderPreferencesStore': {}, '../model/ComicModels': comics,
+    '../model/LibraryPersistence': database === undefined ? persistence : { ...persistence,
+      usesLibraryDatabase: () => true, readLiveLibrarySnapshot: forbiddenSnapshot, liveReadingMetadata: () => database.works,
+      liveLibraryWriteRevision: database.shelfRevision, writeLiveLibrarySyncEdits: database.writeShelfEdits,
+    },
+    '../model/UserDataSnapshot': { readUserDataSnapshot: database?.readShelfSnapshot ?? forbiddenSnapshot,
+      readShelfWorksForRecovery: database?.readShelfWorksForRecovery ?? forbiddenSnapshot,
+      readReadingSyncDatabaseInput: async () => structuredClone({ works: database.works, reading: database.reading }),
+    },
+    '../model/ReaderSessionStore': database?.readEdits === undefined ? sessions : { ...sessions,
+      usesReaderDatabase: () => true, readLiveReaderSnapshot: forbiddenSnapshot,
+      readLiveReadingEdits: database.readEdits, writeLiveReadingEdits: database.writeEdits,
+    },
+    '../model/ReaderPreferencesStore': {}, '../model/ComicModels': comics,
     '../model/SearchHistoryStore': {}, '../model/SourceLibraryComic': sourceComic,
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceIndexMetadata': {},
     './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncSignals': signals, './DeviceSyncWire': wire,
     './DeviceSyncShelfApply': shelfApply, './DeviceSyncReadingSnapshot': readingSnapshot, './DeviceSyncPlanner': planner,
+    './DeviceSyncStorage': { DATABASE_READING_REVISION_PREFIX: 'reading-rdb:' },
   })
   const context = { filesDir }
   let owner
@@ -596,6 +609,43 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
   return { ...replica, runtime, reader, coldReader, coldShelf, persistence, owner, files, filesDir,
     onWrite: handler => { beforeWrite = handler } }
 }
+
+test('automatic RDB reading projects and receives exact pages without a full shelf or reader snapshot', async () => {
+  const source = 'com.example.reader'
+  const work = 'book'
+  const comicId = source + ':' + work
+  const saved = { comicId, chapterId: '66', pageIndex: 4, totalPages: 16,
+    progressRatio: 0.25, completed: false, updatedAt: 100 }
+  const facts = [{ key: data.syncKey(['position', source, work, '67']), value: JSON.stringify({ page: 6, total: 16, date: 200 }) },
+    { key: data.syncKey(['recent', source, work]), value: JSON.stringify({
+      chapter: '67', title: 'Test manga', sourceName: 'Test source', chapterTitle: '第67章', date: 200, savedPage: 6,
+    }) }]
+  let persisted = { progress: [saved], chapters: [], sourceHistory: [], syncPositions: [], syncActions: [] }
+  const database = {
+    works: [{ comicId, source, work, title: 'Test manga', chapterId: '66', chapterTitle: '第66章' }],
+    reading: persisted,
+    readEdits: (_directory, scope) => {
+      assert.deepEqual(scope, [{ comicId, chapterIds: ['67'] }])
+      return structuredClone(persisted)
+    },
+    writeEdits: (_directory, _scope, next) => { persisted = structuredClone(next) },
+  }
+  const { owner, reader } = readingDevice(engineFixture(), A, new Map(), false, async () => {}, database)
+  const snapshot = await owner.snapshot('reading', false, undefined, undefined, false)
+  const recent = JSON.parse(snapshot.values.find(row => row.key === facts[1].key).value)
+  assert.equal(recent.chapter, '66')
+  assert.equal(recent.chapterTitle, '第66章')
+  assert.equal(recent.savedPage, 4)
+  const commit = publish => owner.commit([{ group: 'reading', changes: facts }],
+    [{ group: 'reading', revision: snapshot.revision }], async () => ({ check: noop, publish, dispose: async () => {} }))
+  await assert.rejects(commit(() => { throw new Error('receipt_interrupted') }), /receipt_interrupted/)
+  assert.equal(persisted.progress[0].chapterId, '66')
+  await commit(noop)
+  assert.equal(persisted.progress[0].chapterId, '67')
+  assert.equal(persisted.progress[0].pageIndex, 6)
+  assert.equal(reader.getProgress(comicId).chapterId, '67')
+  assert.equal(reader.getSourceHistory(comicId).chapterTitle, '第67章')
+})
 
 test('background page turns retain chapter order and cannot replace a newer durable edit', async () => {
   let stage = async () => {}
@@ -1350,6 +1400,98 @@ test('shelf sync transfers category privacy and membership together, including a
   assert.deepEqual(restored.getComic(work.id).categoryIds, [manual.id])
 })
 
+test('a remote deletion blocked by local notes commits its receipt without reloading the shelf', async () => {
+  const device = readingDevice(engineFixture(), A, new Map(), true)
+  const source = 'com.example.public'
+  const { shelf, service } = device.coldShelf()
+  const category = shelf.createCustomCategory('Reading')
+  const book = { ...shelfComic(source, 'kept-work', [category.id]), personalNotes: 'My notes' }
+  device.persistence.upsertComicAndPersistLibraryStore(shelf, service, book)
+  const notifications = []
+  device.owner.publishWith(groups => notifications.push(...groups))
+  let received = false
+  await device.owner.commit([{ group: 'shelf', changes: [{ key: data.syncKey(['book', source, 'kept-work']), value: '' }] }],
+    [], async () => ({ check: noop, publish: () => { received = true }, dispose: async () => {} }))
+  assert.equal(received, true)
+  assert.equal(device.coldShelf().shelf.getComic(book.id).personalNotes, 'My notes')
+  const projection = JSON.parse(device.files.get(`${device.filesDir}/device-sync-projection.v1.json`))
+  assert.deepEqual(projection.blockedShelf, [book.id])
+  assert.deepEqual(notifications, [])
+})
+
+test('RDB shelf receipt rolls back scoped rows and rejects an intervening local edit before publication', async () => {
+  let raw
+  let revision = 0
+  const savedImages = []
+  const readDomains = []
+  const database = {
+    shelfRevision: () => revision,
+    readShelfSnapshot: async (_context, domain) => { readDomains.push(domain); return raw },
+    writeShelfEdits: (_directory, edits, image) => {
+      savedImages.push(image)
+      assert.deepEqual(edits.comicIds, [changedWork.id])
+      assert.deepEqual(edits.unchangedCatalogs, [changedWork.id])
+      assert.deepEqual(image.works[0].chapters, [])
+      revision++
+    },
+  }
+  const device = readingDevice(engineFixture(), A, new Map(), true, undefined, database)
+  const source = 'com.example.public'
+  const changedWork = shelfComic(source, 'changed')
+  const { shelf } = device.coldShelf()
+  shelf.createCustomCategory('A category')
+  shelf.addComic(changedWork)
+  shelf.addComic(shelfComic(source, 'untouched'))
+  raw = device.persistence.serializeLibraryStore(shelf)
+  const notifications = []
+  device.owner.publishWith((groups, _reading, edits) => notifications.push({ groups, edits }))
+  const coverUri = 'https://works.example.test/cover.png'
+  const earlierRevision = wire.syncDigest(raw)
+  const earlier = await device.owner.snapshot('shelf', false, undefined, undefined, false, earlierRevision)
+  assert.equal(earlier.revision, earlierRevision)
+  const current = await device.owner.snapshot('shelf', false)
+  assert.deepEqual(readDomains, ['library', 'shelf-sync'])
+  assert.deepEqual(current.values, earlier.values)
+  const commit = prepare => device.owner.commit([{ group: 'shelf',
+    changes: [{ key: data.syncKey(['cover', source, 'changed']), value: JSON.stringify(coverUri) }] }],
+    [{ group: 'shelf', revision: current.revision }], prepare)
+  await assert.rejects(commit(async () => {
+    revision++
+    return { check: noop, publish: () => assert.fail('receipt was published'), dispose: async () => {} }
+  }), /sync_local_changed/)
+  assert.deepEqual(savedImages, [])
+  await assert.rejects(commit(async () => ({ check: noop, dispose: async () => {},
+    publish: () => { throw new Error('receipt_interrupted') } })), /receipt_interrupted/)
+  assert.deepEqual(savedImages.map(image => image.works[0].coverUri), [coverUri, undefined])
+  assert.deepEqual(notifications, [])
+  await commit(async () => ({ check: noop, publish: noop, dispose: async () => {} }))
+  assert.deepEqual(notifications.map(event => event.groups), [['shelf']])
+  assert.equal(notifications[0].edits.after.works[0].coverUri, coverUri)
+})
+
+test('a received RDB deletion captures the full catalog of only the deleted work for rollback', async () => {
+  let raw
+  const work = shelfComic('com.example.public', 'removed')
+  const deleted = { ...work, chapters: [{ id: 'chapter-1', pages: [{ id: 'page-1' }] }] }
+  const saved = []
+  const scopes = []
+  const database = { shelfRevision: () => 0, readShelfSnapshot: async () => raw,
+    readShelfWorksForRecovery: async (_context, ids) => { scopes.push(ids); return [deleted] },
+    writeShelfEdits: (_directory, edits, image) => saved.push({ ids: edits.comicIds, works: image.works }),
+  }
+  const device = readingDevice(engineFixture(), A, new Map(), true, undefined, database)
+  const { shelf } = device.coldShelf()
+  shelf.addComic(work)
+  shelf.addComic(shelfComic('com.example.public', 'untouched'))
+  raw = device.persistence.serializeLibraryStore(shelf)
+  await assert.rejects(device.owner.commit([{ group: 'shelf', changes: [
+    { key: data.syncKey(['book', 'com.example.public', 'removed']), value: '' },
+  ] }], [], async () => ({ check: noop, dispose: async () => {},
+    publish: () => { throw new Error('receipt_interrupted') } })), /receipt_interrupted/)
+  assert.deepEqual(scopes, [[work.id]])
+  assert.deepEqual(saved, [{ ids: [work.id], works: [] }, { ids: [work.id], works: [deleted] }])
+})
+
 test('a move keeps the original if the destination was independently removed, including a receiver with local notes', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.WriterWebDav)
@@ -1597,6 +1739,48 @@ test('a local position missed by the old client survives an independent remote p
   const merged = a.engine.active().groups.find(group => group.id === 'reading').facts.find(row => row.key === key)
   assert.deepEqual(new Set(facts.syncVisibleHeads(merged).map(head => head.value)), new Set([local, remote]))
   assert.equal(a.values.get('reading').get(key), remote)
+})
+
+test('an independent old chapter does not hold the observed current chapter and recent position', async () => {
+  const f = transportFixture()
+  const fixture = engineFixture(f.SharedWebDav)
+  const a = fixture.replica(A)
+  const b = fixture.replica(B)
+  const identity = ['com.example.reader', 'work:1']
+  const old = data.syncKey(['position', ...identity, 'chapter:4'])
+  const current = data.syncKey(['position', ...identity, 'chapter:2'])
+  const recent = data.syncKey(['recent', ...identity])
+  const position = (page, date) => JSON.stringify({ page, date, total: 212 })
+  const recentAt = (page, date) => JSON.stringify({
+    chapter: 'chapter:2', title: 'Test', sourceName: 'Test', chapterTitle: 'Chapter 2', savedPage: page, date,
+  })
+  const save = (device, changes) => {
+    const local = device.values.get('reading') ?? new Map()
+    device.values.set('reading', local)
+    for (const [key, value] of changes) local.set(key, value)
+    device.engine.recordEdits('reading', changes.map(([key, value]) => ({ key, value, kind: 'set' })))
+  }
+  for (const device of [a, b]) {
+    await device.engine.testConnection(f.draft)
+    await device.engine.confirm((await device.engine.prepare(f.draft, ['reading'])).token, [])
+  }
+  save(b, [[current, position(119, 100)], [recent, recentAt(119, 100)]])
+  await b.engine.syncNow()
+  await a.engine.syncNow()
+  assert.equal(a.values.get('reading').get(current), position(119, 100))
+  save(a, [[old, position(27, 150)]])
+  save(b, [[old, position(57, 200)]])
+  await b.engine.syncNow()
+  save(a, [[current, position(57, 300)], [recent, recentAt(57, 300)]])
+  await a.engine.syncNow()
+  await b.engine.syncNow()
+  assert.equal(a.values.get('reading').get(old), position(27, 150))
+  assert.equal(b.values.get('reading').get(old), position(57, 200))
+  assert.equal(b.values.get('reading').get(current), position(57, 300))
+  assert.equal(b.values.get('reading').get(recent), recentAt(57, 300))
+  const group = a.engine.active().groups.find(row => row.id === 'reading')
+  assert.ok(group.deferred.includes(old))
+  assert.ok(!group.deferred.includes(current) && !group.deferred.includes(recent))
 })
 
 test('shared sync migrates live legacy data, removes obsolete files, and updates one bucket', async () => {
@@ -2450,7 +2634,7 @@ test('paused runtime keeps Reader clears and bookmarks local until enabled', asy
   runtime.storage = reader.store
   runtime.owners = {
     receivedSubscriptions: () => [], readingAcknowledged: () => false,
-    readingIdentities: () => new Map([[comicId, { source, work }]]),
+    sourceIdentity: id => id === comicId ? { source, work } : undefined,
     readingActionAcknowledged: capture => !!runtime.owners.readingActionReceipt(capture),
     readingActionReceipt: capture => reader.store.load().readingReceipts?.find(row => row.key === signals.deviceSyncActionCaptureKey(capture)),
   }

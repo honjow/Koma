@@ -474,7 +474,7 @@ export class SourceSettingsStore {
     const safeValues = this.filterSafeValues(values, descriptors)
     const database = sourceSettingsPersistence.database(this.storagePath)
     if (database !== undefined) {
-      database.put(normalizedSourceId, JSON.stringify(safeValues))
+      database.put(normalizedSourceId, safeValues)
       this.sourceCommitted(normalizedSourceId)
       return
     }

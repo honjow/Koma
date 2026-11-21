@@ -384,6 +384,29 @@ function sameReadingLocation(kind: string, left: string, right: string): boolean
   return a.chapter === b.chapter && (a.savedPage === undefined || b.savedPage === undefined || a.savedPage === b.savedPage)
 }
 
+function addRecentPositionKeys(keys: Set<string>, recent?: SyncFact): void {
+  if (recent === undefined) return
+  const parts = syncKeyParts(recent.key)
+  for (const head of syncVisibleHeads(recent)) {
+    if (head.value === '') continue
+    const value = JSON.parse(head.value) as SyncRecentValue
+    keys.add(syncKey(['position', parts[1], parts[2], value.chapter]))
+  }
+}
+
+function holdReadingConflict(held: Set<string>, key: string, local: Map<string, SyncFact>, remote: Map<string, SyncFact>): void {
+  held.add(key)
+  const parts = syncKeyParts(key)
+  const recentKey = syncKey(['recent', parts[1], parts[2]])
+  const linkedPositions = new Set<string>()
+  addRecentPositionKeys(linkedPositions, local.get(recentKey))
+  addRecentPositionKeys(linkedPositions, remote.get(recentKey))
+  if (parts[0] === 'recent' || linkedPositions.has(key)) {
+    held.add(recentKey)
+    linkedPositions.forEach((position: string): void => { held.add(position) })
+  }
+}
+
 export function dependsOnConflict(key: string, root: string): boolean {
   const parts = syncKeyParts(key)
   const conflict = syncKeyParts(root)
@@ -485,11 +508,10 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
         conflictChoice(choices, row.id, key) === undefined) deferred.add(key)
     })
     const conflictRoots = Array.from(deferred)
-    const heldReadingWorks = new Set<string>()
+    const heldReadingKeys = new Set<string>()
     const isDeferred = (key: string): boolean => {
       if (deferred.has(key)) return true
-      if (heldReadingWorks.size > 0 && usesReadingTime(row, key) &&
-        heldReadingWorks.has(syncBucketKey(key))) return true
+      if (heldReadingKeys.has(key)) return true
       if (automaticMerge) return false
       return conflictRoots.some((root: string): boolean => deferred.has(root) && dependsOnConflict(key, root))
     }
@@ -642,8 +664,8 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
       }
     })
     if (transport?.shared === true && automaticMerge && row.id === 'reading') {
-      // Keep an independent local save and the published position on their
-      // respective devices until the existing resume choice resolves them.
+      // Keep the independent positions until resolved. A conflict in an old
+      // chapter must not stop sending progress for another chapter.
       for (const item of pending) {
         if (!usesReadingTime(row, item.key)) continue
         const localFact = edits.get(item.key)
@@ -652,11 +674,13 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
         const localEdit = syncVisibleHeads(localFact).find((head: SyncEdit): boolean =>
           head.version.replica === item.version.replica && head.version.sequence === item.version.sequence)
         if (localEdit === undefined) continue
-        const kind = syncKeyParts(item.key)[0]
-        if (syncVisibleHeads(remoteFact).some((head: SyncEdit): boolean =>
+        const parts = syncKeyParts(item.key)
+        const kind = parts[0]
+        const concurrent = syncVisibleHeads(remoteFact).some((head: SyncEdit): boolean =>
           !syncObserves(localEdit.observed, head.version) && !syncObserves(head.observed, localEdit.version) &&
           (head.version.replica !== localEdit.version.replica || head.version.sequence !== localEdit.version.sequence) &&
-          !sameReadingLocation(kind, localEdit.value, head.value))) heldReadingWorks.add(syncBucketKey(item.key))
+          !sameReadingLocation(kind, localEdit.value, head.value))
+        if (concurrent) holdReadingConflict(heldReadingKeys, item.key, edits, remote)
       }
     }
     if (pending.length !== pendingBefore) {
@@ -673,7 +697,7 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
         facts = mergeSyncFacts(Array.from(edits.values()), row.remote)
       }
     }
-    const divergentReadingWorks = new Set<string>()
+    const divergentReadingKeys = new Set<string>()
     if (transport?.shared === true && automaticMerge && row.id === 'reading') {
       for (const fact of facts) {
         if (!usesReadingTime(row, fact.key)) continue
@@ -684,10 +708,10 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
         const kind = syncKeyParts(fact.key)[0]
         if (heads.some((head: SyncEdit): boolean => sameReadingLocation(kind, head.value, saved)) &&
           heads.some((head: SyncEdit): boolean => !sameReadingLocation(kind, head.value, saved))) {
-          divergentReadingWorks.add(syncBucketKey(fact.key))
+          holdReadingConflict(divergentReadingKeys, fact.key, edits, remote)
         }
       }
-      const conflicted = new Set<string>(Array.from(heldReadingWorks).concat(Array.from(divergentReadingWorks)))
+      const conflicted = new Set<string>(Array.from(heldReadingKeys).concat(Array.from(divergentReadingKeys)).map(syncBucketKey))
       if (conflicted.size > 0) {
         const merged = bySyncFact(facts)
         let resolved = false
@@ -701,6 +725,8 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
           if (saved === undefined || published?.position === undefined) continue
           const recentKey = syncKey(['recent', id[0], id[1]])
           const positionKey = syncKey(['position', id[0], id[1], published.chapter])
+          if (!heldReadingKeys.has(recentKey) && !heldReadingKeys.has(positionKey) &&
+            !divergentReadingKeys.has(recentKey) && !divergentReadingKeys.has(positionKey)) continue
           const oldPosition = local.get(positionKey)
           const savedTarget = oldPosition === undefined ? undefined : JSON.parse(oldPosition) as SyncPositionValue
           if (protectedKeys.has(recentKey) || protectedKeys.has(positionKey) || deferred.has(recentKey) || deferred.has(positionKey) ||
@@ -710,8 +736,10 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
           const version: SyncVersion = { replica, sequence: ++counter }
           editFact(recentKey, 'set', JSON.stringify(published.recent), merged.get(recentKey), undefined, version)
           editFact(positionKey, 'set', JSON.stringify(published.position), merged.get(positionKey), undefined, version)
-          heldReadingWorks.delete(bucket)
-          divergentReadingWorks.delete(bucket)
+          heldReadingKeys.delete(recentKey)
+          heldReadingKeys.delete(positionKey)
+          divergentReadingKeys.delete(recentKey)
+          divergentReadingKeys.delete(positionKey)
           resolved = true
         }
         if (resolved) facts = mergeSyncFacts(Array.from(edits.values()), row.remote)
@@ -727,8 +755,7 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
     facts.forEach((fact: SyncFact): void => {
       const value = syncGroupVisibleValue(row.id, fact)
       if (isCoverKey(fact.key) && (value === undefined || local.has(fact.key))) return
-      if (value !== undefined && divergentReadingWorks.size > 0 && usesReadingTime(row, fact.key) &&
-        divergentReadingWorks.has(syncBucketKey(fact.key))) return
+      if (value !== undefined && divergentReadingKeys.has(fact.key)) return
       if (!isDeferred(fact.key) && !protectedKeys.has(fact.key) && value !== local.get(fact.key)) {
         if (row.id === 'shelf') {
           const parts = syncKeyParts(fact.key)

@@ -4,6 +4,7 @@ import { LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION, PersistedComic, PersistedLibr
 import { ComicSourceKind, ReadingDirection, libraryCategoryNameKey, normalizeLibraryCategoryName, normalizeSortKey } from '../model/ComicModels'
 import { sourceLibraryComicId } from '../model/SourceLibraryComic'
 import type { LibrarySmartCategory, LibrarySmartFilter } from '../model/LibrarySmartCategory'
+import type { LibraryShelfSyncEdits, LibraryShelfSyncImage } from '../model/LibraryRdbStorage'
 import { isSyncReplica } from './DeviceSyncFacts'
 import { CATEGORY_SYNC_PREFIX, syncCoverAddress, SyncChapterCatalog, SyncSmartCategory, SyncWorkLabel, syncKey, syncKeyParts,
   syncNumberedCategoryName, syncSharedCategoryId, syncShelfIdentity, syncShelfMove, syncStableId } from './DeviceSyncData'
@@ -547,14 +548,70 @@ function applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDoc
 }
 
 export interface PreparedSyncShelf {
-  libraryText: string
+  libraryText?: string
+  shelfEdits?: LibraryShelfSyncEdits
   projectionText: string
+}
+
+function shelfSyncEdits(before: PersistedLibraryStoreDocument | undefined,
+  after: PersistedLibraryStoreDocument): LibraryShelfSyncEdits {
+  const previous: LibraryShelfSyncImage = { present: before !== undefined, works: [] }
+  const next: LibraryShelfSyncImage = { present: true, works: [] }
+  const oldWorks = before?.comics ?? []
+  const remaining = new Map<string, PersistedComic>(oldWorks.map((work: PersistedComic): [string, PersistedComic] => [work.id, work]))
+  const comicIds: string[] = []
+  const unchangedCatalogs: string[] = []
+  for (const work of after.comics) {
+    const old = remaining.get(work.id)
+    remaining.delete(work.id)
+    if (old !== undefined && JSON.stringify(old.chapters) === JSON.stringify(work.chapters)) {
+      // Both documents are private to the preparation task. Strip the
+      // catalogs from the recovery images after validating the full result.
+      old.chapters = []
+      work.chapters = []
+      if (JSON.stringify(old) === JSON.stringify(work)) continue
+      comicIds.push(work.id)
+      unchangedCatalogs.push(work.id)
+      previous.works.push(old)
+      next.works.push(work)
+      continue
+    }
+    comicIds.push(work.id)
+    if (old !== undefined) previous.works.push(old)
+    next.works.push(work)
+  }
+  remaining.forEach((work: PersistedComic, id: string): void => {
+    comicIds.push(id)
+    previous.works.push(work)
+  })
+  if (oldWorks.length !== after.comics.length || oldWorks.some((work: PersistedComic, index: number): boolean =>
+    work.id !== after.comics[index].id)) {
+    previous.order = oldWorks.map((work: PersistedComic): string => work.id)
+    next.order = after.comics.map((work: PersistedComic): string => work.id)
+  }
+  if (JSON.stringify(before?.customCategories) !== JSON.stringify(after.customCategories)) {
+    previous.categories = before?.customCategories ?? null
+    next.categories = after.customCategories ?? null
+  }
+  if (JSON.stringify(before?.categoryDisplayStrategies) !== JSON.stringify(after.categoryDisplayStrategies)) {
+    previous.displayStrategies = before?.categoryDisplayStrategies ?? null
+    next.displayStrategies = after.categoryDisplayStrategies ?? null
+  }
+  if (JSON.stringify(before?.smartCategories) !== JSON.stringify(after.smartCategories)) {
+    previous.smartCategories = before?.smartCategories ?? null
+    next.smartCategories = after.smartCategories ?? null
+  }
+  if (JSON.stringify(before?.syncShelfMoves) !== JSON.stringify(after.syncShelfMoves)) {
+    previous.moves = before?.syncShelfMoves ?? null
+    next.moves = after.syncShelfMoves ?? null
+  }
+  return { comicIds, unchangedCatalogs, before: previous, after: next }
 }
 
 // Keep the owned shelf document in one TaskPool task through decode, merge and
 // validation. The caller still checks the admitted files and publishes the journal.
 export function prepareSyncShelfDocument(raw: string | null, changes: SyncLocalValue[], projectionText: string,
-  acceptedRemoval: string, replica: string): PreparedSyncShelf {
+  acceptedRemoval: string, replica: string, relational: boolean = false): PreparedSyncShelf {
   const library = raw === null ? emptySyncLibrary() : readLibraryStoreDocument(raw)
   const projection = JSON.parse(projectionText) as SyncProjection
   const admittedIds = new Set<string>((library.customCategories ?? []).map(category => category.id))
@@ -566,5 +623,11 @@ export function prepareSyncShelfDocument(raw: string | null, changes: SyncLocalV
   const libraryText = JSON.stringify(library)
   assertValidLibraryStoreJson(libraryText)
   hiTraceMeter.traceByValue('KomaDeviceSyncShelfPreparedChars', libraryText.length)
-  return { libraryText, projectionText: JSON.stringify(projection) }
+  // Resolving aliases or recording a declined remote edit can change the sync
+  // projection without changing the shelf. Keep the unchanged catalog in the worker.
+  const nextProjection = JSON.stringify(projection)
+  if (libraryText === raw) return { projectionText: nextProjection }
+  if (!relational) return { libraryText, projectionText: nextProjection }
+  const before = raw === null ? undefined : JSON.parse(raw) as PersistedLibraryStoreDocument
+  return { shelfEdits: shelfSyncEdits(before, library), projectionText: nextProjection }
 }

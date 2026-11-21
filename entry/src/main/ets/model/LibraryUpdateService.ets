@@ -17,11 +17,7 @@ import {
   sameComicIdentity,
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
-import {
-  LibraryStorePersistenceService,
-  serializeLibraryStore,
-  hydrateLibraryStoreFromJson,
-} from './LibraryPersistence'
+import { LibraryStorePersistenceService } from './LibraryPersistence'
 import { MangaChapterItem, MangaDetail, MangaStatus } from './MangaDetailModels'
 import { resolveSourceChapterList } from './SourceChapterListResolver'
 import { fetchSourceMangaDetail } from './SourceMangaDetailRequest'
@@ -537,25 +533,32 @@ export class LibraryUpdateService {
       const checkedAt = Date.now()
       const comics = this.libraryStore.listComics()
       const results: LibraryUpdateComicResult[] = []
-      let changed = false
-      const previousPayload = this.persistenceService === undefined ? undefined : serializeLibraryStore(this.libraryStore)
+      const modified: Comic[] = []
       console.info(`[LibraryUpdate] step=start total=${comics.length}`)
-      for (let index = 0; index < comics.length; index += 1) {
-        const result = await this.checkComic(comics[index])
+      for (const comic of comics) {
+        const result = await this.checkComic(comic)
         if (result.status === 'updated' || result.metadataChanged === true) {
-          changed = true
+          modified.push(comic)
         }
         results.push(result)
       }
-      if (changed && this.persistenceService !== undefined) {
-        try {
-          this.persistenceService.persist()
-        } catch (error) {
-          if (previousPayload !== undefined) {
-            hydrateLibraryStoreFromJson(this.libraryStore, previousPayload)
+      if (modified.length > 0 && this.persistenceService !== undefined) {
+        // The check can take several requests. Commit only changed works
+        // using their current values, including any saved user edits.
+        const current: Comic[] = []
+        const before: Comic[] = []
+        modified.forEach((comic: Comic): void => {
+          const live = this.libraryStore.getComic(comic.id)
+          if (live !== undefined && sameComicIdentity(comic, live)) {
+            current.push(live)
+            before.push(comic)
           }
-          const e = error as Error
-          throw new Error(e.message)
+        })
+        try {
+          if (current.length > 0) this.persistenceService.persistExistingWorks(current)
+        } catch (error) {
+          this.persistenceService.restoreFailedWorkUpdates(before)
+          throw error as Error
         }
       }
       const summary = summarizeResults(checkedAt, results)
