@@ -454,6 +454,7 @@ export struct BrowsePage {
     Stack() {
     PullRefreshListScaffold({
       scroller: this.browseScroller,
+      inertialSpring: true,
       onDidScroll: this.onRootScroll,
       pinnedOverlayHeight: this.chrome.searchHeight,
       listSpace: ThemeConstants.SPACE_SM,

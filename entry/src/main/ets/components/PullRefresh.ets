@@ -18,7 +18,9 @@ const PULL_ANIM_DURATION: number = 400
 const PULL_ANIM_STATE_RESET_MS: number = 420
 const PULL_ANIM_DONE_DELAY_MS: number = 200
 
+@ObservedV2
 export class PullRefreshController {
+  @Trace nativeSpringEnabled: boolean = true
   private topRefreshAction: () => void = () => {}
 
   setTopRefreshAction(action: () => void): void {
@@ -67,6 +69,7 @@ export struct PullRefresh {
   private isBottomTracking: boolean = false
   private isHorizontalGesture: boolean = false
   private mounted: boolean = false
+  private activeTouchIds: Set<number> = new Set<number>()
 
   aboutToAppear(): void {
     this.mounted = true
@@ -77,7 +80,31 @@ export struct PullRefresh {
 
   aboutToDisappear(): void {
     this.mounted = false
+    this.activeTouchIds.clear()
+    this.controller.nativeSpringEnabled = true
     if (this.pullOffset > 0) this.onTopPullOffsetChange?.(0)
+  }
+
+  private updateNativeSpring(): void {
+    // Refresh owns the edge while a finger is down or its offset is settling.
+    // Released list momentum needs the native spring on both edges (#147).
+    if (this.mounted) {
+      this.controller.nativeSpringEnabled =
+        this.activeTouchIds.size === 0 && !this.topIndicatorMounted && !this.bottomIndicatorMounted
+    }
+  }
+
+  private trackNativeSpringTouch(event: TouchEvent): void {
+    if (event.type === TouchType.Down) {
+      event.touches.forEach((touch: TouchObject): void => { this.activeTouchIds.add(touch.id) })
+    } else if (event.type === TouchType.Up && event.changedTouches.length > 0) {
+      event.changedTouches.forEach((touch: TouchObject): void => { this.activeTouchIds.delete(touch.id) })
+    } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+      this.activeTouchIds.clear()
+    } else {
+      return
+    }
+    this.updateNativeSpring()
   }
 
   private setTopPullOffset(offset: number): void {
@@ -118,6 +145,7 @@ export struct PullRefresh {
           this.refreshState = 0
           this.hapticFired = false
           this.topIndicatorMounted = false
+          this.updateNativeSpring()
         }
       }, PULL_ANIM_STATE_RESET_MS)
     }
@@ -137,6 +165,7 @@ export struct PullRefresh {
           this.bottomRefreshState = 0
           this.hapticFired = false
           this.bottomIndicatorMounted = false
+          this.updateNativeSpring()
         }
       }, PULL_ANIM_STATE_RESET_MS)
     }
@@ -169,6 +198,7 @@ export struct PullRefresh {
     } catch (_error) {}
     this.onScrollEnableChange(false)
     this.topIndicatorMounted = true
+    this.updateNativeSpring()
     this.getUIContext().animateTo(
       { duration: PROGRAMMATIC_PULL_ANIM_DURATION, curve: Curve.EaseOut },
       () => {
@@ -296,6 +326,7 @@ export struct PullRefresh {
       }
       .offset({ y: this.pullOffset - this.bottomPullOffset })
       .onTouch((event: TouchEvent) => {
+        this.trackNativeSpringTouch(event)
         if (this.refreshState >= 2 || this.bottomRefreshState >= 2) {
           return
         }
@@ -386,6 +417,7 @@ export struct PullRefresh {
           } else {
             this.topIndicatorMounted = false
             this.bottomIndicatorMounted = false
+            this.updateNativeSpring()
           }
           this.onScrollEnableChange(true)
           this.resetTouchState()

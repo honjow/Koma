@@ -37,6 +37,7 @@ export struct PullRefreshListScaffold {
   // Keep the caller's scroll gate separate from PullRefresh's short-lived
   // gesture gate. Browse has no external owner and therefore uses the default.
   @Param scrollEnabled: boolean = true
+  @Param inertialSpring: boolean = false
   @Param backToTop: boolean = true
   @Event onRefresh?: () => Promise<void>
   @Event onBottomRefresh?: () => Promise<void>
@@ -123,9 +124,9 @@ export struct PullRefreshListScaffold {
           right: this.horizontalPadding,
         })
         .clip(false)
-        // PullRefresh owns the overscroll displacement, so native spring must
-        // remain disabled to avoid a second, misaligned movement layer.
-        .edgeEffect(EdgeEffect.None)
+        .edgeEffect(this.inertialSpring && this.controller.nativeSpringEnabled ? EdgeEffect.Spring : EdgeEffect.None, {
+          alwaysEnabled: this.inertialSpring,
+        })
         .onWillScroll((_scrollOffset: number, _scrollState: ScrollState, source: ScrollSource) => {
           if (this.onUserScroll && isUserScrollSource(source)) {
             this.onUserScroll()

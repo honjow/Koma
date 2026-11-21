@@ -1,6 +1,6 @@
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { PullRefresh } from './PullRefresh'
+import { PullRefresh, PullRefreshController } from './PullRefresh'
 import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
 import { LibraryCoverGridAdjustment } from '../state/LibraryCoverGridAdjustment'
 import { libraryCoverGridColumnCount, libraryCoverGridGap } from '../utils/LibraryCoverLayout'
@@ -33,6 +33,7 @@ export struct SourceMangaGrid {
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private coverLayout: LibraryCoverLayoutState = connectLibraryCoverLayout()
   @Local private pullScrollEnabled: boolean = true
+  @Local private pullRefreshController: PullRefreshController = new PullRefreshController()
   @Event onRefresh?: () => Promise<void>
   @Event onPaginationRequested?: () => void
 
@@ -96,8 +97,8 @@ export struct SourceMangaGrid {
     .height('100%')
     .padding({ left: libraryCoverGridGap(this.coverLayout.density), right: libraryCoverGridGap(this.coverLayout.density) })
     .attributeModifier(new SourceGridClipModifier(this.withPullRefresh))
-    .edgeEffect(this.withPullRefresh ? EdgeEffect.None : EdgeEffect.Spring, {
-      alwaysEnabled: !this.withPullRefresh,
+    .edgeEffect(!this.withPullRefresh || this.pullRefreshController.nativeSpringEnabled ? EdgeEffect.Spring : EdgeEffect.None, {
+      alwaysEnabled: true,
     })
     .gesture(PinchGesture({ fingers: 2 })
       .onActionStart((): void => {
@@ -119,6 +120,7 @@ export struct SourceMangaGrid {
       if (this.withPullRefresh) {
         PullRefresh({
           scroller: this.scroller,
+          controller: this.pullRefreshController,
           indicatorTop: this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT / 2 +
             this.pinnedOverlayHeight,
           bottomIndicatorBottom: this.safeArea.bottomAvoidHeight + ThemeConstants.SPACE_XL +

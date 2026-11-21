@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.4 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-21T02:24:27+08:00",
+  "updatedAt": "2026-11-21T19:02:45+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -7545,9 +7545,9 @@
       "number": 147,
       "title": "普通列表头尾回弹及短列表始终允许滚动",
       "priority": "P2（当前连续性能P0后）",
-      "owner": "Root：原普通List/Grid与原生sheet具名范围完成；按新反例重开",
-      "kind": "accepted",
-      "status": "普通长短List/Grid头尾及原生sheet具名范围已收束",
+      "owner": "Root",
+      "kind": "pending_verification",
+      "status": "197 已验证书架、浏览和源内目录两端回弹，用户确认保留当前交互",
       "dependencies": [],
       "relatedItems": [
         "MANGA_DETAIL_PULL_REFRESH"
@@ -7558,22 +7558,22 @@
       "firstEvidenceAt": null,
       "firstHandlingAt": "2026-10-23T10:54:45.461347+00:00",
       "closedAt": "2026-10-25T20:17:00.688656+00:00",
-      "result": "保197116/117普通长短List、118书架Grid顶部原具名结果。新增174普通筛选sheet拖bar到LARGE后内部空白区上下滑，全261帧/8表已Root顺审：上滑标题/关闭/内容随外层原生Scroll移动、dragbar不动，释放复位；下滑走原生挡位缩放，Back正常原书架。175三次normal fling至实际末行；176全201帧/6表已顺审，底部一次边缘动作内容上移再自然弹回，标题/底Tab正常。178恢复原顶部/原首三书，library-store和reader-preferences逐字同173，恢复系统120000无Override并释cded1338。",
-      "remaining": "本次普通List/Grid头尾及原生sheet具名范围完成；不外推所有页面/输入或封面载入，不以Root自行扩出的独立内部ListSpring/标题固定要求保留假缺口。",
+      "result": "保197116/117普通长短List、118书架Grid顶部原具名结果。新增174普通筛选sheet拖bar到LARGE后内部空白区上下滑，全261帧/8表已Root顺审：上滑标题/关闭/内容随外层原生Scroll移动、dragbar不动，释放复位；下滑走原生挡位缩放，Back正常原书架。175三次normal fling至实际末行；176全201帧/6表已顺审，底部一次边缘动作内容上移再自然弹回，标题/底Tab正常。178恢复原顶部/原首三书，library-store和reader-preferences逐字同173，恢复系统120000无Override并释cded1338。 2026-11-20 新反馈覆盖接入下拉刷新的页面。197 的 Koma 1.5.5 连续录制对照，设置页越过顶底边界再收回，书架网格和 MANGA Plus Creators 的 30 本源内列表到顶底直接停住，源内末尾明确显示「没有更多了」。书架和源内滚动容器在刷新分支关闭原生 EdgeEffect。自定义 PullRefresh 只处理手指仍在屏上的拖动与松手收回，缺少松手后的惯性回弹。 197 覆盖安装同签修复包 Koma 1.5.6（25，d7ca1f708d87），连续录像按原始帧时间戳核对：书架网格、浏览书源列表与 MANGA Plus Creators 的 Popular (English) 网格都能在惯性到顶和到底后越界、回弹并复位。源内在「没有更多了」确认到达末尾。短拉松手后复位，长拉显示原刷新指示器并回到原栏目和首屏作品，随后快速滑动仍能回弹。197 保留修复包，恢复原设置页顶部、10 秒息屏和休眠；五条临时相册录像逐条确认删除，租约已释放。 用户确认沿用当前交互，惯性到边回弹，主动下拉超过阈值才刷新。",
+      "remaining": "修复待随应用版本发布。197 本次实测覆盖书架网格、浏览根列表和源内网格，并验证源内主动下拉刷新。其他书架布局、短内容及仍有下一页的场景未单独取样。",
       "evidencePoints": [
         "直接产物索引：library-store.v1.json"
       ],
       "remainingActions": [
-        "原人类要求的普通列表头尾阻尼/能加的始终允许滚动，在具名长短List、Grid头尾和原生sheet各自真实范围内收束；其他页/显示FPS/封面载入未扩大，只按真实新反例重开，不重复旧矩阵。"
+        "保留现有交互，随应用下一版本交付。原普通长短列表和半模态保持历史验收范围。"
       ],
       "boundaries": [
-        "不外推每页、私库或阅读器正文，不为凑矩阵重复测试。保几何/方向/位置；自定义PullRefresh是唯一边缘位移owner。",
-        "原用户普通滚动目标与Root自行要求的内部弹簧机制分开。174不证明内部ListSpring，但原两条也未要求这种机制/固定标题；不擅改SELF_FIRST现有sheet拖挡合同。"
+        "书架、浏览根列表和源内目录的刷新与惯性回弹按《执行规则》导航与界面段交接，保留刷新指示器、触发规则和原分页入口。",
+        "半模态继续沿用原生挡位和外层滚动，漫画详情沿用原有刷新与封面背景联动。"
       ],
       "continuationGate": {
-        "checkedAt": "2026-10-25T20:17:00.688656+00:00",
+        "checkedAt": "2026-11-21T19:02:45+08:00",
         "owner": "Root",
-        "condition": "原具名范围本轮实际收束；未外推全页不是新增必验矩阵。仅真实新反例/相关消费合同变化重开，不重复174/176/178。"
+        "condition": "197 已有两端回弹、主动下拉刷新及设备恢复证据。用户已确认保留惯性回弹和主动下拉刷新的现有分工。"
       },
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "reportedAgeAtAudit": "至少2天8小时40分50秒",
@@ -7587,8 +7587,24 @@
         ".hvigor/outputs/reader-loading-background-20261011/device197__ALN-AL80/not-applicable/portrait-1260x2720/shared-mutual/pending-koma197-grid-bottom-ready-175",
         ".hvigor/outputs/reader-loading-background-20261011/device197__ALN-AL80/not-applicable/portrait-1260x2720/shared-mutual/pending-koma197-grid-bottom-motion-176",
         ".hvigor/outputs/reader-loading-background-20261011/device197__ALN-AL80/not-applicable/portrait-1260x2720/shared-mutual/pending-koma197-session-restored-177",
-        ".hvigor/outputs/reader-loading-background-20261011/device197__ALN-AL80/not-applicable/portrait-1260x2720/shared-mutual/pending-koma197-original-top-restored-178"
-      ]
+        ".hvigor/outputs/reader-loading-background-20261011/device197__ALN-AL80/not-applicable/portrait-1260x2720/shared-mutual/pending-koma197-original-top-restored-178",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/motion-observation.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/final-device-restoration/run-metadata.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/settings-motion/koma_edge197_settings_20261120_100631.mp4",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/shelf-motion/koma_edge197_shelf_20261120_100631.mp4",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/source-motion/koma_edge197_source_20261120_100631.mp4",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-install/run-metadata.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-shelf-motion/motion-candidate.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-browse-motion/motion-candidate.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-browse-bottom/motion-candidate.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-source-motion/motion-candidate.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-source-refresh/koma_edge197_candidate_refresh_20261120_100631.mp4",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-source-refresh/motion-candidate.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-settings-and-clip-cleanup/run-metadata.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-final-restoration/run-metadata.json"
+      ],
+      "updatedAt": "2026-11-21T19:02:45+08:00",
+      "progressPhase": "verification"
     },
     {
       "id": "TAB_ICON_SELECTION_FEEDBACK",
@@ -12348,6 +12364,48 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "list-edge-scroll-retain-current-interaction-20261121",
+      "at": "2026-11-21T19:02:45+08:00",
+      "itemId": "LIST_EDGE_SCROLL_FEEL",
+      "title": "用户确认保留当前回弹和下拉刷新交互",
+      "detail": "松手后的惯性沿用原生回弹，刷新由主动下拉超过原阈值发起。",
+      "kind": "decision"
+    },
+    {
+      "id": "list-edge-scroll-native-spring-fixed-197-20261120",
+      "at": "2026-11-20T18:42:37+08:00",
+      "itemId": "LIST_EDGE_SCROLL_FEEL",
+      "title": "197 验证下拉刷新页面的原生惯性回弹",
+      "detail": "197 覆盖安装同签修复包 Koma 1.5.6（25，d7ca1f708d87），连续录像按原始帧时间戳核对：书架网格、浏览书源列表与 MANGA Plus Creators 的 Popular (English) 网格都能在惯性到顶和到底后越界、回弹并复位。源内在「没有更多了」确认到达末尾。短拉松手后复位，长拉显示原刷新指示器并回到原栏目和首屏作品，随后快速滑动仍能回弹。197 保留修复包，恢复原设置页顶部、10 秒息屏和休眠；五条临时相册录像逐条确认删除，租约已释放。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-install/run-metadata.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-shelf-motion/motion-candidate.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-browse-motion/motion-candidate.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-browse-bottom/motion-candidate.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-source-motion/motion-candidate.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-source-refresh/koma_edge197_candidate_refresh_20261120_100631.mp4",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-source-refresh/motion-candidate.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-settings-and-clip-cleanup/run-metadata.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/candidate-final-restoration/run-metadata.json"
+      ]
+    },
+    {
+      "id": "list-edge-scroll-refresh-inertia-197-20261120",
+      "at": "2026-11-20T18:16:51+08:00",
+      "itemId": "LIST_EDGE_SCROLL_FEEL",
+      "title": "197 对照原生回弹与下拉刷新页面的惯性硬停",
+      "detail": "197 已安装 Koma 1.5.5，同机连续录制设置、书架网格和 MANGA Plus Creators 的 Popular (English)。设置页顶底过界收回，两处下拉刷新页面到边停住，源内已到「没有更多了」。代码核对表明，书架接入刷新时从 Spring 切为 None，源网格分支也使用 None；只有触摸拖动触发刷新容器的位移。诊断未改应用代码。已恢复书架与设置顶部、原 10 秒息屏及休眠，临时相册录像已删除并释租。源内正常浏览留下该源的一条最近使用记录。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/motion-observation.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/final-device-restoration/run-metadata.json",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/settings-motion/koma_edge197_settings_20261120_100631.mp4",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/shelf-motion/koma_edge197_shelf_20261120_100631.mp4",
+        ".hvigor/outputs/edge-scroll-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/ordinary-screens/source-motion/koma_edge197_source_20261120_100631.mp4"
+      ]
+    },
     {
       "id": "continuous-dual-hdr-fit-short-matrix-20261120",
       "at": "2026-11-20T16:01:34+08:00",

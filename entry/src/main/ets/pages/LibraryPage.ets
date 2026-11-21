@@ -10,7 +10,7 @@ import { connectLibraryPrivacyState, LibraryPrivacyAuthResult, LibraryPrivacySta
 import { FrameCallback, SymbolGlyphModifier } from '@kit.ArkUI'
 import { KomaMenuController, KomaMenuAction as LibraryTitleMenuItem, komaTitleMoreIcon } from '../components/ui/KomaMenuController'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
-import { PullRefresh } from '../components/PullRefresh'
+import { PullRefresh, PullRefreshController } from '../components/PullRefresh'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -444,6 +444,7 @@ export struct LibraryPage {
   @Event onProgressStoreReloadRequested: () => void = () => {}
   @Event onRefresh: () => Promise<void> = async () => {}
   @Local private scrollEnabled: boolean = true
+  @Local private pullRefreshController: PullRefreshController = new PullRefreshController()
   @Local private coverGridScrolling: boolean = false
   @Event onImportRequested: () => void = () => {}
   @Event onSearchRequested: () => void = () => {}
@@ -2410,7 +2411,9 @@ export struct LibraryPage {
     .padding({ left: this.libraryHorizontalInset(), right: this.libraryHorizontalInset() })
     .clipContent(ContentClipMode.CONTENT_ONLY)
     .enableScrollInteraction(this.scrollEnabled)
-    .edgeEffect(EdgeEffect.None)
+    .edgeEffect(this.pullRefreshController.nativeSpringEnabled ? EdgeEffect.Spring : EdgeEffect.None, {
+      alwaysEnabled: true,
+    })
     .gesture(PinchGesture({ fingers: 2 })
       .onActionStart((): void => {
         this.gridAdjustment.beginPinch(this.libraryViewportWidth(), this.listDensity, this.coverLayout.gridColumnWidth)
@@ -2675,7 +2678,7 @@ export struct LibraryPage {
         scroller: this.libraryScroller,
         onDidScroll: this.onRootScroll,
         scrollEnabled: this.scrollEnabled,
-        alwaysEnableEdgeSpring: false,
+        alwaysEnableEdgeSpring: this.pullRefreshController.nativeSpringEnabled,
         listSpace: this.viewMode === 'list' ? ThemeConstants.SPACE_SM : ThemeConstants.SPACE_LG,
         horizontalPadding: this.viewMode === 'list' ? ThemeConstants.SPACE_MD : this.libraryHorizontalInset(),
         bottomPadding: ThemeConstants.SPACE_XL,
@@ -2732,6 +2735,7 @@ export struct LibraryPage {
     Column() {
       PullRefresh({
         scroller: this.libraryScroller,
+        controller: this.pullRefreshController,
         indicatorTop: this.layoutSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT / 2,
         onRefresh: async (): Promise<void> => { await this.onRefresh() },
         onScrollEnableChange: (enabled: boolean): void => { this.scrollEnabled = enabled },
