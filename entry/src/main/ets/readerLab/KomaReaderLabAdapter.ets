@@ -631,18 +631,26 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const sizeVersion = this.preloadedSizeVersions.get(id) ?? 0
     const policy = this.bannerPolicy()
     const request = new RemoteImageFileRequest(async (report: RemoteImageDownloadProgress): Promise<string> => {
-      const snapshot = await this.ruleSnapshot
-      const path = await fetchAndCacheReaderRemoteSource(source, this.requestContext, forceReload, { snapshot, policy },
-        (width: number, height: number): void => {
-          if (!this.closed && revision === this.presentationRevision &&
-            (this.preloadedSizeVersions.get(id) ?? 0) === sizeVersion &&
-            this.sources.get(this.unitId(key))?.[index] === source) {
-            this.onPageSize?.(this.unitId(key), index, width, height)
-            if (this.automaticPaging()) this.publishPreparedSize(key, index, source, width, height)
-          }
-        }, report)
-      if (revision !== this.presentationRevision || policy !== this.bannerPolicy()) throw new Error('reader_source_page_processing_stale')
-      return path
+      const trace = DiagnosticLogger.begin('reader_asset', 'file', `page=${index + 1} force=${forceReload}`)
+      try {
+        const snapshot = await this.ruleSnapshot
+        trace.info('rules_ready', '')
+        const path = await fetchAndCacheReaderRemoteSource(source, this.requestContext, forceReload, { snapshot, policy },
+          (width: number, height: number): void => {
+            if (!this.closed && revision === this.presentationRevision &&
+              (this.preloadedSizeVersions.get(id) ?? 0) === sizeVersion &&
+              this.sources.get(this.unitId(key))?.[index] === source) {
+              this.onPageSize?.(this.unitId(key), index, width, height)
+              if (this.automaticPaging()) this.publishPreparedSize(key, index, source, width, height)
+            }
+          }, report)
+        if (revision !== this.presentationRevision || policy !== this.bannerPolicy()) throw new Error('reader_source_page_processing_stale')
+        trace.finish('completed')
+        return path
+      } catch (error) {
+        trace.finish('failed', DiagnosticLogger.errorSummary(error as Error))
+        throw error as Error
+      }
     })
     this.sourceRequests.set(id, request)
     const retire = (): void => {

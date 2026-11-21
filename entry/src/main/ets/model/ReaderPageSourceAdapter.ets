@@ -449,6 +449,7 @@ async function downloadDnsOverrideImage(fullUrl: string, extraHeaders: RemoteIma
 }
 
 const READER_IMAGE_READ_TIMEOUT_MS: number = 60000
+const READER_IMAGE_CONNECT_TIMEOUT_MS: number = 10000
 const LARGE_READER_IMAGE_READ_TIMEOUT_MS: number = 90000
 const DOWNLOAD_IMAGE_RETRY_DELAY_MS: number[] = [300, 800, 1500]
 const COVER_IMAGE_READ_TIMEOUT_MS: number = 15000
@@ -668,7 +669,7 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
   await waitForSourceRequestSlot(installedSource?.requestLimits, url, undefined, extraHeaders)
   const readTimeout = chapterImage ? LARGE_READER_IMAGE_READ_TIMEOUT_MS :
     (coverImage ? COVER_IMAGE_READ_TIMEOUT_MS : READER_IMAGE_READ_TIMEOUT_MS)
-  const connectTimeout = coverImage ? COVER_IMAGE_CONNECT_TIMEOUT_MS : 30000
+  const connectTimeout = coverImage ? COVER_IMAGE_CONNECT_TIMEOUT_MS : READER_IMAGE_CONNECT_TIMEOUT_MS
   const trace = DiagnosticLogger.begin('reader_image', 'request', 'connectTimeoutMs=' + connectTimeout + ' readTimeoutMs=' + readTimeout)
   const diagnosticStartedAt = Date.now()
   const diagnosticTarget = readerImageDiagnosticTarget(url)
@@ -1279,9 +1280,12 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   const bodyCacheKey = sourceBodyImageCacheKey(cacheKeySeed, entry, fingerprint)
   const hintKey = cacheKeySeed + ':processing:' + fingerprint
   const needsHints = onProcessing !== undefined || onRequiredDecode !== undefined
+  const lookupStartedAt = Date.now()
   const cached = forceReload ? undefined : await cachedSourceImage(readerImageCacheStore, cacheKeySeed, bodyCacheKey,
     needsHints ? hintKey : undefined)
   const cachedFast = cached?.imagePath
+  DiagnosticLogger.info('reader_asset', 'cache_lookup', `source=${sourceId} hit=${cachedFast !== undefined} ` +
+    `force=${forceReload} elapsedMs=${Date.now() - lookupStartedAt}`)
   if (cachedFast !== undefined && cachedFast.length > 0) {
     if (onSize !== undefined) void probeReaderImageFileSize(cachedFast, onSize)
     if (!needsHints) return cachedFast

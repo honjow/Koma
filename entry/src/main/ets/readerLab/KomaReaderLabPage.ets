@@ -1299,8 +1299,24 @@ export struct KomaReaderLabPage {
   }
 
   private cacheSettleTimer: number = -1
+  private imageDiagnosticTimer: number = -1
 
   private setEnhancementInteractionBusy(busy: boolean): void {
+    if (this.imageDiagnosticTimer >= 0) clearTimeout(this.imageDiagnosticTimer)
+    this.imageDiagnosticTimer = -1
+    if (!busy) this.imageDiagnosticTimer = setTimeout((): void => {
+      this.imageDiagnosticTimer = -1
+      if (this.readerClosed || !this.routeActive) return
+      const state = this.session?.snapshot()
+      if (state === undefined) return
+      state.frames.forEach((frame: ReaderPagedFrame): void => {
+        const value = frame.asset
+        DiagnosticLogger.info('reader_asset', 'visible_state', `page=${frame.part.sourceIndex + 1} slot=${frame.slotId} ` +
+          `phase=${value.phase} request=${value.requestId} asset=${value.assetRequestId} fileReady=${value.uri.length > 0} ` +
+          `variant=${value.variant} width=${value.page?.width ?? 0} height=${value.page?.height ?? 0} ` +
+          `loaded=${value.loadProgressLoaded} total=${value.loadProgressTotal}`)
+      })
+    }, 3000)
     if (!busy) this.volumeTurnVSync.stop()
     if (this.enhancementInteractionTimer >= 0) clearTimeout(this.enhancementInteractionTimer)
     this.enhancementInteractionTimer = -1
@@ -1327,6 +1343,8 @@ export struct KomaReaderLabPage {
   }
 
   private releaseEnhancementInteraction(): void {
+    if (this.imageDiagnosticTimer >= 0) clearTimeout(this.imageDiagnosticTimer)
+    this.imageDiagnosticTimer = -1
     setDeviceSyncReaderMoving(false)
     this.volumeTurnVSync.close()
     if (this.enhancementInteractionTimer >= 0) clearTimeout(this.enhancementInteractionTimer)

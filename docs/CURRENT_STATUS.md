@@ -86,6 +86,55 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "READER_REVISIT_LOADING_STALL",
+      "number": 340,
+      "title": "条漫回翻反复加载与滚动卡顿",
+      "kind": "pending_verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-21",
+      "reportedAtSource": "本会话：包子漫画《大象无形》下读回翻、书架续读反复加载，200普通滚动严重卡顿。",
+      "registeredAt": "2026-11-21T23:42:42+08:00",
+      "updatedAt": "2026-11-22T00:44:48+08:00",
+      "status": "永久转圈已修复，200回翻及续读已验；性能回归继续跟踪339",
+      "result": "200第75章39/47内部已displayed且解码、超分完成，尺寸元数据追上时被布局去重漏掉加载收尾。reader-kit b2f70c9补发同次真实解码完成通知后，下读8次、回翻6次回到同张图可正常显示。最终候选又完成10次下读、6次回翻的连续录像，未再出现持续转圈。另有d17b39ce迁移把同步全量RDB读取放回主线程；200原进程HiPerf确认同步快照→全书架查询，原trace有370至540ms回调。按阅读引用查询的联合候选17未再出现该整库长回调，仍有90ms文件删除回调，不能据此宣称所有卡顿消失。连接建立超时从30秒缩至10秒，传输时限不冒充连接时限。",
+      "remaining": "数据库性能整改由339继续维护同一实现并在201做同机基线与候选对照；200本轮采样起点和缓存深度不同，不作为严格性能倍数对比。",
+      "evidence": [
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/04-sustained-reading/trace.htrace",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/12-live-loading-stall/screen.png",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/14-native-receipt-read-revisit/screen.png",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/09-main-report/main-report.txt",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/19-normal-reading-video/koma_reader_200_20261122_normal.mp4",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/20-shelf-resume-recheck/run-metadata.json",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/21-verification-auto-settle/screen.png",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/17-final-continuous-chrome/trace.htrace"
+      ]
+    },
+    {
+      "id": "READER_HISTORY_CATALOG_WEB_VERIFICATION",
+      "number": 338,
+      "title": "历史续读遇到网页验证后目录只剩当前章",
+      "kind": "accepted",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-21",
+      "reportedAtSource": "本会话用户报告包子漫画《大象无形》，并要求按公共续读链路修复。",
+      "registeredAt": "2026-11-21T22:51:13+08:00",
+      "updatedAt": "2026-11-22T00:44:48+08:00",
+      "status": "200自然403网页验证后自动恢复完整目录已验",
+      "result": "续读补目录和相邻章准备共用原请求验证及单次重放，同源并发复用验证。200从书架续读76章6/36时，get_chapters自然返回403并弹网页验证；约00:31:40自动探测原请求，验证页自行收起，重放返回200，00:31:45取得605个唯一章节。当前正文保留，之后工具栏显示章节101/605。未把网页文字或Cookie存在直接作为成功。",
+      "remaining": "",
+      "evidence": [
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/20-shelf-resume-recheck/run-metadata.json",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/21-verification-auto-settle/run-metadata.json",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/21-verification-auto-settle/screen.png",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/22-catalog-after-verification/layout.json"
+      ],
+      "closedAt": "2026-11-22T00:44:48+08:00"
+    },
+    {
       "id": "READER_TEMPORARY_ENHANCEMENT_REUSE",
       "number": 336,
       "title": "阅读页切回原图和再次打开超分时等待",
@@ -2643,19 +2692,18 @@
       "id": "READER_SOURCE_FAILURE_CHROME",
       "number": 239,
       "title": "书源加载失败后无法呼出阅读器菜单",
-      "kind": "done",
+      "kind": "accepted",
       "priority": "用户反馈",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-08",
       "reportedAtSource": "本会话用户报告，原始消息时间未核实。",
       "registeredAt": "2026-11-08T05:02:40+08:00",
-      "updatedAt": "2026-11-08T05:05:51+08:00",
-      "status": "197 正常包已复验",
-      "stage": "指定作品实际返回网络错误",
-      "result": "点报错页空白能呼出工具栏，可打开阅读设置、重试并返回历史。",
-      "remaining": "这次修复错误页操作。指定作品的书源请求在 197 仍返回网络错误。",
-      "closedAt": "2026-11-08T05:05:51+08:00",
+      "updatedAt": "2026-11-22T00:44:48+08:00",
+      "status": "已拆除图片与定位对普通输入的限制，197加载态及200正文已验",
+      "stage": "具名真机路径通过",
+      "result": "共享8c9425e移除外层准备等待与加载层命中；8273785移除条漫下层定位等待和图片请求epoch对普通点击的阻断。197真实正文加载时可呼出上下栏、离开未加载页；200最终候选可呼出上下栏，目录恢复后显示101/605。缩放仍要求真实图片就绪，旧页面、实际滚动及失效行仍按各自所有权校验。",
+      "remaining": "",
       "relatedItems": [
         "HISTORY_RESUME_WAIT_FEEDBACK"
       ],
@@ -2663,8 +2711,11 @@
         ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T050304294650/screen.png",
         ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T050335487772/screen.png",
         ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T050415023812/run-metadata.json",
-        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T050453008561/run-metadata.json"
-      ]
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T050453008561/run-metadata.json",
+        ".hvigor/outputs/reader-catalog-cf/device197__ALN-AL80/not-applicable/portrait-1260x2720/23-pending-image-chrome/screen.png",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/22-catalog-after-verification/layout.json"
+      ],
+      "closedAt": "2026-11-22T00:44:48+08:00"
     },
     {
       "id": "HISTORY_RESUME_WAIT_FEEDBACK",
@@ -29034,6 +29085,67 @@
         ".hvigor/outputs/source-body-framework/offline-final.png",
         ".hvigor/outputs/source-body-framework/search-normal-first.png",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-http-response-contract/body-86-final-device-restore/run-metadata.json"
+      ]
+    },
+    {
+      "id": "reader-loading-and-history-catalog-20261121",
+      "at": "2026-11-21T22:51:13+08:00",
+      "itemId": "READER_HISTORY_CATALOG_WEB_VERIFICATION",
+      "kind": "implementation",
+      "title": "修复历史目录验证恢复和加载期输入门控",
+      "detail": "目录异常与页表失败共用阅读器原请求验证；并发同源验证合并，失败可从目录重试。共享输入修复在独立reader-kit原仓提交并推送8c9425e，Koma按提交更新依赖并构建，正在197验收。",
+      "evidence": [
+        ".hvigor/outputs/reader-catalog-cf/device197__ALN-AL80/not-applicable/portrait-1260x2720/scenario.json"
+      ]
+    },
+    {
+      "id": "reader-image-native-receipt-200-20261122",
+      "at": "2026-11-22T00:44:48+08:00",
+      "itemId": "READER_REVISIT_LOADING_STALL",
+      "kind": "checkpoint",
+      "title": "修复真实解码后仍转圈并核对回翻",
+      "detail": "200同一75章第39张修复前持续加载，b2f70c9后下读与回翻返回该图正常。最终候选10次下读、6次回翻录像已亲审，含短暂重新准备，未见原永久转圈。 200已恢复原120秒无覆盖超时并保持唤醒，197恢复原10秒覆盖与休眠；两机均已独立释租读回。",
+      "evidence": [
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/12-live-loading-stall/screen.png",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/14-native-receipt-read-revisit/screen.png",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/19-normal-reading-video/frames-review/one-second-review.jpg"
+      ]
+    },
+    {
+      "id": "reader-resume-catalog-cf-200-20261122",
+      "at": "2026-11-22T00:44:48+08:00",
+      "itemId": "READER_HISTORY_CATALOG_WEB_VERIFICATION",
+      "kind": "checkpoint",
+      "title": "自然续读403验证后自动恢复605章",
+      "detail": "200书架继续阅读保留76章6/36，后台目录403弹网页验证，自动探测和原请求重放后回到正文，605章完整目录恢复。没有手动填验证码或把失败HTTP状态改为通过。",
+      "evidence": [
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/20-shelf-resume-recheck/run-metadata.json",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/21-verification-auto-settle/run-metadata.json",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/22-catalog-after-verification/layout.json"
+      ]
+    },
+    {
+      "id": "reader-input-ready-decoupling-20261122",
+      "at": "2026-11-22T00:44:48+08:00",
+      "itemId": "READER_SOURCE_FAILURE_CHROME",
+      "kind": "checkpoint",
+      "title": "普通点击与图片、定位等待分离",
+      "detail": "外层8c9425e及下层8273785均在独立reader-kit/main维护并推原origin，Koma按SHA消费。197真实加载时呼出上下栏和翻离加载页；200正文上下栏、验证后目录总数已核。图像完成不取消同一行等待中的点击。",
+      "evidence": [
+        ".hvigor/outputs/reader-catalog-cf/device197__ALN-AL80/not-applicable/portrait-1260x2720/23-pending-image-chrome/screen.png",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/22-catalog-after-verification/layout.json"
+      ]
+    },
+    {
+      "id": "reader-main-thread-regression-evidence-200-20261122",
+      "at": "2026-11-22T00:44:48+08:00",
+      "itemId": "READER_REVISIT_LOADING_STALL",
+      "kind": "checkpoint",
+      "title": "确认RDB迁移把整库读取带回阅读主线程",
+      "detail": "原进程63087的HiPerf和trace共同确认DeviceSyncOwners.snapshot经readLiveLibrarySnapshot进入LibraryRdbStorage.read整库查询。普通同步和回执按阅读关系字段读取的实现与339联合维护；本轮200候选仍观察到90ms回调，未夸大为完全无卡顿。",
+      "evidence": [
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/04-sustained-reading/trace.htrace",
+        ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/09-main-report/main-report.txt"
       ]
     }
   ],

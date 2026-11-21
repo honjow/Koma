@@ -79,7 +79,8 @@ export default class EntryAbility extends UIAbility {
     captureKomaDeviceVerificationIsolation(want, this.context.applicationInfo.debug)
     void launchParam
     AppStrings.init(this.context)
-    this.startupPromise = this.prepareStartup(want).catch((_error: Error): void => {
+    this.startupPromise = this.prepareStartup(want).catch((error: Error): void => {
+      DiagnosticLogger.exception('app', 'startup_cause', error)
       BackupRestoreActivity.blockUntilRestart()
       DiagnosticLogger.error('app', 'startup_failed', '[BackupRecovery] step=startup_failed code=backup_recovery_pending')
     })
