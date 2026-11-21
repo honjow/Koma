@@ -101,7 +101,34 @@ jobs:
           key: koma-native-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.native_toolchain.outputs.identity }}-${{ hashFiles('Koma/scripts/prepare-reader-avif.sh', 'Koma/scripts/prepare-comic-archive.sh', 'Koma/scripts/prepare-source-browser-http.sh', 'Koma/scripts/prepare-icu-regex.sh', 'Koma/scripts/icu-regex-data-filter.json') }}
 
       - name: Install OHPM dependencies
-        run: ohpm install --all
+        run: |
+          install_log="$(mktemp)"
+          if ohpm install --all 2>&1 | tee "$install_log"; then
+            exit 0
+          fi
+          if ! grep -Eq 'axios-2\.2\.12\.har failed, response\.status = 5[0-9]{2}' "$install_log"; then
+            exit 1
+          fi
+
+          # Retry the pinned HAR at the official CDN target of the registry redirect.
+          # OHPM still checks the original SHA-512 in the lockfile.
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("entry/oh-package-lock.json5")
+          lock = json.loads(path.read_text(encoding="utf-8"))
+          axios = lock["packages"]["@ohos/axios@2.2.12"]
+          registry = "https://ohpm.openharmony.cn/ohpm/@ohos/axios/-/axios-2.2.12.har"
+          if axios["resolved"] != registry:
+              raise SystemExit("Expected the locked OHPM registry URL for axios 2.2.12")
+          axios["resolved"] = (
+              "https://contentcenter-drcn.dbankcdn.cn/pub_1/DevEcoSpace_DevEcoSpace_901_9/"
+              "18/v3/8743e0e1-7476-4dbb-b8c6-357221005be4/axios-2.2.12.har"
+          )
+          path.write_text(json.dumps(lock, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+          ohpm install --all
 
       - name: Disable Huawei Cloud sync for public builds
         run: |
