@@ -1089,3 +1089,80 @@ test('a replaced global query retires old claims, and generic403 or changed sett
   assert.equal(await f.service.completeWebChallenge(next,true),false)
   assert.equal(f.calls.length,4)
 })
+
+function readerRequestRecoveryFixture() {
+  const tree = ts.createSourceFile('Index.ts', read('pages/Index').replace(/\bstruct /g, 'class '), ts.ScriptTarget.Latest, true)
+  const owner = tree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'Index')
+  const exports = {}, events = []
+  class ReaderChallenge {
+    constructor(params, current, resolve) {
+      Object.assign(this, { params, current })
+      this.completed = new Promise(complete => { this.resolve = value => { complete(value); resolve(value) } })
+    }
+    finish(value) { this.resolve(value) }
+  }
+  new Function('exports', 'SourceRuntimeError', 'newSourceRuntimeOperationGuardId', 'registerSourceRuntimeOperationGuard',
+    'sourceRejectedRequestUrl', 'sourceWebOrigin', 'prepareSourceWebSession', 'ReaderSourceWebChallenge',
+    'clearSourceRejectedRequest', compile(classText(owner, tree,
+      ['readReaderPagesWithVerification', 'finishReaderWebChallenge'])))(exports, SourceRuntimeError, () => 'reader-guard',
+    (guard, current) => { events.push(['registered', guard, current()]); return () => events.push(['released', guard]) },
+    () => 'https://source.invalid/chapters', url => new URL(url).origin,
+    (_id, _name, guard) => ({ sourceSession: { sourceId: 'source', requestHandle: guard } }), ReaderChallenge,
+    (source, guard) => events.push(['cleared', source, guard]))
+  const page = new exports.Owner()
+  Object.assign(page, { readerWebChallenge: null, sourceRegistry: { lookup: () => ({ entry: {
+    manifestName: 'Source', webSessionOrigins: ['https://source.invalid'],
+  } }) } })
+  return { page, events }
+}
+
+test('reader catalog exceptions and page failures share exact-request verification and one replay', async () => {
+  for (const throws of [true, false]) {
+    const { page, events } = readerRequestRecoveryFixture()
+    const error = challenge(), calls = []
+    const pending = page.readReaderPagesWithVerification('source', async guard => {
+      calls.push(guard)
+      if (calls.length === 1) {
+        if (throws) throw error
+        return { sourceFailure: error.diagnostic, pages: [] }
+      }
+      return { chapters: ['A', 'B', 'C'] }
+    }, () => true)
+    await new Promise(setImmediate)
+    assert.equal(page.readerWebChallenge.params.sourceSession.requestHandle, 'reader-guard')
+    page.finishReaderWebChallenge(page.readerWebChallenge, true)
+    assert.deepEqual(await pending, { chapters: ['A', 'B', 'C'] })
+    assert.deepEqual(calls, ['reader-guard', 'reader-guard'])
+    assert.deepEqual(events.slice(-2), [['released', 'reader-guard'], ['cleared', 'source', 'reader-guard']])
+  }
+})
+
+test('canceled reader catalog verification keeps the failure and cannot replay after leaving', async () => {
+  const { page } = readerRequestRecoveryFixture()
+  const error = challenge(); let active = true, calls = 0
+  const pending = page.readReaderPagesWithVerification('source', async () => { calls++; throw error }, () => active)
+  const rejected = assert.rejects(pending, value => value === error)
+  await new Promise(setImmediate)
+  active = false
+  page.finishReaderWebChallenge(page.readerWebChallenge, true)
+  await rejected
+  assert.equal(calls, 1)
+})
+
+test('concurrent reader catalog and adjacent-page challenges share one verification and replay each request once', async () => {
+  const { page } = readerRequestRecoveryFixture()
+  const calls = [0, 0]
+  const request = index => page.readReaderPagesWithVerification('source', async () => {
+    if (++calls[index] === 1) throw challenge()
+    return index
+  }, () => true)
+  const first = request(0)
+  await new Promise(setImmediate)
+  const sheet = page.readerWebChallenge
+  const second = request(1)
+  await new Promise(setImmediate)
+  assert.equal(page.readerWebChallenge, sheet)
+  page.finishReaderWebChallenge(sheet, true)
+  assert.deepEqual(await Promise.all([first, second]), [0, 1])
+  assert.deepEqual(calls, [2, 2])
+})

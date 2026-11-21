@@ -64,7 +64,7 @@ test('picker opens only for an exact current unit/navigation and dismisses befor
   const choices = [new Choice(current, 'Alpha'), new Choice(key('B'), 'Beta')]
   const opened = []
   Object.assign(page, {
-    adapter: { chapterChoices: () => choices }, chapterChoices: [], chapterChoiceIdentity: '',
+    adapter: { chapterChoices: () => choices, chapterCatalogPending: () => false }, chapterChoices: [], chapterChoiceIdentity: '',
     session: { snapshot: () => ({ phase: 'ready', navigationRevision: 4, unit: { key: current } }) },
     openChapterTarget: (...args) => opened.push(args.map(value => value?.unit ?? value)),
     syncKeepScreenOn() {}, syncVolumeKeys() {},
@@ -277,9 +277,9 @@ function preparationFixture(hostPrepare, fetchSource = async source => '/cache/'
   readSize = async () => '0,0') {
   const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter',
     ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'prepareArchiveBookmarks', 'authenticationSource',
-      'installConfig', 'prepareSequence', 'adjacent', 'preloadNextUnit',
+      'installConfig', 'prepareSequence', 'chapterCatalogPending', 'retryChapterCatalog', 'adjacent', 'preloadNextUnit',
       'page', 'preload', 'prepareImageSize', 'publishPreparedSize', 'recoverableImageFailure', 'refreshPageSources', 'sourceFile', 'load', 'close'], {
-      ...sharedCore, ...sharedProcessing, DiagnosticLogger: { info() {} }, KomaReaderFailure: { catalogMessage: error => error.message },
+      ...sharedCore, ...sharedProcessing, DiagnosticLogger: { info() {}, warn() {} }, KomaReaderFailure: { catalogMessage: error => error.message },
       SourceRuntimeError: class extends Error {}, RemoteImageFileRequest,
       ComicSourceKind: { LOCAL_FOLDER: 'local_folder', LOCAL_ARCHIVE: 'local_archive' },
       ReaderPageRenderKind: { REMOTE_URL_IMAGE: 1, URI_PLACEHOLDER: 2, LOCAL_FILE_IMAGE: 3 },
@@ -870,4 +870,29 @@ test('a complete source catalog retires missing chapter adjacency without losing
     assert.equal(present.continuationEligible, true)
     assert.equal(output.enrichSourceChapterMetadata(comic, [{ ...present }]), false)
   }
+})
+
+test('failed history catalog remains retryable without replacing its readable chapter', async () => {
+  const adapter = preparationFixture(async target => ({ ...chapterConfig(target.unit), sourceRuntimeId: 'source',
+    chapterIds: [target.unit], chapterTitles: ['Current'], continuationChapterIds: undefined }))
+  let attempts = 0
+  adapter.catalogHost.sequence = async () => {
+    if (++attempts === 1) throw new Error('challenge_required')
+    return { continuation: ['A', 'B', 'C'], chapterIds: ['A', 'B', 'C'], chapterTitles: ['Alpha', 'Beta', 'Gamma'] }
+  }
+  const unit = await adapter.prepare(unitKey('B'), new sharedCore.ReaderCancellation())
+  await later()
+  const config = adapter.configs.get(adapter.unitId(unit.key))
+  const pages = config.pageUris
+  assert.equal(adapter.chapterCatalogPending(unit.key), true)
+  assert.equal(adapter.adjacent(unit, 'next'), null)
+  assert.equal(adapter.preparingSequences.size, 0)
+  await adapter.retryChapterCatalog(unit.key)
+  assert.equal(attempts, 2)
+  assert.equal(adapter.chapterCatalogPending(unit.key), false)
+  assert.equal(config.pageUris, pages)
+  assert.equal(adapter.adjacent(unit, 'previous').unit, 'A')
+  assert.equal(adapter.adjacent(unit, 'next').unit, 'C')
+  assert.equal(config.chapterIds.length, 3)
+  adapter.close()
 })

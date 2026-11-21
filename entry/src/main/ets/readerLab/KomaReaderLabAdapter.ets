@@ -341,7 +341,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const unit = new ReaderUnit(key.copy(), `${config.title ?? ''} · ${config.chapterTitle ?? ''}`, config.totalPages)
     cancellation.check()
     const sequence = this.resolvedSequences.get(this.unitId(key))
-    if (sequence !== undefined) config.continuationChapterIds = sequence.slice()
+    if (sequence !== undefined) {
+      config.continuationChapterIds = sequence.slice()
+      config.sourceChapterChronologyPending = false
+    }
     this.configs.set(this.unitId(key), config)
     this.sources.set(this.unitId(key), sources)
     this.preparedUnits.set(this.unitId(key), unit)
@@ -371,6 +374,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       // Publish the manual choices without rebuilding the current chapter's
       // source list or restarting its images.
       const config = this.configs.get(this.unitId(key))
+      if (config !== undefined) config.sourceChapterChronologyPending = false
       const chapterIds = catalog.chapterIds
       const chapterIndex = chapterIds?.indexOf(key.unit) ?? -1
       if (config !== undefined && chapterIds !== undefined && chapterIndex >= 0) {
@@ -381,9 +385,21 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       this.onSequenceReady()
     } catch (_error) {
       if (!this.closed) DiagnosticLogger.warn('reader', 'chapter_sequence_unavailable', 'reason=chapter_sequence_unavailable')
+    } finally {
+      // This is an in-flight gate, not a permanent failure cache. A canceled
+      // verification or transient network failure must remain retryable.
+      this.preparingSequences.delete(work)
     }
-    // One background attempt per work/session; a new Reader session can
-    // resolve a failed source request again without changing the current page.
+  }
+
+  chapterCatalogPending(unit: ReaderUnitKey): boolean {
+    const config = this.configs.get(this.unitId(unit))
+    return config?.sourceRuntimeId !== undefined && (config.sourceChapterChronologyPending === true ||
+      (config.continuationChapterIds === undefined && config.chapterIds.length <= 1))
+  }
+
+  async retryChapterCatalog(unit: ReaderUnitKey): Promise<void> {
+    if (this.chapterCatalogPending(unit)) await this.prepareSequence(unit.copy())
   }
 
   spreadMetadata(unit: ReaderUnit): ReaderPage[] {

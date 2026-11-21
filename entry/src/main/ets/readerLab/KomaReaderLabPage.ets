@@ -283,6 +283,7 @@ export struct KomaReaderLabPage {
   private chapterPickerTarget: ReaderUnitKey | null = null
   private chapterPickerTargetPage: number | undefined = undefined
   private chapterChoiceIdentity: string = ''
+  @Local private chapterCatalogIncomplete: boolean = false
   private observedCatalogUnit: ReaderUnitKey | null = null
   private observedSourceSignature: string = ''
   private chapterPickerScroller: ListScroller = new ListScroller()
@@ -803,6 +804,7 @@ export struct KomaReaderLabPage {
   }
 
   private syncChapterChoices(unit: ReaderUnitKey): void {
+    this.chapterCatalogIncomplete = this.adapter?.chapterCatalogPending(unit) ?? false
     const choices = this.adapter?.chapterChoices(unit) ?? []
     const identity = JSON.stringify(choices.map((choice: KomaReaderLabChapterChoice): string =>
       `${choice.key.scope}:${choice.key.work}:${choice.key.unit}:${choice.title}:${choice.pageIndex ?? -1}`))
@@ -819,6 +821,7 @@ export struct KomaReaderLabPage {
     }
     const index = this.chapterChoices.findIndex((choice: KomaReaderLabChapterChoice): boolean => choice.key.unit === this.currentChapterUnit)
     const title = AppStrings.get('reader_control_chapter')
+    if (this.chapterCatalogIncomplete && this.chapterChoices.length <= 1) return title
     return index < 0 ? title : `${title} ${index + 1} / ${this.chapterChoices.length}`
   }
 
@@ -835,11 +838,19 @@ export struct KomaReaderLabPage {
     this.onOpenMangaDetail(source.work)
   }
 
-  private openChapterPicker(source: ReaderUnitKey, navigation: number): void {
+  private async openChapterPicker(source: ReaderUnitKey, navigation: number): Promise<void> {
     const snapshot = this.session?.snapshot()
     if (snapshot?.phase !== 'ready' || snapshot.unit === null || !snapshot.unit.key.equals(source) ||
       snapshot.navigationRevision !== navigation) return
     this.syncChapterChoices(source)
+    if (this.chapterCatalogIncomplete && this.chapterChoices.length <= 1) {
+      await this.adapter?.retryChapterCatalog(source)
+      const current = this.session?.snapshot()
+      if (this.readerClosed || !this.routeActive || current?.phase !== 'ready' || current.unit === null ||
+        !current.unit.key.equals(source) || current.navigationRevision !== navigation) return
+      this.syncChapterChoices(source)
+      if (this.chapterCatalogIncomplete) return
+    }
     if (this.chapterChoices.length > 0) {
       const sourceIndex = snapshot.anchor?.sourceIndexHint ?? 0
       let selected = this.chapterChoices.findIndex((choice: KomaReaderLabChapterChoice): boolean =>

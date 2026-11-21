@@ -5,12 +5,15 @@ import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore
 export class ReaderSourceWebChallenge {
   readonly params: MangaWebRouteParam
   readonly current: () => boolean
+  readonly completed: Promise<boolean>
   private resolve: ((verified: boolean) => void) | undefined
 
   constructor(params: MangaWebRouteParam, current: () => boolean, resolve: (verified: boolean) => void) {
     this.params = params
     this.current = current
-    this.resolve = resolve
+    this.completed = new Promise<boolean>((complete: (verified: boolean) => void): void => {
+      this.resolve = (verified: boolean): void => { complete(verified); resolve(verified) }
+    })
   }
 
   finish(verified: boolean): void {

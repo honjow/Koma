@@ -44,7 +44,7 @@ import { KomaReaderFailure } from '../readerLab/KomaReaderFailure'
 import { comicArchiveExtractionRoot } from '../import/ComicArchiveBookmarks'
 import { readOrderedEpubImages } from '../import/EpubArchiveReader'
 import { planLegacyEpubOrder } from '../import/LegacyEpubOrder'
-import { SourceFailureDetails } from '../model/SourceRuntimeError'
+import { SourceFailureDetails, SourceRuntimeError } from '../model/SourceRuntimeError'
 import { SourceTextOverlay } from '../model/SourceTextOverlay'
 import { ReaderLabLaunchState, ReaderLabRequest, connectReaderLabLaunch, ReaderRouteTransition } from '@reader-kit/ui'
 import { ReaderCancellation, ReaderObservedPosition, ReaderUnitKey } from '@reader-kit/core'
@@ -87,7 +87,7 @@ import { LocalImportCoordinator, LOCAL_IMPORT_PDF_PASSWORD_REQUIRED } from '../i
 import { LocalImportCommitService } from '../import/LocalImportCommitService'
 import { MangaDetailPage } from './MangaDetailPage'
 import { MangaWebPage } from './MangaWebPage'
-import { resolveSourceChapterList } from '../model/SourceChapterListResolver'
+import { resolveSourceChapterList, SourceChapterListResult } from '../model/SourceChapterListResolver'
 import {
   ReaderChapterDescriptor,
   ReaderChapterOpenIntent,
@@ -1132,7 +1132,7 @@ struct Index {
     }
   }
 
-  private async readReaderPagesWithVerification<T extends SourceChapterPageFailure>(sourceId: string | undefined,
+  private async readReaderPagesWithVerification<T>(sourceId: string | undefined,
     read: (guardId?: string) => Promise<T>, current?: () => boolean): Promise<T> {
     const entry = sourceId === undefined ? undefined : this.sourceRegistry.lookup(sourceId).entry
     if (sourceId === undefined || entry === undefined || current === undefined || (entry.webSessionOrigins ?? []).length === 0) {
@@ -1141,16 +1141,34 @@ struct Index {
     const guard = newSourceRuntimeOperationGuardId()
     const release = registerSourceRuntimeOperationGuard(guard, current)
     try {
-      const result = await read(guard)
-      if (result.sourceFailure?.kind !== 'challenge' || !current() || this.readerWebChallenge !== null) return result
+      // Page plans return structured failures; chapter catalogues throw them.
+      // Both belong to the same visible reader operation and exact HTTP retry.
+      let result: T | undefined = undefined
+      let failure: SourceRuntimeError | undefined = undefined
+      try { result = await read(guard) } catch (error) {
+        if (!(error instanceof SourceRuntimeError)) throw error as Error
+        failure = error
+      }
+      const details = failure?.diagnostic ?? (result as SourceChapterPageFailure | undefined)?.sourceFailure
+      const finish = (): T => {
+        if (failure !== undefined) throw failure
+        return result as T
+      }
+      if (details?.kind !== 'challenge' || !current()) return finish()
+      const pending = this.readerWebChallenge
+      if (pending !== null) {
+        if (pending.params.sourceSession?.sourceId !== sourceId) return finish()
+        const verified = await pending.completed
+        return verified && current() ? await read(guard) : finish()
+      }
       const exactUrl = sourceRejectedRequestUrl(sourceId, guard)
-      if (exactUrl.length === 0 || !(entry.webSessionOrigins ?? []).includes(sourceWebOrigin(exactUrl))) return result
+      if (exactUrl.length === 0 || !(entry.webSessionOrigins ?? []).includes(sourceWebOrigin(exactUrl))) return finish()
       const params = prepareSourceWebSession(sourceId, entry.manifestName, guard)
-      if (params?.sourceSession === undefined) return result
+      if (params?.sourceSession === undefined) return finish()
       const verified = await new Promise<boolean>((resolve: (value: boolean) => void): void => {
         this.readerWebChallenge = new ReaderSourceWebChallenge(params, current, resolve)
       })
-      return verified && current() ? await read(guard) : result
+      return verified && current() ? await read(guard) : finish()
     } finally {
       release()
       clearSourceRejectedRequest(sourceId, guard)
@@ -1433,11 +1451,12 @@ struct Index {
     cancellation: ReaderCancellation, forceRefresh: boolean = false): Promise<ReaderSessionConfig | null> {
     if (target.scope !== 'koma-local') return null
     const openEpoch = this.readerOpenEpoch
-    // The adapter also calls this method for speculative adjacent units. Only
-    // the displayed unit can request verification through this entry point.
-    const current = this.readerSessionConfig.comicId === target.work && this.readerSessionConfig.chapterId === target.unit
+    // Adjacent preparation is part of this visible reader too. Bind recovery
+    // to its originating chapter; leaving or changing it retires the request.
+    const originChapter = this.readerSessionConfig.chapterId
+    const current = this.readerSessionConfig.comicId === target.work
       ? (): boolean => !cancellation.isCancelled() && this.readerPageRequestCurrent(openEpoch) &&
-        this.readerSessionConfig.chapterId === target.unit : undefined
+        this.readerSessionConfig.comicId === target.work && this.readerSessionConfig.chapterId === originChapter : undefined
     const sourceRequest = this.activeSourceReaderRequest
     if (sourceRequest !== undefined && sourceRequest.comicId === target.work) {
       const nextRequest = sourceReaderSessionRequestForChapter(sourceRequest, target.unit)
@@ -1478,9 +1497,10 @@ struct Index {
     if (original === undefined) return null
     if (original.sourceRuntimeId !== undefined &&
       !original.chapters.some((chapter: Chapter): boolean => chapter.id === target.unit)) {
-      await new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
-        this.ensureLibraryPersistenceService()).ensureChapterDescriptor(target.work, target.unit,
-          (): boolean => !cancellation.isCancelled() && this.readerOpen && !this.readerClosing)
+      await this.readReaderPagesWithVerification<boolean>(original.sourceRuntimeId,
+        (guard?: string): Promise<boolean> => new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
+          this.ensureLibraryPersistenceService()).ensureChapterDescriptor(target.work, target.unit,
+            (): boolean => !cancellation.isCancelled() && this.readerPageRequestCurrent(openEpoch), guard), current)
       cancellation.check()
       original = this.readerComicForOpen(target.work) ?? original
     }
@@ -1519,7 +1539,9 @@ struct Index {
       const lookup = this.sourceRegistry.lookup(source.sourceId)
       if (!lookup.ok || lookup.entry === undefined || !sourceRuntimeEntryEnabled(lookup.entry)) return undefined
       const sourceCurrent = (): boolean => isCurrent() && this.sourceRegistry.lookup(source.sourceId).entry === lookup.entry
-      const catalog = await resolveSourceChapterList(lookup.entry, source.mangaId, source.mangaUrl, sourceCurrent)
+      const catalog = await this.readReaderPagesWithVerification<SourceChapterListResult>(source.sourceId,
+        (guard?: string): Promise<SourceChapterListResult> => resolveSourceChapterList(lookup.entry!, source.mangaId,
+          source.mangaUrl, sourceCurrent, undefined, guard), sourceCurrent)
       cancellation.check()
       if (!catalog.resolved || !sourceCurrent() ||
         !catalog.chapters.some((chapter: ReaderChapterDescriptor): boolean => chapter.id === target.unit)) return undefined
@@ -1540,8 +1562,10 @@ struct Index {
         chapterTitles: updated.chapterTitles,
       }
     }
-    const continuation = await new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
-      this.ensureLibraryPersistenceService()).resolveChapterSequence(target.work, target.unit, isCurrent)
+    const continuation = await this.readReaderPagesWithVerification<string[] | undefined>(
+      this.readerComicForOpen(target.work)?.sourceRuntimeId,
+      (guard?: string): Promise<string[] | undefined> => new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
+        this.ensureLibraryPersistenceService()).resolveChapterSequence(target.work, target.unit, isCurrent, guard), isCurrent)
     return continuation === undefined ? undefined : { continuation }
   }
 

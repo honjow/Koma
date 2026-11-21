@@ -430,6 +430,7 @@ export class SourceChapterPageHydrator {
     comicId: string,
     chapterId: string,
     isCurrent: () => boolean,
+    operationGuardId?: string,
   ): Promise<boolean> {
     const comic = this.libraryStore.getComic(comicId)
     if (comic === undefined) {
@@ -448,7 +449,8 @@ export class SourceChapterPageHydrator {
       !sourceRuntimeEntryEnabled(lookup.entry)) {
       return false
     }
-    const descriptor = await resolveSourceChapterForResume(lookup.entry, mangaId, chapterId, comic.sourcePath, isCurrent)
+    const descriptor = await resolveSourceChapterForResume(lookup.entry, mangaId, chapterId, comic.sourcePath, isCurrent,
+      operationGuardId)
     const latest = this.libraryStore.getComic(comicId)
     if (descriptor === undefined || !isCurrent() || latest === undefined ||
       !sameComicIdentity(comic, latest) || latest.sourceRuntimeId !== sourceId || sourceMangaIdFromComic(latest, sourceId) !== mangaId) {
@@ -496,7 +498,7 @@ export class SourceChapterPageHydrator {
   /** Upgrade legacy sequence metadata beside the displayed chapter. No page,
    * progress, chapter deletion or visible catalog reordering is performed. */
   async resolveChapterSequence(comicId: string, chapterId: string,
-    isCurrent: () => boolean): Promise<string[] | undefined> {
+    isCurrent: () => boolean, operationGuardId?: string): Promise<string[] | undefined> {
     const comic = this.libraryStore.getComic(comicId)
     const sourceId = comic?.sourceRuntimeId?.trim()
     if (comic === undefined || sourceId === undefined || sourceId.length === 0) return undefined
@@ -505,7 +507,8 @@ export class SourceChapterPageHydrator {
     if (mangaId === undefined || !lookup.ok || lookup.entry === undefined ||
       !sourceRuntimeEntryEnabled(lookup.entry)) return undefined
     const sourceCurrent = (): boolean => isCurrent() && this.sourceRegistry.lookup(sourceId).entry === lookup.entry
-    const catalog = await resolveSourceChapterList(lookup.entry, mangaId, comic.sourcePath, sourceCurrent)
+    const catalog = await resolveSourceChapterList(lookup.entry, mangaId, comic.sourcePath, sourceCurrent, undefined,
+      operationGuardId)
     const latest = this.libraryStore.getComic(comicId)
     if (!catalog.resolved || !sourceCurrent() || latest === undefined || !sameComicIdentity(comic, latest) ||
       latest.sourceRuntimeId !== sourceId || sourceMangaIdFromComic(latest, sourceId) !== mangaId) return undefined

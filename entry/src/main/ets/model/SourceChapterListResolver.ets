@@ -17,6 +17,7 @@ import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatur
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { sourceChapterExclusions } from './SourceChapterVisibility'
 import { sourceCatalogChronology } from './SourceChapterChronology'
+import { selectSourceRejectedRequest } from '../sourceRuntime/SourceRuntimeHttpTransport'
 
 interface SourceChapterPageArgs {
   cursor: string | null
@@ -60,8 +61,9 @@ export async function resolveSourceChapterList(
   mangaUrl?: string,
   isCurrent?: () => boolean,
   chapterContext?: Record<string, Object>,
+  operationGuardId?: string,
 ): Promise<SourceChapterListResult> {
-  return fetchSourceChapterList(entry, mangaId, undefined, mangaUrl, isCurrent, chapterContext)
+  return fetchSourceChapterList(entry, mangaId, undefined, mangaUrl, isCurrent, chapterContext, operationGuardId)
 }
 
 /** Exact-ID recovery never exposes its partial response as a full catalog. */
@@ -71,8 +73,9 @@ export async function resolveSourceChapterForResume(
   chapterId: string,
   mangaUrl?: string,
   isCurrent?: () => boolean,
+  operationGuardId?: string,
 ): Promise<MangaChapterItem | undefined> {
-  const result = await fetchSourceChapterList(entry, mangaId, chapterId, mangaUrl, isCurrent)
+  const result = await fetchSourceChapterList(entry, mangaId, chapterId, mangaUrl, isCurrent, undefined, operationGuardId)
   return sourceChapterForRetainedIdentity(entry.websitePolicy?.chapterIdentity, mangaId, chapterId, result.chapters)
 }
 
@@ -83,6 +86,7 @@ async function fetchSourceChapterList(
   mangaUrl?: string,
   isCurrent?: () => boolean,
   chapterContext?: Record<string, Object>,
+  operationGuardId?: string,
 ): Promise<SourceChapterListResult> {
   const chapters: MangaChapterItem[] = []
   const excludedChapterIds: Set<string> = new Set<string>()
@@ -119,9 +123,9 @@ async function fetchSourceChapterList(
     if (chapterId === undefined && chapterContext !== undefined) request.args.chapterContext = chapterContext
     const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
     wasmBytes.set(entry.wasmBytes)
-    const requestJson = sourceRequestWithHostFeatures(JSON.stringify(request))
+    const requestJson = sourceRequestWithHostFeatures(JSON.stringify(request), operationGuardId !== undefined)
     const responseJson = await diagnoseSourceOperation(requestJson, () => executeSourceChapterListOperation( requestJson, wasmBytes,
-      sourceHttpIdentityJson(entry, undefined, chapterContext !== undefined && chapterId === undefined, 'get_chapters'),
+      sourceHttpIdentityJson(entry, operationGuardId, chapterContext !== undefined && chapterId === undefined, 'get_chapters'),
     ))
     if (!current()) return { chapters, resolved: false, reasonCode: 'source_chapters_cancelled' }
     const projection = await taskpool.execute(projectSourceChapterResponse, responseJson,
@@ -134,6 +138,9 @@ async function fetchSourceChapterList(
       const reason = typeof nativeReason === 'string' && nativeReason.trim().length > 0 ? nativeReason :
         (typeof sourceReason === 'string' && sourceReason.trim().length > 0 ? sourceReason : 'get_chapters_failed')
       const failure = new SourceRuntimeError(response as SourceRuntimeCallResponse)
+      if (operationGuardId !== undefined && failure.diagnostic.kind === 'challenge') {
+        selectSourceRejectedRequest(entry.sourceId, operationGuardId, failure.challengeRequestId)
+      }
       // Existing update/resume consumers classify message as a reason code; UI uses userText.
       failure.message = reason
       throw failure
