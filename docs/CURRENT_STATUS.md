@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-21T19:02:45+08:00",
+  "updatedAt": "2026-11-21T20:02:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -4524,15 +4524,16 @@
       "id": "READING_HISTORY_SYNC",
       "number": 65,
       "title": "跨设备数据同步",
-      "kind": "done",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
       "priority": "用户要求重做及独立评审",
       "owner": "Root",
-      "status": "本次同步重设计、两机关键验收及独立终审完成，设备和临时服务已恢复清理",
+      "status": "201 报告保持本机仍打开旧章节。已修复续读取值与写回失败分支，隔离回归通过",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求参考 NextE/NextN 规划，并明确首版直接采用分片。",
       "result": "同步使用服务列表、WebDAV管理、连接编辑和合并核对四个原生目的页，配置保存与开始同步分开，服务独立启停。197实际核对保存失败/取消保旧、换目录保存即停旧、首次确认和同址改口令保策略；103核对真实上传、明确选择后的真实接收、暂停冷启、重开和关闭自动后的手动同步。取消核对后的假绿、固定阅读设置的假删除和旧记录自动复活已修正，独立源码与真实UI/连续返回评审通过。197实际请求在途时可撤组，断开后旧读错误不复活；103接收后下一同步无回声。两机原设置、正常包、电源及租约已恢复，临时服务、私钥和随机凭据已清理。同步源码已提交推送且对应CI通过，版本保持不变。",
-      "remaining": "本次改动无剩余收尾；本项既有未覆盖验证边界保留，不扩大为全部数据规模或异常分支验收。",
+      "remaining": "原故障发生后用户已恢复进度，原始冲突现场未重放。修复已用留存结构覆盖旧历史、明确选择和写回失败，待真机验证冲突入口。",
       "evidence": [
         "docs/plans/active/device-sync-design.md",
         ".hvigor/outputs/device-sync-independent/0333de60-independent-code-review.md",
@@ -12521,6 +12522,14 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "webdav-resume-stale-chapter-20261121",
+      "at": "2026-11-21T20:02:00+08:00",
+      "itemId": "READING_HISTORY_SYNC",
+      "title": "定位 201 续读跳旧章节并修正选择提交",
+      "detail": "用户报告《大象无形》保持本机仍跳第 10 章。升级前留存已存在最近页位第 65 章与书源历史第 10 章并存，旧日志也记录写回因并发变化中止。补同步后 103 持久读回第 67 章和第 66 章独立页位，201 书源历史仍停在第 10 章。隔离回归验证指定第 66 章成功打开，并发变更使旧选择失败时不进阅读器且保留第 67 章。证据在 .hvigor/outputs/webdav-reading-conflict-20261121。",
+      "kind": "verification"
+    },
     {
       "id": "list-edge-scroll-retain-current-interaction-20261121",
       "at": "2026-11-21T19:02:45+08:00",

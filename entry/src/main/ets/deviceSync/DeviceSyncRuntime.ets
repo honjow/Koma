@@ -20,7 +20,7 @@ import {
 } from './DeviceSyncStorage'
 import {
   syncBusinessKey, syncCatalogRecordKey, syncKey, syncKeyParts, syncReadingIdentity, syncReadingPosition, syncReadingRecent, syncSearchIdentity,
-  syncShelfIdentity, SyncPositionValue,
+  syncShelfIdentity, SyncPositionValue, SyncReadingWorkProgress,
   SyncReaderMode,
 } from './DeviceSyncData'
 import { connectDeviceSyncOwnerEdits, connectDeviceSyncProgress, connectDeviceSyncReadingCapture, connectDeviceSyncRestore,
@@ -49,6 +49,7 @@ export class DeviceSyncViewState {
   @Trace needsReview: boolean = false
   @Trace requiresExplicitReview: boolean = false
   @Trace lastSuccess: number = 0
+  @Trace readingPending: boolean = false
   @Trace error: string = ''
   @Trace errorGroup?: SyncGroup
   @Trace revision: number = 0
@@ -208,6 +209,8 @@ class DeviceSyncRuntime {
     this.view.needsReview = state?.groups.some((group: SyncGroupState): boolean =>
       group.id !== 'reading' && state.selected.includes(group.id) && (group.deferred?.length ?? 0) > 0) ?? false
     this.view.lastSuccess = state?.lastSuccess ?? 0
+    this.view.readingPending = this.view.selected.includes('reading') &&
+      state?.groups.some((group: SyncGroupState): boolean => group.id === 'reading' && group.pending.length > 0) === true
     this.view.shelfRemovals = state?.selected.includes('shelf') ? this.owners?.blockedShelfItems() ?? [] : []
     const retained = state?.selected.includes('reading') ? (this.storage?.load().blockedReadings ?? [])
       .filter((item: SyncBlockedReading): boolean => item.capture.space === state.space) : []
@@ -527,26 +530,44 @@ class DeviceSyncRuntime {
       if (this.activeSync === waiting) return undefined
     }
     if (this.view.busy || request === undefined) return undefined
+    let timer = -1
+    let expired = false
     try {
       await this.recordPositions()
-      const focused = this.needed().syncReadingWork(request.sourceId, request.mangaId)
-      let timer = -1
+      const reader = this.context === undefined ? undefined : appReaderSessionStore(this.context.filesDir)
+      const progress = reader?.getProgress(request.comicId)
+      const position = progress === undefined ? undefined :
+        syncReadingPosition(progress.pageIndex, progress.totalPages, progress.updatedAt)
+      let saved: SyncReadingWorkProgress | undefined
+      if (progress !== undefined) {
+        const recent = syncReadingRecent(request.sourceId, progress.chapterId, progress.updatedAt, request.title,
+          request.sourceName ?? request.sourceId, request.chapterTitles?.[request.chapterIds.indexOf(progress.chapterId)] ?? '',
+          position?.page, request.mangaUrl)
+        saved = { recent, position, chapter: progress.chapterId, page: position?.page ?? 0,
+          total: position?.total ?? 0, date: position?.date ?? recent.date }
+      }
+      const focused = this.needed().syncReadingWork(request.sourceId, request.mangaId, saved, (): void => {
+        if (expired) throw new Error('sync_reading_focus_expired')
+      })
       const result = await Promise.race([focused, new Promise<SyncReadingWorkResult | undefined>((resolve): void => {
-        timer = setTimeout((): void => resolve(undefined), 2000)
+        timer = setTimeout((): void => { expired = true; resolve(undefined) }, 2000)
       })])
-      if (timer >= 0) clearTimeout(timer)
       if (result?.conflict !== undefined) {
         return result.conflict
       }
-    } catch (_error) {
-      // The saved local position remains usable when the focused read fails.
+    } catch (error) {
+      DiagnosticLogger.exception('device-sync', 'reading-focus-failed', error as Error)
+    } finally {
+      if (timer >= 0) clearTimeout(timer)
     }
     return undefined
   }
 
   async resolveReadingResumeConflict(conflict: SyncReadingWorkConflict, useRemote: boolean): Promise<void> {
-    const engine = this.needed()
-    await engine.resolveReadingWork(conflict, useRemote, engine.requestGuard())
+    await this.task(async (): Promise<void> => {
+      const engine = this.needed()
+      await engine.resolveReadingWork(conflict, useRemote, engine.requestGuard())
+    }, false, false)
     this.schedule(0)
   }
 

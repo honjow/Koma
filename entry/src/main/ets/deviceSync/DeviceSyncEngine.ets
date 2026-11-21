@@ -4,7 +4,8 @@ import {
   applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleHeads, syncVisibleValue, SyncEdit,
   SyncEditKind, SyncFact, SyncGroup, SyncVersion, SYNC_GROUPS,
 } from './DeviceSyncFacts'
-import { checkSyncGroupFact, hasNewerCompleteRemoteReading, SyncPositionValue, SyncReadingWorkProgress, syncReadingWorkProgress,
+import { checkSyncGroupFact, hasNewerCompleteRemoteReading, SyncPositionValue, SyncReadingWorkProgress,
+  syncReadingProgressFromValues, syncReadingWorkProgress,
   SyncRecentValue, SyncWorkLabel,
   syncBucketKey, syncBusinessKey, syncGroupVisibleValue, syncKey, syncKeyParts, SYNC_SHELF_DATASET,
   SYNC_SMART_CATEGORIES_DATASET, syncShelfMove } from './DeviceSyncData'
@@ -956,7 +957,8 @@ export class DeviceSyncEngine {
           if (remote.sharedHeads !== undefined) provider.scheduleSharedCollection(guard, changed)
           return
         } catch (error) {
-          if ((error as Error).message !== 'sync_remote_changed') throw error as Error
+          const code = (error as Error).message
+          if (code !== 'sync_remote_changed' && (code !== 'sync_local_changed' || attempt === 2)) throw error as Error
         }
       }
       throw new Error('sync_remote_changed')
@@ -981,20 +983,23 @@ export class DeviceSyncEngine {
   }
 
 
-  async syncReadingWork(source: string, work: string): Promise<SyncReadingWorkResult> {
+  async syncReadingWork(source: string, work: string, saved?: SyncReadingWorkProgress,
+    requestGuard?: SyncRequestGuard): Promise<SyncReadingWorkResult> {
     if (this.running !== undefined || this.focusRunning !== undefined) throw new Error('sync_already_running')
     this.requireEnabled()
     const active = this.active()
     if (active === undefined || !active.selected.includes('reading') || active.enabled === false ||
       (active.restoreReview === true && syncRequiresExplicitReview(active))) return { applied: false }
     const generation = this.generation
-    const guard = this.transferGuard(generation)
-    const pending = this.runReadingWork(source, work, guard).finally((): void => { this.focusRunning = undefined })
+    const transfer = this.transferGuard(generation)
+    const guard = (): void => { transfer(); requestGuard?.() }
+    const pending = this.runReadingWork(source, work, guard, saved).finally((): void => { this.focusRunning = undefined })
     this.focusRunning = pending
     return pending
   }
 
-  private async runReadingWork(source: string, work: string, guard: SyncRequestGuard): Promise<SyncReadingWorkResult> {
+  private async runReadingWork(source: string, work: string, guard: SyncRequestGuard,
+    saved?: SyncReadingWorkProgress): Promise<SyncReadingWorkResult> {
     let remoteFacts: SyncFact[] | undefined
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -1025,7 +1030,9 @@ export class DeviceSyncEngine {
         return heads.length === 0 ? fact : { key: fact.key, values: heads, seen: fact.seen,
           barriers: fact.barriers, cleared: fact.cleared }
       })
-    const local = syncReadingWorkProgress(localWork, source, work)
+    // The device may have a newer saved position while its last published
+    // recent record is still held or pointed at a different chapter.
+    const local = saved ?? syncReadingWorkProgress(localWork, source, work)
     let remote = syncReadingWorkProgress(remoteFacts, source, work)
     if (remote === undefined) return { applied: false }
     if (local === undefined) {
@@ -1046,7 +1053,7 @@ export class DeviceSyncEngine {
     // below only supplies a displayable position for an explicit choice.
     if ((local.chapter !== remote.chapter || local.page !== remote.page) &&
       hasNewerCompleteRemoteReading(local, remote, savedTarget)) {
-      await this.resolveReadingWork({ source, work, local, remote, facts: remoteFacts }, true, guard)
+      await this.applyReadingChoice({ source, work, local, remote, facts: remoteFacts }, true, guard)
       return { applied: true }
     }
     const concurrent = (localRecent !== undefined && syncVisibleHeads(localRecent).length > 1) ||
@@ -1062,7 +1069,7 @@ export class DeviceSyncEngine {
     // The remote is allowed to advance a device that has not read here since.
     // Once local time wins, a differing position is ambiguous: it may be a
     // deliberate reread or a stale save made before this remote was pulled.
-    if (differs && (pending.length > 0 || concurrent || (local.date >= remote.date && remoteUnseen))) {
+    if (differs && (pending.length > 0 || concurrent || (local.date >= remote.date && (remoteUnseen || saved !== undefined)))) {
       return { applied: false, conflict: { source, work, local, remote, facts: remoteFacts } }
     }
     if (differs) {
@@ -1071,6 +1078,7 @@ export class DeviceSyncEngine {
     }
     // Same visible position: retain the remote dots so the next local save
     // observes both sides instead of creating another stale conflict.
+    guard()
     this.mergeReadingFocusFacts(remoteFacts)
     return { applied: false }
   }
@@ -1149,6 +1157,11 @@ export class DeviceSyncEngine {
   }
 
   async resolveReadingWork(conflict: SyncReadingWorkConflict, useRemote: boolean, guard: SyncRequestGuard): Promise<void> {
+    if (this.running !== undefined || this.focusRunning !== undefined) throw new Error('sync_already_running')
+    await this.start((): Promise<void> => this.applyReadingChoice(conflict, useRemote, guard))
+  }
+
+  private async applyReadingChoice(conflict: SyncReadingWorkConflict, useRemote: boolean, guard: SyncRequestGuard): Promise<void> {
     const chosen = useRemote ? conflict.remote : conflict.local
     const edits: DeviceSyncLocalEdit[] = [{ key: syncKey(['recent', conflict.source, conflict.work]),
       kind: 'set', value: JSON.stringify(chosen.recent) }]
@@ -1156,12 +1169,13 @@ export class DeviceSyncEngine {
       edits.push({ key: syncKey(['position', conflict.source, conflict.work, chosen.chapter]),
         kind: 'set', value: JSON.stringify(chosen.position) })
     }
-    await this.applyReadingFocus(conflict.facts, guard, edits)
+    await this.applyReadingFocus(conflict.facts, guard, edits, conflict.local)
   }
 
   /** Apply the chosen location and record the resolving edit in the same receipt. */
   private async applyReadingFocus(facts: SyncFact[], guard: SyncRequestGuard,
-    choice: DeviceSyncLocalEdit[] = []): Promise<void> {
+    choice: DeviceSyncLocalEdit[] = [], expectedLocal?: SyncReadingWorkProgress): Promise<void> {
+    guard()
     if (facts.length === 0) return
     const active = this.active()
     if (active === undefined) return
@@ -1170,20 +1184,31 @@ export class DeviceSyncEngine {
     const merged = mergeSyncFacts(current.facts, facts)
     const local = await this.owner.snapshot('reading', false, guard, active.space, false)
     const localValues = byLocalValue(local.values)
+    if (expectedLocal !== undefined) {
+      const parts = syncKeyParts(choice[0].key)
+      const now = syncReadingProgressFromValues(parts[1], parts[2], (key: string): string | undefined => localValues.get(key))
+      if (now === undefined || now.chapter !== expectedLocal.chapter || now.page !== expectedLocal.page ||
+        now.date > expectedLocal.date) throw new Error('sync_local_changed')
+    }
     const focusKeys = new Set<string>(facts.map((fact: SyncFact): string => fact.key))
     const changes: SyncLocalValue[] = []
     if (choice.length > 0) {
       choice.forEach((edit: DeviceSyncLocalEdit): void => {
-        if (edit.value !== localValues.get(edit.key)) changes.push({ key: edit.key, value: edit.value })
+        // Even when the projected recent value already matches, its source
+        // history row may still point to a stale chapter.
+        if (syncKeyParts(edit.key)[0] === 'recent' || edit.value !== localValues.get(edit.key)) {
+          changes.push({ key: edit.key, value: edit.value })
+        }
       })
     } else {
       merged.forEach((fact: SyncFact): void => {
-        if (!focusKeys.has(fact.key)) return
+        if (!focusKeys.has(fact.key) || local.protectedKeys?.includes(fact.key) === true) return
         const value = syncGroupVisibleValue('reading', fact)
         if (value !== localValues.get(fact.key)) changes.push({ key: fact.key, value: value ?? '' })
       })
     }
     if (changes.length === 0 && choice.length === 0) {
+      guard()
       this.mergeReadingFocusFacts(facts)
       return
     }

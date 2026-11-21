@@ -186,7 +186,7 @@ export struct HistoryPage {
       sourceEntries.forEach((entry: SourceReadHistoryEntry): void => {
         const progress = progressByComicId.get(entry.comicId)
         if (!libraryComicIds.has(entry.comicId) && progress !== undefined) {
-          sourceItems.push(this.sourceHistoryItem(entry, progress))
+          sourceItems.push(this.sourceHistoryItem(sessionStore.getSourceHistoryForResume(entry.comicId) ?? entry, progress))
         }
       })
       sessionStore.listRemoteHistory().forEach((entry: RemoteReadHistoryEntry): void => {

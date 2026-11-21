@@ -1702,7 +1702,7 @@ struct Index {
     }
     if (targetChapterId !== undefined && comic?.sourceRuntimeId && !this.hasAvailableOfflineReaderPages(comicId, targetChapterId) &&
       appDeviceSync.receivedReading(comicId, targetChapterId)) {
-      const history = this.readerSessionStore.getSourceHistory(comicId)
+      const history = this.readerSessionStore.getSourceHistoryForResume(comicId)
       const request = history === undefined || history.chapterId !== targetChapterId ? undefined :
         sourceReaderSessionRequestFromHistory(history)
       if (request !== undefined) {
@@ -1854,8 +1854,11 @@ struct Index {
       return
     }
     this.closeHistoryResumeLoading()
+    const local = this.readerSessionStore.getSourceHistoryForResume(request.comicId)
+    const savedRequest = local === undefined ? undefined : sourceReaderSessionRequestFromHistory(local)
+    if (savedRequest === undefined) return
     if (this.incognito.isSourceEnabled(request.sourceId)) {
-      await this.openSourceReader(request)
+      await this.openSourceReader(savedRequest)
       return
     }
     const generation = ++this.sourceReaderOpenRequest
@@ -1866,7 +1869,7 @@ struct Index {
     const syncStartedAt = Date.now()
     let conflict: SyncReadingWorkConflict | undefined
     try {
-      conflict = await appDeviceSync.waitForReadingSync(request)
+      conflict = await appDeviceSync.waitForReadingSync(savedRequest)
     } finally {
       if (this.historyResumeLoadingTimer === timer) this.closeHistoryResumeLoading()
     }
@@ -1874,10 +1877,10 @@ struct Index {
     DiagnosticLogger.info('reader', 'history_resume_sync',
       `elapsedMs=${Date.now() - syncStartedAt} conflict=${conflict !== undefined}`)
     if (conflict !== undefined) {
-      this.showReadingResumeConflict(conflict, request)
+      this.showReadingResumeConflict(conflict, savedRequest)
       return
     }
-    const history = this.readerSessionStore.getSourceHistory(request.comicId)
+    const history = this.readerSessionStore.getSourceHistoryForResume(request.comicId)
     const latest = history === undefined ? undefined : sourceReaderSessionRequestFromHistory(history)
     if (latest !== undefined) await this.openSourceReader(latest)
   }
@@ -1942,17 +1945,21 @@ struct Index {
 
   private async resolveReadingResumeConflict(conflict: SyncReadingWorkConflict, useRemote: boolean,
     request: SourceReaderSessionRequest): Promise<void> {
+    const chosen = useRemote ? conflict.remote : conflict.local
     try {
       await appDeviceSync.resolveReadingResumeConflict(conflict, useRemote)
-    } catch (_error) {
+      const history = this.readerSessionStore.getSourceHistoryForResume(request.comicId)
+      const latest = history === undefined ? undefined : sourceReaderSessionRequestFromHistory(history)
+      if (latest?.chapterId !== chosen.chapter) throw new Error('sync_reading_choice_not_applied')
+      DiagnosticLogger.info('device-sync', 'reading-choice-applied', `useRemote=${useRemote}`)
+      await this.openSourceReader(latest)
+    } catch (error) {
+      DiagnosticLogger.exception('device-sync', 'reading-choice-failed', error as Error)
       this.showToast(AppStrings.get('device_sync_progress_resolve_failed'))
     } finally {
       this.readingConflictHold?.()
       this.readingConflictHold = undefined
     }
-    const history = this.readerSessionStore.getSourceHistory(request.comicId)
-    const latest = history === undefined ? undefined : sourceReaderSessionRequestFromHistory(history)
-    if (latest !== undefined) await this.openSourceReader(latest)
   }
 
   @Builder
@@ -2381,7 +2388,7 @@ struct Index {
     }
     // Incognito writes progress into its memory overlay so resume works, but
     // cross-device sync and tracker observation stay suppressed.
-    this.readerSessionStore.saveProgress(progress)
+    this.readerSessionStore.saveProgress(progress, config.chapterTitle)
     if (!this.incognito.enabled) {
       appDeviceSync.observeReading(progress)
       if (this.readerOpen) this.observeReaderTrackerProgress(progress)
@@ -2794,7 +2801,7 @@ struct Index {
       }
     } else if (imported.linkedWork !== undefined) {
       const work = imported.linkedWork
-      const history = target === undefined ? undefined : this.readerSessionStore.getSourceHistory(target)
+      const history = target === undefined ? undefined : this.readerSessionStore.getSourceHistoryForResume(target)
       const request = history !== undefined && history.chapterId === progress?.chapterId ?
         sourceReaderSessionRequestFromHistory(history) : undefined
       if (resume && request !== undefined) {

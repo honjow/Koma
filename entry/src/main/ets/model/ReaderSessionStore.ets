@@ -746,11 +746,25 @@ export abstract class ReaderSessionStore {
   protected readonly chapterStates: Map<string, ChapterReadingState> = new Map<string, ChapterReadingState>()
   protected readonly remoteHistoryByComicId: Map<ComicId, RemoteReadHistoryEntry> = new Map<ComicId, RemoteReadHistoryEntry>()
   abstract getProgress(comicId: ComicId): ReadingProgress | undefined
-  abstract saveProgress(progress: ReadingProgress): void
+  abstract saveProgress(progress: ReadingProgress, sourceChapterTitle?: string): void
   abstract removeProgress(comicId: ComicId): void
   abstract listProgress(): ReadingProgress[]
   /** Metadata for a source item that has been read without being shelved. */
   abstract getSourceHistory(comicId: ComicId): SourceReadHistoryEntry | undefined
+  // Source history owns the work identity and display metadata. The latest
+  // saved page owns the resume chapter, including older mismatched rows.
+  getSourceHistoryForResume(comicId: ComicId): SourceReadHistoryEntry | undefined {
+    const progress = this.getProgress(comicId)
+    return (progress === undefined ? undefined : this.sourceHistoryForPage(progress)) ?? this.getSourceHistory(comicId)
+  }
+
+  protected sourceHistoryForPage(progress: ReadingProgress, chapterTitle?: string): SourceReadHistoryEntry | undefined {
+    const history = this.getSourceHistory(progress.comicId)
+    if (history === undefined || history.chapterId === progress.chapterId) return undefined
+    history.chapterId = progress.chapterId
+    history.chapterTitle = chapterTitle
+    return history
+  }
   abstract saveSourceHistory(entry: SourceReadHistoryEntry): void
   abstract removeSourceHistory(comicId: ComicId): void
   abstract listSourceHistory(): SourceReadHistoryEntry[]
@@ -1035,10 +1049,12 @@ export class InMemoryReaderSessionStore extends ReaderSessionStore {
     this.recordChapterProgress(copied)
   }
 
-  saveProgress(progress: ReadingProgress): void {
+  saveProgress(progress: ReadingProgress, sourceChapterTitle?: string): void {
     const copied = copyReadingProgressWithTimestamp(progress)
     copied.completed = this.isChapterRead(progress.comicId, progress.chapterId) || progress.completed
     this.progressByComicId.set(progress.comicId, copied)
+    const history = this.sourceHistoryForPage(copied, sourceChapterTitle)
+    if (history !== undefined) this.sourceHistoryByComicId.set(copied.comicId, history)
     this.recordChapterProgress(copied)
   }
 
@@ -1239,18 +1255,22 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.schedulePersist()
   }
 
-  saveProgress(progress: ReadingProgress): void {
+  saveProgress(progress: ReadingProgress, sourceChapterTitle?: string): void {
     if (!allowDeviceSyncReaderProgress(progress)) return
     const copied = copyReadingProgressWithTimestamp(progress)
     copied.completed = this.isChapterRead(progress.comicId, progress.chapterId) || progress.completed
     this.progressByComicId.set(progress.comicId, copied)
+    const history = this.sourceHistoryForPage(copied, sourceChapterTitle)
+    if (history !== undefined) this.sourceHistoryByComicId.set(copied.comicId, history)
     const state = this.recordChapterProgress(copied)
     const key = chapterStateKey(state.comicId, state.chapterId)
     // Revisiting an earlier chapter puts its last turn at the end of this batch.
     // The worker can then update both per-chapter and most recent per-book rows.
     this.pendingPageTurns.delete(key)
     this.pendingPageTurns.set(key, state)
-    this.schedulePersist(true)
+    // A chapter move updates source history, progress and the outbox in one
+    // save. The page-only RDB path is for turns within that chapter.
+    this.schedulePersist(history === undefined)
   }
 
   protected chapterStatesChanged(): void {

@@ -8,9 +8,9 @@ const { randomUUID } = require('node:crypto')
 // Only NetworkKit, native credentials and owner persistence are host substitutes.
 const support = new Function('require', '__dirname',
   fs.readFileSync(path.join(__dirname, 'test_device_sync.cjs'), 'utf8') +
-  '\nreturn { compile, wire, facts, data, journal, metrics, planner, engineFixture, runtimeFixture, A, B, C, dot, edit };')(
+  '\nreturn { ts, compile, wire, facts, data, journal, metrics, planner, engineFixture, runtimeFixture, A, B, C, dot, edit };')(
   name => name === 'node:test' ? () => {} : require(name), __dirname)
-const { compile, wire, facts, data, journal, metrics, planner, engineFixture, runtimeFixture, A, B, C, dot, edit } = support
+const { ts, compile, wire, facts, data, journal, metrics, planner, engineFixture, runtimeFixture, A, B, C, dot, edit } = support
 const models = compile('../remote/WebDavModels')
 const xml = compile('../remote/WebDavClient', { './WebDavModels': models })
 
@@ -1125,9 +1125,83 @@ test('automatic and focused sync take clearly newer cloud resume positions witho
   const heldWorks = () => Array.from(new Set(b.engine.active().groups.find(g => g.id === 'reading').pending.map(item =>
     data.syncKeyParts(item.key)[2])))
   assert.deepEqual(heldWorks(), ['newer-local'])
-  assert.ok((await b.engine.syncReadingWork(source, 'newer-local')).conflict)
+  const decision = (await b.engine.syncReadingWork(source, 'newer-local')).conflict
+  assert.ok(decision)
   await b.engine.syncNow()
   assert.deepEqual(heldWorks(), ['newer-local'])
+  await b.engine.resolveReadingWork(decision, false, b.engine.requestGuard())
+  await b.engine.syncNow()
+  await a.engine.syncNow()
+  assert.equal(b.coldReader().getProgress(source + ':newer-local').pageIndex, 7)
+  assert.equal(a.coldReader().getProgress(source + ':newer-local').pageIndex, 7)
+})
+
+test('keeping local restores the saved chapter while an obsolete choice leaves a newer save intact', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.SharedWebDav)
+  const local = readingDevice(fixture, A, new Map(), true)
+  const remote = readingDevice(fixture, B, new Map(), true)
+  const source = 'com.example.reader', work = 'choice', comicId = source + ':' + work
+  const save = (device, chapterId, pageIndex, updatedAt) => {
+    device.reader.saveProgress({ comicId, chapterId, pageIndex, totalPages: 30, updatedAt,
+      progressRatio: (pageIndex + 1) / 30, completed: false }, chapterId)
+    assert.equal(device.reader.flush(), true)
+  }
+  for (const device of [local, remote]) {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['reading'])).token, [])
+    device.reader.saveSourceHistory({ comicId, sourceId: source, mangaId: work, title: 'Choice', sourceName: 'Public',
+      chapterId: 'chapter-10', chapterTitle: 'chapter-10' })
+  }
+  save(remote, 'chapter-10', 3, 100)
+  await remote.engine.syncNow()
+  save(local, 'chapter-66', 11, 300)
+  assert.equal(local.coldReader().getSourceHistory(comicId).chapterId, 'chapter-66')
+  // Reproduce the two incompatible persisted rows that the original device
+  // reported, then open via the current progress and resolve the old branch.
+  local.reader.saveSourceHistory({ comicId, sourceId: source, mangaId: work, title: 'Choice', sourceName: 'Public',
+    chapterId: 'chapter-10', chapterTitle: 'chapter-10' })
+  assert.equal(local.reader.flush(), true)
+  const current = local.coldReader().getSourceHistoryForResume(comicId)
+  assert.equal(current.chapterId, 'chapter-66')
+  assert.equal(current.chapterTitle, undefined)
+  const date = local.coldReader().getProgress(comicId).updatedAt
+  const recent = data.syncReadingRecent(source, current.chapterId, date, 'Choice', 'Public', 'chapter-66', 11)
+  const saved = { recent, position: data.syncReadingPosition(11, 30, date),
+    chapter: current.chapterId, page: 11, total: 30, date }
+  const { conflict } = await local.engine.syncReadingWork(source, work, saved)
+  assert.equal(conflict.local.chapter, 'chapter-66')
+  assert.equal(conflict.remote.chapter, 'chapter-10')
+  const index = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/pages/Index.ets'), 'utf8')
+  const syntax = ts.createSourceFile('Index.ts', index.replace(/\bstruct /g, 'class '), ts.ScriptTarget.Latest, true)
+  const method = syntax.statements.find(node => ts.isClassDeclaration(node) &&
+    node.members.some(row => row.name?.text === 'resolveReadingResumeConflict')).members
+    .find(row => row.name?.text === 'resolveReadingResumeConflict')
+  const ui = ts.transpileModule('class Resume {' + method.getText(syntax) + '}', {
+    compilerOptions: { target: ts.ScriptTarget.ES2020 },
+  }).outputText
+  const failures = []
+  const Resume = new Function('appDeviceSync', 'sourceReaderSessionRequestFromHistory', 'DiagnosticLogger',
+    'AppStrings', ui + '\nreturn Resume')(
+    { resolveReadingResumeConflict: (conflict, useRemote) =>
+      local.engine.resolveReadingWork(conflict, useRemote, local.engine.requestGuard()) },
+    compile('../model/SourceReaderSession', { './ReaderChapterSequence': {} }).sourceReaderSessionRequestFromHistory,
+    { info: noop, exception: (_category, _event, error) => failures.push(error.message) }, { get: key => key })
+  const opened = []
+  const hints = []
+  const page = new Resume()
+  Object.assign(page, { readerSessionStore: local.reader, openSourceReader: async request => opened.push(request.chapterId),
+    showToast: message => hints.push(message) })
+  await page.resolveReadingResumeConflict(conflict, false, { comicId })
+  assert.deepEqual(opened, ['chapter-66'])
+  assert.equal(local.coldReader().getSourceHistory(comicId).chapterId, 'chapter-66')
+  assert.equal(local.coldReader().getProgress(comicId).pageIndex, 11)
+  save(local, 'chapter-67', 1, 400)
+  await page.resolveReadingResumeConflict(conflict, false, { comicId })
+  assert.deepEqual(opened, ['chapter-66'])
+  assert.deepEqual(failures, ['sync_local_changed'])
+  assert.deepEqual(hints, ['device_sync_progress_resolve_failed'])
+  assert.equal(local.coldReader().getProgress(comicId).chapterId, 'chapter-67')
 })
 
 test('the next manual sync completes an interrupted local rollback and preserves a later Reader save', async () => {

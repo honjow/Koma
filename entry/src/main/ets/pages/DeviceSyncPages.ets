@@ -318,6 +318,7 @@ export struct DeviceSyncWebDavPage {
     if (this.state.unresolvedCommit) {
       return t('device_sync_previous_interrupted') + '\n' + t('device_sync_previous_resume_detail')
     }
+    if (this.state.enabled && this.state.readingPending) return t('device_sync_error_reading_local_change_pending')
     if (this.state.requiresExplicitReview || !this.state.enabled || this.state.selected.length === 0 ||
       this.state.lastSuccess === 0) return stateText(this.state)
     return t('device_sync_last_success_time').replace('%s', new Date(this.state.lastSuccess).toLocaleString())
