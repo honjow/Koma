@@ -18,7 +18,7 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "Koma 1.5.4 已发布",
+  "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
   "updatedAt": "2026-11-21T19:02:45+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
@@ -12407,6 +12407,24 @@
       ]
     },
     {
+      "id": "release-156-github-20261120",
+      "at": "2026-11-20T17:14:40+08:00",
+      "itemId": "LIBRARY_PRIVATE_CATEGORIES",
+      "title": "Koma 1.5.6 正式发布",
+      "detail": "主分支 CI 44702401407 与标签 CI 44706148522 均成功，Release 正文与审阅稿完全一致。公开未签名 HAP 已下载核对：版本 1.5.6（25）、发布提交 2155f97f、Reader Kit 212fea38 和 SHA-256 一致。",
+      "kind": "release",
+      "evidence": "https://github.com/honjow/Koma/releases/tag/v1.5.6"
+    },
+    {
+      "id": "release-156-agc-20261120",
+      "at": "2026-11-20T16:30:56+08:00",
+      "itemId": "LIBRARY_PRIVATE_CATEGORIES",
+      "title": "Koma 1.5.6 邀请测试已提审",
+      "detail": "发布提交 2155f97f 的 Release 签名 APP（versionCode 25）已验签上传，AGC 解析和绑定通过。测试版本 2087851009102609216 回读为等待审核。日志与 v1.5.6.md 一致，沿用 Koma测试和 Koma内部并开启通知，上架自检已关闭且云端确认无自检任务。测试窗口为北京时间 2026-11-20 16:35 至 2027-02-18 16:35，审核通过后按设置生效。",
+      "kind": "release",
+      "evidence": ".hvigor/outputs/release-v1.5.6/agc-submit.json"
+    },
+    {
       "id": "continuous-dual-hdr-fit-short-matrix-20261120",
       "at": "2026-11-20T16:01:34+08:00",
       "itemId": "CONTINUOUS_PERFORMANCE",
@@ -12881,6 +12899,24 @@
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/13-selected-review/review-selected.json",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/14-restore-device/run-metadata.json"
       ]
+    },
+    {
+      "id": "release-155-github-20261119",
+      "at": "2026-11-19T18:48:56+08:00",
+      "itemId": "RESUME_MINIBAR_SETTING",
+      "title": "Koma 1.5.5 正式发布",
+      "detail": "主分支构建和标签 CI 均成功。公开未签名 Release HAP 与构建清单已下载核对，版本 1.5.5（24）、发布提交 c4cc3ec2、Reader Kit 832f9604 及 SHA-256 一致。GitHub 发布正文与仓库版本日志一致。",
+      "kind": "release",
+      "evidence": "https://github.com/honjow/Koma/releases/tag/v1.5.5"
+    },
+    {
+      "id": "release-155-agc-20261119",
+      "at": "2026-11-19T18:43:29+08:00",
+      "itemId": "RESUME_MINIBAR_SETTING",
+      "title": "Koma 1.5.5 邀请测试已提审",
+      "detail": "发布提交 c4cc3ec2 的 Release 签名 APP（versionCode 24）已验签并上传 AGC，解析及包绑定通过。测试版本 2087191657626786880 已提交，审核状态为等待审核。日志与 v1.5.5.md 一致，沿用 Koma测试和 Koma内部两组并开启通知；测试时间为北京时间 2026-11-19 18:46 至 2027-02-17 18:46，审核通过后生效。此版上架自检任务待处理。",
+      "kind": "release",
+      "evidence": ".hvigor/outputs/release-v1.5.5/agc-submit.json"
     },
     {
       "id": "resume-minibar-setting-197-20261119",

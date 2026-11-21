@@ -15,6 +15,10 @@
 
 本文不授权自动打 tag 或发布。版本日志只维护一份正文，GitHub Release 不再自动拼接提交清单。
 
+## AGC 邀请测试
+
+创建邀请测试版本时显式关闭「上架自检」：命令行使用 `test version-create --onshelf-self-detect 0`，控制台选「否」。仍按邀请测试流程提交审核。
+
 ## GitHub 构建镜像
 
 在 [harmonyos-oci-images](https://github.com/honjow/harmonyos-oci-images) 发布预装系统工具的 API 26 镜像后，手动运行主分支的 Build OHOS，填写 `native_image_digest`（含 `sha256:` 前缀），让这次普通构建使用候选镜像。核对 HAP 和实际 Reader Kit 提交后，再将 Koma 仓库变量 `KOMA_OHOS_BUILD_IMAGE` 设为完整镜像引用 `ghcr.io/honjow/harmonyos-build-env@sha256:…`。使用预装镜像时，构建只检查工具是否齐全，不再运行 APT；如需回退，清空该变量即可恢复原镜像和安装步骤。
