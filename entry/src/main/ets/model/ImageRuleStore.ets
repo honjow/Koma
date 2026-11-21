@@ -4,6 +4,8 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { http } from '@kit.NetworkKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { writeAppTextFile } from './AppFileTextPersistence'
+import { IMAGE_RULE_LEGACY_PATH, prepareImageRuleDatabase, readImageRuleDatabaseSnapshot,
+  usesImageRuleDatabase, writeImageRuleDatabaseSnapshot } from './ImageRuleDatabase'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { connectImageRuleState } from '../state/ImageRuleState'
 import { ImageProcessingPlugin, validateImageProcessingPlugin, imagePluginDefaults } from './ImageProcessingPlugins'
@@ -107,10 +109,18 @@ export class ImageRuleStore {
     if (store === undefined) { store = new ImageRuleStore(context); ImageRuleStore.instances.set(context.filesDir, store) }
     return store
   }
-  private path(): string { return `${this.context.filesDir}/image-rules.v1.json` }
+  private path(): string { return this.context.filesDir + '/' + IMAGE_RULE_LEGACY_PATH }
   private async load(): Promise<void> {
     try {
-      const saved = await taskpool.execute<[string], string>(readImageRules, this.path())
+      await prepareImageRuleDatabase(this.context)
+      const filesDir = this.context.filesDir
+      let saved: string | undefined
+      if (usesImageRuleDatabase(filesDir)) {
+        saved = await readImageRuleDatabaseSnapshot(filesDir)
+      } else {
+        saved = await taskpool.execute<[string], string>(readImageRules, this.path())
+        if (!BackupRestoreActivity.isRestoring()) await writeImageRuleDatabaseSnapshot(filesDir, saved || undefined, true)
+      }
       this.configuration = saved ? validateImageRuleConfiguration(JSON.parse(saved) as Object) :
         { schemaVersion: 3, subscriptions: [], installations: [] }
       connectImageRuleState().readFailed = false
@@ -123,6 +133,11 @@ export class ImageRuleStore {
   }
   private assertReadable(): void {
     if (connectImageRuleState().readFailed) throw new Error('image_plugin_storage_unavailable')
+  }
+
+  async prepareStorage(): Promise<void> {
+    await this.ready
+    this.assertReadable()
   }
   private publishState(userChange: boolean): void {
     const state = connectImageRuleState()
@@ -170,7 +185,15 @@ export class ImageRuleStore {
       const draft = JSON.parse(JSON.stringify(this.configuration)) as ImageRuleConfiguration
       operation(draft)
       const next = validateImageRuleConfiguration(draft)
-      await taskpool.execute<[string, string], void>(commitImageRules, this.path(), JSON.stringify(next))
+      const payload = JSON.stringify(next)
+      if (usesImageRuleDatabase(this.context.filesDir)) {
+        await writeImageRuleDatabaseSnapshot(this.context.filesDir, payload)
+      } else {
+        // A restore can repair a malformed legacy file. Its old checkpoint
+        // remains recoverable in that format until the restore commits.
+        await taskpool.execute<[string, string], void>(commitImageRules, this.path(), payload)
+        if (!BackupRestoreActivity.isRestoring()) await writeImageRuleDatabaseSnapshot(this.context.filesDir, payload, true)
+      }
       this.configuration = next
       connectImageRuleState().readFailed = false
       this.publishState(userChange)

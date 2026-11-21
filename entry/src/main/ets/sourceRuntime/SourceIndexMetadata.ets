@@ -214,6 +214,10 @@ export function parseSavedSourceIndexRepositories(payload: Object, legacy: Objec
     }
     repositories = normalizeSourceIndexRepositories(parsed as Object[])
   }
+  return effectiveSourceIndexRepositories(repositories, legacy)
+}
+
+export function effectiveSourceIndexRepositories(repositories: SourceIndexRepository[], legacy: string): SourceIndexRepository[] {
   const url = normalizeIndexUrl(legacy)
   if (isValidHttpUrl(url) && !repositories.some((item: SourceIndexRepository): boolean => item.url === url)) {
     repositories.push({ url, lastUsedAt: 0 })

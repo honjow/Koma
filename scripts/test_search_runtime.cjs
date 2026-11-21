@@ -3,6 +3,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
+const { DatabaseSync } = require('node:sqlite')
 const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
   '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const root = path.resolve(__dirname, '../entry/src/main/ets/model')
@@ -15,7 +16,10 @@ function load(name) {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020,
   } }).outputText
   vm.runInNewContext(code, { exports, ObservedV2: value => value, Trace() {}, require: dependency => {
-    if (dependency === '@kit.ArkData') return { preferences: { getPreferences: async () => prefs } }
+    if (dependency === '@kit.ArkData') return {
+      preferences: { getPreferences: async () => prefs },
+      relationalStore: { SecurityLevel: { S3: 3 }, getRdbStore: async () => database },
+    }
     if (dependency === '../deviceSync/DeviceSyncSignals') return { signalDeviceSyncChange() {}, signalDeviceSyncSearchRemoved() {} }
     if (dependency === '../deviceSync/DeviceSyncData') return { syncSearchIdentity: value => value }
     return load(path.posix.normalize(path.posix.join(path.posix.dirname(name), dependency)))
@@ -95,19 +99,45 @@ source.update([], false)
 assert.deepEqual(visible, [])
 console.log('PASS: local matching, source identity, field/boolean predicates, stable order and existing result controls')
 
-let persisted = new Map(), failFlush = false
+const persisted = new Map()
 const prefs = {
   has: async key => persisted.has(key),
   get: async (key, fallback) => persisted.get(key) ?? fallback,
   put: async (key, value) => { persisted.set(key, value) },
-  flush: async () => { if (failFlush) { failFlush = false; throw Error('fixture save failure') } },
+  flush: async () => {},
   delete: async key => persisted.delete(key),
+}
+const sqlite = new DatabaseSync(':memory:')
+let failCommit = false
+const database = {
+  version: 0,
+  executeSync: (sql, args = []) => sqlite.prepare(sql).run(...args),
+  execute: async (sql, args = []) => database.executeSync(sql, args),
+  querySql: async (sql, args = []) => {
+    const rows = sqlite.prepare(sql).all(...args).map(row => Object.values(row))
+    let index = -1
+    return {
+      goToNextRow: () => ++index < rows.length,
+      getString: column => rows[index][column],
+      getLong: column => rows[index][column],
+      isColumnNull: column => rows[index][column] === null,
+      close() {},
+    }
+  },
+  beginTransaction: () => sqlite.exec('BEGIN'),
+  commit: () => {
+    if (failCommit) { failCommit = false; throw Error('fixture save failure') }
+    sqlite.exec('COMMIT')
+  },
+  rollBack: () => sqlite.exec('ROLLBACK'),
 }
 async function historyScope() {
   const { SearchHistoryStore, SEARCH_HISTORY_QUERIES_KEY, SEARCH_SOURCE_FILTER_KEY } = load('SearchHistoryStore')
   persisted.set(SEARCH_HISTORY_QUERIES_KEY, JSON.stringify([{ query: 'legacy', updatedAt: 1 }]))
   persisted.set(SEARCH_SOURCE_FILTER_KEY, 'private')
   const store = new SearchHistoryStore({ filesDir: '/fixture/library-search' })
+  failCommit = true
+  await assert.rejects(store.load(), /fixture save failure/)
   assert.deepEqual(plain(await store.load()), [{ query: 'legacy', updatedAt: 1 }])
   await store.record('', { sourceFilter: 'local', librarySource: { key: 'source:a', name: '漫画160' } })
   await store.record('alpha', { sourceFilter: 'local', librarySource: { key: 'source:a', name: '漫画160' } })
@@ -121,11 +151,15 @@ async function historyScope() {
   const removed = entries.find(e => e.librarySource?.key === 'source:b')
   await fresh.remove(removed.query, removed)
   assert.equal((await fresh.load()).filter(e => e.query === 'alpha').length, 1)
-  const beforeFailure = persisted.get(SEARCH_HISTORY_QUERIES_KEY)
-  failFlush = true
+  const beforeFailure = await fresh.captureDeviceSyncPayload()
+  failCommit = true
   await assert.rejects(fresh.record('failed', { sourceFilter: 'local' }))
-  assert.equal(persisted.get(SEARCH_HISTORY_QUERIES_KEY), beforeFailure)
-  console.log('PASS: legacy history, distinct source scopes, empty scoped query, persisted replay and save rollback')
+  assert.equal(await fresh.captureDeviceSyncPayload(), beforeFailure)
+  await fresh.clear()
+  assert.deepEqual(plain(await store.load()), [])
+  assert.equal(await store.captureDeviceSyncPayload(), '[]')
+  assert.equal(persisted.get(SEARCH_HISTORY_QUERIES_KEY), JSON.stringify([{ query: 'legacy', updatedAt: 1 }]))
+  console.log('PASS: RDB history migration and retry, source scopes, rollback, and clear without legacy replay')
 
   // Execute the production dispatcher. Provider stubs record every call, so a
   // local predicate leaking to the network fails independently of the matcher.

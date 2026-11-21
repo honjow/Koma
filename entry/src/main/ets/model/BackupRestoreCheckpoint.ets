@@ -3,10 +3,20 @@ import { preferences } from '@kit.ArkData'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { taskpool } from '@kit.ArkTS'
 import { writeAppTextFile } from './AppFileTextPersistence'
-import { AppFilesLibraryStorePersistenceAdapter } from './LibraryPersistence'
+import { AppFilesLibraryStorePersistenceAdapter, LIBRARY_STORE_PERSISTENCE_FILE_NAME, readLiveLibrarySnapshot,
+  usesLibraryDatabase, writeLiveLibrarySnapshot } from './LibraryPersistence'
+import { READER_PROGRESS_PERSISTENCE_FILE_NAME, readLiveReaderSnapshot, usesReaderDatabase, writeLiveReaderSnapshot } from './ReaderSessionStore'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { APPLICATION_SETTINGS_BACKUP_STORES } from './ApplicationSettingsBackup'
-import { PUBLIC_CONTENT_QUEUE_PRIVATE_PATH } from './OfflineDownloadQueueStore'
+import { overlayMigratedCheckpointPreferences, recoverMigratedCheckpointPreferences } from './MigratedPreferenceRecords'
+import { readSourceConfigurationSnapshot, restoreSourceConfigurationSnapshot,
+  usesSourceConfigurationDatabase } from '../sourceRuntime/SourceConfigurationDatabases'
+import { SOURCE_FILTERS_PATH, SOURCE_SETTINGS_PATH } from '../sourceRuntime/SourcePreferencePersistence'
+import { SOURCE_REGISTRY_PATH } from '../sourceRuntime/SourceRegistryDatabase'
+import { IMAGE_RULE_LEGACY_PATH, readImageRuleDatabaseCheckpoint, restoreImageRuleDatabaseCheckpoint,
+  usesImageRuleDatabase } from './ImageRuleDatabase'
+import { PUBLIC_CONTENT_QUEUE_PRIVATE_PATH, SANDBOX_CONTENT_QUEUE_PATH, readOfflineQueueDatabaseSnapshot,
+  restoreOfflineQueueDatabaseSnapshot, usesOfflineQueueDatabase } from './OfflineDownloadQueueStore'
 
 const CHECKPOINT_FILE: string = 'backup-restore-checkpoint.v1.json'
 const CHECKPOINT_FILES: string = 'backup-restore-checkpoint-files'
@@ -14,14 +24,21 @@ const FILE_CHECKPOINT_VERSION: number = 7
 const RESTORE_FILES_V2: string[] = [
   'library-store.v1.json',
   'reader-sessions.v1.json',
-  'source-runtime/source-settings.json',
-  'source-runtime/source-filter-preferences.json',
-  'downloads/queue.v1.json',
-  'source-runtime/source-runtime-registry.json',
+  SOURCE_SETTINGS_PATH,
+  SOURCE_FILTERS_PATH,
+  SANDBOX_CONTENT_QUEUE_PATH,
+  SOURCE_REGISTRY_PATH,
 ]
 const RESTORE_FILES_V3: string[] = RESTORE_FILES_V2.concat(['source-runtime/source-setting-observations.json'])
-const RESTORE_FILES_V4: string[] = RESTORE_FILES_V3.concat(['image-rules.v1.json'])
+const RESTORE_FILES_V4: string[] = RESTORE_FILES_V3.concat([IMAGE_RULE_LEGACY_PATH])
 const RESTORE_FILES: string[] = RESTORE_FILES_V4.concat([PUBLIC_CONTENT_QUEUE_PRIVATE_PATH])
+
+function isDatabaseImage(filesDir: string, name: string): boolean {
+  return (name === LIBRARY_STORE_PERSISTENCE_FILE_NAME && usesLibraryDatabase(filesDir)) ||
+    (name === READER_PROGRESS_PERSISTENCE_FILE_NAME && usesReaderDatabase(filesDir)) ||
+    usesOfflineQueueDatabase(filesDir, name) || usesSourceConfigurationDatabase(filesDir, name) ||
+    (name === IMAGE_RULE_LEGACY_PATH && usesImageRuleDatabase(filesDir))
+}
 const RESTORE_PREFERENCES_V1: string[] = [
   'koma_remote_servers_v1',
   'koma_source_package_manager_v1',
@@ -173,6 +190,17 @@ export class BackupRestoreCheckpoint {
     const files: RestoreFileImage[] = []
     for (let index = 0; index < RESTORE_FILES.length; index += 1) {
       const path = RESTORE_FILES[index]
+      if (isDatabaseImage(filesDir, path)) {
+        const body = path === LIBRARY_STORE_PERSISTENCE_FILE_NAME ? readLiveLibrarySnapshot(filesDir)
+          : path === READER_PROGRESS_PERSISTENCE_FILE_NAME ? readLiveReaderSnapshot(filesDir)
+            : path === IMAGE_RULE_LEGACY_PATH ? readImageRuleDatabaseCheckpoint(filesDir)
+              : usesOfflineQueueDatabase(filesDir, path) ? readOfflineQueueDatabaseSnapshot(filesDir, path)
+              : readSourceConfigurationSnapshot(filesDir, path)
+        const copy = `${copies}/${index}`
+        if (body !== undefined) writeAppTextFile(copy, body)
+        files.push({ path, exists: body !== undefined, byteSize: body === undefined ? 0 : fs.statSync(copy).size })
+        continue
+      }
       const absolutePath = `${filesDir}/${path}`
       const exists = fs.accessSync(absolutePath)
       const byteSize = exists ? fs.statSync(absolutePath).size : 0
@@ -183,9 +211,9 @@ export class BackupRestoreCheckpoint {
     for (let index = 0; index < RESTORE_PREFERENCES.length; index += 1) {
       const name = RESTORE_PREFERENCES[index]
       const store = await preferences.getPreferences(context, name)
-      const values = checkedPreferenceValues(await store.getAll())
       // Freeze a copy before later put/delete operations mutate the cache.
-      images.push({ name, values: JSON.parse(JSON.stringify(values)) as Record<string, RestorePreferenceValue> })
+      const values = JSON.parse(JSON.stringify(checkedPreferenceValues(await store.getAll()))) as Record<string, RestorePreferenceValue>
+      images.push({ name, values: await overlayMigratedCheckpointPreferences(context, name, values) })
     }
     // Publish the marker only once every rollback input is complete.
     const document: RestoreCheckpointDocument = { schemaVersion: FILE_CHECKPOINT_VERSION,
@@ -237,6 +265,17 @@ export class BackupRestoreCheckpoint {
     for (let index = 0; index < this.document.files.length; index += 1) {
       const image = this.document.files[index]
       const path = `${filesDir}/${image.path}`
+      if (isDatabaseImage(filesDir, image.path)) {
+        const payload = image.exists
+          ? usesFileCopies ? await fs.readText(`${copies}/${index}`) : image.content as string
+          : undefined
+        if (image.path === LIBRARY_STORE_PERSISTENCE_FILE_NAME) writeLiveLibrarySnapshot(filesDir, payload)
+        else if (image.path === READER_PROGRESS_PERSISTENCE_FILE_NAME) writeLiveReaderSnapshot(filesDir, payload)
+        else if (image.path === IMAGE_RULE_LEGACY_PATH) await restoreImageRuleDatabaseCheckpoint(filesDir, payload)
+        else if (usesOfflineQueueDatabase(filesDir, image.path)) restoreOfflineQueueDatabaseSnapshot(filesDir, image.path, payload)
+        else restoreSourceConfigurationSnapshot(filesDir, image.path, payload)
+        continue
+      }
       if (image.exists) {
         const parent = path.substring(0, path.lastIndexOf('/'))
         if (!fs.accessSync(parent)) fs.mkdirSync(parent, true)
@@ -258,14 +297,21 @@ export class BackupRestoreCheckpoint {
     for (let index = 0; index < this.document.preferences.length; index += 1) {
       const image = this.document.preferences[index]
       const store = await preferences.getPreferences(this.context, image.name)
-      await store.clear()
-      const keys = Object.keys(image.values)
+      const legacyKeys = Object.keys(await store.getAll())
+      const migrated = await recoverMigratedCheckpointPreferences(this.context, image.name, image.values, legacyKeys)
+      if (migrated.size === 0) await store.clear()
+      else {
+        for (const key of legacyKeys) {
+          if (!migrated.has(key)) await store.delete(key)
+        }
+      }
+      const keys = Object.keys(image.values).filter((key: string): boolean => !migrated.has(key))
       for (let keyIndex = 0; keyIndex < keys.length; keyIndex += 1) {
         await store.put(keys[keyIndex], image.values[keys[keyIndex]])
       }
       await store.flush()
       const restored = checkedPreferenceValues(await store.getAll())
-      const restoredKeys = Object.keys(restored)
+      const restoredKeys = Object.keys(restored).filter((key: string): boolean => !migrated.has(key))
       if (restoredKeys.length !== keys.length ||
         !keys.every((key: string): boolean => restored[key] === image.values[key])) {
         throw new Error('backup_checkpoint_preferences_readback_failed')

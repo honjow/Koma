@@ -15,10 +15,10 @@ import {
 } from './BackupAutomaticDirectory'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
+import { saveSourceSubscriptionPreferences } from '../sourceRuntime/SourceSubscriptionStorage'
 import { appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { ApplicationSettingsBackup, checkedApplicationSettingsBackup, exportApplicationSettings,
   importApplicationSettings, countApplicationSettings, reloadApplicationSettingsRuntime } from './ApplicationSettingsBackup'
-import { writeAppTextFile } from './AppFileTextPersistence'
 import { MihonImportService, MihonImportSelection } from './MihonImportService'
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -34,16 +34,18 @@ import { connectAppForegroundState } from '../state/AppForegroundState'
 import { RemoteServerStore, REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, parseRemoteServerEndpointIdentities, rememberRemoteServerEndpointIdentity } from './RemoteServerStore'
 import { BackupRestoreCheckpoint } from './BackupRestoreCheckpoint'
 import {
-  LIBRARY_STORE_PERSISTENCE_FILE_NAME,
   LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION,
   assertValidLibraryStoreJson,
   libraryStoreBackupPayload,
+  readLiveLibrarySnapshot,
+  writeLiveLibrarySnapshot,
 } from './LibraryPersistence'
 import {
-  READER_PROGRESS_PERSISTENCE_FILE_NAME,
   READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
   appReaderSessionStore,
   normalizeReaderSessionBackupPayload,
+  readLiveReaderSnapshot,
+  writeLiveReaderSnapshot,
 } from './ReaderSessionStore'
 import {
   DEFAULT_READER_PREFERENCES,
@@ -88,8 +90,6 @@ import {
   OfflineDownloadQueuePreferences,
   OfflineDownloadQueueStore,
   normalizeOfflineDownloadFailureReasonCode,
-  offlineDownloadQueuePath,
-  readableOfflineDownloadQueuePath,
 } from './OfflineDownloadQueueStore'
 import { ensureKomaContentStorageBase, komaContentStorageBase } from './KomaContentStorage'
 import { ensureLocalBackupDirectory, resolvedLocalBackupDirectory } from './BackupLocalStorage'
@@ -103,7 +103,6 @@ import {
   DEFAULT_TRACKER_PREFERENCES,
   TrackerPreferencesStore,
   TRACKER_AUTO_SYNC_ENABLED_KEY,
-  TRACKER_COMIC_MAPPINGS_KEY,
   TRACKER_PREFERENCES_STORE_NAME,
   TRACKER_UPDATE_STRATEGY_KEY,
   ComicTrackerMapping,
@@ -135,7 +134,6 @@ export const BACKUP_LOCAL_DIR_NAME: string = 'backups'
 export const BACKUP_AUTOMATIC_INTERVAL_HOUR_OPTIONS: number[] = [24, 72, 168]
 export const BACKUP_AUTOMATIC_RETENTION_COUNT_OPTIONS: number[] = [3, 5, 10]
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
-const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const BACKUP_AUTOMATIC_PREFS_STORE_NAME: string = 'koma_backup_automatic_v1'
 const BACKUP_CONTENT_PREFS_STORE_NAME: string = 'koma_backup_content_v1'
 const BACKUP_AUTOMATIC_DIRECTORY_MODES_KEY: string = 'backup.automatic.directoryOwnedModes'
@@ -150,7 +148,6 @@ const BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY: string = 'backup.automatic.lastFai
 const BACKUP_CONTENT_INCLUDE_SETTINGS_KEY: string = 'backup.content.includeSettings'
 const BACKUP_CONTENT_INCLUDE_DOWNLOAD_QUEUE_KEY: string = 'backup.content.includeDownloadQueue'
 const BACKUP_CONTENT_INCLUDE_TRACKER_MAPPINGS_KEY: string = 'backup.content.includeTrackerMappings'
-const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
 const KOMGA_SERVER_KEY: string = 'komga.server'
 const KOMGA_CREDENTIAL_KEY: string = 'komga.credential'
 const KAVITA_SERVER_KEY: string = 'kavita.server'
@@ -413,13 +410,6 @@ function joinBackupPath(parent: string, child: string): string {
     return right
   }
   return `${left}/${right}`
-}
-
-function readTextIfExists(path: string, fallback: string): string {
-  if (!fs.accessSync(path)) {
-    return fallback
-  }
-  return fs.readTextSync(path, { encoding: 'utf-8' })
 }
 
 function ensureDir(path: string): void {
@@ -1032,7 +1022,8 @@ export class BackupService {
 
   private async releaseOwnedBackupDirectory(uri: string, ownedModes: number): Promise<void> {
     const library = new InMemoryLibraryStore()
-    if (fs.accessSync(this.libraryPath())) hydrateLibraryStoreFromJson(library, fs.readTextSync(this.libraryPath()))
+    const saved = readLiveLibrarySnapshot(this.context.filesDir)
+    if (saved !== undefined) hydrateLibraryStoreFromJson(library, saved)
     await releaseAutomaticBackupDirectory(uri, ownedModes, localLibraryFolderRootUrisFromComics(library.listComics()))
   }
 
@@ -1330,7 +1321,7 @@ export class BackupService {
       }
       const sourceSettingObservations = await appSourceSettingObservationStore.exportAll()
       const libraryStore = backgroundTemplate ? emptyLibraryStorePayload() :
-        libraryStoreBackupPayload(readTextIfExists(this.libraryPath(), emptyLibraryStorePayload()))
+        libraryStoreBackupPayload(readLiveLibrarySnapshot(this.context.filesDir) ?? emptyLibraryStorePayload())
       const document: KomaBackupDocument = {
         schemaVersion,
         exportedAt: Date.now(),
@@ -1340,7 +1331,7 @@ export class BackupService {
         },
         libraryStore,
         customCovers: backgroundTemplate ? undefined : await exportComicCovers(this.context, libraryStore),
-        readingProgress: normalizeReaderSessionBackupPayload(readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload())),
+        readingProgress: normalizeReaderSessionBackupPayload(readLiveReaderSnapshot(this.context.filesDir) ?? emptyReaderProgressPayload()),
         remoteServers: await this.exportRemoteServers(),
         sourcePackages: backgroundTemplate ? undefined : exportInstalledSourcePackages(),
         sourceSettings: appSourceSettingsStore.exportAll(),
@@ -1357,9 +1348,8 @@ export class BackupService {
         document.trackerSyncPreferences = await this.exportTrackerSyncPreferences()
       }
       if (contentPreferences.includeDownloadQueue) {
-        const downloadQueue = readTextIfExists(readableOfflineDownloadQueuePath(komaContentStorageBase(this.context),
-          this.context.filesDir), '')
-        if (downloadQueue.length > 0) {
+        const downloadQueue = new OfflineDownloadQueueStore(komaContentStorageBase(this.context), this.context.filesDir).exportSnapshotText()
+        if (downloadQueue !== undefined && downloadQueue.length > 0) {
           document.downloadQueue = normalizeBackupDownloadQueuePayload(downloadQueue)
         }
       }
@@ -1416,8 +1406,8 @@ export class BackupService {
         new OfflineDownloadQueueStore(storageBase, this.context.filesDir).migratePublicQueue()
       }
       checkpoint = await BackupRestoreCheckpoint.prepare(this.context)
-      writeAppTextFile(this.libraryPath(), document.libraryStore)
-      writeAppTextFile(this.readerProgressPath(), document.readingProgress)
+      writeLiveLibrarySnapshot(this.context.filesDir, document.libraryStore)
+      writeLiveReaderSnapshot(this.context.filesDir, document.readingProgress)
       sessionStore.reload()
       await this.importRemoteServers(document.remoteServers)
       if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
@@ -1441,7 +1431,7 @@ export class BackupService {
         if (document.bannerFilters !== undefined) await new ReaderPreferencesStore(this.context).restoreBannerOverrides(document.bannerFilters)
         await importApplicationSettings(this.context, document.applicationSettings)
       }
-      resetGeneratedAutomationWork(this.context)
+      await resetGeneratedAutomationWork(this.context)
       // Rebuild disabled-address guards before opening the restore gate. A
       // successful restore must never expose a transient enabled subscription.
       await this.reloadSubscriptionRuntimeAfterRestore()
@@ -1542,10 +1532,10 @@ export class BackupService {
     let currentLibraryStore: Record<string, Object>
     let currentReadingProgress: Record<string, Object>
     try {
-      const currentLibraryPayload = readTextIfExists(this.libraryPath(), emptyLibraryStorePayload())
+      const currentLibraryPayload = readLiveLibrarySnapshot(this.context.filesDir) ?? emptyLibraryStorePayload()
       assertValidLibraryStoreJson(currentLibraryPayload)
       currentLibraryStore = asJsonObject(JSON.parse(currentLibraryPayload) as Object, 'current library')
-      const currentProgressPayload = readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload())
+      const currentProgressPayload = readLiveReaderSnapshot(this.context.filesDir) ?? emptyReaderProgressPayload()
       currentReadingProgress = asJsonObject(JSON.parse(currentProgressPayload) as Object, 'current progress')
     } catch (_error) { throw new Error('backup_current_data_read_failed') }
     const backupComicIds = stringFieldSet(libraryStore, 'comics', 'id')
@@ -1793,20 +1783,12 @@ export class BackupService {
     return { koma: { payload, preview } }
   }
 
-  private libraryPath(): string {
-    return joinBackupPath(this.context.filesDir, LIBRARY_STORE_PERSISTENCE_FILE_NAME)
-  }
-
   private localBackupsDir(): string {
     return resolvedLocalBackupDirectory(this.context)
   }
 
   private localBackupPath(fileName: string): string {
     return joinBackupPath(this.localBackupsDir(), this.requireLocalBackupFileName(fileName))
-  }
-
-  private readerProgressPath(): string {
-    return joinBackupPath(this.context.filesDir, READER_PROGRESS_PERSISTENCE_FILE_NAME)
   }
 
   private async exportRemoteServers(): Promise<RemoteServerBackupDocument> {
@@ -2018,9 +2000,7 @@ export class BackupService {
     if (url === undefined || url.trim().length === 0) {
       return
     }
-    const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-    await store.put(SOURCE_INDEX_URL_KEY, url.trim())
-    await store.flush()
+    await saveSourceSubscriptionPreferences(this.context, { url: url.trim() }, true, false)
   }
 
   private async exportTrackerMappings(): Promise<ComicTrackerMapping[]> {
@@ -2034,9 +2014,7 @@ export class BackupService {
     if (!Array.isArray(mappings)) {
       throw new Error('Invalid backup tracker mappings')
     }
-    const store = await preferences.getPreferences(this.context, TRACKER_PREFERENCES_STORE_NAME)
-    await store.put(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify(normalizeComicTrackerMappings(mappings)))
-    await store.flush()
+    await new TrackerPreferencesStore(this.context).saveComicMappingsForBackupRestore(mappings)
   }
 
   private async exportTrackerSyncPreferences(): Promise<BackupTrackerSyncPreferences> {
@@ -2060,8 +2038,6 @@ export class BackupService {
       return
     }
     const payload = normalizeBackupDownloadQueuePayload(downloadQueue)
-    const path = offlineDownloadQueuePath(komaContentStorageBase(this.context), this.context.filesDir)
-    ensureDir(path.substring(0, path.lastIndexOf('/')))
-    writeAppTextFile(path, payload)
+    new OfflineDownloadQueueStore(komaContentStorageBase(this.context), this.context.filesDir).restoreSnapshotText(payload)
   }
 }

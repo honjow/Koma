@@ -1,4 +1,5 @@
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
+import { SourcePreferencePersistence, SOURCE_SETTINGS_PATH } from './SourcePreferencePersistence'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { SourceRuntimeCallResponse } from './NativeSourceRuntime'
@@ -375,6 +376,8 @@ export function normalizeSourceSettingDescriptors(response: SourceRuntimeCallRes
   return descriptors
 }
 
+export const sourceSettingsPersistence = new SourcePreferencePersistence<SourceSettingsRecord>(SOURCE_SETTINGS_PATH)
+
 export class SourceSettingsStore {
   private storagePath: string = ''
   private scopeRevision: number = 0
@@ -391,6 +394,16 @@ export class SourceSettingsStore {
       this.invalidateCachedDocument()
     }
     this.storagePath = nextPath
+  }
+
+  async prepareDatabase(context: common.Context, migrate: boolean): Promise<void> {
+    this.configure(context)
+    await sourceSettingsPersistence.open(context)
+    if (migrate && sourceSettingsPersistence.database(this.storagePath) === undefined) {
+      const legacy = fs.accessSync(this.storagePath) ? this.readDocument().sources : undefined
+      sourceSettingsPersistence.migrate(this.storagePath, legacy)
+      this.invalidateCachedDocument()
+    }
   }
 
   /** Current-process validity only; no settings values or credentials enter cache identity. */
@@ -429,8 +442,10 @@ export class SourceSettingsStore {
     if (normalizedSourceId.length === 0 || !this.isConfigured()) {
       return {}
     }
-    const document = this.readDocument()
-    return copySettingsRecord(document.sources[normalizedSourceId] ?? {})
+    const database = sourceSettingsPersistence.database(this.storagePath)
+    const values = database === undefined ? this.readDocument().sources[normalizedSourceId]
+      : sourceSettingsPersistence.readSource(database, normalizedSourceId)
+    return copySettingsRecord(values ?? {})
   }
 
   descriptorValuesForSource(sourceId: string): SourceSettingsRecord | undefined {
@@ -457,6 +472,12 @@ export class SourceSettingsStore {
       }
     }
     const safeValues = this.filterSafeValues(values, descriptors)
+    const database = sourceSettingsPersistence.database(this.storagePath)
+    if (database !== undefined) {
+      database.put(normalizedSourceId, JSON.stringify(safeValues))
+      this.sourceCommitted(normalizedSourceId)
+      return
+    }
     const current = this.readDocument()
     const sources: Record<string, SourceSettingsRecord> = {}
     Object.keys(current.sources).forEach((id: string): void => { sources[id] = current.sources[id] })
@@ -468,6 +489,12 @@ export class SourceSettingsStore {
   removeSource(sourceId: string): void {
     const normalizedSourceId = sourceId.trim()
     if (normalizedSourceId.length === 0 || !this.isConfigured()) {
+      return
+    }
+    const database = sourceSettingsPersistence.database(this.storagePath)
+    if (database !== undefined) {
+      database.put(normalizedSourceId, undefined)
+      this.sourceCommitted(normalizedSourceId)
       return
     }
     const document = this.readDocument()
@@ -539,6 +566,10 @@ export class SourceSettingsStore {
     if (!this.isConfigured()) {
       return emptyDocument()
     }
+    const database = sourceSettingsPersistence.database(this.storagePath)
+    if (database !== undefined) {
+      return { schemaVersion: SOURCE_SETTINGS_SCHEMA_VERSION, sources: sourceSettingsPersistence.readAll(database) ?? {} }
+    }
     if (this.document !== undefined) return this.document
     try {
       if (!fs.accessSync(this.storagePath)) {
@@ -575,8 +606,13 @@ export class SourceSettingsStore {
     if (!this.isConfigured()) {
       return
     }
-    writeAppTextFile(this.storagePath, JSON.stringify(document))
-    this.document = document
+    const database = sourceSettingsPersistence.database(this.storagePath)
+    if (database !== undefined) {
+      sourceSettingsPersistence.replace(database, document.sources)
+    } else {
+      writeAppTextFile(this.storagePath, JSON.stringify(document))
+      this.document = document
+    }
   }
 }
 

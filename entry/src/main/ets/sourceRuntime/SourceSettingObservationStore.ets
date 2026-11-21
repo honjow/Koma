@@ -1,12 +1,18 @@
 import { taskpool } from '@kit.ArkTS'
+import { common } from '@kit.AbilityKit'
+import { fileIo as fs } from '@kit.CoreFileKit'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
+import { SourcePreferencePersistence } from './SourcePreferencePersistence'
 import { readSourceSettingObservationFile, writeSourceSettingObservationFile } from './SourceSettingObservationFile'
 import { SourceSettingObservations, SourceSettingObservationSources,
   checkedSourceSettingObservations, checkedSourceSettingObservationSources,
   mergedSourceSettingObservations } from './SourceSettingObservations'
 
+export const SOURCE_OBSERVATIONS_PATH = 'source-runtime/source-setting-observations.json'
+export const sourceObservationPersistence = new SourcePreferencePersistence<SourceSettingObservations>(SOURCE_OBSERVATIONS_PATH)
+
 /** One process owner and serial commit queue for learned public option values.
- * File I/O/fsync happens in TaskPool, never in a chapter callback/UI transition.
+ * Historical document decoding happens in TaskPool. Current observations update one source.
  * No registry notification or selected-settings revision changes on observation.
  */
 export class SourceSettingObservationStore {
@@ -19,10 +25,21 @@ export class SourceSettingObservationStore {
   private pending: Promise<void> = Promise.resolve()
 
   configure(filesDir: string): void {
-    const path = `${filesDir}/source-runtime/source-setting-observations.json`
+    const path = filesDir + '/' + SOURCE_OBSERVATIONS_PATH
     if (path === this.path) return
     this.path = path
     this.invalidateCachedDocument()
+  }
+
+  async prepareDatabase(context: common.Context, migrate: boolean): Promise<void> {
+    this.configure(context.filesDir)
+    await sourceObservationPersistence.open(context)
+    if (migrate && sourceObservationPersistence.database(this.path) === undefined) {
+      const legacy = fs.accessSync(this.path)
+        ? await taskpool.execute(readSourceSettingObservationFile, this.path) as SourceSettingObservationSources : undefined
+      sourceObservationPersistence.migrate(this.path, legacy)
+      this.invalidateCachedDocument()
+    }
   }
 
   invalidateCachedDocument(): void {
@@ -49,7 +66,10 @@ export class SourceSettingObservationStore {
     const scope = this.scope
     let sources: SourceSettingObservationSources
     try {
-      sources = await taskpool.execute(readSourceSettingObservationFile, this.path) as SourceSettingObservationSources
+      const records = sourceObservationPersistence.database(this.path)
+      sources = records === undefined
+        ? await taskpool.execute(readSourceSettingObservationFile, this.path) as SourceSettingObservationSources
+        : sourceObservationPersistence.readAll(records) ?? {}
     } catch (error) {
       if (scope === this.scope) this.readFailed = true
       throw error as Error
@@ -59,10 +79,16 @@ export class SourceSettingObservationStore {
     return this.document
   }
 
-  private async writeDocument(sources: SourceSettingObservationSources): Promise<void> {
+  private async writeDocument(sources: SourceSettingObservationSources, sourceId?: string): Promise<void> {
     if (this.path.length === 0) throw new Error('source_setting_observations_unconfigured')
     const scope = this.scope
-    await taskpool.execute(writeSourceSettingObservationFile, this.path, sources)
+    const records = sourceObservationPersistence.database(this.path)
+    if (records === undefined) await taskpool.execute(writeSourceSettingObservationFile, this.path, sources)
+    else if (sourceId === undefined) sourceObservationPersistence.replace(records, sources)
+    else {
+      const value = sources[sourceId]
+      records.put(sourceId, value === undefined ? undefined : JSON.stringify(value))
+    }
     if (scope !== this.scope) throw new Error('source_setting_observations_stale')
     this.document = sources
   }
@@ -97,7 +123,7 @@ export class SourceSettingObservationStore {
         const sources: SourceSettingObservationSources = {}
         Object.keys(document).forEach((id: string): void => { sources[id] = document[id] })
         sources[sourceId] = next
-        await this.writeDocument(sources)
+        await this.writeDocument(sources, sourceId)
       })
     })
   }
@@ -125,11 +151,11 @@ export class SourceSettingObservationStore {
         const original = await this.readDocument()
         const next: SourceSettingObservationSources = {}
         Object.keys(original).forEach((id: string): void => { if (id !== sourceId) next[id] = original[id] })
-        if (original[sourceId] !== undefined) await this.writeDocument(next)
+        if (original[sourceId] !== undefined) await this.writeDocument(next, sourceId)
         try {
           return await mutation()
         } catch (error) {
-          if (original[sourceId] !== undefined) await this.writeDocument(original)
+          if (original[sourceId] !== undefined) await this.writeDocument(original, sourceId)
           throw error as Error
         }
       } finally {

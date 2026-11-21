@@ -33,10 +33,14 @@ const stores = compile('model/ReaderSessionStore', {
   '@kit.CoreFileKit': { fileIo: {} },
   '@kit.ArkTS': {},
   './ComicModels': models,
-  './ReaderChapterSequence': compile('model/ReaderChapterSequence', {}),
+  './ReaderChapterSequence': compile('model/ReaderChapterSequence', {
+    './ChapterSortOrder': compile('model/ChapterSortOrder', {}),
+  }),
   '../i18n/AppStrings': strings,
   './RemoteReaderSession': { copyRemoteReadHistoryEntry: entry => entry },
   './ChapterReadStateStore': { AppFilesChapterReadStatePersistenceAdapter: class {} },
+  './ChapterListPreferencesStore': { chapterReadingSortFor: () => undefined },
+  './ReaderRdbStorage': {}, './UserDataDatabase': {},
 })
 const view = compile('model/MockLibraryData', {
   './ComicModels': models,

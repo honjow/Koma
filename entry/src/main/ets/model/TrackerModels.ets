@@ -7,6 +7,7 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { ComicId } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
+import { trackerMappingRecords } from './MigratedPreferenceRecords'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -1007,8 +1008,9 @@ export class TrackerPreferencesStore {
   mappingSnapshot(): ComicTrackerMapping[] {
     const cached = trackerMappingSnapshots.get(this.context.filesDir)
     if (cached !== undefined) return normalizeComicTrackerMappings(cached)
-    const store = preferences.getPreferencesSync(this.context, { name: TRACKER_PREFERENCES_STORE_NAME })
-    const mappings = normalizeComicTrackerMappings(this.parseMappings(store.getSync(TRACKER_COMIC_MAPPINGS_KEY, '[]') as string))
+    const records = trackerMappingRecords.prepared(this.context.filesDir)
+    if (records === undefined) return []
+    const mappings = normalizeComicTrackerMappings(this.parseMappings(trackerMappingRecords.readPreparedValue(records) ?? '[]'))
     trackerMappingSnapshots.set(this.context.filesDir, mappings)
     return normalizeComicTrackerMappings(mappings)
   }
@@ -1043,14 +1045,15 @@ export class TrackerPreferencesStore {
   private async loadCurrent(): Promise<TrackerPreferences> {
     const store = await this.preferences()
     const accountsJson = await store.get(TRACKER_ACCOUNTS_KEY, JSON.stringify(DEFAULT_TRACKER_ACCOUNTS)) as string
-    const mappingsJson = await store.get(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify([])) as string
-    trackerMappingSnapshots.set(this.context.filesDir, normalizeComicTrackerMappings(this.parseMappings(mappingsJson)))
+    const mappings = normalizeComicTrackerMappings(
+      this.parseMappings(await trackerMappingRecords.readBackupValue(this.context) ?? '[]'))
+    trackerMappingSnapshots.set(this.context.filesDir, mappings)
     const providerOAuthConfigsJson = await store.get(TRACKER_PROVIDER_OAUTH_CONFIGS_KEY, JSON.stringify([])) as string
     const autoSyncEnabled = await store.get(TRACKER_AUTO_SYNC_ENABLED_KEY, DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled) as boolean
     const updateStrategy = await store.get(TRACKER_UPDATE_STRATEGY_KEY, DEFAULT_TRACKER_PREFERENCES.updateStrategy) as string
     return {
       accounts: mergeTrackerAccounts(this.parseAccounts(accountsJson), this.secretStore.isAvailable()),
-      comicMappings: normalizeComicTrackerMappings(this.parseMappings(mappingsJson)),
+      comicMappings: normalizeComicTrackerMappings(mappings),
       providerOAuthConfigs: normalizeTrackerProviderOAuthConfigs(this.parseProviderOAuthConfigs(providerOAuthConfigsJson)),
       autoSyncEnabled: autoSyncEnabled === true,
       updateStrategy: normalizeTrackerUpdateStrategy(updateStrategy),
@@ -1155,9 +1158,7 @@ export class TrackerPreferencesStore {
   async saveComicMappingsForBackupRestore(mappings: ComicTrackerMapping[]): Promise<void> {
     if (!BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_not_active')
     await this.ordered(async (): Promise<void> => {
-      const store = await this.preferences()
-      await store.put(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify(normalizeComicTrackerMappings(mappings)))
-      await store.flush()
+      await trackerMappingRecords.restoreBackupValue(this.context, JSON.stringify(normalizeComicTrackerMappings(mappings)))
       // The restore checkpoint owns rollback. Its caller refreshes the
       // public mapping snapshot after the library and reader are ready.
     })
@@ -1191,7 +1192,9 @@ export class TrackerPreferencesStore {
       autoSyncEnabled: current.autoSyncEnabled,
       updateStrategy: current.updateStrategy,
     }
-    await this.commit(new Map<string, preferences.ValueType>([[TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify(next.comicMappings)]]))
+    await trackerMappingRecords.restoreBackupValue(this.context, JSON.stringify(next.comicMappings))
+    trackerMappingSnapshots.set(this.context.filesDir, normalizeComicTrackerMappings(next.comicMappings))
+    trackerMappingListeners.get(this.context.filesDir)?.forEach((listener: () => void): void => { listener() })
     return next
   }
 
@@ -1461,11 +1464,6 @@ export class TrackerPreferencesStore {
         throw new Error('tracker_preferences_restore_failed')
       }
       throw error as Error
-    }
-    if (values.has(TRACKER_COMIC_MAPPINGS_KEY)) {
-      trackerMappingSnapshots.set(this.context.filesDir,
-        normalizeComicTrackerMappings(this.parseMappings(values.get(TRACKER_COMIC_MAPPINGS_KEY) as string)))
-      trackerMappingListeners.get(this.context.filesDir)?.forEach((listener: () => void): void => { listener() })
     }
   }
 

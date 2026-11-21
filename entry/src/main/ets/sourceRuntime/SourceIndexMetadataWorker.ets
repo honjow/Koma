@@ -1,6 +1,12 @@
 import { parseCachedIndexEntries, parseMetadataCache, parseIndexEntriesDocument, parseIndexEntry, parseSourceRepositoryMetadata,
   SourceRepositoryMetadata, safeResolveIndexAssetUrl, SourceIndexMetadataCacheDocument, SourceIndexMetadataCacheRecord,
   SourceIndexEntry, SOURCE_INDEX_METADATA_RECORD_LIMIT, SOURCE_INDEX_METADATA_CACHE_LIMIT } from './SourceIndexMetadata'
+import { writeAppTextFile } from '../model/AppFileTextPersistence'
+
+@Concurrent
+export function writeSourceIndexCacheTask(path: string, payload: string): void {
+  writeAppTextFile(path, payload)
+}
 
 // TaskPool entry points import their shared pure rules; no registry/UI imports.
 @Concurrent

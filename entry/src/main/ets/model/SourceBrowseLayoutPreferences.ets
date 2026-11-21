@@ -1,10 +1,7 @@
 import { common } from '@kit.AbilityKit'
-import { preferences } from '@kit.ArkData'
+import { sourceBrowseLayoutRecords } from './MigratedPreferenceRecords'
 
 export type SourceBrowseLayout = 'grid' | 'list'
-
-const STORE = 'koma_source_browse_layout_v1'
-let writes: Promise<void> = Promise.resolve()
 
 /** Device-local display preferences keyed by source identity. Backup and sync leave this store local. */
 export class SourceBrowseLayoutPreferences {
@@ -12,25 +9,12 @@ export class SourceBrowseLayoutPreferences {
   constructor(context: common.Context) { this.context = context }
 
   load(sourceId: string): SourceBrowseLayout {
-    const store = preferences.getPreferencesSync(this.context, { name: STORE })
-    return store.getSync(sourceId, 'grid') === 'list' ? 'list' : 'grid'
+    return sourceBrowseLayoutRecords.prepared(this.context.filesDir)?.get(sourceId) === '"list"' ? 'list' : 'grid'
   }
 
-  save(sourceId: string, layout: SourceBrowseLayout): Promise<void> {
-    const write = writes.then(async (): Promise<void> => {
-      const store = await preferences.getPreferences(this.context, STORE)
-      const previous = await store.get(sourceId, 'grid')
-      if (previous === layout) return
-      try {
-        await store.put(sourceId, layout)
-        await store.flush()
-      } catch (error) {
-        await store.put(sourceId, previous)
-        await store.flush()
-        throw error as Error
-      }
-    })
-    writes = write.catch((): void => {})
-    return write
+  async save(sourceId: string, layout: SourceBrowseLayout): Promise<void> {
+    const records = await sourceBrowseLayoutRecords.prepare(this.context)
+    const current = records.get(sourceId) === '"list"' ? 'list' : 'grid'
+    if (layout !== current) records.put(sourceId, JSON.stringify(layout))
   }
 }

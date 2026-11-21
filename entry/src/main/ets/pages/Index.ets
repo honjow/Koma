@@ -911,7 +911,7 @@ struct Index {
 
   private cleanupService(): ReadDownloadCleanup {
     if (this.readDownloadCleanup === undefined) {
-      this.readDownloadCleanup = new ReadDownloadCleanup((getContext(this) as common.UIAbilityContext).filesDir)
+      this.readDownloadCleanup = new ReadDownloadCleanup()
     }
     return this.readDownloadCleanup
   }
@@ -2399,7 +2399,6 @@ struct Index {
     this.catalogFilters.invalidate()
     void this.catalogFilters.prepare(getContext(this) as common.UIAbilityContext)
       .catch((): void => { DiagnosticLogger.warn('source_catalog', 'filters_load_failed', 'phase=restore') })
-    this.readDownloadCleanup?.invalidateAfterRestore()
     this.readerTrackerProgress?.resetAfterRestore()
     this.ensureLibraryPersistenceService()?.restore()
     new TrackerPreferencesStore(getContext(this) as common.UIAbilityContext).invalidateMappingSnapshot()

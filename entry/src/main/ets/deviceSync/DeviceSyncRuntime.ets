@@ -109,12 +109,13 @@ class DeviceSyncRuntime {
   private libraryEdits: Promise<void> = Promise.resolve()
   private bookModeEdits: Promise<void> = Promise.resolve()
 
-  async startup(context: common.UIAbilityContext): Promise<void> {
+  async startup(context: common.UIAbilityContext, afterRecovery?: () => Promise<void>): Promise<void> {
     if (this.engine !== undefined) return
     this.context = context
     const storage = new DeviceSyncStorage(context.filesDir)
     const owners = new KomaDeviceSyncOwners(context, storage)
     await owners.recoverBeforeStartup()
+    await afterRecovery?.()
     await owners.restoreKeptShelfDetails().catch((): void => {})
     this.owners = owners
     this.storage = storage

@@ -3,6 +3,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const ts = require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
+const { createRdbPort } = require('./user_data_rdb_fixture.cjs')
 const root = path.join(__dirname, '../entry/src/main/ets/sourceRuntime')
 function fixture() {
   const file = '/app/source-runtime/source-settings.json'
@@ -17,11 +18,21 @@ function fixture() {
   const io = { accessSync: p => !p.endsWith('.json') || disk.has(p), mkdirSync() {},
     readTextSync: p => { reads++; return disk.get(p) }, unlinkSync: p => disk.delete(p) }
   const writeAppTextFile = (p, value) => { if (failWrite) throw Error('write failed'); disk.set(p, value) }
-  const exports = {}
-  const js = ts.transpileModule(fs.readFileSync(path.join(root, 'SourceSettingsStore.ets'), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText
-  new Function('exports', 'require', js)(exports, name => {
+  function load(file, port) {
+    const exports = {}
+    const js = ts.transpileModule(fs.readFileSync(path.join(root, file + '.ets'), 'utf8'), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+    }).outputText
+    new Function('exports', 'require', js)(exports, port)
+    return exports
+  }
+  const rdb = createRdbPort()
+  const database = load('../model/UserDataDatabase', () => rdb)
+  const keyed = load('../model/UserKeyedRecords', () => ({}))
+  const sourcePersistence = load('SourcePreferencePersistence', name =>
+    name === '../model/UserDataDatabase' ? database : keyed)
+  const exports = load('SourceSettingsStore', name => {
+    if (name === './SourcePreferencePersistence') return sourcePersistence
     if (name === '@kit.CoreFileKit') return { fileIo: io }
     if (name === '../model/AppFileTextPersistence') return { writeAppTextFile }
     if (name === './SourceSettingObservationStore') return { appSourceSettingObservationStore: {
@@ -32,7 +43,7 @@ function fixture() {
     return {}
   })
   const store = new exports.SourceSettingsStore(); store.configure({ filesDir: '/app' })
-  return { file, original, disk, io, writeAppTextFile, store, exports, requests,
+  return { file, original, disk, io, writeAppTextFile, store, exports, requests, rdb,
     reads: () => reads, failWrite: value => { failWrite = value } }
 }
 
@@ -182,9 +193,9 @@ test('raw removal rollback invalidates the snapshot; malformed reads stay errors
   const tree = ts.createSourceFile('registry', text, ts.ScriptTarget.Latest, true)
   const fn = tree.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'restoreSourceRemovePreferences')
   const js = ts.transpileModule(fn.getText(tree), { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText
-  const rollback = new Function('fs', 'writeAppTextFile', 'appSourceSettingsStore', js + ';return restoreSourceRemovePreferences')
-    (f.io, f.writeAppTextFile, f.store)
-  rollback([{ path: f.file, exists: true, content: f.original }])
+  const rollback = new Function('fs', 'writeAppTextFile', 'appSourceSettingsStore', 'usesSourceConfigurationDatabase', 'joinSourceRuntimePath',
+    js + ';return restoreSourceRemovePreferences')(f.io, f.writeAppTextFile, f.store, () => false, path.posix.join)
+  rollback('/app', [{ path: 'source-runtime/source-settings.json', exists: true, content: f.original }])
   const readsAfterRollbackVerification = f.reads()
   assert.deepEqual(f.store.loadForSource('A'), { tags: ['one'], enabled: false })
   // The pre-existing raw rollback verifies its file too; the next owner read

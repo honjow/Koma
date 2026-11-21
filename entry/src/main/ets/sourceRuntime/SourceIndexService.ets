@@ -1,12 +1,12 @@
 import { signalDeviceSyncChange, signalDeviceSyncSubscriptionRemoved } from '../deviceSync/DeviceSyncSignals'
 import { encodeSourceIndexCacheTask, parseSourceIndexCacheTask, parseSourceIndexDocumentTask,
-  prepareSourceIndexCacheRecordTask, SourceIndexMetadataParseResult } from './SourceIndexMetadataWorker'
+  prepareSourceIndexCacheRecordTask, SourceIndexMetadataParseResult, writeSourceIndexCacheTask } from './SourceIndexMetadataWorker'
 import { assembleSourcePackageBytes, computeSourcePackageSha256 } from './SourcePackageHashWorker'
 import { taskpool } from '@kit.ArkTS'
 import {
   SourceIndexEntry, SourceIndexRepository, SourceRepositoryMetadata, parseSourceRepositoryMetadata, SourceIndexMetadataCacheRecord,
   normalizeIndexUrl, resolveIndexDocumentUrl, isValidHttpUrl,
-  normalizeSourceIndexRepositories, serializeSourceIndexRepositories, parseSavedSourceIndexRepositories, safeResolvePkgUrl,
+  normalizeSourceIndexRepositories, effectiveSourceIndexRepositories, safeResolvePkgUrl,
   safeResolveIndexAssetUrl, entryWithCachedIcon, subscriptionIdentity,
 } from './SourceIndexMetadata'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -14,8 +14,10 @@ import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
+import { loadSourceSubscriptionPreferences, saveSourceSubscriptionPreferences, SOURCE_INDEX_PREFERENCES,
+  SourceSubscriptionPreferences } from './SourceSubscriptionStorage'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { fileUri } from '@kit.CoreFileKit'
+import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import { http } from '@kit.NetworkKit'
 import {
   installFromArchive,
@@ -35,9 +37,6 @@ import {
 } from './SourcePackageImporter'
 export { SourceIndexEntry, SourceIndexRepository } from './SourceIndexMetadata'
 
-const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
-const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
-const SOURCE_INDEX_REPOSITORIES_KEY: string = 'source_index.repositories.v1'
 const SOURCE_INDEX_REPOSITORY_LIMIT: number = 12
 const SOURCE_PACKAGE_DOWNLOAD_MAX_BYTES: number = 50 * 1024 * 1024
 const SOURCE_PACKAGE_READ_TIMEOUT_MS: number = 60000
@@ -297,13 +296,30 @@ export class SourceIndexService {
 
   // Cache absence/corruption is not a repository/network failure. No user
   // configuration or existing cache is cleared by a failed read.
+  private metadataCachePath(): string { return this.context.cacheDir + '/source-index-metadata.v1.json' }
+
+  private async readMetadataCache(): Promise<string> {
+    const path = this.metadataCachePath()
+    if (await fs.access(path)) return fs.readText(path)
+    const legacy = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFERENCES)
+    const payload = await legacy.get(SOURCE_INDEX_METADATA_CACHE_KEY, '')
+    if (typeof payload !== 'string' || payload.length === 0) return ''
+    try {
+      await taskpool.execute(writeSourceIndexCacheTask, path, payload)
+      await legacy.delete(SOURCE_INDEX_METADATA_CACHE_KEY)
+      await legacy.flush()
+    } catch (_error) {
+      // Cache migration is optional and the legacy read can still serve this request.
+    }
+    return payload
+  }
+
   async loadCachedIndex(indexUrl: string): Promise<SourceIndexEntry[] | undefined> {
     const url = resolveIndexDocumentUrl(indexUrl)
     if (!isValidHttpUrl(url)) return undefined
     return this.ordered(async (): Promise<SourceIndexEntry[] | undefined> => {
       try {
-        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-        const records = await taskpool.execute(parseSourceIndexCacheTask, await store.get(SOURCE_INDEX_METADATA_CACHE_KEY, '')) as SourceIndexMetadataCacheRecord[]
+        const records = await taskpool.execute(parseSourceIndexCacheTask, await this.readMetadataCache()) as SourceIndexMetadataCacheRecord[]
         return records.find((record: SourceIndexMetadataCacheRecord): boolean => record.url === url)?.entries
       } catch (_error) {
         return undefined
@@ -321,19 +337,10 @@ export class SourceIndexService {
         await this.ordered(async (): Promise<void> => {
           const key = this.metadataRequestKey(url)
           if (sourceIndexMetadataRequests.get(key) !== revision) return
-          const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-          const previous = await store.get(SOURCE_INDEX_METADATA_CACHE_KEY, '')
+          const previous = await this.readMetadataCache()
           const payload = await taskpool.execute(encodeSourceIndexCacheTask, previous, record, SOURCE_INDEX_REPOSITORY_LIMIT) as string
           if (sourceIndexMetadataRequests.get(key) !== revision) return
-          try {
-            await store.put(SOURCE_INDEX_METADATA_CACHE_KEY, payload)
-            await store.flush()
-          } catch (_error) {
-            // Do not leave an unsuccessful write in the shared Preferences
-            // memory cache. This touches only the metadata cache key.
-            await store.put(SOURCE_INDEX_METADATA_CACHE_KEY, previous)
-            await store.flush()
-          }
+          await taskpool.execute(writeSourceIndexCacheTask, this.metadataCachePath(), payload)
         })
       })
     } catch (_error) {
@@ -341,15 +348,8 @@ export class SourceIndexService {
     }
   }
 
-  private async savedUrl(store: preferences.Preferences): Promise<string> {
-    const url = await store.get(SOURCE_INDEX_URL_KEY, '')
-    if (typeof url !== 'string') throw new Error('source_index_preferences_invalid')
-    return url.trim()
-  }
-
-  private async savedRepositories(store: preferences.Preferences): Promise<SourceIndexRepository[]> {
-    const payload = await store.get(SOURCE_INDEX_REPOSITORIES_KEY, '')
-    const normalized = parseSavedSourceIndexRepositories(payload, await this.savedUrl(store))
+  private savedRepositories(saved: SourceSubscriptionPreferences): SourceIndexRepository[] {
+    const normalized = effectiveSourceIndexRepositories(saved.repositories ?? [], saved.url ?? '')
     normalized.forEach((item: SourceIndexRepository): void => this.rememberSubscriptionState(item))
     return normalized
   }
@@ -357,8 +357,7 @@ export class SourceIndexService {
   async loadSavedUrl(): Promise<string> {
     return this.ordered(async (): Promise<string> => {
       try {
-        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-        return await this.savedUrl(store)
+        return (await loadSourceSubscriptionPreferences(this.context)).url?.trim() ?? ''
       } catch (_error) {
         throw new Error('source_index_preferences_read_failed')
       }
@@ -368,8 +367,7 @@ export class SourceIndexService {
   async loadSavedRepositories(): Promise<SourceIndexRepository[]> {
     return this.ordered(async (): Promise<SourceIndexRepository[]> => {
       try {
-        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-        return await this.savedRepositories(store)
+        return this.savedRepositories(await loadSourceSubscriptionPreferences(this.context))
       } catch (_error) {
         throw new Error('source_index_preferences_read_failed')
       }
@@ -377,38 +375,24 @@ export class SourceIndexService {
   }
 
   private async commitSavedPreferences(
-    store: preferences.Preferences,
     repositories?: SourceIndexRepository[],
     url?: string,
     removeUrl: boolean = false,
     notifySync: boolean = true,
   ): Promise<void> {
-    const urlExisted = await store.has(SOURCE_INDEX_URL_KEY)
-    const previousUrl = await store.get(SOURCE_INDEX_URL_KEY, '')
-    const repositoriesExisted = await store.has(SOURCE_INDEX_REPOSITORIES_KEY)
-    const previousRepositories = await store.get(SOURCE_INDEX_REPOSITORIES_KEY, '')
     try {
-      if (removeUrl) await store.delete(SOURCE_INDEX_URL_KEY)
-      else if (url !== undefined) await store.put(SOURCE_INDEX_URL_KEY, url)
-      if (repositories !== undefined) {
-        await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(repositories))
-      }
-      await store.flush()
+      await saveSourceSubscriptionPreferences(this.context, { repositories, url: removeUrl ? undefined : url },
+        removeUrl || url !== undefined, repositories !== undefined)
       if (repositories !== undefined && notifySync) signalDeviceSyncChange('source-subscriptions')
     } catch (_error) {
-      if (urlExisted) await store.put(SOURCE_INDEX_URL_KEY, previousUrl)
-      else await store.delete(SOURCE_INDEX_URL_KEY)
-      if (repositoriesExisted) await store.put(SOURCE_INDEX_REPOSITORIES_KEY, previousRepositories)
-      else await store.delete(SOURCE_INDEX_REPOSITORIES_KEY)
-      await store.flush()
       throw new Error('source_index_preferences_commit_failed')
     }
   }
 
   async captureDeviceSyncSnapshot(): Promise<SourceIndexDeviceSyncSnapshot> {
     return this.ordered(async (): Promise<SourceIndexDeviceSyncSnapshot> => {
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      return { repositories: await this.savedRepositories(store), activeUrl: await this.savedUrl(store) }
+      const stored = await loadSourceSubscriptionPreferences(this.context)
+      return { repositories: this.savedRepositories(stored), activeUrl: stored.url?.trim() ?? '' }
     })
   }
 
@@ -416,9 +400,9 @@ export class SourceIndexService {
   // fetch a catalog, install a package, or publish a remote change as local.
   async applyDeviceSyncSnapshot(snapshot: SourceIndexDeviceSyncSnapshot): Promise<void> {
     await this.ordered(async (): Promise<void> => {
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      const before = await this.savedRepositories(store)
-      await this.commitSavedPreferences(store, snapshot.repositories, snapshot.activeUrl || undefined,
+      const stored = await loadSourceSubscriptionPreferences(this.context)
+      const before = this.savedRepositories(stored)
+      await this.commitSavedPreferences(snapshot.repositories, snapshot.activeUrl || undefined,
         snapshot.activeUrl === '', false)
       before.forEach((repo: SourceIndexRepository): void => {
         if (!snapshot.repositories.some((saved: SourceIndexRepository): boolean => saved.url === repo.url)) {
@@ -434,8 +418,8 @@ export class SourceIndexService {
       return this.ordered(async (): Promise<void> => {
         try {
           const normalized = normalizeIndexUrl(url)
-          const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-          const repositories = await this.savedRepositories(store)
+          const stored = await loadSourceSubscriptionPreferences(this.context)
+          const repositories = this.savedRepositories(stored)
           let next: SourceIndexRepository[] | undefined = undefined
           if (isValidHttpUrl(normalized)) {
             const saved = repositories.find((item: SourceIndexRepository): boolean => item.url === normalized)
@@ -446,7 +430,7 @@ export class SourceIndexService {
             })
             next = updated
           }
-          await this.commitSavedPreferences(store, next, normalized)
+          await this.commitSavedPreferences(next, normalized)
           DiagnosticLogger.info('source_index', 'save_url', '[SourceIndex] step=save_url')
         } catch (_error) {
           throw new Error('source_index_preferences_save_failed')
@@ -482,8 +466,8 @@ export class SourceIndexService {
       const normalized = normalizeIndexUrl(url)
       const previous = previousUrl === undefined ? undefined : normalizeIndexUrl(previousUrl)
       if (!isValidHttpUrl(normalized)) throw new Error('invalid_url')
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      const repositories = await this.savedRepositories(store)
+      const stored = await loadSourceSubscriptionPreferences(this.context)
+      const repositories = this.savedRepositories(stored)
       const original = previous === undefined ? undefined : repositories.find((item: SourceIndexRepository): boolean => item.url === previous)
       if (previous !== undefined && original === undefined) throw new Error('repository_removed')
       if (repositories.some((item: SourceIndexRepository): boolean => item.url !== previous &&
@@ -496,8 +480,8 @@ export class SourceIndexService {
         website: metadata !== undefined ? metadata.website : (sameDocument ? original?.website : undefined) }
       const next = original === undefined ? repositories.concat(repository) : repositories.map((item: SourceIndexRepository): SourceIndexRepository =>
         item.url === previous ? repository : item)
-      const active = normalizeIndexUrl(await this.savedUrl(store))
-      await this.commitSavedPreferences(store, next, previous === undefined || active === previous ? normalized : undefined)
+      const active = normalizeIndexUrl(stored.url?.trim() ?? '')
+      await this.commitSavedPreferences(next, previous === undefined || active === previous ? normalized : undefined)
       this.rememberSubscriptionState(repository)
       if (previous !== undefined && !sameDocument) this.retireSubscription(previous)
       if (previous !== undefined && !next.some((item: SourceIndexRepository): boolean =>
@@ -514,24 +498,24 @@ export class SourceIndexService {
     if (metadata === undefined) return
     await BackupRestoreActivity.runWrite(async (): Promise<void> => this.ordered(async (): Promise<void> => {
       current()
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      const saved = await this.savedRepositories(store)
+      const stored = await loadSourceSubscriptionPreferences(this.context)
+      const saved = this.savedRepositories(stored)
       const next = saved.map((item: SourceIndexRepository): SourceIndexRepository => item.url !== repository.url || item.disabled ? item : {
         url: item.url, lastUsedAt: item.lastUsedAt, customName: item.customName,
         name: metadata.name, website: metadata.website,
       })
-      if (JSON.stringify(next) !== JSON.stringify(saved)) await this.commitSavedPreferences(store, next)
+      if (JSON.stringify(next) !== JSON.stringify(saved)) await this.commitSavedPreferences(next)
     }))
   }
 
   async setSubscriptionDisabled(url: string, disabled: boolean): Promise<SourceIndexRepository[]> {
     return BackupRestoreActivity.runWrite(async (): Promise<SourceIndexRepository[]> => this.ordered(async (): Promise<SourceIndexRepository[]> => {
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      const saved = await this.savedRepositories(store)
+      const stored = await loadSourceSubscriptionPreferences(this.context)
+      const saved = this.savedRepositories(stored)
       const item = saved.find((repository: SourceIndexRepository): boolean => repository.url === url)
       if (item === undefined) throw new Error('repository_removed')
       item.disabled = disabled || undefined
-      await this.commitSavedPreferences(store, saved)
+      await this.commitSavedPreferences(saved)
       this.rememberSubscriptionState(item)
       this.retireSubscription(url)
       return saved
@@ -542,8 +526,7 @@ export class SourceIndexService {
     return BackupRestoreActivity.runWrite(async (): Promise<void> => {
       return this.ordered(async (): Promise<void> => {
         try {
-          const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-          await this.commitSavedPreferences(store, undefined, undefined, true)
+          await this.commitSavedPreferences(undefined, undefined, true)
         } catch (_error) {
           throw new Error('source_index_preferences_clear_failed')
         }
@@ -556,12 +539,12 @@ export class SourceIndexService {
       return this.ordered(async (): Promise<SourceIndexRepository[]> => {
         try {
           const normalized = normalizeIndexUrl(url)
-          const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-          const repositories = (await this.savedRepositories(store))
+          const stored = await loadSourceSubscriptionPreferences(this.context)
+          const repositories = this.savedRepositories(stored)
             .filter((repository: SourceIndexRepository): boolean => repository.url !== normalized)
-          const activeUrl = normalizeIndexUrl(await this.savedUrl(store))
+          const activeUrl = normalizeIndexUrl(stored.url?.trim() ?? '')
           const removingActive = activeUrl === normalized
-          await this.commitSavedPreferences(store, repositories,
+          await this.commitSavedPreferences(repositories,
             removingActive && repositories.length > 0 ? repositories[0].url : undefined,
             removingActive && repositories.length === 0)
           this.retireSubscription(normalized)

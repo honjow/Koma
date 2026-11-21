@@ -1,15 +1,17 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm')
 const ts=require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const root=path.resolve(__dirname,'../entry/src/main/ets'),modules=new Map(),values=new Map()
-let failFlush=false
-const preference={has:async k=>values.has(k),get:async(k,d)=>values.get(k)??d,getSync:(k,d)=>values.get(k)??d,
-  put:async(k,v)=>values.set(k,v),delete:async k=>values.delete(k),flush:async()=>{if(failFlush){failFlush=false;throw Error('disk full')}}}
+const { createRdbPort } = require('./user_data_rdb_fixture.cjs')
+const rdb = createRdbPort()
+test.after(() => rdb.close())
+const preference={has:async k=>values.has(k),get:async(k,d)=>values.get(k)??d,getSync:(k,d)=>values.get(k)??d,getAll:async()=>Object.fromEntries(values),
+  put:async(k,v)=>values.set(k,v),delete:async k=>values.delete(k),flush:async()=>{}}
 const ports={
-  '@kit.ArkData':{preferences:{getPreferences:async()=>preference,getPreferencesSync:()=>preference}},
+  '@kit.ArkData':{relationalStore:rdb.relationalStore,preferences:{getPreferences:async()=>preference,getPreferencesSync:()=>preference}},
   'libkoma_source_runtime.so': {},
   '../i18n/AppStrings':{AppStrings:{get:k=>k,format:(k,...v)=>k+v.join(',')}},
   '../sourceRuntime/SourceRuntimeAppRegistry':{sourceChapterOrderFor:()=>undefined},
-  '../diagnostics/DiagnosticLogger':{DiagnosticLogger:{warn(){},exception(){}}},
+  '../diagnostics/DiagnosticLogger':{DiagnosticLogger:{debug(){},warn(){},exception(){}}},
 }
 function load(file){
  if(modules.has(file))return modules.get(file)
@@ -316,13 +318,14 @@ test('batch editing preserves untouched mixed memberships, saves once and rolls 
  let saves = 0
  const edit = persistence.editComicCategoriesAndPersistLibraryStore
  const selected = ['first', 'second']
- const disk = { persist() { saves++ } }
+ const disk = new persistence.LibraryStorePersistenceService(library, { load() {}, save() { saves++ } })
  assert.equal(edit(library, disk, selected, [b.id], []), 2)
  assert.deepEqual(clone(library.getComic('first').categoryIds), [a.id, b.id])
  assert.deepEqual(clone(library.getComic('second').categoryIds), [b.id])
  assert.equal(edit(library, disk, selected, [b.id], []), 0)
  assert.equal(saves, 1)
- assert.throws(() => edit(library, { persist() { throw Error('disk full') } }, selected, [], [a.id, b.id]), /disk full/)
+ const fullDisk = new persistence.LibraryStorePersistenceService(library, { load() {}, save() { throw Error('disk full') } })
+ assert.throws(() => edit(library, fullDisk, selected, [], [a.id, b.id]), /disk full/)
  assert.deepEqual(clone(library.getComic('first').categoryIds), [a.id, b.id])
  assert.equal(edit(library, disk, selected, [], [a.id, b.id]), 2)
  assert.equal(library.listLibraryItems(undefined, { filterCategoryId: 'all' }).length, 2)
@@ -360,8 +363,10 @@ test('tracker mapping projection publishes only committed public mappings and re
  const stop=store.subscribeMappings(()=>seen.push(clone(store.mappingSnapshot())))
  const mapping={comicId:'a',providerId:'anilist',providerTitleId:'123',mappingState:'confirmed',userConfirmed:true,createdAt:1}
  await store.saveComicMappings([mapping]);assert.equal(seen.length,1);assert.equal(store.mappingSnapshot()[0].comicId,'a')
- failFlush=true;await assert.rejects(store.saveComicMappings([]),/disk full/)
+ rdb.failNextCommit('disk full');await assert.rejects(store.saveComicMappings([]),/disk full/)
  assert.equal(seen.length,1);assert.equal(store.mappingSnapshot().length,1)
- values.set('tracker.comicMappings','[]');store.invalidateMappingSnapshot();assert.equal(seen.length,2);assert.equal(store.mappingSnapshot().length,0)
+ const {BackupRestoreActivity}=load('model/BackupRestoreActivity')
+ BackupRestoreActivity.beginRestore();await store.saveComicMappingsForBackupRestore([]);BackupRestoreActivity.finishRestore()
+ store.invalidateMappingSnapshot();assert.equal(seen.length,2);assert.equal(store.mappingSnapshot().length,0)
  stop()
 })

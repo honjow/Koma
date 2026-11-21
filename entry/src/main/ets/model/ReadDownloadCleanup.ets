@@ -1,4 +1,3 @@
-import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
 import { ReadingProgress } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
@@ -8,42 +7,19 @@ import { chaptersToRemoveAfterReading } from './LibraryAutomationPolicy'
 import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
-import { writeAppTextFile } from './AppFileTextPersistence'
+import { AFTER_READING_WORK, readGeneratedDownloadWork, saveGeneratedDownloadWork, removeGeneratedDownloadWork } from './GeneratedDownloadWork'
 import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from './KomaContentStorage'
-
-interface ReadCleanupCandidate { comicId: string; chapterId: string }
 
 /** Record completion now; remove downloaded files only after Reader has closed and committed progress. */
 export class ReadDownloadCleanup {
-  private path: string
-  private filesDir: string
-  private pending?: ReadCleanupCandidate[]
   private inFlight?: Promise<void>
   private observations: Promise<void> = Promise.resolve()
-
-  constructor(filesDir: string) {
-    this.filesDir = filesDir
-    this.path = `${filesDir}/read-download-cleanup.v1.json`
-  }
-
-  invalidateAfterRestore(): void { this.pending = undefined }
-
-  private candidates(): ReadCleanupCandidate[] {
-    if (this.pending === undefined) this.pending = fs.accessSync(this.path)
-      ? JSON.parse(fs.readTextSync(this.path)) as ReadCleanupCandidate[] : []
-    return this.pending
-  }
 
   observe(context: common.UIAbilityContext, progress: ReadingProgress): Promise<void> {
     if (!progress.completed) return Promise.resolve()
     const run = this.observations.then(() => BackupRestoreActivity.runWrite(async (): Promise<void> => {
       if ((await new LibraryAutomationPreferencesStore(context).load()).removeAfterRead < 0) return
-      const candidates = this.candidates()
-      if (candidates.some((item: ReadCleanupCandidate): boolean =>
-        item.comicId === progress.comicId && item.chapterId === progress.chapterId)) return
-      const next = candidates.concat([{ comicId: progress.comicId, chapterId: progress.chapterId }])
-      writeAppTextFile(this.path, JSON.stringify(next))
-      this.pending = next
+      await saveGeneratedDownloadWork(context, AFTER_READING_WORK, [{ comicId: progress.comicId, chapterId: progress.chapterId }])
     }))
     this.observations = run.catch(() => {})
     return run
@@ -58,7 +34,7 @@ export class ReadDownloadCleanup {
       const storageBase = await ensureKomaContentStorageBase(context)
       const runtimeKey = komaRuntimeStorageKey(context)
       const queue = new OfflineDownloadQueueStore(storageBase, runtimeKey)
-      for (const candidate of this.candidates().slice()) {
+      for (const candidate of await readGeneratedDownloadWork(context, AFTER_READING_WORK)) {
         const comic = library.getComic(candidate.comicId)
         const ids = comic === undefined ? [] : chaptersToRemoveAfterReading(comic, candidate.chapterId, reader, policy)
         let active = false
@@ -67,10 +43,7 @@ export class ReadDownloadCleanup {
           await queue.deleteChapterDownload(candidate.comicId, chapterId)
         }
         if (active) continue
-        const next = this.candidates().filter((item: ReadCleanupCandidate): boolean =>
-          item.comicId !== candidate.comicId || item.chapterId !== candidate.chapterId)
-        writeAppTextFile(this.path, JSON.stringify(next))
-        this.pending = next
+        await removeGeneratedDownloadWork(context, AFTER_READING_WORK, [candidate])
       }
     }).finally(() => { this.inFlight = undefined })
     this.inFlight = run

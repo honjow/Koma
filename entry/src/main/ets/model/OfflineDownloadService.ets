@@ -9,6 +9,7 @@ import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { taskpool, url } from '@kit.ArkTS'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { connection } from '@kit.NetworkKit'
 import {
   Chapter,
@@ -214,9 +215,9 @@ export function canRunOfflineDownloadQueueNow(preferences: OfflineDownloadQueueP
 }
 
 @Concurrent
-function initializeOfflineDownloadQueue(filesDir: string, runtimeKey: string): void {
+function initializeOfflineDownloadQueue(filesDir: string, runtimeKey: string, snapshot: string): string | undefined {
   // Startup restores queue state; explicit scans retain full page-content validation.
-  new OfflineDownloadQueueStore(filesDir, runtimeKey).reconcileWithManifests({ validateContentHash: false })
+  return new OfflineDownloadQueueStore(filesDir, runtimeKey).reconcileSnapshotText(snapshot)
 }
 
 export class OfflineDownloadService {
@@ -231,11 +232,22 @@ export class OfflineDownloadService {
   }
 
   static ensureQueueInitialized(filesDir: string, runtimeKey: string = filesDir): Promise<void> {
-    return OfflineDownloadRuntime.initialize(runtimeKey, async (): Promise<void> => {
-      await taskpool.execute(new taskpool.Task(initializeOfflineDownloadQueue, filesDir, runtimeKey))
-      await new OfflineDownloadQueueStore(filesDir, runtimeKey).finishCanceledTasks()
+    return OfflineDownloadRuntime.initialize(runtimeKey, () => BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      const queue = new OfflineDownloadQueueStore(filesDir, runtimeKey)
+      let snapshot = queue.exportSnapshotText()
+      while (snapshot !== undefined) {
+        const reconciled = await taskpool.execute(new taskpool.Task(initializeOfflineDownloadQueue, filesDir, runtimeKey, snapshot)) as string | undefined
+        const current = queue.exportSnapshotText()
+        if (current !== snapshot) {
+          snapshot = current
+          continue
+        }
+        if (reconciled !== undefined) queue.restoreSnapshotText(reconciled)
+        break
+      }
+      await queue.finishCanceledTasks()
       OfflineDownloadRuntime.publish(runtimeKey)
-    })
+    }))
   }
 
   getChapterSummary(comicId: string, chapterId: string): OfflineDownloadSummary | undefined {

@@ -1053,7 +1053,11 @@ test('filter selections compose during slow writes, persist across cold reads an
     if(fail){fail=false;throw Error('disk')}
     if(finish===undefined)await new Promise(resolve=>{finish=resolve})
   }}
-  const bindings={preferences:{getPreferences:async()=>store},...presentation,
+  const catalogFilterRecords={
+    readBackupValue:async()=>saved,
+    restoreBackupValue:async(_ctx,value)=>{const previous=saved;try{await store.put('catalog.filters',value);await store.flush()}catch(error){saved=previous;throw error}},
+  }
+  const bindings={preferences:{getPreferences:async()=>store},catalogFilterRecords,...presentation,
     ...productionModule('model/BackupRestoreActivity.ets')}
   const {SourceCatalogFilterState}=productionModule('state/SourceCatalogFilterState.ets',bindings)
   const state=new SourceCatalogFilterState();await state.prepare({})
@@ -1070,7 +1074,8 @@ test('filter selections compose during slow writes, persist across cold reads an
 // Regression from the device: model-driven All=false must not clear the selection.
 test('language toggle echoes do not clear unrelated selections', async () => {
  let saved='{}';const store={get:async()=>saved,put:async(_k,v)=>{saved=v},flush:async()=>{}}
- const bindings={preferences:{getPreferences:async()=>store},...presentation,...productionModule('model/BackupRestoreActivity.ets')}
+ const catalogFilterRecords={readBackupValue:async()=>saved,restoreBackupValue:async(_ctx,value)=>{saved=value}}
+ const bindings={preferences:{getPreferences:async()=>store},catalogFilterRecords,...presentation,...productionModule('model/BackupRestoreActivity.ets')}
  const {SourceCatalogFilterState}=productionModule('state/SourceCatalogFilterState.ets',bindings)
  const state=new SourceCatalogFilterState();await state.prepare({})
  const available=['en','zh','zh-Hans','zh-Hant']

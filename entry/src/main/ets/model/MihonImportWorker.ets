@@ -1,5 +1,6 @@
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { taskpool } from '@kit.ArkTS'
+import { fileIo as fs } from '@kit.CoreFileKit'
 import { Comic } from './ComicModels'
 import { InMemoryLibraryStore, LibraryContents, libraryContents } from './LibraryStore'
 import { AppFilesLibraryStorePersistenceAdapter, LibraryStorePersistenceService, LIBRARY_STORE_PERSISTENCE_FILE_NAME,
@@ -82,8 +83,11 @@ export function finishMihonAutomationRestoreTask(filesDir: string): void {
 export async function prepareMihonTransactionTask(filesDir: string, stagedDir: string,
   request: MihonTransactionRequest): Promise<MihonPreparedTransaction> {
   const library = new InMemoryLibraryStore()
-  new LibraryStorePersistenceService(library, new AppFilesLibraryStorePersistenceAdapter(filesDir)).restore()
-  const reader = new AppFilesReaderSessionPersistenceAdapter(filesDir).loadSnapshot()
+  // The first checkpoint file is the shelf, captured by its current storage owner.
+  new LibraryStorePersistenceService(library, new AppFilesLibraryStorePersistenceAdapter(stagedDir, '0')).restore()
+  const readingBefore = stagedDir + '/1'
+  const reader = new AppFilesReaderSessionPersistenceAdapter(filesDir).loadSnapshot(
+    fs.accessSync(readingBefore) ? fs.readTextSync(readingBefore) : null)
   let entries: ResolvedMihonImport[] = []
   if (request.bytes !== undefined) {
     const backup = await readMihonBackup(request.bytes)

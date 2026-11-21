@@ -23,8 +23,12 @@ const owner = compile('model/ReaderSessionStore', {
   './SourceTextOverlay': {}, './SourceRequiredImageDecode': {},
   '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn() {} } }, './AppFileTextPersistence': {},
   '@kit.CoreFileKit': { fileIo: {} }, '@kit.ArkTS': {}, './ComicModels': models,
-  './ReaderChapterSequence': compile('model/ReaderChapterSequence'), '../i18n/AppStrings': { AppStrings: {} },
+  './ReaderChapterSequence': compile('model/ReaderChapterSequence', {
+    './ChapterSortOrder': compile('model/ChapterSortOrder'),
+  }), '../i18n/AppStrings': { AppStrings: {} },
   './RemoteReaderSession': {}, './ChapterReadStateStore': {},
+  './ChapterListPreferencesStore': { chapterReadingSortFor: () => undefined },
+  './ReaderRdbStorage': {}, './UserDataDatabase': {},
 })
 test('foreground sessions exclude background, deduplicate pages and change chapter without double counting', () => {
   let now = 1000; const records = []

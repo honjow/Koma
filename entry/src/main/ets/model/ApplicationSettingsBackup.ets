@@ -7,8 +7,11 @@ import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from './KomaConte
 import { LanguageSettings } from '../i18n/LanguageSettings'
 import { restoreReaderRemoteImageCache } from './ReaderPageSourceAdapter'
 import { invalidateLibraryAutomationPolicyCache } from './LibraryAutomationPreferencesStore'
+import { decodePreferenceRecordMap, migratedBackupPreference } from './MigratedPreferenceRecords'
 import { isValidHttpUrl, normalizeIndexUrl, parseSavedSourceIndexRepositories, SourceIndexRepository,
-  serializeSourceIndexRepositories } from '../sourceRuntime/SourceIndexMetadata'
+  serializeSourceIndexRepositories, effectiveSourceIndexRepositories } from '../sourceRuntime/SourceIndexMetadata'
+import { loadSourceSubscriptionPreferences, saveSourceSubscriptionPreferences, sourceSubscriptionBackupValues,
+  SOURCE_INDEX_PREFERENCES, SOURCE_INDEX_REPOSITORIES, SOURCE_INDEX_URL } from '../sourceRuntime/SourceSubscriptionStorage'
 
 export type ApplicationSettingValue = string | number | boolean
 export interface ApplicationPreferenceBackup {
@@ -63,7 +66,9 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
 export const APPLICATION_SETTINGS_BACKUP_STORES: string[] = Object.keys(PORTABLE_FIELDS)
 
 function checkPortableValue(name: string, key: string, value: ApplicationSettingValue): void {
-  if (name === 'koma_library_filter_preferences' && key === 'library.gridColumnWidth') {
+  if (migratedBackupPreference(name, key) !== undefined) {
+    decodePreferenceRecordMap(value)
+  } else if (name === 'koma_library_filter_preferences' && key === 'library.gridColumnWidth') {
     if (typeof value !== 'number' || value < 0) throw new Error('backup_application_settings_invalid')
   } else if (name === 'koma_download_notifications_v1') {
     if (key === 'download.notifications.enabled' && typeof value !== 'boolean') throw new Error('backup_application_settings_invalid')
@@ -157,19 +162,22 @@ export async function exportApplicationSettings(context: common.UIAbilityContext
   const snapshots: ApplicationPreferenceBackup[] = []
   for (let index = 0; index < APPLICATION_SETTINGS_BACKUP_STORES.length; index += 1) {
     const name = APPLICATION_SETTINGS_BACKUP_STORES[index]
-    const store = await preferences.getPreferences(context, name)
-    const all = await store.getAll() as Record<string, ApplicationSettingValue>
     const values: Record<string, ApplicationSettingValue> = {}
     const fields = PORTABLE_FIELDS[name]
-    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex += 1) {
-      const key = fields[fieldIndex]
-      const item = all[key]
-      if (item !== undefined) values[key] = item as ApplicationSettingValue
-    }
-    if (name === 'koma_source_package_manager_v1') {
-      const repositories = parseSavedSourceIndexRepositories(all['source_index.repositories.v1'] ?? '', all['source_index.url'] ?? '')
-      if (all['source_index.repositories.v1'] !== undefined || repositories.length > 0) {
-        values['source_index.repositories.v1'] = serializeSourceIndexRepositories(repositories)
+    if (name === SOURCE_INDEX_PREFERENCES) {
+      const snapshot = await loadSourceSubscriptionPreferences(context)
+      if (snapshot.url !== undefined) values[SOURCE_INDEX_URL] = snapshot.url
+      const repositories = effectiveSourceIndexRepositories(snapshot.repositories ?? [], snapshot.url ?? '')
+      if (snapshot.repositories !== undefined || repositories.length > 0) {
+        values[SOURCE_INDEX_REPOSITORIES] = serializeSourceIndexRepositories(repositories)
+      }
+    } else {
+      const store = await preferences.getPreferences(context, name)
+      const all = await store.getAll() as Record<string, ApplicationSettingValue>
+      for (const key of fields) {
+        const migrated = migratedBackupPreference(name, key)
+        const item = migrated === undefined ? all[key] : await migrated.readBackupValue(context)
+        if (item !== undefined) values[key] = item
       }
     }
     // Copy before later Preferences.put calls can mutate a cached object.
@@ -195,14 +203,28 @@ export async function importApplicationSettings(
   if (!BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_not_active')
   for (let index = 0; index < document.preferences.length; index += 1) {
     const snapshot = document.preferences[index]
+    if (snapshot.name === SOURCE_INDEX_PREFERENCES) {
+      const url = snapshot.values[SOURCE_INDEX_URL]
+      const repositories = snapshot.values[SOURCE_INDEX_REPOSITORIES]
+      await saveSourceSubscriptionPreferences(context, sourceSubscriptionBackupValues(url, repositories),
+        url !== undefined || snapshot.clearedKeys?.includes(SOURCE_INDEX_URL) === true,
+        repositories !== undefined || snapshot.clearedKeys?.includes(SOURCE_INDEX_REPOSITORIES) === true)
+      continue
+    }
     const store = await preferences.getPreferences(context, snapshot.name)
     // A missing v1 field cannot distinguish an old writer from an intentional
     // reset. Preserve it; only v2's explicit clearedKeys authorize deletion.
     const keys = Object.keys(snapshot.values)
     for (const key of keys) {
-      await store.put(key, snapshot.values[key])
+      const migrated = migratedBackupPreference(snapshot.name, key)
+      if (migrated === undefined) await store.put(key, snapshot.values[key])
+      else await migrated.restoreBackupValue(context, snapshot.values[key])
     }
-    for (const key of snapshot.clearedKeys ?? []) await store.delete(key)
+    for (const key of snapshot.clearedKeys ?? []) {
+      const migrated = migratedBackupPreference(snapshot.name, key)
+      if (migrated === undefined) await store.delete(key)
+      else await migrated.restoreBackupValue(context, undefined)
+    }
     await store.flush()
   }
   if (document.downloadPreferences !== undefined) {

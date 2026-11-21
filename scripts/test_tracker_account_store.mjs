@@ -118,8 +118,6 @@ assert.match(
 )
 
 const mappingSaveBlock = trackerModelsSource.match(/private async saveComicMappingsCurrent\(mappings: ComicTrackerMapping\[\]\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
-assert.match(mappingSaveBlock, /TRACKER_COMIC_MAPPINGS_KEY/, 'mapping store must persist under the dedicated mapping key')
-assert.match(mappingSaveBlock, /JSON\.stringify\(next\.comicMappings\)/, 'mapping store must persist normalized mapping JSON')
 assert.match(mappingSaveBlock, /autoSyncEnabled: current\.autoSyncEnabled[\s\S]*updateStrategy: current\.updateStrategy/, 'mapping store must preserve tracker sync preferences')
 assert.doesNotMatch(
   mappingSaveBlock,

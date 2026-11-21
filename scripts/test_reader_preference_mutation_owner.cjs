@@ -1,7 +1,11 @@
 const fs = require('node:fs'), assert = require('node:assert/strict');
 const ts = require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript');
 const root = require('node:path').resolve(__dirname, '..') + '/';
-const data = new Map(), published = [], appearance = { colorMode: -1 }; let failFlush = false, failChangedOverride = false, stableOverride; let flushCount = 0;
+const { createRdbPort } = require('./user_data_rdb_fixture.cjs');
+const rdb = createRdbPort();
+const data = new Map(), published = [], appearance = { colorMode: -1 };
+const model = 'entry/src/main/ets/model/';
+const failCommit = () => rdb.failNextCommit('fixture_database_commit_failed');
 const ReadingDirection = { LEFT_TO_RIGHT:'left_to_right', RIGHT_TO_LEFT:'right_to_left', WEBTOON:'webtoon' };
 function evaluate(file, deps) {
  const exp={}; const source=fs.readFileSync(root+file,'utf8').replace(/@ObservedV2\s*|@Trace\s+/g,''); const out=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
@@ -9,6 +13,15 @@ function evaluate(file, deps) {
 }
 const activity = evaluate('entry/src/main/ets/model/BackupRestoreActivity.ets',{}).BackupRestoreActivity;
 const display = evaluate('entry/src/main/ets/model/ReaderDisplaySettings.ets',{});
+const arkdata = {preferences:{async getPreferences(context){
+  let row=data.get(context.filesDir);if(!row){row=new Map();data.set(context.filesDir,row)}
+  return {async has(k){return row.has(k)}, async get(k,d){return row.has(k)?row.get(k):d}, async getAll(){return Object.fromEntries(row)}};
+ }}};
+arkdata.relationalStore = rdb.relationalStore;
+const database = evaluate(model+'UserDataDatabase.ets',{'@kit.ArkData':arkdata});
+const keyed = evaluate(model+'UserKeyedRecords.ets',{});
+const migrations = evaluate(model+'MigratedPreferenceRecords.ets',{'@kit.ArkData':arkdata,'./UserDataDatabase':database,'./UserKeyedRecords':keyed,
+ '../sourceRuntime/SourceSubscriptionStorage':{SOURCE_INDEX_PREFERENCES:'koma_source_package_manager_v1'}});
 const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
  '../deviceSync/DeviceSyncSignals':evaluate('entry/src/main/ets/deviceSync/DeviceSyncSignals.ets',{}),
  './ImageBannerRules':evaluate('entry/src/main/ets/model/ImageBannerRules.ets',{
@@ -16,10 +29,8 @@ const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
  }),
  './ReaderDisplaySettings':display,
  './BackupRestoreActivity':{BackupRestoreActivity:activity}, '@kit.AbilityKit':{ConfigurationConstant:{ColorMode:{COLOR_MODE_DARK:0,COLOR_MODE_LIGHT:1,COLOR_MODE_NOT_SET:-1}}},
- '@kit.ArkData':{preferences:{async getPreferences(context){
-  let row=data.get(context.filesDir);if(!row){row=new Map();data.set(context.filesDir,row)}
-  return {async has(k){return row.has(k)},async delete(k){row.delete(k)},async get(k,d){return row.has(k)?row.get(k):d},async getAll(){return Object.fromEntries(row)},async put(k,v){row.set(k,v)},async flush(){flushCount++;const changed=failChangedOverride && row.get('reader.seriesModeOverrides.v1')!==stableOverride;if(failFlush || changed){failFlush=false;failChangedOverride=false;throw Error('fixture_flush_failed')}}};
- }}}, '../i18n/AppStrings':{AppStrings:{get:s=>s}},'./ComicModels':{ReadingDirection},
+ './UserDataDatabase': database, './UserKeyedRecords': keyed, './MigratedPreferenceRecords': migrations,
+ '../i18n/AppStrings':{AppStrings:{get:s=>s}},'./ComicModels':{ReadingDirection},
  '../state/ReaderModeState':{ReaderModeSnapshot:class{constructor(...a){this.args=a}},ReaderModeStateBridge:{publish:v=>published.push(v),snapshot:columnMode=>({...mod.DEFAULT_READER_PREFERENCES,columnMode})}},
  '../state/AppearanceState':{connectAppearanceState:()=>appearance}
 });
@@ -29,14 +40,15 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  const syncStore=new mod.ReaderPreferencesStore(syncContext);
  const missing=await syncStore.captureDeviceSyncPreferences();
  assert.deepEqual(missing.unsetFields,['mode','animation','page-number','image-fit']);
- const syncData=data.get(syncContext.filesDir);
+ const legacySyncContext={filesDir:'/owned-memory/legacy-sync-preferences'};
+ const syncData=new Map(); data.set(legacySyncContext.filesDir,syncData);
  syncData.set('reader.pageMode','auto_page');
  syncData.set('reader.showPageNumber',false);
  syncData.set('reader.pageTurnAnimation',mod.DEFAULT_READER_PREFERENCES.pageTurnAnimation);
  syncData.set(mod.SERIES_MODE_OVERRIDES_KEY,JSON.stringify({
    book:{pageMode:'auto_page',readingDirection:ReadingDirection.RIGHT_TO_LEFT},
  }));
- const snapshot=await syncStore.captureDeviceSyncPreferences();
+ const snapshot=await new mod.ReaderPreferencesStore(legacySyncContext).captureDeviceSyncPreferences();
  assert.deepEqual(snapshot.unsetFields,['image-fit']);
  assert.equal(snapshot.showPageNumber,false);
  assert.equal(snapshot.mode.pageMode,'single_page');
@@ -48,7 +60,7 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  await store.saveThemeMode('dark');assert.equal(appearance.colorMode,0);
  await store.saveThemeMode('light');assert.equal(appearance.colorMode,1);
  await store.saveThemeMode('system');assert.equal(appearance.colorMode,-1);assert.deepEqual(applied,[-1,0,1,-1]);
- failFlush=true;await assert.rejects(()=>store.saveThemeMode('dark'));assert.equal((await store.load()).themeMode,'system');assert.equal(applied.at(-1),-1);
+ failCommit();await assert.rejects(()=>store.saveThemeMode('dark'));assert.equal((await store.load()).themeMode,'system');assert.equal(applied.at(-1),-1);
  ctx.failTheme=true;await assert.rejects(()=>store.saveThemeMode('dark'),/platform_fail/);assert.equal((await store.load()).themeMode,'system');ctx.failTheme=false;
  mod.unbindReaderThemeWindow();await store.saveThemeMode('dark');assert.equal(applied.at(-1),-1);mod.bindReaderThemeWindow(ctx);await store.load();assert.equal(applied.at(-1),0);
  await store.save(mod.DEFAULT_READER_PREFERENCES);published.length=0;
@@ -63,7 +75,7 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  let visual=await new mod.ReaderPreferencesStore(ctx).load();
  assert.equal(visual.displaySettings.grayscale,true);assert.equal(visual.displaySettings.red,160);
  assert.equal(visual.displaySettings.alpha,64);assert.equal(visual.displaySettings.filterEnabled,true);
- failFlush=true;await assert.rejects(()=>store.saveChanges(visual,{...visual,displaySettings:{...visual.displaySettings,inverted:true}}));
+ failCommit();await assert.rejects(()=>store.saveChanges(visual,{...visual,displaySettings:{...visual.displaySettings,inverted:true}}));
  assert.equal((await store.load()).displaySettings.inverted,false);
  await store.save(mod.DEFAULT_READER_PREFERENCES);
 
@@ -73,7 +85,7 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  const tapPrefs=await new mod.ReaderPreferencesStore(ctx).load();
  assert.equal(tapPrefs.doubleTapZoomEnabled,false);assert.equal(tapPrefs.doubleTapIntervalMs,200);
  assert.equal((await store.loadForComic('tap-book')).doubleTapIntervalMs,200);
- failFlush=true;await assert.rejects(()=>store.saveDoubleTapZoomEnabled(true),/fixture_flush_failed/);
+ failCommit();await assert.rejects(()=>store.saveDoubleTapZoomEnabled(true),/fixture_database_commit_failed/);
  assert.equal((await store.load()).doubleTapZoomEnabled,false);
  await Promise.all([store.savePreloadPages(5),other.saveAutoPageSeconds(9)]);
  const both=await store.load();const preserved=both.preloadPages===5 && both.autoPageSeconds===9;
@@ -103,14 +115,15 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  assert.equal((await store.load()).autoPageSeconds,11);assert.equal((await store.loadForComic('B')).pageMode,'vertical_page');
  await store.clearSeriesOverride('A');assert.equal((await store.loadForComic('A')).pageMode,baseline.pageMode);assert.equal((await store.loadForComic('B')).pageMode,'vertical_page');
  const pending=store.savePreloadPages(4);assert.throws(()=>activity.beginRestore(),/backup_restore_busy/);await pending;
- published.length=0;failFlush=true;await assert.rejects(()=>other.savePreloadPages(2),/fixture_flush_failed/);assert.equal(published.length,0,'failed flush must not publish committed runtime state');
+ published.length=0;failCommit();await assert.rejects(()=>other.savePreloadPages(2),/fixture_database_commit_failed/);assert.equal(published.length,0,'failed commit must not publish committed runtime state');
  await store.savePreloadPages(5);assert.equal((await store.load()).preloadPages,5,'rejected operation must not poison owner');
  activity.beginRestore();await assert.rejects(()=>store.savePreloadPages(1),/backup_restore_busy/);await store.saveForBackupRestore(baseline);activity.finishRestore();
  assert.equal((await store.load()).preloadPages,baseline.preloadPages);
  // Old persisted backend choices and backups must open with the remaining shared reader.
- const cacheForMigration=data.get(ctx.filesDir);
+ const oldBackendContext={filesDir:'/owned-memory/old-backend'};
+ const cacheForMigration=new Map(); data.set(oldBackendContext.filesDir,cacheForMigration);
  cacheForMigration.set('reader.readerImplementation','legacy');
- assert.equal((await store.load()).readerImplementation,'shared');
+ assert.equal((await new mod.ReaderPreferencesStore(oldBackendContext).load()).readerImplementation,'shared');
  activity.beginRestore();
  await store.saveForBackupRestore({...baseline,readerImplementation:'legacy'});
  activity.finishRestore();
@@ -119,22 +132,23 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  await store.save(mod.DEFAULT_READER_PREFERENCES);
  const seed=await store.loadForComic('book-B');
  await store.saveChangesForComic('book-B',seed,{...seed,pageMode:'vertical_page'});
- const cache=data.get(ctx.filesDir), beforeBookEdit=new Map(cache);
+ const readRows=()=>rdb.readRows(ctx.filesDir);
+ const beforeBookEdit=readRows();
  const aBefore=await store.loadForComic('book-A');
- stableOverride=cache.get(mod.SERIES_MODE_OVERRIDES_KEY);failChangedOverride=true;published.length=0;
- await assert.rejects(()=>store.saveChangesForComic('book-A',aBefore,{...aBefore,pageMode:'double_page'}),/fixture_flush_failed/);
- assert.deepEqual(cache,beforeBookEdit,'failed book commit must restore all cached values');
+ failCommit();published.length=0;
+ await assert.rejects(()=>store.saveChangesForComic('book-A',aBefore,{...aBefore,pageMode:'double_page'}),/fixture_database_commit_failed/);
+ assert.deepEqual(readRows(),beforeBookEdit,'failed book commit must restore all persisted values');
  assert.equal(published.length,0,'failed book commit must not publish new reader mode');
  await other.savePreloadPages(4);
- assert.equal(cache.get(mod.SERIES_MODE_OVERRIDES_KEY),beforeBookEdit.get(mod.SERIES_MODE_OVERRIDES_KEY),'unrelated commit must not resurrect failed book override');
+ assert.deepEqual(readRows().filter(row=>row.domain.includes('seriesModeOverrides')), beforeBookEdit.filter(row=>row.domain.includes('seriesModeOverrides')),'unrelated commit must not resurrect failed book override');
  assert.equal((await store.loadForComic('book-A')).pageMode,aBefore.pageMode);
  assert.equal((await store.loadForComic('book-B')).pageMode,'vertical_page');
- const successFlushes=flushCount;
+ const completedTransactions=rdb.commits;
  await store.saveChangesForComic('book-A',aBefore,{...aBefore,pageMode:'double_page'});
- assert.equal(flushCount-successFlushes,1,'global fields and per-book override must commit together');
- const beforeReset=new Map(cache);stableOverride=cache.get(mod.SERIES_MODE_OVERRIDES_KEY);failChangedOverride=true;
- await assert.rejects(()=>store.clearSeriesOverride('book-A'),/fixture_flush_failed/);
- assert.deepEqual(cache,beforeReset,'failed reset must restore original per-book payload');
+ assert.equal(rdb.commits-completedTransactions,1,'global fields and per-book override must commit together');
+ const beforeReset=readRows();failCommit();
+ await assert.rejects(()=>store.clearSeriesOverride('book-A'),/fixture_database_commit_failed/);
+ assert.deepEqual(readRows(),beforeReset,'failed reset must restore original per-book payload');
  await other.saveAutoPageSeconds(7);
  assert.equal((await store.loadForComic('book-A')).pageMode,'double_page','unrelated save must not commit a failed reset');
  assert.equal((await store.loadForComic('book-B')).pageMode,'vertical_page');
@@ -162,17 +176,17 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  assert.equal((await reopened.loadForComic('mode-reopen')).pageMode,globalChoice.pageMode);
  assert.equal((await reopened.loadForComic('mode-reopen')).readingDirection,globalChoice.readingDirection);
  await reopened.save({...globalChoice,pageMode:'single_page',readingDirection:ReadingDirection.WEBTOON});
- const unchanged=new Map(data.get(ctx.filesDir));
+ const unchanged=readRows();
  const legacyReopened=new mod.ReaderPreferencesStore(ctx);
  assert.equal((await legacyReopened.load()).readingDirection,ReadingDirection.WEBTOON);
- assert.deepEqual(data.get(ctx.filesDir),unchanged,'loading does not migrate persistent mode records');
+ assert.deepEqual(readRows(),unchanged,'loading does not migrate persistent mode records');
  let globalBanner = await store.load(); globalBanner.bannerFilter='auto'; await store.saveChanges(await store.load(),globalBanner);
  let bookA=await store.loadForComic('banner-a');assert.equal(bookA.bannerFilter,'auto');assert.equal(bookA.bannerFilterOverride,'global');
  await store.saveChangesForComic('banner-a',bookA,{...bookA,bannerFilterOverride:'off'});
  assert.equal((await other.loadForComic('banner-a')).bannerFilterOverride,'off');
  assert.equal((await other.loadForComic('banner-b')).bannerFilterOverride,'global');
  assert.equal((await other.load()).bannerFilter,'auto');
- bookA=await store.loadForComic('banner-a'); failFlush=true;
+ bookA=await store.loadForComic('banner-a'); failCommit();
  await assert.rejects(store.saveChangesForComic('banner-a',bookA,{...bookA,bannerFilterOverride:'source'}));
  assert.equal((await store.loadForComic('banner-a')).bannerFilterOverride,'off');
  await store.copyBannerOverride('banner-a','banner-copy',false);
@@ -181,9 +195,10 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  assert.equal((await store.loadForComic('banner-a')).bannerFilterOverride,'global');
  await store.copyBannerOverride('banner-copy','',true);assert.equal((await store.loadForComic('banner-copy')).bannerFilterOverride,'global');
  // Approved switch migration reads old global/book values without changing off.
- const oldDisk=data.get(ctx.filesDir);oldDisk.set('reader.bannerFilter','source');
+ const legacyBannerContext={filesDir:'/owned-memory/legacy-banner'};
+ const oldDisk=new Map(); data.set(legacyBannerContext.filesDir,oldDisk); oldDisk.set('reader.bannerFilter','source');
  oldDisk.set('reader.bannerFilterOverrides.v1',JSON.stringify({'old-source':'source','old-auto':'auto','old-off':'off'}));
- const migrated=new mod.ReaderPreferencesStore(ctx);
+ const migrated=new mod.ReaderPreferencesStore(legacyBannerContext);
  assert.equal((await migrated.load()).bannerFilter,'auto');
  assert.equal((await migrated.loadForComic('old-source')).bannerFilterOverride,'auto');
  assert.equal((await migrated.loadForComic('old-auto')).bannerFilterOverride,'auto');
@@ -194,7 +209,7 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  assert.equal((await migrated.loadForComic('old-source')).bannerFilterOverride,'auto','book-on override survives global-off');
  console.log('PASS: banner global inheritance, book isolation, failed write rollback, migration copy and removal');
  console.log('PASS: mode commands, dormant RTL, legacy WEBTOON, global restore and fresh store reopen');
- console.log('PASS: one book commit, rejected override/reset cache rollback, later unrelated commits and other-book isolation');
+ console.log('PASS: one book commit, rejected override/reset transaction rollback, later unrelated commits and other-book isolation');
  console.log('PASS: legacy backend preference and backup migrate to shared reader');
- console.log('PASS: common mutation owner, field deltas, two book overrides, reset, restore admission, flush publication and rejection recovery');
-})().catch(e=>{console.error(e);process.exitCode=1});
+ console.log('PASS: common mutation owner, field deltas, two book overrides, reset, restore admission, commit publication and rejection recovery');
+})().finally(()=>rdb.close()).catch(e=>{console.error(e);process.exitCode=1});

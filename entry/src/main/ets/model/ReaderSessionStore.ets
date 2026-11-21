@@ -34,6 +34,8 @@ import { MangaMigrationReadPlan, MangaMigrationReadState } from './SourceMangaMi
 import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from './RemoteReaderSession'
 import { ReadingSessionRecord } from './ReadingStatistics'
 import { AppFilesChapterReadStatePersistenceAdapter, ChapterReadStateOverride } from './ChapterReadStateStore'
+import { ReaderRdbStorage } from './ReaderRdbStorage'
+import { openUserDataDatabase } from './UserDataDatabase'
 
 export interface ChapterReadingState {
   comicId: ComicId
@@ -253,6 +255,7 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
 }
 
 export interface ReaderSessionPersistenceAdapter {
+  supportsPageTurnWrites?(): boolean
   load(): ReadingProgress[]
   save(progress: ReadingProgress[]): void
   /** Optional same-document metadata channel for transient source history. */
@@ -278,6 +281,50 @@ interface ReaderSessionPersistPlan {
 }
 
 export const READER_PROGRESS_PERSISTENCE_FILE_NAME: string = 'reader-sessions.v1.json'
+const liveReaderStorage = new Map<string, ReaderRdbStorage>()
+
+/** Open current data before recovery, but import the old file only after replaying old recovery logs. */
+export async function prepareLiveReaderStorage(context: common.Context, migrate: boolean): Promise<void> {
+  if (liveReaderStorage.has(context.filesDir)) return
+  const storage = new ReaderRdbStorage(await openUserDataDatabase(context))
+  if (!await storage.migrated()) {
+    if (!migrate) return
+    try {
+      const snapshot = new AppFilesReaderSessionPersistenceAdapter(context.filesDir).loadSnapshot()
+      await storage.migrate(snapshot)
+      DiagnosticLogger.info('persistence', 'reader_rdb_migrated',
+        'works=' + snapshot.progress.length + ' chapters=' + snapshot.chapters.length)
+    } catch (error) {
+      DiagnosticLogger.exception('persistence', 'reader_rdb_migration_failed', error as Error)
+      return
+    }
+  }
+  liveReaderStorage.set(context.filesDir, storage)
+}
+
+export function usesReaderDatabase(filesDir: string): boolean {
+  return liveReaderStorage.has(filesDir)
+}
+
+export function readLiveReaderSnapshot(filesDir: string): string | undefined {
+  const storage = liveReaderStorage.get(filesDir)
+  if (storage !== undefined) return serializeReaderSessionForDevice(storage.read())
+  const path = normalizeReaderSessionFilePath(filesDir)
+  return fs.accessSync(path) ? fs.readTextSync(path, { encoding: 'utf-8' }) : undefined
+}
+
+export function writeLiveReaderSnapshot(filesDir: string, payload?: string): void {
+  const storage = liveReaderStorage.get(filesDir)
+  if (storage !== undefined) {
+    const snapshot: ReaderSessionDocumentSnapshot = payload === undefined ? { progress: [], sourceHistory: [], chapters: [] }
+      : new AppFilesReaderSessionPersistenceAdapter(filesDir).loadSnapshot(payload)
+    storage.save(snapshot)
+    return
+  }
+  const path = normalizeReaderSessionFilePath(filesDir)
+  if (payload !== undefined) writeAppTextFile(path, payload)
+  else if (fs.accessSync(path)) fs.unlinkSync(path)
+}
 /**
  * v4 adds OPDS search intent to recent history without retaining signed URLs.
  * Optional readingSessions are additive facts; missing legacy records mean no measured duration.
@@ -375,7 +422,7 @@ export function normalizeReaderSessionBackupPayload(payload: string): string {
   return JSON.stringify(normalized)
 }
 
-/** Local outbox belongs to the same atomic file as the corresponding page turn.
+/** Local outbox belongs to the same atomic commit as the corresponding page turn.
  * Backup export and replacement use the normalizer above, which omits it. */
 export function serializeReaderSessionForDevice(snapshot: ReaderSessionDocumentSnapshot): string {
   const document: ReaderSessionDocument = {
@@ -457,6 +504,7 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
   private readonly filesDir: string
   private migrationPending: boolean = false
   private hasSnapshotBase: boolean = false
+  private stagedDatabaseWrite?: ReaderDatabaseWrite
 
   constructor(filesDir: string) {
     this.filesDir = filesDir
@@ -501,8 +549,17 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
     this.saveDocument(snapshot)
   }
 
+  supportsPageTurnWrites(): boolean {
+    return usesReaderDatabase(this.filesDir)
+  }
+
   async saveSnapshotAsync(snapshot: ReaderSessionDocumentSnapshot, token: number,
     pageTurns?: ChapterReadingState[]): Promise<string> {
+    if (usesReaderDatabase(this.filesDir)) {
+      const key = 'rdb:' + token
+      this.stagedDatabaseWrite = { key, snapshot, pageTurns }
+      return key
+    }
     if (this.hasSnapshotBase && pageTurns !== undefined) {
       const delta: ReaderSessionDocument = { schemaVersion: READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
         progress: [], syncPositions: snapshot.syncPositions, syncActions: snapshot.syncActions }
@@ -527,6 +584,14 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
       throw new Error('sync_local_busy')
     }
     try {
+      const staged = this.stagedDatabaseWrite
+      if (staged?.key === token) {
+        const database = liveReaderStorage.get(this.filesDir)
+        if (database === undefined) throw new Error('reader_database_unavailable')
+        database.save(staged.snapshot, staged.pageTurns)
+        this.stagedDatabaseWrite = undefined
+        return
+      }
       fs.renameSync(token, this.filePath)
       this.migrationPending = false
       this.hasSnapshotBase = true
@@ -537,6 +602,10 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
   }
 
   discardSnapshotAsync(token: string): void {
+    if (token.startsWith('rdb:')) {
+      if (this.stagedDatabaseWrite?.key === token) this.stagedDatabaseWrite = undefined
+      return
+    }
     try {
       if (fs.accessSync(token)) fs.unlinkSync(token)
     } catch (_error) {
@@ -549,6 +618,8 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
 
   private loadDocument(persistedText?: string | null): ReaderSessionDocumentSnapshot {
     this.hasSnapshotBase = false
+    const database = liveReaderStorage.get(this.filesDir)
+    if (persistedText === undefined && database !== undefined) return database.read()
     let document: ReaderSessionDocument
     try {
       const text = persistedText === undefined ?
@@ -600,10 +671,18 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
     if (BackupRestoreActivity.hasPendingRecovery()) {
       throw new Error('sync_local_busy')
     }
-    writeAppTextFile(this.filePath, serializeReaderSessionForDevice(snapshot))
+    const database = liveReaderStorage.get(this.filesDir)
+    if (database === undefined) writeAppTextFile(this.filePath, serializeReaderSessionForDevice(snapshot))
+    else database.save(snapshot)
     this.migrationPending = false
     this.hasSnapshotBase = true
   }
+}
+
+interface ReaderDatabaseWrite {
+  key: string
+  snapshot: ReaderSessionDocumentSnapshot
+  pageTurns?: ChapterReadingState[]
 }
 
 /** Complete in-memory reading state, used to seed or restore a session store. */
@@ -1386,15 +1465,15 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     const revision = this.persistRevision
     const barrier = ++this.persistBarrier
     try {
-      const plan = this.buildPersistPlan()
+      const pageTurns: ChapterReadingState[] | undefined = !this.needsFullSnapshot && this.pendingPageTurns.size > 0
+        ? Array.from(this.pendingPageTurns.values()) : undefined
+      const plan = this.buildPersistPlan(this.adapter.supportsPageTurnWrites?.() === true ? pageTurns : undefined)
       if (plan === undefined) {
         this.flush()
         return
       }
       // The regular page-turn path gives the worker only the changed rows.
       // History edits, imports and restores still own their full snapshot.
-      const pageTurns: ChapterReadingState[] | undefined = !this.needsFullSnapshot && this.pendingPageTurns.size > 0
-        ? Array.from(this.pendingPageTurns.values()) : undefined
       const staged = await this.adapter.saveSnapshotAsync(plan.snapshot, barrier, pageTurns)
       if (barrier !== this.persistBarrier) {
         this.adapter.discardSnapshotAsync(staged)
@@ -1434,13 +1513,13 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     }
   }
 
-  private buildPersistPlan(): ReaderSessionPersistPlan | undefined {
+  private buildPersistPlan(pageTurns?: ChapterReadingState[]): ReaderSessionPersistPlan | undefined {
     if (this.adapter.saveSnapshot === undefined) return undefined
     const rows: ReadingProgress[] = []
-    this.progressByComicId.forEach((progress: ReadingProgress) => {
-      rows.push(progress)
-    })
-    const chapters = this.listChapterStates()
+    if (pageTurns === undefined) {
+      this.progressByComicId.forEach((progress: ReadingProgress) => { rows.push(progress) })
+    }
+    const chapters = pageTurns ?? this.listChapterStates()
     // The most recent progress per book omits earlier chapters read before
     // this flush. Match captures against the positions being saved per chapter.
     const staged = stageDeviceSyncReading(chapters.flatMap((chapter: ChapterReadingState): ReadingProgress[] =>
@@ -1452,8 +1531,9 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     const syncActions = this.syncActions.filter((item: SyncReadingActionCapture): boolean =>
       !deviceSyncReadingActionAcknowledged(item) || syncPositions.length > 0)
     return {
-      snapshot: { progress: rows, sourceHistory: this.listSourceHistory(),
-        remoteHistory: this.listRemoteHistory(), chapters, readingSessions: this.listReadingSessions(),
+      snapshot: { progress: rows, sourceHistory: pageTurns === undefined ? this.listSourceHistory() : [],
+        remoteHistory: pageTurns === undefined ? this.listRemoteHistory() : undefined, chapters,
+        readingSessions: pageTurns === undefined ? this.listReadingSessions() : undefined,
         syncPositions: syncPositions.length > 0 ? syncPositions : undefined,
         syncActions: syncActions.length > 0 ? syncActions : undefined },
       syncPositions: syncPositions,

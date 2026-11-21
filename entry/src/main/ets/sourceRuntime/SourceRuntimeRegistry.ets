@@ -6,6 +6,7 @@ import { SourceAuthenticationDescriptor, sourceAuthenticationDescriptor, validSo
 import { SourceChapterOrder, isValidSourceChapterOrder } from './SourceChapterOrder'
 import { NativeSourceRuntime } from './NativeSourceRuntime'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
+import { readSourceRegistryMetadata, usesSourceRegistryDatabase, writeSourceRegistryMetadata } from './SourceRegistryDatabase'
 import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import {
   LocalSourcePackageManifest,
@@ -464,14 +465,6 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
   }
 }
 
-function parseSourceRuntimeRegistryMetadata(metadataPath: string): SourceRuntimeRegistryPersistedMetadata | undefined {
-  try {
-    return JSON.parse(readTextSync(metadataPath)) as SourceRuntimeRegistryPersistedMetadata
-  } catch (_err) {
-    return undefined
-  }
-}
-
 function reloadFailure(
   reasonCode: string,
   metadataPath: string,
@@ -795,8 +788,11 @@ export class SourceRuntimeRegistry {
       schemaVersion: 1,
       entries: entries.map((entry: SourceRuntimeRegistryEntry) => persistedEntryFromRegistryEntry(entry)),
     }
-    ensureParentDirSync(metadataPath)
-    writeTextSync(metadataPath, JSON.stringify(metadata))
+    if (usesSourceRegistryDatabase(metadataPath)) writeSourceRegistryMetadata(metadataPath, metadata)
+    else {
+      ensureParentDirSync(metadataPath)
+      writeTextSync(metadataPath, JSON.stringify(metadata))
+    }
     return {
       ok: true,
       metadataPath,
@@ -806,13 +802,12 @@ export class SourceRuntimeRegistry {
 
   static reloadFromAppLocalMetadata(metadataPath: string): SourceRuntimeRegistryReloadResult {
     const registry = new SourceRuntimeRegistry()
-    if (!fs.accessSync(metadataPath)) {
-      return reloadFailure('metadata_missing', metadataPath, registry)
-    }
-
     try {
-      const metadata = parseSourceRuntimeRegistryMetadata(metadataPath)
-      if (metadata === undefined || metadata.schemaVersion !== 1 || !Array.isArray(metadata.entries)) {
+      let metadata: SourceRuntimeRegistryPersistedMetadata | undefined
+      if (usesSourceRegistryDatabase(metadataPath)) metadata = readSourceRegistryMetadata(metadataPath)
+      else if (fs.accessSync(metadataPath)) metadata = JSON.parse(readTextSync(metadataPath)) as SourceRuntimeRegistryPersistedMetadata
+      if (metadata === undefined) return reloadFailure('metadata_missing', metadataPath, registry)
+      if (metadata === null || metadata.schemaVersion !== 1 || !Array.isArray(metadata.entries)) {
         return reloadFailure('metadata_invalid', metadataPath, registry)
       }
 

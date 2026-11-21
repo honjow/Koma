@@ -7,9 +7,10 @@ import { signalDeviceSyncChange, signalDeviceSyncRestoreStart, signalDeviceSyncR
 import { beginAutomationRestore } from './AutomationStateEpoch'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { BackupRestoreCheckpoint } from './BackupRestoreCheckpoint'
-import { LIBRARY_STORE_PERSISTENCE_FILE_NAME } from './LibraryPersistence'
+import { LIBRARY_STORE_PERSISTENCE_FILE_NAME, usesLibraryDatabase, writeLiveLibrarySnapshot } from './LibraryPersistence'
 import { LibraryStore, replaceLibraryContents } from './LibraryStore'
-import { appReaderSessionStore, ChapterReadingState, READER_PROGRESS_PERSISTENCE_FILE_NAME } from './ReaderSessionStore'
+import { appReaderSessionStore, ChapterReadingState, READER_PROGRESS_PERSISTENCE_FILE_NAME,
+  usesReaderDatabase, writeLiveReaderSnapshot } from './ReaderSessionStore'
 import { MihonImportRecord } from './MihonBackupReader'
 import { Comic } from './ComicModels'
 import { MihonImportSummary, matchingMihonShelfWork, mihonDeclaredWork, mihonMatchText, mihonSourceMatcher, pickMihonSourceWork } from './MihonImportPlanning'
@@ -340,8 +341,18 @@ export class MihonImportService {
       checkpoint = await BackupRestoreCheckpoint.prepare(context, true)
       const staged = checkpoint.stagedFilesDirectory()
       const prepared = await this.prepareTransaction(staged, request)
-      await fs.rename(staged + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME, context.filesDir + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME)
-      await fs.rename(staged + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME, context.filesDir + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME)
+      const preparedLibrary = staged + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME
+      if (usesLibraryDatabase(context.filesDir)) {
+        writeLiveLibrarySnapshot(context.filesDir, await fs.readText(preparedLibrary))
+      } else {
+        await fs.rename(preparedLibrary, context.filesDir + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME)
+      }
+      const preparedReader = staged + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME
+      if (usesReaderDatabase(context.filesDir)) {
+        writeLiveReaderSnapshot(context.filesDir, await fs.readText(preparedReader))
+      } else {
+        await fs.rename(preparedReader, context.filesDir + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME)
+      }
       if (prepared.trackerMappings.length > beforeMappings.length) {
         await tracker.saveComicMappingsForBackupRestore(prepared.trackerMappings)
       }

@@ -2,9 +2,13 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { fileIo as fs } from '@kit.CoreFileKit'
+import { common } from '@kit.AbilityKit'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { Chapter, Comic, ComicId } from './ComicModels'
 import { sourceLibraryComicId } from './SourceLibraryComic'
+import { openUserDataDatabase } from './UserDataDatabase'
+import { UserKeyedRecords, UserRecordValues, writeUserRecords } from './UserKeyedRecords'
+import type { relationalStore } from '@kit.ArkData'
 import {
   OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
   OfflineChapterDownloadManifest,
@@ -19,6 +23,7 @@ import {
 export const OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION: number = 1
 const OFFLINE_DOWNLOAD_QUEUE_FILE_NAME: string = 'queue.v1.json'
 export const PUBLIC_CONTENT_QUEUE_PRIVATE_PATH: string = 'download-queue/queue.v1.json'
+export const SANDBOX_CONTENT_QUEUE_PATH: string = 'downloads/queue.v1.json'
 export const OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS: number[] = [1, 2, 3]
 export const DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES: OfflineDownloadQueuePreferences = {
   foregroundConcurrencyLimit: 1,
@@ -163,6 +168,122 @@ interface OfflineDownloadQueueDocument {
   entries: OfflineDownloadQueueEntry[]
 }
 
+interface OfflineQueueRow {
+  order: number
+  entry: OfflineDownloadQueueEntry
+}
+
+const QUEUE_PREFERENCES_ROW = 'settings'
+const QUEUE_NEXT_ORDER = 'next-order'
+const QUEUE_TASK_PREFIX = 'chapter/'
+const sqliteQueues = new Map<string, OfflineQueueRdbStorage>()
+
+function queueRecordKey(task: OfflineDownloadTaskId): string {
+  return QUEUE_TASK_PREFIX + offlineDownloadTaskKey(task)
+}
+
+class OfflineQueueRdbStorage {
+  private readonly database: relationalStore.RdbStore
+  private readonly records: UserKeyedRecords
+  private migrated: boolean = false
+
+  constructor(database: relationalStore.RdbStore, relativePath: string) {
+    this.database = database
+    this.records = new UserKeyedRecords(database, 'offline-queue/' + relativePath)
+  }
+
+  isMigrated(): boolean {
+    if (!this.migrated) this.migrated = this.records.isMigrated()
+    return this.migrated
+  }
+
+  migrate(document: OfflineDownloadQueueDocument | undefined): void {
+    this.records.migrate(this.collectRows(document))
+    this.migrated = true
+  }
+
+  read(): OfflineDownloadQueueDocument | undefined {
+    const values = this.records.entries()
+    if (values === undefined) return undefined
+    const prefs = values.get(QUEUE_PREFERENCES_ROW)
+    const entries: OfflineQueueRow[] = []
+    values.forEach((value: string, key: string): void => {
+      if (key.startsWith(QUEUE_TASK_PREFIX)) entries.push(JSON.parse(value) as OfflineQueueRow)
+    })
+    entries.sort((left: OfflineQueueRow, right: OfflineQueueRow): number => left.order - right.order)
+    return { schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+      preferences: normalizePreferences(prefs === undefined ? undefined : JSON.parse(prefs) as OfflineDownloadQueuePreferences),
+      entries: entries.map((row: OfflineQueueRow): OfflineDownloadQueueEntry => row.entry) }
+  }
+
+  entry(task: OfflineDownloadTaskId): OfflineDownloadQueueEntry | undefined {
+    const value = this.records.get(queueRecordKey(task))
+    return value === undefined ? undefined : (JSON.parse(value) as OfflineQueueRow).entry
+  }
+
+  preferences(): OfflineDownloadQueuePreferences {
+    const value = this.records.get(QUEUE_PREFERENCES_ROW)
+    return normalizePreferences(value === undefined ? undefined : JSON.parse(value) as OfflineDownloadQueuePreferences)
+  }
+
+  savePreferences(value: OfflineDownloadQueuePreferences): void {
+    this.records.put(QUEUE_PREFERENCES_ROW, JSON.stringify(value))
+  }
+
+  saveEntry(entry: OfflineDownloadQueueEntry): void {
+    const key = queueRecordKey(entry)
+    writeUserRecords(this.database, (): void => {
+      const previous = this.records.get(key)
+      const order = previous === undefined ? Number(this.records.get(QUEUE_NEXT_ORDER) ?? '0')
+        : (JSON.parse(previous) as OfflineQueueRow).order
+      const row: OfflineQueueRow = { order, entry }
+      if (previous === undefined) this.records.putInTransaction(QUEUE_NEXT_ORDER, String(order + 1))
+      this.records.putInTransaction(key, JSON.stringify(row))
+    })
+  }
+
+  save(document: OfflineDownloadQueueDocument | undefined): void {
+    this.records.replace(this.collectRows(document))
+  }
+
+  private collectRows(document: OfflineDownloadQueueDocument | undefined): UserRecordValues | undefined {
+    if (document === undefined) return undefined
+    const values: UserRecordValues = new Map()
+    values.set(QUEUE_PREFERENCES_ROW, JSON.stringify(normalizePreferences(document.preferences)))
+    values.set(QUEUE_NEXT_ORDER, String(document.entries.length))
+    document.entries.forEach((entry: OfflineDownloadQueueEntry, order: number): void => {
+      const row: OfflineQueueRow = { order, entry: normalizeEntry(entry) }
+      let key = queueRecordKey(entry)
+      if (values.has(key)) key += ':' + order
+      values.set(key, JSON.stringify(row))
+    })
+    return values
+  }
+}
+
+export async function prepareOfflineQueueDatabase(context: common.Context): Promise<void> {
+  const database = await openUserDataDatabase(context)
+  for (const path of [SANDBOX_CONTENT_QUEUE_PATH, PUBLIC_CONTENT_QUEUE_PRIVATE_PATH]) {
+    const absolute = context.filesDir + '/' + path
+    if (!sqliteQueues.has(absolute)) sqliteQueues.set(absolute, new OfflineQueueRdbStorage(database, path))
+  }
+}
+
+export function usesOfflineQueueDatabase(filesDir: string, path: string): boolean {
+  return sqliteQueues.get(filesDir + '/' + path)?.isMigrated() === true
+}
+
+export function readOfflineQueueDatabaseSnapshot(filesDir: string, path: string): string | undefined {
+  const value = sqliteQueues.get(filesDir + '/' + path)?.read()
+  return value === undefined ? undefined : JSON.stringify(value)
+}
+
+export function restoreOfflineQueueDatabaseSnapshot(filesDir: string, path: string, content: string | undefined): void {
+  const storage = sqliteQueues.get(filesDir + '/' + path)
+  if (storage === undefined || !storage.isMigrated()) throw new Error('offline_download_queue_not_migrated')
+  storage.save(content === undefined ? undefined : parseQueueDocument(content))
+}
+
 interface OfflineDownloadQueueReconcileResult {
   entries: OfflineDownloadQueueEntry[]
   changed: boolean
@@ -209,6 +330,14 @@ function ensureDirSync(path: string): void {
   }
 }
 
+function parseQueueDocument(payload: string): OfflineDownloadQueueDocument {
+  const document = JSON.parse(payload) as OfflineDownloadQueueDocument
+  if (document.schemaVersion !== OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION || !Array.isArray(document.entries)) {
+    throw new Error('offline_download_queue_invalid')
+  }
+  return { schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION, preferences: normalizePreferences(document.preferences),
+    entries: document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => normalizeEntry(entry)) }
+}
 
 
 function normalizeCount(value: number): number {
@@ -421,10 +550,33 @@ export class OfflineDownloadQueueStore {
     return { entries: document.entries.slice(), preferences: normalizePreferences(document.preferences) }
   }
 
+  exportSnapshotText(): string | undefined {
+    const storage = this.database()
+    if (storage !== undefined) {
+      const document = storage.read()
+      return document === undefined ? undefined : JSON.stringify(document)
+    }
+    const path = readableOfflineDownloadQueuePath(this.filesDir, this.runtimeKeyValue)
+    return fs.accessSync(path) ? fs.readTextSync(path, { encoding: 'utf-8' }) : undefined
+  }
+
+  restoreSnapshotText(payload: string): void {
+    this.persistDocument(parseQueueDocument(payload))
+  }
+
+  reconcileSnapshotText(payload: string): string | undefined {
+    const document = parseQueueDocument(payload)
+    const result = this.reconciledEntries(document, true, { validateContentHash: false })
+    if (!result.changed) return undefined
+    document.entries = result.entries
+    return JSON.stringify(document)
+  }
+
   /** Merge the old sandbox queue without allowing an older legacy row to replace current progress. */
   mergeFromLegacy(legacy: OfflineDownloadQueueStore): void {
     const current = this.loadDocument()
-    const currentExists = fs.accessSync(this.queuePath)
+    const storage = this.database()
+    const currentExists = storage !== undefined ? storage.read() !== undefined : fs.accessSync(this.queuePath)
     const previous = legacy.loadDocument()
     const entries = current.entries.slice()
     previous.entries.forEach((entry: OfflineDownloadQueueEntry): void => {
@@ -600,6 +752,8 @@ export class OfflineDownloadQueueStore {
   }
 
   loadPreferences(): OfflineDownloadQueuePreferences {
+    const storage = this.database()
+    if (storage !== undefined) return storage.preferences()
     return normalizePreferences(this.loadDocument(false).preferences)
   }
 
@@ -614,8 +768,14 @@ export class OfflineDownloadQueueStore {
   }
 
   private persistPreferences(preferences: OfflineDownloadQueuePreferences): OfflineDownloadQueuePreferences {
-    const document = this.loadDocument()
     const normalized = normalizePreferences(preferences)
+    const storage = this.database()
+    if (storage !== undefined) {
+      storage.savePreferences(normalized)
+      OfflineDownloadRuntime.publish(this.runtimeKeyValue)
+      return normalized
+    }
+    const document = this.loadDocument()
     this.saveDocument({
       schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
       preferences: normalized,
@@ -651,8 +811,12 @@ export class OfflineDownloadQueueStore {
   }
 
   migratePublicQueue(): void {
+    const storage = this.database()
     if (this.queuePath === this.legacyQueuePath || !fs.accessSync(this.legacyQueuePath)) return
-    if (fs.accessSync(this.queuePath)) {
+    if (storage !== undefined) {
+      // Selection and commit are complete before deleting the old public copy.
+      storage.read()
+    } else if (fs.accessSync(this.queuePath)) {
       this.readDocument(this.queuePath)
     } else {
       const document = this.readDocument(this.legacyQueuePath)
@@ -669,15 +833,11 @@ export class OfflineDownloadQueueStore {
   }
 
   private loadDocument(mutable: boolean = true): OfflineDownloadQueueDocument {
+    const rows = this.database()
+    if (rows !== undefined) return rows.read() ?? this.emptyQueue()
     if (!fs.accessSync(this.queuePath)) {
       this.migratePublicQueue()
-      if (!fs.accessSync(this.queuePath)) {
-        return {
-          schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
-          preferences: normalizePreferences(),
-          entries: [],
-        }
-      }
+      if (!fs.accessSync(this.queuePath)) return this.emptyQueue()
     }
     // Every queue writer replaces the document atomically, including restore
     // and TaskPool startup reconciliation. The inode follows those writes
@@ -700,18 +860,23 @@ export class OfflineDownloadQueueStore {
 
   private readDocument(path: string): OfflineDownloadQueueDocument {
     try {
-      const document = JSON.parse(fs.readTextSync(path, { encoding: 'utf-8' })) as OfflineDownloadQueueDocument
-      if (document.schemaVersion !== OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION || !Array.isArray(document.entries)) {
-        throw new Error('offline_download_queue_invalid')
-      }
-      return {
-        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
-        preferences: normalizePreferences(document.preferences),
-        entries: document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => normalizeEntry(entry)),
-      }
+      return parseQueueDocument(fs.readTextSync(path, { encoding: 'utf-8' }))
     } catch (_err) {
       throw new Error('offline_download_queue_read_failed')
     }
+  }
+
+  private emptyQueue(): OfflineDownloadQueueDocument {
+    return { schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION, preferences: normalizePreferences(), entries: [] }
+  }
+
+  private database(): OfflineQueueRdbStorage | undefined {
+    const storage = sqliteQueues.get(this.queuePath)
+    if (storage !== undefined && !storage.isMigrated()) {
+      const source = readableOfflineDownloadQueuePath(this.filesDir, this.runtimeKeyValue)
+      storage.migrate(fs.accessSync(source) ? this.readDocument(source) : undefined)
+    }
+    return storage
   }
 
   upsert(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry {
@@ -719,8 +884,9 @@ export class OfflineDownloadQueueStore {
   }
 
   private writeEntry(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry {
-    const document = this.loadDocument()
-    const previous = document.entries.find((item: OfflineDownloadQueueEntry): boolean =>
+    const storage = this.database()
+    const document = storage === undefined ? this.loadDocument() : undefined
+    const previous = storage?.entry(entry) ?? document?.entries.find((item: OfflineDownloadQueueEntry): boolean =>
       item.comicId === entry.comicId && item.chapterId === entry.chapterId)
     const normalized = normalizeEntry({
       automatic: entry.automatic ?? previous?.automatic,
@@ -741,6 +907,12 @@ export class OfflineDownloadQueueStore {
       updatedAt: Date.now(),
       failureReasonCode: entry.failureReasonCode,
     })
+    if (storage !== undefined) {
+      storage.saveEntry(normalized)
+      OfflineDownloadRuntime.publish(this.runtimeKeyValue, entry.comicId)
+      return normalized
+    }
+    if (document === undefined) throw new Error('offline_download_queue_missing')
     // The persisted array is the queue order. Progress writes replace the row in
     // place, otherwise each page completion would undo a user's reordering.
     const entries = document.entries.slice()
@@ -1004,6 +1176,11 @@ export class OfflineDownloadQueueStore {
   }
 
   private persistDocument(document: OfflineDownloadQueueDocument): void {
+    const storage = this.database()
+    if (storage !== undefined) {
+      storage.save(document)
+      return
+    }
     ensureDirSync(this.queuePath.substring(0, this.queuePath.lastIndexOf('/')))
     writeAppTextFile(this.queuePath, JSON.stringify({
       schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,

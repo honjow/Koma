@@ -4,10 +4,10 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { Comic } from './ComicModels'
 import { InMemoryLibraryStore } from './LibraryStore'
-import { LIBRARY_STORE_PERSISTENCE_FILE_NAME, hydrateLibraryStoreFromJson } from './LibraryPersistence'
-import { appReaderSessionStore } from './ReaderSessionStore'
-import { READER_PROGRESS_PERSISTENCE_FILE_NAME } from './ReaderSessionStore'
-import { readableOfflineDownloadQueuePath } from './OfflineDownloadQueueStore'
+import { hydrateLibraryStoreFromJson, prepareLiveLibraryStorage, readLiveLibrarySnapshot } from './LibraryPersistence'
+import { appReaderSessionStore, prepareLiveReaderStorage, readLiveReaderSnapshot } from './ReaderSessionStore'
+import { offlineDownloadQueuePath, prepareOfflineQueueDatabase, readOfflineQueueDatabaseSnapshot, readableOfflineDownloadQueuePath,
+  usesOfflineQueueDatabase } from './OfflineDownloadQueueStore'
 import { KOMA_BUNDLE_NAME } from '../common/Constants'
 import { automationEpoch, currentAutomationEpoch } from './AutomationStateEpoch'
 import { protectedSourceChapterIds } from './SourceChapterIdentityGuard'
@@ -61,6 +61,10 @@ export async function executeBackgroundMaintenance(context: common.Context, work
     DiagnosticLogger.info('maintenance', 'foreground_skip', 'states=' + processes.map((process: appManager.ProcessInformation): number => process.state).join(','))
     return
   }
+  // A maintenance launch only reads the selected storage. The UI owns migration and recovery.
+  await prepareLiveLibraryStorage(context, false)
+  await prepareLiveReaderStorage(context, false)
+  await prepareOfflineQueueDatabase(context)
   if (workId === BACKUP_BACKGROUND_WORK_ID) {
     if (!config.backup.enabled || !config.backup.backgroundEnabled || stopped()) return
     const resultPath = `${context.filesDir}/${BACKUP_BACKGROUND_RESULT}`
@@ -72,12 +76,20 @@ export async function executeBackgroundMaintenance(context: common.Context, work
     const document = JSON.parse(await fs.readText(snapshot)) as Record<string, Object>
     // Settings/credentials are captured by their UI owner. Refresh domains that may keep changing
     // after background entry (in-flight updates/downloads) from their atomic persisted documents.
-    const libraryPath = `${context.filesDir}/${LIBRARY_STORE_PERSISTENCE_FILE_NAME}`
-    const progressPath = `${context.filesDir}/${READER_PROGRESS_PERSISTENCE_FILE_NAME}`
-    const queuePath = readableOfflineDownloadQueuePath(contentBase, context.filesDir)
-    if (await fs.access(libraryPath)) document['libraryStore'] = await fs.readText(libraryPath)
-    if (await fs.access(progressPath)) document['readingProgress'] = await fs.readText(progressPath)
-    if (document['downloadQueue'] !== undefined && await fs.access(queuePath)) document['downloadQueue'] = await fs.readText(queuePath)
+    const librarySnapshot = readLiveLibrarySnapshot(context.filesDir)
+    if (librarySnapshot !== undefined) document['libraryStore'] = librarySnapshot
+    const readingSnapshot = readLiveReaderSnapshot(context.filesDir)
+    if (readingSnapshot !== undefined) document['readingProgress'] = readingSnapshot
+    if (document['downloadQueue'] !== undefined) {
+      const relativeQueue = offlineDownloadQueuePath(contentBase, context.filesDir).substring(context.filesDir.length + 1)
+      if (usesOfflineQueueDatabase(context.filesDir, relativeQueue)) {
+        const queue = readOfflineQueueDatabaseSnapshot(context.filesDir, relativeQueue)
+        if (queue !== undefined) document['downloadQueue'] = queue
+      } else {
+        const queuePath = readableOfflineDownloadQueuePath(contentBase, context.filesDir)
+        if (await fs.access(queuePath)) document['downloadQueue'] = await fs.readText(queuePath)
+      }
+    }
     document['sourcePackages'] = exportInstalledSourcePackages()
     document['customCovers'] = await exportComicCovers(context, document['libraryStore'] as string)
     document['localLibraryMetadata'] = exportLocalLibraryMetadataBackupEntries(document['libraryStore'] as string)
@@ -125,10 +137,10 @@ export async function executeBackgroundMaintenance(context: common.Context, work
   }
   if (workId !== LIBRARY_BACKGROUND_WORK_ID || !config.updates.autoCheckEnabled || config.updates.foregroundOnly ||
     !automaticUpdateConditionsSatisfied(config.policy) || stopped()) return
-  const libraryPath = `${context.filesDir}/${LIBRARY_STORE_PERSISTENCE_FILE_NAME}`
-  if (!await fs.access(libraryPath)) return
+  const librarySnapshot = readLiveLibrarySnapshot(context.filesDir)
+  if (librarySnapshot === undefined) return
   const library = new InMemoryLibraryStore()
-  hydrateLibraryStoreFromJson(library, await fs.readText(libraryPath))
+  hydrateLibraryStoreFromJson(library, librarySnapshot)
   const reader = appReaderSessionStore(context.filesDir)
   const service = new LibraryUpdateService(library, registry, undefined, new SnapshotRemoteServerStore(context, config.servers),
     (comic: Comic): Set<string> | undefined => protectedSourceChapterIds(comic, contentBase, reader,

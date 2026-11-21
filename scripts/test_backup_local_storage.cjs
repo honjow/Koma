@@ -551,15 +551,19 @@ test('background app-managed backup writes to public directory after migration',
  const priv = path.join(root, 'private'), pub = path.join(root, 'public'); fs.mkdirSync(path.join(priv, 'backups'), { recursive: true }); fs.mkdirSync(pub)
  fs.writeFileSync(path.join(priv, 'backups', 'old.json'), 'legacy')
  fs.writeFileSync(path.join(priv, 'config.json'), JSON.stringify({ backup: { enabled: true, backgroundEnabled: true, lastRunAt: 0, intervalHours: 24, directoryUri: '', retentionCount: 5 } }))
- fs.writeFileSync(path.join(priv, 'snapshot.json'), JSON.stringify({ libraryStore: '{"comics":[]}', readingProgress: 'page-3' }))
+ fs.writeFileSync(path.join(priv, 'snapshot.json'), JSON.stringify({ libraryStore: '{"comics":[]}', readingProgress: 'stale-page' }))
  const fileIo = { accessSync: fs.existsSync, readTextSync: p => fs.readFileSync(p, 'utf8'), access: async p => fs.existsSync(p),
   readText: p => fs.promises.readFile(p, 'utf8'), mkdir: async (p, recursive) => fs.promises.mkdir(p, { recursive }), listFile: p => fs.promises.readdir(p), unlink: p => fs.promises.unlink(p) }
  const deps = {
   '@kit.AbilityKit': { appManager: { getRunningProcessInformation: async () => [], ProcessState: {} } },
   '@kit.CoreFileKit': { fileIo }, './ComicPersonalization': { exportComicCovers: async () => [] },
   '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { info() {}, warn() {}, exception() {} } }, './LibraryStore': { InMemoryLibraryStore: class {} },
-  './LibraryPersistence': { LIBRARY_STORE_PERSISTENCE_FILE_NAME: 'library.json' }, './ReaderSessionStore': { READER_PROGRESS_PERSISTENCE_FILE_NAME: 'progress.json' },
-  './OfflineDownloadQueueStore': { readableOfflineDownloadQueuePath: () => path.join(priv, 'queue.json') },
+  './LibraryPersistence': { prepareLiveLibraryStorage: async () => {}, readLiveLibrarySnapshot: () => '{"comics":[]}' },
+  './ReaderSessionStore': { prepareLiveReaderStorage: async () => {}, readLiveReaderSnapshot: () => 'page-3' },
+  './OfflineDownloadQueueStore': { readableOfflineDownloadQueuePath: () => path.join(priv, 'queue.json'),
+    offlineDownloadQueuePath: () => path.join(priv, 'queue.json'),
+    prepareOfflineQueueDatabase: async () => {}, usesOfflineQueueDatabase: () => false,
+  },
   './KomaContentStorage': { ensureKomaBackgroundContentStorageBase: async () => pub, hasKomaPublicContentStorage: () => true }, './BackupLocalStorage': load(),
   '../common/Constants': { KOMA_BUNDLE_NAME: 'com.honjow.koma' }, './AutomationStateEpoch': { automationEpoch: () => ({ restoring: false, generation: 1 }), currentAutomationEpoch: () => true },
   './BackupAutomaticDirectory': { writeAutomaticBackupToDirectory: async () => { throw new Error('unexpected external destination') } },

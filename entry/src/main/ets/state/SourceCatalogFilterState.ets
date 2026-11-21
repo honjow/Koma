@@ -1,10 +1,10 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
+import { catalogFilterRecords } from '../model/MigratedPreferenceRecords'
 import { SourceCatalogFilters, SourceCatalogRating, sourceCatalogLanguage } from '../model/SourceCatalogPresentation'
 
 const STORE: string = 'koma_source_catalog_filters_v1'
-const KEY: string = 'catalog.filters'
 const RECENT_SOURCE_IDS_KEY: string = 'browse.recentSourceIds'
 const RECENT_SOURCE_LIMIT: number = 2
 
@@ -58,7 +58,7 @@ export class SourceCatalogFilterState {
       const generation = this.generation
       const edit = this.edit
       const loading = preferences.getPreferences(context, STORE).then(async (store: preferences.Preferences): Promise<void> => {
-        const value = normalizedFilters(JSON.parse(await store.get(KEY, '{}') as string) as SourceCatalogPresentationPreferences)
+        const value = normalizedFilters(JSON.parse(await catalogFilterRecords.readBackupValue(context) ?? '{}') as SourceCatalogPresentationPreferences)
         const recent = readRecentSourceIds(await store.get(RECENT_SOURCE_IDS_KEY, '[]') as string)
         if (generation === this.generation) {
           this.persisted = value
@@ -160,13 +160,7 @@ export class SourceCatalogFilterState {
       await preparation
       if (generation !== this.generation) return
       return BackupRestoreActivity.runWrite(async (): Promise<void> => {
-        const store = await preferences.getPreferences(context, STORE)
-        const previous = await store.get(KEY, '{}') as string
-        try { await store.put(KEY, JSON.stringify(next)); await store.flush() }
-        catch (error) {
-          await store.put(KEY, previous); await store.flush()
-          throw error as Error
-        }
+        await catalogFilterRecords.restoreBackupValue(context, JSON.stringify(next))
         if (generation === this.generation) this.persisted = next
       })
     }).catch((error: Error): void => {

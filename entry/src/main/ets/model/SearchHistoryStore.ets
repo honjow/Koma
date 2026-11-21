@@ -2,9 +2,10 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { syncSearchIdentity } from '../deviceSync/DeviceSyncData'
 import { signalDeviceSyncChange, signalDeviceSyncSearchRemoved } from '../deviceSync/DeviceSyncSignals'
 import { common } from '@kit.AbilityKit'
-import { preferences } from '@kit.ArkData'
+import { preferences, relationalStore } from '@kit.ArkData'
 import { CrossSearchSourceFilter } from './CrossSearchService'
 import { LibrarySearchSource, copyLibrarySearchSource } from './LibrarySearchQuery'
+import { openUserDataDatabase } from './UserDataDatabase'
 
 export interface SearchHistoryScope {
   syncSourceSet?: string
@@ -87,8 +88,7 @@ export function normalizeSearchSourceFilter(value: string | undefined): CrossSea
 
 export function normalizeSearchHistoryEntries(input: SearchHistoryRecord[], now: number = Date.now()): SearchHistoryEntry[] {
   const entries: SearchHistoryEntry[] = []
-  // Keep the same locale-sensitive query/scope identity without recomputing
-  // every existing key for every record on the UI and Preferences callbacks.
+  // Preserve the locale-sensitive query and scope identity used by the search UI.
   const byKey = new Map<string, SearchHistoryEntry>()
   input.forEach((record: SearchHistoryRecord) => {
     const query = normalizeSearchQuery(record.query ?? '')
@@ -146,7 +146,21 @@ export function removeSearchHistoryEntry(entries: SearchHistoryEntry[], query: s
   })
 }
 
-// One Preferences resource is shared by old and new SearchPage instances.
+const HISTORY_MIGRATION = 'search-history-from-preferences-v1'
+const SAVE_HISTORY_ROW = 'INSERT INTO search_history (' +
+  'entry_key, query, updated_at, list_order, source_filter, library_source_key, library_source_name, sync_source_set' +
+  ') VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(entry_key) DO UPDATE SET ' +
+  'query=excluded.query, updated_at=excluded.updated_at, list_order=excluded.list_order, ' +
+  'source_filter=excluded.source_filter, library_source_key=excluded.library_source_key, ' +
+  'library_source_name=excluded.library_source_name, sync_source_set=excluded.sync_source_set'
+
+interface StoredSearchHistoryEntry {
+  key: string
+  order: number
+  value: SearchHistoryEntry
+}
+
+// Search pages and WebDAV share one write order, including the first migration.
 const searchHistoryOperations: Map<string, Promise<void>> = new Map()
 
 export class SearchHistoryStore {
@@ -165,26 +179,100 @@ export class SearchHistoryStore {
 
   async load(): Promise<SearchHistoryEntry[]> {
     return this.ordered(async (): Promise<SearchHistoryEntry[]> => {
-      return this.readEntries(await this.preferences())
+      return this.listEntries(await this.historyStore())
     })
   }
 
-  private async readEntries(store: preferences.Preferences): Promise<SearchHistoryEntry[]> {
-    const payload = await store.get(SEARCH_HISTORY_QUERIES_KEY, '[]') as string
-    return parseStoredSearchHistory(payload)
+  async prepareStorage(): Promise<void> {
+    await this.ordered(() => this.historyStore())
+  }
+
+  private async historyStore(): Promise<relationalStore.RdbStore> {
+    const store = await openUserDataDatabase(this.context)
+    const migration = await store.querySql('SELECT name FROM local_data_migrations WHERE name = ?', [HISTORY_MIGRATION])
+    try {
+      if (migration.goToNextRow()) return store
+    } finally {
+      migration.close()
+    }
+    const legacy = await (await this.preferences()).get(SEARCH_HISTORY_QUERIES_KEY, '[]') as string
+    const entries = parseStoredSearchHistory(legacy)
+    // Commit even an empty migration. A later clear must never reread the old key.
+    this.writeHistory(store, [], entries, true)
+    return store
+  }
+
+  private async readRows(store: relationalStore.RdbStore): Promise<StoredSearchHistoryEntry[]> {
+    const result = await store.querySql('SELECT entry_key, query, updated_at, list_order, source_filter, ' +
+      'library_source_key, library_source_name, sync_source_set FROM search_history ORDER BY updated_at DESC, list_order')
+    const rows: StoredSearchHistoryEntry[] = []
+    try {
+      while (result.goToNextRow()) {
+        const value: SearchHistoryEntry = { query: result.getString(1), updatedAt: result.getLong(2) }
+        if (!result.isColumnNull(4)) value.sourceFilter = normalizeSearchSourceFilter(result.getString(4))
+        if (!result.isColumnNull(5)) value.librarySource = { key: result.getString(5), name: result.getString(6) }
+        if (!result.isColumnNull(7)) value.syncSourceSet = result.getString(7)
+        rows.push({ key: result.getString(0), order: result.getLong(3), value })
+      }
+    } finally {
+      result.close()
+    }
+    return rows
+  }
+
+  private async listEntries(store: relationalStore.RdbStore): Promise<SearchHistoryEntry[]> {
+    const rows = await this.readRows(store)
+    return normalizeSearchHistoryEntries(rows.map((row: StoredSearchHistoryEntry): SearchHistoryEntry => row.value))
+  }
+
+  private writeHistory(store: relationalStore.RdbStore, previous: StoredSearchHistoryEntry[],
+    entries: SearchHistoryEntry[], migrating: boolean = false): void {
+    const remaining = new Map<string, StoredSearchHistoryEntry>()
+    previous.forEach((row: StoredSearchHistoryEntry): void => { remaining.set(row.key, row) })
+    // The list is bounded to 20 entries. Finish the write without yielding
+    // while holding the shared database's write transaction.
+    store.beginTransaction()
+    try {
+      let tieOrder = 0
+      for (let index = 0; index < entries.length; index += 1) {
+        const entry = entries[index]
+        tieOrder = index > 0 && entries[index - 1].updatedAt === entry.updatedAt ? tieOrder + 1 : 0
+        const key = searchHistoryEntryKey(entry.query, entry)
+        const old = remaining.get(key)
+        remaining.delete(key)
+        if (old !== undefined && old.order === tieOrder && old.value.query === entry.query &&
+          old.value.updatedAt === entry.updatedAt && old.value.sourceFilter === entry.sourceFilter &&
+          old.value.syncSourceSet === entry.syncSourceSet && old.value.librarySource?.name === entry.librarySource?.name &&
+          old.value.librarySource?.key === entry.librarySource?.key) continue
+        store.executeSync(SAVE_HISTORY_ROW, [key, entry.query, entry.updatedAt, tieOrder,
+          entry.sourceFilter ?? null, entry.librarySource?.key ?? null, entry.librarySource?.name ?? null,
+          entry.syncSourceSet ?? null])
+      }
+      for (const key of remaining.keys()) {
+        store.executeSync('DELETE FROM search_history WHERE entry_key = ?', [key])
+      }
+      if (migrating) {
+        store.executeSync('INSERT INTO local_data_migrations (name) VALUES (?)', [HISTORY_MIGRATION])
+      }
+      store.commit()
+    } catch (error) {
+      store.rollBack()
+      throw error as Error
+    }
   }
 
   /** Capture the persisted value under the same ordering as UI reads and edits. */
   captureDeviceSyncPayload(): Promise<string> {
-    return this.ordered(async (): Promise<string> =>
-      await (await this.preferences()).get(SEARCH_HISTORY_QUERIES_KEY, '[]') as string)
+    return this.ordered(async (): Promise<string> => JSON.stringify(await this.listEntries(await this.historyStore())))
   }
 
   async record(query: string, scope?: SearchHistoryScope): Promise<SearchHistoryEntry[]> {
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<SearchHistoryEntry[]> => {
-      const store = await this.preferences()
-      const entries = addSearchHistoryEntry(await this.readEntries(store), query, Date.now(), scope)
-      await this.commit(store, SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
+      const store = await this.historyStore()
+      const previous = await this.readRows(store)
+      const entries = addSearchHistoryEntry(previous.map((row: StoredSearchHistoryEntry): SearchHistoryEntry => row.value),
+        query, Date.now(), scope)
+      this.writeHistory(store, previous, entries)
       signalDeviceSyncChange('search-history')
       return entries
     }))
@@ -192,16 +280,19 @@ export class SearchHistoryStore {
 
   async clear(): Promise<void> {
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<void> => {
-      await this.commit(await this.preferences(), SEARCH_HISTORY_QUERIES_KEY, '[]')
+      const store = await this.historyStore()
+      this.writeHistory(store, await this.readRows(store), [])
       signalDeviceSyncSearchRemoved()
     }))
   }
 
   async remove(query: string, scope?: SearchHistoryScope): Promise<SearchHistoryEntry[]> {
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<SearchHistoryEntry[]> => {
-      const store = await this.preferences()
-      const entries = removeSearchHistoryEntry(await this.readEntries(store), query, scope)
-      await this.commit(store, SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
+      const store = await this.historyStore()
+      const previous = await this.readRows(store)
+      const entries = removeSearchHistoryEntry(previous.map((row: StoredSearchHistoryEntry): SearchHistoryEntry => row.value),
+        query, scope)
+      this.writeHistory(store, previous, entries)
       if (!entries.some((item: SearchHistoryEntry): boolean => syncSearchIdentity(item.query) === syncSearchIdentity(query))) {
         signalDeviceSyncSearchRemoved(query)
       }
@@ -211,7 +302,8 @@ export class SearchHistoryStore {
 
   async applyDeviceSyncEntries(entries: SearchHistoryEntry[]): Promise<void> {
     return this.ordered(async (): Promise<void> => {
-      await this.commit(await this.preferences(), SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
+      const store = await this.historyStore()
+      this.writeHistory(store, await this.readRows(store), normalizeSearchHistoryEntries(entries))
     })
   }
 

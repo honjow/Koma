@@ -1,6 +1,8 @@
 import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { ChapterListPreferencesStore } from '../model/ChapterListPreferencesStore'
+import { sourceBrowseLayoutRecords, synopsisRecords, trackerMappingRecords, readerGlobalRecords,
+  readerModeRecords, readerBannerRecords, catalogFilterRecords } from '../model/MigratedPreferenceRecords'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { DiagnosticsSettings } from '../diagnostics/DiagnosticsSettings'
@@ -28,6 +30,7 @@ import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntime
 import { configureSourceRuntimeHttpTransport } from '../sourceRuntime/SourceRuntimeHttpTransport'
 import { SourceBodyHost } from '../sourceRuntime/SourceBodyHost'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { prepareSourceConfigurationDatabases } from '../sourceRuntime/SourceConfigurationDatabases'
 import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
 import { AppForegroundStateBridge } from '../state/AppForegroundState'
 import { connectLibraryPrivacyState } from '../state/LibraryPrivacyState'
@@ -44,8 +47,18 @@ import { TRACKER_APP_CALLBACK_URI } from '../model/TrackerModels'
 import { TrackerOAuthCompletionService } from '../model/TrackerOAuthCompletionService'
 import { connectTrackerBrowserAuthorization } from '../state/TrackerBrowserAuthorizationState'
 import { automationEpoch, finishAutomationRestore, resetGeneratedAutomationWork } from '../model/AutomationStateEpoch'
-import { komaContentStorageUri, prepareKomaContentStorage, waitKomaContentStorageReady } from '../model/KomaContentStorage'
+import { komaContentStorageBase, komaContentStorageUri, prepareKomaContentStorage, waitKomaContentStorageReady } from '../model/KomaContentStorage'
 import { BackupService } from '../model/BackupService'
+import { prepareLiveLibraryStorage } from '../model/LibraryPersistence'
+import { prepareLiveReaderStorage } from '../model/ReaderSessionStore'
+import { OfflineDownloadQueueStore, prepareOfflineQueueDatabase } from '../model/OfflineDownloadQueueStore'
+import { prepareImageRuleDatabase } from '../model/ImageRuleDatabase'
+import { ImageRuleStore } from '../model/ImageRuleStore'
+import { LibraryUpdateResultStore } from '../model/LibraryUpdateResultStore'
+import { SearchHistoryStore } from '../model/SearchHistoryStore'
+import { TrackerPendingSyncStore } from '../model/TrackerPendingSyncStore'
+import { prepareGeneratedDownloadWork } from '../model/GeneratedDownloadWork'
+import { loadSourceSubscriptionPreferences } from '../sourceRuntime/SourceSubscriptionStorage'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
 const ENTRY_PAGE: string = 'pages/Index'
@@ -83,18 +96,39 @@ export default class EntryAbility extends UIAbility {
         ' debug=' + this.context.applicationInfo.debug + ' model=' + deviceInfo.productModel + ' sdk=' + deviceInfo.sdkApiVersion)
       DiagnosticLogger.info('app', 'platform', 'os=' + deviceInfo.osFullName)
     } catch (error) { DiagnosticLogger.exception('app', 'metadata_failed', error as Error) }
+    await prepareLiveLibraryStorage(this.context, false)
+    await prepareLiveReaderStorage(this.context, false)
+    await prepareOfflineQueueDatabase(this.context)
+    await prepareImageRuleDatabase(this.context)
+    await prepareSourceConfigurationDatabases(this.context, false)
     await BackupRestoreCheckpoint.recoverBeforeStartup(this.context)
-    await appDeviceSync.startup(this.context)
+    await appDeviceSync.startup(this.context, async (): Promise<void> => {
+      await prepareLiveLibraryStorage(this.context, true)
+      await prepareLiveReaderStorage(this.context, true)
+    })
+    await prepareSourceConfigurationDatabases(this.context, true).catch((error: Error): void => {
+      DiagnosticLogger.exception('source_runtime_configuration', 'preferences_migration_failed', error)
+    })
     if (automationEpoch(this.context).restoring) {
-      resetGeneratedAutomationWork(this.context)
+      await resetGeneratedAutomationWork(this.context)
       finishAutomationRestore(this.context)
     }
+    await this.prepareRemainingDataStorage()
     await LanguageSettings.restore(this.context).catch((_error: Error): void => {
       DiagnosticLogger.warn('app', 'startup_apply_failed', '[Language] startup_apply_failed retained_previous_runtime=true')
     })
     await restoreReaderRemoteImageCache(this.context)
     await new ChapterListPreferencesStore(this.context).prepare().catch((error: Error): void => {
       DiagnosticLogger.exception('chapters', 'preferences_prepare_failed', error)
+    })
+    await sourceBrowseLayoutRecords.prepare(this.context).catch((error: Error): void => {
+      DiagnosticLogger.exception('browse', 'preferences_prepare_failed', error)
+    })
+    await synopsisRecords.prepare(this.context).catch((error: Error): void => {
+      DiagnosticLogger.exception('detail', 'preferences_prepare_failed', error)
+    })
+    await trackerMappingRecords.prepare(this.context).catch((error: Error): void => {
+      DiagnosticLogger.exception('tracker', 'preferences_prepare_failed', error)
     })
     await new AppearancePreferencesStore(this.context).load().catch((_error: Error): void => {
       DiagnosticLogger.warn('app', 'startup_load_failed', '[Appearance] startup_load_failed retained_previous_runtime=true')
@@ -112,6 +146,29 @@ export default class EntryAbility extends UIAbility {
     this.openLaunchRouteFromWant(want)
     maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
     this.startupReady = true
+  }
+
+  private async prepareRemainingDataStorage(): Promise<void> {
+    const context = this.context
+    // Finish migrating existing data before the user reaches an owning page.
+    // Each domain can retry on failure without blocking unrelated data.
+    const domains = [
+      Promise.all([readerGlobalRecords.prepare(context), readerModeRecords.prepare(context), readerBannerRecords.prepare(context)]),
+      catalogFilterRecords.prepare(context),
+      new SearchHistoryStore(context).prepareStorage(),
+      new TrackerPendingSyncStore(context).prepareStorage(),
+      new LibraryUpdateResultStore(context).prepareStorage(),
+      loadSourceSubscriptionPreferences(context),
+      ImageRuleStore.forContext(context).prepareStorage(),
+      prepareGeneratedDownloadWork(context),
+    ]
+    const names = ['reader', 'source-catalog', 'search-history', 'tracker-pending', 'library-updates',
+      'source-subscriptions', 'image-rules', 'download-automation']
+    const results = await Promise.allSettled(domains)
+    results.forEach((result, index: number): void => {
+      if (result.status === 'rejected') DiagnosticLogger.exception('persistence', names[index] + '_migration_failed',
+        result.reason as Error)
+    })
   }
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -173,6 +230,14 @@ export default class EntryAbility extends UIAbility {
       try {
         await prepareKomaContentStorage(this.context)
         await waitKomaContentStorageReady()
+        // The public queue can only be resolved after the owning content root.
+        for (const base of new Set([this.context.filesDir, komaContentStorageBase(this.context)])) {
+          try {
+            new OfflineDownloadQueueStore(base, this.context.filesDir).loadPreferences()
+          } catch (error) {
+            DiagnosticLogger.exception('persistence', 'offline_queue_migration_failed', error as Error)
+          }
+        }
         await new BackupService(this.context).ensureDefaultAutomaticBackupDirectory(komaContentStorageUri())
       } catch (error) {
         DiagnosticLogger.exception('backup', 'automatic_default_directory_failed', error as Error)

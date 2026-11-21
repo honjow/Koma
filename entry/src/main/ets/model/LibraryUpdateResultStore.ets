@@ -2,7 +2,10 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { LibraryChapterUpdate, cachedLibraryChapterUpdates, setCachedLibraryChapterUpdates, libraryChapterUpdatesEpoch,
   parseLibraryChapterUpdates, mergeLibraryChapterUpdates } from './LibraryChapterUpdates'
 import { common, wantAgent } from '@kit.AbilityKit'
-import { preferences } from '@kit.ArkData'
+import { MigratedPreferenceRecords, orderedPreferenceRecords, LegacyPreferenceValue,
+  PreferenceRecordCodec } from './MigratedPreferenceRecords'
+import { openUserDataDatabase } from './UserDataDatabase'
+import { UserRecordValues, writeUserRecords } from './UserKeyedRecords'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { notificationManager } from '@kit.NotificationKit'
 import type { Want, WantAgent } from '@kit.AbilityKit'
@@ -31,6 +34,13 @@ export const LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY: string = 'libraryUpdate.late
 export const LIBRARY_UPDATE_LATEST_JOB_JSON_KEY: string = 'libraryUpdate.latestJobJson'
 const LIBRARY_CHAPTER_UPDATES_KEY: string = 'libraryUpdate.chapterUpdatesJson'
 const LIBRARY_CHAPTER_UPDATES_SEEN_KEY: string = 'libraryUpdate.chapterUpdatesSeenAt'
+const updateFields = new MigratedPreferenceRecords(LIBRARY_UPDATE_RESULT_STORE_NAME, '', [LIBRARY_CHAPTER_UPDATES_KEY])
+const updateArrayCodec = orderedPreferenceRecords(['comicId', 'chapterId'])
+const chapterUpdateCodec: PreferenceRecordCodec = {
+  decode: (value: LegacyPreferenceValue | undefined): UserRecordValues | undefined => updateArrayCodec.decode(value === '' ? '[]' : value),
+  encode: updateArrayCodec.encode,
+}
+const chapterUpdateRecords = new MigratedPreferenceRecords(LIBRARY_UPDATE_RESULT_STORE_NAME, LIBRARY_CHAPTER_UPDATES_KEY, [], chapterUpdateCodec)
 export const LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH: number = 512
 export const LIBRARY_UPDATE_RESULT_MAX_SOURCE_KEY_LENGTH: number = 64
 
@@ -829,14 +839,14 @@ export class LibraryUpdateResultStore {
     this.context = context
   }
 
+  async prepareStorage(): Promise<void> {
+    await Promise.all([updateFields.prepare(this.context), chapterUpdateRecords.prepare(this.context)])
+  }
+
   async load(): Promise<LibraryUpdateSummary | undefined> {
     try {
-      const store = await this.preferences()
-      const jsonText = await store.get(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, '') as string
-      if (jsonText.length === 0) {
-        return undefined
-      }
-      return hydrateLibraryUpdateSummaryFromJson(jsonText)
+      const value = (await updateFields.prepare(this.context)).get(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY)
+      return value === undefined ? undefined : hydrateLibraryUpdateSummaryFromJson(JSON.parse(value) as string)
     } catch (_error) {
       return undefined
     }
@@ -857,8 +867,7 @@ export class LibraryUpdateResultStore {
     const cached = cachedLibraryChapterUpdates()
     if (cached !== undefined) return cached
     const epoch = libraryChapterUpdatesEpoch()
-    const store = await this.preferences()
-    const received = parseLibraryChapterUpdates(await store.get(LIBRARY_CHAPTER_UPDATES_KEY, '') as string)
+    const received = parseLibraryChapterUpdates(await chapterUpdateRecords.readBackupValue(this.context) ?? '')
     if (epoch !== libraryChapterUpdatesEpoch()) return this.loadChapterUpdates()
     if (cachedLibraryChapterUpdates() === undefined) setCachedLibraryChapterUpdates(received)
     return cachedLibraryChapterUpdates()!
@@ -866,8 +875,7 @@ export class LibraryUpdateResultStore {
 
   async hasUnseenChapterUpdates(): Promise<boolean> {
     const updates = await this.loadChapterUpdates()
-    const store = await this.preferences()
-    const seen = await store.get(LIBRARY_CHAPTER_UPDATES_SEEN_KEY, 0) as number
+    const seen = Number((await updateFields.prepare(this.context)).get(LIBRARY_CHAPTER_UPDATES_SEEN_KEY) ?? '0')
     return updates.some((update: LibraryChapterUpdate): boolean => update.discoveredAt > seen)
   }
 
@@ -875,70 +883,59 @@ export class LibraryUpdateResultStore {
     const updates = await this.loadChapterUpdates()
     const latest = updates.reduce((time: number, update: LibraryChapterUpdate): number =>
       Math.max(time, update.discoveredAt), 0)
-    const store = await this.preferences()
-    const seen = await store.get(LIBRARY_CHAPTER_UPDATES_SEEN_KEY, 0) as number
+    const store = await updateFields.prepare(this.context)
+    const seen = Number(store.get(LIBRARY_CHAPTER_UPDATES_SEEN_KEY) ?? '0')
     if (latest <= seen) return
-    await store.put(LIBRARY_CHAPTER_UPDATES_SEEN_KEY, latest)
-    await store.flush()
+    store.put(LIBRARY_CHAPTER_UPDATES_SEEN_KEY, String(latest))
   }
 
   async save(summary: LibraryUpdateSummary, snapshot?: LibraryUpdateJobSnapshot,
     chapterUpdates: LibraryChapterUpdate[] = []): Promise<void> {
-    const store = await this.preferences()
-    const previousUpdates = await store.get(LIBRARY_CHAPTER_UPDATES_KEY, '') as string
-    const previousSummary = await store.get(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, '') as string
-    const previousJob = await store.get(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, '') as string
-    const updates = mergeLibraryChapterUpdates(parseLibraryChapterUpdates(previousUpdates), chapterUpdates)
-    try {
-      await store.put(LIBRARY_CHAPTER_UPDATES_KEY, JSON.stringify(updates))
-      await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, serializeLibraryUpdateSummary(summary))
-      await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY,
-        serializeLibraryUpdateJobSnapshot(snapshot ?? completedLibraryUpdateJobSnapshot(summary)))
-      await store.flush()
-    } catch (error) {
-      await store.put(LIBRARY_CHAPTER_UPDATES_KEY, previousUpdates)
-      await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, previousSummary)
-      await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, previousJob)
-      await store.flush()
-      throw error as Error
-    }
+    const database = await openUserDataDatabase(this.context)
+    const fields = await updateFields.prepare(this.context)
+    const chapters = await chapterUpdateRecords.prepare(this.context)
+    const updates = mergeLibraryChapterUpdates(parseLibraryChapterUpdates(chapterUpdateRecords.readPreparedValue(chapters) ?? ''), chapterUpdates)
+    writeUserRecords(database, (): void => {
+      chapters.replaceInTransaction(updateArrayCodec.decode(JSON.stringify(updates)))
+      fields.putInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, JSON.stringify(serializeLibraryUpdateSummary(summary)))
+      fields.putInTransaction(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY,
+        JSON.stringify(serializeLibraryUpdateJobSnapshot(snapshot ?? completedLibraryUpdateJobSnapshot(summary))))
+    })
     setCachedLibraryChapterUpdates(updates)
   }
 
   async loadJobSnapshot(): Promise<LibraryUpdateJobSnapshot | undefined> {
     try {
-      const store = await this.preferences()
-      const jsonText = await store.get(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, '') as string
-      if (jsonText.length === 0) {
-        return undefined
-      }
-      return hydrateLibraryUpdateJobSnapshotFromJson(jsonText)
+      const value = (await updateFields.prepare(this.context)).get(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY)
+      return value === undefined ? undefined : hydrateLibraryUpdateJobSnapshotFromJson(JSON.parse(value) as string)
     } catch (_error) {
       return undefined
     }
   }
 
   async saveJobSnapshot(snapshot: LibraryUpdateJobSnapshot): Promise<void> {
-    const store = await this.preferences()
-    if (snapshot.summary !== undefined && snapshot.summary.checkedAt === snapshot.updatedAt) {
-      await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, serializeLibraryUpdateSummary(snapshot.summary))
-    } else if (snapshot.state === 'failed' || snapshot.state === 'backed-off') {
-      await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, '')
-    }
-    await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, serializeLibraryUpdateJobSnapshot(snapshot))
-    await store.flush()
+    const database = await openUserDataDatabase(this.context)
+    const store = await updateFields.prepare(this.context)
+    writeUserRecords(database, (): void => {
+      if (snapshot.summary !== undefined && snapshot.summary.checkedAt === snapshot.updatedAt) {
+        store.putInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, JSON.stringify(serializeLibraryUpdateSummary(snapshot.summary)))
+      } else if (snapshot.state === 'failed' || snapshot.state === 'backed-off') {
+        store.putInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, undefined)
+      }
+      store.putInTransaction(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, JSON.stringify(serializeLibraryUpdateJobSnapshot(snapshot)))
+    })
   }
 
   async clear(): Promise<void> {
-    const store = await this.preferences()
-    await store.put(LIBRARY_CHAPTER_UPDATES_KEY, '')
-    await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, '')
-    await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, '')
-    await store.flush()
+    const database = await openUserDataDatabase(this.context)
+    const fields = await updateFields.prepare(this.context)
+    const chapters = await chapterUpdateRecords.prepare(this.context)
+    writeUserRecords(database, (): void => {
+      chapters.replaceInTransaction(undefined)
+      fields.putInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, undefined)
+      fields.putInTransaction(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, undefined)
+    })
     setCachedLibraryChapterUpdates(undefined)
   }
 
-  private async preferences(): Promise<preferences.Preferences> {
-    return preferences.getPreferences(this.context, LIBRARY_UPDATE_RESULT_STORE_NAME)
-  }
 }

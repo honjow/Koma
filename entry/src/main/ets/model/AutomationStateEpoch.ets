@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { writeAppTextFile } from './AppFileTextPersistence'
+import { clearGeneratedDownloadWork } from './GeneratedDownloadWork'
 
 interface AutomationEpoch { generation: number; restoring: boolean }
 const EPOCH_FILE: string = 'automation-state-epoch.v1.json'
@@ -36,9 +37,9 @@ export function finishAutomationRestoreInDirectory(filesDir: string): void {
   writeAppTextFile(`${filesDir}/${EPOCH_FILE}`, JSON.stringify(value))
 }
 
-export function resetGeneratedAutomationWork(context: common.Context): void {
-  for (const name of ['automatic-download-pending.v1.json', 'read-download-cleanup.v1.json',
-    'background-update-cursor.v1.json', 'background-backup-result.v1.json', 'background-backup-snapshot.v1.json']) {
+export async function resetGeneratedAutomationWork(context: common.Context): Promise<void> {
+  await clearGeneratedDownloadWork(context)
+  for (const name of ['background-update-cursor.v1.json', 'background-backup-result.v1.json', 'background-backup-snapshot.v1.json']) {
     const path = `${context.filesDir}/${name}`
     if (fs.accessSync(path)) fs.unlinkSync(path)
   }

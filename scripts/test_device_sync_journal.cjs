@@ -521,6 +521,7 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     '../sourceRuntime/SourceRuntimeAppRegistry': registry, '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn: noop } },
     './ReaderChapterSequence': {}, '../i18n/AppStrings': {}, './RemoteReaderSession': {}, './ChapterReadStateStore': {},
     './ChapterListPreferencesStore': { chapterReadingSortFor: () => undefined },
+    './ReaderRdbStorage': {}, './UserDataDatabase': {},
   })
   files.set(filesDir + '/' + sessions.READER_PROGRESS_PERSISTENCE_FILE_NAME, sessions.serializeReaderSessionForDevice({
     progress: [], sourceHistory: [], chapters: [],
@@ -539,8 +540,15 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     './SourceTextPageDescriptor': {},
     '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { debug: noop, exception: noop } },
     './LocalLibraryMetadataService': {}, './LocalLibraryFolderContract': {},
-    './LocalLibraryRescanService': {},
-  }) : { LIBRARY_STORE_PERSISTENCE_FILE_NAME: 'library.json', LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION: 1 }
+    './LocalLibraryRescanService': {}, './LibraryRdbStorage': {}, './UserDataDatabase': {},
+  }) : { LIBRARY_STORE_PERSISTENCE_FILE_NAME: 'library.json', LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION: 1,
+    usesLibraryDatabase: () => false,
+    readLiveLibrarySnapshot: directory => files.get(directory + '/library.json'),
+    writeLiveLibrarySnapshot: (directory, value) => {
+      if (value !== undefined) writeAppTextFile(directory + '/library.json', value)
+      else files.delete(directory + '/library.json')
+    },
+  }
   const shelfApply = compile('DeviceSyncShelfApply', {
     '@kit.PerformanceAnalysisKit': { hiTraceMeter: { traceByValue() {} } },
     '../model/LibraryPersistence': persistence, '../model/ComicModels': comics, '../model/SourceLibraryComic': sourceComic,

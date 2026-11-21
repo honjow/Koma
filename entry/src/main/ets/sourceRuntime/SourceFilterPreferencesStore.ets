@@ -1,4 +1,5 @@
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
+import { SourcePreferencePersistence, SOURCE_FILTERS_PATH } from './SourcePreferencePersistence'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { SourceFilter } from '../model/SourceModels'
@@ -188,6 +189,8 @@ function sanitizeFilterValue(value: SourceFilterPreferenceValue, filter: SourceF
   return undefined
 }
 
+export const sourceFilterPersistence = new SourcePreferencePersistence<SourceFilterPreferenceSourceRecord>(SOURCE_FILTERS_PATH)
+
 export class SourceFilterPreferencesStore {
   private storagePath: string = ''
 
@@ -195,6 +198,15 @@ export class SourceFilterPreferencesStore {
     const root = joinSourceFilterPreferencesPath(context.filesDir, SOURCE_FILTER_PREFS_ROOT_NAME)
     ensureDirSync(root)
     this.storagePath = joinSourceFilterPreferencesPath(root, SOURCE_FILTER_PREFS_FILE_NAME)
+  }
+
+  async prepareDatabase(context: common.Context, migrate: boolean): Promise<void> {
+    this.configure(context)
+    await sourceFilterPersistence.open(context)
+    if (migrate && sourceFilterPersistence.database(this.storagePath) === undefined) {
+      const legacy = fs.accessSync(this.storagePath) ? this.readDocument().sources : undefined
+      sourceFilterPersistence.migrate(this.storagePath, legacy)
+    }
   }
 
   isConfigured(): boolean {
@@ -206,7 +218,7 @@ export class SourceFilterPreferencesStore {
     if (normalizedSourceId.length === 0 || !this.isConfigured()) {
       return {}
     }
-    const sourceRecord = this.readDocument().sources[normalizedSourceId]
+    const sourceRecord = this.readSource(normalizedSourceId)
     const values = kind === 'browse' ? sourceRecord?.browse : sourceRecord?.search
     return this.filterSafeValues(values ?? {}, filters)
   }
@@ -222,41 +234,36 @@ export class SourceFilterPreferencesStore {
       return
     }
     const safeValues = this.filterSafeValues(values, filters)
-    const document = this.readDocument()
-    const sourceRecord = document.sources[normalizedSourceId] ?? {}
+    const sourceRecord = this.readSource(normalizedSourceId) ?? {}
     if (kind === 'browse') {
       sourceRecord.browse = safeValues
     } else {
       sourceRecord.search = safeValues
     }
-    document.sources[normalizedSourceId] = sourceRecord
-    this.writeDocument(document)
+    this.writeSource(normalizedSourceId, sourceRecord)
   }
 
   listSearchPresets(sourceId: string): SourceSearchPreset[] {
-    return this.readDocument().sources[sourceId]?.searchPresets ?? []
+    return this.readSource(sourceId)?.searchPresets ?? []
   }
 
   saveSearchPreset(sourceId: string, preset: SourceSearchPreset, filters: SourceFilter[]): void {
-    const document = this.readDocument()
-    const record = document.sources[sourceId] ?? {} as SourceFilterPreferenceSourceRecord
+    const record = this.readSource(sourceId) ?? {} as SourceFilterPreferenceSourceRecord
     const presets = record.searchPresets ?? []
     if (presets.some((entry: SourceSearchPreset): boolean => entry.name === preset.name)) {
       throw new Error('duplicate_search_preset')
     }
     presets.push({ name: preset.name, query: preset.query, filters: this.filterSafeValues(preset.filters, filters) })
     record.searchPresets = presets
-    document.sources[sourceId] = record
-    this.writeDocument(document)
+    this.writeSource(sourceId, record)
   }
 
   removeSearchPreset(sourceId: string, name: string): void {
-    const document = this.readDocument()
-    const record = document.sources[sourceId]
+    const record = this.readSource(sourceId)
     if (record?.searchPresets === undefined) return
     const remaining = record.searchPresets.filter((entry: SourceSearchPreset): boolean => entry.name !== name)
     record.searchPresets = remaining.length > 0 ? remaining : undefined
-    this.writeDocument(document)
+    this.writeSource(sourceId, record)
   }
 
   searchPresetValues(preset: SourceSearchPreset, filters: SourceFilter[]): SourceFilterPreferenceRecord {
@@ -268,15 +275,7 @@ export class SourceFilterPreferencesStore {
     if (normalizedSourceId.length === 0 || !this.isConfigured()) {
       return
     }
-    const document = this.readDocument()
-    const nextSources: Record<string, SourceFilterPreferenceSourceRecord> = {}
-    Object.keys(document.sources).forEach((key: string) => {
-      if (key !== normalizedSourceId) {
-        nextSources[key] = document.sources[key]
-      }
-    })
-    document.sources = nextSources
-    this.writeDocument(document)
+    this.writeSource(normalizedSourceId, undefined)
   }
 
   clearForSource(sourceId: string, kind: SourceFilterPreferenceKind): void {
@@ -284,8 +283,7 @@ export class SourceFilterPreferencesStore {
     if (normalizedSourceId.length === 0 || !this.isConfigured()) {
       return
     }
-    const document = this.readDocument()
-    const sourceRecord = document.sources[normalizedSourceId]
+    const sourceRecord = this.readSource(normalizedSourceId)
     if (sourceRecord === undefined) {
       return
     }
@@ -297,17 +295,8 @@ export class SourceFilterPreferencesStore {
     if (kind === 'search' && sourceRecord.browse !== undefined) {
       nextRecord.browse = sourceRecord.browse
     }
-    const nextSources: Record<string, SourceFilterPreferenceSourceRecord> = {}
-    Object.keys(document.sources).forEach((key: string) => {
-      if (key !== normalizedSourceId) {
-        nextSources[key] = document.sources[key]
-      }
-    })
-    if (nextRecord.browse !== undefined || nextRecord.search !== undefined || nextRecord.searchPresets !== undefined) {
-      nextSources[normalizedSourceId] = nextRecord
-    }
-    document.sources = nextSources
-    this.writeDocument(document)
+    const remaining = nextRecord.browse !== undefined || nextRecord.search !== undefined || nextRecord.searchPresets !== undefined
+    this.writeSource(normalizedSourceId, remaining ? nextRecord : undefined)
   }
 
   exportAll(): Record<string, SourceFilterPreferenceSourceRecord> {
@@ -391,7 +380,32 @@ export class SourceFilterPreferencesStore {
     return safeValues
   }
 
+  private readSource(id: string): SourceFilterPreferenceSourceRecord | undefined {
+    const database = sourceFilterPersistence.database(this.storagePath)
+    return database === undefined ? this.readDocument().sources[id] : sourceFilterPersistence.readSource(database, id)
+  }
+
+  private writeSource(id: string, value: SourceFilterPreferenceSourceRecord | undefined): void {
+    if (!this.isConfigured()) return
+    const database = sourceFilterPersistence.database(this.storagePath)
+    if (database !== undefined) {
+      database.put(id, value === undefined ? undefined : JSON.stringify(value))
+      return
+    }
+    const current = this.readDocument()
+    const next: Record<string, SourceFilterPreferenceSourceRecord> = {}
+    for (const key of Object.keys(current.sources)) {
+      if (key !== id || value !== undefined) next[key] = key === id ? value! : current.sources[key]
+    }
+    if (value !== undefined && current.sources[id] === undefined) next[id] = value
+    this.writeDocument({ schemaVersion: SOURCE_FILTER_PREFS_SCHEMA_VERSION, sources: next })
+  }
+
   private readDocument(): SourceFilterPreferencesDocument {
+    const database = sourceFilterPersistence.database(this.storagePath)
+    if (database !== undefined) {
+      return { schemaVersion: SOURCE_FILTER_PREFS_SCHEMA_VERSION, sources: sourceFilterPersistence.readAll(database) ?? {} }
+    }
     if (!this.isConfigured() || !fs.accessSync(this.storagePath)) {
       return emptyDocument()
     }
@@ -425,7 +439,9 @@ export class SourceFilterPreferencesStore {
     if (!this.isConfigured()) {
       return
     }
-    writeAppTextFile(this.storagePath, JSON.stringify(document))
+    const database = sourceFilterPersistence.database(this.storagePath)
+    if (database !== undefined) sourceFilterPersistence.replace(database, document.sources)
+    else writeAppTextFile(this.storagePath, JSON.stringify(document))
   }
 }
 

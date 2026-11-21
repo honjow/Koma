@@ -35,6 +35,9 @@ import {
 import { appSourceSettingsStore } from './SourceSettingsStore'
 import { appSourceSettingObservationStore } from './SourceSettingObservationStore'
 import { appSourceFilterPreferencesStore } from './SourceFilterPreferencesStore'
+import { readSourceConfigurationSnapshot, restoreSourceConfigurationSnapshot,
+  usesSourceConfigurationDatabase } from './SourceConfigurationDatabases'
+import { SOURCE_FILTERS_PATH, SOURCE_SETTINGS_PATH } from './SourcePreferencePersistence'
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
@@ -1469,22 +1472,31 @@ interface SourceRemovePreferenceImage {
 }
 
 function sourceRemovePreferenceImages(context: common.UIAbilityContext): SourceRemovePreferenceImage[] {
-  return ['source-settings.json', 'source-filter-preferences.json'].map((name: string): SourceRemovePreferenceImage => {
-    const path = joinSourceRuntimePath(appSourceRoot(context), name)
+  return [SOURCE_SETTINGS_PATH, SOURCE_FILTERS_PATH].map((name: string): SourceRemovePreferenceImage => {
+    if (usesSourceConfigurationDatabase(context.filesDir, name)) {
+      const saved = readSourceConfigurationSnapshot(context.filesDir, name)
+      return { path: name, exists: saved !== undefined, content: saved ?? '' }
+    }
+    const path = joinSourceRuntimePath(context.filesDir, name)
     const exists = fs.accessSync(path)
-    return { path, exists, content: exists ? fs.readTextSync(path, { encoding: 'utf-8' }) : '' }
+    return { path: name, exists, content: exists ? fs.readTextSync(path, { encoding: 'utf-8' }) : '' }
   })
 }
 
-function restoreSourceRemovePreferences(images: SourceRemovePreferenceImage[]): void {
+function restoreSourceRemovePreferences(filesDir: string, images: SourceRemovePreferenceImage[]): void {
   try {
     images.forEach((image: SourceRemovePreferenceImage) => {
+      if (usesSourceConfigurationDatabase(filesDir, image.path)) {
+        restoreSourceConfigurationSnapshot(filesDir, image.path, image.exists ? image.content : undefined)
+        return
+      }
+      const path = joinSourceRuntimePath(filesDir, image.path)
       if (image.exists) {
-        if (!fs.accessSync(image.path) || fs.readTextSync(image.path, { encoding: 'utf-8' }) !== image.content) {
-          writeAppTextFile(image.path, image.content)
+        if (!fs.accessSync(path) || fs.readTextSync(path, { encoding: 'utf-8' }) !== image.content) {
+          writeAppTextFile(path, image.content)
         }
-      } else if (fs.accessSync(image.path)) {
-        fs.unlinkSync(image.path)
+      } else if (fs.accessSync(path)) {
+        fs.unlinkSync(path)
       }
     })
   } finally { appSourceSettingsStore.invalidateCachedDocument() }
@@ -1511,7 +1523,7 @@ export async function remove(context: common.UIAbilityContext, id: string, befor
         persistInstalledSources(context, entry.sourceId)
       } catch (_error) {
         try {
-          restoreSourceRemovePreferences(images)
+          restoreSourceRemovePreferences(context.filesDir, images)
         } catch (_restoreError) {
           throw new Error('source_remove_rollback_failed')
         }

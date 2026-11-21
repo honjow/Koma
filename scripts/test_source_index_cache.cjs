@@ -4,7 +4,8 @@ const fs=require('node:fs')
 const vm=require('node:vm')
 const ts=require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const sourcePath=require('node:path').join(__dirname,'../entry/src/main/ets/sourceRuntime/SourceIndexService.ets')
-const cacheKey='source_index.metadata_cache.v1'
+const cacheKey='cache/source-index-metadata.v1.json'
+const {createRdbPort}=require('./user_data_rdb_fixture.cjs')
 const item=(id='A',extra={})=>({id,name:id,pkg:`${id}.koma`,icon:`${id}.png`,version:'1',nsfw:true,...extra})
 const tick=()=>new Promise(setImmediate)
 function homepageGuard(){
@@ -14,17 +15,27 @@ function homepageGuard(){
  const exports={};new Function('exports','url',ts.transpileModule(node.getText(tree),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(exports,{URL:{parseURL:value=>new URL(value)}})
  return exports.normalizeSourceHomepage
 }
-function harness(store=new Map(), installedOrigin){
- let requests=[],requestedUrls=[],installs=[],flushes=0,failFlush=false,gate
- const pref={async has(k){return store.has(k)},async delete(k){store.delete(k)},async get(k,d){return store.has(k)?store.get(k):d},async put(k,v){store.set(k,v)},async flush(){flushes++;if(gate)await gate;if(failFlush)throw Error('disk')}}
+function harness(store=new Map(), installedOrigin, cacheFiles=new Map(), rdb=createRdbPort()){
+ let requests=[],requestedUrls=[],installs=[],flushes=0,failFlush=false,failRead=false,gate
+ const pref={async has(k){return store.has(k)},async delete(k){store.delete(k)},async get(k,d){return store.has(k)?store.get(k):d},async put(k,v){store.set(k,v)},async flush(){}}
  const exports={}
  const serviceSource=fs.readFileSync(sourcePath,'utf8')
  const workerSource=(fs.readFileSync(sourcePath.replace('SourceIndexService.ets','SourceIndexMetadata.ets'),'utf8')+'\n'+fs.readFileSync(sourcePath.replace('SourceIndexService.ets','SourceIndexMetadataWorker.ets'),'utf8')).replace('const SOURCE_INDEX_REPOSITORY_LIMIT','const WORKER_REPOSITORY_LIMIT').replaceAll('SOURCE_INDEX_REPOSITORY_LIMIT','WORKER_REPOSITORY_LIMIT')
  const activitySource=fs.readFileSync(sourcePath.replace('sourceRuntime/SourceIndexService.ets','model/BackupRestoreActivity.ets'),'utf8')
  const signalsSource=fs.readFileSync(sourcePath.replace('sourceRuntime/SourceIndexService.ets','deviceSync/DeviceSyncSignals.ets'),'utf8')
- const source=(activitySource+'\n'+signalsSource+'\n'+workerSource+'\n'+serviceSource).replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/^export \{[^\n]+\} from '[^']+'\n/gm,'').replace(/@Concurrent/g,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
+ const sqliteSource=[
+  'model/UserDataDatabase.ets','model/UserKeyedRecords.ets','sourceRuntime/SourceSubscriptionStorage.ets',
+ ].map(file=>fs.readFileSync(sourcePath.replace('sourceRuntime/SourceIndexService.ets',file),'utf8')).join('\n')
+ const source=(sqliteSource+'\n'+activitySource+'\n'+signalsSource+'\n'+workerSource+'\n'+serviceSource).replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/^export \{[^\n]+\} from '[^']+'\n/gm,'').replace(/@Concurrent/g,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
  const globals={exports,Map,Date,JSON,Array,Number,Promise,console,ArrayBuffer,Uint8Array,
-  preferences:{getPreferences:async()=>pref}, taskpool:{execute:async(fn,...args)=>fn(...args)},
+  relationalStore:rdb.relationalStore,
+  preferences:{getPreferences:async()=>pref},
+  fs:{access:async p=>cacheFiles.has(p),readText:async p=>{if(failRead)throw Error('read');return cacheFiles.get(p)}},
+  writeAppTextFile:(p,value)=>cacheFiles.set(p,value),
+  taskpool:{execute:async(fn,...args)=>{
+   if(fn.name==='writeSourceIndexCacheTask'){flushes++;if(gate)await gate;if(failFlush)throw Error('disk')}
+   return fn(...args)
+  }},
   RemoteImageCacheStore:class{}, DiagnosticLogger:{info(){},error(){}},
   isInvalidSourceLocalizedNames:v=>v!==undefined && (v===null || typeof v!=='object' || Array.isArray(v)),
   normalizeSourceHomepage:homepageGuard(),
@@ -42,7 +53,7 @@ function harness(store=new Map(), installedOrigin){
  }
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,globals)
  const make=(dir='data')=>new exports.SourceIndexService({filesDir:dir,cacheDir:'cache'})
- return {make,store,requests,requestedUrls,installs,pref,activity:exports.BackupRestoreActivity,setFail:v=>failFlush=v,setGate:v=>gate=v,get flushes(){return flushes}}
+ return {make,store,cacheFiles,rdb,requests,requestedUrls,installs,pref,restore:repositories=>exports.saveSourceSubscriptionPreferences({filesDir:'data'},{repositories},false,true),setReadFail:v=>failRead=v,activity:exports.BackupRestoreActivity,setFail:v=>failFlush=v,setGate:v=>gate=v,get flushes(){return flushes}}
 }
 async function fetched(h,s,url,items){const r=s.fetchIndex(url);h.requests.shift()({responseCode:200,result:JSON.stringify(items)});const result=await r;await tick();return result}
 
@@ -68,7 +79,7 @@ test('backup restore retires late subscription results even when the same URL re
  const metadataRejected=assert.rejects(metadata,/backup_restore_busy/)
  h.activity.beginRestore()
  service.invalidateForBackupRestore()
- h.store.set('source_index.repositories.v1',JSON.stringify([{url,lastUsedAt:0,customName:'Restored',name:'Restored metadata'}]))
+ await h.restore([{url,lastUsedAt:0,customName:'Restored',name:'Restored metadata'}])
  await service.reloadAfterBackupRestore()
  h.activity.finishRestore()
  assert.throws(guard,/backup_restore_busy/)
@@ -82,7 +93,7 @@ test('backup restore retires late subscription results even when the same URL re
  assert.equal((await fetched(h,service,url,[item('fresh')])).ok,true)
  h.activity.beginRestore()
  service.invalidateForBackupRestore()
- h.store.set('source_index.repositories.v1',JSON.stringify([{url,lastUsedAt:0,disabled:true}]))
+ await h.restore([{url,lastUsedAt:0,disabled:true}])
  await service.reloadAfterBackupRestore()
  h.activity.finishRestore()
  const before=h.requestedUrls.length
@@ -160,7 +171,7 @@ test('updates use the selected enabled subscription without requiring the old ad
 test('successful metadata persists across service/runtime recreation, normalized URL isolated, iconUri discarded',async()=>{
  const h=harness(),s=h.make()
  const r=await fetched(h,s,' HTTPS://Example.COM/repo/ ',[item('A',{iconUri:'file://expired'})]);assert.equal(r.ok,true)
- const fresh=harness(h.store).make()
+ const fresh=harness(h.store, undefined, h.cacheFiles, h.rdb).make()
  const entries=await fresh.loadCachedIndex('https://example.com/repo/index.json')
  assert.equal(entries[0].id,'A');assert.equal(entries[0].nsfw,true);assert.equal(entries[0].iconUri,undefined)
  assert.equal(await fresh.loadCachedIndex('https://other.test/repo/'),undefined)
@@ -187,7 +198,7 @@ test('missing corrupt unknown schema invalid entries and unsafe icon paths are c
  const h=harness(),s=h.make();h.store.set('source_index.url','user-url');h.store.set('source_index.repositories.v1','user-repos')
  assert.equal(await s.loadCachedIndex('https://test/'),undefined)
  for(const value of ['bad','[]',JSON.stringify({schemaVersion:2,records:[]}),JSON.stringify({schemaVersion:1,records:[{url:'https://test/index.json',entries:[{}]}]}),JSON.stringify({schemaVersion:1,records:[{url:'https://test/index.json',entries:[item('A',{icon:'../escape.png'})]}]})]){
- h.store.set(cacheKey,value);assert.equal(await s.loadCachedIndex('https://test/'),undefined);assert.equal(h.store.get(cacheKey),value)
+ h.cacheFiles.set(cacheKey,value);assert.equal(await s.loadCachedIndex('https://test/'),undefined);assert.equal(h.cacheFiles.get(cacheKey),value)
  }
  assert.equal(h.store.get('source_index.url'),'user-url');assert.equal(h.store.get('source_index.repositories.v1'),'user-repos');assert.equal(h.flushes,0)
 })
@@ -195,26 +206,26 @@ test('cache bounds evict oldest repositories without truncating online entries o
  const h=harness(),s=h.make()
  for(let i=0;i<13;i++)assert.equal((await fetched(h,s,`https://test/r${i}/`,[item(String(i))])).ok,true)
  assert.equal(await s.loadCachedIndex('https://test/r0/'),undefined);assert.equal((await s.loadCachedIndex('https://test/r12/'))[0].id,'12')
- const before=h.store.get(cacheKey)
+ const before=h.cacheFiles.get(cacheKey)
  const r=await fetched(h,s,'https://test/r12/',Array.from({length:4097},(_,i)=>item(String(i))))
- assert.equal(r.entries.length,4097);assert.equal(h.store.get(cacheKey),before)
+ assert.equal(r.entries.length,4097);assert.equal(h.cacheFiles.get(cacheKey),before)
  const large=await fetched(h,s,'https://test/r12/',[item('big',{description:'x'.repeat(1024*1024)})])
- assert.equal(large.ok,true);assert.equal(h.store.get(cacheKey),before)
+ assert.equal(large.ok,true);assert.equal(h.cacheFiles.get(cacheKey),before)
 })
 test('failed network/index response keeps last successful cache and empty valid index remains a hit',async()=>{
  const h=harness(),s=h.make();await fetched(h,s,'https://test/',[])
  assert.equal((await s.loadCachedIndex('https://test/')).length,0)
- const before=h.store.get(cacheKey),r=s.fetchIndex('https://test/');h.requests.shift()({responseCode:403,result:''})
- assert.equal((await r).ok,false);await tick();assert.equal(h.store.get(cacheKey),before)
+ const before=h.cacheFiles.get(cacheKey),r=s.fetchIndex('https://test/');h.requests.shift()({responseCode:403,result:''})
+ assert.equal((await r).ok,false);await tick();assert.equal(h.cacheFiles.get(cacheKey),before)
 })
 
 test('aggregate cache stays bounded and read IO failures are misses',async()=>{
  const h=harness(),s=h.make()
  for(let i=0;i<6;i++)await fetched(h,s,`https://large.test/r${i}/`,[item(String(i),{description:'x'.repeat(800000)})])
- assert.ok(h.store.get(cacheKey).length<=4*1024*1024)
+ assert.ok(h.cacheFiles.get(cacheKey).length<=4*1024*1024)
  assert.equal(await s.loadCachedIndex('https://large.test/r0/'),undefined)
  assert.equal((await s.loadCachedIndex('https://large.test/r5/'))[0].id,'5')
- h.pref.get=async()=>{throw Error('read')}
+ h.setReadFail(true)
  assert.equal(await s.loadCachedIndex('https://large.test/r5/'),undefined)
 })
 
@@ -222,7 +233,7 @@ test('homepage persists with cached metadata and icon adoption without changing 
  const h=harness(),s=h.make(),homepage='https://example.org/comics/?sort=latest#all'
  const result=await fetched(h,s,'https://index.test/',[item('A',{homepage,webSessionOrigins:['https://not-granted.test']})])
  assert.equal(result.entries[0].homepage,homepage)
- const entry=(await harness(h.store).make().loadCachedIndex('https://index.test/'))[0]
+ const entry=(await harness(h.store, undefined, h.cacheFiles, h.rdb).make().loadCachedIndex('https://index.test/'))[0]
  assert.equal(entry.homepage,homepage);assert.equal(entry.webSessionOrigins,undefined)
  const rejected=await fetched(h,s,'https://index.test/',[item('B',{homepage:'javascript:alert(1)'})])
  assert.equal(rejected.ok,true);assert.equal(rejected.entries[0].homepage,undefined)
@@ -237,10 +248,10 @@ test('repository names survive automatic checks and editing is atomic',async()=>
  await s.saveRepository(a,'My name',undefined,a)
  assert.equal((await s.loadSavedRepositories())[0].customName,'My name')
  await s.saveRepository(a,'',undefined,a);assert.equal((await s.loadSavedRepositories())[0].name,'Official name')
- const before=JSON.stringify([...h.store]);let failures=1;h.pref.flush=async()=>{if(failures-->0)throw Error('disk')}
- await assert.rejects(s.saveRepository(b,'Renamed',{name:'Other'},a));assert.equal(JSON.stringify([...h.store]),before)
- h.pref.flush=async()=>{};await s.saveRepository(b,'Renamed',{name:'Other'},a)
- const cold=harness(h.store).make();repos=await cold.loadSavedRepositories()
+ const before=JSON.stringify(await s.captureDeviceSyncSnapshot());h.rdb.failNextCommit('disk')
+ await assert.rejects(s.saveRepository(b,'Renamed',{name:'Other'},a));assert.equal(JSON.stringify(await s.captureDeviceSyncSnapshot()),before)
+ await s.saveRepository(b,'Renamed',{name:'Other'},a)
+ const cold=harness(h.store, undefined, h.cacheFiles, h.rdb).make();repos=await cold.loadSavedRepositories()
  assert.equal(repos.length,1);assert.equal(repos[0].url,b);assert.equal(repos[0].name,'Other');assert.equal(repos[0].website,undefined)
  assert.equal(await cold.loadSavedUrl(),b)
 })

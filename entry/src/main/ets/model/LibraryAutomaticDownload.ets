@@ -6,18 +6,12 @@ import { LibraryUpdateSummary } from './LibraryUpdateService'
 import { LibraryAutomationPreferencesStore } from './LibraryAutomationPreferencesStore'
 import { newlyAddedChapterIds, comicMatchesAutomationCategories } from './LibraryAutomationPolicy'
 import { LibraryBatchDownloadQueue, LibraryBatchDownloadTarget } from './LibraryBatchDownloadQueue'
-import { fileIo as fs } from '@kit.CoreFileKit'
-import { writeAppTextFile } from './AppFileTextPersistence'
+import { BackupRestoreActivity } from './BackupRestoreActivity'
+import { AUTOMATIC_DOWNLOAD_WORK, GeneratedDownloadChapter, readGeneratedDownloadWork,
+  saveGeneratedDownloadWork, removeGeneratedDownloadWork } from './GeneratedDownloadWork'
 import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from './KomaContentStorage'
 
-interface PendingAutomaticChapter { comicId: string; chapterId: string }
 let draining: Promise<void> = Promise.resolve()
-
-function pendingPath(context: common.Context): string { return `${context.filesDir}/automatic-download-pending.v1.json` }
-function loadPending(context: common.Context): PendingAutomaticChapter[] {
-  const path = pendingPath(context)
-  return fs.accessSync(path) ? JSON.parse(fs.readTextSync(path)) as PendingAutomaticChapter[] : []
-}
 
 export function libraryChapterIdSnapshot(library: LibraryStore): Map<string, Set<string>> {
   const snapshot: Map<string, Set<string>> = new Map()
@@ -32,7 +26,7 @@ export async function enqueueAutomaticallyAddedChapters(context: common.UIAbilit
   previousChapterIds: Map<string, Set<string>>): Promise<void> {
   const policy = await new LibraryAutomationPreferencesStore(context).load()
   if (!policy.autoDownloadNewChapters) return
-  const pending = loadPending(context)
+  const pending: GeneratedDownloadChapter[] = []
   for (const entry of summary.results) {
     if (entry.status !== 'updated') continue
     const comic = library.getComic(entry.comicId)
@@ -42,39 +36,35 @@ export async function enqueueAutomaticallyAddedChapters(context: common.UIAbilit
     if (previous === undefined) continue // No received pre-update baseline means no proven new chapters.
     const ids = newlyAddedChapterIds(previous, comic)
     for (const chapterId of ids) {
-      if (!pending.some((item: PendingAutomaticChapter): boolean => item.comicId === comic.id && item.chapterId === chapterId)) {
-        pending.push({ comicId: comic.id, chapterId })
-      }
+      pending.push({ comicId: comic.id, chapterId })
     }
   }
-  if (pending.length > 0) writeAppTextFile(pendingPath(context), JSON.stringify(pending))
+  await BackupRestoreActivity.runWrite(() => saveGeneratedDownloadWork(context, AUTOMATIC_DOWNLOAD_WORK, pending))
   await drainPendingAutomaticChapters(context, library, reader)
 }
 
 export function drainPendingAutomaticChapters(context: common.UIAbilityContext,
   library: LibraryStore, reader: ReaderSessionStore): Promise<void> {
-  const run = draining.then(async (): Promise<void> => {
+  const run = draining.then(() => BackupRestoreActivity.runWrite(async (): Promise<void> => {
     const policy = await new LibraryAutomationPreferencesStore(context).load()
     if (!policy.autoDownloadNewChapters) return
-    const pending = loadPending(context)
+    const pending = await readGeneratedDownloadWork(context, AUTOMATIC_DOWNLOAD_WORK)
     if (pending.length === 0) return
     const storageBase = await ensureKomaContentStorageBase(context)
     const batch = new LibraryBatchDownloadQueue(storageBase, library, reader, komaRuntimeStorageKey(context))
-    for (const comicId of Array.from(new Set<string>(pending.map((item: PendingAutomaticChapter): string => item.comicId)))) {
+    for (const comicId of Array.from(new Set<string>(pending.map((item: GeneratedDownloadChapter): string => item.comicId)))) {
       const comic = library.getComic(comicId)
       if (comic === undefined || !comicMatchesAutomationCategories(comic, policy.downloadIncludedCategories,
         policy.downloadExcludedCategories)) continue
-      const ids = pending.filter((item: PendingAutomaticChapter): boolean => item.comicId === comicId)
-        .map((item: PendingAutomaticChapter): string => item.chapterId)
+      const ids = pending.filter((item: GeneratedDownloadChapter): boolean => item.comicId === comicId)
+        .map((item: GeneratedDownloadChapter): string => item.chapterId)
       const targets = batch.prepare([comicId], policy.downloadUnreadOnly).targets
         .filter((target: LibraryBatchDownloadTarget): boolean => ids.includes(target.chapterId))
       await batch.enqueue(targets, policy.downloadUnreadOnly, true)
     }
     // Preserve newer additions recorded while queue initialization was awaiting its worker.
-    const next = loadPending(context).filter((item: PendingAutomaticChapter): boolean => !pending.some(
-      (completed: PendingAutomaticChapter): boolean => completed.comicId === item.comicId && completed.chapterId === item.chapterId))
-    writeAppTextFile(pendingPath(context), JSON.stringify(next))
-  })
+    await removeGeneratedDownloadWork(context, AUTOMATIC_DOWNLOAD_WORK, pending)
+  }))
   draining = run.catch(() => {})
   return run
 }

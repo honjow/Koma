@@ -1,12 +1,14 @@
 import { TRACKER_REMOTE_PROVIDER_IDS } from './TrackerModels'
 import { common } from '@kit.AbilityKit'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
-import { preferences } from '@kit.ArkData'
 import { ChapterId, ComicId, ReadingProgress } from './ComicModels'
 import { TrackerProviderId, TrackerUpdateStrategy } from './TrackerModels'
+import { MigratedPreferenceRecords, orderedPreferenceRecords } from './MigratedPreferenceRecords'
 
 export const TRACKER_PENDING_SYNC_STORE_NAME: string = 'koma_tracker_pending_sync_v1'
 export const TRACKER_PENDING_PROGRESS_QUEUE_KEY: string = 'tracker.pendingProgressQueue'
+const pendingRecords = new MigratedPreferenceRecords(TRACKER_PENDING_SYNC_STORE_NAME, TRACKER_PENDING_PROGRESS_QUEUE_KEY,
+  [], orderedPreferenceRecords(['providerId', 'comicId', 'chapterId']))
 
 export type TrackerPendingProgressReason =
   'account_missing' |
@@ -216,9 +218,12 @@ export class TrackerPendingSyncStore {
     return this.ordered(() => this.readPendingProgress())
   }
 
+  async prepareStorage(): Promise<void> {
+    await this.ordered(() => pendingRecords.prepare(this.context))
+  }
+
   private async readPendingProgress(): Promise<TrackerPendingProgressSyncEntry[]> {
-    const store = await this.preferences()
-    const payload = await store.get(TRACKER_PENDING_PROGRESS_QUEUE_KEY, '[]') as string
+    const payload = await pendingRecords.readBackupValue(this.context) ?? '[]'
     // A corrupt queue is a load failure, never an empty queue that a later write replaces.
     const parsed = JSON.parse(payload) as TrackerPendingProgressSyncEntry[]
     if (!Array.isArray(parsed)) throw new Error('tracker_pending_invalid_payload')
@@ -232,24 +237,7 @@ export class TrackerPendingSyncStore {
 
   private async persistPendingProgress(entries: TrackerPendingProgressSyncEntry[]): Promise<TrackerPendingProgressSyncEntry[]> {
     const normalized = normalizeEntries(entries)
-    const payload = JSON.stringify(normalized)
-    const store = await this.preferences()
-    const existed = store.hasSync(TRACKER_PENDING_PROGRESS_QUEUE_KEY)
-    const previous = store.getSync(TRACKER_PENDING_PROGRESS_QUEUE_KEY, '[]') as string
-    try {
-      // Keep the complete queue. Platform capacity failures are explicit, not oldest-item eviction.
-      await store.put(TRACKER_PENDING_PROGRESS_QUEUE_KEY, payload)
-      await store.flush()
-    } catch (error) {
-      if (existed) store.putSync(TRACKER_PENDING_PROGRESS_QUEUE_KEY, previous)
-      else store.deleteSync(TRACKER_PENDING_PROGRESS_QUEUE_KEY)
-      try {
-        await store.flush()
-      } catch (_restoreError) {
-        throw new Error('tracker_pending_rollback_failed')
-      }
-      throw error as Error
-    }
+    await pendingRecords.restoreBackupValue(this.context, JSON.stringify(normalized))
     return normalized
   }
 
@@ -318,7 +306,4 @@ export class TrackerPendingSyncStore {
     return this.mutate(async (): Promise<void> => { await this.persistPendingProgress([]) })
   }
 
-  private preferences(): Promise<preferences.Preferences> {
-    return preferences.getPreferences(this.context, TRACKER_PENDING_SYNC_STORE_NAME)
-  }
 }
