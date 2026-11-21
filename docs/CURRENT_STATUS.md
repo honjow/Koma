@@ -265,6 +265,29 @@
       "closedAt": "2026-11-20T04:03:19+08:00"
     },
     {
+      "id": "APP_NAVIGATION_IN_PLACE_FOLLOWUPS",
+      "number": 330,
+      "title": "全应用排查发现的同页导航与备份重命名",
+      "priority": "P1",
+      "kind": "open",
+      "status": "源码定位完成",
+      "stage": "待解决",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "LIBRARY_CROSS_SOURCE_MIGRATION"
+      ],
+      "result": "已确认迁移选源与批量核对、Kavita 库和系列、OPDS 目录和出版物、WebDAV 私库目录都在同一条路由内切换层级。另核实书源浏览页内搜索、Komga 同页插入书卷及本地备份重命名替换记录行。",
+      "remaining": "逐项核对既定返回关系并修正。书源浏览内搜索和单本迁移还涉及之前使用过的返回行为。此次从普通入口实测的是批量迁移手动搜索。",
+      "reportedAt": null,
+      "reportedDate": "2026-11-19",
+      "reportedAtSource": "用户在报告批量迁移手动搜索无转场后，明确要求检查整个 App 是否还有同类实现。",
+      "updatedAt": "2026-11-19T21:21:21+08:00",
+      "evidencePoints": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/app-navigation-audit.md"
+      ]
+    },
+    {
       "id": "RESUME_MINIBAR_SETTING",
       "number": 328,
       "title": "可关闭续读迷你栏",
@@ -361,12 +384,19 @@
       "reportedDate": "2026-11-18",
       "reportedAtSource": "用户转述大备份恢复后分组对不上，原始时刻未核实。",
       "registeredAt": "2026-11-18T11:49:55+08:00",
-      "updatedAt": "2026-11-18T12:05:14+08:00",
-      "status": "已随 1.5.4 发布，旧错分仍需处理",
-      "result": "Mihon 以分类排序号记录作品归属，Koma 1.5.0 至 1.5.3 用数据库 ID 查找。候选改用排序号，大备份的 21 个分类与 1,064 部收藏在本地全量导入、存储读回和重复导入中逐一对齐，小备份也通过。调试包已构建。 标签 CI 发布 1.5.4，公开包版本与校验值已核。",
-      "remaining": "实际设备恢复入口待验证。旧版已导入后再次合并会补齐正确分类，但样本仍保留 970 条误加的归属。旧存储无法区分导入误加与用户手动添加同一分类，清理旧关系需单独处理。",
-      "relatedItems": ["MIHON_BACKUP_IMPORT"],
-      "evidence": [".hvigor/outputs/mihon-category-restore/local-replay.json"]
+      "updatedAt": "2026-11-18T12:52:43+08:00",
+      "status": "197 已验证重新导入，旧错分仍需处理",
+      "result": "Mihon 以分类排序号记录作品归属，Koma 1.5.0 至 1.5.3 用数据库 ID 查找。1.5.4 改用排序号，两份真实备份本地读回和重复导入通过。标签 CI 发布 1.5.4，公开包版本与校验值已核。197 先恢复至原书架 59 部、3 个分类、无 Mihon 导入记录，覆盖安装同代码签名调试包 1.5.4（23），从备份页经系统文件选择器导入原大备份。冷启动逐部核对 21 个分类和 1,064 部收藏的归属，错分和漏分均为 0，原书架归属和同名日漫分类保留。书架实际切换国漫、日漫并回到全部。导入结果保留，屏幕超时与休眠状态恢复，设备租约已释放，WebDAV 仍处于暂停状态。",
+      "remaining": "旧版已导入后再次合并会补齐正确分类，但样本仍保留 970 条误加的归属。旧存储无法区分导入误加与用户手动添加同一分类，清理旧关系需单独处理。",
+      "relatedItems": [
+        "MIHON_BACKUP_IMPORT"
+      ],
+      "evidence": [
+        ".hvigor/outputs/mihon-category-restore/local-replay.json",
+        ".hvigor/outputs/mihon-category-restore/197-category-comparison.json",
+        ".hvigor/outputs/mihon-category-restore/device-journey.log",
+        ".hvigor/outputs/mihon-category-restore/device-shelf-retry.log"
+      ]
     },
     {
       "id": "IMAGE_PLUGIN_UPDATED_GROUP_STALE",
@@ -5631,7 +5661,7 @@
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "同签 Release 4ae019d4 在 197（如漫画）和 103（漫画1234）读《遇强则强，我的修为无上限》。原图高宽比中位数约 0.78，八组从各自未采样章节向前，合计 488 秒、167 次原生惯性、709 张 HTTP 200 新图、32023 个出帧间隔。178 个超过 16.7 ms，0 个超过 33.3 ms。197 的四组数据为 开超分慢滑第 21 话，P99 13.324 ms，峰值 20.328 ms，3/4294 超过 16.7 ms。开超分快滑第 23 话，P99 15.230 ms，峰值 26.347 ms，21/3664 超过 16.7 ms。关超分慢滑第 25 话，P99 11.894 ms，峰值 18.172 ms，1/4506 超过 16.7 ms。关超分快滑第 27 话，P99 12.738 ms，峰值 16.373 ms，0/3663 超过 16.7 ms。103 的四组数据为 开超分慢滑第 21 话，P99 15.008 ms，峰值 22.744 ms，23/4400 超过 16.7 ms。开超分快滑第 25 话，P99 18.115 ms，峰值 24.827 ms，58/3530 超过 16.7 ms。关超分慢滑第 27 话，P99 15.963 ms，峰值 26.066 ms，38/4399 超过 16.7 ms。关超分快滑第 29 话，P99 16.572 ms，峰值 27.730 ms，34/3567 超过 16.7 ms。两台均看到可读原图和超分后的正文。103 快滑的主线程 CreatePixelMap 回调在松手后释放 HDR 缓冲，同类缓冲从 39.08 MiB 降到 9.94 MiB，释放从 2.281 ms 降到 0.576 ms。103 放大专项补测遇到书源连接失败，保留错误页证据。197 已删除本次临时书源并恢复桌面，103 已恢复书架，两台均恢复原设置和电源状态并释放租约，保留同签候选。 此前记录。103 使用漫画1234《遇强则强，我的修为无上限》复测同签 Release 4ae019d4。四个新章节共 84 次原生惯性，300 张 HTTP 200 新图，15896 个出帧间隔中 0 个超过 33.3 ms。开超分慢滑第 21 话第 1→60 页，P99 15.008 ms，最长 22.744 ms，23/4400 超过 16.7 ms，完成超分 14 张。开超分快滑第 25 话第 1→89 页，P99 18.115 ms，最长 24.827 ms，58/3530 超过 16.7 ms，完成超分 0 张。关超分慢滑第 27 话第 1→60 页，P99 15.963 ms，最长 26.066 ms，38/4399 超过 16.7 ms，完成超分 0 张。关超分快滑第 29 话第 1→95 页，P99 16.572 ms，最长 27.730 ms，34/3567 超过 16.7 ms，完成超分 0 张。开超分快滑峰值从上一候选同作品的 36.472 ms 降至 24.827 ms。两段使用不同新章节。开超分慢滑在相同回调类型中最大的 HDR 像素缓冲从 40976384 字节降到 10424320 字节。快滑期间收到 19 笔超分开始，采样时间内 0 笔完成，停稳截图有清晰的第 89 页和超分标记。四组结束后已恢复 103 原阅读模式、超分开关、无痕、书架和电源超时。 此前记录。103 在现有漫画1234书源读《遇强则强，我的修为无上限》，使用与 197 相同的签名候选。图高／图宽中位数 0.78，84 次原生惯性，296 张 HTTP 200 新图。开超分慢滑第 13 话第 1→64 页，P99 15.714 ms，最长 27.223 ms，28/4397 个间隔超过 16.7 ms，完成超分 16 张。开超分快滑第 15 话第 1→86 页，P99 18.173 ms，最长 36.472 ms，64/3505 个间隔超过 16.7 ms，完成超分 1 张。关超分慢滑第 17 话第 1→58 页，P99 15.549 ms，最长 23.305 ms，26/4362 个间隔超过 16.7 ms，完成超分 0 张。关超分快滑第 19 话第 1→92 页，P99 17.265 ms，最长 27.601 ms，44/3560 个间隔超过 16.7 ms，完成超分 0 张。唯一超过 33.3 ms 的间隔发生在快滑松手后约 92 ms。主线程实际运行 33.819 ms，ArkUI VSync 12.789 ms，TaskPool 回执 12.914 ms，另有 CreatePixelMap 回调 2.615 ms。该回调释放 39.08 MiB 的 HDR 像素缓冲，释放和缓存刷新子段共 2.281 ms。共享 reader-kit 212fea3 让条漫增强图的 HDR 覆盖层沿用正文已有的显示解码尺寸，缩放时仍可请求全分辨率，候选待新章复测。 此前记录。197 第 15 话快滑的 28.576 ms 峰值内，应用主线程实际运行 27.404 ms。ArkUI VSync 占 7.511 ms，其中包含短图单元重绘和布局。三笔 TaskPool 回执共占 5.903 ms。帧间采样还命中正文下载完成后的快照复制和诊断日志。同章另一笔 27.336 ms 间隔，TaskPool 回执 21.220 ms，其中 Ark 运行时 Partial GC 18.442 ms。采样定位到缓存键路径当时正在执行，尚无足够证据确定主要分配来源。第 13 话下发 24 次手势，HTrace 只确认 23 次原生惯性，上一轮统计采用实际记录数。103 书架已有如漫画的同名条目，但缺少该来源，点击开始阅读后仍停在详情。 此前记录。197 同签 Release（SHA-256 前缀 48e327f7）使用如漫画《遇强则强，我的修为无上限》。四章源图高宽比中位数约 0.78，快慢共 83 次原生惯性、428 张网络新图，16144 个出帧间隔中超过 33.3 ms 为 0。开超分慢滑第 13 话第 1→92 页，23 次原生惯性，89 个 HTTP 200，P99 14.004 ms，最长 19.216 ms，4/4297 个间隔超过 16.7 ms，超分完成 1 张。开超分快滑第 15 话第 1→130 页，18 次原生惯性，128 个 HTTP 200，P99 15.753 ms，最长 28.576 ms，23/3675 个间隔超过 16.7 ms，超分完成 1 张。关超分慢滑第 17 话第 1→84 页，24 次原生惯性，82 个 HTTP 200，P99 12.096 ms，最长 18.912 ms，2/4491 个间隔超过 16.7 ms，超分完成 0 张。关超分快滑第 19 话第 1→131 页，18 次原生惯性，129 个 HTTP 200，P99 12.851 ms，最长 17.873 ms，3/3681 个间隔超过 16.7 ms，超分完成 0 张。快慢均从独立的新章节向前。腾讯替代作品的中位图高仍为图宽 1.61 倍，样本单列，其 38.670 ms 峰值内主线程有 33.885 ms 在原生 List 预建加载条时等待内核 mprotect。缓存键循环省去两次动态乘法调用，每个已有文件名的计算结果一致，已提交 302985b8。197 已移除本轮新增的临时测试源，恢复阅读模式、超分、无痕、桌面和电源。103 已有同一优化线的长图诊断，短图对照仍待同样可读的书源样本。 此前记录。197 与 103 保留同签 Release（SHA-256 前缀 14f0f636），使用瓜子《装备我最强》。197 的两章已有离线文件，103 四章各有 22、40、20、34 个 HTTP 200 新图请求。197 开超分慢滑第 257 话第 1→38 页，24 次原生惯性，P99 13.857 ms，最长 42.087 ms，20/4492 个间隔超过 16.7 ms，1 个超过 33.3 ms，超分完成 11 张。197 开超分快滑第 259 话第 1→57 页，18 次原生惯性，P99 15.201 ms，最长 27.342 ms，26/3678 个间隔超过 16.7 ms，0 个超过 33.3 ms，超分完成 1 张。103 关超分慢滑第 45 话第 1→23 页，24 次原生惯性，P99 11.941 ms，最长 31.733 ms，25/4425 个间隔超过 16.7 ms，0 个超过 33.3 ms，超分完成 0 张。103 关超分快滑第 47 话第 1→41 页，18 次原生惯性，P99 18.032 ms，最长 31.314 ms，40/3562 个间隔超过 16.7 ms，0 个超过 33.3 ms，超分完成 0 张。103 开超分慢滑第 49 话第 1→21 页，24 次原生惯性，P99 11.779 ms，最长 46.124 ms，2/4417 个间隔超过 16.7 ms，1 个超过 33.3 ms，超分完成 13 张。103 开超分快滑第 51 话第 1→36 页，18 次原生惯性，P99 14.361 ms，最长 34.149 ms，32/3542 个间隔超过 16.7 ms，1 个超过 33.3 ms，超分完成 3 张。197 慢滑的 42.087 ms 峰值中，原生 List 帧内预建同时回收旧单元，释放超分图约 21.10 MiB 的 DMA 缓冲耗时 13.853 ms，其中解除映射 13.062 ms；通过 fd 260、相同容量和此前分配事件追到 3600×5960 图按 1800×2980 解码。103 关超分的两个组相比上一候选，超过 33.3 ms 的间隔由 20/4 降到 0/0。103 开超分慢滑仍出现 46.124 ms，单笔回执 37.964 ms，整帧主线程仅实际运行 8.314 ms，等待来源还需细化。在 103 关超分快慢峰值窗口，正文描述读取回执内的采样落在图片插件准备。f64960b1 已提交正文缓存键复用及同种子的三次处理结果查询合一。0248b41e 与现有 8bada5c8 中的调用处合并使用，处理描述读取进入已有后台检查，并只在真实处理缺失时传递插件执行数据，原内容及模块摘要仍核对。新包已构建并核对签名，短图真机对照继续。197 与 103 已核回《装备我最强》的原阅读位置、图像增强配置和临时测试状态。 此前记录。237 用《遇强则强》未读新页复测。第 96 话较低惯性从 1 到 29 页，17 段原生惯性中最高 16.959 ms。这段未出现 WebDAV 阅读快照，不能当成后台快照的对照。惯性结束约 1.3 秒后的三次 189 MiB 系统超分本地回退，主线程原生单个回收回调分别约 47.7、48.8 和 54.8 ms。第 98 话快滑 16 次从 1 到 38 页，最长 33.824 ms，其中原生 1317 个回收回调同批占 30.820 ms。共享 c5bf195 在独立原仓提交，Koma f2b65628 更新依赖。在第 104 话，显示解码候选的较低惯性 20 次从 1 到 24 页，最长 23.200 ms。随后同章向前快甩 16 次到 65 页，最长 26.900 ms，四笔连续 TaskPool 回执占 16.939 ms，其中两笔匹配正文缓存打开、写入、长度校验和原子替换。另一个 24.458 ms 间隔中，10 个 CPU 采样有 9 个落在 PixelMap::FreePixelMap。Koma 4bb53aa6 将超过共享上限的原生像素复制到一次性缓冲，再转移给后台编码和释放。CI 44669398747 同签包在第 108 话确认 7676×6604 的 193.38 MiB 输出经 worker-buffer 编码成功，随后显示解码为 1919×1651。同章 24 段较低惯性从第 1 页到第 30 页，3813 个出帧间隔中 3 个超过 16.7 ms，最大 19.943 ms，其中 TaskPool 回执占 16.951 ms。整段主线程 Release 完成回调最大 4.609 ms，原生批量回收最大 1.935 ms。各样本采用不同新页和超分完成次数，峰值分别记录。237 保留最新候选，原第 2 话第 120 页、无痕、书架分类、WebDAV 设置页及 10 秒超时和休眠均已读回，租约已释放。 此前记录。较低惯性基线在前 6 秒收到 13 次 UI 线程 fs.readText 完成回调，累计 78.447 ms，最长单次 18.380 ms。a6d83422、f6640f24 将自动阅读快照的 3 个持久文件读取、UTF-8 解码和快照生成合并到同一后台任务。CI 44662386645 通过并完成同签名核验。237 正由 WebDAV 分类修复任务占用，本候选尚未安装。旧快滑轨迹确认 ArkUI 回收过期 LazyForEach 项时 在 UI 线程释放一块 35.7 MiB 图片缓冲，耗时 10.693 ms。容量与同段 2560×3656 的全尺寸超分解码相符。 Koma 524574f2 由 CI 44657841941 干净构建并以 237 原证书签名。《遇强则强》第 94 话较低惯性 20 次从第 1 页到第 25 页，24 个正文请求返回 200，超分完成 2 次。WebDAV 计划解包和状态编码确实触发让出并与原生惯性重叠。重叠期间最大出帧间隔 18.027 ms。全段 3183 个出帧间隔中 7 个超过 16.7 ms，最高 30.377 ms，无超过 33.3 ms。该最高间隔内 fs.readText 完成回调占 14.398 ms，TaskPool 完成回调占 9.112 ms。第 87、94 话都是向前读新图，帧数和峰值按独立样本保留。候选仍保留在 237，原第 2 话第 120 页、无痕、书架分类、桌面、10 秒超时及休眠已核对恢复，已释租。 237《遇强则强》第 87 话低惯性 24 次从第 1 页到第 61 页。最大出帧间隔 64.589 ms，UI 实际运行 55.770 ms，区间对齐 WebDAV 合并计划解包 27 ms、约 996 万字符状态编码 34 ms 的完成标记，CPU 采样定位到同步规划与存储路径。第 89 话实际快甩 16 次从第 1 页到第 39 页，最大 32.378 ms。此区间内 ArkUI List 预建阶段释放一块约 37.4 MB 的图像缓冲，释放本身用时 10.693 ms。另三次约 22 ms 的间隔有 13–20 ms 是 TaskPool 完成回调。首版让出仅绑定手指接触，237 第 92 话复测发现松手后路由未触发让出，未把不同章的较低峰值归为修复收益。已接入既有惯性等待窗口，用更短的时间片并让出一个显示周期，保留重检连接和原子提交。 正文缓存检查和落盘已移到后台，未变的短图行少做更新，已测新页连续加载。 连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
+      "result": "同签 Release 4ae019d4 在 197（如漫画）和 103（漫画1234）读《遇强则强，我的修为无上限》。原图高宽比中位数约 0.78，八组从各自未采样章节向前，合计 488 秒、167 次原生惯性、709 张 HTTP 200 新图、32023 个出帧间隔。178 个超过 16.7 ms，0 个超过 33.3 ms。197 的四组数据为 开超分慢滑第 21 话，P99 13.324 ms，峰值 20.328 ms，3/4294 超过 16.7 ms。开超分快滑第 23 话，P99 15.230 ms，峰值 26.347 ms，21/3664 超过 16.7 ms。关超分慢滑第 25 话，P99 11.894 ms，峰值 18.172 ms，1/4506 超过 16.7 ms。关超分快滑第 27 话，P99 12.738 ms，峰值 16.373 ms，0/3663 超过 16.7 ms。103 的四组数据为 开超分慢滑第 21 话，P99 15.008 ms，峰值 22.744 ms，23/4400 超过 16.7 ms。开超分快滑第 25 话，P99 18.115 ms，峰值 24.827 ms，58/3530 超过 16.7 ms。关超分慢滑第 27 话，P99 15.963 ms，峰值 26.066 ms，38/4399 超过 16.7 ms。关超分快滑第 29 话，P99 16.572 ms，峰值 27.730 ms，34/3567 超过 16.7 ms。两台均看到可读原图和超分后的正文。103 快滑的主线程 CreatePixelMap 回调在松手后释放 HDR 缓冲，同类缓冲从 39.08 MiB 降到 9.94 MiB，释放从 2.281 ms 降到 0.576 ms。103 放大专项补测遇到书源连接失败，保留错误页证据。197 已删除本次临时书源并恢复桌面，103 已恢复书架，两台均恢复原设置和电源状态并释放租约，保留同签候选。 此前记录。103 使用漫画1234《遇强则强，我的修为无上限》复测同签 Release 4ae019d4。四个新章节共 84 次原生惯性，300 张 HTTP 200 新图，15896 个出帧间隔中 0 个超过 33.3 ms。开超分慢滑第 21 话第 1→60 页，P99 15.008 ms，最长 22.744 ms，23/4400 超过 16.7 ms，完成超分 14 张。开超分快滑第 25 话第 1→89 页，P99 18.115 ms，最长 24.827 ms，58/3530 超过 16.7 ms，完成超分 0 张。关超分慢滑第 27 话第 1→60 页，P99 15.963 ms，最长 26.066 ms，38/4399 超过 16.7 ms，完成超分 0 张。关超分快滑第 29 话第 1→95 页，P99 16.572 ms，最长 27.730 ms，34/3567 超过 16.7 ms，完成超分 0 张。开超分快滑峰值从上一候选同作品的 36.472 ms 降至 24.827 ms。两段使用不同新章节。开超分慢滑在相同回调类型中最大的 HDR 像素缓冲从 40976384 字节降到 10424320 字节。快滑期间收到 19 笔超分开始，采样时间内 0 笔完成，停稳截图有清晰的第 89 页和超分标记。四组结束后已恢复 103 原阅读模式、超分开关、无痕、书架和电源超时。 此前记录。103 在现有漫画1234书源读《遇强则强，我的修为无上限》，使用与 197 相同的签名候选。图高／图宽中位数 0.78，84 次原生惯性，296 张 HTTP 200 新图。开超分慢滑第 13 话第 1→64 页，P99 15.714 ms，最长 27.223 ms，28/4397 个间隔超过 16.7 ms，完成超分 16 张。开超分快滑第 15 话第 1→86 页，P99 18.173 ms，最长 36.472 ms，64/3505 个间隔超过 16.7 ms，完成超分 1 张。关超分慢滑第 17 话第 1→58 页，P99 15.549 ms，最长 23.305 ms，26/4362 个间隔超过 16.7 ms，完成超分 0 张。关超分快滑第 19 话第 1→92 页，P99 17.265 ms，最长 27.601 ms，44/3560 个间隔超过 16.7 ms，完成超分 0 张。唯一超过 33.3 ms 的间隔发生在快滑松手后约 92 ms。主线程实际运行 33.819 ms，ArkUI VSync 12.789 ms，TaskPool 回执 12.914 ms，另有 CreatePixelMap 回调 2.615 ms。该回调释放 39.08 MiB 的 HDR 像素缓冲，释放和缓存刷新子段共 2.281 ms。共享 reader-kit 212fea3 让条漫增强图的 HDR 覆盖层沿用正文已有的显示解码尺寸，缩放时仍可请求全分辨率，候选待新章复测。 此前记录。197 第 15 话快滑的 28.576 ms 峰值内，应用主线程实际运行 27.404 ms。ArkUI VSync 占 7.511 ms，其中包含短图单元重绘和布局。三笔 TaskPool 回执共占 5.903 ms。帧间采样还命中正文下载完成后的快照复制和诊断日志。同章另一笔 27.336 ms 间隔，TaskPool 回执 21.220 ms，其中 Ark 运行时 Partial GC 18.442 ms。采样定位到缓存键路径当时正在执行，尚无足够证据确定主要分配来源。第 13 话下发 24 次手势，HTrace 只确认 23 次原生惯性，上一轮统计采用实际记录数。103 书架已有如漫画的同名条目，但缺少该来源，点击开始阅读后仍停在详情。 此前记录。197 同签 Release（SHA-256 前缀 48e327f7）使用如漫画《遇强则强，我的修为无上限》。四章源图高宽比中位数约 0.78，快慢共 83 次原生惯性、428 张网络新图，16144 个出帧间隔中超过 33.3 ms 为 0。开超分慢滑第 13 话第 1→92 页，23 次原生惯性，89 个 HTTP 200，P99 14.004 ms，最长 19.216 ms，4/4297 个间隔超过 16.7 ms，超分完成 1 张。开超分快滑第 15 话第 1→130 页，18 次原生惯性，128 个 HTTP 200，P99 15.753 ms，最长 28.576 ms，23/3675 个间隔超过 16.7 ms，超分完成 1 张。关超分慢滑第 17 话第 1→84 页，24 次原生惯性，82 个 HTTP 200，P99 12.096 ms，最长 18.912 ms，2/4491 个间隔超过 16.7 ms，超分完成 0 张。关超分快滑第 19 话第 1→131 页，18 次原生惯性，129 个 HTTP 200，P99 12.851 ms，最长 17.873 ms，3/3681 个间隔超过 16.7 ms，超分完成 0 张。快慢均从独立的新章节向前。腾讯替代作品的中位图高仍为图宽 1.61 倍，样本单列，其 38.670 ms 峰值内主线程有 33.885 ms 在原生 List 预建加载条时等待内核 mprotect。缓存键循环省去两次动态乘法调用，每个已有文件名的计算结果一致，已提交 302985b8。197 已移除本轮新增的临时测试源，恢复阅读模式、超分、无痕、桌面和电源。103 已有同一优化线的长图诊断，短图对照仍待同样可读的书源样本。 此前记录。197 与 103 保留同签 Release（SHA-256 前缀 14f0f636），使用瓜子《装备我最强》。197 的两章已有离线文件，103 四章各有 22、40、20、34 个 HTTP 200 新图请求。197 开超分慢滑第 257 话第 1→38 页，24 次原生惯性，P99 13.857 ms，最长 42.087 ms，20/4492 个间隔超过 16.7 ms，1 个超过 33.3 ms，超分完成 11 张。197 开超分快滑第 259 话第 1→57 页，18 次原生惯性，P99 15.201 ms，最长 27.342 ms，26/3678 个间隔超过 16.7 ms，0 个超过 33.3 ms，超分完成 1 张。103 关超分慢滑第 45 话第 1→23 页，24 次原生惯性，P99 11.941 ms，最长 31.733 ms，25/4425 个间隔超过 16.7 ms，0 个超过 33.3 ms，超分完成 0 张。103 关超分快滑第 47 话第 1→41 页，18 次原生惯性，P99 18.032 ms，最长 31.314 ms，40/3562 个间隔超过 16.7 ms，0 个超过 33.3 ms，超分完成 0 张。103 开超分慢滑第 49 话第 1→21 页，24 次原生惯性，P99 11.779 ms，最长 46.124 ms，2/4417 个间隔超过 16.7 ms，1 个超过 33.3 ms，超分完成 13 张。103 开超分快滑第 51 话第 1→36 页，18 次原生惯性，P99 14.361 ms，最长 34.149 ms，32/3542 个间隔超过 16.7 ms，1 个超过 33.3 ms，超分完成 3 张。197 慢滑的 42.087 ms 峰值中，原生 List 帧内预建同时回收旧单元，释放超分图约 21.10 MiB 的 DMA 缓冲耗时 13.853 ms，其中解除映射 13.062 ms；通过 fd 260、相同容量和此前分配事件追到 3600×5960 图按 1800×2980 解码。103 关超分的两个组相比上一候选，超过 33.3 ms 的间隔由 20/4 降到 0/0。103 开超分慢滑仍出现 46.124 ms，单笔回执 37.964 ms，整帧主线程仅实际运行 8.314 ms，等待来源还需细化。在 103 关超分快慢峰值窗口，正文描述读取回执内的采样落在图片插件准备。f64960b1 已提交正文缓存键复用及同种子的三次处理结果查询合一。0248b41e 与现有 8bada5c8 中的调用处合并使用，处理描述读取进入已有后台检查，并只在真实处理缺失时传递插件执行数据，原内容及模块摘要仍核对。新包已构建并核对签名，短图真机对照继续。197 与 103 已核回《装备我最强》的原阅读位置、图像增强配置和临时测试状态。 此前记录。197 用已安装的同签 Release 在瓜子《装备我最强》两段新页同时采集 HTrace 与 500 Hz 应用 CPU 栈。较低惯性第 249 话第 1→35 页，24 段，4469 个出帧间隔，P99 17.213 ms，48 个超过 16.7 ms，最大 32.366 ms，系统超分完成 16 张。快甩第 251 话第 1→59 页，18 段，3689 个间隔，P99 18.643 ms，56 个超过 16.7 ms，最大 28.271 ms，超分完成 1 张。两组均无超过 33.3 ms 的间隔。将已装 HAP 的 ABC 文件偏移从采样 PC 扣除再映射，两个组的最长帧分别有 12.032、11.898 ms 落在两笔连续的主线程回执中，回执内 6/6 的 CPU 样本都在 getNow 调用的正文缓存键哈希。全部长间隔中分别有 188/462、191/533 个 CPU 样本命中这条调用链。已让有稳定种子的同一请求在合并、查找和落盘复用既有缓存键。9 项针对性测试和本地 Release 构建通过，扩展用例的 7 项失败与改动前一致。工作区构建还包含别的功能改动，仅记录修复前真机帧数据。197 原第 224 话第 2 页、无痕关、桌面、休眠和 10 秒超时已独立回读。 此前记录。237 使用已安装的 1.5.5 候选（Koma 4bb53aa6）实测《遇强则强》四段首次采样的新页。较低惯性每组 24 次 5700 px/s，快甩每组 18 次 14500 px/s，快甩每 6 次留出停顿。关超分慢滑第 113 话第 1 至 30 页，24 次惯性和 3815 个出帧间隔，P99 14.856 ms，最长 34.620 ms，超过 16.7 ms 有 31 个，超过 33.3 ms 有 2 个，HTTP 200 有 29 次，超分完成 0 张。开超分慢滑第 109 话第 1 至 27 页，24 次惯性和 3858 个出帧间隔，P99 12.600 ms，最长 17.774 ms，超过 16.7 ms 有 5 个，超过 33.3 ms 有 0 个，HTTP 200 有 26 次，超分完成 3 张。关超分快滑第 115 话第 1 至 95 页，18 次惯性和 3170 个出帧间隔，P99 21.548 ms，最长 39.077 ms，超过 16.7 ms 有 50 个，超过 33.3 ms 有 5 个，HTTP 200 有 92 次，超分完成 0 张。开超分快滑第 111 话第 1 至 53 页，18 次惯性和 3235 个出帧间隔，P99 12.194 ms，最长 20.110 ms，超过 16.7 ms 有 3 个，超过 33.3 ms 有 0 个，HTTP 200 有 52 次，超分完成 0 张。最长间隔出现在关超分快滑，其中主线程 TaskPool 回执占 30.837 ms。开超分快滑出现超分启动与过期，采样窗内未完成。各组章节图高和图片到达时序不同。已回读原超分开关、阅读设置页签、原第 2 话第 120 页、无痕开关、书架分类、WebDAV 设置页、10 秒超时和休眠，已释租。 此前记录。237 用《遇强则强》未读新页复测。第 96 话较低惯性从 1 到 29 页，17 段原生惯性中最高 16.959 ms。这段未出现 WebDAV 阅读快照，不能当成后台快照的对照。惯性结束约 1.3 秒后的三次 189 MiB 系统超分本地回退，主线程原生单个回收回调分别约 47.7、48.8 和 54.8 ms。第 98 话快滑 16 次从 1 到 38 页，最长 33.824 ms，其中原生 1317 个回收回调同批占 30.820 ms。共享 c5bf195 在独立原仓提交，Koma f2b65628 更新依赖。在第 104 话，显示解码候选的较低惯性 20 次从 1 到 24 页，最长 23.200 ms。随后同章向前快甩 16 次到 65 页，最长 26.900 ms，四笔连续 TaskPool 回执占 16.939 ms，其中两笔匹配正文缓存打开、写入、长度校验和原子替换。另一个 24.458 ms 间隔中，10 个 CPU 采样有 9 个落在 PixelMap::FreePixelMap。Koma 4bb53aa6 将超过共享上限的原生像素复制到一次性缓冲，再转移给后台编码和释放。CI 44669398747 同签包在第 108 话确认 7676×6604 的 193.38 MiB 输出经 worker-buffer 编码成功，随后显示解码为 1919×1651。同章 24 段较低惯性从第 1 页到第 30 页，3813 个出帧间隔中 3 个超过 16.7 ms，最大 19.943 ms，其中 TaskPool 回执占 16.951 ms。整段主线程 Release 完成回调最大 4.609 ms，原生批量回收最大 1.935 ms。各样本采用不同新页和超分完成次数，峰值分别记录。237 保留最新候选，原第 2 话第 120 页、无痕、书架分类、WebDAV 设置页及 10 秒超时和休眠均已读回，租约已释放。 此前记录。较低惯性基线在前 6 秒收到 13 次 UI 线程 fs.readText 完成回调，累计 78.447 ms，最长单次 18.380 ms。a6d83422、f6640f24 将自动阅读快照的 3 个持久文件读取、UTF-8 解码和快照生成合并到同一后台任务。CI 44662386645 通过并完成同签名核验。237 正由 WebDAV 分类修复任务占用，本候选尚未安装。旧快滑轨迹确认 ArkUI 回收过期 LazyForEach 项时 在 UI 线程释放一块 35.7 MiB 图片缓冲，耗时 10.693 ms。容量与同段 2560×3656 的全尺寸超分解码相符。 Koma 524574f2 由 CI 44657841941 干净构建并以 237 原证书签名。《遇强则强》第 94 话较低惯性 20 次从第 1 页到第 25 页，24 个正文请求返回 200，超分完成 2 次。WebDAV 计划解包和状态编码确实触发让出并与原生惯性重叠。重叠期间最大出帧间隔 18.027 ms。全段 3183 个出帧间隔中 7 个超过 16.7 ms，最高 30.377 ms，无超过 33.3 ms。该最高间隔内 fs.readText 完成回调占 14.398 ms，TaskPool 完成回调占 9.112 ms。第 87、94 话都是向前读新图，帧数和峰值按独立样本保留。候选仍保留在 237，原第 2 话第 120 页、无痕、书架分类、桌面、10 秒超时及休眠已核对恢复，已释租。 237《遇强则强》第 87 话低惯性 24 次从第 1 页到第 61 页。最大出帧间隔 64.589 ms，UI 实际运行 55.770 ms，区间对齐 WebDAV 合并计划解包 27 ms、约 996 万字符状态编码 34 ms 的完成标记，CPU 采样定位到同步规划与存储路径。第 89 话实际快甩 16 次从第 1 页到第 39 页，最大 32.378 ms。此区间内 ArkUI List 预建阶段释放一块约 37.4 MB 的图像缓冲，释放本身用时 10.693 ms。另三次约 22 ms 的间隔有 13–20 ms 是 TaskPool 完成回调。首版让出仅绑定手指接触，237 第 92 话复测发现松手后路由未触发让出，未把不同章的较低峰值归为修复收益。已接入既有惯性等待窗口，用更短的时间片并让出一个显示周期，保留重检连接和原子提交。 正文缓存检查和落盘已移到后台，未变的短图行少做更新，已测新页连续加载。 连续条漫的 area 回调不再把每帧变化写回 30 个可见节点：17.195ms 的 HandleOnAreaChangeEvent 帧降到 0.5-1.4ms。新图尺寸改为只通知对应 LazyForEach 行，连续模式尺寸数组不再触发整条 List 重建，并停止在滚动窗口重算 displayPages/wideIndexes；页码在滚动期只更新本地值，停稳后才提交父级。197 candidate5 同一 3000 速度 swipe 对照：最长应用帧 20.231→11.603ms，>16.7ms 帧 1→0；20 次惯性 fling 连续向前加载 1300 帧，最长 11.527ms，>16.7ms 帧 0。退出阅读器后详情继续阅读为 093 第90/136页，页码提交正确。 左右分页另验证：单页/上下分页不再在图片尺寸到达时扫描全章宽页或重载 displayPages；未缩放翻页不递增 zoomResetToken。197 RTL 单页 10 次翻页从最长 40.696ms、17 个 >16.7ms 帧降到 25.568ms、14 个 >16.7ms，仍有明显长帧。 本轮分页诊断把长帧从业务状态解耦到容器层：翻页不更新页码/父级状态、Swiper .index 绑定改成稳定值、cachedCount=0、去掉进度回调，四项单独对照仍出现 23-26ms 最长帧。trace 中每次翻页更新 6-7 个 LazyForEach 缓存页的 ForEachNode（约 150 次 UpdateResConfig、2-6ms PartialGC），是 Swiper 在翻页时重建缓存页组件树。本地页码（翻页只更新本地 pagedPageIndex，工具栏/退出/切模式时才提交父级）功能验证通过：翻到 83 页、打开工具栏、退出后详情继续阅读均显示 83/127；性能未改善（最长 27.061ms、18 个 >16.7ms）。 固定窗口对照：Swiper 内改用 ForEach 只保留 3 页或 5 页显示页，翻页帧仍是约 160 次 UpdateResConfig 和 13 个ForEachNode，与窗口大小无关；5 页窗口最长 25.387ms、18 个 >16.7ms，3 页 26.746ms、19 个 >16.7ms，3 页因窗口平移更频繁略差。替换 Swiper 或缩窗不会降低 FlushDirtyNodeUpdate。",
       "remaining": "本次短图性能验证结束。103 的 HDR 放大专项遇到书源连接失败，运行时结果待补证。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
@@ -5674,6 +5704,14 @@
         ".hvigor/outputs/continuous-short-images-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-short-images/motion-cross197-final-slow-20261120T133355803369/wide-audit/residual-frame-accounting.json",
         ".hvigor/outputs/continuous-short-images-20261119/device103__MLR-AL00/not-applicable/portrait-1600x2560/continuous-short-images/motion-cross103-final-on-fast-20261120T135052501515/wide-audit/residual-frame-accounting.json",
         ".hvigor/outputs/continuous-short-images-20261119/device103__MLR-AL00/not-applicable/portrait-1600x2560/continuous-short-images/motion-cross103-final-on-slow-20261120T134840523963/wide-audit/residual-frame-accounting.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/cross197-verified-attribution.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-short-images/motion-cross197-slow-20261120T124921221053/wide-audit/residual-frame-accounting.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-short-images/motion-cross197-fast-20261120T125152213920/wide-audit/residual-frame-accounting.json",
+        ".hvigor/outputs/continuous-short-images-20261119/qa/sr-matrix237-results.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sr-matrix-off-slow-20261120T122035699337/wide-audit/peak-inertia-main-thread.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sr-matrix-on-slow-20261120T121629427952/wide-audit/peak-inertia-main-thread.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sr-matrix-off-fast-20261120T122238563710/wide-audit/peak-inertia-main-thread.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sr-matrix-on-fast-20261120T121833542308/wide-audit/peak-inertia-main-thread.json",
         ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sync-paced-worker-in-place-slow-20261120T112455957478/wide-audit/sr-worker-audit.json",
         ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-reading-validate-snapshot-worker-fast-20261120T113024123056/wide-audit/residual-frame-accounting.json",
         ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sync-paced-decode-candidate-slow-20261120T114133973133/wide-audit/sync-pacing-verification.json",
@@ -5824,6 +5862,8 @@
       ],
       "latestCounterexampleAt": "2026-11-08T21:10:00+08:00",
       "evidencePoints": [
+        "197 用已安装的同签 Release 在瓜子《装备我最强》两段新页同时采集 HTrace 与 500 Hz 应用 CPU 栈。较低惯性第 249 话第 1→35 页，24 段，4469 个出帧间隔，P99 17.213 ms，48 个超过 16.7 ms，最大 32.366 ms，系统超分完成 16 张。快甩第 251 话第 1→59 页，18 段，3689 个间隔，P99 18.643 ms，56 个超过 16.7 ms，最大 28.271 ms，超分完成 1 张。两组均无超过 33.3 ms 的间隔。将已装 HAP 的 ABC 文件偏移从采样 PC 扣除再映射，两个组的最长帧分别有 12.032、11.898 ms 落在两笔连续的主线程回执中，回执内 6/6 的 CPU 样本都在 getNow 调用的正文缓存键哈希。全部长间隔中分别有 188/462、191/533 个 CPU 样本命中这条调用链。已让有稳定种子的同一请求在合并、查找和落盘复用既有缓存键。9 项针对性测试和本地 Release 构建通过，扩展用例的 7 项失败与改动前一致。工作区构建还包含别的功能改动，仅记录修复前真机帧数据。197 原第 224 话第 2 页、无痕关、桌面、休眠和 10 秒超时已独立回读。",
+        "237 使用已安装的 1.5.5 候选（Koma 4bb53aa6）实测《遇强则强》四段首次采样的新页。较低惯性每组 24 次 5700 px/s，快甩每组 18 次 14500 px/s，快甩每 6 次留出停顿。关超分慢滑第 113 话第 1 至 30 页，24 次惯性和 3815 个出帧间隔，P99 14.856 ms，最长 34.620 ms，超过 16.7 ms 有 31 个，超过 33.3 ms 有 2 个，HTTP 200 有 29 次，超分完成 0 张。开超分慢滑第 109 话第 1 至 27 页，24 次惯性和 3858 个出帧间隔，P99 12.600 ms，最长 17.774 ms，超过 16.7 ms 有 5 个，超过 33.3 ms 有 0 个，HTTP 200 有 26 次，超分完成 3 张。关超分快滑第 115 话第 1 至 95 页，18 次惯性和 3170 个出帧间隔，P99 21.548 ms，最长 39.077 ms，超过 16.7 ms 有 50 个，超过 33.3 ms 有 5 个，HTTP 200 有 92 次，超分完成 0 张。开超分快滑第 111 话第 1 至 53 页，18 次惯性和 3235 个出帧间隔，P99 12.194 ms，最长 20.110 ms，超过 16.7 ms 有 3 个，超过 33.3 ms 有 0 个，HTTP 200 有 52 次，超分完成 0 张。最长间隔出现在关超分快滑，其中主线程 TaskPool 回执占 30.837 ms。开超分快滑出现超分启动与过期，采样窗内未完成。各组章节图高和图片到达时序不同。已回读原超分开关、阅读设置页签、原第 2 话第 120 页、无痕开关、书架分类、WebDAV 设置页、10 秒超时和休眠，已释租。",
         "237 用《遇强则强》未读新页复测。第 96 话较低惯性从 1 到 29 页，17 段原生惯性中最高 16.959 ms。这段未出现 WebDAV 阅读快照，不能当成后台快照的对照。惯性结束约 1.3 秒后的三次 189 MiB 系统超分本地回退，主线程原生单个回收回调分别约 47.7、48.8 和 54.8 ms。第 98 话快滑 16 次从 1 到 38 页，最长 33.824 ms，其中原生 1317 个回收回调同批占 30.820 ms。共享 c5bf195 在独立原仓提交，Koma f2b65628 更新依赖。在第 104 话，显示解码候选的较低惯性 20 次从 1 到 24 页，最长 23.200 ms。随后同章向前快甩 16 次到 65 页，最长 26.900 ms，四笔连续 TaskPool 回执占 16.939 ms，其中两笔匹配正文缓存打开、写入、长度校验和原子替换。另一个 24.458 ms 间隔中，10 个 CPU 采样有 9 个落在 PixelMap::FreePixelMap。Koma 4bb53aa6 将超过共享上限的原生像素复制到一次性缓冲，再转移给后台编码和释放。CI 44669398747 同签包在第 108 话确认 7676×6604 的 193.38 MiB 输出经 worker-buffer 编码成功，随后显示解码为 1919×1651。同章 24 段较低惯性从第 1 页到第 30 页，3813 个出帧间隔中 3 个超过 16.7 ms，最大 19.943 ms，其中 TaskPool 回执占 16.951 ms。整段主线程 Release 完成回调最大 4.609 ms，原生批量回收最大 1.935 ms。各样本采用不同新页和超分完成次数，峰值分别记录。237 保留最新候选，原第 2 话第 120 页、无痕、书架分类、WebDAV 设置页及 10 秒超时和休眠均已读回，租约已释放。",
         "较低惯性基线在前 6 秒收到 13 次 UI 线程 fs.readText 完成回调，累计 78.447 ms，最长单次 18.380 ms。a6d83422、f6640f24 将自动阅读快照的 3 个持久文件读取、UTF-8 解码和快照生成合并到同一后台任务。CI 44662386645 通过并完成同签名核验。237 正由 WebDAV 分类修复任务占用，本候选尚未安装。旧快滑轨迹确认 ArkUI 回收过期 LazyForEach 项时 在 UI 线程释放一块 35.7 MiB 图片缓冲，耗时 10.693 ms。容量与同段 2560×3656 的全尺寸超分解码相符。",
         "Koma 提交 4b6b12a6 和 b7f08002。阅读快照保留原回执与合并校验，常规同步把文件解析、作品身份映射、事实投影、编码和摘要放进同一后台任务。阅读设置合并读取，搜索历史解析归并和超分缓存淘汰也在后台。旧候选一次 51.639 ms 快甩出帧间隔内观察到 709381 字节的阅读快照结构回传，随后处理 4329 条事实。最终候选自然同步确认两次生成 4329 条事实对应的分批投影结果，之后用第 85 话新页同次捕获真实快甩与自然同步。快甩 16 次从第 1 页到第 84 页，实际 82 个正文 HTTP 200，超分实际启动，快照标记落在原生惯性中，当时出帧间隔 16.617 ms。该轮最大间隔 31.470 ms，超过 33.3 ms 为 0 次，超过 16.7 ms 为 34 次，最长 Preferences 回调 0.470 ms。最大剩余间隔里有多个后台结果回调，单次最长 7.099 ms。此前 16 次低惯性在第 67 话最大 22.393 ms，最终包还完成第 81 话连续低惯性 24 次，从第 1 页向前到第 63 页。不同新章的手势对照保留具体页数，不当作同页重复 A/B。共享行几何试验在原样编译包上缺少稳定收益，保存试验并恢复正式依赖。最终包保留于 237，原续读第 2 话第 120 页、无痕、书架分类、桌面、10 秒超时和休眠均已核对恢复，租约已释放。",
@@ -5853,6 +5893,7 @@
         "同包同作品向下跨章，197 实滑 11 分 17 秒、最长停顿 1.80 秒；200 实滑 10 分 41 秒、最长停顿 1.59 秒。两机都出现刷新信号已发出、应用主线程迟迟未处理。"
       ],
       "remainingActions": [
+        "197 用仅包含正文缓存键优化的签名包验证新页慢滑和快滑，核对重复哈希回执和完整正文加载。",
         "继续定位连续到达的图片缓存回执和系统原生回收。2560 像素超分图在略高于半尺寸的解码阶梯尚缺真机命中样本。自动同步快照尚缺自然同步重叠的新页对照。",
         "237 完成分类修复并可安全测试后，用未读章节验证同步确实发生时主线程读文件回调是否减少，并复查快滑时的原生图片缓冲释放。",
         "新页快甩受控场景未再出现同步快照造成的 50 ms 长间隔。剩余最大约 31 ms 的间隔中，多个后台结果回调在主线程接连执行。整体条漫性能继续按普通阅读反例核对。",
@@ -6142,6 +6183,7 @@
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": null,
       "evidencePoints": [
+        "2026-11-19 续查源码和真实目录后，快看漫画 0.1.10、崩坏3 IP站 0.1.4、战双帕弥什官方漫画 0.1.5 改按原站目录提供阅读位置，书源仓本地提交 472a7dc。快看实时两部作品 254 和 153 条保原 ID、标题及锁定状态，第13话上篇下一话为下篇，下篇返回156页。崩坏3的23份原站目录248章、战双的5份原站目录92章均回放通过。MangaBZ 具名无号最终话有原站上一话链接，但同作品还包含独立卷条目，分组顺序尚未确认。",
         "直接产物索引：.hvigor/outputs/continuous-position-rejected-072.patch；reader-kit提交7744665155743b4c62b2e21166e22ace76b9e27c，119关键回归通过；Koma接入提交5d966878；197清理HAP SHA-256 f6749b58303015d413fea24d2baf4030375a9958c27f7a760defb9793d8fe889。自然终点反例58/59；MeasuredPosition改用原生getItemRect实际边界而非推算imageHeight，参考官方API与Mihon同规则，61/62设备回验。reader-kit 7744665与cab2118已推main并读回cab；Koma 229daf3c精确CI40651937090失败，漏偏好/state/bridge等调用依赖；补齐提交091d2b6758c94bb0d58130f6b9626a052f6ce787已推master，精确CI40655062200 completed/success，连接器读回head_sha一致。",
         "重开前原result逐字保留：197 Blue横向双方向及连续章、MH1234多页RTL、Nemo多页纵向往返具名范围已核，精确CI成功，设备已恢复。",
         "用户本轮直接反馈跨章节预载仍未发生；精确消息时刻未知，此为登记时间。原具名验收与证据保留，不推断根因。",
@@ -6249,7 +6291,7 @@
       ],
       "status": "197 已验证页表在途时的手动拖动与惯性跨章",
       "kind": "accepted",
-      "result": "原章末手势验证保留。本轮确认旧包在下一章页表及首图已可用后仍可停在上一章。最终候选用下一章加载区域接住手动拖动和惯性，保持到达位置。包子《大象無形》第32章手动拖动到第33章1/44，第33章惯性进入第34章1/49，首图显示后均留在目标章。共享会话83项和入场43项通过；全量套件的10项失败与基线相同。",
+      "result": "原章末手势验证保留。本轮确认旧包在下一章页表及首图已可用后仍可停在上一章。最终候选用下一章加载区域接住手动拖动和惯性，保持到达位置。包子《大象無形》第32章手动拖动到第33章1/44，第33章惯性进入第34章1/49，首图显示后均留在目标章。共享会话83项和入场43项通过；全量套件的10项失败与基线相同。用户反馈跨章问题缓解了很多。",
       "remaining": "本地签名候选已验证，正式版本尚待同步独立 Reader Kit 依赖。",
       "reportedAt": "2026-10-23T05:33:34.382Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 381614824 重新读原文与时间戳，不是摘要/登记时间。",
@@ -6270,7 +6312,8 @@
         ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/38-manual-32-to-33/summary.json",
         ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/39-manual-final-readback/layout.json",
         ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/40-anchored-fling-33-to-34/summary.json",
-        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/41-anchored-fling-readback/layout.json"
+        ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/41-anchored-fling-readback/layout.json",
+        ".hvigor/outputs/reader-passive-201-20261120/device201__LMR-AL00/not-applicable/portrait-1276x2848/manual-reader-timing/manual-reading-20261120T213034/crossing-comparison.json"
       ],
       "remainingActions": [
         "将独立 Reader Kit 原仓的修复同步到正式 Koma 依赖后复核版本构建。"
@@ -10388,9 +10431,11 @@
       "stage": "已交付",
       "owner": "Root",
       "dependencies": [],
-      "relatedItems": [],
+      "relatedItems": [
+        "APP_NAVIGATION_IN_PLACE_FOLLOWUPS"
+      ],
       "result": "失败与重试共用原加载位置，底部不再新增；已选来源只由独立移除键移出，点整行不误删，拖动及重进选择记忆保留。 批量手动搜索已由独立目的页承载，197 实测进入、系统返回和选中回填。",
-      "remaining": "批量手动搜索转场已在 197 验证。",
+      "remaining": "批量手动搜索转场已在 197 验证。选源与核对的同页切换见 #330。",
       "remainingActions": [],
       "boundaries": [
         "使用当前Koma控件；仅按用户明确采用的入口和流程实施，不擅自扩展样式。",
@@ -12538,6 +12583,34 @@
       ]
     },
     {
+      "id": "continuous-197-cache-key-rehash-20261120",
+      "at": "2026-11-20T13:02:31+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "197 快慢新页定位主线程缓存键哈希",
+      "detail": "197 用已安装的同签 Release 在瓜子《装备我最强》两段新页同时采集 HTrace 与 500 Hz 应用 CPU 栈。较低惯性第 249 话第 1→35 页，24 段，4469 个出帧间隔，P99 17.213 ms，48 个超过 16.7 ms，最大 32.366 ms，系统超分完成 16 张。快甩第 251 话第 1→59 页，18 段，3689 个间隔，P99 18.643 ms，56 个超过 16.7 ms，最大 28.271 ms，超分完成 1 张。两组均无超过 33.3 ms 的间隔。将已装 HAP 的 ABC 文件偏移从采样 PC 扣除再映射，两个组的最长帧分别有 12.032、11.898 ms 落在两笔连续的主线程回执中，回执内 6/6 的 CPU 样本都在 getNow 调用的正文缓存键哈希。全部长间隔中分别有 188/462、191/533 个 CPU 样本命中这条调用链。已让有稳定种子的同一请求在合并、查找和落盘复用既有缓存键。9 项针对性测试和本地 Release 构建通过，扩展用例的 7 项失败与改动前一致。工作区构建还包含别的功能改动，仅记录修复前真机帧数据。197 原第 224 话第 2 页、无痕关、桌面、休眠和 10 秒超时已独立回读。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/cross197-verified-attribution.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-short-images/motion-cross197-slow-20261120T124921221053/wide-audit/residual-frame-accounting.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-short-images/motion-cross197-fast-20261120T125152213920/wide-audit/residual-frame-accounting.json"
+      ]
+    },
+    {
+      "id": "continuous-237-system-enhancement-speed-matrix-20261120",
+      "at": "2026-11-20T12:25:53+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "237 新页系统图像超分开关与快慢惯性四组对照",
+      "detail": "237 使用已安装的 1.5.5 候选（Koma 4bb53aa6）实测《遇强则强》四段首次采样的新页。较低惯性每组 24 次 5700 px/s，快甩每组 18 次 14500 px/s，快甩每 6 次留出停顿。关超分慢滑第 113 话第 1 至 30 页，24 次惯性和 3815 个出帧间隔，P99 14.856 ms，最长 34.620 ms，超过 16.7 ms 有 31 个，超过 33.3 ms 有 2 个，HTTP 200 有 29 次，超分完成 0 张。开超分慢滑第 109 话第 1 至 27 页，24 次惯性和 3858 个出帧间隔，P99 12.600 ms，最长 17.774 ms，超过 16.7 ms 有 5 个，超过 33.3 ms 有 0 个，HTTP 200 有 26 次，超分完成 3 张。关超分快滑第 115 话第 1 至 95 页，18 次惯性和 3170 个出帧间隔，P99 21.548 ms，最长 39.077 ms，超过 16.7 ms 有 50 个，超过 33.3 ms 有 5 个，HTTP 200 有 92 次，超分完成 0 张。开超分快滑第 111 话第 1 至 53 页，18 次惯性和 3235 个出帧间隔，P99 12.194 ms，最长 20.110 ms，超过 16.7 ms 有 3 个，超过 33.3 ms 有 0 个，HTTP 200 有 52 次，超分完成 0 张。最长间隔出现在关超分快滑，其中主线程 TaskPool 回执占 30.837 ms。开超分快滑出现超分启动与过期，采样窗内未完成。各组章节图高和图片到达时序不同。已回读原超分开关、阅读设置页签、原第 2 话第 120 页、无痕开关、书架分类、WebDAV 设置页、10 秒超时和休眠，已释租。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/continuous-short-images-20261119/qa/sr-matrix237-results.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sr-matrix-off-slow-20261120T122035699337/wide-audit/peak-inertia-main-thread.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sr-matrix-on-slow-20261120T121629427952/wide-audit/peak-inertia-main-thread.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sr-matrix-off-fast-20261120T122238563710/wide-audit/peak-inertia-main-thread.json",
+        ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-sr-matrix-on-fast-20261120T121833542308/wide-audit/peak-inertia-main-thread.json"
+      ]
+    },
+    {
       "id": "library-private-categories-device-routing-20261120",
       "itemId": "LIBRARY_PRIVATE_CATEGORIES",
       "at": "2026-11-20T12:14:57+08:00",
@@ -12551,14 +12624,6 @@
       "at": "2026-11-20T12:08:15+08:00",
       "title": "#335 隐私分类候选已构建",
       "detail": "本地回归覆盖隐私可见性、后台 30 秒和锁屏收回、通知过滤及分类写入回滚。双实例 WebDAV 核对标记与作品归属一起到达、反向取消隐私和普通智能分类同步。197 当前被其他测试占用，真机认证、任务预览和双真机未验。",
-      "kind": "checkpoint"
-    },
-    {
-      "id": "library-private-categories-approved-20261120",
-      "itemId": "LIBRARY_PRIVATE_CATEGORIES",
-      "at": "2026-11-20T11:50:12+08:00",
-      "title": "#335 开始实施书架隐私分类",
-      "detail": "用户批准从现有分类管理进入，隐私随书架同步；沿用 NextE 系统认证和后台起算的锁定方式。",
       "kind": "checkpoint"
     },
     {
@@ -12579,6 +12644,14 @@
         ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-reading-validate-open-108-20261120T115124543126/wide-audit/image-release-audit.json",
         ".hvigor/outputs/continuous-short-images-20261119/device237__VDE-AL00/unfolded/portrait-1320x2120/continuous-short-images/motion-reading-validate-install-20261120T114909152847/run-metadata.json"
       ]
+    },
+    {
+      "id": "library-private-categories-approved-20261120",
+      "itemId": "LIBRARY_PRIVATE_CATEGORIES",
+      "at": "2026-11-20T11:50:12+08:00",
+      "title": "#335 开始实施书架隐私分类",
+      "detail": "用户批准从现有分类管理进入，隐私随书架同步；沿用 NextE 系统认证和后台起算的锁定方式。",
+      "kind": "checkpoint"
     },
     {
       "id": "continuous-237-worker-read-ci-20261120",
@@ -12865,6 +12938,47 @@
       ]
     },
     {
+      "id": "migration-search-6443f530-197-20261119",
+      "at": "2026-11-19T21:32:46+08:00",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "title": "197 复验已提交的批量迁移搜索转场",
+      "detail": "提交 6443f530 的 1.5.5 签名包已覆盖安装。书架多选两作进入批量迁移，连续录像确认搜索滑入、系统返回滑出、点选后退栈回填，另一行保持原结果。包子漫画验证半模态显示时，第一次返回先关闭半模态。复验未执行迁移，已恢复书架、休眠和原超时并释租。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/6443-01-install/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/6443-04-navigation-video/koma_migration_6443f530_197.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/6443-08-system-back-video/koma_migration_6443f530_197_back.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/6443-05-selected-review/review-selected.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/6443-09-restore-device/run-metadata.json"
+      ]
+    },
+    {
+      "id": "migration-search-real-route-20261119",
+      "at": "2026-11-19T21:21:21+08:00",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "title": "批量迁移手动搜索恢复为独立目的页",
+      "detail": "197 上从书架多选两部作品进入迁移。连续录像确认搜索推入、系统返回及点选结果的退场。选中的真实结果回填原行，第二行保留。测试未执行复制或迁移。已回到原书架，恢复原电源设置并释租。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/08-search-roundtrip/koma_migration_search_roundtrip_20261119.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/10-search-system-back/koma_migration_search_system_back_20261119.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/12-result-selection/koma_migration_result_selection_20261119.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/13-selected-review/review-selected.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/14-restore-device/run-metadata.json"
+      ]
+    },
+    {
+      "id": "app-navigation-in-place-audit-20261119",
+      "at": "2026-11-19T21:21:21+08:00",
+      "itemId": "APP_NAVIGATION_IN_PLACE_FOLLOWUPS",
+      "title": "核对 App 主导航、设置半模态和页面内部层级",
+      "detail": "迁移、Kavita、OPDS 和 WebDAV 私库确认仍有独立层级在同一条路由内切换。另外记录书源浏览页内搜索、Komga 内嵌书卷区及本地备份行内改名。报告给出每处具体入口与实现。",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/app-navigation-audit.md"
+      ]
+    },
+    {
       "id": "continuous-short-images-237-20261119",
       "at": "2026-11-19T20:50:56+08:00",
       "itemId": "CONTINUOUS_PERFORMANCE",
@@ -12884,21 +12998,6 @@
       "title": "短图首次进入视口的卡顿仍待解决",
       "detail": "用户反馈普通阅读同时加载多张短图时卡顿，预热后较轻。现有预载准备文件和尺寸，正文解码窗口主要只多一张相邻页；新图回执仍各自发布整段快照。超分有单任务队列，交互保护按手指离开后的定时器恢复，未接原生 List 的惯性停稳事件。本次为源码定位，旧样本达标仅代表其具名范围。此时间为登记时间。",
       "kind": "checkpoint"
-    },
-    {
-      "id": "migration-search-real-route-20261119",
-      "at": "2026-11-19T21:21:21+08:00",
-      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
-      "title": "批量迁移手动搜索恢复为独立目的页",
-      "detail": "197 上从书架多选两部作品进入迁移。连续录像确认搜索推入、系统返回及点选结果的退场。选中的真实结果回填原行，第二行保留。测试未执行复制或迁移。已回到原书架，恢复原电源设置并释租。",
-      "kind": "checkpoint",
-      "evidence": [
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/08-search-roundtrip/koma_migration_search_roundtrip_20261119.mp4",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/10-search-system-back/koma_migration_search_system_back_20261119.mp4",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/12-result-selection/koma_migration_result_selection_20261119.mp4",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/13-selected-review/review-selected.json",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/migration-nav-20261119/14-restore-device/run-metadata.json"
-      ]
     },
     {
       "id": "release-155-github-20261119",
@@ -13059,6 +13158,15 @@
       "detail": "按 Mihon v0.21.3 源码核对写入边界，按 Koma 书源 ID 存储。签名调试包构建通过，设备偏好与备份归类核对通过。",
       "kind": "checkpoint",
       "evidence": ".hvigor/outputs/source-incognito/build.log"
+    },
+    {
+      "id": "mihon-backup-category-order-197-verified-20261118",
+      "at": "2026-11-18T12:52:43+08:00",
+      "itemId": "MIHON_BACKUP_CATEGORY_MEMBERSHIP",
+      "title": "#321 大备份分类修复通过 197 验证",
+      "detail": "恢复导入前快照后，使用 1.5.4（23）同代码签名调试包从 Koma 备份页导入，冷启动读回逐一核对 21 个分类和 1,064 部收藏，原分类归属保留。书架切换国漫、日漫并返回全部，封面和分类显示正常。保留导入结果，恢复息屏设置并释租。",
+      "kind": "verified",
+      "evidence": ".hvigor/outputs/mihon-category-restore/197-category-comparison.json"
     },
     {
       "id": "release-154-321-20261118",
@@ -27917,6 +28025,27 @@
         ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/40-anchored-fling-33-to-34/summary.json",
         ".hvigor/outputs/chapter-inertia-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/41-anchored-fling-readback/layout.json"
       ]
+    },
+    {
+      "id": "chapter-manual-201-passive-timing-20261120",
+      "at": "2026-11-20T21:44:33+08:00",
+      "itemId": "NEXT_CHAPTER_PREFETCH_REUSE",
+      "kind": "verification",
+      "title": "201 用户自行阅读时对照两次跨章请求和出帧",
+      "detail": "用户在 201 当前 Koma 1.5.6（25）复现两次跨章，日志保留旧版 Reader 预载签名。第一次包子页表用 2640 ms（页面 GET 1329 ms，图片 CDN HEAD 探测 1143 ms，均 200），下一章预载日志在页表返回后才出现。第二次页表 801 ms，首图文件在进入下一章约 257 ms 前就绪。实际跨章甩动 171 帧，间隔中位数 8.333 ms。页表回传时另有 211.781 ms 出帧间隔，与主线程匿名回调 204.205 ms 重叠，函数归属未确定。系统环形缓冲只保留后段，帧跟踪导出尾部也因本机空间不足截断，第一处只有完整书源日志，不能与第二处直接比较帧率。全程用户操作，保留原安装包和设备设置。",
+      "evidence": [
+        ".hvigor/outputs/reader-passive-201-20261120/device201__LMR-AL00/not-applicable/portrait-1276x2848/manual-reader-timing/manual-reading-20261120T213034/crossing-comparison.json",
+        ".hvigor/outputs/reader-passive-201-20261120/device201__LMR-AL00/not-applicable/portrait-1276x2848/manual-reader-timing/manual-reading-20261120T213034/trace-wall-clock.json",
+        ".hvigor/outputs/reader-passive-201-20261120/device201__LMR-AL00/not-applicable/portrait-1276x2848/manual-reader-timing/manual-reading-20261120T213034/trace-integrity.json"
+      ]
+    },
+    {
+      "id": "chapter-crossing-user-feedback-20261120",
+      "at": "2026-11-20T22:11:39+08:00",
+      "itemId": "NEXT_CHAPTER_PREFETCH_REUSE",
+      "kind": "progress",
+      "title": "用户反馈跨章问题缓解了很多",
+      "detail": "本轮用户反馈按改善记录。具体构建和复测范围未注明，沿用原具名验收和正式依赖同步记录；时间为本轮工作单登记时间。"
     },
     {
       "id": "source-sdk-interceptor-mycomic-237-20261120",
