@@ -2,7 +2,7 @@ import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { SyncGroup } from '../deviceSync/DeviceSyncFacts'
 import { SyncReadingWorkConflict } from '../deviceSync/DeviceSyncEngine'
 import { SyncReadingWorkProgress } from '../deviceSync/DeviceSyncData'
-import { DeviceSyncConnectionPage, DeviceSyncOverviewPage, DeviceSyncReviewPage, DeviceSyncReviewReason,
+import { DeviceSyncConnectionPage, DeviceSyncHuaweiCloudPage, DeviceSyncOverviewPage, DeviceSyncReviewPage, DeviceSyncReviewReason,
   DeviceSyncWebDavChrome, DeviceSyncWebDavPage } from './DeviceSyncPages'
 import { ImagePluginsPage } from './ImagePluginsPage'
 import { ImageRuleStore } from '../model/ImageRuleStore'
@@ -2844,6 +2844,11 @@ struct Index {
       this.presentSettingsDestination(RouteName.DEVICE_SYNC_WEBDAV, param, fromHome, param.chrome.scroller, stack)
       return
     }
+    if (pane === 'backup' && rowKey === 'device-sync-huawei') {
+      const param: DeviceSyncWebDavRouteParam = { chrome: new DeviceSyncWebDavChrome() }
+      this.presentSettingsDestination(RouteName.DEVICE_SYNC_HUAWEI, param, fromHome, param.chrome.scroller, stack)
+      return
+    }
     // Backup owns its configuration and task navigation; do not insert a
     // second settings directory whose entries all open the same home page.
     if (pane === 'backup') {
@@ -2913,6 +2918,11 @@ struct Index {
   private openDeviceSyncWebDav(stack: NavPathStack = this.appPathStack): void {
     const param: DeviceSyncWebDavRouteParam = { chrome: new DeviceSyncWebDavChrome() }
     stack.pushPath({ name: RouteName.DEVICE_SYNC_WEBDAV, param })
+  }
+
+  private openDeviceSyncHuaweiCloud(stack: NavPathStack): void {
+    const param: DeviceSyncWebDavRouteParam = { chrome: new DeviceSyncWebDavChrome() }
+    stack.pushPath({ name: RouteName.DEVICE_SYNC_HUAWEI, param })
   }
 
   private openDeviceSyncConnection(stack: NavPathStack = this.appPathStack): void {
@@ -4138,13 +4148,25 @@ struct Index {
       HdsNavDestination() {
         KomaModalContent({ useInset: inModal }) {
           DeviceSyncOverviewPage({ inModal: inModal, scroller: (param as DeviceSyncWebDavRouteParam).chrome.scroller,
-            onOpenWebDav: (): void => { this.openDeviceSyncWebDav(stack) } })
+            onOpenWebDav: (): void => { this.openDeviceSyncWebDav(stack) },
+            onOpenHuaweiCloud: (): void => { this.openDeviceSyncHuaweiCloud(stack) } })
         }
       }
       .backgroundColor(inModal ? Color.Transparent : undefined)
       .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
       .titleMode(this.settingsDestinationTitleMode(inModal))
       .titleBar(this.settingsDestinationTitleOptions(inModal, this.navDestTitleBarOpts(AppStrings.get('device_sync_title'))))
+      .bindToScrollable([(param as DeviceSyncWebDavRouteParam).chrome.scroller])
+    } else if (name === RouteName.DEVICE_SYNC_HUAWEI) {
+      HdsNavDestination() {
+        KomaModalContent({ useInset: inModal }) {
+          DeviceSyncHuaweiCloudPage({ inModal: inModal, scroller: (param as DeviceSyncWebDavRouteParam).chrome.scroller })
+        }
+      }
+      .backgroundColor(inModal ? Color.Transparent : undefined)
+      .translate({ x: inModal ? this.settingsModalOffset(name, param) : '0%' })
+      .titleMode(this.settingsDestinationTitleMode(inModal))
+      .titleBar(this.settingsDestinationTitleOptions(inModal, this.navDestTitleBarOpts(AppStrings.get('device_sync_cloud_title'))))
       .bindToScrollable([(param as DeviceSyncWebDavRouteParam).chrome.scroller])
     } else if (name === RouteName.DEVICE_SYNC_WEBDAV) {
       HdsNavDestination() {
@@ -4291,6 +4313,7 @@ struct Index {
     if (destination.name === RouteName.TRACKER_SETTINGS) return settingsPaneTitle('tracking')
     if (destination.name === RouteName.DEVICE_SYNC) return AppStrings.get('device_sync_title')
     if (destination.name === RouteName.DEVICE_SYNC_WEBDAV) return AppStrings.get('device_sync_webdav')
+    if (destination.name === RouteName.DEVICE_SYNC_HUAWEI) return AppStrings.get('device_sync_cloud_title')
     return settingsPaneTitle(this.settingsPaneFromParam(destination.param))
   }
 
@@ -4316,9 +4339,12 @@ struct Index {
           this.TrackerSettingsContent(destination.param as SettingsSearchRouteParam, destination.scroller, true)
         } else if (destination.name === RouteName.DEVICE_SYNC) {
           DeviceSyncOverviewPage({ inModal: true, scroller: destination.scroller,
-            onOpenWebDav: (): void => { this.openDeviceSyncWebDav(this.settingsModalStack) } })
+            onOpenWebDav: (): void => { this.openDeviceSyncWebDav(this.settingsModalStack) },
+            onOpenHuaweiCloud: (): void => { this.openDeviceSyncHuaweiCloud(this.settingsModalStack) } })
         } else if (destination.name === RouteName.DEVICE_SYNC_WEBDAV) {
           this.DeviceSyncWebDavContent(destination.param as DeviceSyncWebDavRouteParam, this.settingsModalStack, true)
+        } else if (destination.name === RouteName.DEVICE_SYNC_HUAWEI) {
+          DeviceSyncHuaweiCloudPage({ inModal: true, scroller: destination.scroller })
         } else {
           this.SettingsPaneContent(destination.param as SettingsPaneRouteParam, destination.scroller, true,
             this.settingsModalStack)

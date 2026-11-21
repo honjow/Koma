@@ -177,11 +177,13 @@ function runtimeFixture(extra = {}, globals = {}) {
   return compile('DeviceSyncRuntime', {
     '@kit.NetworkKit': {}, '@kit.ArkTS': {}, '@kit.BackgroundTasksKit': {},
     '../model/ReaderSessionStore': {}, '../model/SearchHistoryStore': {},
+    '../state/KomaDeviceVerificationIsolation': { komaCloudReadingVerificationWork: () => '' },
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceRuntimeAppRegistry': {},
     './DeviceSyncEngine': { SyncGroupError: class extends Error {}, syncRequiresExplicitReview: () => false },
     './DeviceSyncFacts': facts, './DeviceSyncOwners': {}, './DeviceSyncStorage': {},
     './DeviceSyncShardCache': { DeviceSyncShardCache: class {} },
     './DeviceSyncData': data, './DeviceSyncSignals': {},
+    './HuaweiCloudSync': { appHuaweiCloudSync: { changed() {}, onForeground() {}, setRestoring() {}, selectionChanged() {} } },
     '../sourceRuntime/SourceIndexMetadata': {},
     '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { exception() {} } },
     ...extra,

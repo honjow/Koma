@@ -213,13 +213,22 @@ function shelfLabel(comic: PersistedComic, source: string): SyncWorkLabel {
 export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   private readonly context: common.UIAbilityContext
   private readonly storage: DeviceSyncStorage
+  private readonly projectionName: string
+  private readonly journalName: string
+  private companion?: KomaDeviceSyncOwners
   private publisher?: (groups: SyncGroup[]) => void
   private snapshotLibraryRaw: string | undefined
   private snapshotLibrary: SyncParsedLibrary | undefined
 
-  constructor(context: common.UIAbilityContext, storage: DeviceSyncStorage) {
+  constructor(context: common.UIAbilityContext, storage: DeviceSyncStorage, cloud: boolean = false) {
     this.context = context
     this.storage = storage
+    this.projectionName = cloud ? 'huawei-sync-projection.v1.json' : SYNC_PROJECTION
+    this.journalName = cloud ? 'huawei-sync-local-commit.v1.json' : SYNC_JOURNAL
+  }
+
+  recoverAlongside(other: KomaDeviceSyncOwners): void {
+    this.companion = other
   }
 
   publishWith(publisher: (groups: SyncGroup[]) => void): void {
@@ -279,7 +288,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     }
   }
 
-  private projection(json: string | null | undefined = readFile(this.path(SYNC_PROJECTION))): SyncProjection {
+  private projection(json: string | null | undefined = readFile(this.path(this.projectionName))): SyncProjection {
     if (json === undefined || json === null) {
       return { categories: [], blockedShelf: [], readingProofs: [], acceptedQueries: [],
         receivedQueries: [], subscriptions: [] }
@@ -393,7 +402,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       // A restore can appear while the worker runs. Keep the explicit proof
       // path, including its comparison to the archived reading identities.
     }
-    const side = await readSnapshotFile(this.path(SYNC_PROJECTION))
+    const side = await readSnapshotFile(this.path(this.projectionName))
     const rawLibrary = await this.readOwnerSnapshot(LIBRARY_STORE_PERSISTENCE_FILE_NAME)
     const projection = this.projection(side ?? null)
     const parsed = await this.libraryForSnapshot(rawLibrary, group === 'shelf')
@@ -609,7 +618,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       ? readLiveLibrarySnapshot(this.context.filesDir) ?? null : undefined
     const reading = usesReaderDatabase(this.context.filesDir)
       ? readLiveReaderSnapshot(this.context.filesDir) ?? null : undefined
-    const prepared = await taskpool.execute(projectReadingSnapshot, this.context.filesDir, SYNC_PROJECTION,
+    const prepared = await taskpool.execute(projectReadingSnapshot, this.context.filesDir, this.projectionName,
       JSON.stringify(archive ?? null), factChunks, shelf, reading) as SyncProjectedReadingSnapshot
     guard?.()
     const values: SyncLocalValue[] = []
@@ -694,7 +703,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     if (group !== 'shelf') return []
     const rawLibrary = await this.readOwnerSnapshot(LIBRARY_STORE_PERSISTENCE_FILE_NAME)
     const library = (await this.libraryForSnapshot(rawLibrary, false)).library
-    const projection = this.projection(await readSnapshotFile(this.path(SYNC_PROJECTION)) ?? null)
+    const projection = this.projection(await readSnapshotFile(this.path(this.projectionName)) ?? null)
     const comics = new Map<string, PersistedComic>()
     for (const comic of library.comics) if (!comics.has(comic.id)) comics.set(comic.id, comic)
     const space = this.storage.load().active?.space
@@ -892,7 +901,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const readerRevision = reader.currentDeviceSyncRevision()
     try {
     await BackupRestoreActivity.runDeviceSyncCommit(async (): Promise<void> => {
-      const fileNames = [LIBRARY_STORE_PERSISTENCE_FILE_NAME, READER_PROGRESS_PERSISTENCE_FILE_NAME, SYNC_PROJECTION]
+      const fileNames = [LIBRARY_STORE_PERSISTENCE_FILE_NAME, READER_PROGRESS_PERSISTENCE_FILE_NAME, this.projectionName]
       const admittedFiles = await Promise.all(fileNames.map((name: string): Promise<string | undefined> =>
         this.readOwnerSnapshot(name)))
       for (const target of expected) {
@@ -955,7 +964,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         }
       }
       const nextProjection = JSON.stringify(projection)
-      if (originalProjection !== nextProjection) this.addImage(files, SYNC_PROJECTION, admittedFiles[2], nextProjection)
+      if (originalProjection !== nextProjection) this.addImage(files, this.projectionName, admittedFiles[2], nextProjection)
       const id = util.generateRandomUUID()
       if (files.length === 0 && nextPreferences === undefined && nextSearch === undefined && nextSubscriptions === undefined) {
         const receipt = await prepareCursor(id)
@@ -969,7 +978,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       }
       const journal: LocalJournal = { id, files, filesStarted: false, previousPreferences, nextPreferences, previousSearch, nextSearch,
         previousSubscriptions, nextSubscriptions }
-      writeAppTextFile(this.path(SYNC_JOURNAL), JSON.stringify(journal))
+      writeAppTextFile(this.path(this.journalName), JSON.stringify(journal))
       let receipt: SyncPreparedReceipt | undefined
       try {
         if (nextPreferences !== undefined) await new ReaderPreferencesStore(this.context).applyDeviceSyncPreferences(nextPreferences)
@@ -983,10 +992,10 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         // Keep the owner files and receipt publication in one synchronous turn.
         // A crash before the receipt replacement still rolls back via the journal.
         journal.filesStarted = true
-        writeAppTextFile(this.path(SYNC_JOURNAL), JSON.stringify(journal))
+        writeAppTextFile(this.path(this.journalName), JSON.stringify(journal))
         for (const image of files) this.writeOwnerFile(image.name, image.after)
         receipt.publish()
-        fs.unlinkSync(this.path(SYNC_JOURNAL))
+        fs.unlinkSync(this.path(this.journalName))
       } catch (error) {
         try {
           await this.recoverBeforeStartup()
@@ -1017,16 +1026,19 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   }
 
   async recoverPendingLocalRollback(): Promise<void> {
-    await BackupRestoreActivity.recoverDeviceSyncRollback((): Promise<void> => this.recoverBeforeStartup())
+    await BackupRestoreActivity.recoverDeviceSyncRollback(async (): Promise<void> => {
+      await this.recoverBeforeStartup()
+      await this.companion?.recoverBeforeStartup()
+    })
     if (BackupRestoreActivity.hasPendingRecovery()) throw new Error('sync_local_recovery_required')
   }
 
   async recoverBeforeStartup(): Promise<void> {
-    const raw = readFile(this.path(SYNC_JOURNAL))
+    const raw = readFile(this.path(this.journalName))
     if (raw === undefined) return
     const journal = JSON.parse(raw) as LocalJournal
     if (!Array.isArray(journal.files) || journal.files.some((image: SyncFileImage): boolean =>
-      ![LIBRARY_STORE_PERSISTENCE_FILE_NAME, READER_PROGRESS_PERSISTENCE_FILE_NAME, SYNC_PROJECTION].includes(image.name))) {
+      ![LIBRARY_STORE_PERSISTENCE_FILE_NAME, READER_PROGRESS_PERSISTENCE_FILE_NAME, this.projectionName].includes(image.name))) {
       throw new Error('sync_local_journal_invalid')
     }
     const committed = this.storage.load().localReceipt === journal.id
@@ -1035,7 +1047,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         this.writeOwnerFile(image.name, committed ? image.after : image.before)
       }
       journal.filesStarted = false
-      writeAppTextFile(this.path(SYNC_JOURNAL), JSON.stringify(journal))
+      writeAppTextFile(this.path(this.journalName), JSON.stringify(journal))
     }
     const prefs = committed ? journal.nextPreferences : journal.previousPreferences
     if (prefs !== undefined) await new ReaderPreferencesStore(this.context).applyDeviceSyncPreferences(prefs)
@@ -1043,7 +1055,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     if (search !== undefined) await new SearchHistoryStore(this.context).applyDeviceSyncEntries(search)
     const subscriptions = committed ? journal.nextSubscriptions : journal.previousSubscriptions
     if (subscriptions !== undefined) await new SourceIndexService(this.context).applyDeviceSyncSnapshot(subscriptions)
-    fs.unlinkSync(this.path(SYNC_JOURNAL))
+    fs.unlinkSync(this.path(this.journalName))
   }
 
   receivedReadingPosition(comicId: string, chapterId: string): boolean {

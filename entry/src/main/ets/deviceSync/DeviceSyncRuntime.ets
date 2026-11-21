@@ -8,6 +8,8 @@ import { appReaderSessionStore } from '../model/ReaderSessionStore'
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import { getInstalledSourcePackage } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { komaCloudReadingVerificationWork } from '../state/KomaDeviceVerificationIsolation'
+import { appHuaweiCloudSync } from './HuaweiCloudSync'
 import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncGroupError, SyncMergeChoice, SyncPreview,
   SyncReadingWorkConflict, SyncReadingWorkResult, syncRequiresExplicitReview } from './DeviceSyncEngine'
 import { DeviceSyncShardCache } from './DeviceSyncShardCache'
@@ -115,6 +117,7 @@ class DeviceSyncRuntime {
     const storage = new DeviceSyncStorage(context.filesDir)
     const owners = new KomaDeviceSyncOwners(context, storage)
     await owners.recoverBeforeStartup()
+    await appHuaweiCloudSync.startup(context, owners, (): SyncGroup[] => this.view.selected.slice())
     await afterRecovery?.()
     await owners.restoreKeptShelfDetails().catch((): void => {})
     this.owners = owners
@@ -148,6 +151,7 @@ class DeviceSyncRuntime {
   }
 
   onForeground(active: boolean): void {
+    appHuaweiCloudSync.onForeground(active)
     const wasForeground = this.foreground
     this.foreground = active
     if (!active) {
@@ -175,11 +179,13 @@ class DeviceSyncRuntime {
   }
 
   attachPublisher(publish: (groups: SyncGroup[]) => void): void {
-    this.owners?.publishWith((groups: SyncGroup[]): void => {
+    const publishGroups = (groups: SyncGroup[]): void => {
       this.view.revision++
       if (groups.includes('search-history')) this.view.searchHistoryRevision++
       publish(groups)
-    })
+    }
+    this.owners?.publishWith(publishGroups)
+    appHuaweiCloudSync.attachPublisher(publishGroups)
   }
 
   private reviewItemsDirty: boolean = false
@@ -421,6 +427,7 @@ class DeviceSyncRuntime {
     this.needed().setSelection(selected)
     this.cancelTimer()
     this.refresh()
+    appHuaweiCloudSync.selectionChanged()
     if (this.activeSync === undefined) this.schedule(0)
     else void this.waitForCurrentTransfer().then((): void => { this.schedule(0) })
   }
@@ -444,6 +451,7 @@ class DeviceSyncRuntime {
   }
 
   beginRestore(catalogMerge: boolean = false): void {
+    appHuaweiCloudSync.setRestoring(true)
     if (catalogMerge) {
       this.engine?.beginRestore(true)
       return
@@ -478,12 +486,14 @@ class DeviceSyncRuntime {
 
   finishRestore(committed: boolean, catalogMerge: boolean = false): void {
     this.engine?.finishRestore(committed)
+    appHuaweiCloudSync.setRestoring(false)
     // Refresh pending-item labels when the sync page next needs them.
     if (catalogMerge) this.reviewItemsDirty = true
     else this.refresh()
   }
 
   changed(group: SyncGroup): void {
+    appHuaweiCloudSync.changed(group)
     if (this.view.selected.includes(group)) {
       this.changeGeneration++
       this.schedule(group === 'reading' ? 1500 : 5000)
@@ -610,6 +620,9 @@ class DeviceSyncRuntime {
   }
 
   beginReadingChapter(request: SourceReaderSessionRequest): void {
+    // The cloud reading acceptance must prove transport without staging the same
+    // test progress for the user's existing WebDAV connection.
+    if (komaCloudReadingVerificationWork() !== '') return
     if (this.session?.comicId === request.comicId && this.session.chapter === request.chapterId &&
       this.session.scope === this.engine?.readingScope()) return
     this.retainBlockedReading()
@@ -828,6 +841,7 @@ class DeviceSyncRuntime {
   }
 
   private stageReaderActions(actions: SyncReadingSignal[]): SyncReadingActionCapture[] {
+    if (komaCloudReadingVerificationWork() !== '') return []
     const engine = this.engine
     const active = engine?.active()
     if (actions.length === 0 || engine === undefined || active === undefined || engine.readingScope() === '') return []

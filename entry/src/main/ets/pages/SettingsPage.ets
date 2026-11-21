@@ -1,4 +1,5 @@
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { appHuaweiCloudSync } from '../deviceSync/HuaweiCloudSync'
 import { connectIncognitoState, IncognitoState } from '../state/IncognitoState'
 import { IncognitoPreferences, IncognitoPreferencesStore } from '../model/IncognitoPreferencesStore'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
@@ -336,6 +337,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'backup-content', titleKey: 'backup_included_data', detailKey: 'backup_fixed_content_description' },
         { key: 'device-sync', titleKey: 'device_sync_title', detailKey: 'device_sync_entry_detail' },
         { key: 'device-sync-webdav', titleKey: 'device_sync_webdav', detailKey: 'device_sync_entry_detail' },
+        { key: 'device-sync-huawei', titleKey: 'device_sync_cloud_title', detailKey: 'device_sync_entry_detail' },
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
         { key: 'content-cache', titleKey: 'cache_content_title', detailKey: '' },
         { key: 'translation-cache', titleKey: 'cache_comic_translation', detailKey: '' },
@@ -980,6 +982,7 @@ export struct SettingsPage {
           titleKey: 'settings_section_backup',
           rows: this.rowsByKeys([
             'backup-create', 'backup-restore', 'backup-files', 'backup-automatic', 'backup-content', 'device-sync', 'device-sync-webdav',
+            ...(appHuaweiCloudSync.view.available ? ['device-sync-huawei'] : []),
           ]),
         },
       ]
@@ -1088,7 +1091,9 @@ export struct SettingsPage {
     // in search results creates noisy, contradictory-looking settings rows.
     // Keep the result's location so the row can be found, but never turn a
     // current value into an explanatory subtitle here.
-    if (result.row.key === 'device-sync-webdav') return this.paneTitle('backup') + ' · ' + this.t('device_sync_title')
+    if (result.row.key === 'device-sync-webdav' || result.row.key === 'device-sync-huawei') {
+      return this.paneTitle('backup') + ' · ' + this.t('device_sync_title')
+    }
     const pane = this.paneTitle(result.pane)
     const section = result.sectionTitle
     if (result.row.key === 'webdav' && section.length > 0 && section !== pane) return pane + ' · ' + section

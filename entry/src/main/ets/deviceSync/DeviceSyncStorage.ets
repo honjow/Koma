@@ -339,8 +339,8 @@ export class DeviceSyncStorage {
   private backgroundWrite: Promise<void> = Promise.resolve()
   private receiptPreparing = false
 
-  constructor(filesDir: string) {
-    this.path = filesDir + '/device-sync-state.v1.json'
+  constructor(filesDir: string, cloud: boolean = false) {
+    this.path = filesDir + (cloud ? '/huawei-sync-state.v1.json' : '/device-sync-state.v1.json')
   }
 
   load(): SyncLocalDocument {

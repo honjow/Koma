@@ -103,6 +103,26 @@ jobs:
       - name: Install OHPM dependencies
         run: ohpm install --all
 
+      - name: Disable Huawei Cloud sync for public builds
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          for path, enabled, disabled in (
+              ("entry/src/main/ets/deviceSync/HuaweiCloudSyncBuildFlag.ets",
+               "HUAWEI_CLOUD_SYNC_BUILD_ENABLED: boolean = true",
+               "HUAWEI_CLOUD_SYNC_BUILD_ENABLED: boolean = false"),
+              ("AppScope/app.json5",
+               '"cloudStructuredDataSyncEnabled": true',
+               '"cloudStructuredDataSyncEnabled": false'),
+          ):
+              file = Path(path)
+              source = file.read_text(encoding="utf-8")
+              if source.count(enabled) != 1:
+                  raise SystemExit(f"Expected exactly one enabled Huawei Cloud flag in {path}")
+              file.write_text(source.replace(enabled, disabled), encoding="utf-8")
+          PY
+
       - name: Build unsigned HAP (release)
         run: hvigorw assembleHap --mode module -p product=default -p buildMode=release --no-daemon
 
@@ -126,6 +146,8 @@ jobs:
                   raise SystemExit("Unexpected HAP bundle name")
               if app.get("buildMode") != "release" or app.get("debug") is not False:
                   raise SystemExit("Expected a non-debug Release HAP")
+              if app.get("cloudStructuredDataSyncEnabled") is True:
+                  raise SystemExit("Public HAP must disable Huawei Cloud sync")
               required = {
                   "libs/arm64-v8a/libkoma_source_runtime.so",
                   "libs/arm64-v8a/libc++_shared.so",

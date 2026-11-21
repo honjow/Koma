@@ -269,7 +269,7 @@ export function syncRequiresExplicitReview(value: SyncSavedConnection | undefine
     !value.groups.some((row: SyncGroupState): boolean => (row.deferred?.length ?? 0) > 0)
 }
 
-function applyReceiptBaselines(groups: SyncGroupState[], applies: SyncApplyGroup[]): SyncGroupState[] {
+export function applyReceiptBaselines(groups: SyncGroupState[], applies: SyncApplyGroup[]): SyncGroupState[] {
   return groups.map((group: SyncGroupState): SyncGroupState => {
     const changes = applies.find((value: SyncApplyGroup): boolean => value.group === group.id)?.changes
     if (changes === undefined || changes.length === 0) return group

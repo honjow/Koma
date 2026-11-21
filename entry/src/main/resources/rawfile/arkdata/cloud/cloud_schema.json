@@ -1,0 +1,127 @@
+{
+  "metaVersion": 65537,
+  "version": 5,
+  "bundleName": "com.honjow.koma",
+  "e2eeEnable": false,
+  "databases": [
+    {
+      "name": "koma_user_data",
+      "alias": "koma_user_data",
+      "bundleName": "com.honjow.koma",
+      "version": 5,
+      "autoSyncType": 0,
+      "tables": [
+        {
+          "name": "cloud_sync_shelf",
+          "alias": "CloudSyncShelf",
+          "fields": [
+            {
+              "colName": "record_id",
+              "alias": "record_id",
+              "type": 3,
+              "primary": true,
+              "nullable": true,
+              "dupCheckCol": true
+            },
+            {
+              "colName": "payload",
+              "alias": "payload",
+              "type": 3,
+              "primary": false,
+              "nullable": true,
+              "dupCheckCol": false
+            }
+          ]
+        },
+        {
+          "name": "cloud_sync_reading",
+          "alias": "CloudSyncReading",
+          "fields": [
+            {
+              "colName": "record_id",
+              "alias": "record_id",
+              "type": 3,
+              "primary": true,
+              "nullable": true,
+              "dupCheckCol": true
+            },
+            {
+              "colName": "payload",
+              "alias": "payload",
+              "type": 3,
+              "primary": false,
+              "nullable": true,
+              "dupCheckCol": false
+            }
+          ]
+        },
+        {
+          "name": "cloud_sync_reader_settings",
+          "alias": "CloudSyncReaderSettings",
+          "fields": [
+            {
+              "colName": "record_id",
+              "alias": "record_id",
+              "type": 3,
+              "primary": true,
+              "nullable": true,
+              "dupCheckCol": true
+            },
+            {
+              "colName": "payload",
+              "alias": "payload",
+              "type": 3,
+              "primary": false,
+              "nullable": true,
+              "dupCheckCol": false
+            }
+          ]
+        },
+        {
+          "name": "cloud_sync_source_subscriptions",
+          "alias": "CloudSyncSourceSubscriptions",
+          "fields": [
+            {
+              "colName": "record_id",
+              "alias": "record_id",
+              "type": 3,
+              "primary": true,
+              "nullable": true,
+              "dupCheckCol": true
+            },
+            {
+              "colName": "payload",
+              "alias": "payload",
+              "type": 3,
+              "primary": false,
+              "nullable": true,
+              "dupCheckCol": false
+            }
+          ]
+        },
+        {
+          "name": "cloud_sync_search_history",
+          "alias": "CloudSyncSearchHistory",
+          "fields": [
+            {
+              "colName": "record_id",
+              "alias": "record_id",
+              "type": 3,
+              "primary": true,
+              "nullable": true,
+              "dupCheckCol": true
+            },
+            {
+              "colName": "payload",
+              "alias": "payload",
+              "type": 3,
+              "primary": false,
+              "nullable": true,
+              "dupCheckCol": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
