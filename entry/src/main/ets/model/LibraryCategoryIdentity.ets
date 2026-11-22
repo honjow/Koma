@@ -128,6 +128,10 @@ function rewriteCategoryReferences(store: relationalStore.RdbStore, oldId: strin
 /** Runs inside the existing shelf write transaction. Only category rows and their references change. */
 export function reconcileShelfCategoryIds(store: relationalStore.RdbStore, migrateLegacy: boolean): ShelfCategoryIdentityChanges {
   const aliases = readShelfCategoryAliases(store)
+  // A cloud membership can arrive after its category. Read committed aliases
+  // with references before writing new IDs. ArkData's synchronous read did not
+  // see the first transaction's new aliases on device, leaving orphaned memberships.
+  const references = aliases.size > 0 ? categoryAliasesWithReferences(store) : new Map<string, string>()
   const rows = shelfCategories.read(store)
   const canonicalRows = new Map<string, PersistedLibraryCategory>()
   for (const row of rows) {
@@ -172,16 +176,16 @@ export function reconcileShelfCategoryIds(store: relationalStore.RdbStore, migra
       }
       store.executeSync('UPDATE ' + ALIASES + ' SET category_id = ? WHERE category_id = ?', [id, oldId])
       store.executeSync('INSERT OR REPLACE INTO ' + ALIASES + ' (old_id, category_id) VALUES (?, ?)', [oldId, id])
+      references.forEach((target: string, source: string): void => {
+        if (target === oldId) references.set(source, id)
+      })
+      references.set(oldId, id)
       shelfCategories.remove(store, [oldId])
       result.categoryIdsChanged = true
     }
   }
-  // A cloud membership may arrive in a later committed batch than its category.
-  // Keep the migration key available for those rows and for the existing WebDAV projection.
-  if (result.categoryIdsChanged || aliases.size > 0) {
-    for (const alias of categoryAliasesWithReferences(store)) {
-      rewriteCategoryReferences(store, alias[0], alias[1], result.comicIds)
-    }
+  for (const alias of references) {
+    rewriteCategoryReferences(store, alias[0], alias[1], result.comicIds)
   }
   return result
 }

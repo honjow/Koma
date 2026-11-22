@@ -12610,6 +12610,17 @@
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
     {
+      "id": "published-v156-large-upgrade-197-20261122",
+      "at": "2026-11-22T20:16:47+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "title": "197 从公开 v1.5.6 恢复大备份并覆盖升级",
+      "detail": "同签公开版先经正常文件入口恢复原 Mihon 大备份。首轮覆盖后 1,064 条归类仍指向旧 ID。修复后原地覆盖能自动接回归类，再让公开版用同一旧文件启动并重新覆盖，首次迁移和第二次冷启动逐项一致。保留 1,064 部收藏、21 个分类、1,064 条归类、39,866 条书架章节、1,766 个续读位置、28,692 条章节状态及 62,209 条 Mihon 原始章节。真机国漫和历史首屏读回，通过 SQLite 完整性及外键校验。首次迁移约 18 秒，冷启未重跑，保留新包及恢复数据。华为云关闭，WebDAV 无活动连接，197 已恢复息屏并释租。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/local-data-governance/device197__ALN-AL80/not-applicable/portrait-1260x2720/published-v156-large-upgrade/verification.json"
+      ]
+    },
+    {
       "id": "sync-status-shared-layout-201-20261122",
       "at": "2026-11-22T13:28:00+08:00",
       "itemId": "WEBDAV_READING_PENDING_STATUS",
@@ -12618,7 +12629,6 @@
       "kind": "verification"
     },
     {
-    {
       "id": "smart-category-sync-deletion-20261122",
       "at": "2026-11-22T13:25:00+08:00",
       "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
@@ -12626,6 +12636,7 @@
       "detail": "201 旧库同一「哔哩」规则有时间戳 ID 和 WebDAV UUID。应用迁移复用同一 UUID，保留书源规则、关联手动分类和本机展示设置。华为云先写分类再写规则，WebDAV 现在保留规则暂缺分类的上次完整数据，只有分类行确实已删才传删除。两个同步实例回放验证暂缺和真实删除。公开 v1.5.6 不含华为云实表路径，旧 JSON 样本迁移、关掉旧文件后重开均保留 69 本、9122 章、6 个手动分类、1 个智能分类和 247 个续读点。201 已确认此前「哔哩」为误删，仍保留原规则证据，未用新 ID 重建。用户主动取消收藏的测试漫画不计入误删。",
       "kind": "checkpoint"
     },
+    {
       "id": "webdav-201-duplicate-category-order-20261122",
       "at": "2026-11-22T12:23:00+08:00",
       "itemId": "WEBDAV_READING_PENDING_STATUS",

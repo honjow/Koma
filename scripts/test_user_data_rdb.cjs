@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
+const os = require('node:os')
 const path = require('node:path')
 const test = require('node:test')
 const { createHash } = require('node:crypto')
@@ -7,8 +8,7 @@ const { createRdbPort } = require('./user_data_rdb_fixture.cjs')
 const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
   '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 
-function fixture(preferences = new Map(), runtimeImports = new Map()) {
-  const rdb = createRdbPort()
+function fixture(preferences = new Map(), runtimeImports = new Map(), rdb = createRdbPort()) {
   const modules = new Map()
   function load(name) {
     if (modules.has(name)) return modules.get(name)
@@ -45,6 +45,44 @@ function fixture(preferences = new Map(), runtimeImports = new Map()) {
 }
 
 const plain = value => JSON.parse(JSON.stringify(value))
+
+test('the first category migration keeps memberships when reads see only committed aliases', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-category-upgrade-'))
+  const rdb = createRdbPort(path.join(directory, 'Koma.db'))
+  const env = fixture(new Map(), new Map([
+    ['@kit.ArkTS', { util: { TextEncoder: class { encodeInto(value) { return Buffer.from(value) } } } }],
+    ['@kit.CryptoArchitectureKit', { cryptoFramework: { createMd() {
+      const hash = createHash('sha256')
+      return { updateSync: ({ data }) => hash.update(data), digestSync: () => ({ data: hash.digest() }) }
+    } } }],
+  ]), rdb)
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
+    const store = await openUserDataDatabase({ filesDir: directory })
+    const committed = await rdb.relationalStore.getRdbStore({ filesDir: directory + '/read' }, { name: 'Koma.db' })
+    const library = new LibraryRdbStorage({ ...store, querySqlSync: committed.querySqlSync })
+    const categoryId = 'custom_1795348835811_1'
+    const workId = 'com.rumanhua.koma:/work/'
+    await library.migrate({
+      schemaVersion: 1,
+      customCategories: [{ id: categoryId, name: '国漫', sortOrder: 0, createdAt: 1, updatedAt: 1 }],
+      comics: [{ id: workId, title: 'Work', sourceKind: 'private_library', sourceRuntimeId: 'com.rumanhua.koma',
+        remoteResourceId: '/work/', categoryIds: [categoryId], chapters: [] }],
+    })
+
+    library.migrateCategoryIds()
+    const after = library.read()
+    assert.equal(after.customCategories.length, 1)
+    assert.notEqual(after.customCategories[0].id, categoryId)
+    assert.deepEqual(after.comics[0].categoryIds, [after.customCategories[0].id])
+    library.migrateCategoryIds()
+    assert.deepEqual(library.read(), after)
+  } finally {
+    env.close()
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
 
 test('a synced removal refreshes only the affected work when its membership row is already gone', async () => {
   const env = fixture()
