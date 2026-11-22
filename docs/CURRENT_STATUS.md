@@ -12625,20 +12625,20 @@
       "id": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "number": 343,
       "title": "全部已发布书源的章节方向与连续阅读核对",
-      "status": "119源持续核对；17个修复与漫画1234维护版已发布",
+      "status": "119源持续核对；22个修复与漫画1234维护版已发布",
       "kind": "open",
       "priority": "P1",
       "owner": "本会话统筹；Aristotle 237普通宿主复核，Galileo五源章序修复，Boole NoyAcg，Volta优酷与Zero",
       "dependencies": [
         "CHAPTER_SORT_MENU"
       ],
-      "result": "冻结正式索引119源已逐源读码并尝试真实请求。按作品ID去重取得438份非空完整目录、45161章，覆盖99源，其中77源至少5份。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。",
-      "remaining": "MangaDex三语及NamiComi简繁共五源的缺号/问号章节续章修复实施中，正在补真实跨页目录与App消费复核。优酷0.1.8候选已恢复详情、完整分组目录及免费章节能力，待核请求头和237实际阅读后发布。NoyAcg图片数量误作章号与目录截断、Zero旧模板完整性继续核查。原20源中9项CLI能力差异交237普通App路径复核，真实HTTP拒绝、TLS及登录分别保留；CManhua当前官网IIS默认页和Browse真实404已核，不归因CF。",
+      "result": "冻结正式索引119源已逐源读码并尝试真实请求。按作品ID去重取得438份非空完整目录、45161章，覆盖99源，其中77源至少5份。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。 MangaDex英文0.1.29、简繁0.1.16及NamiComi简繁0.1.9已由fcf7d22公开，CI45059665307成功；25份真实完整目录653章含175条两页目录完成候选验证。最终公开五包索引、清单及实际WASM版本一致，代表187章整份响应与精确候选在同原件下相等。",
+      "remaining": "237原宿主复核继续，已确认哔哩一部203章可读及实际向下一章，拷贝当次API521；不以CLI能力限制当App故障。优酷候选原生列表、搜索、详情与7章目录可用，但实际开始阅读选到末章，移动目录方向需抓原件修正，尚未发布。东立发现真实免费SP及前后篇三条误隔离，SP11页成功，正做源侧修复。Zero旧分支容量/重复ID候选及现站五部回归、Noy字段/当前API差异继续处理。App半模态正向统一另在#103，未冒设备验收通过。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
-        "完成MangaDex三语和NamiComi简繁的真实跨页、无号邻章及版本边界验证，验证完整后发布。",
-        "优酷候选核对上游图片请求与实际237列表、详情、目录和免费阅读；继续NoyAcg与Zero具体目录疑点。",
-        "237逐源复核原20个CLI受限项，记录实际宿主、认证与站点条件；不把列表成功当完整阅读验收。"
+        "修复优酷移动目录真实反向，完成237完整阅读后发布。",
+        "完成东立免费无号章、Zero旧分支完整性、Noy字段及现API差异核对，验证完整的源直接发布。",
+        "237继续原20项受限源和可用源补样；每项分清完整元数据、普通UI、实际页图和外部认证/站点条件。"
       ],
       "boundaries": [
         "不靠补章节编号替代真实目录顺序。",
@@ -12658,9 +12658,13 @@
         ".hvigor/outputs/published-source-order-audit-20261123/native-host-audit-plan.json",
         ".hvigor/outputs/published-source-order-audit-20261123/coordinate-fix-progress.md",
         ".hvigor/outputs/published-source-order-audit-20261123/youku-investigation/candidate-ready.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/cmanhua-access-review/conclusion.json"
+        ".hvigor/outputs/published-source-order-audit-20261123/cmanhua-access-review/conclusion.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/coordinate-publication-commit.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/coordinate-fix-final.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/final-publication/sources-fcf7d22e0442f8b029ecbb003b09eda56616c21f-verification.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/tongli-audit-final.json"
       ],
-      "updatedAt": "2026-11-23T03:00:40+08:00"
+      "updatedAt": "2026-11-23T03:25:20+08:00"
     }
   ],
   "source": {
@@ -29690,6 +29694,19 @@
       "kind": "progress",
       "title": "统一阅读器选章为所选依据的正向目录",
       "detail": "用户先确认固定正向，再重申排序依据必须联动。原半模态只读原数组，现共用ReaderChapterSequence中的完整目录正向投影，三入口（书库续读、未入库直读、后台目录恢复）均接入。保全部真实版本、权限和无编号条目，不用当前有限续章链代替完整列表；计数和邻章原规则保持。16项实际逻辑检查通过，设备未验不写通过。"
+    },
+    {
+      "id": "source-coordinate-five-published-20261123",
+      "at": "2026-11-23T03:25:20+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "kind": "progress",
+      "title": "五个坐标源修复已公开，继续优酷与东立真实反例",
+      "detail": "fcf7d22只公开16个源文件及五版本锁行，未混入旧SDK框架、素材和其它源；本地保护2b71e7ff，源仓已合回。公开五包187章同原件整份响应与精确候选相等，字节不同未扩为全程序等价。优酷已本地保护1d6155b5，237新见开始阅读选末章，未发候选；东立3条真实免费无号章误隔离已派修。其余原队列和设备恢复义务保留。",
+      "evidence": [
+        ".hvigor/outputs/published-source-order-audit-20261123/coordinate-publication-commit.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/coordinate-fix-final.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/progress.json"
+      ]
     }
   ],
   "reportAgeAudit": {
