@@ -12644,13 +12644,14 @@
         "CHAPTER_SORT_MENU"
       ],
       "result": "冻结正式索引119源已逐源读码并尝试真实请求。合并既有最终报告并按源ID与真实请求作品ID去重，取得490份非空完整目录、56332章，覆盖105源，其中91源至少5份。其中TIPO五份首次来自候选回放；该版现已公开且237普通路径已验。原件来源、独立联网与普通UI分开，不混计或将复测重复加数。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。 MangaDex英文0.1.29、简繁0.1.16及NamiComi简繁0.1.9已由fcf7d22公开，CI45059665307成功；25份真实完整目录653章含175条两页目录完成候选验证。最终公开五包索引、清单及实际WASM版本一致，代表187章整份响应与精确候选在同原件下相等。 Zero0.1.12（bcbd88f、CI45060983479）及东立0.1.13（9e4d6e9、CI45062292943）已公开。Zero现站5部97章、两章348页表保持，最终公开代表17章与候选同原件整份响应相等；旧站EOF未恢复。东立8部37章及真实SP11页验证，无号章恢复邻章并保留相邻明确缺话/权限断点；最终公开目录与精确候选分别联网Data一致、SP11页成功，不称同原件回放。 哔咔用户新登录后，237取得五部普通UI完整目录计数8/2/70/3/2，首作实图及菜单双向邻章通过；临时无痕恢复false，新认证保留。未导出原始完整ID和权限元数据，未混入前述原件数量。 漫画人237五部普通UI目录与无号番外代表实图、明确双向邻章已验；不等同导出全部原始ID。优酷公共桥接修复本地cb84a4e7，最终016候选与d89源在237普通起读为序章1/8、章1/7，明确下一章第1话1/13、章2/7，再返回序章8/8；三终态实图已亲审。 智慧财产局0.1.4已由9dabb80公开，CI45073610143成功；237普通16篇及分页终点、五个独立单章、代表实际原图与禁跨作品通过。正式119源身份集合保持，索引及实际WASM版本正确，七项完整响应与已验候选在同官方原件相等。最低App仍0.1.1，无新宿主依赖。NamiComi简中按正式0.1.9正常热门、最新、可读查询与真实API meta均total2终态，没有可新增三部的真实ID，不称全站永久有限。",
-      "remaining": "优酷移动章序与公共桥接最终候选已在237验过Cat正常搜索、7章刷新、序章实图及明确上下章；其余四部移动目录继续抽查，App与源最低版本等待选择，未发布。包子确认旧作品地址跳转后主目录归属未识别，导致部分章节无邻章，源侧候选在修。智慧财产局已验已发；包子目录及旧地址长章候选已独立仓保护65915e8c，237当前验证五作与两部195/182页长章。Noy完整v4候选已保护，待原站有效登录验证真实目录、正文及旧新ID映射。創漫原生目录请求明确在官网root连接15秒超时，reader/XML未到，正式源已恢复，继续查该层差异。其余原20项受限源按原队列补验。",
+      "remaining": "优酷移动章序与公共桥接最终候选已在237验过Cat正常搜索、7章刷新、序章实图及明确上下章；其余四部移动目录继续抽查，App与源最低版本等待选择，未发布。包子确认旧作品地址跳转后主目录归属未识别，导致部分章节无邻章，源侧候选在修。智慧财产局已验已发；包子目录及旧地址长章候选已独立仓保护65915e8c，237当前验证五作与两部195/182页长章。Noy完整v4候选已保护，待原站有效登录验证真实目录、正文及旧新ID映射。創漫root超时的同源Firefox兼容传输候选0.1.4已保护3c97f811，保留原三段请求、15秒与全部身份校验，等待237确认实际命中及目录/正文；不是已修复。其余原20项受限源按原队列补验。 公共SDK漏写明确ManualOnly标记已修并保护7de283c5，真实SDK输出经App现有解析及邻章函数核实；调用方与发布范围仍在核，不混入既有已验源包。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
         "继续优酷其余四部移动目录抽查；按确认的App最低版本发布已验源，App不推送发布。",
         "完成包子旧地址章序、两部195/182页长章与五作当前237验证，通过即发布；不把旧镜像解析兼容当当前WWW实测。",
         "Noy有效登录后验证v4目录、普通/单章正文与历史业务ID；候选已保护，不冒通过。",
-        "继续創漫root超时差异定位和原20源补验；设备范围结束独立恢复释租，保留用户新认证。"
+        "继续創漫root超时差异定位和原20源补验；设备范围结束独立恢复释租，保留用户新认证。",
+        "核完公共SDK显式ManualOnly调用方的实际影响与兼容发布范围；当前修复已保护，不需改App代码或新增ABI。"
       ],
       "boundaries": [
         "不靠补章节编号替代真实目录顺序。",
@@ -12698,9 +12699,13 @@
         ".hvigor/outputs/published-source-order-audit-20261123/final-publication/sources-9dabb80fe5bbdfa42f57e1c5f933ad3d3dbd9cb3-verification.json",
         ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/tipo014-final-validation.json",
         ".hvigor/outputs/published-source-order-audit-20261123/baozi-order-followup/local-protection.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/finite-source-sampling/namicomi-hans-followup/report.md"
+        ".hvigor/outputs/published-source-order-audit-20261123/finite-source-sampling/namicomi-hans-followup/report.md",
+        ".hvigor/outputs/published-source-order-audit-20261123/weicomic-followup/a-candidate-local-protection.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/weicomic-followup/a-candidate-freeze.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/sdk-manual-placement-review/local-protection.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/sdk-manual-placement-review/sdk-to-app-contract.json"
       ],
-      "updatedAt": "2026-11-23T05:49:33+08:00"
+      "updatedAt": "2026-11-23T06:23:38+08:00"
     },
     {
       "id": "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY",
@@ -29859,6 +29864,12 @@
       "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "title": "智慧财产局修复正式发布；包子已保护继续237",
       "detail": "TIPO0.1.4普通Native五单章、16篇分页终点及首作真实图通过后，独立原仓仅4文件发布9dabb80，CI45073610143成功。正式索引119源身份保持，下载包/实际WASM版本正确，七项完整响应与候选同原件相等；公开WASM二进制不同，不冒通用等价。最低App0.1.1，不依赖本轮App修复。包子65915e8c仅三源码+锁保护，final f476/966a1d交237；其余源和用户Pica新认证保留。Nami简中当前正常列表total2已取终态，无新增真实作品，未重复加数。"
+    },
+    {
+      "at": "2026-11-23T06:23:38+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "title": "創漫已有源侧传输候选；SDK明确排除标记已保护",
+      "detail": "創漫0.1.4仅选择既有精确同源firefox133，原root→reader→XML、头/15秒/身份/30页与业务ID保持；最低App1.4.0历史已核，本地3c97f811，未冒Native或发布。SDK ManualOnly在协商章序时省略false，使全手动目录误入legacy推序；7de283c5仅该分支修正，single/ordered/variant/无feature输出保持，现有SDK测试及实施后真实SDK JSON→当前App邻章函数证明现代排除和旧兼容。未新增App能力，调用方范围仍在核，不夹带既有源包发布。包子继续237第二别名及剩余目录，第一作已验范围封存，Pica认证保留。"
     }
   ],
   "reportAgeAudit": {

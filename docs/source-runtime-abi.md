@@ -153,7 +153,7 @@ JSON POST 使用 HTTP 信封的 `body` 字段传入已经序列化的正文字�
 安全诊断。书源自己发出的 API 请求仍由书源解释业务失败，可直接返回结构化错误。
 未声明此能力的宿主按既有行为加载，源可为新增业务错误提供旧宿主认识的降级原因。
 
-章节可选 `readingOrder` 表示同一阅读序列中的位置，独立于展示用 `chapterNumber`／`volumeNumber`。源提供有限、非负的 `readingOrder` 时优先使用该值，并保留 `readingGroup`／`continuationEligible` 分组许可。同组显式阅读位置重复须由源区分，或按源声明的替代版本处理。未提供阅读位置的旧目录按[原源目录兼容规则](#网页会话与章序)处理。依赖此字段的源仅在 `hostFeatures` 含 `chapter_reading_order_v1` 时输出对应续读合同，旧宿主保留原章节输出。宿主的详情快照、入库、目录更新、持久化和 Reader 会话使用同一字段。
+章节可选 `readingOrder` 表示同一阅读序列中的位置，独立于展示用 `chapterNumber`／`volumeNumber`。源提供有限、非负的 `readingOrder` 时优先使用该值，并保留 `readingGroup`／`continuationEligible` 分组许可。同组显式阅读位置重复须由源区分，或按源声明的替代版本处理。未提供阅读位置的旧目录按[原源目录兼容规则](#网页会话与章序)处理。依赖此字段的源仅在 `hostFeatures` 含 `chapter_reading_order_v1` 时输出对应续读合同，旧宿主保留原章节输出。协商后明确的 `ManualOnly` 必须输出 `continuationEligible:false`，不能省略后混入旧目录推序；普通单章和未协商的旧输出保持原合同。宿主的详情快照、入库、目录更新、持久化和 Reader 会话使用同一字段。
 
 `chapter_reading_variants_v1` 支持源以 `readingVariantGroup` 声明同一话的多个可读版本。每组必须使用同一阅读序列和显式 `readingOrder`，且组名在该序列中只对应一个位置。可选 `readingVariantSequence` 指定可跨译本续读的序列，此时 `readingGroup` 继续标识原译本组，阅读器优先选同组。缺省时，序列仍由 `readingGroup` 标识，阅读器在替代版本中优先匹配 `scanlator`。自动前后章和预载保留当前手选版本，其他位置无同组时按稳定章节 ID 选取。所有版本保有独立章节 ID、阅读记录和手动入口，批量已读和导出仍按原组处理。源在宿主未声明能力时只发原有的章节顺序和分组。
 
