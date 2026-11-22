@@ -8,7 +8,8 @@ import { readUserDataSnapshot, readReadingSyncDatabaseInput, readShelfWorksForRe
 import {
   LIBRARY_STORE_PERSISTENCE_FILE_NAME, PersistedComic, PersistedLibraryCategory, PersistedLibraryStoreDocument,
   PersistedChapter, liveLibraryWriteRevision, liveReadingMetadata, readLibraryStoreDocument, readLiveLibrarySnapshot,
-  readLiveShelfSync, readLiveShelfSyncWork, usesLibraryDatabase, writeLiveLibrarySnapshot, writeLiveLibrarySyncEdits,
+  liveShelfCategoryAliases, readLiveShelfSync, readLiveShelfSyncWork, usesLibraryDatabase,
+  writeLiveLibrarySnapshot, writeLiveLibrarySyncEdits,
 } from '../model/LibraryPersistence'
 import type { LibraryShelfSyncEdits } from '../model/LibraryRdbStorage'
 import {
@@ -336,7 +337,21 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       return { categories: [], blockedShelf: [], readingProofs: [], acceptedQueries: [],
         receivedQueries: [], subscriptions: [] }
     }
-    return JSON.parse(json) as SyncProjection
+    const projection = JSON.parse(json) as SyncProjection
+    const aliases = liveShelfCategoryAliases(this.context.filesDir)
+    if (aliases === undefined || aliases.size === 0) return projection
+    for (const row of projection.categories) {
+      if (row.mergedInto !== undefined) row.mergedInto = aliases.get(row.mergedInto) ?? row.mergedInto
+      const id = aliases.get(row.local)
+      if (id === undefined) continue
+      if (row.shared === id || row.localOnly) {
+        row.local = id
+        row.mergedInto = undefined
+      } else {
+        row.mergedInto = id
+      }
+    }
+    return projection
   }
 
   private library(shelfRows: boolean = false): PersistedLibraryStoreDocument {

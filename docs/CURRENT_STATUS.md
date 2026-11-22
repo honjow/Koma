@@ -12610,6 +12610,14 @@
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
     {
+      "id": "shared-shelf-category-id-20261122",
+      "at": "2026-11-22T12:45:00+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "title": "统一书架分类在本地和两种同步中的 ID",
+      "detail": "新建普通分类只生成一个 UUID，WebDAV 接收直接使用共享 UUID。200 与 201 实库副本各由 12 个分类合并至 7 个，七个 ID 完全一致，分别保留 71 和 72 本及原归类和隐私。中断模拟回滚到原数据，重复运行结果一致；旧 ID 的归类晚到后写到同一个分类。旧 JSON 样本首启、再次启动以及 201 WebDAV 同步计划在本机重放。真机和 AGC 无本轮变更。",
+      "kind": "checkpoint"
+    },
+    {
       "id": "webdav-201-duplicate-category-order-20261122",
       "at": "2026-11-22T12:23:00+08:00",
       "itemId": "WEBDAV_READING_PENDING_STATUS",

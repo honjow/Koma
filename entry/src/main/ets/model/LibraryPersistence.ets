@@ -77,8 +77,9 @@ const liveLibraryStorage = new Map<string, LibraryRdbStorage>()
 
 /** Open existing RDB before recovery. Import legacy data only after old journals have been recovered. */
 export async function prepareLiveLibraryStorage(context: common.Context, migrate: boolean): Promise<void> {
-  if (liveLibraryStorage.has(context.filesDir)) return
-  const storage = new LibraryRdbStorage(await openUserDataDatabase(context))
+  const prepared = liveLibraryStorage.get(context.filesDir)
+  if (prepared !== undefined && !migrate) return
+  const storage = prepared ?? new LibraryRdbStorage(await openUserDataDatabase(context))
   if (!storage.migrated()) {
     const previousDatabase = storage.usesPreviousDatabase()
     if (!previousDatabase && !migrate) return
@@ -98,11 +99,23 @@ export async function prepareLiveLibraryStorage(context: common.Context, migrate
       throw error as Error
     }
   }
+  if (migrate) {
+    try {
+      storage.migrateCategoryIds()
+    } catch (error) {
+      // The migration is atomic. Existing books remain readable if it cannot commit.
+      DiagnosticLogger.exception('persistence', 'shelf_category_identity_migration_failed', error as Error)
+    }
+  }
   liveLibraryStorage.set(context.filesDir, storage)
 }
 
 export function usesLibraryDatabase(filesDir: string): boolean {
   return liveLibraryStorage.has(filesDir)
+}
+
+export function liveShelfCategoryAliases(filesDir: string): Map<string, string> | undefined {
+  return liveLibraryStorage.get(filesDir)?.categoryAliases()
 }
 
 export function liveLibraryWriteRevision(filesDir: string): number | undefined {

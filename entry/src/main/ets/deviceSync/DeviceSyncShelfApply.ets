@@ -6,7 +6,7 @@ import { sourceLibraryComicId } from '../model/SourceLibraryComic'
 import type { LibrarySmartCategory, LibrarySmartFilter } from '../model/LibrarySmartCategory'
 import type { LibraryShelfSyncEdits, LibraryShelfSyncImage } from '../model/LibraryRdbStorage'
 import { isSyncReplica } from './DeviceSyncFacts'
-import { CATEGORY_SYNC_PREFIX, syncCoverAddress, SyncChapterCatalog, SyncSmartCategory, SyncWorkLabel, syncKey, syncKeyParts,
+import { syncCoverAddress, SyncChapterCatalog, SyncSmartCategory, SyncWorkLabel, syncKey, syncKeyParts,
   syncNumberedCategoryName, syncSharedCategoryId, syncShelfIdentity, syncShelfMove, syncStableId } from './DeviceSyncData'
 import type { SyncLocalShelfMove } from './DeviceSyncSignals'
 import type { SyncLocalValue } from './DeviceSyncStorage'
@@ -96,7 +96,7 @@ export function toSharedCategory(local: string, projection: SyncProjection, repl
   }
   if (local === FAVORITE) return 'builtin-favorite'
   if (local === READ_LATER) return 'builtin-read-later'
-  return existing?.shared ?? syncSharedCategoryId(replica, local)
+  return existing?.shared ?? (isSyncReplica(local) ? local : syncSharedCategoryId(replica, local))
 }
 
 export function categoryAliases(local: string, projection: SyncProjection, replica: string): SyncLocalCategory[] {
@@ -134,14 +134,8 @@ export function toLocalCategory(shared: string, library: PersistedLibraryStoreDo
   if (alias?.mergedInto !== undefined && library.customCategories?.some(row => row.id === alias.mergedInto)) return alias.mergedInto
   const existing = (library.customCategories ?? []).find((row: PersistedLibraryCategory): boolean =>
     toSharedCategory(row.id, projection, replica) === shared)
-  if (existing !== undefined) return existing.id
-  const base = CATEGORY_SYNC_PREFIX + shared
-  let id = base
-  let suffix = 2
-  while ((library.customCategories ?? []).some((row: PersistedLibraryCategory): boolean => row.id === id)) {
-    id = base + '_' + suffix++
-  }
-  return id
+  // A received category already has its business ID. Store that exact ID.
+  return existing?.id ?? shared
 }
 
 export function smartCategoryKey(id: string): string {
@@ -182,11 +176,12 @@ function applyChapterCatalogs(changes: SyncLocalValue[], library: PersistedLibra
   })
 }
 
-function uniqueCategoryName(name: string, used: Set<string>): string {
+function uniqueCategoryName(name: string, used: Set<string>, incoming?: Set<string>): string {
   const original = normalizeLibraryCategoryName(name)
   let value = original
   let index = 2
-  while (used.has(libraryCategoryNameKey(value))) {
+  while (used.has(libraryCategoryNameKey(value)) ||
+    (value !== original && incoming?.has(libraryCategoryNameKey(value)) === true)) {
     value = syncNumberedCategoryName(original, (index++).toString())
   }
   used.add(libraryCategoryNameKey(value))
@@ -267,8 +262,11 @@ function mergeCategoryAliases(library: PersistedLibraryStoreDocument, projection
     if (group.length < 2) continue
     const admitted = group.filter((category: PersistedLibraryCategory): boolean => admittedIds.has(category.id))
     const candidates = admitted.length > 0 ? admitted : group
-    const primary = candidates.find((category: PersistedLibraryCategory): boolean =>
-      libraryCategoryNameKey(category.name) === name) ?? candidates[0]
+    const primary = group.every((category: PersistedLibraryCategory): boolean => isSyncReplica(category.id)) ?
+      group.reduce((first: PersistedLibraryCategory, category: PersistedLibraryCategory): PersistedLibraryCategory =>
+        category.id < first.id ? category : first) :
+      candidates.find((category: PersistedLibraryCategory): boolean =>
+        libraryCategoryNameKey(category.name) === name) ?? candidates[0]
     const original = originalCategoryName(primary.name, mappings.get(primary.id))
     primary.sortOrder = group[0].sortOrder
     primary.name = uniqueCategoryName(original, used)
@@ -379,7 +377,10 @@ function applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDoc
     if (!rename.has(category.id)) names.add(libraryCategoryNameKey(category.name))
   })
   const now = Date.now()
-  changes.filter((change: SyncLocalValue): boolean => syncKeyParts(change.key)[0] === 'category')
+  const categoryChanges = changes.filter((change: SyncLocalValue): boolean => syncKeyParts(change.key)[0] === 'category')
+  const incomingNames = new Set<string>(categoryChanges.filter((change: SyncLocalValue): boolean => change.value !== '')
+    .map((change: SyncLocalValue): string => libraryCategoryNameKey(JSON.parse(change.value) as string)))
+  categoryChanges
     .sort((a: SyncLocalValue, b: SyncLocalValue): number => a.key < b.key ? -1 : a.key === b.key ? 0 : 1)
     .forEach((change: SyncLocalValue): void => {
       const shared = syncKeyParts(change.key)[1]
@@ -408,7 +409,7 @@ function applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDoc
         return
       }
       const originalName = JSON.parse(change.value) as string
-      const name = uniqueCategoryName(originalName, names)
+      const name = uniqueCategoryName(originalName, names, incomingNames)
       if (existing !== undefined) {
         existing.name = name
         existing.updatedAt = now

@@ -230,6 +230,7 @@ test('Mihon import merges an existing edition and keeps a newer local reading po
  const migration = evaluate('SourceMangaMigration', () => models)
  const { InMemoryLibraryStore } = evaluate('LibraryStore', name => ({
   './ComicModels': models, '../i18n/AppStrings': appStrings,
+  '@kit.ArkTS': { util: { generateRandomUUID: require('node:crypto').randomUUID } },
   './LibrarySmartCategory': evaluate('LibrarySmartCategory', dep =>
    dep === './ComicModels' ? models : appStrings),
  })[name] ?? {})

@@ -7,6 +7,7 @@ test.after(() => rdb.close())
 const preference={has:async k=>values.has(k),get:async(k,d)=>values.get(k)??d,getSync:(k,d)=>values.get(k)??d,getAll:async()=>Object.fromEntries(values),
   put:async(k,v)=>values.set(k,v),delete:async k=>values.delete(k),flush:async()=>{}}
 const ports={
+  '@kit.ArkTS':{util:{generateRandomUUID:require('node:crypto').randomUUID}},
   '@kit.ArkData':{relationalStore:rdb.relationalStore,preferences:{getPreferences:async()=>preference,getPreferencesSync:()=>preference}},
   'libkoma_source_runtime.so': {},
   '../i18n/AppStrings':{AppStrings:{get:k=>k,format:(k,...v)=>k+v.join(',')}},
@@ -308,7 +309,7 @@ test('a used preset becomes an editable category while a fresh shelf stays empty
  assert.equal(library.listCustomCategories().length, 0)
  assert.equal(library.listLibraryItems(undefined, { filterCategoryId: 'all' }).length, 1)
 })
-test('existing same-name categories retain both IDs and memberships on startup, cloud refresh and backup restore', async () => {
+test('an incoming same-name category uses one ID without losing books, privacy or smart rules', async () => {
  const { openUserDataDatabase } = load('model/UserDataDatabase')
  const { LibraryRdbStorage } = load('model/LibraryRdbStorage')
  const owner = new InMemoryLibraryStore()
@@ -321,6 +322,9 @@ test('existing same-name categories retain both IDs and memberships on startup, 
  entries[0].categoryIds = [first.id]
  entries[1].categoryIds = [second.id]
  entries.forEach(comic => owner.addComic(comic))
+ const late = book('com.rumanhua.koma:/late/', 'com.rumanhua.koma')
+ late.remoteResourceId = '/late/'
+ owner.addComic(late)
  const db = await openUserDataDatabase({ filesDir: '/saved-category-names' })
  const storage = new LibraryRdbStorage(db)
  await storage.migrate(persistence.createLibraryStorePersistenceDocument(owner))
@@ -336,9 +340,21 @@ test('existing same-name categories retain both IDs and memberships on startup, 
  persistence.applyLibraryShelfSyncEdits('/saved-category-names', restored, refreshed)
  const backup = persistence.libraryStoreBackupPayload(JSON.stringify(storage.read()))
  persistence.hydrateLibraryStoreFromJson(restored, backup)
- assert.deepEqual(clone(restored.listComics().map(comic => comic.categoryIds)), [[first.id], [second.id]])
- assert.deepEqual(clone(restored.listSmartCategories()), [{ ...filter, name: first.name }])
+ const canonical = [first.id, second.id].sort()[0]
+ assert.deepEqual(clone(restored.listCustomCategories().map(category => [category.id, category.isPrivate])), [[canonical, true]])
+ for (const comic of entries) assert.deepEqual(clone(restored.getComic(comic.id).categoryIds), [canonical])
+ assert.equal(restored.getComic(late.id).categoryIds, undefined)
+ assert.deepEqual(clone(restored.listSmartCategories()),
+   [{ ...filter, name: first.name, filters: [rule('category', canonical)] }])
  assert.throws(() => restored.createCustomCategory('Reading'), /duplicate/)
+
+ const oldId = [first.id, second.id].find(id => id !== canonical)
+ db.executeSync('INSERT INTO shelf_memberships (comic_id, category_id, category_occurrence, list_order) VALUES (?, ?, 0, 0)',
+   [late.id, oldId])
+ const lateRefresh = storage.cloudShelfEdits([late.id], false, false)
+ persistence.applyLibraryShelfSyncEdits('/saved-category-names', restored, lateRefresh)
+ assert.deepEqual(clone(restored.getComic(late.id).categoryIds), [canonical])
+ assert.equal(storage.read().customCategories.length, 1)
 })
 test('batch editing preserves untouched mixed memberships, saves once and rolls back on failure', () => {
  const library = new InMemoryLibraryStore()

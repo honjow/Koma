@@ -1,3 +1,4 @@
+import { util } from '@kit.ArkTS'
 import {
   Comic,
   ComicId,
@@ -5,7 +6,6 @@ import {
   CustomLibraryCategory,
   LibraryItem,
   ReadingProgress,
-  CUSTOM_LIBRARY_CATEGORY_ID_PREFIX,
   LIBRARY_CATEGORY_NAME_MAX_LENGTH,
   isManualLibraryCategoryId,
   libraryCategoryNameKey,
@@ -369,7 +369,7 @@ export class InMemoryLibraryStore implements LibraryStore {
   createCustomCategory(name: string, now: number = Date.now()): CustomLibraryCategory {
     const normalizedName = this.validateCustomCategoryName(name)
     const category: CustomLibraryCategory = {
-      id: this.createCustomCategoryId(now),
+      id: util.generateRandomUUID(),
       name: normalizedName,
       sortOrder: this.nextCustomCategorySortOrder(),
       createdAt: now,
@@ -576,16 +576,6 @@ export class InMemoryLibraryStore implements LibraryStore {
       readState: strategy.readState,
       updatedAt: strategy.updatedAt,
     }
-  }
-
-  private createCustomCategoryId(now: number): string {
-    let index = this.customCategories.size + 1
-    let id = `${CUSTOM_LIBRARY_CATEGORY_ID_PREFIX}${now}_${index}`
-    while (this.customCategories.has(id)) {
-      index += 1
-      id = `${CUSTOM_LIBRARY_CATEGORY_ID_PREFIX}${now}_${index}`
-    }
-    return id
   }
 
   private validateRestoredCustomCategory(

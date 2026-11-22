@@ -253,7 +253,8 @@ export function libraryCategoryNameKey(name: string): string {
 }
 
 export function isManualLibraryCategoryId(categoryId: string): boolean {
-  return categoryId.startsWith(CUSTOM_LIBRARY_CATEGORY_ID_PREFIX) ||
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(categoryId) ||
+    categoryId.startsWith(CUSTOM_LIBRARY_CATEGORY_ID_PREFIX) ||
     categoryId === LIBRARY_CATEGORY_FAVORITE_ID || categoryId === LIBRARY_CATEGORY_READ_LATER_ID
 }
 

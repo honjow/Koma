@@ -530,7 +530,7 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
   const sourceComic = compile('../model/SourceLibraryComic', { './ComicModels': comics, '../i18n/AppStrings': strings })
   const smart = withShelf ? compile('../model/LibrarySmartCategory', { './ComicModels': comics, '../i18n/AppStrings': strings }) : undefined
   const stores = withShelf ? compile('../model/LibraryStore', { './ComicModels': comics, './ReaderSessionStore': sessions,
-    './LibrarySmartCategory': smart, '../i18n/AppStrings': strings }) : undefined
+    './LibrarySmartCategory': smart, '../i18n/AppStrings': strings, '@kit.ArkTS': { util: { generateRandomUUID: randomUUID } } }) : undefined
   const persistence = withShelf ? compile('../model/LibraryPersistence', {
     './ComicModels': comics, './LibraryStore': stores, './LibrarySmartCategory': smart, '@kit.CoreFileKit': nativeFs,
     './AppFileTextPersistence': { writeAppTextFile }, '../deviceSync/DeviceSyncSignals': signals,
@@ -543,6 +543,7 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     './LocalLibraryRescanService': {}, './LibraryRdbStorage': {}, './UserDataDatabase': {},
   }) : { LIBRARY_STORE_PERSISTENCE_FILE_NAME: 'library.json', LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION: 1,
     usesLibraryDatabase: () => false,
+    liveShelfCategoryAliases: () => undefined,
     readLiveLibrarySnapshot: directory => files.get(directory + '/library.json'),
     writeLiveLibrarySnapshot: (directory, value) => {
       if (value !== undefined) writeAppTextFile(directory + '/library.json', value)
@@ -931,7 +932,7 @@ test('source shelf and category survive an interrupted move; retry publishes bot
   await connect(b)
   assert.equal(b.coldShelf().shelf.getComic(original.id).sourcePath, original.sourcePath)
   assert.equal(b.coldShelf().shelf.listCustomCategories()[0].name, 'Reading')
-  assert.equal(b.coldShelf().shelf.getComic(original.id).categoryIds.length, 1)
+  assert.deepEqual(b.coldShelf().shelf.getComic(original.id).categoryIds, [category.id])
   a.persistence.upsertComicAndPersistLibraryStore(local.shelf, local.service, target)
   a.persistence.removeComicRecordAndPersistLibraryStore(local.shelf, local.service, original.id, target)
   assert.equal(a.coldShelf().shelf.listSyncShelfMoves()[0].target.toSource, target.sourceRuntimeId)
@@ -983,7 +984,10 @@ test('shelf sync merges restored manual categories and repairs old automatic num
     return comic.id
   }
   const original = a.coldShelf()
-  const category = original.shelf.createCustomCategory('Reading')
+  // This is a pre-upgrade category that the old client published under a
+  // replica-specific WebDAV key before another device restored its backup.
+  const category = { ...original.shelf.createCustomCategory('Reading'), id: 'custom_100_1' }
+  original.shelf.replaceCustomCategories([category])
   const numberedByUser = original.shelf.createCustomCategory('Reading (2)')
   original.service.persist()
   const backup = a.persistence.libraryStoreBackupPayload(a.persistence.serializeLibraryStore(original.shelf))
@@ -1320,7 +1324,7 @@ test('the next manual sync completes an interrupted local rollback and preserves
   assert.equal(b.coldReader().getProgress('local-reader-book').pageIndex, 2)
 })
 
-test('shelf sync round-trips smart rule changes using each device’s local category IDs', async () => {
+test('shelf sync round-trips smart rule changes using the same category ID', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.SharedWebDav)
   const a = readingDevice(fixture, A, new Map(), true)
@@ -1347,7 +1351,7 @@ test('shelf sync round-trips smart rule changes using each device’s local cate
   assert.equal(synced.name, 'Weekend (2)')
   assert.equal(synced.sortOrder, 2)
   const receiverCategory = received.shelf.listCustomCategories().find(category => category.name === 'Favorites')
-  assert.notEqual(receiverCategory.id, manual.id)
+  assert.equal(receiverCategory.id, manual.id)
   assert.deepEqual(synced.filters.map(filter => [filter.method, filter.value, filter.exclude]),
     [['category', receiverCategory.id, false], ['downloaded', undefined, true]])
   // A read-back of the local display name and remapped rule must be identical on the wire.
@@ -1397,7 +1401,7 @@ test('shelf sync transfers category privacy and membership together, including a
   }
   const received = b.coldShelf()
   const category = received.shelf.listCustomCategories().find(row => row.name === 'Private shelf')
-  assert.notEqual(category.id, manual.id)
+  assert.equal(category.id, manual.id)
   assert.equal(category.isPrivate, true)
   assert.deepEqual(received.shelf.getComic(work.id).categoryIds, [category.id])
   b.persistence.setCustomCategoryPrivacyAndPersistLibraryStore(received.shelf, received.service, category.id, false)

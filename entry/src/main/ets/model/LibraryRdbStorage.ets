@@ -16,6 +16,7 @@ import { collectLocalRows, textColumn } from './LocalDataRows'
 import { hasUserDataMigration } from './UserDataDatabase'
 import { writeUserRecords } from './UserKeyedRecords'
 import { sharedShelfIdentity, sharedShelfWork, ShelfSharedWork, shelfSharedWorks } from './ShelfSharedRows'
+import { readShelfCategoryAliases, reconcileShelfCategoryIds } from './LibraryCategoryIdentity'
 
 const OLD_MIGRATION = 'library-from-json-v1'
 const MIGRATION = 'library-relational-v1'
@@ -344,11 +345,27 @@ export class LibraryRdbStorage {
     return readWorks(this.store, comicId, catalog)[0]
   }
 
+  categoryAliases(): Map<string, string> {
+    return readShelfCategoryAliases(this.store)
+  }
+
+  migrateCategoryIds(): void {
+    let changed = false
+    writeUserRecords(this.store, (): void => {
+      const identities = reconcileShelfCategoryIds(this.store, true)
+      changed = identities.categoryIdsChanged || identities.comicIds.size > 0
+    })
+    if (changed) this.writeRevision += 1
+  }
+
   cloudShelfEdits(comicIds: string[], categories: boolean, smart: boolean,
     removedCategoryIds: string[] = []): LibraryShelfSyncEdits {
-    const works: PersistedComic[] = []
     const affected = new Set(comicIds)
+    let categoryIdsChanged = false
     writeUserRecords(this.store, (): void => {
+      const identities = reconcileShelfCategoryIds(this.store, false)
+      categoryIdsChanged = identities.categoryIdsChanged
+      identities.comicIds.forEach((id: string): void => { affected.add(id) })
       // A download can populate an empty library. Keep its collection flags
       // with the affected rows so the same data is found on cold startup.
       const header = shelfCollections.read(this.store)[0]
@@ -382,18 +399,24 @@ export class LibraryRdbStorage {
           '(SELECT COALESCE(MAX(list_order), -1) + 1 FROM shelf_work_details), 1, \'private_library\', COALESCE(title, \'\'), \'left_to_right\', ' +
           '0, 0, ?, ?, ?, 0, 0, 1, 0, 0, 0, 1 FROM shelf_works WHERE comic_id = ?',
           [Date.now(), Date.now(), Date.now(), comicId])
-        const work = this.readWork(comicId, false)
-        if (work !== undefined) {
-          if (!work.sortTitle) work.sortTitle = work.title
-          works.push(work)
-        }
       }
     })
+    // A new shared work and its local details must both be visible to the
+    // read connection before the live shelf treats it as a favorite.
+    const works: PersistedComic[] = []
+    for (const comicId of affected) {
+      const work = this.readWork(comicId, false)
+      if (work === undefined) continue
+      if (!work.sortTitle) work.sortTitle = work.title
+      works.push(work)
+    }
     comicIds = Array.from(affected)
     const after: LibraryShelfSyncImage = { present: true, works,
-      categories: categories ? shelfCategories.read(this.store).map(row => row.entry) : undefined,
-      displayStrategies: removedCategoryIds.length === 0 ? undefined : shelfDisplayStrategies.read(this.store).map(row => row.entry),
-      smartCategories: smart ? readSmartCategories(this.store) : undefined }
+      categories: categories || categoryIdsChanged ? shelfCategories.read(this.store).map(row => row.entry) : undefined,
+      displayStrategies: removedCategoryIds.length > 0 || categoryIdsChanged ?
+        shelfDisplayStrategies.read(this.store).map(row => row.entry) : undefined,
+      smartCategories: smart || categoryIdsChanged ? readSmartCategories(this.store) : undefined,
+      moves: categoryIdsChanged ? readShelfMoves(this.store) : undefined }
     this.writeRevision += 1
     return { comicIds, unchangedCatalogs: comicIds, before: { present: true, works: [] }, after }
   }
