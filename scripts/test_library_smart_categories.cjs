@@ -65,7 +65,7 @@ test('the shelf publishes the selected sort and direction in the same refresh', 
  let frame = 0
  const Shelf = shelfSubject(['setSortBy', 'refreshDisplayedSnapshotFromStore', 'applyCategorySort',
   'orderedShelfComics', 'orderedShelfCategories', 'orderedCategoryComics', 'currentListOptions',
-  'syncDisplayedSnapshotFromProps', 'usesLiveShelfFiltersOrSort'], {
+  'syncDisplayedSnapshotFromProps', 'applyWorkReadingChange', 'usesLiveShelfFiltersOrSort'], {
   librarySortDirection, effectiveLibraryDefaultSort, normalizeCategoryIds: models.normalizeCategoryIds,
   cachedLibraryChapterUpdateTimes: () => updates,
   // ArkUI recomputes a dirty @Computed getter at the next frame, not during the click.

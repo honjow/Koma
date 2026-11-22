@@ -494,6 +494,29 @@ async function verify(archive) {
     rdb = createRdbPort(databasePath)
     const env = moduleLoader(rdb, directory, archive, preferences)
     const beforeVersion = old?.prepare('PRAGMA user_version').get().user_version ?? 0
+    if (beforeVersion === 8 || beforeVersion === 9) {
+      await env.load('model/UserDataDatabase').openUserDataDatabase(env.context)
+      rdb.close()
+      rdb = createRdbPort(databasePath)
+      const reopened = moduleLoader(rdb, directory, archive, preferences)
+      await reopened.load('model/UserDataDatabase').openUserDataDatabase(reopened.context)
+      const target = new DatabaseSync(databasePath, { readOnly: true })
+      try {
+        const tables = old.prepare("SELECT name FROM sqlite_master WHERE type='table' " +
+          "AND name NOT LIKE 'sqlite_%' AND name NOT GLOB 'naturalbase_*'").all()
+        for (const { name } of tables) {
+          const table = '"' + name.replaceAll('"', '""') + '"'
+          const query = 'SELECT * FROM ' + table + ' ORDER BY rowid'
+          assertSame(target.prepare(query).all(), old.prepare(query).all(), name)
+        }
+        await prepareCloudBusinessTables(reopened)
+        compareCloudTables(target)
+        assert.equal(target.prepare('PRAGMA quick_check').get().quick_check, 'ok')
+        assert.equal(target.prepare('PRAGMA foreign_key_check').all().length, 0)
+        console.log(JSON.stringify({ archive, schema: beforeVersion, migration: 'matched', reopened: true }))
+      } finally { target.close() }
+      return
+    }
     if (beforeVersion === 5 || beforeVersion === 6) {
       const open = env.load('model/UserDataDatabase').openUserDataDatabase
       rdb.failNextCommit('upgrade interrupted before commit')

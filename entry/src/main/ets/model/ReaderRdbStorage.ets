@@ -284,9 +284,10 @@ export class ReaderRdbStorage {
         // The chapter position, current position and outbox advance together.
         for (const chapter of pageTurns) {
           if (chapter.position === undefined) continue
-          const share = scope.shares(chapter.comicId, chapter.chapterId)
-          readerChapterStates.put(this.store, chapter, share)
-          readerPositions.put(this.store, chapter.position, share)
+          readerChapterStates.put(this.store, chapter, scope.shares(chapter.comicId, chapter.chapterId))
+        }
+        for (const position of snapshot.progress) {
+          readerPositions.put(this.store, position, scope.shares(position.comicId, position.chapterId))
         }
         for (const history of snapshot.sourceHistory) readerSourceHistory.put(this.store, history, sharedHistory(history))
       }

@@ -55,6 +55,9 @@ function createRdbPort(databasePath = ':memory:') {
         : forDirectory(context.filesDir),
       SecurityLevel: { S3: 3 },
       TransactionType: { IMMEDIATE: 1 },
+      SyncMode: { SYNC_MODE_TIME_FIRST: 6 },
+      Progress: { SYNC_FINISH: 2 },
+      ProgressCode: { SUCCESS: 0, UNKNOWN_ERROR: 1 },
     },
     readReaderPreferences(filesDir) {
       const db = databases.get(filesDir)

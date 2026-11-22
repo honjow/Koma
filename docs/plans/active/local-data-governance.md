@@ -23,12 +23,11 @@
 | 书源订阅与登记 | `source_subscriptions` 按 URL，活动地址在 `source_subscription_selection`；`source_registry_entries` 按书源 ID。 | 订阅日期、禁用、名称与顺序可直接查询。登记保存包版本、路径、登录声明、本地化名称与能力；凭据仍归安全存储。 |
 | 书源配置与图片规则 | `source_preference_sources`、配置组、字段和列表项目子表；`image_rule_subscriptions` 与 `image_rule_installations` 分开。 | 书源和插件声明的字段名在运行时确定，值按文本、数值、开关或有序字符串列表存储。查询预设按书源分组。图片规则资产用已有不可变文件，表保存摘要和来源，安装配置与资产同属原 owner。 |
 | 阅读与章节设置 | `reader_shared_preferences` 保存全局可共享设置，`reader_preferences` 保存设备设置。按书的阅读覆盖在 `book_reader_modes`，其他按书设置在 `book_preferences`。 | 自动翻页模式覆盖留在设备设置。各设置入口只更新所属列。备份仍沿原设置字段。 |
-
-共享目录的章节 ID 和顺序位于 `shelf_shared_chapters`。只在本机使用的目录条目位于 `shelf_shared_chapters_local`。可共享目录的更新时间在 `shelf_works`。导入路径、作者、标签和排除章节仍由 `shelf_work_metadata_items` 持有。正常编辑沿用单作品事务及主键查询。
-
 | 追踪 | `tracker_mappings`、`tracker_progress_outbox` 和待发送章集合子表。 | 追踪搭配、媒体 ID、进度、重试和失败原因分列，按 provider 和作品查询。保留旧记录中相同业务键的出现次数及原处理顺序。 |
 | 书架更新 | `library_chapter_discoveries`、`library_update_job`、汇总及按作品/提供方的结果和失败原因表。 | 发现的章节按作品与时间查询。检查任务、汇总和各条结果可独立读写。 |
 | 搜索历史 | `search_history` 按规范化搜索词，`search_history_local` 保留设备范围。 | 按更新时间及同一时刻的顺序读取，有现有索引。 |
+
+共享目录的章节 ID 和顺序位于 `shelf_shared_chapters`。只在本机使用的目录条目位于 `shelf_shared_chapters_local`。可共享目录的更新时间在 `shelf_works`。导入路径、作者、标签和排除章节仍由 `shelf_work_metadata_items` 持有。正常编辑沿用单作品事务及主键查询。
 
 搜索历史按词归并后，把可共享的最新一条放入 `search_history`。同词的其他设备范围和不适合共享的词留在 `search_history_local`。书源订阅按已有的规范地址归并，`source_subscriptions` 中每个规范地址只有一条，备用地址保留在 `source_subscriptions_local`。正常入口合并两边本地记录，备份和 WebDAV 仍使用原有数据格式。
 

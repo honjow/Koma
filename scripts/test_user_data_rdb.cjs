@@ -187,7 +187,7 @@ test('retaining a newer page does not restore deleted source history', async () 
   }
 })
 
-test('cloud publication drains late and partially successful changes without another transfer', async () => {
+test('cloud publication drains late and partially successful changes without another transfer', async t => {
   const env = fixture(new Map(), new Map([
     ['@kit.AbilityKit', {}],
     ['./DeviceSyncOwners', {}],
@@ -198,7 +198,7 @@ test('cloud publication drains late and partially successful changes without ano
     ['../model/SourceLibraryComic', {}],
     ['../sourceRuntime/SourceIndexService', {}],
     ['../viewmodel/SourcePackageManagerCache', {}],
-    ['../diagnostics/DiagnosticLogger', { DiagnosticLogger: { warn() {}, exception() {} } }],
+    ['../diagnostics/DiagnosticLogger', { DiagnosticLogger: { info() {}, warn() {}, exception() {} } }],
   ]))
   try {
     const { openUserDataDatabase } = env.load('UserDataDatabase')
@@ -218,6 +218,9 @@ test('cloud publication drains late and partially successful changes without ano
     Object.assign(sync, { context, storage: { update: action => action({}) }, selection: () => ['shelf'],
       distributedStore: async () => store })
     sync.view.enabled = true
+    sync.view.available = true
+    const nativeConfiguration = []
+    sync.configureCloudTables = async (_store, _tables, enabled) => { nativeConfiguration.push(enabled) }
 
     let visible = library.readWork(id)
     let published
@@ -250,6 +253,45 @@ test('cloud publication drains late and partially successful changes without ano
     await sync.sync()
     assert.deepEqual(visible.categoryIds, [])
     assert.equal(sync.view.error, 'partial')
+
+    let stopped = 0
+    let finish
+    let notifyStarted
+    const started = new Promise(resolve => { notifyStarted = resolve })
+    sync.transfer = async () => new Promise(resolve => { finish = resolve; notifyStarted() })
+    store.stopCloudSync = async () => { stopped++; finish() }
+    const active = sync.sync()
+    await started
+    await sync.setEnabled(false)
+    finish()
+    await active
+    assert.equal(sync.view.enabled, false)
+    assert.equal(stopped, 1)
+    assert.equal(nativeConfiguration.at(-1), false)
+
+    const { BackupRestoreActivity } = env.load('../model/BackupRestoreActivity')
+    const nativeTransfer = Object.getPrototypeOf(sync).transfer.bind(sync)
+    let completeNative
+    let notifyNative
+    const nativeStarted = new Promise(resolve => { notifyNative = resolve })
+    store.cloudSync = async (_mode, _tables, callback) => { completeNative = callback; notifyNative() }
+    t.mock.timers.enable({ apis: ['setTimeout'] })
+    const receiving = nativeTransfer(store, ['shelf_memberships'])
+    await nativeStarted
+    try {
+      assert.throws(() => BackupRestoreActivity.beginRestore(), /backup_restore_busy/)
+      t.mock.timers.tick(240000)
+      await assert.rejects(receiving, /timeout/)
+      assert.throws(() => BackupRestoreActivity.beginRestore(), /backup_restore_busy/)
+    } finally {
+      BackupRestoreActivity.finishRestore()
+      const draining = sync.nativeTransfer
+      completeNative({ schedule: 2, code: 0 })
+      await draining
+      t.mock.timers.reset()
+    }
+    BackupRestoreActivity.beginRestore()
+    BackupRestoreActivity.finishRestore()
   } finally {
     env.close()
   }
@@ -456,13 +498,21 @@ test('page turns atomically update the current and chapter positions with the co
       page: 8, total: 10, date: 200, complete: false, observedActions: ['prior'],
       positionSeen: [{ replica: 'other', sequence: 2 }], recentSeen: [], recentCleared: [], readSeen: [] }]
     const sourceHistory = [{ ...initial.sourceHistory[0], chapterId: 'a-2', chapterTitle: 'New chapter' }]
-    const delta = { progress: [], sourceHistory, chapters: [turn], syncPositions: pending, syncActions: initial.syncActions }
+    const delta = { progress: [position], sourceHistory, chapters: [turn], syncPositions: pending, syncActions: initial.syncActions }
     env.failNextCommit()
     assert.throws(() => reader.save(delta, [turn]), /interrupted write/)
     assert.deepEqual(plain(reader.read()), initial)
     reader.save(delta, [turn])
     const afterTurn = { ...initial, progress: [position], sourceHistory, chapters: [oldChapter, turn], syncPositions: pending }
     assert.deepEqual(plain(reader.read()), afterTurn)
+    // A queued turn in a different chapter persists its own position only.
+    const oldChapterTurn = { ...oldChapter, position: { ...oldPosition, pageIndex: 4, updatedAt: 150 }, updatedAt: 150 }
+    reader.save({ progress: [], sourceHistory: [], chapters: [oldChapterTurn], syncPositions: pending,
+      syncActions: initial.syncActions }, [oldChapterTurn])
+    assert.deepEqual(plain(reader.read()).progress, [position])
+    assert.deepEqual(plain(reader.read()).chapters, [oldChapterTurn, turn])
+    reader.save({ progress: [], sourceHistory: [], chapters: [oldChapter], syncPositions: pending,
+      syncActions: initial.syncActions }, [oldChapter])
     const scope = [{ comicId: 'a', chapterIds: ['a-2'] }]
     const before = reader.readSyncEdits(scope)
     assert.deepEqual(plain(before.chapters), [turn])

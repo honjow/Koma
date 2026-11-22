@@ -30,6 +30,47 @@ const owner = compile('model/ReaderSessionStore', {
   './ChapterListPreferencesStore': { chapterReadingSortFor: () => undefined },
   './ReaderRdbStorage': {}, './UserDataDatabase': {},
 })
+
+test('cloud reading invalidates an older staged page turn but keeps unrelated chapter saves', async () => {
+  let staged
+  let saved
+  let discarded = 0
+  let returnStaged
+  let notifyStaged
+  const waiting = new Promise(resolve => { notifyStaged = resolve })
+  const session = new owner.PersistentReaderSessionStore({
+    load: () => [],
+    supportsPageTurnWrites: () => true,
+    saveSnapshot: snapshot => { saved = snapshot },
+    saveSnapshotAsync: async (snapshot, token) => {
+      staged = snapshot
+      if (returnStaged === undefined) await new Promise(resolve => { returnStaged = resolve; notifyStaged() })
+      return String(token)
+    },
+    commitSnapshotAsync: () => { saved = staged },
+    discardSnapshotAsync: () => { discarded++; staged = undefined },
+  })
+  const old = { comicId: 'work', chapterId: 'one', pageIndex: 4, totalPages: 20, progressRatio: 0.2, completed: false, updatedAt: 100 }
+  session.saveProgress(old)
+  const flushing = session.flushAsync()
+  await waiting
+  const incoming = { ...old, chapterId: 'two', pageIndex: 12, updatedAt: Date.now() + 1000 }
+  session.applyCloudReading({ applyCloudReading: () => ({ progress: [incoming], chapters: [], sourceHistory: [] }) },
+    [{ comicId: old.comicId, chapterIds: [] }])
+  returnStaged()
+  assert.equal(await flushing, true)
+  assert.equal(discarded, 1)
+  assert.equal(session.getProgress(old.comicId).chapterId, incoming.chapterId)
+  assert.equal(saved.chapters[0].chapterId, old.chapterId)
+  assert.deepEqual(saved.progress, [])
+
+  session.saveProgress(old)
+  session.applyCloudReading({ applyCloudReading: () => ({ progress: [incoming], chapters: [], sourceHistory: [] }) },
+    [{ comicId: old.comicId, chapterIds: [old.chapterId] }])
+  assert.equal(await session.flushAsync(), true)
+  assert.deepEqual(saved.chapters, [])
+  assert.deepEqual(saved.progress, [])
+})
 test('foreground sessions exclude background, deduplicate pages and change chapter without double counting', () => {
   let now = 1000; const records = []
   const recorder = new stats.ReadingSessionRecorder(row => records.push(row), () => now)

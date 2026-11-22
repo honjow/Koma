@@ -49,6 +49,10 @@ class HuaweiCloudSync {
   private selection: () => SyncGroup[] = (): SyncGroup[] => []
   private readyStore?: Promise<relationalStore.RdbStore>
   private current?: Promise<void>
+  private nativeConfiguration: Promise<void> = Promise.resolve()
+  private nativeEnabled: boolean = false
+  private nativeTransfer?: Promise<void>
+  private cancelTransfer?: () => void
   private publication?: Promise<void>
   private publicationTimer: number = -1
   private needsPublication: boolean = false
@@ -145,6 +149,17 @@ class HuaweiCloudSync {
       if (enabled && this.verificationRun !== '') throw new Error('verification_reading_scope')
       if (enabled && this.readingVerificationWork !== '') this.verificationComicId()
       if (enabled) await this.distributedStore(context)
+      else if (this.view.enabled) {
+        const store = await openUserDataDatabase(context)
+        await this.configureCloudTables(store, this.registrationTables(), false)
+        this.nativeEnabled = false
+        const cancel = this.cancelTransfer
+        if ((this.nativeTransfer !== undefined || this.current !== undefined) && typeof store.stopCloudSync === 'function') {
+          await store.stopCloudSync()
+          cancel?.()
+        }
+        this.cancelTimer()
+      }
       if (this.view.verificationOnly) {
         this.view.enabled = enabled
         return
@@ -171,8 +186,9 @@ class HuaweiCloudSync {
 
   sync(): Promise<void> {
     if (this.current !== undefined) return this.current
+    if (this.nativeTransfer !== undefined) return Promise.resolve()
     if (this.publication !== undefined) return this.publication.then((): Promise<void> => this.sync())
-    if (!this.view.enabled || this.restoring || !this.verificationContextMatches() || this.context === undefined ||
+    if (!this.view.enabled || this.view.configuring || this.restoring || !this.verificationContextMatches() || this.context === undefined ||
       this.storage === undefined) return Promise.resolve()
     if (this.selection().length === 0) {
       this.view.error = 'empty'
@@ -243,37 +259,80 @@ class HuaweiCloudSync {
     return pending
   }
 
+  private registrationTables(): string[] {
+    return cloudTablesForGroups(this.readingVerificationWork === '' ? SYNC_GROUPS : ['reading'])
+  }
+
   private async registerTables(context: common.UIAbilityContext): Promise<relationalStore.RdbStore> {
     const store = await openUserDataDatabase(context)
-    const scoped = this.readingVerificationWork !== ''
-    const names = cloudTablesForGroups(scoped ? ['reading'] : SYNC_GROUPS)
-    if (!scoped) {
+    const names = this.registrationTables()
+    if (this.readingVerificationWork === '') {
       await Promise.all([new SearchHistoryStore(context).prepareStorage(), loadSourceSubscriptionPreferences(context)])
     }
-    // Register the verification tables with the database offline. ArkData can
+    // Register with the database offline. ArkData can
     // independently queue a sync when a schema upgrade clears its watermark.
     // That task does not use the manual round's work predicate.
     await prepareCloudWorkDeletions(store)
-    await this.configureCloudTables(store, names, !scoped)
+    await this.configureCloudTables(store, names, false)
     store.on('dataChange', relationalStore.SubscribeType.SUBSCRIBE_TYPE_CLOUD_DETAILS,
       (changes: relationalStore.ChangeInfo[]): void => { this.receiveChanges(changes) })
     DiagnosticLogger.info('huawei-cloud-sync', 'registered',
-      'database=Koma enableCloud=' + !scoped + ' tables=' + names.join(','))
+      'database=Koma enableCloud=false tables=' + names.join(','))
     return store
   }
 
   private configureCloudTables(store: relationalStore.RdbStore, tables: string[], enableCloud: boolean): Promise<void> {
     // ArkData 26 rejects a predicate while the database auto-sync switch is on.
-    return store.setDistributedTables(tables, relationalStore.DistributedType.DISTRIBUTED_CLOUD,
-      { autoSync: false, autoSyncSwitch: false, enableCloud: enableCloud })
+    // A user disabling sync must run after any pending native activation.
+    this.nativeConfiguration = this.nativeConfiguration.catch((): void => {}).then(async (): Promise<void> => {
+      await store.setDistributedTables(tables, relationalStore.DistributedType.DISTRIBUTED_CLOUD,
+        { autoSync: false, autoSyncSwitch: false, enableCloud: enableCloud })
+    })
+    return this.nativeConfiguration
   }
 
   private transfer(store: relationalStore.RdbStore, tables: string[], predicate?: relationalStore.RdbPredicates): Promise<void> {
+    const generation = this.generation
+    let timedOut = false
+    // ArkData commits rows during transfer. Keep the existing restore gate
+    // occupied until the native task ends, even if the UI has timed out.
+    const active = BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      if (generation !== this.generation) throw new Error('sync_local_busy')
+      try {
+        await this.startNativeTransfer(store, tables, predicate)
+      } finally {
+        if (timedOut) await stopCloudWorkDeletions(store)
+      }
+    }).finally((): void => {
+      this.nativeTransfer = undefined
+      if (timedOut) {
+        this.schedulePublication()
+        this.schedule(0)
+      }
+    })
+    this.nativeTransfer = active
     return new Promise<void>((resolve: () => void, reject: (error: Error) => void): void => {
-      const timer = setTimeout((): void => reject(new Error('timeout')), TIMEOUT_MS)
+      const timer = setTimeout((): void => {
+        timedOut = true
+        reject(new Error('timeout'))
+      }, TIMEOUT_MS)
+      void active.then(resolve, reject).finally((): void => clearTimeout(timer))
+    })
+  }
+
+  private startNativeTransfer(store: relationalStore.RdbStore, tables: string[],
+    predicate?: relationalStore.RdbPredicates): Promise<void> {
+    return new Promise<void>((resolve: () => void, reject: (error: Error) => void): void => {
+      const cancel = (): void => finish(new Error('sync_local_busy'))
+      const finish = (error?: Error): void => {
+        if (this.cancelTransfer !== cancel) return
+        this.cancelTransfer = undefined
+        if (error === undefined) resolve()
+        else reject(error)
+      }
+      this.cancelTransfer = cancel
       const onProgress = (progress: relationalStore.ProgressDetails): void => {
-        if (progress.schedule !== relationalStore.Progress.SYNC_FINISH) return
-        clearTimeout(timer)
+        if (progress.schedule !== relationalStore.Progress.SYNC_FINISH || this.cancelTransfer !== cancel) return
         let uploadFailed = 0
         let downloadFailed = 0
         const failedTables: string[] = []
@@ -293,29 +352,25 @@ class HuaweiCloudSync {
         // Keep concrete SDK causes such as network and quota. The generic result
         // still includes per-direction failure counts when records could not sync.
         if (code !== relationalStore.ProgressCode.SUCCESS && code !== relationalStore.ProgressCode.UNKNOWN_ERROR) {
-          reject(new Error(String(code)))
+          finish(new Error(String(code)))
         } else if (uploadFailed > 0 || downloadFailed > 0) {
           const reason = downloadFailed === 0 ? 'upload' : uploadFailed === 0 ? 'download' : 'partial'
           const group = SYNC_GROUPS.find((value: SyncGroup): boolean => {
             const groupTables = cloudTablesForGroups([value])
             return failedTables.every((table: string): boolean => groupTables.includes(table))
           })
-          reject(new Error(group === undefined ? reason : reason + ':' + group))
+          finish(new Error(group === undefined ? reason : reason + ':' + group))
         } else if (code !== relationalStore.ProgressCode.SUCCESS) {
-          reject(new Error(String(code)))
+          finish(new Error(String(code)))
         } else {
-          resolve()
+          finish()
         }
       }
       const mode = relationalStore.SyncMode.SYNC_MODE_TIME_FIRST
       // The debug predicate reads only cloud records already linked to this
       // primary key on the device. It cannot discover a new cloud record.
-      const operation = predicate === undefined ? store.cloudSync(mode, tables, onProgress) :
-        store.cloudSyncEx({ mode, predicate }, onProgress)
-      void operation.catch((error: Error): void => {
-        clearTimeout(timer)
-        reject(error)
-      })
+      void Promise.resolve().then((): Promise<void> => predicate === undefined ? store.cloudSync(mode, tables, onProgress) :
+        store.cloudSyncEx({ mode, predicate }, onProgress)).catch((error: Error): void => finish(error))
     })
   }
 
@@ -410,6 +465,7 @@ class HuaweiCloudSync {
     await startCloudWorkDeletions(store, selectedWork)
     let failure: Error | undefined
     try {
+      guard()
       if (selectedWork !== undefined) {
         if (context.applicationInfo.debug !== true || typeof store.cloudSyncEx !== 'function') {
           throw new Error('verification_reading_scope')
@@ -430,12 +486,19 @@ class HuaweiCloudSync {
         } finally {
           await this.configureCloudTables(store, tables, false)
         }
-      } else if (selected.includes('shelf')) {
-        await this.transfer(store, SHELF_PARENT_TABLES)
-        guard()
-        // Smart categories need their rule rows before publication.
-        await this.transfer(store, tables.filter(table => !SHELF_PARENT_TABLES.includes(table)))
-      } else await this.transfer(store, tables)
+      } else {
+        if (!this.nativeEnabled) {
+          await this.configureCloudTables(store, tables, true)
+          this.nativeEnabled = true
+          guard()
+        }
+        if (selected.includes('shelf')) {
+          await this.transfer(store, SHELF_PARENT_TABLES)
+          guard()
+          // Smart categories need their rule rows before publication.
+          await this.transfer(store, tables.filter(table => !SHELF_PARENT_TABLES.includes(table)))
+        } else await this.transfer(store, tables)
+      }
     } catch (error) {
       failure = error as Error
     }

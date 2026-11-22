@@ -1226,6 +1226,20 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       for (const chapterId of item.chapterIds) this.chapterStates.delete(chapterStateKey(item.comicId, chapterId))
     }
     this.applyCommittedReadingRows(scope.map((work: ReaderSyncWorkScope): string => work.comicId), received)
+    if (!this.persistPending) return
+    // Retire a staged write made before the cloud commit. Preserve pending
+    // turns in other chapters without making them the current position again.
+    this.persistRevision += 1
+    for (const item of scope) {
+      for (const chapterId of item.chapterIds) {
+        const key = chapterStateKey(item.comicId, chapterId)
+        const pending = this.pendingPageTurns.get(key)
+        if (pending === undefined) continue
+        const applied = this.chapterStates.get(key)
+        if (applied?.position !== undefined && applied.position === pending.position) this.pendingPageTurns.set(key, applied)
+        else this.pendingPageTurns.delete(key)
+      }
+    }
   }
 
   private applyCommittedReadingRows(comicIds: string[], snapshot: ReaderSessionDocumentSnapshot): void {
@@ -1327,8 +1341,8 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     if (history !== undefined) this.sourceHistoryByComicId.set(copied.comicId, history)
     const state = this.recordChapterProgress(copied)
     const key = chapterStateKey(state.comicId, state.chapterId)
-    // Revisiting an earlier chapter puts its last turn at the end of this batch.
-    // The worker can then update both per-chapter and most recent per-book rows.
+    // Keep the latest turn for each changed chapter. The current book position
+    // is read independently when the batch is built.
     this.pendingPageTurns.delete(key)
     this.pendingPageTurns.set(key, state)
     // RDB can write the changed history row with the new position. Old files
@@ -1532,8 +1546,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
 
   /** A flush sets a durability boundary. The mutation determines which rows to write. */
   private pendingTurns(): ChapterReadingState[] | undefined {
-    return !this.needsFullSnapshot && this.pendingPageTurns.size > 0 ?
-      Array.from(this.pendingPageTurns.values()) : undefined
+    return this.needsFullSnapshot ? undefined : Array.from(this.pendingPageTurns.values())
   }
 
   private async persistLatest(): Promise<void> {
@@ -1611,7 +1624,15 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     const chapters = pageTurns ?? this.listChapterStates()
     const history: SourceReadHistoryEntry[] = pageTurns === undefined ? this.listSourceHistory() : []
     if (pageTurns !== undefined) {
-      for (const id of new Set<string>(pageTurns.map((turn: ChapterReadingState): string => turn.comicId))) {
+      const works = new Set<string>()
+      for (const turn of pageTurns) {
+        works.add(turn.comicId)
+        const current = this.progressByComicId.get(turn.comicId)
+        if (current !== undefined && current.chapterId === turn.chapterId && current.updatedAt === turn.position?.updatedAt) {
+          rows.push(current)
+        }
+      }
+      for (const id of works) {
         const entry = this.sourceHistoryByComicId.get(id)
         if (entry !== undefined) history.push(entry)
       }
