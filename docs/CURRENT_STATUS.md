@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T02:21:27+08:00",
+  "updatedAt": "2026-11-23T02:38:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -6222,22 +6222,20 @@
       "id": "CHAPTER_SORT_MENU",
       "number": 103,
       "title": "章节排序菜单无作用",
-      "status": "阅读器底部计数已修正并编译通过；待237复核",
-      "kind": "open",
+      "status": "底部计数补丁2682eb51已提交、编译并在237验收",
+      "kind": "accepted",
       "priority": "P0（人类再次复现：通用排序及菜单状态）",
       "owner": "本会话：章节排序与全部已发布源章序检查",
       "dependencies": [],
-      "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。 对照 Mihon 的四种章排序，Koma 增加「按上传日期」「名称」并对齐「按图源」「按章节编号」。保留默认按图源及原生菜单正反序。所选依据用于同一已核实阅读组的阅读起点和正向邻章，反转显示不改变邻章。漫画1234 0.1.15 的 711 条具名目录遵守原站及 Keiyoushi 顺序，章节 ID 与阅读位置先后保持。 197 使用本轮同签候选和漫画1234 0.1.15。默认按图源的首行是第五百七十六章。无记录开始阅读打开原站入口《鸽之魔界大门—— 2》。按名称后列表前两项是《40进20PK赛》和《超紧急事态！！》。反转显示后仍从前者开始，末页滑到后者，后者首页滑回前者末页。章节编号和上传日期选项也在真机选中。该目录未提供上传时间，日期比较另外用有日期值和缺日期值的执行用例覆盖。 2026-11-23：c263ce77 修正图源方向标签与四项文案；3bafce88 使新作品默认倒序，已有排序记录保持。两个候选均 assembleHap 成功。237 普通导入瓜子0.1.9并下拉刷新，341章目录完整保留，两个档案及预告获得0/1/2位置。真实条漫滚动验证封面档案→人物档案→预告→001，档案间向前/向后均可跨章；恢复倒序显示后，人物档案向前仍回封面档案。原当前进度、页码与saved_at逐字段未变。 最终 App 候选在237验证漫画1234《我的微信连三界》原目录最早在前、新作品无排序记录时默认倒序，实际首行为最终话。瓜子最终公开0.1.9普通导入后刷新341章，全部有唯一阅读位置。原进度人物档案、场景第1/12页及saved_at未改，原source_order/forward保留，临时源无痕恢复关闭，两份临时导入文件及自有设备截图布局已清理。独立恢复SLEEP/OverrideTimeout10000ms并释租。 2026-11-23发布后补正：先前验收漏查底部章序。KomaReaderLabPage原取手动选章目录下标；现由Adapter与adjacent共用readingChapterIds计算章序/总数，目录未完整时不显示误导的1/1。本次不改书源、共享Kit、版本号或持久进度。",
-      "remaining": "用户发布1.6.0后报告前部章节显示340/341。底部原取手动目录下标，现与上下章共用正向阅读序列；4项针对性回归通过，完整HAP构建成功。按用户紧急要求先提交，普通237路径复核继续。",
+      "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。 对照 Mihon 的四种章排序，Koma 增加「按上传日期」「名称」并对齐「按图源」「按章节编号」。保留默认按图源及原生菜单正反序。所选依据用于同一已核实阅读组的阅读起点和正向邻章，反转显示不改变邻章。漫画1234 0.1.15 的 711 条具名目录遵守原站及 Keiyoushi 顺序，章节 ID 与阅读位置先后保持。 197 使用本轮同签候选和漫画1234 0.1.15。默认按图源的首行是第五百七十六章。无记录开始阅读打开原站入口《鸽之魔界大门—— 2》。按名称后列表前两项是《40进20PK赛》和《超紧急事态！！》。反转显示后仍从前者开始，末页滑到后者，后者首页滑回前者末页。章节编号和上传日期选项也在真机选中。该目录未提供上传时间，日期比较另外用有日期值和缺日期值的执行用例覆盖。 2026-11-23：c263ce77 修正图源方向标签与四项文案；3bafce88 使新作品默认倒序，已有排序记录保持。两个候选均 assembleHap 成功。237 普通导入瓜子0.1.9并下拉刷新，341章目录完整保留，两个档案及预告获得0/1/2位置。真实条漫滚动验证封面档案→人物档案→预告→001，档案间向前/向后均可跨章；恢复倒序显示后，人物档案向前仍回封面档案。原当前进度、页码与saved_at逐字段未变。 最终 App 候选在237验证漫画1234《我的微信连三界》原目录最早在前、新作品无排序记录时默认倒序，实际首行为最终话。瓜子最终公开0.1.9普通导入后刷新341章，全部有唯一阅读位置。原进度人物档案、场景第1/12页及saved_at未改，原source_order/forward保留，临时源无痕恢复关闭，两份临时导入文件及自有设备截图布局已清理。独立恢复SLEEP/OverrideTimeout10000ms并释租。 2026-11-23发布后补正：先前验收漏查底部章序。KomaReaderLabPage原取手动选章目录下标；现由Adapter与adjacent共用readingChapterIds计算章序/总数，目录未完整时不显示误导的1/1。本次不改书源、共享Kit、版本号或持久进度。 2682eb51补丁最终237验收：普通源内搜索进入瓜子《从姑获鸟开始》，原图源倒序目录341章，继续人物档案第1/12页，实际底部为章节2/341。临时源无痕false已读回，原详情倒序目录、SLEEP和OverrideTimeout10000ms已恢复并释租。读取到的较新读态时间早于本次阅读，未用旧快照覆盖。",
+      "remaining": "本轮App计数补正已完成，可追加当前发布版；各源剩余修复继续在#343。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "evidencePoints": [],
-      "remainingActions": [
-        "在237核对第二项为2/341，下一章递增，目录显示反转不改变底部计数。"
-      ],
+      "remainingActions": [],
       "boundaries": [
         "本次新反馈明确重开通用展示反序与菜单状态，不继续按源补章号来掩盖菜单缺陷。",
         "原始章节对象/ID/源返回顺序、持久阅读数据和Reader自动邻章语义保持；跨季年代不能由显示反序推定。",
@@ -6252,7 +6250,7 @@
         "reopenEvidence": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
         "allowedDifference": "SOURCE_ORDER/CHAPTER_NUMBER与FORWARD/REVERSE独立，整表反转；原生选中标记、当前项无重选；排序分组小号常规字及公共材质。保其他布局、ID、读态和Reader邻章语义。"
       },
-      "updatedAt": "2026-11-23T02:21:27+08:00",
+      "updatedAt": "2026-11-23T02:38:00+08:00",
       "evidence": [
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/37-mh1234-baseline-chapter-title/layout.json",
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/46-mh1234-final-native-catalogue/layout.json",
@@ -6266,8 +6264,12 @@
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/60-mh1234-upload-date-sort/layout.json",
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/61-mh1234-chapter-number-sort/layout.json",
         ".hvigor/outputs/chapter-counter-focused.log",
-        ".hvigor/report/report-202611230220466350.json"
-      ]
+        ".hvigor/report/report-202611230220466350.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/57-counter-second-reading-chapter/screen.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/61-counter-final-restoration/run-metadata.json",
+        ".hvigor/outputs/chapter-counter-check-summary.json"
+      ],
+      "closedAt": "2026-11-23T02:38:00+08:00"
     },
     {
       "id": "APP_POPUP_SYSTEM_MATERIAL",
@@ -29633,6 +29635,19 @@
       "kind": "progress",
       "title": "修正发布后发现的阅读器章序计数反向",
       "detail": "用户报告前部章节显示340/341。确认计数误用手动目录显示下标；修复为实际阅读序列下标，和上下章导航共用同一入口。第二项2/341、切章递增、列表反转不改变计数及未完成目录隐藏错误位置的实际方法执行检查通过，HAP构建成功。用户要求紧急先提交，设备验收未冒充完成。"
+    },
+    {
+      "id": "reader-counter-237-accepted-20261123",
+      "at": "2026-11-23T02:38:00+08:00",
+      "itemId": "CHAPTER_SORT_MENU",
+      "kind": "accepted",
+      "title": "底部章序2/341普通路径验收并恢复释租",
+      "detail": "代码2682eb51不变。237原倒序目录继续人物档案，底部实见2/341。源无痕false、原详情、超时与休眠恢复；未回写旧阅读快照。4项相关实际方法回归与HAP构建成功。全量旧chapter-picker测试夹具在HEAD与候选均有同样22项历史失败（旧logger/map/toast mock），无新增失败名称，未更改其期望放行；边界及原日志留在chapter-counter-check-summary。其余源工作仍由#343及原执行者继续。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/57-counter-second-reading-chapter/screen.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/61-counter-final-restoration/run-metadata.json",
+        ".hvigor/outputs/chapter-counter-check-summary.json"
+      ]
     }
   ],
   "reportAgeAudit": {
