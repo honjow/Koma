@@ -279,7 +279,6 @@ function cloudStatus(state: HuaweiCloudSyncView): string {
     case '8': return t('device_sync_paused')
     case 'permission': return t('device_sync_cloud_denied')
     case 'empty': return t('device_sync_cloud_empty')
-    case 'timeout': return t('device_sync_cloud_timeout')
     case 'upload': return t('device_sync_cloud_upload_failed')
     case 'download': return t('device_sync_cloud_download_failed')
     case 'partial': return t('device_sync_cloud_partial')
@@ -294,6 +293,7 @@ function cloudStatus(state: HuaweiCloudSyncView): string {
   if (state.lastSuccess === 0) return t('device_sync_waiting_first_run')
   return t('device_sync_last_success_time').replace('%s', new Date(state.lastSuccess).toLocaleString())
 }
+
 @ComponentV2
 struct DeviceSyncActionRows {
   @Param status: string = ''
@@ -313,7 +313,6 @@ struct DeviceSyncActionRows {
     .width('100%')
   }
 }
-
 
 @ComponentV2
 export struct DeviceSyncHuaweiCloudPage {
@@ -385,8 +384,8 @@ export struct DeviceSyncWebDavPage {
     if (activity === 'device_sync_failed') {
       const scope = this.state.errorGroup === undefined ? '' : t(groupKey(this.state.errorGroup)) + ' · '
       return t(activity) + '\n' + scope + errorText(this.state.error)
-    if (activity !== '') return t(activity)
     }
+    if (activity !== '') return t(activity)
     if (this.state.unresolvedCommit) {
       return t('device_sync_previous_interrupted') + '\n' + t('device_sync_previous_resume_detail')
     }

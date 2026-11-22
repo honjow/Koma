@@ -30,6 +30,7 @@ function positionFromRow(row: relationalStore.ResultSet, offset: number, comicId
 }
 
 class ScopedReaderRows<T> {
+  private readonly table: string
   private readonly shared: LocalDataRows<T>
   private readonly local: LocalDataRows<T>
   private readonly combined: LocalDataRows<T>
@@ -37,6 +38,7 @@ class ScopedReaderRows<T> {
 
   constructor(table: string, rows: (table: string, order: string) => LocalDataRows<T>,
     key: (row: T) => LocalColumnValue[]) {
+    this.table = table
     this.shared = rows(table, 'rowid')
     this.local = rows(table + '_local', 'rowid')
     this.combined = rows(table + '_all', 'storage_order, comic_id')
@@ -45,6 +47,18 @@ class ScopedReaderRows<T> {
 
   read(store: relationalStore.RdbStore, filter?: string, args?: LocalColumnValue[]): T[] {
     return this.combined.read(store, filter, args)
+  }
+
+  /** Scope is already established for this exact work and chapter, even
+   * after history is removed and the cloud row has no local source metadata. */
+  hasSharedChapter(store: relationalStore.RdbStore, comicId: string, chapterId: string): boolean {
+    const result = store.querySqlSync('SELECT 1 FROM ' + this.table +
+      ' WHERE comic_id = ? AND chapter_id = ? LIMIT 1', [comicId, chapterId])
+    try {
+      return result.goToNextRow()
+    } finally {
+      result.close()
+    }
   }
 
   put(store: relationalStore.RdbStore, row: T, share: boolean): void {
@@ -80,8 +94,11 @@ class ScopedReaderRows<T> {
   }
 
   replace(store: relationalStore.RdbStore, rows: T[], share: (row: T) => boolean): void {
-    this.shared.replace(store, rows.filter(share))
-    this.local.replace(store, rows.filter((row: T): boolean => !share(row)))
+    const shared: T[] = []
+    const local: T[] = []
+    for (const row of rows) (share(row) ? shared : local).push(row)
+    this.shared.replace(store, shared)
+    this.local.replace(store, local)
   }
 }
 

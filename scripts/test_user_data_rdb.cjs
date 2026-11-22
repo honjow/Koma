@@ -242,6 +242,41 @@ test('a downloaded work with no shared URL can be loaded again after restarting 
   }
 })
 
+test('saving reader statistics keeps downloaded positions without recent history in their existing scope', async () => {
+  const env = fixture()
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { ReaderRdbStorage } = env.load('ReaderRdbStorage')
+    const store = await openUserDataDatabase({ filesDir: '/cloud-reader-history-removed' })
+    const reader = new ReaderRdbStorage(store)
+    const comicId = 'com.utifa.koma:utifa:1413'
+    const chapterId = 'utifa-read:1413:8810'
+    await store.execute('INSERT INTO reader_current_positions (comic_id, chapter_id, page_index) VALUES (?, ?, 28)',
+      [comicId, chapterId])
+    await store.execute('INSERT INTO reader_chapter_states (comic_id, chapter_id, has_position, page_index) VALUES (?, ?, 1, 28)',
+      [comicId, chapterId])
+    const snapshot = reader.read()
+    const local = { ...snapshot.chapters[0], chapterId: 'private-chapter', position: undefined }
+    snapshot.chapters.push(local)
+    reader.save(snapshot)
+
+    for (const table of ['reader_current_positions', 'reader_chapter_states']) {
+      const shared = await store.querySql('SELECT chapter_id, page_index FROM ' + table + ' WHERE comic_id = ?', [comicId])
+      assert.equal(shared.goToNextRow(), true)
+      assert.equal(shared.getString(0), chapterId)
+      assert.equal(shared.getLong(1), 28)
+      assert.equal(shared.goToNextRow(), false)
+      shared.close()
+    }
+    const localChapter = await store.querySql('SELECT chapter_id FROM reader_chapter_states_local WHERE comic_id = ?', [comicId])
+    assert.equal(localChapter.goToNextRow(), true)
+    assert.equal(localChapter.getString(0), local.chapterId)
+    localChapter.close()
+  } finally {
+    env.close()
+  }
+})
+
 test('retaining a newer page does not restore deleted source history', async () => {
   const env = fixture()
   try {
@@ -354,24 +389,38 @@ test('cloud publication drains late and partially successful changes without ano
     assert.equal(nativeConfiguration.at(-1), false)
 
     const { BackupRestoreActivity } = env.load('../model/BackupRestoreActivity')
-    const nativeTransfer = Object.getPrototypeOf(sync).transfer.bind(sync)
-    let completeNative
-    let notifyNative
-    const nativeStarted = new Promise(resolve => { notifyNative = resolve })
-    store.cloudSync = async (_mode, _tables, callback) => { completeNative = callback; notifyNative() }
+    delete sync.transfer
+    sync.view.enabled = true
+    sync.selection = () => ['search-history']
     t.mock.timers.enable({ apis: ['setTimeout'] })
-    const receiving = nativeTransfer(store, ['shelf_memberships'])
-    await nativeStarted
     try {
-      assert.throws(() => BackupRestoreActivity.beginRestore(), /backup_restore_busy/)
-      t.mock.timers.tick(240000)
-      await assert.rejects(receiving, /timeout/)
-      assert.throws(() => BackupRestoreActivity.beginRestore(), /backup_restore_busy/)
+      for (const code of [0, 2, 4]) {
+        let notifyNative
+        const nativeStarted = new Promise(resolve => { notifyNative = resolve })
+        store.cloudSync = async (_mode, _tables, callback) => { notifyNative(callback) }
+        const receiving = sync.sync()
+        const completeNative = await nativeStarted
+        const previousSuccess = sync.view.lastSuccess
+        try {
+          assert.throws(() => BackupRestoreActivity.beginRestore(), /backup_restore_busy/)
+          t.mock.timers.tick(240001)
+          await new Promise(resolve => setImmediate(resolve))
+          assert.equal(sync.view.busy, true)
+          assert.equal(sync.view.error, '')
+          assert.equal(sync.sync(), receiving)
+          assert.throws(() => BackupRestoreActivity.beginRestore(), /backup_restore_busy/)
+          await assert.rejects(BackupRestoreActivity.runDeviceSyncCommit(async () => {}), /sync_local_busy/)
+        } finally {
+          completeNative({ schedule: 2, code })
+          await receiving
+        }
+        assert.equal(sync.view.busy, false)
+        assert.equal(sync.view.error, code === 0 ? '' : String(code))
+        assert.equal(await BackupRestoreActivity.runDeviceSyncCommit(async () => 'committed'), 'committed')
+        if (code === 0) assert.ok(sync.view.lastSuccess > 0)
+        else assert.equal(sync.view.lastSuccess, previousSuccess)
+      }
     } finally {
-      BackupRestoreActivity.finishRestore()
-      const draining = sync.nativeTransfer
-      completeNative({ schedule: 2, code: 0 })
-      await draining
       t.mock.timers.reset()
     }
     BackupRestoreActivity.beginRestore()

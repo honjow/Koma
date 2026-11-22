@@ -44,6 +44,25 @@ const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
 });
 const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreferencesStore(ctx), other=new mod.ReaderPreferencesStore(ctx);
 (async()=>{
+ for (const mode of [null, 'auto_page']) {
+  const legacy = await rdb.relationalStore.getRdbStore({ filesDir: '/owned-memory/v6/' + mode }, {});
+  await legacy.execute('CREATE TABLE reader_preferences (id INTEGER PRIMARY KEY, page_mode TEXT, reading_direction TEXT, ' +
+   'image_fit_mode TEXT, show_page_number INTEGER, page_turn_animation TEXT, theme_mode TEXT)');
+  await legacy.execute(readerColumns.CREATE_READER_SHARED_PREFERENCES);
+  await legacy.execute('INSERT INTO reader_preferences (id, page_mode, theme_mode) VALUES (1, ?, ?)', [mode, 'dark']);
+  const transaction = await legacy.createTransaction();
+  await readerColumns.migrateSharedReaderPreferences(transaction);
+  await transaction.commit();
+  const actual = await legacy.querySql('SELECT page_mode FROM reader_shared_preferences');
+  assert.equal(actual.goToNextRow(), mode !== null);
+  if (mode !== null) assert.equal(actual.getString(0), 'single_page');
+  actual.close();
+  const local = await legacy.querySql('SELECT page_mode, theme_mode FROM reader_preferences');
+  assert.equal(local.goToNextRow(), true);
+  assert.equal(local.getValue(0), mode);
+  assert.equal(local.getString(1), 'dark');
+  local.close();
+ }
  const syncContext={filesDir:'/owned-memory/sync-preferences'};
  const syncStore=new mod.ReaderPreferencesStore(syncContext);
  const missing=await syncStore.captureDeviceSyncPreferences();

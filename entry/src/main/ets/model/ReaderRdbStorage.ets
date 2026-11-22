@@ -192,7 +192,7 @@ export class ReaderRdbStorage {
         const retained = recent !== undefined && old !== undefined && old.updatedAt >= recent.updatedAt &&
           (old.chapterId !== recent.chapterId || old.pageIndex !== recent.pageIndex)
         if (retained) {
-          readerPositions.put(this.store, old, local.shares(id, old.chapterId))
+          this.putPosition(old, local)
           const priorHistory = before.sourceHistory.find((row: SourceReadHistoryEntry): boolean => row.comicId === id)
           // The page conflict only decides the position. An absent history
           // row is already deleted, so retaining the page cannot restore it.
@@ -223,7 +223,7 @@ export class ReaderRdbStorage {
           if (row.position !== undefined && prior?.position !== undefined &&
             prior.position.updatedAt >= row.position.updatedAt && prior.position.pageIndex !== row.position.pageIndex) {
             row.position = prior.position
-            readerChapterStates.put(this.store, row, local.shares(id, chapterId))
+            this.putChapter(row, local)
           } else if (row.position !== undefined && cloudMovedReadingPosition(row.position, prior?.position)) {
             this.store.executeSync('UPDATE reader_chapter_states SET page_id = NULL WHERE comic_id = ? AND chapter_id = ?',
               [id, chapterId])
@@ -255,14 +255,14 @@ export class ReaderRdbStorage {
       for (const work of scope) {
         const position = progress.get(work.comicId)
         if (position === undefined) readerPositions.remove(this.store, [work.comicId])
-        else readerPositions.put(this.store, position, share.shares(position.comicId, position.chapterId))
+        else this.putPosition(position, share)
         const source = history.get(work.comicId)
         if (source === undefined) readerSourceHistory.remove(this.store, [work.comicId])
         else readerSourceHistory.put(this.store, source, sharedHistory(source))
         for (const chapterId of work.chapterIds) {
           const chapter = chapters.get(work.comicId)?.get(chapterId)
           if (chapter === undefined) readerChapterStates.remove(this.store, [work.comicId, chapterId])
-          else readerChapterStates.put(this.store, chapter, share.shares(chapter.comicId, chapter.chapterId))
+          else this.putChapter(chapter, share)
         }
       }
       new ReaderOutboxRows(reading.syncPositions ?? [], reading.syncActions ?? []).replace(this.store)
@@ -274,24 +274,42 @@ export class ReaderRdbStorage {
       const scope = new ReadingScope(snapshot, pageTurns)
       if (pageTurns === undefined) {
         const remote = snapshot.remoteHistory ?? []
-        readerPositions.replace(this.store, snapshot.progress, (row: ReadingProgress): boolean => scope.shares(row.comicId, row.chapterId))
+        readerPositions.replace(this.store, snapshot.progress, (row: ReadingProgress): boolean => this.sharesPosition(row, scope))
         readerSourceHistory.replace(this.store, snapshot.sourceHistory, sharedHistory)
         readerRemoteHistory.replace(this.store, remoteHistoryRows(remote))
         readerRemotePaths.replace(this.store, remotePathRows(remote))
-        readerChapterStates.replace(this.store, snapshot.chapters, (row: ChapterReadingState): boolean => scope.shares(row.comicId, row.chapterId))
+        readerChapterStates.replace(this.store, snapshot.chapters, (row: ChapterReadingState): boolean => this.sharesChapter(row, scope))
         readerSessions.replace(this.store, orderedReaderSessions(snapshot.readingSessions ?? []))
       } else {
         // The chapter position, current position and outbox advance together.
         for (const chapter of pageTurns) {
           if (chapter.position === undefined) continue
-          readerChapterStates.put(this.store, chapter, scope.shares(chapter.comicId, chapter.chapterId))
+          this.putChapter(chapter, scope)
         }
         for (const position of snapshot.progress) {
-          readerPositions.put(this.store, position, scope.shares(position.comicId, position.chapterId))
+          this.putPosition(position, scope)
         }
         for (const history of snapshot.sourceHistory) readerSourceHistory.put(this.store, history, sharedHistory(history))
       }
       new ReaderOutboxRows(snapshot.syncPositions ?? [], snapshot.syncActions ?? []).replace(this.store)
     })
+  }
+
+  private sharesPosition(row: ReadingProgress, scope: ReadingScope): boolean {
+    return scope.shares(row.comicId, row.chapterId) ||
+      readerPositions.hasSharedChapter(this.store, row.comicId, row.chapterId)
+  }
+
+  private sharesChapter(row: ChapterReadingState, scope: ReadingScope): boolean {
+    return scope.shares(row.comicId, row.chapterId) ||
+      readerChapterStates.hasSharedChapter(this.store, row.comicId, row.chapterId)
+  }
+
+  private putPosition(position: ReadingProgress, scope: ReadingScope): void {
+    readerPositions.put(this.store, position, this.sharesPosition(position, scope))
+  }
+
+  private putChapter(chapter: ChapterReadingState, scope: ReadingScope): void {
+    readerChapterStates.put(this.store, chapter, this.sharesChapter(chapter, scope))
   }
 }

@@ -943,7 +943,8 @@ export class DeviceSyncEngine {
           proposal = await this.preparePlan(groups, remote, [], provider.spaceId(), guard, configured.endpointIdentity)
           if (counter !== this.storage.load().counter) continue
         }
-        const groupError = groupErrors[0]
+        // A group waiting on a local write must not hide another group's failure.
+        const groupError = groupErrors.find((error: SyncGroupError): boolean => error.message !== 'sync_local_busy') ?? groupErrors[0]
         if (groups.length === 0 && groupError !== undefined) throw groupError
         try {
           await this.execute(provider, this.active() ?? connection, configured.credential, configured.selected, remote,

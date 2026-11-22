@@ -27,7 +27,6 @@ import { DeviceSyncStorage, SyncLocalDocument, SyncSavedConnection } from './Dev
 const SPACE = '7f562b9b-3095-4c87-a586-25c9cc5fa988'
 const PERMISSION: Permissions = 'ohos.permission.DISTRIBUTED_DATASYNC'
 const SETTINGS_URI = 'hicloud://cloudDrive/getInfo?path=MainActivity'
-const TIMEOUT_MS = 240000
 const RETRY_MS = 60000
 @ObservedV2
 export class HuaweiCloudSyncView {
@@ -51,7 +50,6 @@ class HuaweiCloudSync {
   private current?: Promise<void>
   private nativeConfiguration: Promise<void> = Promise.resolve()
   private nativeEnabled: boolean = false
-  private nativeTransfer?: Promise<void>
   private cancelTransfer?: () => void
   private publication?: Promise<void>
   private publicationTimer: number = -1
@@ -154,7 +152,7 @@ class HuaweiCloudSync {
         await this.configureCloudTables(store, this.registrationTables(), false)
         this.nativeEnabled = false
         const cancel = this.cancelTransfer
-        if ((this.nativeTransfer !== undefined || this.current !== undefined) && typeof store.stopCloudSync === 'function') {
+        if (this.current !== undefined && typeof store.stopCloudSync === 'function') {
           await store.stopCloudSync()
           cancel?.()
         }
@@ -186,7 +184,6 @@ class HuaweiCloudSync {
 
   sync(): Promise<void> {
     if (this.current !== undefined) return this.current
-    if (this.nativeTransfer !== undefined) return Promise.resolve()
     if (this.publication !== undefined) return this.publication.then((): Promise<void> => this.sync())
     if (!this.view.enabled || this.view.configuring || this.restoring || !this.verificationContextMatches() || this.context === undefined ||
       this.storage === undefined) return Promise.resolve()
@@ -293,30 +290,11 @@ class HuaweiCloudSync {
 
   private transfer(store: relationalStore.RdbStore, tables: string[], predicate?: relationalStore.RdbPredicates): Promise<void> {
     const generation = this.generation
-    let timedOut = false
-    // ArkData commits rows during transfer. Keep the existing restore gate
-    // occupied until the native task ends, even if the UI has timed out.
-    const active = BackupRestoreActivity.runWrite(async (): Promise<void> => {
+    // ArkData commits during transfer. Keep both the sync status and the
+    // restore gate tied to the platform task's completion or confirmed stop.
+    return BackupRestoreActivity.runWrite(async (): Promise<void> => {
       if (generation !== this.generation) throw new Error('sync_local_busy')
-      try {
-        await this.startNativeTransfer(store, tables, predicate)
-      } finally {
-        if (timedOut) await stopCloudWorkDeletions(store)
-      }
-    }).finally((): void => {
-      this.nativeTransfer = undefined
-      if (timedOut) {
-        this.schedulePublication()
-        this.schedule(0)
-      }
-    })
-    this.nativeTransfer = active
-    return new Promise<void>((resolve: () => void, reject: (error: Error) => void): void => {
-      const timer = setTimeout((): void => {
-        timedOut = true
-        reject(new Error('timeout'))
-      }, TIMEOUT_MS)
-      void active.then(resolve, reject).finally((): void => clearTimeout(timer))
+      await this.startNativeTransfer(store, tables, predicate)
     })
   }
 
@@ -502,10 +480,9 @@ class HuaweiCloudSync {
     } catch (error) {
       failure = error as Error
     }
-    // A partial failure leaves successfully downloaded rows committed. Only
-    // a JS timeout leaves the transfer worker active and still capturing keys.
+    // A partial failure leaves successfully downloaded rows committed.
     this.needsPublication = true
-    if (failure?.message !== 'timeout') await stopCloudWorkDeletions(store)
+    await stopCloudWorkDeletions(store)
     if (this.canPublish() && !BackupRestoreActivity.isRestoring()) {
       try {
         await this.applyChanges(context, store, selectedWork === undefined ? SYNC_GROUPS : selected, selectedWork)

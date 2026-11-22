@@ -300,9 +300,9 @@
       "reportedDate": "2026-11-20",
       "reportedAtSource": "用户报告一台设备点同步反复显示本机无法保存，另一台设备显示 23 项待发送。用户要求普通同步页取消条数提示。",
       "registeredAt": "2026-11-20T10:25:24+08:00",
-      "updatedAt": "2026-11-21T00:36:46+08:00",
-      "status": "自动同步能从已校验的本机副本恢复缺失的数据文件",
-      "result": "237 原连接自动同步，两个卡住的续读位置分别采用第 51 话第 22 页和 Page 1 第 10 页，待发送和等待合并的阅读记录清空。最终包 WebDAV 页显示带时间的上次成功，取消普通同步的排队条数。区分本机保存、恢复和凭据问题，本机写入失败后可在下一轮恢复并保留尚未同步的内容。 移除「部分内容已同步」「同步没有完成，请重试」和阅读等待提示。同步失败时同时显示已知受影响的同步范围和实际原因，区分远端数据缺失、没读全、格式无效及内容不符。模拟服务端缺少阅读偏好文件时，书架仍正常更新，设置页只把失败标到阅读偏好，文件重新可用后错误消失。上次写入结果未确认时，由 Koma 继续同步前向服务器确认。普通页保留立即同步，未知原因可导出诊断日志。237 同签最终包从设置打开原 WebDAV，页面显示「上次同步成功」及新时间。 新增当前 WebDAV 格式的后台自动修复。故障回放覆盖缺文件、同长度破损、坏缓存、未选中的数据和检查期间另一台发布新版本。只用长度和摘要一致的原副本补回仍被引用的文件，另一端随后同步恢复。237 装上最终同签包后从原 WebDAV 自动同步成功。",
+      "updatedAt": "2026-11-22T11:13:22+08:00",
+      "status": "本机暂缓时显示简短状态，真实失败保留原因",
+      "result": "237 原连接自动同步，两个卡住的续读位置分别采用第 51 话第 22 页和 Page 1 第 10 页，待发送和等待合并的阅读记录清空。最终包 WebDAV 页显示带时间的上次成功，取消普通同步的排队条数。区分本机保存、恢复和凭据问题，本机写入失败后可在下一轮恢复并保留尚未同步的内容。 移除「部分内容已同步」「同步没有完成，请重试」和阅读等待提示。同步失败时同时显示已知受影响的同步范围和实际原因，区分远端数据缺失、没读全、格式无效及内容不符。模拟服务端缺少阅读偏好文件时，书架仍正常更新，设置页只把失败标到阅读偏好，文件重新可用后错误消失。上次写入结果未确认时，由 Koma 继续同步前向服务器确认。普通页保留立即同步，未知原因可导出诊断日志。237 同签最终包从设置打开原 WebDAV，页面显示「上次同步成功」及新时间。 新增当前 WebDAV 格式的后台自动修复。故障回放覆盖缺文件、同长度破损、坏缓存、未选中的数据和检查期间另一台发布新版本。只用长度和摘要一致的原副本补回仍被引用的文件，另一端随后同步恢复。237 装上最终同签包后从原 WebDAV 自动同步成功。 103 在受控本机忙状态下验证 WebDAV 详情只显示等待重试。仅手动时显示稍后再试。",
       "remaining": "修复故障通过故障回放验证，237 在现有连接上验证正常同步。缺少任何可校验副本时保留已有数据。",
       "relatedItems": [
         "WEBDAV_AUTO_PROGRESS_STALE",
@@ -12684,11 +12684,27 @@
       "kind": "verification"
     },
     {
+      "id": "smart-category-original-id-recovery-201-20261122",
+      "at": "2026-11-22T13:52:09+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "title": "201 恢复「哔哩」原 ID 并验证两种同步",
+      "detail": "从删前库取回 smart:220a2111-e44f-5bc3-6982-42a8d386326a、原创建时间及哔哩漫画书源规则。通过原 RDB 对应行恢复，WebDAV 同一键的写入覆盖已观察到的旧删除记录。华为云分类与规则各上传、下载一行，均无失败。201 换回普通同签包后，两种同步均在 13:49:45 成功；华为云 13:52:08 和 WebDAV 重试 13:52:09 再次成功。书架菜单只有一个「哔哩」，最终读回同一 ID 和同一规则，WebDAV 无在途提交。",
+      "kind": "verification"
+    },
+    {
       "id": "smart-category-sync-deletion-20261122",
       "at": "2026-11-22T13:25:00+08:00",
       "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
       "title": "统一智能分类 ID，防止分批落盘时误发删除",
       "detail": "201 旧库同一「哔哩」规则有时间戳 ID 和 WebDAV UUID。应用迁移复用同一 UUID，保留书源规则、关联手动分类和本机展示设置。华为云先写分类再写规则，WebDAV 现在保留规则暂缺分类的上次完整数据，只有分类行确实已删才传删除。两个同步实例回放验证暂缺和真实删除。公开 v1.5.6 不含华为云实表路径，旧 JSON 样本迁移、关掉旧文件后重开均保留 69 本、9122 章、6 个手动分类、1 个智能分类和 247 个续读点。201 已确认此前「哔哩」为误删，仍保留原规则证据，未用新 ID 重建。用户主动取消收藏的测试漫画不计入误删。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "shared-shelf-category-id-20261122",
+      "at": "2026-11-22T12:45:00+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "title": "统一书架分类在本地和两种同步中的 ID",
+      "detail": "新建普通分类只生成一个 UUID，WebDAV 接收直接使用共享 UUID。200 与 201 实库副本各由 12 个分类合并至 7 个，七个 ID 完全一致，分别保留 71 和 72 本及原归类和隐私。中断模拟回滚到原数据，重复运行结果一致；旧 ID 的归类晚到后写到同一个分类。旧 JSON 样本首启、再次启动以及 201 WebDAV 同步计划在本机重放。真机和 AGC 无本轮变更。",
       "kind": "checkpoint"
     },
     {
@@ -12718,6 +12734,18 @@
         ".hvigor/outputs/continuous-short-images-20261119/qa/rdb-reader-entry201.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/rdb-scroll201-regression.json",
         ".hvigor/outputs/continuous-short-images-20261119/qa/rdb-cloud-frame-attribution201.json"
+      ]
+    },
+    {
+      "id": "sync-status-display-20261122",
+      "at": "2026-11-22T11:13:22+08:00",
+      "itemId": "WEBDAV_READING_PENDING_STATUS",
+      "title": "103 验证华为云同步关闭状态与 WebDAV 等待状态",
+      "detail": "普通包华为云开关关闭时外层显示未开启。受控本机忙时，WebDAV 详情显示等待重试。仅手动、真实失败和暂停文案执行检查通过，103 已恢复普通测试包。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/huawei-cloud-sync/device103__MLR-AL00/not-applicable/portrait-1600x2560/business-tables/settings-status-cloud-outer/layout.json",
+        ".hvigor/outputs/huawei-cloud-sync/device103__MLR-AL00/not-applicable/portrait-1600x2560/business-tables/settings-status-webdav-deferred/layout.json"
       ]
     },
     {

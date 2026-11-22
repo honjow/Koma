@@ -167,8 +167,10 @@ export async function migrateSharedReaderPreferences(transaction: relationalStor
   const columns = SHARED_FIELDS.map((field: ReaderPreferenceField): string => field.column)
   const previous = columns.map((column: string): string => column === 'page_mode' ?
     "CASE WHEN page_mode = 'auto_page' THEN 'single_page' ELSE page_mode END" : column)
+  // A legacy row with only device settings must not create an empty cloud
+  // record that can win over the other device's existing reading settings.
   await transaction.execute('INSERT INTO reader_shared_preferences (id, ' + columns.join(', ') + ') SELECT id, ' +
-    previous.join(', ') + ' FROM reader_preferences')
+    previous.join(', ') + ' FROM reader_preferences WHERE ' + columns.map(column => column + ' IS NOT NULL').join(' OR '))
   await transaction.execute("UPDATE reader_preferences SET page_mode = NULL WHERE page_mode <> 'auto_page'")
   for (const column of columns) {
     if (column !== 'page_mode') await transaction.execute('ALTER TABLE reader_preferences DROP COLUMN ' + column)

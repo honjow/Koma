@@ -315,13 +315,21 @@ export class SearchHistoryStore {
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<SearchHistoryEntry[]> => {
       const store = await this.historyStore()
       const previous = await this.readRows()
-      const entries = removeSearchHistoryEntry(previous.map((row: StoredSearchHistoryEntry): SearchHistoryEntry => row.value),
-        query, scope)
-      this.writeHistory(store, previous, entries)
-      if (!entries.some((item: SearchHistoryEntry): boolean => syncSearchIdentity(item.query) === syncSearchIdentity(query))) {
+      const term = syncSearchIdentity(query)
+      const matching: StoredSearchHistoryEntry[] = []
+      const others: SearchHistoryEntry[] = []
+      for (const row of previous) {
+        if (syncSearchIdentity(row.value.query) === term) matching.push(row)
+        else others.push(row.value)
+      }
+      // A cloud merge can temporarily exceed the visible history limit.
+      // Removing a term can change its representative, but owns no other term.
+      const kept = removeSearchHistoryEntry(matching.map(row => row.value), query, scope)
+      if (matching.length > 0) this.writeHistory(store, matching, kept)
+      if (kept.length === 0) {
         signalDeviceSyncSearchRemoved(query)
       }
-      return entries
+      return normalizeSearchHistoryEntries(others.concat(kept))
     }))
   }
 
@@ -338,11 +346,11 @@ export class SearchHistoryStore {
       const store = await this.historyStore()
       const rows = await this.readRows()
       const restored = new Set(rows.filter(row => row.table === 'search_history').map(row => row.key))
-      const retained = rows.filter(row => {
+      const removed = rows.filter(row => {
         const term = syncSearchIdentity(row.value.query)
-        return !terms.has(term) || restored.has(term) || !safeSyncSearch(row.value.query)
+        return terms.has(term) && !restored.has(term) && safeSyncSearch(row.value.query)
       })
-      if (retained.length !== rows.length) this.writeHistory(store, rows, retained.map(row => row.value))
+      if (removed.length > 0) this.writeHistory(store, removed, [])
     })
   }
 

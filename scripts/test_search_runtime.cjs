@@ -147,6 +147,17 @@ async function historyScope() {
   assert.deepEqual(plain(await store.load()), [])
   assert.equal(await store.captureDeviceSyncPayload(), '[]')
   assert.equal(persisted.get(SEARCH_HISTORY_QUERIES_KEY), JSON.stringify([{ query: 'legacy', updatedAt: 1 }]))
+  for (let index = 0; index < 22; index += 1) {
+    await database.execute('INSERT INTO search_history (entry_key, query, updated_at) VALUES (?, ?, ?)',
+      [`term ${index}`, `term ${index}`, index + 1])
+  }
+  assert.equal((await fresh.remove('term 21')).length, 20)
+  const afterRemove = database.querySqlSync('SELECT entry_key FROM search_history ORDER BY updated_at')
+  try {
+    const remaining = []
+    while (afterRemove.goToNextRow()) remaining.push(afterRemove.getString(0))
+    assert.deepEqual(remaining, Array.from({ length: 21 }, (_, index) => `term ${index}`))
+  } finally { afterRemove.close() }
   console.log('PASS: RDB history migration and retry, source scopes, rollback, and clear without legacy replay')
 
   // Execute the production dispatcher. Provider stubs record every call, so a
