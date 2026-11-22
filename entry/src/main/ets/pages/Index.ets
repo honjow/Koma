@@ -1627,6 +1627,7 @@ struct Index {
       (target: ReaderUnitKey, config: ReaderSessionConfig): void => this.commitReaderLabCatalog(target, config),
       (target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<KomaReaderChapterCatalogUpdate | undefined> =>
         this.prepareReaderLabSequence(target, cancellation),
+      (work: string): Comic | undefined => this.readerComicForOpen(work),
     )
   }
 

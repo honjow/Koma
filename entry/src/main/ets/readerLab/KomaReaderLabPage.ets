@@ -465,8 +465,8 @@ export struct KomaReaderLabPage {
         this.surfaceEntries = [new KomaReaderSessionEntry(++this.surfaceGeneration, session,
           this.unitKey.copy(), this.initialPageIndex)]
       }
-    } catch (_error) {
-      DiagnosticLogger.warn('reader', 'initialize_failed', 'reason=library_unavailable')
+    } catch (error) {
+      DiagnosticLogger.exception('reader', 'initialize_failed', error as Error)
       this.error = 'reader_lab_library_unavailable'
     }
   }

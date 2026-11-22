@@ -20,7 +20,7 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { ReaderFileInformation } from '@reader-kit/ui'
 import { KomaReaderCropSource } from './KomaReaderCropSource'
 import { InMemoryLibraryStore } from '../model/LibraryStore'
-import { ComicSourceKind, isDeferredFolderArchiveChapter } from '../model/ComicModels'
+import { Comic, ComicSourceKind, isDeferredFolderArchiveChapter } from '../model/ComicModels'
 import { localLibraryFolderRootUriFromComic } from '../model/LocalLibraryFolderContract'
 import { activateLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAccessService'
 import { openLocalFolderArchive, removeLocalFolderArchive } from '../import/LocalFolderArchiveReader'
@@ -148,7 +148,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       (error.diagnostic.code !== 'auth_required' && error.diagnostic.reason !== 'auth_required') ||
       (error.diagnostic.status !== 0 && error.diagnostic.status !== 401)) return ''
     const config = this.configs.get(this.unitId(unit)) ?? this.catalogHost?.initial(unit.work, unit.unit)
-    const id = config?.sourceRuntimeId ?? this.library.getComic(unit.work)?.sourceRuntimeId ?? ''
+    const id = config?.sourceRuntimeId ?? this.readerWork(unit.work)?.sourceRuntimeId ?? ''
     const entry = appSourceRuntimeRegistry.lookup(id).entry
     return entry?.enabled === true && entry.authentication !== undefined ? id : ''
   }
@@ -195,10 +195,19 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     this.runtimeKey = requestContext === undefined ? filesDir : komaRuntimeStorageKey(requestContext)
     this.thumbnails = new KomaReaderLabThumbnailProvider(cacheDir, thumbnailHeightPx)
     this.catalogHost = catalogHost
-    const payload = new AppFilesLibraryStorePersistenceAdapter(filesDir).load()
-    if (payload !== undefined) hydrateLibraryStoreFromJson(this.library, payload)
+    // The ordinary reader already has a work resolver. A compatibility
+    // snapshot can scan every RDB page row on the UI thread before first paint.
+    // Keep it only for the standalone Lab that has no app catalog host.
+    if (catalogHost === null) {
+      const payload = new AppFilesLibraryStorePersistenceAdapter(filesDir).load()
+      if (payload !== undefined) hydrateLibraryStoreFromJson(this.library, payload)
+    }
     configureReaderOfflineDownloads(this.offlineStorageBase, this.runtimeKey)
     if (cacheDir.length > 0) configureReaderRemoteImageCache(cacheDir)
+  }
+
+  private readerWork(work: string): Comic | undefined {
+    return this.catalogHost === null ? this.library.getComic(work) : this.catalogHost.work(work)
   }
 
   initialKey(work: string, unit: string): ReaderUnitKey {
@@ -206,7 +215,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     if (hosted !== null && hosted.comicId === work && hosted.chapterId === unit && hosted.totalPages > 0) {
       return new ReaderUnitKey('koma-local', work, unit)
     }
-    const comic = this.library.getComic(work)
+    const comic = this.readerWork(work)
     const chapter = unit.length > 0 ? unit : (firstReaderChapter(comic?.chapters ?? [], sourceChapterOrderFor(comic?.sourceRuntimeId))?.id ?? '')
     return new ReaderUnitKey('koma-local', work, chapter)
   }
@@ -265,7 +274,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       await this.prepareArchiveBookmarks(key, hosted, cancellation)
       return this.installConfig(key, hosted, cancellation)
     }
-    const comic = this.library.getComic(key.work)
+    const comic = this.readerWork(key.work)
     if (comic === undefined || !comic.chapters.some((chapter) => chapter.id === key.unit)) {
       throw new Error('missing_koma_chapter')
     }
@@ -477,16 +486,16 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
 
   // The title leaf reads only current metadata; page changes must not clone the full catalog.
   workTitle(unit: ReaderUnitKey): string {
-    return this.configs.get(this.unitId(unit))?.title ?? this.library.getComic(unit.work)?.title ?? ''
+    return this.configs.get(this.unitId(unit))?.title ?? this.readerWork(unit.work)?.title ?? ''
   }
   chapterTitle(unit: ReaderUnitKey): string {
     return this.configs.get(this.unitId(unit))?.chapterTitle ??
-      this.library.getComic(unit.work)?.chapters.find((chapter) => chapter.id === unit.unit)?.title ?? ''
+      this.readerWork(unit.work)?.chapters.find((chapter) => chapter.id === unit.unit)?.title ?? ''
   }
 
   chapterCommentsTarget(unit: ReaderUnitKey): SourceCommentsTarget | undefined {
     const config = this.configs.get(this.unitId(unit))
-    const comic = this.library.getComic(unit.work)
+    const comic = this.readerWork(unit.work)
     const sourceId = config?.sourceRuntimeId ?? comic?.sourceRuntimeId
     if (!sourceId || !unit.unit) return undefined
     const prefix = sourceId + ':'

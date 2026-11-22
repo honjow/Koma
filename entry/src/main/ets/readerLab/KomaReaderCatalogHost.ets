@@ -1,4 +1,5 @@
 import { ReaderCancellation, ReaderUnitKey } from '@reader-kit/core'
+import { Comic } from '../model/ComicModels'
 import { ReaderSessionConfig, cloneReaderSessionConfig } from '../model/ReaderSessionStore'
 
 export interface KomaReaderChapterCatalogUpdate {
@@ -15,6 +16,7 @@ export class KomaReaderCatalogHost {
   private commitResolver: (target: ReaderUnitKey, config: ReaderSessionConfig) => void
   private sequenceResolver: ((target: ReaderUnitKey, cancellation: ReaderCancellation) =>
     Promise<KomaReaderChapterCatalogUpdate | undefined>) | null
+  private workResolver: (work: string) => Comic | undefined
 
   constructor(
     initialResolver: (work: string, unit: string) => ReaderSessionConfig | null,
@@ -22,13 +24,17 @@ export class KomaReaderCatalogHost {
       cancellation: ReaderCancellation, forceRefresh: boolean) => Promise<ReaderSessionConfig | null>,
     commitResolver: (target: ReaderUnitKey, config: ReaderSessionConfig) => void,
     sequenceResolver: ((target: ReaderUnitKey, cancellation: ReaderCancellation) =>
-      Promise<KomaReaderChapterCatalogUpdate | undefined>) | null = null,
+      Promise<KomaReaderChapterCatalogUpdate | undefined>) | null,
+    workResolver: (work: string) => Comic | undefined,
   ) {
     this.initialResolver = initialResolver
     this.prepareResolver = prepareResolver
     this.commitResolver = commitResolver
     this.sequenceResolver = sequenceResolver
+    this.workResolver = workResolver
   }
+
+  work(work: string): Comic | undefined { return this.workResolver(work) }
 
   initial(work: string, unit: string): ReaderSessionConfig | null {
     const config = this.initialResolver(work, unit)
