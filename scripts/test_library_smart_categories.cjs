@@ -308,6 +308,38 @@ test('a used preset becomes an editable category while a fresh shelf stays empty
  assert.equal(library.listCustomCategories().length, 0)
  assert.equal(library.listLibraryItems(undefined, { filterCategoryId: 'all' }).length, 1)
 })
+test('existing same-name categories retain both IDs and memberships on startup, cloud refresh and backup restore', async () => {
+ const { openUserDataDatabase } = load('model/UserDataDatabase')
+ const { LibraryRdbStorage } = load('model/LibraryRdbStorage')
+ const owner = new InMemoryLibraryStore()
+ const first = owner.createCustomCategory('Reading', 100)
+ const second = owner.createCustomCategory('Other device', 200)
+ const filter = group([rule('category', second.id)])
+ owner.replaceSmartCategories([filter])
+ owner.setCustomCategoryPrivacy(second.id, true)
+ const entries = [book('first'), book('second')]
+ entries[0].categoryIds = [first.id]
+ entries[1].categoryIds = [second.id]
+ entries.forEach(comic => owner.addComic(comic))
+ const db = await openUserDataDatabase({ filesDir: '/saved-category-names' })
+ const storage = new LibraryRdbStorage(db)
+ await storage.migrate(persistence.createLibraryStorePersistenceDocument(owner))
+ db.executeSync('UPDATE shelf_categories SET name = ? WHERE category_id = ?', [first.name, second.id])
+ db.executeSync('UPDATE shelf_smart_categories SET name = ? WHERE category_id = ?', [first.name, filter.id])
+
+ const restored = new InMemoryLibraryStore()
+ const service = new persistence.LibraryStorePersistenceService(restored, { loadForRestore: () => storage.read() })
+ service.restore()
+ assert.deepEqual(clone(restored.listCustomCategories().map(category => [category.id, category.name, category.isPrivate])),
+   [[first.id, first.name, null], [second.id, first.name, true]])
+ const refreshed = storage.cloudShelfEdits([], true, true)
+ persistence.applyLibraryShelfSyncEdits('/saved-category-names', restored, refreshed)
+ const backup = persistence.libraryStoreBackupPayload(JSON.stringify(storage.read()))
+ persistence.hydrateLibraryStoreFromJson(restored, backup)
+ assert.deepEqual(clone(restored.listComics().map(comic => comic.categoryIds)), [[first.id], [second.id]])
+ assert.deepEqual(clone(restored.listSmartCategories()), [{ ...filter, name: first.name }])
+ assert.throws(() => restored.createCustomCategory('Reading'), /duplicate/)
+})
 test('batch editing preserves untouched mixed memberships, saves once and rolls back on failure', () => {
  const library = new InMemoryLibraryStore()
  const a = library.createCustomCategory('A'), b = library.createCustomCategory('B')

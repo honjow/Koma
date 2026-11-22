@@ -71,7 +71,7 @@ export interface LibraryStore {
   listSyncShelfMoves(): SyncLocalShelfMove[]
   replaceSyncShelfMoves(moves: SyncLocalShelfMove[]): void
   listSmartCategories(): LibrarySmartCategory[]
-  replaceSmartCategories(categories: LibrarySmartCategory[]): void
+  replaceSmartCategories(categories: LibrarySmartCategory[], allowSavedNameCollisions?: boolean): void
   getComic(comicId: ComicId): Comic | undefined
   findByRemote(serverId: string, resourceId: string): Comic | undefined
   findBySourceManga(sourceId: string, mangaId: string): Comic | undefined
@@ -118,7 +118,7 @@ export function libraryContents(source: LibraryStore): LibraryContents {
 export function replaceLibraryContents(target: LibraryStore, source: LibraryContents): void {
   target.clear()
   target.replaceCustomCategories(source.customCategories)
-  target.replaceSmartCategories(source.smartCategories)
+  target.replaceSmartCategories(source.smartCategories, true)
   target.replaceCategoryDisplayStrategies(source.displayStrategies)
   source.comics.forEach((comic: Comic): void => { target.upsertComic(comic) })
   target.replaceSyncShelfMoves(source.shelfMoves)
@@ -151,9 +151,9 @@ export class InMemoryLibraryStore implements LibraryStore {
       a.sortOrder - b.sortOrder || a.createdAt - b.createdAt)
   }
 
-  replaceSmartCategories(categories: LibrarySmartCategory[]): void {
+  replaceSmartCategories(categories: LibrarySmartCategory[], allowSavedNameCollisions: boolean = false): void {
     const next = validateLibrarySmartCategories(categories,
-      this.listCustomCategories().map((category: CustomLibraryCategory): string => category.name))
+      this.listCustomCategories().map((category: CustomLibraryCategory): string => category.name), allowSavedNameCollisions)
     const retainedIds = new Set<string>(next.map((category: LibrarySmartCategory): string => category.id))
     this.smartCategories.forEach((category: LibrarySmartCategory): void => {
       if (!retainedIds.has(category.id)) this.categoryDisplayStrategies.delete(category.id)
@@ -353,10 +353,11 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   replaceCustomCategories(categories: CustomLibraryCategory[]): void {
+    // Independently synchronized IDs can share a saved name. Loading them must
+    // keep their memberships and privacy flags. Creation and renaming still validate names.
     const nextCategories: Map<string, CustomLibraryCategory> = new Map<string, CustomLibraryCategory>()
-    const nameKeys: string[] = this.smartCategories.map((category: LibrarySmartCategory): string => libraryCategoryNameKey(category.name))
     categories.forEach((category: CustomLibraryCategory) => {
-      const restoredCategory = this.validateRestoredCustomCategory(category, nextCategories, nameKeys)
+      const restoredCategory = this.validateRestoredCustomCategory(category, nextCategories)
       nextCategories.set(restoredCategory.id, restoredCategory)
     })
     this.customCategories.clear()
@@ -504,7 +505,7 @@ export class InMemoryLibraryStore implements LibraryStore {
       this.replaceCustomCategories(parsed['customCategories'] as CustomLibraryCategory[])
     }
     if (!Array.isArray(parsed) && Array.isArray(parsed['smartCategories'])) {
-      this.replaceSmartCategories(parsed['smartCategories'] as LibrarySmartCategory[])
+      this.replaceSmartCategories(parsed['smartCategories'] as LibrarySmartCategory[], true)
     }
     if (!Array.isArray(parsed) && Array.isArray(parsed['categoryDisplayStrategies'])) {
       this.replaceCategoryDisplayStrategies(parsed['categoryDisplayStrategies'] as LibraryCategoryDisplayStrategy[])
@@ -589,8 +590,7 @@ export class InMemoryLibraryStore implements LibraryStore {
 
   private validateRestoredCustomCategory(
     category: CustomLibraryCategory,
-    nextCategories: Map<string, CustomLibraryCategory>,
-    nameKeys: string[]
+    nextCategories: Map<string, CustomLibraryCategory>
   ): CustomLibraryCategory {
     if (!isManualLibraryCategoryId(category.id)) {
       throw new Error('Invalid custom category id')
@@ -605,11 +605,6 @@ export class InMemoryLibraryStore implements LibraryStore {
     if (normalizedName.length > LIBRARY_CATEGORY_NAME_MAX_LENGTH) {
       throw new Error(AppStrings.format('library_category_error_name_too_long', LIBRARY_CATEGORY_NAME_MAX_LENGTH))
     }
-    const nameKey = libraryCategoryNameKey(normalizedName)
-    if (nameKeys.includes(nameKey)) {
-      throw new Error(AppStrings.get('library_category_error_name_duplicate'))
-    }
-    nameKeys.push(nameKey)
     return {
       id: category.id,
       name: normalizedName,

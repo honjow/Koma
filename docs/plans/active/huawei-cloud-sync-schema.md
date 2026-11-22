@@ -20,6 +20,8 @@ AGC 开发环境容器为 `koma_user_data`，本地数据库名称填 `Koma`，�
 
 字段、类型和主键的客户端定义见[包内云配置](../../../entry/src/main/resources/rawfile/arkdata/cloud/cloud_schema.json)。迁移重放读取实际 SQLite 表来核对字段、类型、空值约束和主键。作品章节图片、本机路径、设备阅读参数、凭据和会话各由原有本地存储负责。端侧表和旧数据映射见[本地数据治理](local-data-governance.md)。
 
+分类名称可编辑，分类身份和作品归属以 `category_id` 为准。不同设备可能各自建出同名分类。启动加载、云端写入后的刷新及备份恢复要保留两个已保存的 ID 及其归属和隐私设置，允许用户直接打开书架。创建或改名时仍校验名称。WebDAV 沿用已有的同名归并规则，保留各端分类键和归属。
+
 ## 本次开发环境验证
 
 - 201 已覆盖升级并注册全部 13 张表。ArkData 拒绝 `CHECK` 约束，已在迁移中更正。手动单作品 `cloudSyncEx` 需要关闭 `autoSync` 和 `autoSyncSwitch`。云表版本变化时，注册还会清除同步游标。ArkData 的 `UPGRADE_SCHEMA` 事件直接触发应用级同步，绕过手动请求的作品条件。201 复测在该路径查询了书架及分类等表，查询返回空，日志中未见对应上传。[OpenHarmony 注册表实现](https://github.com/openharmony/distributeddatamgr_datamgr_service/blob/master/services/distributeddataservice/service/rdb/rdb_general_store.cpp) · [升级事件实现](https://github.com/openharmony/distributeddatamgr_datamgr_service/blob/master/services/distributeddataservice/service/cloud/cloud_service_impl.cpp)

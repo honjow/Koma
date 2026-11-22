@@ -130,7 +130,7 @@ export function applyLibraryShelfSyncEdits(filesDir: string, library: LibrarySto
   if (image.categories !== undefined) library.replaceCustomCategories((image.categories ?? []).map(hydrateLibraryCategory))
   if (image.displayStrategies !== undefined) library.replaceCategoryDisplayStrategies(
     (image.displayStrategies ?? []).map(hydrateCategoryDisplayStrategy))
-  if (image.smartCategories !== undefined) library.replaceSmartCategories(image.smartCategories ?? [])
+  if (image.smartCategories !== undefined) library.replaceSmartCategories(image.smartCategories ?? [], true)
   if (image.moves !== undefined) library.replaceSyncShelfMoves(image.moves ?? [])
   const changed = new Map<ComicId, PersistedComic>(image.works.map((work: PersistedComic): [ComicId, PersistedComic] => [work.id, work]))
   const unchangedCatalogs = new Set(edits.unchangedCatalogs)
@@ -780,18 +780,14 @@ function assertValidPersistedLibraryCategory(row: PersistedLibraryCategory): voi
 }
 
 function assertUniquePersistedLibraryCategories(rows: PersistedLibraryCategory[]): void {
-  const ids: string[] = []
-  const names: string[] = []
+  // Memberships refer to the ID. A cloud or backup record with a colliding
+  // label must remain loadable without dropping either category or its books.
+  const ids = new Set<string>()
   rows.forEach((row: PersistedLibraryCategory) => {
-    if (ids.includes(row.id)) {
+    if (ids.has(row.id)) {
       throw new Error('Invalid library store persistence customCategories: duplicate category id')
     }
-    ids.push(row.id)
-    const nameKey = libraryCategoryNameKey(row.name)
-    if (names.includes(nameKey)) {
-      throw new Error('Invalid library store persistence customCategories: duplicate category name')
-    }
-    names.push(nameKey)
+    ids.add(row.id)
   })
 }
 
@@ -867,7 +863,7 @@ function validateLibraryStoreDocument(document: PersistedLibraryStoreDocument): 
   if (document.smartCategories !== undefined) {
     if (!Array.isArray(document.smartCategories)) throw new Error('Invalid library smart categories')
     validateLibrarySmartCategories(document.smartCategories,
-      (document.customCategories ?? []).map((category: PersistedLibraryCategory): string => category.name))
+      (document.customCategories ?? []).map((category: PersistedLibraryCategory): string => category.name), true)
   }
   if (document.customCategories !== undefined) {
     document.customCategories.forEach((row: PersistedLibraryCategory) => {
@@ -963,7 +959,7 @@ function hydrateLibraryStoreFromDocument(libraryStore: LibraryStore, document: P
   const comics = document.comics.map((row: PersistedComic) => hydrateComic(row))
   libraryStore.clear()
   libraryStore.replaceCustomCategories(customCategories)
-  libraryStore.replaceSmartCategories(document.smartCategories ?? [])
+  libraryStore.replaceSmartCategories(document.smartCategories ?? [], true)
   libraryStore.replaceCategoryDisplayStrategies(categoryDisplayStrategies)
   comics.forEach((comic: Comic) => {
     libraryStore.upsertComic(comic)
