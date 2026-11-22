@@ -181,7 +181,10 @@ function readerChapterDisplayTitle(chapter: Chapter): string {
 export interface ReaderSessionConfig {
   comicId: ComicId
   chapterId: ChapterId
+  /** Complete manual picker in the selected basis's forward order; includes
+   * other editions and locked entries. Never use it to infer automatic adjacency. */
   chapterIds: string[]
+  /** Verified forward reading sequence for the current chapter's edition. */
   continuationChapterIds?: string[]
   sourceChapterChronologyPending?: boolean
   chapterTitles?: string[]
