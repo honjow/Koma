@@ -245,6 +245,7 @@ test('collected details and chapters survive library serialization and equal ref
     KOMGA_REMOTE: 'komga_remote', KAVITA_REMOTE: 'kavita_remote', OPDS_REMOTE: 'opds_remote', WEBDAV_REMOTE: 'webdav_remote' }
   new Function('exports', 'ComicSourceKind', 'ReadingDirection', code)(exports, kinds, { RIGHT_TO_LEFT: 'right_to_left' })
   const f = fixture(), previous = f.store.getComic('owned-work')
+  f.service.persist = () => assert.fail('refreshing an existing work must not save the whole shelf')
   Object.assign(previous, { sourcePath: 'https://source.invalid/work', sortTitle: 'owned title', preferredDirection: 'right_to_left',
     chapters: [], chapterCount: 0, pageCount: 0 })
   const detail = { title: 'Fresh title', description: 'Full description', author: 'Author', artist: 'Artist', sourceName: 'Original source',

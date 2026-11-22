@@ -1,3 +1,4 @@
+import type { relationalStore } from '@kit.ArkData'
 import { deviceSyncShelfSpace, signalDeviceSyncChange, signalDeviceSyncLibrary, SyncLibrarySignal,
   SyncLocalShelfMove } from '../deviceSync/DeviceSyncSignals'
 import { syncShelfIdentity } from '../deviceSync/DeviceSyncData'
@@ -129,6 +130,19 @@ export function readLiveShelfSync(filesDir: string): PersistedLibraryStoreDocume
 
 export function readLiveShelfSyncWork(filesDir: string, comicId: string): PersistedComic | undefined {
   return liveLibraryStorage.get(filesDir)?.readWork(comicId, false)
+}
+
+export function commitLiveMihonCatalog(filesDir: string, record: MihonImportRecord, comic: Comic | undefined,
+  stageReading: (transaction: relationalStore.Transaction) => Promise<void>): Promise<void> {
+  const storage = liveLibraryStorage.get(filesDir)
+  if (storage === undefined) throw new Error('shelf_database_unavailable')
+  return storage.commitCatalogLink(record, comic === undefined ? undefined : persistComic(comic), stageReading)
+}
+
+export function saveLiveMihonSourceMatches(filesDir: string, records: MihonImportRecord[]): Promise<void> {
+  const storage = liveLibraryStorage.get(filesDir)
+  if (storage === undefined) throw new Error('shelf_database_unavailable')
+  return storage.saveMihonSourceMatches(records)
 }
 
 export function writeLiveLibrarySyncEdits(filesDir: string, edits: LibraryShelfSyncEdits, image: LibraryShelfSyncImage): void {
@@ -1164,8 +1178,9 @@ export function upsertComicAndPersistLibraryStore(
   comic: Comic
 ): void {
   const previousComic = libraryStore.getComic(comic.id)
-  if (previousComic !== undefined && previousComic.sortTitle === comic.sortTitle &&
-    previousComic.createdAt === comic.createdAt) {
+  // The RDB keeps the existing row's storage order. A refreshed title or
+  // creation date is re-sorted by the presentation without saving other works.
+  if (previousComic !== undefined) {
     libraryStore.upsertComic(comic)
     try {
       persistenceService.persistExistingWorks([comic])

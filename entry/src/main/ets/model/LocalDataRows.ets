@@ -98,6 +98,20 @@ export class LocalDataRows<T> {
     }
   }
 
+  async replaceWorkRows(transaction: relationalStore.Transaction, records: T[], comicId: string,
+    column: string = 'comic_id', filter?: string): Promise<void> {
+    const predicate = ' WHERE ' + column + ' = ?' + (filter === undefined ? '' : ' AND ' + filter)
+    if (records.length === 0) {
+      await transaction.execute(this.deleteRows + predicate, [comicId])
+      return
+    }
+    const rows = await transaction.querySql(this.selectKeys + predicate, [comicId])
+    const previous = this.previousKeys(rows)
+    await this.importRows(transaction, records)
+    for (const record of records) previous.delete(this.encodedKey(this.encode(record)))
+    for (const key of previous.values()) await transaction.execute(this.deleteKey, key)
+  }
+
   replace(store: relationalStore.RdbStore, records: T[], scopeColumn?: string, scope?: string): void {
     const predicate = scopeColumn === undefined ? '' : ' WHERE ' + scopeColumn + ' = ?'
     const scopeArgs: LocalColumnValue[] = scopeColumn === undefined ? [] : [scope ?? null]
@@ -105,7 +119,26 @@ export class LocalDataRows<T> {
       store.executeSync(this.deleteRows + predicate, scopeArgs)
       return
     }
-    const keyRows = store.querySqlSync(this.selectKeys + predicate, scopeArgs)
+    const previous = this.previousKeys(store.querySqlSync(this.selectKeys + predicate, scopeArgs))
+    const maxRows = Math.floor(900 / this.columnCount)
+    for (let start = 0; start < records.length; start += maxRows) {
+      const batch = records.slice(start, start + maxRows)
+      const args: LocalColumnValue[] = []
+      for (const record of batch) {
+        const values = this.encode(record)
+        previous.delete(this.encodedKey(values))
+        args.push(...values)
+      }
+      store.executeSync(this.batchStatement(batch.length), args)
+    }
+    for (const key of previous.values()) store.executeSync(this.deleteKey, key)
+  }
+
+  private encodedKey(values: LocalColumnValue[]): string {
+    return JSON.stringify(values.slice(0, this.keyCount).map((value: LocalColumnValue): string => String(value)))
+  }
+
+  private previousKeys(keyRows: relationalStore.ResultSet): Map<string, string[]> {
     const keys = collectLocalRows(keyRows, (row: relationalStore.ResultSet): string[] => {
       const key: string[] = []
       for (let index = 0; index < this.keyCount; index++) key.push(row.getString(index))
@@ -113,18 +146,7 @@ export class LocalDataRows<T> {
     })
     const previous = new Map<string, string[]>()
     for (const key of keys) previous.set(JSON.stringify(key), key)
-    const maxRows = Math.floor(900 / this.columnCount)
-    for (let start = 0; start < records.length; start += maxRows) {
-      const batch = records.slice(start, start + maxRows)
-      const args: LocalColumnValue[] = []
-      for (const record of batch) {
-        const values = this.encode(record)
-        previous.delete(JSON.stringify(values.slice(0, this.keyCount).map((value: LocalColumnValue): string => String(value))))
-        args.push(...values)
-      }
-      store.executeSync(this.batchStatement(batch.length), args)
-    }
-    for (const key of previous.values()) store.executeSync(this.deleteKey, key)
+    return previous
   }
 
   private batchStatement(count: number, ordered: boolean = false): string {

@@ -4,21 +4,20 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { Comic } from './ComicModels'
 import { InMemoryLibraryStore, LibraryContents, libraryContents } from './LibraryStore'
 import { AppFilesLibraryStorePersistenceAdapter, LibraryStorePersistenceService, LIBRARY_STORE_PERSISTENCE_FILE_NAME,
-  serializeLibraryStore, updatedSourceMangaDetail } from './LibraryPersistence'
-import { alignSnapshotChapterCompletion, AppFilesReaderSessionPersistenceAdapter, ChapterReadingState,
-  ReaderSessionDocumentSnapshot, ReaderSessionReadingSnapshot, READER_PROGRESS_PERSISTENCE_FILE_NAME,
+  serializeLibraryStore } from './LibraryPersistence'
+import { AppFilesReaderSessionPersistenceAdapter, ChapterReadingState,
+  ReaderSessionDocumentSnapshot, READER_PROGRESS_PERSISTENCE_FILE_NAME,
   serializeReaderSessionForDevice } from './ReaderSessionStore'
-import { MihonImportLabels, MihonImportSummary, importMihonWorks, linkMihonWork, mergeMihonReading, mihonDeclaredWork,
+import { MihonImportLabels, MihonImportSummary, importMihonWorks, linkMihonWork, mihonDeclaredWork,
   mihonSourceMatcher, ResolvedMihonImport, summarizeMihonImport, withMihonTrackerCandidates } from './MihonImportPlanning'
 import { MihonImportRecord, readMihonBackup } from './MihonBackupReader'
-import { MihonSourceIdentity, mihonPathIdentity } from '../sourceRuntime/MihonSourceIdentity'
+import { MihonSourceIdentity } from '../sourceRuntime/MihonSourceIdentity'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { ComicTrackerMapping } from './TrackerModels'
 import { SourceManga } from './SourceModels'
-import { comicWithCompleteSourceCatalog } from './SourceLibraryComic'
 import { MangaChapterItem, MangaDetail } from './MangaDetailModels'
 import { SourceChapterIdentityPolicy } from '../sourceRuntime/SourceWebsitePolicy'
-import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
+import { applyMihonSourceMatch, linkCatalog, mergeReading, verifyMihonEdition } from './MihonCatalogPlanning'
 import { finishAutomationRestoreInDirectory } from './AutomationStateEpoch'
 
 type MihonSourceSummary = SourceRuntimeRegistryInstalledSourceSummary
@@ -67,6 +66,37 @@ export interface MihonPreparedTransaction {
   removedComicIds?: string[]
 }
 
+export interface MihonPreparedCatalog {
+  record: MihonImportRecord
+  comic?: Comic
+  reader: ReaderSessionDocumentSnapshot
+  trackerMappings: ComicTrackerMapping[]
+  unmatchedChapters: number
+}
+
+export interface MihonSingleLink {
+  target?: Comic
+  identity?: MihonSourceIdentity
+  catalog?: MihonCatalogLink
+  verifiedEdition?: boolean
+  declaredIdentity?: MihonSourceIdentity
+}
+
+@Concurrent
+export function prepareMihonLinkTask(linkJson: string, record: MihonImportRecord, previous: Comic[],
+  reader: ReaderSessionDocumentSnapshot, labels: MihonImportLabels): MihonPreparedCatalog {
+  const library = new InMemoryLibraryStore()
+  previous.forEach((comic: Comic): void => { library.upsertComic(comic) })
+  library.replaceMihonImports([record])
+  const link = JSON.parse(linkJson) as MihonSingleLink
+  const linked = link.catalog !== undefined ? linkCatalog(library, record, link.catalog, labels) :
+    linkMihonWork(library, record, link.target!, link.verifiedEdition, link.identity, labels)
+  verifyMihonEdition(linked, link.declaredIdentity)
+  const unmatchedChapters = mergeReading(reader, [linked], labels)
+  return { record: linked.record, comic: library.getComic(linked.target.id), reader, unmatchedChapters,
+    trackerMappings: withMihonTrackerCandidates([], [linked]) }
+}
+
 @Concurrent
 export async function previewMihonBackupTask(bytes: ArrayBuffer): Promise<MihonImportSummary> {
   return summarizeMihonImport(await readMihonBackup(bytes))
@@ -109,8 +139,7 @@ export async function prepareMihonTransactionTask(filesDir: string, stagedDir: s
       library.replaceMihonImports(library.listMihonImports().map((record: MihonImportRecord): MihonImportRecord => {
         const match = matches.get(record.id)
         if (match === undefined || record.targetComicId) return record
-        return { id: record.id, work: record.work, categoryIds: record.categoryIds, sourceName: record.sourceName,
-          matchedSourceId: match.sourceId, linkedWork: match.work }
+        return applyMihonSourceMatch(record, match)
       }))
     }
     for (const link of request.links ?? []) {
@@ -126,35 +155,14 @@ export async function prepareMihonTransactionTask(filesDir: string, stagedDir: s
       const record = library.listMihonImports().find((row: MihonImportRecord): boolean => row.id === catalog.id)
       if (record === undefined) throw new Error('mihon_import_missing_work')
       if (!record.targetComicId) {
-        const detail = catalog.detail
-        const candidate = comicWithCompleteSourceCatalog(detail.sourceId, detail.id, detail, catalog.chapters,
-          catalog.excludedChapterIds, catalog.settingsFingerprint)
-        const linked = linkMihonWork(library, record, candidate, true, catalog.identity, request.labels)
-        const stored = library.getComic(linked.target.id)
-        if (stored !== undefined) {
-          const resolved = reconcileSourceChapterIdentity(stored, detail.id, catalog.chapters, undefined, catalog.chapterPolicy)
-          library.upsertComic(updatedSourceMangaDetail(stored, detail, resolved.chapters, true,
-            catalog.excludedChapterIds, catalog.settingsFingerprint))
-        }
-        entries.push(linked)
+        entries.push(linkCatalog(library, record, catalog, request.labels))
       }
     }
   }
   for (const item of entries) {
-    const identity = request.identities.get(item.target.sourceRuntimeId ?? '')
-    if (identity !== undefined && identity.sourceIds.includes(item.record.work.sourceId) &&
-      item.target.remoteResourceId === mihonPathIdentity(item.record.work.url, identity.work)) {
-      item.sameEdition = true
-      item.identity = identity
-    }
+    verifyMihonEdition(item, request.identities.get(item.target.sourceRuntimeId ?? ''))
   }
-  const reading: ReaderSessionReadingSnapshot = { progress: reader.progress, sourceHistory: reader.sourceHistory,
-    remoteHistory: reader.remoteHistory ?? [], chapterStates: reader.chapters, readingSessions: reader.readingSessions ?? [] }
-  const unmatchedChapters = mergeMihonReading(reading, entries, request.labels)
-  reader.progress = reading.progress
-  reader.sourceHistory = reading.sourceHistory
-  reader.chapters = reading.chapterStates
-  alignSnapshotChapterCompletion(reader)
+  const unmatchedChapters = mergeReading(reader, entries, request.labels)
   writeAppTextFile(stagedDir + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME, serializeLibraryStore(library))
   writeAppTextFile(stagedDir + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME, serializeReaderSessionForDevice(reader))
   // TaskPool serializes each message. Send the large collections in batches

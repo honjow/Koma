@@ -1,3 +1,4 @@
+import type { relationalStore } from '@kit.ArkData'
 import { allowDeviceSyncReaderProgress, deviceSyncReadingAcknowledged, deviceSyncReadingActionAcknowledged,
   signalDeviceSyncChange, stageDeviceSyncReading, stageDeviceSyncReadingActions, SyncReadingCapture,
   SyncReadingActionCapture, SyncReadingSignal, SyncReadingSource } from '../deviceSync/DeviceSyncSignals'
@@ -324,6 +325,19 @@ export function readLiveReadingEdits(filesDir: string, scope: ReaderSyncWorkScop
   const storage = liveReaderStorage.get(filesDir)
   if (storage === undefined) throw new Error('reader_database_unavailable')
   return storage.readSyncEdits(scope)
+}
+
+export function readLiveMihonReading(filesDir: string, comicIds: string[]): ReaderSessionDocumentSnapshot {
+  const storage = liveReaderStorage.get(filesDir)
+  if (storage === undefined) throw new Error('reader_database_unavailable')
+  return storage.readCatalogLinkReading(comicIds)
+}
+
+export function stageLiveMihonReading(filesDir: string, transaction: relationalStore.Transaction, comicIds: string[],
+  reading: ReaderSessionDocumentSnapshot): Promise<void> {
+  const storage = liveReaderStorage.get(filesDir)
+  if (storage === undefined) throw new Error('reader_database_unavailable')
+  return storage.stageCatalogLink(transaction, comicIds, reading)
 }
 
 export function writeLiveReadingEdits(filesDir: string, scope: ReaderSyncWorkScope[], reading: ReaderSessionDocumentSnapshot): void {
@@ -771,10 +785,12 @@ export abstract class ReaderSessionStore {
   abstract restoreReadingState(snapshot: ReaderSessionReadingSnapshot): void
 
   addReadingSession(record: ReadingSessionRecord): void {
-    this.readingSessions.push({ comicId: record.comicId, chapterId: record.chapterId,
-      startedAt: record.startedAt, endedAt: record.endedAt, pagesRead: record.pagesRead })
-    this.chapterStatesChanged()
+    const row: ReadingSessionRecord = { comicId: record.comicId, chapterId: record.chapterId,
+      startedAt: record.startedAt, endedAt: record.endedAt, pagesRead: record.pagesRead }
+    this.readingSessions.push(row)
+    this.readingSessionAdded(row)
   }
+  protected readingSessionAdded(_record: ReadingSessionRecord): void { this.chapterStatesChanged() }
   protected readonly chapterStates: Map<string, ChapterReadingState> = new Map<string, ChapterReadingState>()
   protected readonly remoteHistoryByComicId: Map<ComicId, RemoteReadHistoryEntry> = new Map<ComicId, RemoteReadHistoryEntry>()
   abstract getProgress(comicId: ComicId): ReadingProgress | undefined
@@ -1153,6 +1169,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   private readonly sourceHistoryByComicId: Map<ComicId, SourceReadHistoryEntry> = new Map<ComicId, SourceReadHistoryEntry>()
   private readonly pendingPageTurns: Map<string, ChapterReadingState> = new Map<string, ChapterReadingState>()
   private needsFullSnapshot: boolean = false
+  private pendingReadingSessions: ReadingSessionRecord[] = []
   private persistTimerId: number = -1
   private persistPending: boolean = false
   private persistRevision: number = 0
@@ -1199,6 +1216,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
    * and upserts their chapter states. The restore transaction flushed writes. */
   applyCommittedMihonLinks(comicIds: string[], snapshot: ReaderSessionDocumentSnapshot): void {
     this.applyCommittedReadingRows(comicIds, snapshot)
+    this.deviceSyncRevision += 1
   }
 
   applyCommittedDeviceSyncEdits(scope: ReaderSyncWorkScope[], snapshot: ReaderSessionDocumentSnapshot): void {
@@ -1289,6 +1307,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       this.persistTimerId = -1
       this.persistPending = false
       this.pendingPageTurns.clear()
+      this.pendingReadingSessions = []
       this.needsFullSnapshot = false
       this.persistBarrier += 1
       this.progressByComicId.clear()
@@ -1352,6 +1371,15 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
 
   protected chapterStatesChanged(): void {
     this.schedulePersist()
+  }
+
+  protected readingSessionAdded(record: ReadingSessionRecord): void {
+    if (this.adapter.supportsPageTurnWrites?.() === true) {
+      this.pendingReadingSessions.push(record)
+      this.schedulePersist(true)
+    } else {
+      this.schedulePersist()
+    }
   }
 
   protected remoteHistoryChanged(immediate: boolean): void {
@@ -1504,6 +1532,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       // Only a completed commit discharges pending work. A later normal boundary can retry a failure.
       this.persistPending = false
       this.pendingPageTurns.clear()
+      this.pendingReadingSessions = []
       this.needsFullSnapshot = false
       return true
     } catch (_error) {
@@ -1595,6 +1624,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       this.acceptPersistPlan(plan)
       this.persistPending = false
       this.pendingPageTurns.clear()
+      this.pendingReadingSessions = []
       this.needsFullSnapshot = false
       signalDeviceSyncChange('reading')
     } catch (_error) {
@@ -1650,7 +1680,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     return {
       snapshot: { progress: rows, sourceHistory: history,
         remoteHistory: pageTurns === undefined ? this.listRemoteHistory() : undefined, chapters,
-        readingSessions: pageTurns === undefined ? this.listReadingSessions() : undefined,
+        readingSessions: pageTurns === undefined ? this.listReadingSessions() : this.pendingReadingSessions.slice(),
         syncPositions: syncPositions.length > 0 ? syncPositions : undefined,
         syncActions: syncActions.length > 0 ? syncActions : undefined },
       syncPositions: syncPositions,

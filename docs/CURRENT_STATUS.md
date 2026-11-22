@@ -905,12 +905,13 @@
       "reportedAt": null,
       "reportedDate": "2026-11-15",
       "reportedAtSource": "用户提供真实 .tachibk，要求保留分类、章页、历史与追踪，合并已有作品。未关联时在实际阅读该作品时再说明。",
-      "updatedAt": "2026-11-17T20:13:30+08:00",
-      "status": "197 章节行优化已复测，详情首帧和切分类长帧仍开放",
-      "stage": "章节列表直接使用共享的原生 HDS 行参数",
-      "result": "197 同一书架和《装备我最强》，对照包 9631f85429b7 与候选包 eb4b803cbe75，章节出现帧 28.3→24.2 ms、进详情首帧 33.7→33.5 ms、返回 16.7→15.7 ms。新包两次切分类 25.5、26.8 ms。章节区像素一致，多选与快划后行菜单均实测通过。两包在行菜单按系统返回都回书架。原分类与屏幕超时已恢复并释租，保留新包、大书架、历史和原快照。",
-      "remaining": "详情进场布局仍约 19 ms，切分类约 27 ms。首次目录此前用《漫畫裡的羅康林》核过 166 章和原续读位置，本轮复测聚焦已缓存详情。WebDAV 暂停。哔咔另一本原第 5 页正文请求 HTTP 403。未匹配原记录保留，大备份没有追踪记录。",
+      "updatedAt": "2026-11-23T03:02:20+08:00",
+      "status": "197 首次取目录和阅读器退出的全量写入回归已修复",
+      "stage": "首开及单本关联使用作品范围内的 RDB 事务，阅读时长增量追加",
+      "result": "197 大书架有 1,064 本。旧包首次取回 81 章后，合并入后台前的主线程回调占用 4.27 秒。修复包首次取回另两本的 61、21 章，目录发布分别 13.7、14.0 ms。后一部实际续读到原章第 6 页，同章同页退出时回调 1,553.5→39.2 ms。最终包另从历史首次关联单章作品并续读第 6/195 页。两部书架样本的分类、目录及页位冷启动读回，无关书架、目录、分类与阅读行逐行一致。保留测试包和数据，恢复超时并释租。",
+      "remaining": "历史首次续读样本有 126.5 ms 帧，其间根页面和历史重新渲染。已缓存详情进场及切分类长帧仍开放。哔咔另一本原第 5 页正文请求 HTTP 403。未匹配原记录保留，大备份没有追踪记录。",
       "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/rdb-first-catalog-20261123/summary.json",
         ".hvigor/outputs/mihon-large-mapping-audit/detail-longframe-probe.db",
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/shelf-performance-20261117T181836391445/trace.htrace",
         ".hvigor/outputs/backup-public-20261112/device197__ALN-AL80/not-applicable/portrait-1260x2720/mihon-import/read-results-20261117T181928320992/summary.json",
@@ -29666,6 +29667,17 @@
         ".hvigor/outputs/published-source-order-audit-20261123/final-publication-verification.json",
         ".hvigor/outputs/published-source-order-audit-20261123/mh1234-publication-commit.json",
         ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/progress.json"
+      ]
+    },
+    {
+      "id": "mihon-rdb-first-catalog-197-20261123",
+      "at": "2026-11-23T03:02:20+08:00",
+      "itemId": "MIHON_BACKUP_IMPORT",
+      "kind": "verified",
+      "title": "197 大书架验证首次目录与退出阅读的增量保存",
+      "detail": "首次目录原来在进入后台合并前完整读取并序列化书架和阅读数据，合并后又重写两份数据。现按原作品和在线作品在一个事务中合并保存，普通详情字段变化也按作品保存。新增阅读时长与页位增量同事务。真机核对目录、历史首次续读、同章同页退出、冷启动及无关数据读回。已读和书签、单条历史删除、收藏增删及分类定义仍有整库保存路径。",
+      "evidence": [
+        ".hvigor/outputs/mihon-large-mapping-audit/rdb-first-catalog-20261123/summary.json"
       ]
     }
   ],

@@ -5,7 +5,8 @@ import type { ChapterReadingState } from './ReaderSessionStore'
 import type { ReadingSessionRecord } from './ReadingStatistics'
 import type { SourceReadHistoryEntry } from './SourceReaderSession'
 import type { RemoteHistoryKind, RemoteReadHistoryEntry } from './RemoteReaderSession'
-import { booleanColumn, booleanValue, integerColumn, LocalColumnValue, LocalDataRows, realColumn, textColumn } from './LocalDataRows'
+import { booleanColumn, booleanValue, collectLocalRows, integerColumn, LocalColumnValue, LocalDataRows, realColumn,
+  textColumn } from './LocalDataRows'
 
 const POSITION_FIELDS: string[] = ['page_id', 'page_index', 'total_pages', 'progress_ratio', 'completed', 'saved_at', 'column_mode']
 
@@ -99,6 +100,20 @@ class ScopedReaderRows<T> {
     for (const row of rows) (share(row) ? shared : local).push(row)
     this.shared.replace(store, shared)
     this.local.replace(store, local)
+  }
+
+  async replaceWork(transaction: relationalStore.Transaction, comicId: string, rows: T[],
+    share: (row: T) => boolean): Promise<void> {
+    const shared: T[] = []
+    const local: T[] = []
+    for (const row of rows) (share(row) ? shared : local).push(row)
+    await this.shared.replaceWorkRows(transaction, shared, comicId)
+    await this.local.replaceWorkRows(transaction, local, comicId)
+  }
+
+  async sharedChapterIds(transaction: relationalStore.Transaction, comicId: string): Promise<Set<string>> {
+    return new Set(collectLocalRows(await transaction.querySql('SELECT chapter_id FROM ' + this.table +
+      ' WHERE comic_id = ?', [comicId]), (row: relationalStore.ResultSet): string => row.getString(0)))
   }
 }
 
@@ -265,4 +280,30 @@ export function orderedReaderSessions(rows: ReadingSessionRecord[]): OrderedRead
     seen.set(key, occurrence + 1)
     return { order, occurrence, session }
   })
+}
+
+/** Session statistics append alongside pending page turns. Preserve older
+ * duplicate timestamps without rebuilding chapter state or the session list. */
+export function appendReaderSessions(store: relationalStore.RdbStore, sessions: ReadingSessionRecord[]): void {
+  if (sessions.length === 0) return
+  const orderRows = store.querySqlSync('SELECT COALESCE(MAX(session_order), -1) + 1 FROM reader_sessions')
+  let order = 0
+  try {
+    if (orderRows.goToNextRow()) order = orderRows.getLong(0)
+  } finally {
+    orderRows.close()
+  }
+  for (const session of sessions) {
+    const rows = store.querySqlSync('SELECT COALESCE(MAX(session_occurrence), -1) + 1 FROM reader_sessions ' +
+      'WHERE comic_id = ? AND chapter_id = ? AND started_at = ? AND ended_at = ?',
+      [session.comicId, session.chapterId, session.startedAt, session.endedAt])
+    let occurrence = 0
+    try {
+      if (rows.goToNextRow()) occurrence = rows.getLong(0)
+    } finally {
+      rows.close()
+    }
+    readerSessions.put(store, { order, occurrence, session })
+    order += 1
+  }
 }

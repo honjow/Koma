@@ -1,6 +1,6 @@
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
-import { preferences } from '@kit.ArkData'
+import { preferences, relationalStore } from '@kit.ArkData'
 import { buffer, util } from '@kit.ArkTS'
 import { asset } from '@kit.AssetStoreKit'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -1162,6 +1162,20 @@ export class TrackerPreferencesStore {
       // The restore checkpoint owns rollback. Its caller refreshes the
       // public mapping snapshot after the library and reader are ready.
     })
+  }
+
+  async stageMihonCandidates(transaction: relationalStore.Transaction, mappings: ComicTrackerMapping[]): Promise<void> {
+    if (mappings.length === 0) return
+    await transaction.execute('INSERT OR IGNORE INTO typed_preference_collections (domain) VALUES (?)',
+      ['preferences/koma_tracker_preferences_v1/tracker.comicMappings'])
+    for (const row of mappings) {
+      await transaction.execute('INSERT OR IGNORE INTO tracker_mappings (binding_key, comic_id, provider_id, provider_title_id, ' +
+        'provider_title, mapping_state, user_confirmed, created_at, list_order) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ' +
+        '(SELECT COALESCE(MAX(list_order), -1) + 1 FROM tracker_mappings) WHERE NOT EXISTS ' +
+        '(SELECT 1 FROM tracker_mappings WHERE comic_id = ? AND provider_id = ?)',
+        [JSON.stringify([row.comicId, row.providerId]), row.comicId, row.providerId, row.providerTitleId,
+          row.providerTitle ?? null, row.mappingState, 0, row.createdAt, row.comicId, row.providerId])
+    }
   }
 
   /** Local title bindings only: no account/session transfer or remote progress write.

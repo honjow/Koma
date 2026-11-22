@@ -242,6 +242,21 @@ export class ShelfMihonImports {
     await importHeaders.importRows(transaction, this.headers)
   }
 
+  async stageCatalogLink(transaction: relationalStore.Transaction): Promise<void> {
+    const root = this.roots[0]
+    const rows = await transaction.querySql('SELECT list_order FROM shelf_mihon_imports WHERE import_id = ?', [root.id])
+    try {
+      if (!rows.goToNextRow()) throw new Error('mihon_import_missing_work')
+      root.order = rows.getLong(0)
+    } finally {
+      rows.close()
+    }
+    await importedWorks.importRows(transaction, this.roots)
+    await importText.replaceWorkRows(transaction, this.text.filter((row: MihonTextItem): boolean => row.kind === 'linked_tag'),
+      root.id, 'import_id', "item_kind = 'linked_tag'")
+    await importHeaders.replaceWorkRows(transaction, this.headers, root.id, 'import_id')
+  }
+
   replace(store: relationalStore.RdbStore): void {
     importedWorks.replace(store, this.roots)
     importChapters.replace(store, this.chapters)

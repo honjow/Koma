@@ -74,7 +74,7 @@ export interface LibraryStore {
   replaceSmartCategories(categories: LibrarySmartCategory[], allowSavedNameCollisions?: boolean): void
   getComic(comicId: ComicId): Comic | undefined
   findByRemote(serverId: string, resourceId: string): Comic | undefined
-  findBySourceManga(sourceId: string, mangaId: string): Comic | undefined
+  findBySourceManga(sourceId: string, mangaId: string, sortByTitle?: boolean): Comic | undefined
   hasComics(): boolean
   listComics(sortByTitle?: boolean): Comic[]
   listLibraryItems(progressByComicId?: Map<ComicId, ReadingProgress>, options?: LibraryListOptions): LibraryItem[]
@@ -174,10 +174,11 @@ export class InMemoryLibraryStore implements LibraryStore {
     })
   }
 
-  findBySourceManga(sourceId: string, mangaId: string): Comic | undefined {
+  findBySourceManga(sourceId: string, mangaId: string, sortByTitle: boolean = true): Comic | undefined {
     let found: Comic | undefined
     for (const comic of this.comics.values()) {
       if (comic.sourceRuntimeId !== sourceId || comic.remoteResourceId !== mangaId) continue
+      if (!sortByTitle) return comic
       // Preserve the old title-sorted choice for duplicate legacy records.
       // New editions do not need to sort the entire shelf to detect a miss.
       if (found === undefined || this.compareTitles(comic, found) < 0) found = comic

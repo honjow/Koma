@@ -196,6 +196,21 @@ class ShelfWorkRows {
     await shelfPageBalloons.importRows(transaction, this.balloons)
   }
 
+  async replaceWork(transaction: relationalStore.Transaction, id: string): Promise<void> {
+    if (this.works.length !== 0) await shelfWorkDetails.importRows(transaction, this.works)
+    await shelfSharedWorks.replaceWorkRows(transaction, this.sharedWorks, id)
+    await shelfMetadataLists.replaceWorkRows(transaction, this.metadataList, id)
+    await shelfSharedChapters.replaceWorkRows(transaction, this.sharedChapters, id)
+    await shelfSharedChaptersLocal.replaceWorkRows(transaction, this.localSharedChapters, id)
+    await shelfMemberships.replaceWorkRows(transaction, this.members, id)
+    await shelfMembershipsLocal.replaceWorkRows(transaction, this.localMembers, id)
+    await shelfChapters.replaceWorkRows(transaction, this.chapters, id)
+    await shelfPages.replaceWorkRows(transaction, this.pages, id)
+    await shelfPageLines.replaceWorkRows(transaction, this.lines, id)
+    await shelfPageBalloons.replaceWorkRows(transaction, this.balloons, id)
+    if (this.works.length === 0) await shelfWorkDetails.replaceWorkRows(transaction, [], id)
+  }
+
   replace(store: relationalStore.RdbStore, comicId?: string, replaceCatalog: boolean = true): void {
     const scope = comicId === undefined ? undefined : 'comic_id'
     shelfWorkDetails.replace(store, this.works, scope, comicId)
@@ -352,6 +367,46 @@ export class LibraryRdbStorage {
 
   readWork(comicId: string, catalog: boolean = true): PersistedComic | undefined {
     return readWorks(this.store, comicId, catalog)[0]
+  }
+
+  /** A first online catalog replaces only the imported/linked works. Keep the
+   * library and reading positions atomic without export or restore checkpoints. */
+  async commitCatalogLink(record: MihonImportRecord, work: PersistedComic | undefined,
+    stageReading: (transaction: relationalStore.Transaction) => Promise<void>): Promise<void> {
+    const transaction = await this.store.createTransaction({ transactionType: relationalStore.TransactionType.IMMEDIATE })
+    try {
+      if (record.id !== work?.id) await new ShelfWorkRows([]).replaceWork(transaction, record.id)
+      if (work !== undefined) {
+        const rows = await transaction.querySql('SELECT COALESCE((SELECT list_order FROM shelf_work_details WHERE comic_id = ?), ' +
+          '(SELECT COALESCE(MAX(list_order), -1) + 1 FROM shelf_work_details))', [work.id])
+        let order = 0
+        try {
+          if (rows.goToNextRow()) order = rows.getLong(0)
+        } finally {
+          rows.close()
+        }
+        await new ShelfWorkRows([work], order).replaceWork(transaction, work.id)
+      }
+      await new ShelfMihonImports([record]).stageCatalogLink(transaction)
+      await stageReading(transaction)
+      await transaction.commit()
+      this.writeRevision += 1
+    } catch (error) {
+      await transaction.rollback()
+      throw error as Error
+    }
+  }
+
+  async saveMihonSourceMatches(records: MihonImportRecord[]): Promise<void> {
+    const transaction = await this.store.createTransaction({ transactionType: relationalStore.TransactionType.IMMEDIATE })
+    try {
+      for (const record of records) await new ShelfMihonImports([record]).stageCatalogLink(transaction)
+      await transaction.commit()
+      this.writeRevision += 1
+    } catch (error) {
+      await transaction.rollback()
+      throw error as Error
+    }
   }
 
   categoryAliases(): Map<string, string> {

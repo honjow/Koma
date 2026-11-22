@@ -7,7 +7,7 @@ import type { ReadingSessionRecord } from './ReadingStatistics'
 import type { SyncReadingActionCapture, SyncReadingCapture } from '../deviceSync/DeviceSyncSignals'
 import { syncReadingIdentity } from '../deviceSync/DeviceSyncData'
 import { collectLocalRows } from './LocalDataRows'
-import { orderedReaderSessions, readerChapterStates, readerPositions, readerRemoteHistory, readerRemotePaths,
+import { appendReaderSessions, orderedReaderSessions, readerChapterStates, readerPositions, readerRemoteHistory, readerRemotePaths,
   readerSessions, readerSourceHistory, readRemoteHistory, remoteHistoryRows, remotePathRows } from './ReaderDataRows'
 import { ReaderOutboxRows, readActionOutbox, readPositionOutbox } from './ReaderOutboxRows'
 import { hasUserDataMigration } from './UserDataDatabase'
@@ -163,6 +163,33 @@ export class ReaderRdbStorage {
     }
   }
 
+  readCatalogLinkReading(comicIds: string[]): ReaderSessionDocumentSnapshot {
+    const reading: ReaderSessionDocumentSnapshot = { progress: [], chapters: [], sourceHistory: [] }
+    for (const id of comicIds) {
+      reading.progress.push(...readerPositions.read(this.store, 'comic_id = ?', [id]))
+      reading.sourceHistory.push(...readerSourceHistory.read(this.store, 'comic_id = ?', [id]))
+      for (const row of readerChapterStates.read(this.store, 'comic_id = ?', [id])) reading.chapters.push(row)
+    }
+    return reading
+  }
+
+  async stageCatalogLink(transaction: relationalStore.Transaction, comicIds: string[],
+    reading: ReaderSessionDocumentSnapshot): Promise<void> {
+    const scope = new ReadingScope(reading)
+    for (const id of comicIds) {
+      const sharedPosition = await readerPositions.sharedChapterIds(transaction, id)
+      const sharedChapters = await readerChapterStates.sharedChapterIds(transaction, id)
+      await readerPositions.replaceWork(transaction, id,
+        reading.progress.filter((row: ReadingProgress): boolean => row.comicId === id),
+        (row: ReadingProgress): boolean => scope.shares(id, row.chapterId) || sharedPosition.has(row.chapterId))
+      await readerSourceHistory.replaceWork(transaction, id,
+        reading.sourceHistory.filter((row: SourceReadHistoryEntry): boolean => row.comicId === id), sharedHistory)
+      await readerChapterStates.replaceWork(transaction, id,
+        reading.chapters.filter((row: ChapterReadingState): boolean => row.comicId === id),
+        (row: ChapterReadingState): boolean => scope.shares(id, row.chapterId) || sharedChapters.has(row.chapterId))
+    }
+  }
+
   /** WebDAV receipts only touch the works and chapters mentioned by remote edits.
    * Remote server history and local reading statistics have separate owners. */
   readSyncEdits(scope: ReaderSyncWorkScope[]): ReaderSessionDocumentSnapshot {
@@ -290,6 +317,7 @@ export class ReaderRdbStorage {
           this.putPosition(position, scope)
         }
         for (const history of snapshot.sourceHistory) readerSourceHistory.put(this.store, history, sharedHistory(history))
+        appendReaderSessions(this.store, snapshot.readingSessions ?? [])
       }
       new ReaderOutboxRows(snapshot.syncPositions ?? [], snapshot.syncActions ?? []).replace(this.store)
     })

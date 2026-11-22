@@ -659,6 +659,67 @@ test('page turns atomically update the current and chapter positions with the co
     }))
     reader.writeSyncEdits(scope, before)
     assert.deepEqual(plain(reader.read()), afterTurn)
+
+    const repeated = { ...initial.readingSessions[0], pagesRead: 1 }
+    const sessionOnly = { progress: [], chapters: [], sourceHistory: [], readingSessions: [repeated],
+      syncPositions: pending, syncActions: initial.syncActions }
+    env.failNextCommit()
+    assert.throws(() => reader.save(sessionOnly, []), /interrupted write/)
+    assert.deepEqual(plain(reader.read()), afterTurn)
+    reader.save(sessionOnly, [])
+    assert.deepEqual(plain(reader.read()), { ...afterTurn, readingSessions: [...initial.readingSessions, repeated] })
+  } finally {
+    env.close()
+  }
+})
+
+test('first Mihon catalog commits the shelf link and reading position together', async () => {
+  const env = fixture()
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
+    const { ReaderRdbStorage } = env.load('ReaderRdbStorage')
+    const store = await openUserDataDatabase({ filesDir: '/mihon-first-catalog' })
+    const library = new LibraryRdbStorage(store)
+    const reader = new ReaderRdbStorage(store)
+    const original = 'mihon:old'
+    const online = 'com.rumanhua.koma:/new/'
+    const record = { id: original, sourceName: 'Original', categoryIds: ['reading'],
+      work: { sourceId: '1', url: '/old/', title: 'Original', status: 0, favorite: true, genres: ['Genre'],
+        categoryIds: ['old-category'], chapters: [], history: [], tracking: [] },
+      linkedWork: { id: '/new/', sourceId: 'com.rumanhua.koma', title: 'Original', tags: ['old-tag'] } }
+    const chapter = { id: 'chapter', title: 'Chapter', index: 0, pages: [] }
+    const comic = { id: online, title: 'Online', sourceKind: 'private_library', sourceRuntimeId: 'com.rumanhua.koma',
+      remoteResourceId: '/new/', categoryIds: ['reading'], chapters: [chapter] }
+    const oldPosition = { comicId: original, chapterId: 'old-chapter', pageIndex: 7, totalPages: 20,
+      progressRatio: 0.4, updatedAt: 100, completed: false }
+    const position = { ...oldPosition, comicId: online, chapterId: chapter.id }
+    const state = { comicId: online, chapterId: chapter.id, position, bookmarked: true, updatedAt: 100, isRead: false }
+    await library.migrate({ schemaVersion: 1, comics: [
+      { id: original, title: 'Original', categoryIds: ['reading'], chapters: [] },
+      { id: 'unrelated', title: 'Unrelated', chapters: [] },
+    ], mihonImports: [record] })
+    await reader.migrate({ progress: [oldPosition], chapters: [], sourceHistory: [] })
+    const beforeLibrary = plain(library.read())
+    const beforeReading = plain(reader.read())
+    const linked = { ...record, targetComicId: online, linkedWork: { ...record.linkedWork, tags: ['new-tag'] } }
+    const commit = () => library.commitCatalogLink(linked, comic, transaction => reader.stageCatalogLink(transaction,
+      [original, online], { progress: [position], chapters: [state], sourceHistory: [
+        { comicId: online, sourceId: comic.sourceRuntimeId, mangaId: comic.remoteResourceId, chapterId: chapter.id },
+      ] }))
+    env.failNextCommit()
+    await assert.rejects(commit(), /interrupted write/)
+    assert.deepEqual(plain(library.read()), beforeLibrary)
+    assert.deepEqual(plain(reader.read()), beforeReading)
+    await commit()
+    assert.deepEqual(library.read().comics.map(work => work.id), ['unrelated', online])
+    assert.deepEqual(library.readWork(online).categoryIds, ['reading'])
+    assert.equal(library.readWork(online).chapters[0].id, chapter.id)
+    assert.deepEqual(plain(library.read().mihonImports), plain([linked]))
+    assert.deepEqual(plain(reader.read().progress), [position])
+    assert.deepEqual(plain(reader.read().chapters), [state])
+    assert.equal(store.querySqlSync('SELECT comic_id FROM reader_current_positions WHERE comic_id = ?', [online])
+      .goToNextRow(), true)
   } finally {
     env.close()
   }
