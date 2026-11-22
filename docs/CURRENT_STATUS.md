@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T03:16:16+08:00",
+  "updatedAt": "2026-11-23T03:51:28+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -6223,22 +6223,23 @@
       "id": "CHAPTER_SORT_MENU",
       "number": 103,
       "title": "章节排序菜单无作用",
-      "status": "计数已验收；选章列表统一正向已实现、待237验收",
-      "kind": "open",
+      "status": "阅读器半模态按所选依据正向，已提交并在237验收",
+      "kind": "accepted",
       "priority": "P0（人类再次复现：通用排序及菜单状态）",
       "owner": "本会话：章节排序与全部已发布源章序检查",
       "dependencies": [],
-      "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。 对照 Mihon 的四种章排序，Koma 增加「按上传日期」「名称」并对齐「按图源」「按章节编号」。保留默认按图源及原生菜单正反序。所选依据用于同一已核实阅读组的阅读起点和正向邻章，反转显示不改变邻章。漫画1234 0.1.15 的 711 条具名目录遵守原站及 Keiyoushi 顺序，章节 ID 与阅读位置先后保持。 197 使用本轮同签候选和漫画1234 0.1.15。默认按图源的首行是第五百七十六章。无记录开始阅读打开原站入口《鸽之魔界大门—— 2》。按名称后列表前两项是《40进20PK赛》和《超紧急事态！！》。反转显示后仍从前者开始，末页滑到后者，后者首页滑回前者末页。章节编号和上传日期选项也在真机选中。该目录未提供上传时间，日期比较另外用有日期值和缺日期值的执行用例覆盖。 2026-11-23：c263ce77 修正图源方向标签与四项文案；3bafce88 使新作品默认倒序，已有排序记录保持。两个候选均 assembleHap 成功。237 普通导入瓜子0.1.9并下拉刷新，341章目录完整保留，两个档案及预告获得0/1/2位置。真实条漫滚动验证封面档案→人物档案→预告→001，档案间向前/向后均可跨章；恢复倒序显示后，人物档案向前仍回封面档案。原当前进度、页码与saved_at逐字段未变。 最终 App 候选在237验证漫画1234《我的微信连三界》原目录最早在前、新作品无排序记录时默认倒序，实际首行为最终话。瓜子最终公开0.1.9普通导入后刷新341章，全部有唯一阅读位置。原进度人物档案、场景第1/12页及saved_at未改，原source_order/forward保留，临时源无痕恢复关闭，两份临时导入文件及自有设备截图布局已清理。独立恢复SLEEP/OverrideTimeout10000ms并释租。 2026-11-23发布后补正：先前验收漏查底部章序。KomaReaderLabPage原取手动选章目录下标；现由Adapter与adjacent共用readingChapterIds计算章序/总数，目录未完整时不显示误导的1/1。本次不改书源、共享Kit、版本号或持久进度。 2682eb51补丁最终237验收：普通源内搜索进入瓜子《从姑获鸟开始》，原图源倒序目录341章，继续人物档案第1/12页，实际底部为章节2/341。临时源无痕false已读回，原详情倒序目录、SLEEP和OverrideTimeout10000ms已恢复并释租。读取到的较新读态时间早于本次阅读，未用旧快照覆盖。",
-      "remaining": "用户确认半模态固定正向，并重申按作品所选排序依据联动。已补书架/历史、源详情直读和后台补齐目录三入口；正在编译和237验证。书源全量审计继续#343。",
+      "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。 对照 Mihon 的四种章排序，Koma 增加「按上传日期」「名称」并对齐「按图源」「按章节编号」。保留默认按图源及原生菜单正反序。所选依据用于同一已核实阅读组的阅读起点和正向邻章，反转显示不改变邻章。漫画1234 0.1.15 的 711 条具名目录遵守原站及 Keiyoushi 顺序，章节 ID 与阅读位置先后保持。 197 使用本轮同签候选和漫画1234 0.1.15。默认按图源的首行是第五百七十六章。无记录开始阅读打开原站入口《鸽之魔界大门—— 2》。按名称后列表前两项是《40进20PK赛》和《超紧急事态！！》。反转显示后仍从前者开始，末页滑到后者，后者首页滑回前者末页。章节编号和上传日期选项也在真机选中。该目录未提供上传时间，日期比较另外用有日期值和缺日期值的执行用例覆盖。 2026-11-23：c263ce77 修正图源方向标签与四项文案；3bafce88 使新作品默认倒序，已有排序记录保持。两个候选均 assembleHap 成功。237 普通导入瓜子0.1.9并下拉刷新，341章目录完整保留，两个档案及预告获得0/1/2位置。真实条漫滚动验证封面档案→人物档案→预告→001，档案间向前/向后均可跨章；恢复倒序显示后，人物档案向前仍回封面档案。原当前进度、页码与saved_at逐字段未变。 最终 App 候选在237验证漫画1234《我的微信连三界》原目录最早在前、新作品无排序记录时默认倒序，实际首行为最终话。瓜子最终公开0.1.9普通导入后刷新341章，全部有唯一阅读位置。原进度人物档案、场景第1/12页及saved_at未改，原source_order/forward保留，临时源无痕恢复关闭，两份临时导入文件及自有设备截图布局已清理。独立恢复SLEEP/OverrideTimeout10000ms并释租。 2026-11-23发布后补正：先前验收漏查底部章序。KomaReaderLabPage原取手动选章目录下标；现由Adapter与adjacent共用readingChapterIds计算章序/总数，目录未完整时不显示误导的1/1。本次不改书源、共享Kit、版本号或持久进度。 2682eb51补丁最终237验收：普通源内搜索进入瓜子《从姑获鸟开始》，原图源倒序目录341章，继续人物档案第1/12页，实际底部为章节2/341。临时源无痕false已读回，原详情倒序目录、SLEEP和OverrideTimeout10000ms已恢复并释租。读取到的较新读态时间早于本次阅读，未用旧快照覆盖。 131e70b9统一完整手动目录的正向投影，书架/历史、未入库源直读和后台补目录均接入。16项实际逻辑覆盖四依据；237瓜子341章实见图源首四项封面→人物→预告→001，详情反转后半模态不反转、人物仍2/341。名称依据下人物338/341，明确菜单上一章公告339→人物338、下一章人物338→公告339。原图源倒序、源无痕false及读态四字段已精确恢复。设备本轮仅图源和名称，未把编号/日期逻辑检查写作设备验收。",
+      "remaining": "本轮半模态方向补正已完成；所有源的目录修复与抽样继续#343。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "evidencePoints": [],
-      "remainingActions": [
-        "237检查默认图源及切换排序依据后的半模态、上下章与计数方向一致，详情展示反转独立。"
+      "evidencePoints": [
+        ".hvigor/outputs/published-source-order-audit-20261123/reader-picker-forward-validation.json",
+        ".hvigor/outputs/reader-picker-forward/candidate.json"
       ],
+      "remainingActions": [],
       "boundaries": [
         "本次新反馈明确重开通用展示反序与菜单状态，不继续按源补章号来掩盖菜单缺陷。",
         "原始章节对象/ID/源返回顺序、持久阅读数据和Reader自动邻章语义保持；跨季年代不能由显示反序推定。",
@@ -6254,7 +6255,7 @@
         "reopenEvidence": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
         "allowedDifference": "SOURCE_ORDER/CHAPTER_NUMBER与FORWARD/REVERSE独立，整表反转；原生选中标记、当前项无重选；排序分组小号常规字及公共材质。保其他布局、ID、读态和Reader邻章语义。"
       },
-      "updatedAt": "2026-11-23T03:16:16+08:00",
+      "updatedAt": "2026-11-23T03:51:28+08:00",
       "evidence": [
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/37-mh1234-baseline-chapter-title/layout.json",
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/46-mh1234-final-native-catalogue/layout.json",
@@ -12625,20 +12626,20 @@
       "id": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "number": 343,
       "title": "全部已发布书源的章节方向与连续阅读核对",
-      "status": "119源持续核对；22个修复与漫画1234维护版已发布",
+      "status": "119源持续核对；24个修复与漫画1234维护版已发布",
       "kind": "open",
       "priority": "P1",
-      "owner": "本会话统筹；Aristotle 237普通宿主复核，Galileo五源章序修复，Boole NoyAcg，Volta优酷与Zero",
+      "owner": "本会话统筹；Aristotle 237普通宿主复核，Volta优酷移动方向，Boole NoyAcg当前API",
       "dependencies": [
         "CHAPTER_SORT_MENU"
       ],
-      "result": "冻结正式索引119源已逐源读码并尝试真实请求。按作品ID去重取得438份非空完整目录、45161章，覆盖99源，其中77源至少5份。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。 MangaDex英文0.1.29、简繁0.1.16及NamiComi简繁0.1.9已由fcf7d22公开，CI45059665307成功；25份真实完整目录653章含175条两页目录完成候选验证。最终公开五包索引、清单及实际WASM版本一致，代表187章整份响应与精确候选在同原件下相等。",
-      "remaining": "237原宿主复核继续，已确认哔哩一部203章可读及实际向下一章，拷贝当次API521；不以CLI能力限制当App故障。优酷候选原生列表、搜索、详情与7章目录可用，但实际开始阅读选到末章，移动目录方向需抓原件修正，尚未发布。东立发现真实免费SP及前后篇三条误隔离，SP11页成功，正做源侧修复。Zero旧分支容量/重复ID候选及现站五部回归、Noy字段/当前API差异继续处理。App半模态正向统一另在#103，未冒设备验收通过。",
+      "result": "冻结正式索引119源已逐源读码并尝试真实请求。按作品ID去重取得438份非空完整目录、45161章，覆盖99源，其中77源至少5份。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。 MangaDex英文0.1.29、简繁0.1.16及NamiComi简繁0.1.9已由fcf7d22公开，CI45059665307成功；25份真实完整目录653章含175条两页目录完成候选验证。最终公开五包索引、清单及实际WASM版本一致，代表187章整份响应与精确候选在同原件下相等。 Zero0.1.12（bcbd88f、CI45060983479）及东立0.1.13（9e4d6e9、CI45062292943）已公开。Zero现站5部97章、两章348页表保持，最终公开代表17章与候选同原件整份响应相等；旧站EOF未恢复。东立8部37章及真实SP11页验证，无号章恢复邻章并保留相邻明确缺话/权限断点；最终公开目录与精确候选分别联网Data一致、SP11页成功，不称同原件回放。",
+      "remaining": "优酷候选237已见原生详情和7章，但开始阅读选到完结章；正在用既有源日志接口抓实际移动目录，不发布诊断包，取证后删除临时模块。Noy字段与完整性候选已本地保护22312624，当前同源v4适配继续，尚无真实已登录目录/正文。原20项CLI受限源的普通237验证仍在进行，保留未执行/补样和具名站点、认证条件；不把App半模态验收当全部源通过。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
-        "修复优酷移动目录真实反向，完成237完整阅读后发布。",
-        "完成东立免费无号章、Zero旧分支完整性、Noy字段及现API差异核对，验证完整的源直接发布。",
-        "237继续原20项受限源和可用源补样；每项分清完整元数据、普通UI、实际页图和外部认证/站点条件。"
+        "优酷采得实际移动目录方向后修正，验证正常开始阅读及页图后发布。",
+        "完成Noy当前API、分组、单章回退和正文对齐，真实会话验证后发布。",
+        "继续237原20源与可用源补样，区分CLI能力、实际目录、页图及站点/登录条件；收束设备时独立恢复释租。"
       ],
       "boundaries": [
         "不靠补章节编号替代真实目录顺序。",
@@ -12662,9 +12663,12 @@
         ".hvigor/outputs/published-source-order-audit-20261123/coordinate-publication-commit.json",
         ".hvigor/outputs/published-source-order-audit-20261123/coordinate-fix-final.json",
         ".hvigor/outputs/published-source-order-audit-20261123/final-publication/sources-fcf7d22e0442f8b029ecbb003b09eda56616c21f-verification.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/tongli-audit-final.json"
+        ".hvigor/outputs/published-source-order-audit-20261123/tongli-audit-final.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/zero-publication-commit.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/tongli-publication-commit.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/tongli-fix-final.json"
       ],
-      "updatedAt": "2026-11-23T03:25:20+08:00"
+      "updatedAt": "2026-11-23T03:51:28+08:00"
     }
   ],
   "source": {
@@ -29706,6 +29710,29 @@
         ".hvigor/outputs/published-source-order-audit-20261123/coordinate-publication-commit.json",
         ".hvigor/outputs/published-source-order-audit-20261123/coordinate-fix-final.json",
         ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/progress.json"
+      ]
+    },
+    {
+      "id": "reader-picker-forward-237-accepted-20261123",
+      "at": "2026-11-23T03:51:28+08:00",
+      "itemId": "CHAPTER_SORT_MENU",
+      "kind": "accepted",
+      "title": "237实测所选依据正向半模态，反转独立且原读态恢复",
+      "detail": "指定040ec312 HAP安装成功，沿普通瓜子详情进入阅读。图源及名称半模态、人物2/341和338/341、明确菜单双向邻章实见；原排序、源无痕false和章节ID/page_index/total_pages/saved_at四字段精确恢复。未写数据库，保留新App。编号/日期只用实际逻辑检查，未冒设备通过。设备仍由Aristotle持租继续原源队列，未宣称已收束释租。",
+      "evidence": [
+        ".hvigor/outputs/published-source-order-audit-20261123/reader-picker-forward-validation.json"
+      ]
+    },
+    {
+      "id": "source-zero-tongli-published-20261123",
+      "at": "2026-11-23T03:51:28+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "kind": "progress",
+      "title": "Zero和东立修复正式公开，余优酷与Noy继续",
+      "detail": "两次公开提交各仅三源文件与对应锁版本，未混入优酷/Noy候选、原SDK框架或素材WIP。Zero旧站连接边界保留；东立仅相邻明确编号判缺口，36→前→后→38不会误断。优酷真实开始阅读反例继续源侧定位，Noy当前v4继续；原20源未执行项不关闭。",
+      "evidence": [
+        ".hvigor/outputs/published-source-order-audit-20261123/zero-publication-commit.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/tongli-publication-commit.json"
       ]
     }
   ],
