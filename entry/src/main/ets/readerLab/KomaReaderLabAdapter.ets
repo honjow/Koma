@@ -94,6 +94,11 @@ class KomaReaderFileInformation implements ReaderImageInformationSource {
   }
 }
 
+export interface KomaReaderChapterPosition {
+  index: number
+  total: number
+}
+
 /** D1 reads local/downloaded chapters. It never fetches chapter pages or persists the user's library. */
 export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost,
   ReaderAssetFailureClassifier {
@@ -452,12 +457,27 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     if (config === undefined) return null
     // Online adjacency must use the same chronology as preloading. Raw source
     // catalog order may be newest-first and is only the manual picker's order.
-    const chapterIds = config.continuationChapterIds ??
-      (config.sourceRuntimeId === undefined ? config.chapterIds : [])
+    const chapterIds = this.readingChapterIds(config)
     const index = chapterIds.indexOf(unit.key.unit)
     const target = index + (direction === 'next' ? 1 : -1)
     if (index < 0 || target < 0 || target >= chapterIds.length) return null
     return new ReaderUnitKey(unit.key.scope, unit.key.work, chapterIds[target])
+  }
+
+  private readingChapterIds(config: ReaderSessionConfig): string[] {
+    return config.continuationChapterIds ??
+      (config.sourceRuntimeId === undefined ? config.chapterIds : [])
+  }
+
+  /** The toolbar counts the same forward sequence as adjacent(), including its
+   * edition boundary. Picker order is only a presentation choice. A pending
+   * catalog must not turn a resume placeholder into a misleading 1 / 1. */
+  chapterReadingPosition(unit: ReaderUnitKey): KomaReaderChapterPosition | undefined {
+    const config = this.configs.get(this.unitId(unit))
+    if (config === undefined || this.chapterCatalogPending(unit)) return undefined
+    const ids = this.readingChapterIds(config)
+    const index = ids.indexOf(unit.unit)
+    return index < 0 ? undefined : { index, total: ids.length }
   }
 
   /** Host-owned chapter catalog projection for the optional picker; reader-kit never sees these titles. */

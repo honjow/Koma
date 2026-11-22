@@ -64,7 +64,8 @@ test('picker opens only for an exact current unit/navigation and dismisses befor
   const choices = [new Choice(current, 'Alpha'), new Choice(key('B'), 'Beta')]
   const opened = []
   Object.assign(page, {
-    adapter: { chapterChoices: () => choices, chapterCatalogPending: () => false }, chapterChoices: [], chapterChoiceIdentity: '',
+    adapter: { chapterChoices: () => choices, chapterCatalogPending: () => false,
+      chapterReadingPosition: () => ({ index: 0, total: 2 }) }, chapterChoices: [], chapterChoiceIdentity: '',
     session: { snapshot: () => ({ phase: 'ready', navigationRevision: 4, unit: { key: current } }) },
     openChapterTarget: (...args) => opened.push(args.map(value => value?.unit ?? value)),
     syncKeepScreenOn() {}, syncVolumeKeys() {},
@@ -277,7 +278,8 @@ function preparationFixture(hostPrepare, fetchSource = async source => '/cache/'
   readSize = async () => '0,0') {
   const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter',
     ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'prepareArchiveBookmarks', 'authenticationSource',
-      'installConfig', 'prepareSequence', 'chapterCatalogPending', 'retryChapterCatalog', 'adjacent', 'preloadNextUnit',
+      'installConfig', 'prepareSequence', 'chapterCatalogPending', 'retryChapterCatalog', 'readingChapterIds',
+      'chapterReadingPosition', 'adjacent', 'preloadNextUnit',
       'page', 'preload', 'prepareImageSize', 'publishPreparedSize', 'recoverableImageFailure', 'refreshPageSources', 'sourceFile', 'load', 'close'], {
       ...sharedCore, ...sharedProcessing, DiagnosticLogger: { info() {}, warn() {} }, KomaReaderFailure: { catalogMessage: error => error.message },
       SourceRuntimeError: class extends Error {}, RemoteImageFileRequest,
@@ -405,6 +407,34 @@ test('online adjacent chapters and lookahead consume the same sequence instead o
   adapter.close()
 })
 
+test('reader chapter counter follows reading chronology while the 341-item picker can remain reversed', () => {
+  const adapter = preparationFixture(async () => { throw Error('must not fetch chapter pages') })
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage',
+    ['syncChapterChoices', 'chapterControlLabel'], { AppStrings: { get: () => 'Chapter' } })
+  const sequence = Array.from({ length: 341 }, (_, i) => `chapter:${i}`)
+  const page = new Page(), unit = unitKey(sequence[1])
+  const config = { ...chapterConfig(unit.unit), sourceRuntimeId: 'source',
+    chapterIds: sequence.slice().reverse(), continuationChapterIds: sequence }
+  adapter.configs.set(adapter.unitId(unit), config)
+  Object.assign(page, { adapter, chapterChoices: [], chapterChoiceIdentity: '' })
+  adapter.chapterChoices = current => config.chapterIds.map(id => new Choice(unitKey(id), id))
+  page.syncChapterChoices(unit)
+  assert.equal(page.chapterControlLabel(), 'Chapter 2 / 341')
+  assert.equal(page.chapterChoices[0].key.unit, sequence[340], 'manual picker retains descending display')
+  assert.equal(adapter.adjacent({ key: unit }, 'previous').unit, sequence[0])
+  assert.equal(adapter.adjacent({ key: unit }, 'next').unit, sequence[2])
+  config.chapterIds.reverse()
+  page.syncChapterChoices(unit)
+  assert.equal(page.chapterControlLabel(), 'Chapter 2 / 341', 'picker reversal cannot reverse the counter')
+  adapter.configs.set(adapter.unitId(unitKey(sequence[2])), config)
+  page.syncChapterChoices(unitKey(sequence[2]))
+  assert.equal(page.chapterControlLabel(), 'Chapter 3 / 341')
+  config.sourceChapterChronologyPending = true
+  page.syncChapterChoices(unit)
+  assert.equal(page.chapterControlLabel(), 'Chapter', 'pending metadata has no false chapter position')
+  adapter.close()
+})
+
 test('a known chapter opens while the catalog is pending, then gains picker choices and verified lookahead', async () => {
   const adapter = preparationFixture(async target => ({ ...chapterConfig(target.unit), sourceRuntimeId: 'source',
     chapterIds: [target.unit], chapterTitles: ['Current'], continuationChapterIds: undefined }))
@@ -414,10 +444,12 @@ test('a known chapter opens while the catalog is pending, then gains picker choi
   const unit = await adapter.prepare(unitKey('B'), new sharedCore.ReaderCancellation())
   assert.equal(unit.pageCount, 3, 'cached current pages do not wait for chapter metadata')
   assert.equal(adapter.adjacent(unit, 'next'), null)
+  assert.equal(adapter.chapterReadingPosition(unit.key), undefined)
   finish({ continuation: ['A', 'B', 'C'], chapterIds: ['C', 'B', 'A', 'alternate'],
     chapterTitles: ['Gamma', 'Beta', 'Alpha', 'Alternate'] })
   await later()
   assert.equal(adapter.adjacent(unit, 'next').unit, 'C')
+  assert.deepEqual(JSON.parse(JSON.stringify(adapter.chapterReadingPosition(unit.key))), { index: 1, total: 3 })
   assert.equal(adapter.configs.get(adapter.unitId(unit.key)).chapterTitles[3], 'Alternate')
   assert.equal(adapter.configs.get(adapter.unitId(unit.key)).chapterTitle, 'Beta')
   assert.equal(publications, 1)

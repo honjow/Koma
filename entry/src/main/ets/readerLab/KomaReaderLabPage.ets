@@ -244,6 +244,8 @@ export struct KomaReaderLabPage {
   @Local private commentsTarget?: SourceCommentsTarget = undefined
   @Local private chapterChoices: KomaReaderLabChapterChoice[] = []
   @Local private currentChapterUnit: string = ''
+  @Local private readingChapterIndex: number = -1
+  @Local private readingChapterTotal: number = 0
   @Local private chapterPickerSelected: number = -1
   private unitKey: ReaderUnitKey = new ReaderUnitKey('', '', '')
   private initialPageIndex: number = 0
@@ -805,6 +807,9 @@ export struct KomaReaderLabPage {
 
   private syncChapterChoices(unit: ReaderUnitKey): void {
     this.chapterCatalogIncomplete = this.adapter?.chapterCatalogPending(unit) ?? false
+    const position = this.adapter?.chapterReadingPosition(unit)
+    this.readingChapterIndex = position?.index ?? -1
+    this.readingChapterTotal = position?.total ?? 0
     const choices = this.adapter?.chapterChoices(unit) ?? []
     const identity = JSON.stringify(choices.map((choice: KomaReaderLabChapterChoice): string =>
       `${choice.key.scope}:${choice.key.work}:${choice.key.unit}:${choice.title}:${choice.pageIndex ?? -1}`))
@@ -819,10 +824,9 @@ export struct KomaReaderLabPage {
     if (this.chapterChoices.some((choice: KomaReaderLabChapterChoice): boolean => choice.pageIndex !== undefined)) {
       return AppStrings.get('reader_control_contents')
     }
-    const index = this.chapterChoices.findIndex((choice: KomaReaderLabChapterChoice): boolean => choice.key.unit === this.currentChapterUnit)
     const title = AppStrings.get('reader_control_chapter')
-    if (this.chapterCatalogIncomplete && this.chapterChoices.length <= 1) return title
-    return index < 0 ? title : `${title} ${index + 1} / ${this.chapterChoices.length}`
+    return this.readingChapterIndex < 0 ? title :
+      `${title} ${this.readingChapterIndex + 1} / ${this.readingChapterTotal}`
   }
 
   private chapterPickerTitle(choice: KomaReaderLabChapterChoice, index: number): string {
