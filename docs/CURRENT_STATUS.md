@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T01:31:01+08:00",
+  "updatedAt": "2026-11-23T01:59:36+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -12616,19 +12616,20 @@
       "id": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "number": 343,
       "title": "全部已发布书源的章节方向与连续阅读核对",
-      "status": "119源已逐一检查，428份完整目录已消费回放；逐批修复发布中",
+      "status": "119源逐一检查；16个源修复已发布，最终公开包复核中",
       "kind": "open",
       "priority": "P1",
       "owner": "本会话统筹；Aristotle 静态全检，Boole 58 源，Volta 61 源抽样",
       "dependencies": [
         "CHAPTER_SORT_MENU"
       ],
-      "result": "正式索引119源已逐源读码并尝试真实请求。457个作品有返回，其中428份非空完整目录、41436章进入App实际projectSourceChapterResponse/parseSourceChapterRow/sourceCatalogChronology/continuationChapterIds复核。98源至少取得1份完整目录，70源取得5份以上，部分官方源已覆盖全部有限合集。瓜子0.1.9已公开并以最终公开WASM重取341章，与237候选已验目录一致。漫画狗/菇菇修复已提交推送，XCOMIC简繁两个真实重号作品的续章修复已验证。",
-      "remaining": "21源在当前CLI未取得完整目录，须分别按登录、CF、站点响应及CLI不支持的私有会话/传输能力保留未验；不能登记为源故障或通过。正在核验和交付已确认的单源修复，未把27项静态风险当作27个已证实故障。",
+      "result": "冻结正式索引119源已逐源读码并尝试真实请求。最新470个作品有返回，436份非空完整目录、43899章进入App实际消费函数复核；99源至少取得1份完整目录，77源取得5份以上，有限官方合集按实际总量核对。MangaBall另补采3部1591章，保留与原抽样重叠，不重复累加。瓜子0.1.9、漫画狗0.1.1、菇菇0.1.3、崩坏3 0.1.4、战双0.1.5、快看0.1.10、XCOMIC简0.1.16/繁0.1.17、TIBIU0.1.1已公开。腾讯0.1.6、雀魂0.1.2、泰拉记事社0.1.10、Komiic0.1.23、DM5 0.1.31、MangaBZ0.1.17、漫画柜0.1.14已由a5ce74b公开，发布CI45051496613成功；七源30部4300章已对照完整provider原件并执行实际App邻章消费，正式包继续复核。缺号/重号不再直接隔离续章，真实版本、栏目、权限及源自身上传排序选项保留。SDK仅补既有可选章节URL元数据，未增加App能力。",
+      "remaining": "20源在当前CLI仍未取得完整目录，已区分9项CLI能力差异、HTTP拒绝/404/521、TLS失败、明确验证信号、登录要求及优酷未开放目录操作；没有从403推定Cloudflare，也未把CLI缺能力登记为App缺能力。继续核MangaBall无组条目、优酷公开操作、漫画1234已提交未发布版本及其它静态风险；不能将27项静态风险写成27个已证实故障，或把未验状态写成通过。DM5/极速的上传排序会改变阅读依据，极速错误候选已撤回并保留上游行为。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
-        "完成已确认误禁续、目录位置冲突和排序影响阅读的源修复验证并发布。",
-        "核实最终公开索引与包，保留各源具体受限请求和未验范围。"
+        "核对已发布最终包的索引、清单、WASM与已验候选及代表目录；不以CI代替阅读验收。",
+        "继续MangaBall与坐标类源、优酷操作、漫画1234候选及旧目录完整性疑点的具体调查和必要源侧修复。",
+        "保留各源准确未验原因与实际宿主复核边界，不擅自放宽认证、权限或上游设置。"
       ],
       "boundaries": [
         "不靠补章节编号替代真实目录顺序。",
@@ -12639,8 +12640,12 @@
         ".hvigor/outputs/published-source-order-audit-20261123/index.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/03-target-chapter-metadata/run-metadata.json",
         ".hvigor/outputs/published-source-order-audit-20261123/host-consumption.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/guazi-official/comparison.json"
-      ]
+        ".hvigor/outputs/published-source-order-audit-20261123/guazi-official/comparison.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/static-expanded-final.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/audit-blockers.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/seven-source-publication-commit.json"
+      ],
+      "updatedAt": "2026-11-23T01:59:36+08:00"
     }
   ],
   "source": {
@@ -29603,6 +29608,19 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/40-oldest-source-first-rows/screen.png",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/47-original-scene-restored/run-metadata.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/48-session-restore-readback/run-metadata.json"
+      ]
+    },
+    {
+      "id": "source-order-sixteen-published-20261123",
+      "at": "2026-11-23T01:59:36+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "kind": "progress",
+      "title": "16源章序修复已发布；剩余调查与最终包复核继续",
+      "detail": "源仓独立主仓已保护提交17f28ac，并只将七源、可选URL元数据及本轮章序规范精确推送a5ce74b；CI已成功。先前TIBIU发布be540b9和五源发布0660793亦成功。未夹带其它SDK框架、素材WIP、身份声明或新增源；未操作App版本和发布。本轮App验收继续保持#103 accepted，用户可独立发布App。源侧未验事项仍在#343，不借App问题已完成而关闭。",
+      "evidence": [
+        ".hvigor/outputs/published-source-order-audit-20261123/static-fixes.md",
+        ".hvigor/outputs/published-source-order-audit-20261123/runtime-1/fix-verification/jisu-sortChapter-product-boundary.json",
+        "https://github.com/honjow/koma-sources/actions/runs/45051496613"
       ]
     }
   ],
