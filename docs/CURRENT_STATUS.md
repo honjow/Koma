@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T02:38:00+08:00",
+  "updatedAt": "2026-11-23T03:00:40+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -12621,20 +12621,20 @@
       "id": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "number": 343,
       "title": "全部已发布书源的章节方向与连续阅读核对",
-      "status": "119源逐一检查；16个源修复已发布，最终公开包复核中",
+      "status": "119源持续核对；17个修复与漫画1234维护版已发布",
       "kind": "open",
       "priority": "P1",
-      "owner": "本会话统筹；Aristotle 静态全检，Boole 58 源，Volta 61 源抽样",
+      "owner": "本会话统筹；Aristotle 237普通宿主复核，Galileo五源章序修复，Boole NoyAcg，Volta优酷与Zero",
       "dependencies": [
         "CHAPTER_SORT_MENU"
       ],
-      "result": "冻结正式索引119源已逐源读码并尝试真实请求。最新470个作品有返回，436份非空完整目录、43899章进入App实际消费函数复核；99源至少取得1份完整目录，77源取得5份以上，有限官方合集按实际总量核对。MangaBall另补采3部1591章，保留与原抽样重叠，不重复累加。瓜子0.1.9、漫画狗0.1.1、菇菇0.1.3、崩坏3 0.1.4、战双0.1.5、快看0.1.10、XCOMIC简0.1.16/繁0.1.17、TIBIU0.1.1已公开。腾讯0.1.6、雀魂0.1.2、泰拉记事社0.1.10、Komiic0.1.23、DM5 0.1.31、MangaBZ0.1.17、漫画柜0.1.14已由a5ce74b公开，发布CI45051496613成功；七源30部4300章已对照完整provider原件并执行实际App邻章消费，正式包继续复核。缺号/重号不再直接隔离续章，真实版本、栏目、权限及源自身上传排序选项保留。SDK仅补既有可选章节URL元数据，未增加App能力。",
-      "remaining": "20源在当前CLI仍未取得完整目录，已区分9项CLI能力差异、HTTP拒绝/404/521、TLS失败、明确验证信号、登录要求及优酷未开放目录操作；没有从403推定Cloudflare，也未把CLI缺能力登记为App缺能力。继续核MangaBall无组条目、优酷公开操作、漫画1234已提交未发布版本及其它静态风险；不能将27项静态风险写成27个已证实故障，或把未验状态写成通过。DM5/极速的上传排序会改变阅读依据，极速错误候选已撤回并保留上游行为。",
+      "result": "冻结正式索引119源已逐源读码并尝试真实请求。按作品ID去重取得438份非空完整目录、45161章，覆盖99源，其中77源至少5份。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。",
+      "remaining": "MangaDex三语及NamiComi简繁共五源的缺号/问号章节续章修复实施中，正在补真实跨页目录与App消费复核。优酷0.1.8候选已恢复详情、完整分组目录及免费章节能力，待核请求头和237实际阅读后发布。NoyAcg图片数量误作章号与目录截断、Zero旧模板完整性继续核查。原20源中9项CLI能力差异交237普通App路径复核，真实HTTP拒绝、TLS及登录分别保留；CManhua当前官网IIS默认页和Browse真实404已核，不归因CF。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
-        "核对已发布最终包的索引、清单、WASM与已验候选及代表目录；不以CI代替阅读验收。",
-        "继续MangaBall与坐标类源、优酷操作、漫画1234候选及旧目录完整性疑点的具体调查和必要源侧修复。",
-        "保留各源准确未验原因与实际宿主复核边界，不擅自放宽认证、权限或上游设置。"
+        "完成MangaDex三语和NamiComi简繁的真实跨页、无号邻章及版本边界验证，验证完整后发布。",
+        "优酷候选核对上游图片请求与实际237列表、详情、目录和免费阅读；继续NoyAcg与Zero具体目录疑点。",
+        "237逐源复核原20个CLI受限项，记录实际宿主、认证与站点条件；不把列表成功当完整阅读验收。"
       ],
       "boundaries": [
         "不靠补章节编号替代真实目录顺序。",
@@ -12648,9 +12648,15 @@
         ".hvigor/outputs/published-source-order-audit-20261123/guazi-official/comparison.json",
         ".hvigor/outputs/published-source-order-audit-20261123/static-expanded-final.json",
         ".hvigor/outputs/published-source-order-audit-20261123/audit-blockers.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/seven-source-publication-commit.json"
+        ".hvigor/outputs/published-source-order-audit-20261123/seven-source-publication-commit.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/final-publication-verification.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/mh1234-publication-commit.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/native-host-audit-plan.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/coordinate-fix-progress.md",
+        ".hvigor/outputs/published-source-order-audit-20261123/youku-investigation/candidate-ready.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/cmanhua-access-review/conclusion.json"
       ],
-      "updatedAt": "2026-11-23T01:59:36+08:00"
+      "updatedAt": "2026-11-23T03:00:40+08:00"
     }
   ],
   "source": {
@@ -29647,6 +29653,19 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/57-counter-second-reading-chapter/screen.png",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/61-counter-final-restoration/run-metadata.json",
         ".hvigor/outputs/chapter-counter-check-summary.json"
+      ]
+    },
+    {
+      "id": "source-order-seventeen-and-maintenance-published-20261123",
+      "at": "2026-11-23T03:00:40+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "kind": "progress",
+      "title": "源审计继续：17修复公开、漫画1234维护版公开及237原宿主复核",
+      "detail": "MangaBall 0.1.9与漫画1234 0.1.15已公开，后者CI45057470832成功、711章同原件整份响应相等。14个公开包代表和七源保留分支已复核；公开WASM字节不同，未断言全程序等价。五坐标源、优酷、Noy及Zero继续各自原队列。Aristotle以新租约独占237复核20个CLI限制项；不重编App现有其他会话RDB/lexbor WIP，不操作App发布。",
+      "evidence": [
+        ".hvigor/outputs/published-source-order-audit-20261123/final-publication-verification.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/mh1234-publication-commit.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/progress.json"
       ]
     }
   ],
