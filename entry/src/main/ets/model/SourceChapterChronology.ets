@@ -3,7 +3,7 @@ import { SourceChapterOrder } from '../sourceRuntime/SourceChapterOrder'
 
 /** Display numbers can identify the directory's direction. They never place
  * individual chapters, so an unnumbered entry or tied number keeps its slot. */
-function catalogDirection(chapters: MangaChapterItem[]): SourceChapterOrder | undefined {
+function numberedCatalogDirection(chapters: MangaChapterItem[]): SourceChapterOrder | undefined {
   let previous: MangaChapterItem | undefined
   let ascending = 0
   let descending = 0
@@ -24,6 +24,31 @@ function catalogDirection(chapters: MangaChapterItem[]): SourceChapterOrder | un
   return ascending > descending ? 'oldest_first' : 'newest_first'
 }
 
+/** The source's returned array and its reading ordinals have opposite directions
+ * for a newest-first catalog. Derive the display label from those ordinals;
+ * Numbers and titles cannot establish this label. Independent groups have
+ * separate ordinal coordinate systems.
+ */
+export function sourceCatalogDirection(chapters: MangaChapterItem[], declared?: SourceChapterOrder): SourceChapterOrder | undefined {
+  if (declared !== undefined) return declared
+  const previous = new Map<string, number>()
+  let ascending = 0
+  let descending = 0
+  for (const chapter of chapters) {
+    const position = chapter.readingOrder
+    if (position === undefined || !Number.isFinite(position) || position < 0 || chapter.continuationEligible === false) continue
+    const group = chapter.readingGroup ?? ''
+    const last = previous.get(group)
+    if (last !== undefined) {
+      if (position > last) ascending += 1
+      if (position < last) descending += 1
+    }
+    previous.set(group, position)
+  }
+  if (ascending !== descending) return ascending > descending ? 'oldest_first' : 'newest_first'
+  return undefined
+}
+
 /** Only the complete original directory can supply positions. The package's
  * direction wins. A plain list without direction evidence uses its own order.
  * Legacy groups keep their own members; explicit ordinals, alternatives and
@@ -41,7 +66,7 @@ export function sourceCatalogChronology(
   const plainGroup = 'source-catalog'
   const directions = new Map<string, SourceChapterOrder>()
   if (!hasContract) {
-    directions.set(plainGroup, order ?? catalogDirection(chapters) ?? 'oldest_first')
+    directions.set(plainGroup, order ?? numberedCatalogDirection(chapters) ?? 'oldest_first')
   } else {
     const explicitGroups = new Set<string>()
     const groups = new Map<string, MangaChapterItem[]>()
@@ -57,7 +82,7 @@ export function sourceCatalogChronology(
     })
     groups.forEach((rows: MangaChapterItem[], group: string): void => {
       if (explicitGroups.has(group)) return
-      directions.set(group, order ?? catalogDirection(rows) ?? 'oldest_first')
+      directions.set(group, order ?? numberedCatalogDirection(rows) ?? 'oldest_first')
     })
   }
   if (directions.size === 0) return chapters

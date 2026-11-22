@@ -16,6 +16,8 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ChapterListPreferencesStore, ChapterReadFilter } from '../model/ChapterListPreferencesStore'
 import { ChapterSortPolicy, compareChapterSort } from '../model/ChapterSortOrder'
 import { previousUnreadChapterIds } from '../model/ReaderChapterSequence'
+import { sourceCatalogDirection } from '../model/SourceChapterChronology'
+import type { SourceChapterOrder } from '../sourceRuntime/SourceChapterOrder'
 export { ChapterReadFilter } from '../model/ChapterListPreferencesStore'
 
 const CHAPTER_MENU_HOLD_MS: number = 380
@@ -91,6 +93,7 @@ export struct ChapterListSection {
   @Param comicId: string = ''
   @Param archiveBusy: boolean = false
   @Param chapters: MangaChapterItem[] = []
+  @Param sourceOrder: SourceChapterOrder | undefined = undefined
   @Local private languageState: LanguageState = connectLanguageState()
   @Param presentation: ChapterListPresentation = new ChapterListPresentation()
   @Local private readStateMenuChapterId: string = ''
@@ -122,6 +125,20 @@ export struct ChapterListSection {
   @Computed
   private get sortedChapterIdSet(): Set<string> {
     return new Set<string>(this.sortedChapterIds)
+  }
+
+  @Computed
+  private get sourceOrderDescending(): boolean {
+    return sourceCatalogDirection(this.chapters, this.sourceOrder) === 'newest_first'
+  }
+
+  /** Keep saved forward/reverse tokens as raw-array directions. Only the menu
+   * translates them into chronological ascending/descending, preserving the
+   * actual displayed chapters of existing preferences without a data migration.
+   */
+  private storageSortDirection(direction: ChapterSortDirection): ChapterSortDirection {
+    if (this.presentation.sortBasis !== ChapterSortBasis.SOURCE_ORDER || !this.sourceOrderDescending) return direction
+    return direction === ChapterSortDirection.FORWARD ? ChapterSortDirection.REVERSE : ChapterSortDirection.FORWARD
   }
 
   @Monitor('sortedChapters')
@@ -202,7 +219,7 @@ export struct ChapterListSection {
   }
 
   private sortLabel(): string {
-    const direction = s(this.presentation.sortDirection === ChapterSortDirection.FORWARD
+    const direction = s(this.storageSortDirection(this.presentation.sortDirection) === ChapterSortDirection.FORWARD
       ? 'chapter_list_sort_forward' : 'chapter_list_sort_reverse')
     return s(this.sortBasisLabel(this.presentation.sortBasis)) + ' · ' + direction
   }
@@ -249,7 +266,9 @@ export struct ChapterListSection {
 
   private setSortBasis(basis: ChapterSortBasis): void {
     if (this.presentation.sortBasis === basis) return
+    const displayedDirection = this.storageSortDirection(this.presentation.sortDirection)
     this.presentation.sortBasis = basis
+    this.presentation.sortDirection = this.storageSortDirection(displayedDirection)
     this.savePreferences()
   }
 
@@ -447,15 +466,15 @@ export struct ChapterListSection {
       }
       MenuItemGroup({ header: () => { this.SortGroupHeader(s('chapter_list_sort_direction')) } }) {
         MenuItem({ content: s('chapter_list_sort_forward') })
-          .selected(this.presentation.sortDirection === ChapterSortDirection.FORWARD)
+          .selected(this.presentation.sortDirection === this.storageSortDirection(ChapterSortDirection.FORWARD))
           .selectIcon(true)
-          .enabled(this.presentation.sortDirection !== ChapterSortDirection.FORWARD)
-          .onClick(() => { this.setSortDirection(ChapterSortDirection.FORWARD) })
+          .enabled(this.presentation.sortDirection !== this.storageSortDirection(ChapterSortDirection.FORWARD))
+          .onClick(() => { this.setSortDirection(this.storageSortDirection(ChapterSortDirection.FORWARD)) })
         MenuItem({ content: s('chapter_list_sort_reverse') })
-          .selected(this.presentation.sortDirection === ChapterSortDirection.REVERSE)
+          .selected(this.presentation.sortDirection === this.storageSortDirection(ChapterSortDirection.REVERSE))
           .selectIcon(true)
-          .enabled(this.presentation.sortDirection !== ChapterSortDirection.REVERSE)
-          .onClick(() => { this.setSortDirection(ChapterSortDirection.REVERSE) })
+          .enabled(this.presentation.sortDirection !== this.storageSortDirection(ChapterSortDirection.REVERSE))
+          .onClick(() => { this.setSortDirection(this.storageSortDirection(ChapterSortDirection.REVERSE)) })
       }
     }
   }

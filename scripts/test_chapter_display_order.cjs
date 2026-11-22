@@ -11,10 +11,10 @@ const source = fs.readFileSync(path.join(base, 'components/ChapterListSection.et
 const tree = ts.createSourceFile('chapter.ts', source, ts.ScriptTarget.Latest, true)
 const owner = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'ChapterListSection')
 const names = ['sortedChapterList','filteredChapterList','setSortBasis','setSortDirection','hasActiveFilters',
-  'resetFilters','normalizeMetadataValue','selectedIdsInFilter','reportDisplayOrder']
+  'resetFilters','normalizeMetadataValue','selectedIdsInFilter','reportDisplayOrder','storageSortDirection']
 const methods = owner.members.filter(n => ts.isMethodDeclaration(n) && names.includes(n.name.getText(tree)))
 const getters = owner.members.filter(n => ts.isGetAccessorDeclaration(n) &&
-  ['sortedChapters', 'sortedChapterIds'].includes(n.name.getText(tree)))
+  ['sortedChapters', 'sortedChapterIds', 'sourceOrderDescending'].includes(n.name.getText(tree)))
 const presentation = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'ChapterListPresentation')
 const presentationSource = presentation.getText(tree).replace(/@(?:ObservedV2|Trace)\s+/g,'')
 const model = fs.readFileSync(path.join(base, 'model/MangaDetailModels.ets'), 'utf8')
@@ -33,7 +33,12 @@ const comparatorJs = ts.transpileModule(comparatorSource, {
 }).outputText
 new Function('exports', comparatorJs)(comparison)
 const readFilter = {ALL:'all',UNREAD:'unread',READ:'read',DOWNLOADED:'downloaded'}
-new Function('exports','ChapterReadFilter','compareChapterSort',js)(exported,readFilter,comparison.compareChapterSort)
+const chronology = {}
+new Function('exports', ts.transpileModule(fs.readFileSync(path.join(base, 'model/SourceChapterChronology.ets'), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+}).outputText)(chronology)
+new Function('exports','ChapterReadFilter','compareChapterSort','sourceCatalogDirection',js)(
+  exported,readFilter,comparison.compareChapterSort,chronology.sourceCatalogDirection)
 const SOURCE='source_order', NUMBER='chapter_number', UPLOAD='upload_date', NAME='name', FORWARD='forward', REVERSE='reverse'
 function make(chapters) {
   const o=exported.make();o.chapters=chapters
@@ -93,4 +98,34 @@ test('new catalogs are projected through the current mode and direction without 
   const o=make([chapter('old')]);o.setSortDirection(REVERSE)
   o.chapters=[chapter('first'),chapter('second'),chapter('third')]
   assert.deepEqual(o.sortedChapters.map(c=>c.id),['third','second','first'])
+})
+
+test('newest-first source records retain their view while menu ascending follows source positions, including unnumbered entries',()=>{
+  const rows=[chapter('334',334,{readingOrder:2,readingGroup:'catalog'}),
+    chapter('profile',undefined,{readingOrder:1,readingGroup:'catalog'}),
+    chapter('001',1,{readingOrder:0,readingGroup:'catalog'})]
+  const o=make(rows),ids=()=>o.sortedChapters.map(c=>c.id)
+  assert.equal(o.storageSortDirection(o.presentation.sortDirection),REVERSE)
+  assert.deepEqual(ids(),['334','profile','001'])
+  o.setSortDirection(o.storageSortDirection(FORWARD))
+  assert.deepEqual(ids(),['001','profile','334'])
+  o.setSortBasis(NUMBER)
+  assert.equal(o.storageSortDirection(o.presentation.sortDirection),FORWARD)
+  o.setSortBasis(SOURCE)
+  assert.deepEqual(ids(),['001','profile','334'])
+  assert.equal(o.chapters,rows)
+})
+
+test('changing sort basis preserves the selected semantic direction; chapter numbers cannot override declared positions',()=>{
+  const rows=[chapter('new',1,{readingOrder:1,readingGroup:'catalog'}),
+    chapter('old',9,{readingOrder:0,readingGroup:'catalog'})]
+  const o=make(rows)
+  assert.equal(chronology.sourceCatalogDirection(rows),'newest_first')
+  o.setSortBasis(NUMBER)
+  assert.equal(o.presentation.sortDirection,REVERSE)
+  assert.deepEqual(o.sortedChapters.map(c=>c.id),['old','new'])
+  o.setSortBasis(SOURCE)
+  assert.equal(o.presentation.sortDirection,FORWARD)
+  assert.deepEqual(o.sortedChapters.map(c=>c.id),['new','old'])
+  assert.equal(chronology.sourceCatalogDirection([chapter('numbered',10),chapter('lower',1)]),undefined)
 })

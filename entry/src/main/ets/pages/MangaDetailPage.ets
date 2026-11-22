@@ -4071,6 +4071,7 @@ export struct MangaDetailPage {
   private DetailChapterItems() {
     if (this.shouldRenderChapterList()) {
       ChapterListSection({
+        sourceOrder: sourceChapterOrderFor(this.manga?.sourceId),
         chapterCommentsAvailable: this.sourceCommentsAvailable('chapter'),
         onChapterComments: (chapterId: string, title: string) => { this.openSourceComments(chapterId, title) },
         downloadActionsAvailable: this.chrome.chapterDownloadAvailable,
