@@ -104,6 +104,9 @@ export struct ConciseListRow {
   // Preserve a caller's established text geometry while sharing the native
   // inset press/hover surface. Existing rows retain their HDS text contract.
   @BuilderParam textBuilderParam?: () => void
+  // Put a single-line title's preview before the native HDS suffix. A custom
+  // suffix would replace the standard navigation arrow along with its spacing.
+  @BuilderParam titlePreviewBuilder?: () => void
   @BuilderParam dropdownMenuBuilder: (select: (action: () => void) => void) => void =
     this.EmptyDropdownMenu
   @Event switchAction?: (value: boolean) => void
@@ -580,6 +583,18 @@ export struct ConciseListRow {
   private WrappedTextBuilder() {
     if (this.textBuilderParam) {
       this.textBuilderParam()
+    } else if (this.titlePreviewBuilder) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        Text(this.title)
+          .attributeModifier(this.primaryTextModifier())
+          // The HDS title applies these system defaults after its modifier.
+          .fontSize($r('sys.float.Body_L'))
+          .fontWeight(FontWeight.Medium)
+          .layoutWeight(1)
+        this.titlePreviewBuilder()
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
     }
   }
 
@@ -587,7 +602,7 @@ export struct ConciseListRow {
   private RowContent() {
     HdsListItemCard(conciseCardOptions({
       textItem: {
-        customBuilder: this.textBuilderParam ? () => { this.WrappedTextBuilder() }
+        customBuilder: this.textBuilderParam || this.titlePreviewBuilder ? () => { this.WrappedTextBuilder() }
           : (this.subtitleContentRating ? () => { this.ContentRatedText() } : undefined),
         primaryText: this.textBuilderParam ? undefined : {
           text: this.title,

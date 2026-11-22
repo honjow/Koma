@@ -2711,7 +2711,7 @@ export struct SettingsPage {
     if (row.key === 'app-icon') {
       ConciseListRow({ title: this.rowTitle(row),
         action: () => { this.handleRowClick(row) },
-        suffixBuilderParam: () => { this.AppIconRowSuffix() },
+        titlePreviewBuilder: () => { this.AppIconRowPreview() },
       })
     } else if (row.key === 'grid-column-width' || row.key === 'download-system-notification-settings') {
       ConciseListRow({ title: this.rowTitle(row), subtitle: this.rowBaseDetail(row), subtitleMaxLines: 2,
@@ -2786,14 +2786,9 @@ export struct SettingsPage {
   }
 
   @Builder
-  private AppIconRowSuffix() {
-    Row({ space: ThemeConstants.SPACE_SM }) {
-      if (this.appIconState.activeOption() !== undefined) {
-        AppIconPreview({ option: this.appIconState.activeOption()!, iconSize: 28 })
-      }
-      SymbolGlyph($r('sys.symbol.chevron_right'))
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor([ThemeConstants.TEXT_TERTIARY])
+  private AppIconRowPreview() {
+    if (this.appIconState.activeOption() !== undefined) {
+      AppIconPreview({ option: this.appIconState.activeOption()!, iconSize: 28 })
     }
   }
 
