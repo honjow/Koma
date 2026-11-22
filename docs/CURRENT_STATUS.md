@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-22T21:07:57+08:00",
+  "updatedAt": "2026-11-23T00:17:01+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -10946,14 +10946,14 @@
       "kind": "pending_verification",
       "priority": "P1（当前用户要求）",
       "owner": "Root",
-      "status": "197 已核对失败明细和新旧启动参数",
-      "updatedAt": "2026-11-19T13:57:10+08:00",
-      "stage": "候选已装 197",
+      "status": "用户验证更新列表和失败明细的书源名通过",
+      "updatedAt": "2026-11-23T00:17:01+08:00",
+      "stage": "书源名已验收，系统通知栏实际点击待验证",
       "reportedAt": null,
       "reportedAtSource": "本会话最新用户要求，精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T06:28:00+08:00",
-      "result": "新旧通知统一打开「更新」。撤掉旧检查报表与设置入口。有失败时点开半模态，只列作品和可读原因。197 实测 7 部失败的真实检查记录、新旧启动参数与返回。",
-      "remaining": "197 发起书架检查后切到后台，验证期间 1,123 部检查未结束，尚未收到系统通知，通知栏实际点击待验证。",
+      "result": "新旧通知统一打开「更新」。撤掉旧检查报表与设置入口。有失败时点开半模态查看作品和可读原因。197 实测 7 部失败的真实检查记录、新旧启动参数与返回。新章和失败作品的副标题现已加上书源名，同名作品可按来源区分。用户验证通过。",
+      "remaining": "此前 197 发起书架检查后切到后台，验证期间 1,123 部检查未结束，尚未收到系统通知，通知栏实际点击待验证。",
       "boundaries": [
         "保留后台检查频率、来源范围、Wi-Fi与充电条件，不因打开页面自动全库检查。",
         "沿既有书库更新及结果持久域，不用章节列表显示顺序或数量差猜新增章节。",
@@ -10963,7 +10963,7 @@
       "modificationBasis": {
         "object": "LibraryPage标题栏及书库更新结果路径",
         "decision": "用户明确采用首页书架第二图标改铃铛、列表样式收入菜单，并授权评估完善更新界面。",
-        "allowedDifference": "11 月 19 日用户确认撤掉旧报表，失败明细留在「更新」；旧通知启动参数继续兼容。"
+        "allowedDifference": "11 月 19 日用户确认撤掉旧报表，失败明细留在「更新」；旧通知启动参数继续兼容。11 月 23 日用户要求更新条目及检查失败明细显示各自的书源名称。"
       },
       "evidence": [
         ".hvigor/outputs/library-update-notification-route/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-update-notification/cold-legacy-20261119T135019785414/screen-layout.json",
@@ -12663,6 +12663,27 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-update-source-names-accepted-20261123",
+      "at": "2026-11-23T00:17:01+08:00",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "title": "用户确认更新条目的书源名显示通过",
+      "detail": "用户验证后确认无问题并授权提交。此次确认针对书源名显示，设备及详细验证路径未记录。",
+      "kind": "verification"
+    },
+    {
+      "id": "library-update-source-names-20261123",
+      "at": "2026-11-23T00:14:27+08:00",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "title": "更新条目补充书源名称",
+      "detail": "按本会话用户要求，新章和失败作品在原副标题首位显示书源名。同名不同源、已卸载书源的旧记录及无来源时的文案回归通过，候选本地构建成功。更新结果和协调器的两项旧测试缺少 ChapterSortOrder 依赖，已用修改前的提交复现。未安装到真机。",
+      "kind": "implementation",
+      "evidence": [
+        ".hvigor/outputs/update-list-source-names/host-tests.log",
+        ".hvigor/outputs/update-list-source-names/head-baseline.log",
+        ".hvigor/outputs/update-list-source-names/build.log"
+      ]
+    },
     {
       "id": "cover-thumbnail-antialias-197-201-20261122",
       "at": "2026-11-22T23:53:00+08:00",

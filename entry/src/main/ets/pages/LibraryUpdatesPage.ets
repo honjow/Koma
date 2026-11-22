@@ -13,7 +13,7 @@ import { LibraryChapterUpdate, cachedLibraryChapterUpdates } from '../model/Libr
 import { cachedLibraryUpdateFailureDetails, LibraryUpdateFailureDetails,
   LibraryUpdateResultStore } from '../model/LibraryUpdateResultStore'
 import { LibraryUpdateComicResult } from '../model/LibraryUpdateService'
-import { libraryUpdateComicTitle, libraryUpdateFailureText } from '../model/LibraryUpdatePresentation'
+import { libraryUpdateComicTitle, libraryUpdateFailureText, libraryUpdateRowSubtitle } from '../model/LibraryUpdatePresentation'
 import { connectLibraryUpdateState, LibraryUpdateState } from '../state/LibraryUpdateState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
@@ -282,7 +282,7 @@ export struct LibraryUpdatesPage {
 
   @Builder
   private UpdateRow(row: ChapterUpdateRow) {
-    ConciseListRow({ title: row.comic.title, subtitle: row.chapter.title,
+    ConciseListRow({ title: row.comic.title, subtitle: libraryUpdateRowSubtitle(row.comic, row.chapter.title),
       trailingText: !this.chrome.selecting && this.readerSessionStore?.isChapterRead(row.comic.id, row.chapter.id)
         ? AppStrings.get('chapter_list_filter_read') : '', showChevron: false,
       prefixBuilderParam: () => { this.Cover(row) },
@@ -295,6 +295,12 @@ export struct LibraryUpdatesPage {
     .priorityGesture(LongPressGesture({ duration: 350 }).onAction(() => {
       if (!this.chrome.selecting) this.toggleSelection(row)
     }))
+  }
+
+  @Builder
+  private FailureRow(comic: Comic | undefined, failureCode: string) {
+    ConciseListRow({ title: libraryUpdateComicTitle(comic),
+      subtitle: libraryUpdateRowSubtitle(comic, libraryUpdateFailureText(failureCode)), showChevron: false })
   }
 
   @Builder
@@ -314,8 +320,7 @@ export struct LibraryUpdatesPage {
           .each((row: RepeatItem<LibraryUpdateComicResult>) => {
             ListItem() {
               GroupedListSection({ inModal: true }) {
-                ConciseListRow({ title: libraryUpdateComicTitle(this.libraryStore.getComic(row.item.comicId)),
-                  subtitle: libraryUpdateFailureText(row.item.message), showChevron: false })
+                this.FailureRow(this.libraryStore.getComic(row.item.comicId), row.item.message)
               }
             }
           })
