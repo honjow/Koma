@@ -1036,6 +1036,15 @@ test('shelf sync merges restored manual categories and repairs old automatic num
   assert.ok(alias && primary)
   const oldName = 'Reading (3)'
   const old = library.customCategories.find(item => item.id === category.id)
+  // A cloud download can restore the old row before the WebDAV alias changes.
+  b.files.set(libraryFile, JSON.stringify({ ...library,
+    customCategories: library.customCategories.concat({ ...old, id: alias.local, sortOrder: old.sortOrder + 1 }) }))
+  const snapshot = await b.owner.snapshot('shelf', true)
+  const order = snapshot.values.find(row => row.key === data.syncKey(['order']))
+  const sharedOrder = JSON.parse(order.value)
+  assert.equal(sharedOrder.filter(key => key === alias.shared).length, 1)
+  data.checkSyncGroupFact('shelf', facts.applySyncEdit(facts.emptySyncFact(order.key),
+    { kind: 'set', value: order.value, version: dot(B, 1), observed: [] }))
   library.customCategories.push({ ...old, id: alias.local, name: oldName, sortOrder: library.customCategories.length })
   for (const row of library.comics) {
     if (!row.categoryIds.includes(category.id)) continue

@@ -473,13 +473,13 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     if (group === 'shelf') {
       const categories = (library.customCategories ?? []).slice().sort((a: PersistedLibraryCategory,
         b: PersistedLibraryCategory): number => a.sortOrder - b.sortOrder || a.createdAt - b.createdAt)
-      const order: string[] = []
+      const order = new Set<string>()
       const protectedKeys: string[] = []
       const replica = this.storage.load().replica
       categories.forEach((category: PersistedLibraryCategory): void => {
         if (sharedCategoryRecord(category.id, projection, replica) === undefined) return
         for (const alias of categoryAliases(category.id, projection, replica)) {
-          order.push(alias.shared)
+          order.add(alias.shared)
           const name = originalCategoryName(category.name, alias)
           row(values, ['category', alias.shared], name)
           labels[syncKey(['category', alias.shared])] = name
@@ -489,8 +489,15 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
           }
         }
       })
-      if (order.length > 0) row(values, ['order'],
-        JSON.stringify(order) === JSON.stringify(projection.projectedOrder) ? projection.categoryOrder ?? order : order)
+      if (order.size > 0) {
+        // A cloud download can reintroduce a category whose WebDAV ID is
+        // already represented by an alias. Send each shared ID once.
+        const localOrder = Array.from(order)
+        const projectedOrder = Array.from(new Set(projection.projectedOrder ?? []))
+        const sharedOrder = JSON.stringify(localOrder) === JSON.stringify(projectedOrder) ?
+          projection.categoryOrder ?? localOrder : localOrder
+        row(values, ['order'], Array.from(new Set(sharedOrder)))
+      }
       for (const category of library.smartCategories ?? []) {
         const key = smartCategoryKey(category.id)
         const mapping = projection.categories.find((item: SyncLocalCategory): boolean => item.local === category.id)
