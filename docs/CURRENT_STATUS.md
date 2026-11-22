@@ -9249,10 +9249,10 @@
       "number": 173,
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
-      "kind": "external",
-      "progressPhase": "verification",
-      "status": "基线 117 个正式源确认 35 个有缺项，HentaiFox、XCOMIC 简繁、GoDa 和 3Hentai 已发布修复",
-      "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
+      "kind": "active",
+      "progressPhase": "needs_work",
+      "status": "原设置核查漏掉包子17镜像，正在补齐；其余已确认缺项沿逐源账本推进",
+      "owner": "本会话补齐包子源；Aristotle独占237验证；原缺项账本与Noy账号边界保留",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_EMPTY_SETTINGS_ENTRY",
@@ -9261,9 +9261,11 @@
         "ZEROBYW_CHAPTERS_TRUNCATED",
         "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "DB第117章的正文对白已恢复，实际阅读、四页下载、离线重开及CBZ已核；正式书源0.1.2已公开。Noy已安装登录入口，但用户没有账号，登录后内容和镜像未验。 Noy 登录入口已交付。登录后正文和镜像兼容需要有效账号，目前没有。",
-      "remaining": "按逐源账本修复已确认缺项。57 个已配对源需保留未覆盖边界，25 个源暂无可比对参考；Noy 登录后内容仍待获授权账号。",
+      "result": "DB第117章的正文对白已恢复，实际阅读、四页下载、离线重开及CBZ已核；正式书源0.1.2已公开。Noy已安装登录入口，但用户没有账号，登录后内容和镜像未验。 Noy 登录入口已交付。登录后正文和镜像兼容需要有效账号，目前没有。 本轮用户指出包子缺镜像，已核实原85源矩阵早已记录17个上游镜像，后续缺项摘要和交付只覆盖横幅及章节身份选项，镜像遗漏。现有App通用设置和主页声明已足够，源候选新增镜像及网页/App路由、最近更新；保留WWW默认、原默认地区/状态和既有章节身份。已编译，原四完整目录、195/182图及标题身份完整回放不变；新增镜像普通路径尚待237验证。",
+      "remaining": "完成包子新增镜像的普通浏览、封面、详情、章节、阅读及网页入口验收，再按既有授权发布。其余已确认缺项继续原账本；Noy登录后内容仍待有效账号。",
       "remainingActions": [
+        "包子候选核对17镜像值及保存，网页/App代表路由、完整目录、实图和章节关系；保留旧默认、设置和身份。",
+        "验证通过直接发布包子修复，核对公开实际包。",
         "正式索引快照 117 包均核实版本和校验值，92 包有固定上游；两轮共确认 35 个包有缺项，按上游模块合并为 30 个。3Hentai 的最新列表原已存在，基线缺少的详情相关图集由 0.1.9 补齐。",
         "先实施已有实证的具名差异，未发布候选按 #023 登记。站点故障、同等入口和用户明确延后项按账本分别保留。",
         "Noy 登录入口已交付。登录后正文和镜像兼容需要有效账号，目前没有。",
@@ -9278,7 +9280,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "等待外部条件",
+      "stage": "包子镜像与设置补齐中",
       "evidence": [
         ".hvigor/outputs/two-source-browse-20261120/publication/xcomichant016/receipt.json",
         ".hvigor/outputs/two-source-browse-20261120/upstream-parity/independent-count/source-gap-impl/xcomic-hant-parity/result-0.1.16.md",
@@ -9364,7 +9366,10 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-ua-sleep-509/",
         "2026-11-01 237/043更新入口验收：DB Multiverse真实目录117章、更新ID dbmch:zh:/cn/chapters.html?comic=page&chapter=117；get_pages失败kind=runtime，http=0，根因未知。source-catalog/updates-row-opens-chapter-052、updates-meme-reader-055/diagnostics。Meme Girls指定新章408正文成功，不能据此掩盖DB失败。",
         "已复用原source_terra接续DB具名反例本地归因，Root保持原工作单owner，不另建任务或新代理。",
-        "本轮source_terra只读结论：koma-sources/sources/dbmultiverse-zh/src/lib.rs:413–422、449–473、493–500及README:3–5；fe2190b已含guard。固定参考full-949的DbMultiverse.kt:132、139–175、183起含取图与气泡合成。无代码/设备/站点请求修改。"
+        "本轮source_terra只读结论：koma-sources/sources/dbmultiverse-zh/src/lib.rs:413–422、449–473、493–500及README:3–5；fe2190b已含guard。固定参考full-949的DbMultiverse.kt:132、139–175、183起含取图与气泡合成。无代码/设备/站点请求修改。",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/host-compatibility.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/host-173-baozi-original-row.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/candidate-build-and-retained.json"
       ],
       "evidencePoints": [
         "/private/tmp/koma-filter-scope-header-build.log",
@@ -9579,7 +9584,7 @@
         "本轮完整交付绑定见 source-settings-repair/dbmultiverse-ch117-20261101/host-delivery-binding.json；Host CI运行中，原源码和设备范围不外推。",
         "Host5cfcb808e132cc812d556e033ffafbbd8168a948精确CI41282246019 completed/success，Release构建/Inspect/Upload成功，标签发布skipped；host-ci-final.json及host-delivery-binding.json保存。DB已交付，Noy无账号边界不冒通过。"
       ],
-      "updatedAt": "2026-11-20T05:04:42+08:00"
+      "updatedAt": "2026-11-23T07:59:04+08:00"
     },
     {
       "id": "MANAGER_REFRESH_BACKGROUND",
@@ -29900,6 +29905,12 @@
       "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "title": "包子与东立修复正式发布；哔哩及Tapas补验通过",
       "detail": "独立源仓精确10文件发布49d83b4，CI45082204438成功；只改变包子0.1.27和东立0.1.14版本及SDK明确排除合同。119源身份及业务元数据保持；另两源带图片处理器的wasmSha256为重编内容摘要变化，下载实际WASM匹配，未称新阅读验收。包子公开七项、东立八部+SP九项完整响应同保留原件与最终候选相等；二进制不同。App仅本地提交未推送。最终834e在237代表194目录/195页首图/明确next152页通过，原五作范围封存。哔哩五部及无号跨卷实图、Tapas原五部与免费代表通过；原始provider元数据与UI计数继续分列。創漫图片UA单变量候选0c03d8c已本地保护，待实际Native，不增App能力；原A图406仍保。回放解析器误标App C++已更正为原Rust scraper，未改任何原响应、期望或产品包；普通Native证据另列。"
+    },
+    {
+      "at": "2026-11-23T07:59:04+08:00",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "title": "包子生成镜像设置遗漏已确认，源侧补齐与237验证进行中",
+      "detail": "上游固定949dea与当前5d54f0d均声明17镜像，旧specificGap只写banner/order导致镜像未交付；本轮只在原#173修正，不新增重复缺陷源计数。通用homepageChoices最早正式v1.4.0，包子最低1.4.1保持，无新App依赖。候选.28新增preferred_mirror、web/app模板与latest，保留原WWW默认/额外设置/ID；实际WASM默认四目录与195/182图及mode2共7响应同.27。Mac六GET均拒绝仅保失败，App镜像成功模板和普通Native待237，不冒通过。"
     }
   ],
   "reportAgeAudit": {
