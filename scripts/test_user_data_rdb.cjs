@@ -2,6 +2,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { createHash } = require('node:crypto')
 const { createRdbPort } = require('./user_data_rdb_fixture.cjs')
 const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
   '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
@@ -119,7 +120,7 @@ test('cloud category changes publish valid rules and clear only memberships in t
     assert.deepEqual(library.readWork('device-book').categoryIds, [])
     assert.deepEqual(library.readWork('untouched').categoryIds, [kept])
 
-    const smart = 'smart:rule-delta'
+    const smart = 'smart:ede5a39b-c6a8-459a-b346-2b87c1405302'
     await store.execute('INSERT INTO shelf_smart_categories (category_id, name, sort_order, created_at, updated_at) ' +
       'VALUES (?, ?, ?, ?, ?)', [smart, 'Smart', 0, 1, 1])
     assert.deepEqual(library.cloudShelfEdits([], false, true).after.smartCategories, [])
@@ -129,6 +130,51 @@ test('cloud category changes publish valid rules and clear only memberships in t
     await store.execute('DELETE FROM shelf_smart_category_filters WHERE category_id = ?', [smart])
     assert.deepEqual(library.cloudShelfEdits([], false, true).after.smartCategories, [])
     assert.deepEqual(library.read().smartCategories, [])
+  } finally {
+    env.close()
+  }
+})
+
+test('one old smart category keeps its rules and view settings when its WebDAV and cloud IDs meet', async () => {
+  const env = fixture(new Map(), new Map([
+    ['@kit.ArkTS', { util: { TextEncoder: class { encodeInto(value) { return Buffer.from(value) } } } }],
+    ['@kit.CryptoArchitectureKit', { cryptoFramework: { createMd() {
+      const hash = createHash('sha256')
+      return { updateSync: ({ data }) => hash.update(data), digestSync: () => ({ data: hash.digest() }) }
+    } } }],
+  ]))
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
+    const store = await openUserDataDatabase({ filesDir: '/smart-category-legacy-identity' })
+    const library = new LibraryRdbStorage(store)
+    const legacy = 'smart:1794493520614'
+    const canonical = 'smart:220a2111-e44f-5bc3-6982-42a8d386326a'
+    const sourceRule = { method: 'source', value: 'source:net.bilimanga.koma', exclude: false }
+    const strategy = { categoryId: legacy, sortBy: 'title', readState: 'all', updatedAt: 2 }
+    await library.migrate({ schemaVersion: 1, comics: [],
+      smartCategories: [{ id: canonical, name: '哔哩', sortOrder: 0, createdAt: 1, updatedAt: 1, filters: [sourceRule] }],
+      categoryDisplayStrategies: [strategy],
+    })
+    await store.execute('INSERT INTO shelf_smart_categories VALUES (?, ?, ?, ?, ?, ?)', [legacy, 0, '哔哩', 0, 1, 2])
+    assert.equal(library.cloudShelfEdits([], false, true).after.smartCategories[0].id, canonical)
+    await store.execute('INSERT INTO shelf_smart_category_filters VALUES (?, ?, ?, ?, ?)',
+      [legacy, 0, sourceRule.method, sourceRule.value, 0])
+    const resultImage = library.cloudShelfEdits([], false, true).after
+    const merged = resultImage.smartCategories
+    assert.deepEqual(merged.map(category => [category.id, category.name, category.filters]), [[canonical, '哔哩', [sourceRule]]])
+    assert.equal(resultImage.displayStrategies[0].categoryId, canonical)
+    assert.equal(resultImage.displayStrategies[0].sortBy, 'title')
+    const result = await store.querySql('SELECT category_id FROM shelf_smart_categories ORDER BY category_id')
+    try {
+      assert.equal(result.goToNextRow(), true)
+      assert.equal(result.getString(0), canonical)
+      assert.equal(result.goToNextRow(), false)
+    } finally {
+      result.close()
+    }
+    library.migrateCategoryIds()
+    assert.deepEqual(library.read().smartCategories, merged)
   } finally {
     env.close()
   }

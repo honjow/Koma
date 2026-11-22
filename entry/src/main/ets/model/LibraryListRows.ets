@@ -98,7 +98,7 @@ export function smartFilterRows(categories: LibrarySmartCategory[] | undefined):
   return rows
 }
 
-export function readSmartCategories(store: relationalStore.RdbStore): LibrarySmartCategory[] {
+export function readSmartCategories(store: relationalStore.RdbStore, incompleteIds?: string[]): LibrarySmartCategory[] {
   const categories = shelfSmartCategories.read(store).map((row: OrderedShelfRow<LibrarySmartCategory>): LibrarySmartCategory => row.entry)
   const byId = new Map<string, LibrarySmartCategory>()
   for (const category of categories) byId.set(category.id, category)
@@ -106,7 +106,11 @@ export function readSmartCategories(store: relationalStore.RdbStore): LibrarySma
   // ArkData can commit a category before its first rule, or remove its last
   // rule before the category itself. Both cold restore and live publication
   // expose only complete categories, without changing their stored rows.
-  return categories.filter((category: LibrarySmartCategory): boolean => category.filters.length > 0)
+  return categories.filter((category: LibrarySmartCategory): boolean => {
+    if (category.filters.length > 0) return true
+    incompleteIds?.push(category.id)
+    return false
+  })
 }
 
 // A move records either an explicit cancellation or a target. A missing

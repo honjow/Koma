@@ -752,6 +752,15 @@ export function planDeviceSync(prepared: PreparedGroup[], existing: SyncManifest
     }
     const changes: SyncLocalValue[] = []
     const baseline = row.local.values.slice()
+    if (row.id === 'shelf') {
+      // Keep the last complete definition while waiting for its cloud rules.
+      // Once the definition itself is deleted, the next round can send that deletion.
+      for (const item of row.previous?.baseline ?? []) {
+        if (protectedKeys.has(item.key) && !local.has(item.key) && syncKeyParts(item.key)[0] === 'smart-category') {
+          baseline.push(item)
+        }
+      }
+    }
     facts.forEach((fact: SyncFact): void => {
       const value = syncGroupVisibleValue(row.id, fact)
       if (isCoverKey(fact.key) && (value === undefined || local.has(fact.key))) return

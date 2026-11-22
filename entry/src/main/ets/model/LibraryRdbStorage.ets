@@ -16,7 +16,7 @@ import { collectLocalRows, textColumn } from './LocalDataRows'
 import { hasUserDataMigration } from './UserDataDatabase'
 import { writeUserRecords } from './UserKeyedRecords'
 import { sharedShelfIdentity, sharedShelfWork, ShelfSharedWork, shelfSharedWorks } from './ShelfSharedRows'
-import { readShelfCategoryAliases, reconcileShelfCategoryIds } from './LibraryCategoryIdentity'
+import { readShelfCategoryAliases, reconcileShelfCategoryIds, reconcileSmartCategoryIds } from './LibraryCategoryIdentity'
 
 const OLD_MIGRATION = 'library-from-json-v1'
 const MIGRATION = 'library-relational-v1'
@@ -61,6 +61,10 @@ export interface LibraryShelfSyncEdits {
   unchangedCatalogs: string[]
   before: LibraryShelfSyncImage
   after: LibraryShelfSyncImage
+}
+
+export interface LibraryShelfSyncDocument extends PersistedLibraryStoreDocument {
+  incompleteSmartCategoryIds?: string[]
 }
 
 function addToGroup<T>(groups: Map<string, T[]>, key: string, record: T): void {
@@ -325,17 +329,22 @@ export class LibraryRdbStorage {
 
   /** WebDAV shares chapter identities from work metadata. Local chapter and
    * page rows and Mihon originals belong to the device and backup. */
-  readShelfSync(): PersistedLibraryStoreDocument | undefined {
-    return this.readDocument(false)
+  readShelfSync(): LibraryShelfSyncDocument | undefined {
+    const incomplete: string[] = []
+    const document: LibraryShelfSyncDocument | undefined = this.readDocument(false, incomplete)
+    if (document !== undefined && incomplete.length > 0) document.incompleteSmartCategoryIds = incomplete
+    return document
   }
 
-  private readDocument(catalog: boolean): PersistedLibraryStoreDocument | undefined {
+  private readDocument(catalog: boolean, incompleteSmartCategoryIds?: string[]): LibraryShelfSyncDocument | undefined {
     const header = shelfCollections.read(this.store)[0]
     if (header === undefined) return undefined
+    const smart = header.smart || incompleteSmartCategoryIds !== undefined ?
+      readSmartCategories(this.store, incompleteSmartCategoryIds) : undefined
     return { schemaVersion: 1, comics: readWorks(this.store, undefined, catalog),
       customCategories: header.categories ? shelfCategories.read(this.store).map(row => row.entry) : undefined,
       categoryDisplayStrategies: header.display ? shelfDisplayStrategies.read(this.store).map(row => row.entry) : undefined,
-      smartCategories: header.smart ? readSmartCategories(this.store) : undefined,
+      smartCategories: header.smart || (smart?.length ?? 0) > 0 ? smart : undefined,
       mihonImports: catalog && header.mihon ? readMihonImports(this.store) : undefined,
       syncShelfMoves: header.moves ? readShelfMoves(this.store) : undefined,
     }
@@ -353,7 +362,8 @@ export class LibraryRdbStorage {
     let changed = false
     writeUserRecords(this.store, (): void => {
       const identities = reconcileShelfCategoryIds(this.store, true)
-      changed = identities.categoryIdsChanged || identities.comicIds.size > 0
+      const smartIdsChanged = reconcileSmartCategoryIds(this.store)
+      changed = identities.categoryIdsChanged || identities.comicIds.size > 0 || smartIdsChanged
     })
     if (changed) this.writeRevision += 1
   }
@@ -362,9 +372,11 @@ export class LibraryRdbStorage {
     removedCategoryIds: string[] = []): LibraryShelfSyncEdits {
     const affected = new Set(comicIds)
     let categoryIdsChanged = false
+    let smartIdsChanged = false
     writeUserRecords(this.store, (): void => {
       const identities = reconcileShelfCategoryIds(this.store, false)
       categoryIdsChanged = identities.categoryIdsChanged
+      if (smart) smartIdsChanged = reconcileSmartCategoryIds(this.store)
       identities.comicIds.forEach((id: string): void => { affected.add(id) })
       // A download can populate an empty library. Keep its collection flags
       // with the affected rows so the same data is found on cold startup.
@@ -413,7 +425,7 @@ export class LibraryRdbStorage {
     comicIds = Array.from(affected)
     const after: LibraryShelfSyncImage = { present: true, works,
       categories: categories || categoryIdsChanged ? shelfCategories.read(this.store).map(row => row.entry) : undefined,
-      displayStrategies: removedCategoryIds.length > 0 || categoryIdsChanged ?
+      displayStrategies: removedCategoryIds.length > 0 || categoryIdsChanged || smartIdsChanged ?
         shelfDisplayStrategies.read(this.store).map(row => row.entry) : undefined,
       smartCategories: smart || categoryIdsChanged ? readSmartCategories(this.store) : undefined,
       moves: categoryIdsChanged ? readShelfMoves(this.store) : undefined }

@@ -315,7 +315,7 @@ test('an incoming same-name category uses one ID without losing books, privacy o
  const owner = new InMemoryLibraryStore()
  const first = owner.createCustomCategory('Reading', 100)
  const second = owner.createCustomCategory('Other device', 200)
- const filter = group([rule('category', second.id)])
+ const filter = { ...group([rule('category', second.id)]), id: 'smart:1afed9c2-2bd0-422c-856b-4c75f9abf7d6' }
  owner.replaceSmartCategories([filter])
  owner.setCustomCategoryPrivacy(second.id, true)
  const entries = [book('first'), book('second')]

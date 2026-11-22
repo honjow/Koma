@@ -6,8 +6,8 @@ import { sourceLibraryComicId } from '../model/SourceLibraryComic'
 import type { LibrarySmartCategory, LibrarySmartFilter } from '../model/LibrarySmartCategory'
 import type { LibraryShelfSyncEdits, LibraryShelfSyncImage } from '../model/LibraryRdbStorage'
 import { isSyncReplica } from './DeviceSyncFacts'
-import { syncCoverAddress, SyncChapterCatalog, SyncSmartCategory, SyncWorkLabel, syncKey, syncKeyParts,
-  syncNumberedCategoryName, syncSharedCategoryId, syncShelfIdentity, syncShelfMove, syncStableId } from './DeviceSyncData'
+import { smartCategoryStorageId, syncCoverAddress, SyncChapterCatalog, SyncSmartCategory, SyncWorkLabel, syncKey, syncKeyParts,
+  syncNumberedCategoryName, syncSharedCategoryId, syncShelfIdentity, syncShelfMove } from './DeviceSyncData'
 import type { SyncLocalShelfMove } from './DeviceSyncSignals'
 import type { SyncLocalValue } from './DeviceSyncStorage'
 import { syncDigest } from './DeviceSyncWire'
@@ -139,10 +139,9 @@ export function toLocalCategory(shared: string, library: PersistedLibraryStoreDo
 }
 
 export function smartCategoryKey(id: string): string {
-  const shared = id.slice('smart:'.length)
   // Existing local IDs also travel in backups. Derive the same identity
   // when the same old smart category is restored on two devices.
-  return syncKey(['smart-category', isSyncReplica(shared) ? shared : syncStableId('smart-category:' + id)])
+  return syncKey(['smart-category', smartCategoryStorageId(id).slice('smart:'.length)])
 }
 
 function applyChapterCatalogs(changes: SyncLocalValue[], library: PersistedLibraryStoreDocument): void {

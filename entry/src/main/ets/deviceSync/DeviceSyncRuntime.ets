@@ -50,7 +50,6 @@ export class DeviceSyncViewState {
   @Trace needsReview: boolean = false
   @Trace requiresExplicitReview: boolean = false
   @Trace lastSuccess: number = 0
-  @Trace readingPending: boolean = false
   @Trace error: string = ''
   @Trace errorGroup?: SyncGroup
   @Trace revision: number = 0
@@ -210,8 +209,6 @@ class DeviceSyncRuntime {
     this.view.needsReview = state?.groups.some((group: SyncGroupState): boolean =>
       group.id !== 'reading' && state.selected.includes(group.id) && (group.deferred?.length ?? 0) > 0) ?? false
     this.view.lastSuccess = state?.lastSuccess ?? 0
-    this.view.readingPending = this.view.selected.includes('reading') &&
-      state?.groups.some((group: SyncGroupState): boolean => group.id === 'reading' && group.pending.length > 0) === true
     this.view.shelfRemovals = state?.selected.includes('shelf') ? this.owners?.blockedShelfItems() ?? [] : []
     const retained = state?.selected.includes('reading') ? (this.storage?.load().blockedReadings ?? [])
       .filter((item: SyncBlockedReading): boolean => item.capture.space === state.space) : []

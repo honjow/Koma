@@ -1,8 +1,8 @@
 import type { relationalStore } from '@kit.ArkData'
 import type { PersistedLibraryCategory } from './LibraryPersistence'
-import { shelfCategories, shelfDisplayStrategies } from './LibraryListRows'
+import { shelfCategories, shelfDisplayStrategies, shelfSmartCategories, shelfSmartFilters } from './LibraryListRows'
 import { libraryCategoryNameKey } from './ComicModels'
-import { CATEGORY_SYNC_PREFIX, syncStableId } from '../deviceSync/DeviceSyncData'
+import { CATEGORY_SYNC_PREFIX, smartCategoryStorageId, syncStableId } from '../deviceSync/DeviceSyncData'
 import { isSyncReplica } from '../deviceSync/DeviceSyncFacts'
 
 const ALIASES = 'shelf_category_aliases'
@@ -62,6 +62,43 @@ function sharedCategoryId(id: string): string | undefined {
   return isSyncReplica(original) && (suffix === '' || /^_[0-9]+$/.test(suffix)) ? original : undefined
 }
 
+function moveDisplayStrategy(store: relationalStore.RdbStore, oldId: string, id: string): void {
+  const oldStyle = shelfDisplayStrategies.read(store, 'category_id = ?', [oldId])[0]
+  if (oldStyle === undefined) return
+  const style = shelfDisplayStrategies.read(store, 'category_id = ?', [id])[0]
+  if (style === undefined || oldStyle.entry.updatedAt > style.entry.updatedAt) {
+    oldStyle.entry.categoryId = id
+    shelfDisplayStrategies.put(store, oldStyle)
+  }
+  shelfDisplayStrategies.remove(store, [oldId])
+}
+
+/** Reuse the existing WebDAV identity for the RDB definition and its rules.
+ * A cloud batch may have delivered the parent alone. Wait for its rules before changing the ID. */
+export function reconcileSmartCategoryIds(store: relationalStore.RdbStore): boolean {
+  let changed = false
+  for (const legacy of shelfSmartCategories.read(store)) {
+    const oldId = legacy.entry.id
+    const id = smartCategoryStorageId(oldId)
+    if (id === oldId) continue
+    const rules = shelfSmartFilters.read(store, 'category_id = ?', [oldId])
+    if (rules.length === 0) continue
+    const canonical = shelfSmartCategories.read(store, 'category_id = ?', [id])[0]
+    if (canonical === undefined || legacy.entry.updatedAt > canonical.entry.updatedAt ||
+      shelfSmartFilters.read(store, 'category_id = ?', [id]).length === 0) {
+      legacy.entry.id = id
+      shelfSmartCategories.put(store, legacy)
+      rules.forEach(rule => { rule.categoryId = id })
+      shelfSmartFilters.replace(store, rules, 'category_id', id)
+    }
+    moveDisplayStrategy(store, oldId, id)
+    shelfSmartFilters.replace(store, [], 'category_id', oldId)
+    shelfSmartCategories.remove(store, [oldId])
+    changed = true
+  }
+  return changed
+}
+
 function rewriteCategoryReferences(store: relationalStore.RdbStore, oldId: string, id: string, affected: Set<string>): void {
   for (const table of MEMBERSHIPS) {
     const rows = store.querySqlSync('SELECT DISTINCT comic_id FROM ' + table + ' WHERE category_id = ?', [oldId])
@@ -75,15 +112,7 @@ function rewriteCategoryReferences(store: relationalStore.RdbStore, oldId: strin
       ' SELECT comic_id, ?, category_occurrence, list_order FROM ' + table + ' WHERE category_id = ?', [id, oldId])
     store.executeSync('DELETE FROM ' + table + ' WHERE category_id = ?', [oldId])
   }
-  const oldStyle = shelfDisplayStrategies.read(store, 'category_id = ?', [oldId])[0]
-  if (oldStyle !== undefined) {
-    const style = shelfDisplayStrategies.read(store, 'category_id = ?', [id])[0]
-    if (style === undefined || oldStyle.entry.updatedAt > style.entry.updatedAt) {
-      oldStyle.entry.categoryId = id
-      shelfDisplayStrategies.put(store, oldStyle)
-    }
-    shelfDisplayStrategies.remove(store, [oldId])
-  }
+  moveDisplayStrategy(store, oldId, id)
   store.executeSync("UPDATE shelf_smart_category_filters SET filter_value = ? WHERE method = 'category' AND filter_value = ?", [id, oldId])
   // If two rules were equivalent after rekeying, keep the exclusion. A
   // shortcut for the same category must not broaden an existing smart filter.

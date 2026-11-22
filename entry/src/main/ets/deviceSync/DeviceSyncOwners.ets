@@ -11,7 +11,7 @@ import {
   liveShelfCategoryAliases, readLiveShelfSync, readLiveShelfSyncWork, usesLibraryDatabase,
   writeLiveLibrarySnapshot, writeLiveLibrarySyncEdits,
 } from '../model/LibraryPersistence'
-import type { LibraryShelfSyncEdits } from '../model/LibraryRdbStorage'
+import type { LibraryShelfSyncDocument, LibraryShelfSyncEdits } from '../model/LibraryRdbStorage'
 import {
   AppFilesReaderSessionPersistenceAdapter, ChapterReadingState, ReaderSessionDocumentSnapshot,
   READER_PROGRESS_PERSISTENCE_FILE_NAME, appReaderSessionStore, serializeReaderSessionForDevice, readLiveReaderSnapshot,
@@ -32,7 +32,7 @@ import { isValidHttpUrl, normalizeIndexUrl, SourceIndexRepository, subscriptionI
 import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncOwner'
 import { isSyncReplica, SyncEdit, SyncFact, SyncGroup } from './DeviceSyncFacts'
 import {
-  CATEGORY_SYNC_PREFIX, safeSyncSearch, syncCatalogAddress, syncCatalogRecordKey, syncCoverAddress, SyncChapterCatalog, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSearchValue, SyncSubscription,
+  CATEGORY_SYNC_PREFIX, safeSyncSearch, smartCategoryStorageId, syncCatalogAddress, syncCatalogRecordKey, syncCoverAddress, SyncChapterCatalog, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSearchValue, SyncSubscription,
   SyncWorkLabel, syncKey, syncKeyParts, syncPublicLabel, syncReadingIdentity, syncReadingPosition,
   syncSearchIdentity, syncShelfLabel, syncShelfMove, syncShelfMoveDestination,
   syncGroupVisibleValue, SyncShelfMove, SyncSmartCategory, SyncWorkSlice,
@@ -339,8 +339,12 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     }
     const projection = JSON.parse(json) as SyncProjection
     const aliases = liveShelfCategoryAliases(this.context.filesDir)
-    if (aliases === undefined || aliases.size === 0) return projection
+    if (aliases === undefined) return projection
     for (const row of projection.categories) {
+      if (row.local.startsWith('smart:')) {
+        row.local = smartCategoryStorageId(row.local)
+        continue
+      }
       if (row.mergedInto !== undefined) row.mergedInto = aliases.get(row.mergedInto) ?? row.mergedInto
       const id = aliases.get(row.local)
       if (id === undefined) continue
@@ -513,7 +517,17 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
           projection.categoryOrder ?? localOrder : localOrder
         row(values, ['order'], Array.from(new Set(sharedOrder)))
       }
-      for (const category of library.smartCategories ?? []) {
+      const smart = library.smartCategories ?? []
+      if (shelfRows) {
+        // The cloud writes category and rule tables separately. An existing
+        // definition with rules in flight is neither an edit nor a deletion.
+        const complete = new Set<string>(smart.map((category: LibrarySmartCategory): string => smartCategoryKey(category.id)))
+        for (const id of (library as LibraryShelfSyncDocument).incompleteSmartCategoryIds ?? []) {
+          const key = smartCategoryKey(id)
+          if (!complete.has(key)) protectedKeys.push(key)
+        }
+      }
+      for (const category of smart) {
         const key = smartCategoryKey(category.id)
         const mapping = projection.categories.find((item: SyncLocalCategory): boolean => item.local === category.id)
         const name = mapping?.displayedName === category.name ? mapping.originalName ?? category.name : category.name

@@ -63,6 +63,12 @@ export function syncStableId(text: string): string {
     hash.substring(16, 20) + '-' + hash.substring(20, 32)
 }
 
+// Older backups and Huawei Cloud rows used the timestamp ID while WebDAV
+// received its deterministic UUID. Both now refer to the same stored rule.
+export function smartCategoryStorageId(id: string): string {
+  return isSyncReplica(id.slice('smart:'.length)) ? id : 'smart:' + syncStableId('smart-category:' + id)
+}
+
 export function syncSharedCategoryId(replica: string, local: string): string {
   return syncStableId(replica + ':category:' + local)
 }

@@ -1432,6 +1432,38 @@ test('a remote deletion blocked by local notes commits its receipt without reloa
   assert.deepEqual(notifications, [])
 })
 
+test('WebDAV keeps a smart category until the cloud deletes its definition, even when its rules go first', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.SharedWebDav)
+  const definition = { id: 'smart:1afed9c2-2bd0-422c-856b-4c75f9abf7d6', name: 'Smart', sortOrder: 0,
+    createdAt: 1, updatedAt: 1, filters: [{ method: 'downloaded', exclude: false }] }
+  let raw = JSON.stringify({ schemaVersion: 1, comics: [], smartCategories: [definition] })
+  const database = { shelfRevision: () => 0, readShelfSnapshot: async () => raw,
+    writeShelfEdits: (_directory, _edits, image) => {
+      const snapshot = JSON.parse(raw)
+      if (image.smartCategories !== undefined) snapshot.smartCategories = image.smartCategories ?? undefined
+      raw = JSON.stringify(snapshot)
+    },
+  }
+  const first = readingDevice(fixture, A, new Map(), true, undefined, database)
+  const second = readingDevice(fixture, B, new Map(), true)
+  for (const device of [first, second]) {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['shelf'])).token, [])
+  }
+  assert.equal(second.coldShelf().shelf.listSmartCategories()[0].id, definition.id)
+
+  raw = JSON.stringify({ schemaVersion: 1, comics: [], smartCategories: [], incompleteSmartCategoryIds: [definition.id] })
+  await first.engine.syncNow()
+  await second.engine.syncNow()
+  assert.equal(second.coldShelf().shelf.listSmartCategories()[0].id, definition.id)
+
+  raw = JSON.stringify({ schemaVersion: 1, comics: [], smartCategories: [] })
+  await first.engine.syncNow()
+  await second.engine.syncNow()
+  assert.deepEqual(second.coldShelf().shelf.listSmartCategories(), [])
+})
+
 test('RDB shelf receipt rolls back scoped rows and rejects an intervening local edit before publication', async () => {
   let raw
   let revision = 0
