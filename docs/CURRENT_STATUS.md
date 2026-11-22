@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T00:17:01+08:00",
+  "updatedAt": "2026-11-23T01:31:01+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -6222,25 +6222,27 @@
       "id": "CHAPTER_SORT_MENU",
       "number": 103,
       "title": "章节排序菜单无作用",
-      "status": "197 四项排序和按名称双向切章已验证，App 已本地提交",
+      "status": "App 已编译、提交并在237验收；瓜子正式包已安装",
       "kind": "accepted",
       "priority": "P0（人类再次复现：通用排序及菜单状态）",
-      "owner": "Root：包子012具名范围冻结；未知metadata继续原项",
+      "owner": "本会话：章节排序与全部已发布源章序检查",
       "dependencies": [],
-      "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。 对照 Mihon 的四种章排序，Koma 增加「按上传日期」「名称」并对齐「按图源」「按章节编号」。保留默认按图源及原生菜单正反序。所选依据用于同一已核实阅读组的阅读起点和正向邻章，反转显示不改变邻章。漫画1234 0.1.15 的 711 条具名目录遵守原站及 Keiyoushi 顺序，章节 ID 与阅读位置先后保持。 197 使用本轮同签候选和漫画1234 0.1.15。默认按图源的首行是第五百七十六章。无记录开始阅读打开原站入口《鸽之魔界大门—— 2》。按名称后列表前两项是《40进20PK赛》和《超紧急事态！！》。反转显示后仍从前者开始，末页滑到后者，后者首页滑回前者末页。章节编号和上传日期选项也在真机选中。该目录未提供上传时间，日期比较另外用有日期值和缺日期值的执行用例覆盖。",
-      "remaining": "漫画1234 0.1.15 和 App 本轮提交为本地候选。197 的旧版无记录路径从原站入口打开，未复现直接进入最新章。",
+      "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。 对照 Mihon 的四种章排序，Koma 增加「按上传日期」「名称」并对齐「按图源」「按章节编号」。保留默认按图源及原生菜单正反序。所选依据用于同一已核实阅读组的阅读起点和正向邻章，反转显示不改变邻章。漫画1234 0.1.15 的 711 条具名目录遵守原站及 Keiyoushi 顺序，章节 ID 与阅读位置先后保持。 197 使用本轮同签候选和漫画1234 0.1.15。默认按图源的首行是第五百七十六章。无记录开始阅读打开原站入口《鸽之魔界大门—— 2》。按名称后列表前两项是《40进20PK赛》和《超紧急事态！！》。反转显示后仍从前者开始，末页滑到后者，后者首页滑回前者末页。章节编号和上传日期选项也在真机选中。该目录未提供上传时间，日期比较另外用有日期值和缺日期值的执行用例覆盖。 2026-11-23：c263ce77 修正图源方向标签与四项文案；3bafce88 使新作品默认倒序，已有排序记录保持。两个候选均 assembleHap 成功。237 普通导入瓜子0.1.9并下拉刷新，341章目录完整保留，两个档案及预告获得0/1/2位置。真实条漫滚动验证封面档案→人物档案→预告→001，档案间向前/向后均可跨章；恢复倒序显示后，人物档案向前仍回封面档案。原当前进度、页码与saved_at逐字段未变。 最终 App 候选在237验证漫画1234《我的微信连三界》原目录最早在前、新作品无排序记录时默认倒序，实际首行为最终话。瓜子最终公开0.1.9普通导入后刷新341章，全部有唯一阅读位置。原进度人物档案、场景第1/12页及saved_at未改，原source_order/forward保留，临时源无痕恢复关闭，两份临时导入文件及自有设备截图布局已清理。独立恢复SLEEP/OverrideTimeout10000ms并释租。",
+      "remaining": "本轮 App 修改已完成，不需要等待后续书源修复。各源剩余验证和发布统一在#343跟踪。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": "2026-11-20T19:57:50+08:00",
+      "closedAt": "2026-11-23T01:31:01+08:00",
       "evidencePoints": [],
       "remainingActions": [],
       "boundaries": [
         "本次新反馈明确重开通用展示反序与菜单状态，不继续按源补章号来掩盖菜单缺陷。",
         "原始章节对象/ID/源返回顺序、持久阅读数据和Reader自动邻章语义保持；跨季年代不能由显示反序推定。",
-        "允许差异为升降序真正互逆、默认降序单一状态、原生选中对勾和同项选择无变更；不改控件尺寸/排布/字体。"
+        "允许差异为升降序真正互逆、默认降序单一状态、原生选中对勾和同项选择无变更；不改控件尺寸/排布/字体。",
+        "源方向必须来自声明或完整阅读位置，不能把网站原数组一律叫正序；旧保存方向换算显示，不能悄悄翻转用户列表。",
+        "无编号本身不构成手选限制；列表反转不反转阅读器的正向上下章。"
       ],
       "modificationBasis": {
         "object": "ChapterListSection展示排序和MangaDetailModels排序状态；原章节对象/ID不变",
@@ -12608,6 +12610,36 @@
         ".hvigor/outputs/two-source-browse-20261120/device201__LMR-AL00/not-applicable/portrait-1276x2848/two-source-browse/34-comic-native-latest/layout.json",
         ".hvigor/outputs/two-source-browse-20261120/device201__LMR-AL00/not-applicable/portrait-1276x2848/two-source-browse/35-comic-native-search/layout.json",
         "https://github.com/honjow/koma-sources/releases/tag/sources-21d34dbcc1c53a0233ebff205c4f61fda6b33442"
+      ]
+    },
+    {
+      "id": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "number": 343,
+      "title": "全部已发布书源的章节方向与连续阅读核对",
+      "status": "119源已逐一检查，428份完整目录已消费回放；逐批修复发布中",
+      "kind": "open",
+      "priority": "P1",
+      "owner": "本会话统筹；Aristotle 静态全检，Boole 58 源，Volta 61 源抽样",
+      "dependencies": [
+        "CHAPTER_SORT_MENU"
+      ],
+      "result": "正式索引119源已逐源读码并尝试真实请求。457个作品有返回，其中428份非空完整目录、41436章进入App实际projectSourceChapterResponse/parseSourceChapterRow/sourceCatalogChronology/continuationChapterIds复核。98源至少取得1份完整目录，70源取得5份以上，部分官方源已覆盖全部有限合集。瓜子0.1.9已公开并以最终公开WASM重取341章，与237候选已验目录一致。漫画狗/菇菇修复已提交推送，XCOMIC简繁两个真实重号作品的续章修复已验证。",
+      "remaining": "21源在当前CLI未取得完整目录，须分别按登录、CF、站点响应及CLI不支持的私有会话/传输能力保留未验；不能登记为源故障或通过。正在核验和交付已确认的单源修复，未把27项静态风险当作27个已证实故障。",
+      "reportedAt": "2026-11-23T00:12:04+08:00",
+      "remainingActions": [
+        "完成已确认误禁续、目录位置冲突和排序影响阅读的源修复验证并发布。",
+        "核实最终公开索引与包，保留各源具体受限请求和未验范围。"
+      ],
+      "boundaries": [
+        "不靠补章节编号替代真实目录顺序。",
+        "不以编译、包校验或列表成功代替章序与实际阅读验收。",
+        "源仓提交和推送只在独立原仓；不在子模块提交，不盲推其它未验改动。"
+      ],
+      "evidencePoints": [
+        ".hvigor/outputs/published-source-order-audit-20261123/index.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/03-target-chapter-metadata/run-metadata.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/host-consumption.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/guazi-official/comparison.json"
       ]
     }
   ],
@@ -29521,6 +29553,56 @@
       "evidence": [
         ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/04-sustained-reading/trace.htrace",
         ".hvigor/outputs/reader-loading/device200__HOP-AL10/unknown/portrait-1264x1848/09-main-report/main-report.txt"
+      ]
+    },
+    {
+      "id": "chapter-sort-237-reopen-20261123",
+      "at": "2026-11-23T00:12:04+08:00",
+      "itemId": "CHAPTER_SORT_MENU",
+      "kind": "checkpoint",
+      "title": "按新反例重开章序问题，App 已恢复编译",
+      "detail": "编译失败来自新增 @Param sourceOrder 没有默认值，已修正为 undefined 并通过 assembleHap。237 成功覆盖安装。旧瓜子 0.1.8 将两档案章标为不参与续章；0.1.9 完整阅读位置候选待普通路径验收。"
+    },
+    {
+      "id": "all-published-source-order-audit-20261123",
+      "at": "2026-11-23T00:12:04+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "kind": "checkpoint",
+      "title": "开始全部 119 个已发布源的章序审查",
+      "detail": "以正式索引和发布提交为基线，三个代理负责静态全检及 58/61 源抽样。未验证结果不写已修复，继续保留各源真实阻碍。"
+    },
+    {
+      "id": "chapter-sort-guazi-237-live-20261123",
+      "at": "2026-11-23T00:33:29+08:00",
+      "itemId": "CHAPTER_SORT_MENU",
+      "kind": "checkpoint",
+      "title": "237 实际走通无编号档案、预告与001的阅读关系",
+      "detail": "普通本地导入0.1.9、下拉刷新。正序/倒序标签与四项名称已核。档案章末真实滚动双向切换成功，人物档案→预告→001也成功。恢复倒序列表后仍可向前回封面档案；原当前进度与saved_at未改。App c263ce77/3bafce88已分别构建成功并提交；没有发布App。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/25-profile-both-directions/back-layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/27-preview-to-001/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/29-restore-target-sort/run-metadata.json"
+      ]
+    },
+    {
+      "id": "source-order-full-runtime-first-pass-20261123",
+      "at": "2026-11-23T00:56:59+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "kind": "checkpoint",
+      "title": "119源逐一尝试，实际消费428份目录；瓜子已公开",
+      "detail": "正式索引119源已逐源读码并尝试真实请求。457个作品有返回，其中428份非空完整目录、41436章进入App实际projectSourceChapterResponse/parseSourceChapterRow/sourceCatalogChronology/continuationChapterIds复核。98源至少取得1份完整目录，70源取得5份以上，部分官方源已覆盖全部有限合集。瓜子0.1.9已公开并以最终公开WASM重取341章，与237候选已验目录一致。漫画狗/菇菇修复已提交推送，XCOMIC简繁两个真实重号作品的续章修复已验证。 21源的环境和访问边界保留未验。App新作品默认倒序另在237用漫画1234《我的微信连三界》554章核验，设备原无排序记录，首行实际为最终话；未开始该作阅读或加入书架。"
+    },
+    {
+      "id": "chapter-sort-app-device-acceptance-20261123",
+      "at": "2026-11-23T01:31:01+08:00",
+      "itemId": "CHAPTER_SORT_MENU",
+      "kind": "accepted",
+      "title": "App修改完成，237恢复释租，后续源修复不再要求本轮App更新",
+      "detail": "c263ce77、3bafce88已本地提交且完整HAP构建通过。237关键档案双向跨章、预告到001、倒序显示不反转阅读、最早在前源的新作品默认倒序均已验。最终公开瓜子0.1.9已普通导入并刷新。原阅读进度和排序保留，临时无痕、文件、电源与租约已恢复。当前App配置仍1.5.6/25；正式发新版需按发布流程步进版本。既有Lexbor仅是父仓依赖指针差异，子库无未提交源码，本轮未改动该依赖。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/40-oldest-source-first-rows/screen.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/47-original-scene-restored/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/48-session-restore-readback/run-metadata.json"
       ]
     }
   ],
