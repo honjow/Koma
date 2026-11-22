@@ -10,7 +10,9 @@ import { FormTitleActionState } from '../state/FormTitleActionState'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { LibraryAutomationSettingRow, LIBRARY_AUTOMATION_SETTING_KEYS } from '../components/LibraryAutomationSettingRow'
 import { LibraryAutomationPreferences, defaultLibraryAutomationPreferences } from '../model/LibraryAutomationPolicy'
-import { AppearanceState, connectAppearanceState } from '../state/AppearanceState'
+import { AppearanceState, connectAppearanceState, effectiveAppearanceAccent, isCustomAppearanceAccentColor } from '../state/AppearanceState'
+import { AppColorPicker } from '../components/AppColorPicker'
+import { KomaModalScaffold, komaModalSheetOptions } from '../components/KomaModalScaffold'
 import { LibraryAutomationPreferencesStore } from '../model/LibraryAutomationPreferencesStore'
 import { CustomLibraryCategory, LibraryCategoryDefinition, LegacyLibraryCategory, LEGACY_LIBRARY_CATEGORIES } from '../model/ComicModels'
 import { KomaAboutContent } from '../components/KomaAboutContent'
@@ -99,10 +101,9 @@ import {
 import { loadDownloadNotificationPreferences, saveDownloadNotificationEnabled } from '../model/DownloadNotificationPreferences'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import {
-  AppearanceAccentColor,
+  APPEARANCE_ACCENT_PRESETS,
   AppearancePreferences,
   AppearancePreferencesStore,
-  DEFAULT_APPEARANCE_PREFERENCES,
   getAppearanceAccentColorLabel,
   getAppearanceAccentColorValue,
 } from '../model/AppearancePreferencesStore'
@@ -579,7 +580,9 @@ export struct SettingsPage {
   @Local private readingDirection: ReadingDirection = ReadingDirection.LEFT_TO_RIGHT
   @Local private readerSpreadLayoutMode: ReaderSpreadLayoutMode = 'joined'
   @Local private themeMode: ReaderThemeMode = 'system'
-  @Local private appearanceAccentColor: AppearanceAccentColor = DEFAULT_APPEARANCE_PREFERENCES.accentColor
+  @Local private accentPickerShown: boolean = false
+  @Local private accentPickerSaving: boolean = false
+  @Local private draftAccentColor: string = ''
   @Local private readerBackgroundMode: ReaderBackgroundMode = 'black'
   @Local private readerImageScalingQuality: ReaderImageScalingQuality = 'medium'
   @Local private readerDisplaySheetShown: boolean = false
@@ -705,10 +708,6 @@ export struct SettingsPage {
     return this.t('common_standard')
   }
 
-  private appearanceAccentColorLabel(accentColor: AppearanceAccentColor): string {
-    return getAppearanceAccentColorLabel(accentColor)
-  }
-
   private sectionTitle(section: SettingsSection): string {
     return this.t(section.titleKey)
   }
@@ -740,7 +739,7 @@ export struct SettingsPage {
       return getReaderThemeModeLabel(this.themeMode)
     }
     if (row.key === 'theme-color') {
-      return this.appearanceAccentColorLabel(this.appearanceAccentColor)
+      return getAppearanceAccentColorLabel(effectiveAppearanceAccent(this.appearanceState))
     }
     if (row.key === 'language') {
       return LanguageSettings.label(this.language.mode)
@@ -1212,7 +1211,6 @@ export struct SettingsPage {
   private loadAppearancePreferences(): void {
     void this.appearancePreferencesStore().load()
       .then((preferences: AppearancePreferences) => {
-        this.appearanceAccentColor = preferences.accentColor
         console.info('[Settings] step=load_appearance_preferences accent=' + preferences.accentColor)
       })
       .catch((error: Error) => {
@@ -1543,17 +1541,66 @@ export struct SettingsPage {
       })
   }
 
-  private saveAppearanceAccentColor(accentColor: AppearanceAccentColor): void {
-    void this.appearancePreferencesStore().saveAccentColor(accentColor)
-      .then((preferences: AppearancePreferences) => {
-        this.appearanceAccentColor = preferences.accentColor
-        console.info('[Settings] step=save_appearance_accent value=' + preferences.accentColor)
-      })
-      .catch((error: Error) => {
-        DiagnosticLogger.warn('settings_page', 'save_appearance_accent_failed', '[Settings] step=save_appearance_accent_failed code=' + safeSettingsErrorCode(error))
-        this.showToast(s('settings_theme_color_save_failed'))
-        this.loadAppearancePreferences()
-      })
+  private async saveAppearanceAccentColor(accentColor: string): Promise<boolean> {
+    try {
+      const saved = await this.appearancePreferencesStore().saveAccentColor(accentColor)
+      console.info('[Settings] step=save_appearance_accent value=' + saved.accentColor)
+      return true
+    } catch (error) {
+      DiagnosticLogger.warn('settings_page', 'save_appearance_accent_failed',
+        '[Settings] step=save_appearance_accent_failed code=' + safeSettingsErrorCode(error as Error))
+      this.showToast(s('settings_theme_color_save_failed'))
+      return false
+    }
+  }
+
+  private openAccentPicker(): void {
+    if (this.accentPickerShown || this.accentPickerSaving) return
+    const color = getAppearanceAccentColorValue(this.appearanceState.accentColor)
+    if (typeof color === 'string') {
+      this.draftAccentColor = color
+    } else {
+      const rgb = this.context().resourceManager.getColorSync($r('app.color.koma_accent')) & 0xFFFFFF
+      this.draftAccentColor = '#' + rgb.toString(16).padStart(6, '0').toUpperCase()
+    }
+    this.accentPickerShown = true
+  }
+
+  private async confirmAccentPicker(): Promise<void> {
+    if (this.accentPickerSaving) return
+    this.accentPickerSaving = true
+    const saved = await this.saveAppearanceAccentColor(this.draftAccentColor)
+    if (saved) this.accentPickerShown = false
+    this.accentPickerSaving = false
+  }
+
+  @Builder
+  private AccentPickerSheet() {
+    KomaModalScaffold({
+      title: s('appearance_accent_custom'),
+      confirmLabel: s('common_ok'),
+      confirmEnabled: !this.accentPickerSaving,
+      onClose: () => { this.accentPickerShown = false },
+      onConfirm: () => { void this.confirmAccentPicker() },
+    }) {
+      ListItem() {
+        AppColorPicker({
+          title: s('settings_row_theme_color_title'),
+          color: this.draftAccentColor,
+          disabled: this.accentPickerSaving,
+          colorChange: (color: string) => {
+            if (!this.accentPickerShown || this.accentPickerSaving) return
+            this.draftAccentColor = color
+            this.appearanceState.previewAccentColor = color
+          },
+          favoriteChange: (color: string, add: boolean) => {
+            void this.appearancePreferencesStore().changeAccentFavorite(color, add).catch(() => {
+              this.showToast(s('color_picker_favorites_save_failed'))
+            })
+          },
+        })
+      }
+    }
   }
 
   private saveLanguageMode(mode: string): void {
@@ -2427,14 +2474,55 @@ export struct SettingsPage {
     title: ResourceStr,
     checked: boolean,
     action: () => void,
+    color?: ResourceColor,
   ) {
     MenuItem({
       content: title,
+      symbolStartIcon: color === undefined ? undefined : new SymbolGlyphModifier($r('sys.symbol.paintpalette_fill'))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY).fontColor([color]),
       symbolEndIcon: checked ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined,
     })
       .onClick(() => {
         select(action)
       })
+  }
+
+  @Builder
+  private ThemeColorMenu(select: (action: () => void) => void) {
+    Menu() {
+      ForEach(APPEARANCE_ACCENT_PRESETS, (color: string) => {
+        this.SelectionMenuItem(select, getAppearanceAccentColorLabel(color), this.appearanceState.accentColor === color,
+          () => { void this.saveAppearanceAccentColor(color) }, getAppearanceAccentColorValue(color))
+      }, (color: string) => color)
+      this.SelectionMenuItem(select, s('appearance_accent_custom'), isCustomAppearanceAccentColor(this.appearanceState.accentColor),
+        () => { this.openAccentPicker() }, isCustomAppearanceAccentColor(this.appearanceState.accentColor)
+          ? getAppearanceAccentColorValue(this.appearanceState.accentColor) : $r('sys.color.font_tertiary'))
+    }
+  }
+
+  @Builder
+  private ThemeColorRow(row: SettingsRow) {
+    Column() {
+      ConciseListRow({
+        title: this.rowTitle(row),
+        trailingText: this.rowDetail(row),
+        trailingSwatchColor: getAppearanceAccentColorValue(effectiveAppearanceAccent(this.appearanceState)),
+        trailingMaxLines: this.rowDetailMaxLines(row),
+        trailingDropdown: true,
+        showChevron: true,
+        isEnabled: !this.accentPickerSaving,
+        dropdownMenuEnabled: true,
+        dropdownMenuBuilder: (select: (action: () => void) => void) => {
+          this.ThemeColorMenu(select)
+        },
+      })
+    }
+    .width('100%')
+    .bindSheet($$this.accentPickerShown, this.AccentPickerSheet(), komaModalSheetOptions({
+      detents: [SheetSize.LARGE],
+      enableOutsideInteractive: false,
+      onDisappear: () => { this.appearanceState.previewAccentColor = '' },
+    }))
   }
 
   @Builder
@@ -2466,12 +2554,6 @@ export struct SettingsPage {
         this.SelectionMenuItem(select, s('theme_system'), this.themeMode === 'system', () => { this.saveThemeMode('system') })
         this.SelectionMenuItem(select, s('theme_light'), this.themeMode === 'light', () => { this.saveThemeMode('light') })
         this.SelectionMenuItem(select, s('theme_dark'), this.themeMode === 'dark', () => { this.saveThemeMode('dark') })
-      } else if (row.key === 'theme-color') {
-        this.SelectionMenuItem(select, s('appearance_accent_emerald'), this.appearanceAccentColor === 'emerald', () => { this.saveAppearanceAccentColor('emerald') })
-        this.SelectionMenuItem(select, s('appearance_accent_ocean'), this.appearanceAccentColor === 'ocean', () => { this.saveAppearanceAccentColor('ocean') })
-        this.SelectionMenuItem(select, s('appearance_accent_rose'), this.appearanceAccentColor === 'rose', () => { this.saveAppearanceAccentColor('rose') })
-        this.SelectionMenuItem(select, s('appearance_accent_amber'), this.appearanceAccentColor === 'amber', () => { this.saveAppearanceAccentColor('amber') })
-        this.SelectionMenuItem(select, s('appearance_accent_mono'), this.appearanceAccentColor === 'mono', () => { this.saveAppearanceAccentColor('mono') })
       } else if (row.key === 'language') {
         this.SelectionMenuItem(select, s('language_system'), this.language.mode === LanguageSettings.MODE_SYSTEM, () => { this.saveLanguageMode(LanguageSettings.MODE_SYSTEM) })
         this.SelectionMenuItem(select, s('language_zh_cn'), this.language.mode === LanguageSettings.MODE_ZH_CN, () => { this.saveLanguageMode(LanguageSettings.MODE_ZH_CN) })
@@ -2648,12 +2730,13 @@ export struct SettingsPage {
           this.setSwitchRowValue(row, isOn)
         },
       })
+    } else if (row.key === 'theme-color') {
+      this.ThemeColorRow(row)
     } else if (this.isSelectionRow(row) && this.canOpenSelectionMenu(row)) {
         ConciseListRow({
           title: this.rowTitle(row),
           subtitle: row.key === 'library-update-interval' ? getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences) : '',
           trailingText: this.rowDetail(row),
-          trailingSwatchColor: row.key === 'theme-color' ? getAppearanceAccentColorValue(this.appearanceAccentColor) : undefined,
           trailingMaxLines: this.rowDetailMaxLines(row),
           trailingDropdown: true,
           showChevron: true,

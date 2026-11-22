@@ -1,17 +1,22 @@
-import { connectAppearanceState, appearanceAccentValue } from '../state/AppearanceState'
+import {
+  appearanceAccentValue,
+  connectAppearanceState,
+  DEFAULT_APPEARANCE_COLOR_FAVORITES,
+  isCustomAppearanceAccentColor,
+  MAX_APPEARANCE_COLOR_FAVORITES,
+} from '../state/AppearanceState'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { AppStrings } from '../i18n/AppStrings'
 
-export type AppearanceAccentColor = 'emerald' | 'ocean' | 'rose' | 'amber' | 'mono'
-
 export interface AppearancePreferences {
-  accentColor: AppearanceAccentColor
+  accentColor: string
 }
 
 const APPEARANCE_PREFERENCES_STORE_NAME: string = 'koma_appearance_preferences_v1'
 const ACCENT_COLOR_KEY: string = 'appearance.accentColor'
+const ACCENT_FAVORITES_KEY: string = 'appearance.accentColorFavorites'
 const AUTO_HIDE_BOTTOM_BAR_KEY: string = 'appearance.autoHideBottomBar'
 const SHOW_RESUME_MINI_BAR_KEY: string = 'appearance.showResumeMiniBar'
 const DOUBLE_BACK_TO_EXIT_KEY: string = 'navigation.backGuardEnabled'
@@ -20,14 +25,20 @@ export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
   accentColor: 'emerald',
 }
 
-export function normalizeAppearanceAccentColor(value: string): AppearanceAccentColor {
-  if (value === 'ocean' || value === 'rose' || value === 'amber' || value === 'mono') {
-    return value
-  }
-  return 'emerald'
+export const APPEARANCE_ACCENT_PRESETS: string[] = ['emerald', 'ocean', 'rose', 'amber', 'mono']
+
+export function normalizeAppearanceAccentColor(value: string): string {
+  if (typeof value !== 'string') return DEFAULT_APPEARANCE_PREFERENCES.accentColor
+  const color = value.trim()
+  if (APPEARANCE_ACCENT_PRESETS.includes(color)) return color
+  if (isCustomAppearanceAccentColor(color)) return color.toUpperCase()
+  return DEFAULT_APPEARANCE_PREFERENCES.accentColor
 }
 
-export function getAppearanceAccentColorLabel(value: AppearanceAccentColor): string {
+export function getAppearanceAccentColorLabel(value: string): string {
+  if (isCustomAppearanceAccentColor(value)) {
+    return AppStrings.get('appearance_accent_custom')
+  }
   if (value === 'ocean') {
     return AppStrings.get('appearance_accent_ocean')
   }
@@ -43,8 +54,8 @@ export function getAppearanceAccentColorLabel(value: AppearanceAccentColor): str
   return AppStrings.get('appearance_accent_emerald')
 }
 
-export function getAppearanceAccentColorValue(value: AppearanceAccentColor): ResourceColor {
-  return appearanceAccentValue(value, '#256E5D')
+export function getAppearanceAccentColorValue(value: string): ResourceColor {
+  return appearanceAccentValue(value, $r('app.color.koma_accent'))
 }
 
 const appearanceOperations: Map<string, Promise<void>> = new Map()
@@ -68,32 +79,64 @@ export class AppearancePreferencesStore {
       const store = await this.preferences()
       const raw = await store.get(ACCENT_COLOR_KEY, DEFAULT_APPEARANCE_PREFERENCES.accentColor) as string
       const accentColor = normalizeAppearanceAccentColor(raw)
-      connectAppearanceState().accentColor = accentColor
-      connectAppearanceState().autoHideBottomBar = await store.get(AUTO_HIDE_BOTTOM_BAR_KEY, true) as boolean
-      connectAppearanceState().showResumeMiniBar = await store.get(SHOW_RESUME_MINI_BAR_KEY, true) !== false
-      connectAppearanceState().doubleBackToExit = await store.get(DOUBLE_BACK_TO_EXIT_KEY, true) as boolean
+      const state = connectAppearanceState()
+      state.accentColor = accentColor
+      state.autoHideBottomBar = await store.get(AUTO_HIDE_BOTTOM_BAR_KEY, true) as boolean
+      state.showResumeMiniBar = await store.get(SHOW_RESUME_MINI_BAR_KEY, true) !== false
+      state.doubleBackToExit = await store.get(DOUBLE_BACK_TO_EXIT_KEY, true) as boolean
+      const favorites = await store.get(ACCENT_FAVORITES_KEY, '') as string
+      state.accentColorFavorites = this.readAccentFavorites(favorites)
       return { accentColor }
     })
   }
 
-  async saveAccentColor(accentColor: AppearanceAccentColor): Promise<AppearancePreferences> {
+  async saveAccentColor(accentColor: string): Promise<AppearancePreferences> {
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<AppearancePreferences> => {
       const normalized = normalizeAppearanceAccentColor(accentColor)
       const store = await this.preferences()
-      const existed = await store.has(ACCENT_COLOR_KEY)
-      const previous = await store.get(ACCENT_COLOR_KEY, DEFAULT_APPEARANCE_PREFERENCES.accentColor)
-      try {
-        await store.put(ACCENT_COLOR_KEY, normalized)
-        await store.flush()
-      } catch (error) {
-        if (existed) await store.put(ACCENT_COLOR_KEY, previous)
-        else await store.delete(ACCENT_COLOR_KEY)
-        await store.flush()
-        throw error as Error
-      }
+      await this.writePreference(store, ACCENT_COLOR_KEY, normalized)
       connectAppearanceState().accentColor = normalized
       return { accentColor: normalized }
     }))
+  }
+
+  changeAccentFavorite(color: string, add: boolean): Promise<void> {
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<void> => {
+      if (!isCustomAppearanceAccentColor(color)) return
+      const normalized = color.toUpperCase()
+      const state = connectAppearanceState()
+      const next = state.accentColorFavorites.slice()
+      const index = next.indexOf(normalized)
+      if (add) {
+        if (index >= 0 || next.length >= MAX_APPEARANCE_COLOR_FAVORITES) return
+        next.push(normalized)
+      } else {
+        if (index < 0) return
+        next.splice(index, 1)
+      }
+      await this.writePreference(await this.preferences(), ACCENT_FAVORITES_KEY, JSON.stringify(next))
+      state.accentColorFavorites = next
+    }))
+  }
+
+  private readAccentFavorites(raw: string): string[] {
+    if (raw === '') return DEFAULT_APPEARANCE_COLOR_FAVORITES.slice()
+    try {
+      const decoded = JSON.parse(raw) as Object
+      if (Array.isArray(decoded)) {
+        const colors: string[] = []
+        for (const value of decoded as Object[]) {
+          if (typeof value !== 'string' || !isCustomAppearanceAccentColor(value)) continue
+          const color = value.toUpperCase()
+          if (!colors.includes(color)) colors.push(color)
+          if (colors.length === MAX_APPEARANCE_COLOR_FAVORITES) break
+        }
+        return colors
+      }
+    } catch (_error) {
+      // Use the initial palette for malformed stored values.
+    }
+    return DEFAULT_APPEARANCE_COLOR_FAVORITES.slice()
   }
 
   saveAutoHideBottomBar(enabled: boolean): Promise<void> {
@@ -117,19 +160,23 @@ export class AppearancePreferencesStore {
   private saveBooleanPreference(key: string, enabled: boolean, publish: () => void): Promise<void> {
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<void> => {
       const store = await this.preferences()
-      const existed = await store.has(key)
-      const previous = await store.get(key, true)
-      try {
-        await store.put(key, enabled)
-        await store.flush()
-      } catch (error) {
-        if (existed) await store.put(key, previous)
-        else await store.delete(key)
-        await store.flush()
-        throw error as Error
-      }
+      await this.writePreference(store, key, enabled)
       publish()
     }))
+  }
+
+  private async writePreference(store: preferences.Preferences, key: string, value: string | boolean): Promise<void> {
+    const existed = await store.has(key)
+    const previous = await store.get(key, value)
+    try {
+      await store.put(key, value)
+      await store.flush()
+    } catch (error) {
+      if (existed) await store.put(key, previous)
+      else await store.delete(key)
+      await store.flush()
+      throw error as Error
+    }
   }
 
   private async preferences(): Promise<preferences.Preferences> {
