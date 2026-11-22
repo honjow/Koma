@@ -14,7 +14,7 @@ const names = ['sortedChapterList','filteredChapterList','setSortBasis','setSort
   'resetFilters','normalizeMetadataValue','selectedIdsInFilter','reportDisplayOrder','storageSortDirection']
 const methods = owner.members.filter(n => ts.isMethodDeclaration(n) && names.includes(n.name.getText(tree)))
 const getters = owner.members.filter(n => ts.isGetAccessorDeclaration(n) &&
-  ['sortedChapters', 'sortedChapterIds', 'sourceOrderDescending'].includes(n.name.getText(tree)))
+  ['sortedChapters', 'sortedChapterIds', 'sourceOrderDescending', 'defaultSortDirection'].includes(n.name.getText(tree)))
 const presentation = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'ChapterListPresentation')
 const presentationSource = presentation.getText(tree).replace(/@(?:ObservedV2|Trace)\s+/g,'')
 const model = fs.readFileSync(path.join(base, 'model/MangaDetailModels.ets'), 'utf8')
@@ -128,4 +128,18 @@ test('changing sort basis preserves the selected semantic direction; chapter num
   assert.equal(o.presentation.sortDirection,FORWARD)
   assert.deepEqual(o.sortedChapters.map(c=>c.id),['new','old'])
   assert.equal(chronology.sourceCatalogDirection([chapter('numbered',10),chapter('lower',1)]),undefined)
+})
+
+test('oldest-first catalogs reset to chronological descending while saved raw-array choices remain selectable',()=>{
+  const o=make([chapter('profile',undefined,{readingOrder:0,readingGroup:'catalog'}),
+    chapter('001',1,{readingOrder:1,readingGroup:'catalog'})])
+  o.sourceOrder='oldest_first'
+  assert.equal(o.defaultSortDirection,REVERSE)
+  assert.equal(o.hasActiveFilters(),true)
+  o.resetFilters()
+  assert.deepEqual(o.sortedChapters.map(c=>c.id),['001','profile'])
+  assert.equal(o.storageSortDirection(o.presentation.sortDirection),REVERSE)
+  assert.equal(o.hasActiveFilters(),false)
+  o.setSortDirection(o.storageSortDirection(FORWARD))
+  assert.deepEqual(o.sortedChapters.map(c=>c.id),['profile','001'])
 })

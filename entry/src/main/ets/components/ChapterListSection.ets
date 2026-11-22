@@ -132,6 +132,14 @@ export struct ChapterListSection {
     return sourceCatalogDirection(this.chapters, this.sourceOrder) === 'newest_first'
   }
 
+  @Computed
+  private get defaultSortDirection(): ChapterSortDirection {
+    // Match Mihon's newest-first list for a new work. Never guess a direction
+    // for an undeclared legacy catalog; already saved preferences stay intact.
+    return sourceCatalogDirection(this.chapters, this.sourceOrder) === 'oldest_first'
+      ? ChapterSortDirection.REVERSE : ChapterSortDirection.FORWARD
+  }
+
   /** Keep saved forward/reverse tokens as raw-array directions. Only the menu
    * translates them into chronological ascending/descending, preserving the
    * actual displayed chapters of existing preferences without a data migration.
@@ -298,7 +306,7 @@ export struct ChapterListSection {
 
   private hasActiveFilters(): boolean {
     return this.presentation.sortBasis !== ChapterSortBasis.SOURCE_ORDER ||
-      this.presentation.sortDirection !== ChapterSortDirection.FORWARD ||
+      this.presentation.sortDirection !== this.defaultSortDirection ||
       this.presentation.readFilter !== ChapterReadFilter.ALL ||
       this.presentation.languageFilter.length > 0 ||
       this.presentation.groupFilter.length > 0 || this.presentation.bookmarkFilter !== 'all'
@@ -317,7 +325,7 @@ export struct ChapterListSection {
       return
     }
     this.presentation.sortBasis = ChapterSortBasis.SOURCE_ORDER
-    this.presentation.sortDirection = ChapterSortDirection.FORWARD
+    this.presentation.sortDirection = this.defaultSortDirection
     this.presentation.readFilter = ChapterReadFilter.ALL
     this.presentation.languageFilter = ''
     this.presentation.groupFilter = ''
@@ -419,7 +427,8 @@ export struct ChapterListSection {
     if (this.presentation.comicId === this.comicId) return
     this.presentation.comicId = this.comicId
     try {
-      const value = new ChapterListPreferencesStore(getContext(this) as common.UIAbilityContext).load(this.comicId)
+      const value = new ChapterListPreferencesStore(getContext(this) as common.UIAbilityContext)
+        .load(this.comicId, this.defaultSortDirection)
       this.presentation.sortBasis = value.sortBasis
       this.presentation.sortDirection = value.sortDirection
       this.presentation.readFilter = value.readFilter
@@ -920,7 +929,7 @@ export struct ChapterListSection {
         }
         Row() {
           KomaMenuChip({ label: this.sortLabel(), active: this.presentation.sortBasis !== ChapterSortBasis.SOURCE_ORDER ||
-            this.presentation.sortDirection !== ChapterSortDirection.FORWARD })
+            this.presentation.sortDirection !== this.defaultSortDirection })
         }
         .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
         .bindMenu(this.SortMenu(), komaMenuOptions())

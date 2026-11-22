@@ -56,10 +56,15 @@ export class ChapterListPreferencesStore {
     chapterPreferenceDirectory = this.context.filesDir
   }
 
-  load(comicId: string): ChapterListPreferences {
+  load(comicId: string, defaultDirection: ChapterSortDirection = ChapterSortDirection.FORWARD): ChapterListPreferences {
     const value = chapterListRecords.prepared(this.context.filesDir)?.get(comicId)
-    return normalizeChapterListPreferences(pendingPreferences.get(comicId) ??
-      (value === undefined ? undefined : JSON.parse(value) as ChapterListPreferences))
+    const saved = pendingPreferences.get(comicId) ??
+      (value === undefined ? undefined : JSON.parse(value) as ChapterListPreferences)
+    const normalized = normalizeChapterListPreferences(saved)
+    // A new work starts newest-first, even when its provider returns oldest-first.
+    // Existing records keep their raw-array direction and the component labels it.
+    if (saved === undefined) normalized.sortDirection = defaultDirection
+    return normalized
   }
 
   save(comicId: string, value: ChapterListPreferences): Promise<void> {
