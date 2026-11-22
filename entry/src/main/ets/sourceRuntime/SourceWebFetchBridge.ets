@@ -1,5 +1,6 @@
 import { webview } from '@kit.ArkWeb'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { sourceWebOrigin } from './SourceWebSessionStore'
 
 export interface SourceWebFetchResult {
   status: number
@@ -35,26 +36,50 @@ export class SourceWebFetchBridge {
   private sourceId: string = ''
   private ready: boolean = false
   private sequence: number = 0
+  private origin: string = ''
+  private userAgent: string = ''
+  private contextRevision: number = 0
+  private authorizationRevision: number = 0
 
-  attach(controller: webview.WebviewController, sourceId: string): void {
+  attach(controller: webview.WebviewController, sourceId: string, url: string, userAgent: string,
+    authorizationRevision: number): void {
+    this.contextRevision += 1
     this.controller = controller
     this.sourceId = sourceId
+    this.origin = sourceWebOrigin(url)
+    this.userAgent = userAgent
+    this.authorizationRevision = authorizationRevision
     this.ready = false
   }
 
-  markReady(sourceId: string): void {
-    if (this.sourceId === sourceId && this.controller !== undefined) this.ready = true
+  markReady(sourceId: string, documentUrl: string, userAgent: string, authorizationRevision: number): void {
+    if (this.sourceId === sourceId && this.controller !== undefined && this.origin.length > 0 &&
+      sourceWebOrigin(documentUrl) === this.origin && userAgent.length > 0 && userAgent === this.userAgent &&
+      authorizationRevision > 0 && authorizationRevision === this.authorizationRevision) this.ready = true
+  }
+
+  markLoading(sourceId: string): void {
+    if (this.sourceId !== sourceId) return
+    this.ready = false
+    this.contextRevision += 1
   }
 
   detach(sourceId: string): void {
     if (this.sourceId !== sourceId) return
     this.controller = undefined
     this.sourceId = ''
+    this.origin = ''
+    this.userAgent = ''
+    this.authorizationRevision = 0
     this.ready = false
+    this.contextRevision += 1
   }
 
-  availableFor(sourceId: string): boolean {
-    return this.controller !== undefined && this.sourceId === sourceId && this.ready
+  availableFor(sourceId: string, url: string, userAgent: string, authorizationRevision: number): boolean {
+    return this.controller !== undefined && this.sourceId === sourceId && this.ready &&
+      this.origin.length > 0 && sourceWebOrigin(url) === this.origin &&
+      userAgent.length > 0 && userAgent === this.userAgent && authorizationRevision > 0 &&
+      authorizationRevision === this.authorizationRevision
   }
 
   /**
@@ -62,21 +87,25 @@ export class SourceWebFetchBridge {
    * that WebView reports its main document. A caller that already has a ready
    * bridge returns immediately; a missing grant still fails closed on timeout.
    */
-  async prepare(sourceId: string, url: string): Promise<boolean> {
-    if (this.availableFor(sourceId)) return true
+  async prepare(sourceId: string, url: string, userAgent: string, authorizationRevision: number): Promise<boolean> {
+    if (this.availableFor(sourceId, url, userAgent, authorizationRevision)) return true
     requestSourceWebFetchBridgeHost(sourceId, url)
     const deadline = Date.now() + WEB_FETCH_PREPARE_TIMEOUT_MS
     while (Date.now() < deadline) {
       await this.delay(WEB_FETCH_POLL_MS)
-      if (this.availableFor(sourceId)) return true
+      if (this.availableFor(sourceId, url, userAgent, authorizationRevision)) return true
     }
     DiagnosticLogger.info('source_web_fetch', 'prepare_timeout', 'source=' + sourceId)
     return false
   }
 
-  async fetch(sourceId: string, url: string): Promise<SourceWebFetchResult | undefined> {
+  async fetch(sourceId: string, url: string, userAgent: string,
+    authorizationRevision: number): Promise<SourceWebFetchResult | undefined> {
     const controller = this.controller
-    if (controller === undefined || this.sourceId !== sourceId || !this.ready) return undefined
+    if (controller === undefined || !this.availableFor(sourceId, url, userAgent, authorizationRevision)) return undefined
+    const revision = this.contextRevision
+    const current = (): boolean => revision === this.contextRevision && this.controller === controller &&
+      this.availableFor(sourceId, url, userAgent, authorizationRevision)
     this.sequence += 1
     const id = 'koma-' + this.sequence
     try {
@@ -85,17 +114,24 @@ export class SourceWebFetchBridge {
         JSON.stringify(id) + "] = JSON.stringify({ status: r.status, body: t }); }).catch(() => { window.__komaFetch = window.__komaFetch || {}; window.__komaFetch[" +
         JSON.stringify(id) + "] = JSON.stringify({ status: -1, body: '' }); }); return 'started'; } catch (e) { return 'error'; } })()"
       const started = this.decode(await controller.runJavaScript(script))
-      if (started !== 'started') return undefined
+      if (!current() || started !== 'started') return undefined
       const deadline = Date.now() + WEB_FETCH_TIMEOUT_MS
       while (Date.now() < deadline) {
         await this.delay(WEB_FETCH_POLL_MS)
+        if (!current()) return undefined
         const raw = this.decode(await controller.runJavaScript(
-          "(window.__komaFetch && window.__komaFetch[" + JSON.stringify(id) + "]) || ''"))
+          "(() => { const value = (window.__komaFetch && window.__komaFetch[" + JSON.stringify(id) +
+          "]) || ''; if (value) delete window.__komaFetch[" + JSON.stringify(id) + "]; return value; })()"))
+        if (!current()) return undefined
         if (raw.length === 0) continue
         const parsed = JSON.parse(raw) as Record<string, Object>
         const status = typeof parsed['status'] === 'number' ? parsed['status'] as number : -1
         const body = typeof parsed['body'] === 'string' ? parsed['body'] as string : ''
-        if (status < 0 || body.length === 0 || this.isChallenge(body)) return undefined
+        if (status < 0 || body.length === 0 || this.isChallenge(body)) {
+          DiagnosticLogger.info('source_web_fetch', 'rejected',
+            'status=' + status + ' bytes=' + body.length + ' challenge=' + this.isChallenge(body))
+          return undefined
+        }
         return { status, body }
       }
       DiagnosticLogger.info('source_web_fetch', 'timeout', 'source=' + sourceId)

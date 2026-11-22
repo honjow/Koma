@@ -270,6 +270,15 @@ export struct SourceWebSessionSheet {
     } catch (_error) { /* Keep the visible challenge and manual control. No cookie values in diagnostics. */ }
   }
 
+  private pageVisible(event?: OnPageVisibleEvent): void {
+    const session = this.params.sourceSession
+    if (!this.active || this.pageFailed || this.webTokenStorageKey.length > 0 || session === undefined ||
+      event === undefined || event.url !== this.pageUrl) return
+    // Explicit source content readiness may finish before unrelated subresources.
+    // The async gate still owns document/epoch/origin checks and main-frame errors.
+    void this.autoCompleteRenderedDocument(this.epoch, session.sourceId, session.sessionId, true)
+  }
+
   private consoleMessage(event: OnConsoleEvent): boolean {
     if (!this.active) return false
     // Only a standard challenge error code may enter the log, never arbitrary page output.
@@ -300,54 +309,17 @@ export struct SourceWebSessionSheet {
     return sourceRenderedDocumentFallbackEnabled(appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy)
   }
 
-  private webFetchBridgeEnabled(sourceId: string): boolean {
-    return appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy?.webFetchBridge === true
-  }
-
-  /** Probe one same-origin in-page fetch to prove the WebView session can serve reads. */
-  private async probeWebViewFetch(sourceId: string): Promise<void> {
-    if (!this.webFetchBridgeEnabled(sourceId)) return
-    try {
-      const started = await this.controller.runJavaScript(
-        "(() => { try { const a = document.querySelector('div.grid > div.group a'); if (!a) return 'no-link'; const url = a.href; fetch(url, { credentials: 'include' }).then(async (r) => { const t = await r.text(); window.__komaWebFetch = JSON.stringify({ status: r.status, length: t.length }); }).catch(() => { window.__komaWebFetch = JSON.stringify({ status: -1, length: 0 }); }); return 'started'; } catch (e) { return 'error'; } })()")
-      if (this.decodeJavaScriptString(started) !== 'started') {
-        DiagnosticLogger.info('source_web_session', 'web_fetch_probe', 'state=' + String(started).slice(0, 16))
-        return
-      }
-      for (let index = 0; index < 20; index += 1) {
-        await this.delay(500)
-        const rawValue = await this.controller.runJavaScript('window.__komaWebFetch || ""')
-        const raw = typeof rawValue === 'string' ? this.decodeJavaScriptString(rawValue) : ''
-        if (raw.length > 0) {
-          try {
-            const parsed = JSON.parse(raw) as Record<string, Object>
-            DiagnosticLogger.info('source_web_session', 'web_fetch_probe',
-              'status=' + String(parsed['status']) + ' length=' + String(parsed['length']))
-          } catch (_error) {}
-          return
-        }
-      }
-      DiagnosticLogger.info('source_web_session', 'web_fetch_probe', 'state=timeout')
-    } catch (_error) {
-      DiagnosticLogger.info('source_web_session', 'web_fetch_probe', 'state=failed')
-    }
-  }
-
   private delay(milliseconds: number): Promise<void> {
     return new Promise<void>((resolve: (value: void) => void): void => {
       setTimeout((): void => { resolve() }, milliseconds)
     })
   }
 
-  private decodeJavaScriptString(raw: string): string {
-    if (!raw.startsWith('"')) return raw
-    try { return JSON.parse(raw) as string } catch (_error) { return raw }
-  }
-
   private async renderedDocumentReady(selector: string): Promise<boolean> {
     try {
       const raw = await this.controller.runJavaScript(
-        "(() => { try { return document.querySelector(" + JSON.stringify(selector) + ") !== null } catch (e) { return false } })()")
+        "(() => { try { return (document.readyState === 'interactive' || document.readyState === 'complete') && document.querySelector(" +
+        JSON.stringify(selector) + ") !== null } catch (e) { return false } })()")
       if (typeof raw !== 'string' || raw.length === 0 || raw.length > 16) return false
       if (raw === 'true' || raw === '"true"') return true
       return JSON.parse(raw) === true
@@ -357,11 +329,12 @@ export struct SourceWebSessionSheet {
   }
 
   /** Close the verification sheet only after the declared content actually exists. */
-  private async autoCompleteRenderedDocument(epoch: number, sourceId: string, sessionId: string): Promise<void> {
+  private async autoCompleteRenderedDocument(epoch: number, sourceId: string, sessionId: string,
+    documentVisible: boolean = false): Promise<void> {
     const policy = appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy
     const verification = this.params.sourceSession?.requiresDocumentReadiness === true
     const selector = verification ? (policy?.webSessionReadySelector ?? '') : renderedDocumentReadySelector(policy)
-    if (selector.length === 0 || this.autoRetryStarted || this.loading || this.pageFailed || this.completing ||
+    if (selector.length === 0 || this.autoRetryStarted || (this.loading && !documentVisible) || this.pageFailed || this.completing ||
       this.completed) return
     const documentUrl = this.pageUrl
     const revision = this.pageRevision
@@ -370,20 +343,24 @@ export struct SourceWebSessionSheet {
     const attempt = this.autoDocumentAttempt + 1
     this.autoDocumentAttempt = attempt
     const current = (): boolean => this.isCurrent(epoch, sourceId, sessionId) && !this.autoRetryStarted &&
-      !this.loading && !this.pageFailed && !this.completing && this.autoDocumentAttempt === attempt &&
+      (!this.loading || documentVisible) && !this.pageFailed && !this.completing && this.autoDocumentAttempt === attempt &&
       this.pageRevision === revision && this.pageUrl === documentUrl
-    for (let index = 0; index < 4; index += 1) {
+    for (let index = 0; index < 40; index += 1) {
       if (!current()) return
       const ready = await this.renderedDocumentReady(selector)
       if (!current()) return
       if (ready) {
+        if (documentVisible) {
+          this.loading = false
+          this.updateNavState()
+        }
         this.autoRetryStarted = true
         // Verification can redirect to same-origin results. Retry the original
         // request with the verified session instead of staging that HTML.
         await this.completeSourceSession(true, false, false, !verification)
         return
       }
-      await this.delay(600)
+      await this.delay(500)
     }
   }
 
@@ -441,7 +418,6 @@ export struct SourceWebSessionSheet {
       DiagnosticLogger.info('source_web_session', 'document_handoff',
         'state=' + (staged ? 'staged' : 'rejected') + ' bytes=' + html.length +
         ' sameRequest=' + (url === this.params.url))
-      if (staged) await this.probeWebViewFetch(sourceId)
       return staged
     } catch (_error) {
       DiagnosticLogger.warn('source_web_session', 'document_capture_failed', 'stage=run_javascript')
@@ -564,6 +540,7 @@ export struct SourceWebSessionSheet {
             onControllerAttached: () => { this.loadInitialPage() },
             onLoadIntercept: (event: OnLoadInterceptEvent): boolean => { return this.navigationRequested(event) },
             onPageBegin: (event?: OnPageBeginEvent) => { this.pageBegan(event) },
+            onPageVisible: (event?: OnPageVisibleEvent) => { this.pageVisible(event) },
             onPageEnd: (event?: OnPageEndEvent) => { this.pageEnded(event) },
             onConsole: (event: OnConsoleEvent): boolean => { return this.consoleMessage(event) },
             onErrorReceive: (event: OnErrorReceiveEvent) => {

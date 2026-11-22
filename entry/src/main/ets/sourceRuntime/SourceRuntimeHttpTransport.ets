@@ -883,22 +883,56 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   // A source that opted into the WebView bridge may read through its granted
   // session when the native transport is rejected. Misses fall through to the
   // existing network path; the bridge never widens permissions by itself.
-  if (installedEntry?.websitePolicy?.webFetchBridge === true && !binaryResponse && !sourceSession &&
+  const bridgeContext = installedEntry?.websitePolicy?.webFetchBridge === true && !binaryResponse && !sourceSession &&
     !webToken && !includeResponseUrl && !guestSearch && !nativeSession &&
-    probe === undefined && method === 'GET' && body.length === 0 && identity !== undefined) {
+    probe === undefined && method === 'GET' && body.length === 0 && identity !== undefined
+    ? appSourceWebSessionStore.requestContext(identity, url) : undefined
+  if (bridgeContext !== undefined && identity !== undefined) {
+    const bridgeIdentity = identity
+    const bridgeUserAgent = bridgeContext.userAgent
+    const authorizationRevision = bridgeContext.authorizationRevision
+    const granted = (): boolean => {
+      const context = appSourceWebSessionStore.requestContext(bridgeIdentity, url)
+      return context !== undefined && context.userAgent === bridgeUserAgent &&
+        context.authorizationRevision === authorizationRevision
+    }
     for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (!current()) {
+        trace.finish('cancelled', 'reason=source_request_cancelled')
+        return transportError('source_request_cancelled', false)
+      }
+      if (!granted()) {
+        sourceWebFetchBridge.detach(identity.sourceId)
+        break
+      }
       if (attempt > 0) {
         // A first read can leave the hidden page on a challenge document.
         // Drop that ready marker and let prepare load the target afresh.
         sourceWebFetchBridge.detach(identity.sourceId)
       }
-      if (!sourceWebFetchBridge.availableFor(identity.sourceId)) {
+      if (!sourceWebFetchBridge.availableFor(identity.sourceId, url, bridgeUserAgent, authorizationRevision)) {
         // Reader opened from history/shelf: no browse page exists to host the
         // granted session, so prepare the application-scoped WebView once.
-        await sourceWebFetchBridge.prepare(identity.sourceId, url)
+        await sourceWebFetchBridge.prepare(identity.sourceId, url, bridgeUserAgent, authorizationRevision)
       }
-      const bridged = sourceWebFetchBridge.availableFor(identity.sourceId)
-        ? await sourceWebFetchBridge.fetch(identity.sourceId, url) : undefined
+      if (!current()) {
+        trace.finish('cancelled', 'reason=source_request_cancelled')
+        return transportError('source_request_cancelled', false)
+      }
+      if (!granted()) {
+        sourceWebFetchBridge.detach(identity.sourceId)
+        break
+      }
+      const bridged = sourceWebFetchBridge.availableFor(identity.sourceId, url, bridgeUserAgent, authorizationRevision)
+        ? await sourceWebFetchBridge.fetch(identity.sourceId, url, bridgeUserAgent, authorizationRevision) : undefined
+      if (!current()) {
+        trace.finish('cancelled', 'reason=source_request_cancelled')
+        return transportError('source_request_cancelled', false)
+      }
+      if (!granted()) {
+        sourceWebFetchBridge.detach(identity.sourceId)
+        break
+      }
       if (bridged !== undefined && bridged.status >= 200 && bridged.status < 300) {
         trace.info('web_fetch_bridge', 'status=' + bridged.status + ' bytes=' + bridged.body.length)
         trace.finish('completed', 'state=web_fetch_bridge')

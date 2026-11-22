@@ -49,6 +49,11 @@ export interface SourceWebRequestSession {
   cookie: string
 }
 
+export interface SourceWebRequestContext {
+  userAgent: string
+  authorizationRevision: number
+}
+
 /** Ephemeral proof from the current visible verification document, never a WASM field. */
 export interface SourcePendingWebSessionRequest {
   sessionId: string
@@ -143,11 +148,14 @@ export class SourceWebSessionStore {
   private pending: Map<string, SourceWebSession> = new Map<string, SourceWebSession>()
   private persisted: Map<string, PersistedWebSession> = new Map<string, PersistedWebSession>()
   private rejectedUrls: Map<string, string> = new Map<string, string>()
+  private authorizationRevisions: Map<string, number> = new Map<string, number>()
+  private nextAuthorizationRevision: number = 0
   private registry?: SourceRuntimeRegistry
   private storagePath: string = ''
 
   configure(context: common.Context, registry: SourceRuntimeRegistry): void {
     this.registry = registry
+    this.authorizationRevisions.clear()
     const directory = context.filesDir + '/source-runtime'
     if (!fs.accessSync(directory)) fs.mkdirSync(directory, true)
     this.storagePath = directory + '/web-sessions.json'
@@ -239,6 +247,7 @@ export class SourceWebSessionStore {
       session.status.state = 'pending'
       throw error as Error
     }
+    this.authorizationRevisions.set(key, ++this.nextAuthorizationRevision)
     this.pending.delete(sourceId)
     return this.status(sourceId, session.status.origin)
   }
@@ -258,7 +267,11 @@ export class SourceWebSessionStore {
     this.pending.delete(sourceId)
     const keys: string[] = []
     this.persisted.forEach((record: PersistedWebSession, key: string) => { if (record.sourceId === sourceId) keys.push(key) })
-    keys.forEach((key: string) => { this.sessions.delete(key); this.persisted.delete(key) })
+    keys.forEach((key: string) => {
+      this.sessions.delete(key)
+      this.persisted.delete(key)
+      this.authorizationRevisions.delete(key)
+    })
     this.persist()
   }
 
@@ -277,12 +290,33 @@ export class SourceWebSessionStore {
       origin: session.status.origin, state: session.status.state }
   }
 
-  requestSession(identity: SourceHttpIdentity, fullUrl: string): SourceWebRequestSession | undefined {
+  /** Reauthorization retires old work even when its agent and origin are unchanged.
+   * Registry-object reloads retain this process-local revision; no cookie or
+   * persisted schema change is needed. The hidden host receives no Cookie values. */
+  requestContext(identity: SourceHttpIdentity, fullUrl: string): SourceWebRequestContext | undefined {
+    const session = this.authorizedRequestSession(identity, fullUrl)
+    if (session === undefined) return undefined
+    const key = sourceSessionKey(identity.sourceId, session.status.origin)
+    let revision = this.authorizationRevisions.get(key)
+    if (revision === undefined) {
+      revision = ++this.nextAuthorizationRevision
+      this.authorizationRevisions.set(key, revision)
+    }
+    return { userAgent: session.userAgent, authorizationRevision: revision }
+  }
+
+  private authorizedRequestSession(identity: SourceHttpIdentity, fullUrl: string): SourceWebSession | undefined {
     const origin = sourceWebOrigin(fullUrl)
     const session = this.current(identity.sourceId, origin)
     if (session === undefined || session.status.state !== 'available' ||
       identity.sourceVersion !== session.entry.manifestVersion || identity.packageIdentity !== session.packageIdentity || origin !== session.status.origin ||
       !identity.webSessionOrigins.includes(origin)) return undefined
+    return session
+  }
+
+  requestSession(identity: SourceHttpIdentity, fullUrl: string): SourceWebRequestSession | undefined {
+    const session = this.authorizedRequestSession(identity, fullUrl)
+    if (session === undefined) return undefined
     // UI-runtime callback only. The Web engine enforces URL/path/secure/expiry.
     // Cookie is never persisted by this store, logged, or included in WASM results.
     let cookie = ''

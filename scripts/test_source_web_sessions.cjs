@@ -272,6 +272,151 @@ test('web authentication preserves a package-declared UA and exact origin throug
   assert.equal(f.store.requestSession(f.identity(), 'https://other.invalid/image'), undefined)
 })
 
+test('bridge agent comes from the current exact-origin grant without reading cookies', () => {
+  const f = fixture(), address = 'https://site.invalid/a'
+  assert.equal(f.store.requestContext(f.identity(), address), undefined)
+  f.grant()
+  const before = f.cookieReads.length
+  assert.equal(f.store.requestContext(f.identity(), address).userAgent, 'ActualWebViewUA')
+  const original = f.store.requestContext(f.identity(), address)
+  f.changeEntry(entry => ({ ...entry }))
+  assert.equal(f.store.requestContext(f.identity(), address).authorizationRevision, original.authorizationRevision)
+  f.grant()
+  assert.equal(f.store.requestContext(f.identity(), address).userAgent, original.userAgent)
+  assert.notEqual(f.store.requestContext(f.identity(), address).authorizationRevision, original.authorizationRevision)
+  assert.equal(f.store.requestContext(f.identity(), 'https://other.invalid/a'), undefined)
+  assert.equal(f.store.requestContext({ ...f.identity(), packageIdentity: 'replaced' }, address), undefined)
+  assert.equal(f.cookieReads.length, before)
+  f.store.revoke('source.one')
+  assert.equal(f.store.requestContext(f.identity(), address), undefined)
+})
+
+function fetchBridgeFixture() {
+  const f = fixture(), window = {}, calls = []
+  const context = vm.createContext({ window, fetch: async () => ({ status: 200, text: async () => '<main>public document</main>' }) })
+  const controller = { runJavaScript: async script => {
+    calls.push(script)
+    return JSON.stringify(vm.runInContext(script, context))
+  } }
+  const { SourceWebFetchBridge } = moduleFrom('SourceWebFetchBridge', name => {
+    if (name === './SourceWebSessionStore') return f.api
+    if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { info() {} } }
+    if (name === '@kit.ArkWeb') return {}
+    throw Error('unexpected bridge import ' + name)
+  }, { setTimeout, AppStorage: { setOrCreate() {} } })
+  const bridge = new SourceWebFetchBridge()
+  bridge.delay = async () => {}
+  return { bridge, controller, calls, window }
+}
+
+test('bridge readiness and reads share the verified origin and agent', async () => {
+  const { bridge, controller, calls, window } = fetchBridgeFixture()
+  const address = 'https://site.invalid/a', agent = 'VerifiedArkWebUA'
+  bridge.attach(controller, 'source.one', address, agent, 1)
+  bridge.markReady('source.one', 'https://other.invalid/a', agent, 1)
+  assert.equal(bridge.availableFor('source.one', address, agent, 1), false)
+  bridge.markReady('source.one', address, 'AnotherAgent', 1)
+  assert.equal(bridge.availableFor('source.one', address, agent, 1), false)
+  bridge.markReady('source.one', address, agent, 2)
+  assert.equal(bridge.availableFor('source.one', address, agent, 1), false)
+  bridge.markReady('source.one', address, agent, 1)
+  assert.equal(await bridge.fetch('source.one', 'https://other.invalid/a', agent, 1), undefined)
+  assert.equal(calls.length, 0)
+  const result = await bridge.fetch('source.one', 'https://site.invalid/chapter', agent, 1)
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), { status: 200, body: '<main>public document</main>' })
+  assert.deepEqual(Object.keys(window.__komaFetch), [], 'the consumed mailbox does not retain a whole page')
+})
+
+test('bridge context replacement retires an in-flight read', async () => {
+  const { bridge, controller } = fetchBridgeFixture()
+  const address = 'https://site.invalid/a', agent = 'VerifiedArkWebUA'
+  bridge.attach(controller, 'source.one', address, agent, 1)
+  bridge.markReady('source.one', address, agent, 1)
+  const navigating = bridge.fetch('source.one', address, agent, 1)
+  bridge.markLoading('source.one')
+  bridge.markReady('source.one', address, agent, 1)
+  assert.equal(await navigating, undefined)
+  const pending = bridge.fetch('source.one', address, agent, 1)
+  bridge.attach(controller, 'source.one', address, agent, 2)
+  bridge.markReady('source.one', address, agent, 2)
+  assert.equal(await pending, undefined)
+  assert.equal(bridge.availableFor('source.one', address, agent, 1), false)
+  const replaced = bridge.fetch('source.one', address, agent, 2)
+  bridge.detach('source.one')
+  bridge.attach(controller, 'source.two', 'https://other.invalid/a', agent, 1)
+  bridge.markReady('source.two', 'https://other.invalid/a', agent, 1)
+  assert.equal(await replaced, undefined)
+  assert.equal(bridge.availableFor('source.one', address, agent, 2), false)
+})
+
+test('declared document readiness completes before subresources but retires on navigation', async () => {
+  const input = fs.readFileSync(path.join(base, '../components/SourceWebSessionSheet.ets'), 'utf8')
+    .replace('export struct SourceWebSessionSheet', 'export class SourceWebSessionSheet')
+  const ast = ts.createSourceFile('sheet.ts', input, ts.ScriptTarget.Latest, true)
+  const owner = ast.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SourceWebSessionSheet')
+  const names = ['isCurrent', 'pageVisible', 'renderedDocumentReady', 'autoCompleteRenderedDocument']
+  const actual = 'export class Sheet { ' + names.map(name => owner.members.find(n => n.name?.text === name).getText(ast)).join('\n') + ' }'
+  const exports = {}
+  new Function('exports', 'appSourceRuntimeRegistry', 'renderedDocumentReadySelector', 'sourceWebOrigin',
+    ts.transpileModule(actual, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(exports,
+    { lookup: () => ({ entry: { websitePolicy: { selector: '.ready' } } }) }, policy => policy.selector, value => new URL(value).origin)
+  const setup = (readyState, marker) => {
+    const sheet = new exports.Sheet(), completed = [], address = 'https://site.invalid/catalog'
+    const document = { readyState, querySelector: () => marker ? {} : null }
+    Object.assign(sheet, { params: { url: address, sourceSession: { sourceId: 'one', sessionId: 'verified' } },
+      active: true, epoch: 1, pageRevision: 1, pageUrl: address, loading: true, pageFailed: false,
+      completing: false, completed: false, autoRetryStarted: false, autoDocumentAttempt: 0, webTokenStorageKey: '',
+      updateNavState() {}, delay: async () => {}, completeSourceSession: async (...args) => completed.push(args),
+      controller: { runJavaScript: async script => JSON.stringify(vm.runInNewContext(script, { document })) } })
+    return { sheet, completed, address, document }
+  }
+  for (const [state, marker] of [['loading', true], ['interactive', false]]) {
+    const f = setup(state, marker)
+    await f.sheet.autoCompleteRenderedDocument(1, 'one', 'verified', true)
+    assert.equal(f.completed.length, 0)
+    assert.equal(f.sheet.loading, true)
+  }
+  const early = setup('interactive', true)
+  early.sheet.pageVisible({ url: early.address })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(early.completed, [[true, false, false, true]])
+  assert.equal(early.sheet.loading, false)
+  const delayed = setup('loading', true)
+  let elapsed = 0
+  delayed.sheet.delay = async milliseconds => {
+    elapsed += milliseconds
+    if (elapsed >= 3000) delayed.document.readyState = 'interactive'
+  }
+  await delayed.sheet.autoCompleteRenderedDocument(1, 'one', 'verified', true)
+  assert.deepEqual(delayed.completed, [[true, false, false, true]])
+  const stale = setup('interactive', true)
+  const pending = stale.sheet.autoCompleteRenderedDocument(1, 'one', 'verified', true)
+  stale.sheet.pageRevision += 1
+  await pending
+  assert.equal(stale.completed.length, 0)
+})
+
+test('bridge preparation rechecks authorization before issuing a page fetch', async () => {
+  for (const action of ['revoke', 'replace']) {
+    const f = fixture()
+    f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } }))
+    f.grant()
+    let ready = false, fetches = 0, preparations = 0
+    const bridge = { availableFor: () => ready, detach: () => { ready = false },
+      prepare: async () => {
+        preparations++
+        if (action === 'revoke') f.store.revoke('source.one')
+        else f.grant()
+        ready = true
+        return true
+      }, fetch: async () => { fetches++; return { status: 200, body: 'stale authorization body' } } }
+    const result = await f.http([response(200)], JSON.stringify(f.identity()), {}, { bridge })
+    assert.equal(preparations, 1)
+    assert.equal(fetches, 0)
+    assert.equal(result.result.bodyText, 'public-body')
+  }
+})
+
 test('package identity keeps legacy bytes and only new declarations extend their own installed identity', () => {
   const f = fixture(), old = f.registry.lookup('source.one').entry
   const expected = JSON.stringify([old.sourceId, old.manifestVersion, old.wasmPath, JSON.stringify(old.webSessionOrigins.slice().sort())])
@@ -634,7 +779,7 @@ function fixture(sdkApiVersion = 23) {
       if (name === './SourceRequestPolicy') return network.policy ?? moduleFrom('SourceRequestPolicy', () => ({ url: { URL } }))
       if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store, sourceWebOrigin: api.sourceWebOrigin, sourceWebPackageIdentity: api.sourceWebPackageIdentity }
       if (name === './SourceWebChallengeGate') return moduleFrom('SourceWebChallengeGate', () => ({}))
-      if (name === './SourceWebFetchBridge') return { appSourceWebFetchBridge: { availableFor: () => false } }
+      if (name === './SourceWebFetchBridge') return { sourceWebFetchBridge: network.bridge ?? { availableFor: () => false } }
       if (name === './SourceRuntimeOperationGuard') return guards
       if (name === './SourceRuntimeAppRegistry') return { appSourceRuntimeRegistry: registry }
       if (name === './SourceRuntimeRegistry') return { sourceRuntimeEntryEnabled: () => true }

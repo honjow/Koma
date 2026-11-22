@@ -12639,18 +12639,18 @@
       "status": "119源持续核对；24个修复与漫画1234维护版已发布",
       "kind": "open",
       "priority": "P1",
-      "owner": "本会话统筹；Aristotle独占237，Volta創漫失败分层，Boole有限源补样，Galileo外部端点复核",
+      "owner": "本会话统筹；Aristotle独占237；Volta包子与創漫；Boole智慧财产局；Galileo目录去重；Darwin公共桥接复审",
       "dependencies": [
         "CHAPTER_SORT_MENU"
       ],
       "result": "冻结正式索引119源已逐源读码并尝试真实请求。按作品ID去重取得442份非空完整目录、45506章，覆盖99源，其中80源至少5份。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。 MangaDex英文0.1.29、简繁0.1.16及NamiComi简繁0.1.9已由fcf7d22公开，CI45059665307成功；25份真实完整目录653章含175条两页目录完成候选验证。最终公开五包索引、清单及实际WASM版本一致，代表187章整份响应与精确候选在同原件下相等。 Zero0.1.12（bcbd88f、CI45060983479）及东立0.1.13（9e4d6e9、CI45062292943）已公开。Zero现站5部97章、两章348页表保持，最终公开代表17章与候选同原件整份响应相等；旧站EOF未恢复。东立8部37章及真实SP11页验证，无号章恢复邻章并保留相邻明确缺话/权限断点；最终公开目录与精确候选分别联网Data一致、SP11页成功，不称同原件回放。 哔咔用户新登录后，237取得五部普通UI完整目录计数8/2/70/3/2，首作实图及菜单双向邻章通过；临时无痕恢复false，新认证保留。未导出原始完整ID和权限元数据，未混入前述原件数量。",
-      "remaining": "优酷移动方向修正已本地保护91cd899，最终0.1.8包d89a1d7f待237普通开始阅读与上下章验收，未发布。Noy完整v4和分类数组位置已本地保护648a2ed；237实际为原站登录表单、无有效会话，真实目录、正文和旧新ID映射待登录，不发布候选。創漫隆少年详情可用、章节失败；正式页表独立HTTP已得30页，最小阶段诊断包待237采完整请求终态后定位，不将图片406或CLI选择器差异当原因。其余原20项受限源继续按原队列补验，具体站点/认证条件逐项记录。",
+      "remaining": "优酷移动章序修正已保护，237中间包已验序章实图及明确上下章；最终公共桥接修复已构建，待237复验，App版本及源最低版本等待选择，未发布。包子确认旧作品地址跳转后主目录归属未识别，导致部分章节无邻章，源侧候选在修。智慧财产局正常页面缺少隐藏分页字段的静态value，源侧候选在验。Noy完整v4候选已保护，待原站有效登录验证真实目录、正文及旧新ID映射。創漫原生目录请求明确在官网root连接15秒超时，reader/XML未到，正式源已恢复，继续查该层差异。其余原20项受限源按原队列补验。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
-        "237验证优酷最终候选的正常开始阅读、序章和下一章，验证后直接发布。",
-        "Noy原站有效登录后验证当前v4目录、普通/单章正文与历史业务ID；当前候选已保护，不宣称通过。",
-        "237采創漫目录失败完整终态，找到具体失败层再修并验。",
-        "继续原20源与外部端点、有限源补样；设备范围结束独立恢复释租，保留用户新认证。"
+        "237复验最终公共WebView桥接候选及优酷目录、序章实图与明确上下章；按确认的App依赖发布源。",
+        "完成包子旧地址跳转章序和页表、智慧财产局分页字段候选的真实原件及237验证，通过即发布。",
+        "Noy有效登录后验证v4目录、普通/单章正文与历史业务ID；候选已保护，不冒通过。",
+        "继续創漫root超时差异定位和原20源补验；设备范围结束独立恢复释租，保留用户新认证。"
       ],
       "boundaries": [
         "不靠补章节编号替代真实目录顺序。",
@@ -12682,9 +12682,15 @@
         ".hvigor/outputs/published-source-order-audit-20261123/youku-investigation/mobile-order/local-protection.json",
         ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/picacomic-result.json",
         ".hvigor/outputs/published-source-order-audit-20261123/runtime-1/noyacg-order-contract-20261123/local-protection.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/weicomic-followup/diagnostic-ready.json"
+        ".hvigor/outputs/published-source-order-audit-20261123/weicomic-followup/diagnostic-ready.json",
+        ".hvigor/outputs/source-bridge-session/candidate-016bf2406895.json",
+        ".hvigor/outputs/source-bridge-session/targeted-session-tests-final.log",
+        ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/youku-d2-intermediate-native-result.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/weicomic-native-stage-terminal.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/external-access-followup/baozi-confirmed-direction-defect.md",
+        ".hvigor/outputs/published-source-order-audit-20261123/tipo-order-followup/report.md"
       ],
-      "updatedAt": "2026-11-23T03:51:28+08:00"
+      "updatedAt": "2026-11-23T05:23:06+08:00"
     },
     {
       "id": "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY",
@@ -29825,6 +29831,12 @@
       "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "title": "哔咔五部普通目录与代表阅读已验；Noy增量已保护",
       "detail": "237用户新登录已生效，五部普通UI目录和首作实图、明确菜单双向邻章完成，原始ID/权限全量未导出；临时无痕恢复，新会话不登出不回旧快照。Noy当前API/数组合同648a2ed本地保护，待有效登录，不发未验源。創漫正式页表30页独立可用，原生目录具体阶段仍需最小诊断，已审不发布包；优酷最终候选和原队列继续。App未推送发布。"
+    },
+    {
+      "at": "2026-11-23T05:23:06+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "title": "优酷普通阅读已见恢复；公共会话修复完成候选并继续源侧修复",
+      "detail": "优酷d2中间包搭配d89源已见序章1/8与章1/7真实图、明确下一章及上一章，最终016bf2406895包包含UA/原点/授权修订与早期DOM就绪修复，已构建且五个真实函数用例及独立复审通过，待237最终验收。未新增公共ABI，不改样式、不推App。創漫已捕获root 15秒timeout源终态，reader/XML未到，正式0.1.3及原无痕已恢复。包子别名主目录归属与TIPO隐藏分页字段两个源侧候选持续验证，未冒已发布。"
     }
   ],
   "reportAgeAudit": {
