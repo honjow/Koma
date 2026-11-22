@@ -265,6 +265,7 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
 
 export interface ReaderSessionPersistenceAdapter {
   supportsPageTurnWrites?(): boolean
+  activityDatabase?(): ReaderRdbStorage | undefined
   load(): ReadingProgress[]
   save(progress: ReadingProgress[]): void
   /** Optional same-document metadata channel for transient source history. */
@@ -602,6 +603,10 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
     return usesReaderDatabase(this.filesDir)
   }
 
+  activityDatabase(): ReaderRdbStorage | undefined {
+    return liveReaderStorage.get(this.filesDir)
+  }
+
   async saveSnapshotAsync(snapshot: ReaderSessionDocumentSnapshot, token: number,
     pageTurns?: ChapterReadingState[]): Promise<string> {
     if (usesReaderDatabase(this.filesDir)) {
@@ -744,10 +749,11 @@ export interface ReaderSessionReadingSnapshot {
 }
 
 export abstract class ReaderSessionStore {
-  protected readingSessions: ReadingSessionRecord[] = []
+  private readonly readingSessions = new Set<ReadingSessionRecord>()
+  private readonly readingSessionsByComic = new Map<ComicId, Set<ReadingSessionRecord>>()
 
   listReadingSessions(): ReadingSessionRecord[] {
-    return this.readingSessions.map((record: ReadingSessionRecord): ReadingSessionRecord => ({
+    return Array.from(this.readingSessions).map((record: ReadingSessionRecord): ReadingSessionRecord => ({
       comicId: record.comicId, chapterId: record.chapterId, startedAt: record.startedAt,
       endedAt: record.endedAt, pagesRead: record.pagesRead,
     }))
@@ -778,10 +784,7 @@ export abstract class ReaderSessionStore {
       const copied = copyRemoteReadHistoryEntry(row)
       if (copied !== undefined) this.remoteHistoryByComicId.set(copied.comicId, copied)
     })
-    this.readingSessions = snapshot.readingSessions.map((record: ReadingSessionRecord): ReadingSessionRecord => ({
-      comicId: record.comicId, chapterId: record.chapterId, startedAt: record.startedAt,
-      endedAt: record.endedAt, pagesRead: record.pagesRead,
-    }))
+    this.replaceReadingSessions(snapshot.readingSessions)
   }
 
   /** Replace every in-memory row with the snapshot. Persistent stores flush. */
@@ -790,10 +793,42 @@ export abstract class ReaderSessionStore {
   addReadingSession(record: ReadingSessionRecord): void {
     const row: ReadingSessionRecord = { comicId: record.comicId, chapterId: record.chapterId,
       startedAt: record.startedAt, endedAt: record.endedAt, pagesRead: record.pagesRead }
-    this.readingSessions.push(row)
+    this.indexReadingSession(row)
     this.readingSessionAdded(row)
   }
   protected readingSessionAdded(_record: ReadingSessionRecord): void { this.chapterStatesChanged() }
+
+  private indexReadingSession(row: ReadingSessionRecord): void {
+    let work = this.readingSessionsByComic.get(row.comicId)
+    if (work === undefined) {
+      work = new Set<ReadingSessionRecord>()
+      this.readingSessionsByComic.set(row.comicId, work)
+    }
+    work.add(row)
+    this.readingSessions.add(row)
+  }
+
+  protected replaceReadingSessions(rows: ReadingSessionRecord[]): void {
+    this.readingSessions.clear()
+    this.readingSessionsByComic.clear()
+    for (const row of rows) {
+      this.indexReadingSession({ comicId: row.comicId, chapterId: row.chapterId, startedAt: row.startedAt,
+        endedAt: row.endedAt, pagesRead: row.pagesRead })
+    }
+  }
+
+  protected hasReadingSessions(comicId: ComicId): boolean {
+    return this.readingSessionsByComic.has(comicId)
+  }
+
+  protected removeReadingSessions(comicIds: ComicId[]): void {
+    for (const id of comicIds) {
+      const records = this.readingSessionsByComic.get(id)
+      if (records === undefined) continue
+      for (const row of records) this.readingSessions.delete(row)
+      this.readingSessionsByComic.delete(id)
+    }
+  }
   protected readonly chapterStates: Map<string, ChapterReadingState> = new Map<string, ChapterReadingState>()
   protected readonly remoteHistoryByComicId: Map<ComicId, RemoteReadHistoryEntry> = new Map<ComicId, RemoteReadHistoryEntry>()
   abstract getProgress(comicId: ComicId): ReadingProgress | undefined
@@ -894,7 +929,7 @@ export abstract class ReaderSessionStore {
         this.removeSourceHistory(comicId)
         this.removeRemoteHistory(comicId)
       })
-      this.readingSessions = this.readingSessions.filter((record: ReadingSessionRecord): boolean => !comicIds.includes(record.comicId))
+      this.removeReadingSessions(comicIds)
       this.chapterStatesChanged()
     })
   }
@@ -1171,6 +1206,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   private readonly progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
   private readonly sourceHistoryByComicId: Map<ComicId, SourceReadHistoryEntry> = new Map<ComicId, SourceReadHistoryEntry>()
   private readonly pendingPageTurns: Map<string, ChapterReadingState> = new Map<string, ChapterReadingState>()
+  private readonly pendingSourceHistory: Set<ComicId> = new Set<ComicId>()
   private needsFullSnapshot: boolean = false
   private pendingReadingSessions: ReadingSessionRecord[] = []
   private persistTimerId: number = -1
@@ -1310,6 +1346,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       this.persistTimerId = -1
       this.persistPending = false
       this.pendingPageTurns.clear()
+      this.pendingSourceHistory.clear()
       this.pendingReadingSessions = []
       this.needsFullSnapshot = false
       this.persistBarrier += 1
@@ -1317,7 +1354,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       this.sourceHistoryByComicId.clear()
       this.remoteHistoryByComicId.clear()
       this.chapterStates.clear()
-      this.readingSessions = []
+      this.replaceReadingSessions([])
     }
     progressRows.forEach((progress: ReadingProgress): void => {
       this.progressByComicId.set(progress.comicId, progress)
@@ -1326,7 +1363,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     if (snapshot !== undefined) {
       this.syncPositions = snapshot.syncPositions ?? []
       this.syncActions = snapshot.syncActions ?? []
-      this.readingSessions = snapshot.readingSessions ?? []
+      this.replaceReadingSessions(snapshot.readingSessions ?? [])
       snapshot.chapters.forEach((state: ChapterReadingState): void => {
         this.chapterStates.set(chapterStateKey(state.comicId, state.chapterId), state)
       })
@@ -1400,10 +1437,12 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
 
   removeHistoryEntries(comicIds: ComicId[], clear: boolean = false): boolean {
     const ids = new Set<ComicId>(comicIds)
+    const database = this.adapter.activityDatabase?.()
+    if (database !== undefined) return this.removeDatabaseHistory(database, ids, clear)
     const hasHistory = this.listProgress().some((row: ReadingProgress): boolean => ids.has(row.comicId)) ||
       this.listSourceHistory().some((row: SourceReadHistoryEntry): boolean => ids.has(row.comicId)) ||
       this.listRemoteHistory().some((row: RemoteReadHistoryEntry): boolean => ids.has(row.comicId)) ||
-      this.readingSessions.some((row: ReadingSessionRecord): boolean => ids.has(row.comicId))
+      Array.from(ids).some((id: ComicId): boolean => this.hasReadingSessions(id))
     if (!hasHistory) return true
     const committed = this.commitUserMutation((): void => {
       // Clearing the recent item keeps independently saved chapter positions.
@@ -1418,7 +1457,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
         this.sourceHistoryByComicId.delete(comicId)
         this.remoteHistoryByComicId.delete(comicId)
       })
-      this.readingSessions = this.readingSessions.filter((record: ReadingSessionRecord): boolean => !ids.has(record.comicId))
+      this.removeReadingSessions(Array.from(ids))
       this.schedulePersist()
     }, Array.from(ids).map((comicId: string): SyncReadingSignal => ({
       comicId, chapterId: '', kind: clear ? 'clear-history' : 'remove-history',
@@ -1427,6 +1466,11 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   protected commitUserMutation(mutation: () => void, actions: SyncReadingSignal[] = []): boolean {
+    const database = this.adapter.activityDatabase?.()
+    if (database !== undefined && actions.length > 0 &&
+      actions.every((action: SyncReadingSignal): boolean => action.chapterId.length > 0)) {
+      return this.commitChapterActions(database, mutation, actions)
+    }
     const current: ReaderSessionDocumentSnapshot = { progress: this.listProgress(),
       sourceHistory: this.listSourceHistory(), remoteHistory: this.listRemoteHistory(), chapters: this.listChapterStates(),
       readingSessions: this.listReadingSessions() }
@@ -1448,7 +1492,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.sourceHistoryByComicId.clear()
     this.remoteHistoryByComicId.clear()
     this.chapterStates.clear()
-    this.readingSessions = previous.readingSessions ?? []
+    this.replaceReadingSessions(previous.readingSessions ?? [])
     previous.progress.forEach((row: ReadingProgress): void => { this.progressByComicId.set(row.comicId, row) })
     previous.sourceHistory.forEach((row: SourceReadHistoryEntry): void => { this.sourceHistoryByComicId.set(row.comicId, row) })
     previous.remoteHistory?.forEach((row: RemoteReadHistoryEntry): void => { this.remoteHistoryByComicId.set(row.comicId, row) })
@@ -1461,6 +1505,104 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.syncActions = actionsBefore
     if (pendingBefore) this.schedulePersist()
     return false
+  }
+
+  private removeDatabaseHistory(database: ReaderRdbStorage, ids: Set<ComicId>, clear: boolean): boolean {
+    if (BackupRestoreActivity.hasPendingRecovery() || !this.flush()) return false
+    const affected = Array.from(ids).filter((id: ComicId): boolean => this.progressByComicId.has(id) ||
+      this.sourceHistoryByComicId.has(id) || this.remoteHistoryByComicId.has(id) || this.hasReadingSessions(id))
+    if (affected.length === 0) return true
+    const chapters: ChapterReadingState[] = []
+    const actions = Array.from(ids).map((comicId: ComicId): SyncReadingSignal => ({
+      comicId, chapterId: '', kind: clear ? 'clear-history' : 'remove-history',
+    }))
+    try {
+      for (const id of affected) {
+        const source = this.sourceHistoryByComicId.get(id)
+        if (source === undefined) continue
+        // Keep each chapter's independent position and portable identity after deleting its recent item.
+        for (const previous of database.readWorkForSync(id).chapters) {
+          const state = this.chapterStates.get(chapterStateKey(id, previous.chapterId)) ?? previous
+          if (state.sourceIdentity?.source === source.sourceId && state.sourceIdentity.work === source.mangaId) continue
+          chapters.push({ comicId: id, chapterId: state.chapterId, position: state.position, isRead: state.isRead,
+            bookmarked: state.bookmarked, updatedAt: state.updatedAt,
+            sourceIdentity: { source: source.sourceId, work: source.mangaId } })
+        }
+      }
+      this.saveDatabaseActivity(database, { progress: [], chapters, sourceHistory: [] }, actions, affected)
+    } catch (_error) {
+      DiagnosticLogger.warn('reader_session_store', 'user_mutation_failed', '[ReaderProgress] user_mutation_failed')
+      return false
+    }
+    for (const id of affected) {
+      this.progressByComicId.delete(id)
+      this.sourceHistoryByComicId.delete(id)
+      this.remoteHistoryByComicId.delete(id)
+    }
+    for (const chapter of chapters) this.chapterStates.set(chapterStateKey(chapter.comicId, chapter.chapterId), chapter)
+    this.removeReadingSessions(affected)
+    this.deviceSyncRevision += 1
+    signalDeviceSyncChange('reading')
+    return true
+  }
+
+  private commitChapterActions(database: ReaderRdbStorage, mutation: () => void, actions: SyncReadingSignal[]): boolean {
+    if (BackupRestoreActivity.hasPendingRecovery() || !this.flush()) return false
+    const chapters = new Map<string, ChapterReadingState | undefined>()
+    const recent = new Map<ComicId, ReadingProgress>()
+    for (const action of actions) {
+      const key = chapterStateKey(action.comicId, action.chapterId)
+      const state = this.chapterStates.get(key)
+      chapters.set(key, state === undefined ? undefined : JSON.parse(JSON.stringify(state)) as ChapterReadingState)
+      const position = this.progressByComicId.get(action.comicId)
+      if (position?.chapterId === action.chapterId) recent.set(action.comicId, copyReadingProgress(position))
+    }
+    try {
+      mutation()
+      if (!this.persistPending) return true
+      const reading: ReaderSessionDocumentSnapshot = { progress: [], chapters: [], sourceHistory: [] }
+      for (const key of chapters.keys()) {
+        const state = this.chapterStates.get(key)
+        if (state !== undefined) reading.chapters.push(state)
+      }
+      for (const id of recent.keys()) {
+        const position = this.progressByComicId.get(id)
+        if (position !== undefined) reading.progress.push(position)
+      }
+      for (const id of new Set(actions.map((action: SyncReadingSignal): ComicId => action.comicId))) {
+        const source = this.sourceHistoryByComicId.get(id)
+        if (source !== undefined) reading.sourceHistory.push(source)
+      }
+      this.saveDatabaseActivity(database, reading, actions)
+    } catch (_error) {
+      chapters.forEach((state: ChapterReadingState | undefined, key: string): void => {
+        if (state === undefined) this.chapterStates.delete(key)
+        else this.chapterStates.set(key, state)
+      })
+      recent.forEach((position: ReadingProgress, id: ComicId): void => { this.progressByComicId.set(id, position) })
+      DiagnosticLogger.warn('reader_session_store', 'user_mutation_failed', '[ReaderProgress] user_mutation_failed')
+      return false
+    } finally {
+      if (this.persistTimerId >= 0) clearTimeout(this.persistTimerId)
+      this.persistTimerId = -1
+      this.persistPending = false
+      this.needsFullSnapshot = false
+    }
+    signalDeviceSyncChange('reading')
+    return true
+  }
+
+  private saveDatabaseActivity(database: ReaderRdbStorage, reading: ReaderSessionDocumentSnapshot,
+    actions: SyncReadingSignal[], removedHistory?: ComicId[]): void {
+    const pending = this.syncActions.concat(stageDeviceSyncReadingActions(actions))
+    const positions = this.syncPositions.filter((row: SyncReadingCapture): boolean => !deviceSyncReadingAcknowledged(row))
+    const retained = pending.filter((row: SyncReadingActionCapture): boolean =>
+      !deviceSyncReadingActionAcknowledged(row) || positions.length > 0)
+    reading.syncActions = retained
+    reading.syncPositions = positions
+    database.saveActivityEdits(reading, removedHistory)
+    this.syncActions = retained
+    this.syncPositions = positions
   }
 
   updatePageIndex(
@@ -1503,7 +1645,9 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       return
     }
     this.sourceHistoryByComicId.set(copied.comicId, copied)
-    this.schedulePersist()
+    const scoped = this.adapter.supportsPageTurnWrites?.() === true
+    if (scoped) this.pendingSourceHistory.add(copied.comicId)
+    this.schedulePersist(scoped)
   }
 
   removeSourceHistory(comicId: ComicId): void {
@@ -1535,6 +1679,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       // Only a completed commit discharges pending work. A later normal boundary can retry a failure.
       this.persistPending = false
       this.pendingPageTurns.clear()
+      this.pendingSourceHistory.clear()
       this.pendingReadingSessions = []
       this.needsFullSnapshot = false
       return true
@@ -1627,6 +1772,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       this.acceptPersistPlan(plan)
       this.persistPending = false
       this.pendingPageTurns.clear()
+      this.pendingSourceHistory.clear()
       this.pendingReadingSessions = []
       this.needsFullSnapshot = false
       signalDeviceSyncChange('reading')
@@ -1657,7 +1803,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     const chapters = pageTurns ?? this.listChapterStates()
     const history: SourceReadHistoryEntry[] = pageTurns === undefined ? this.listSourceHistory() : []
     if (pageTurns !== undefined) {
-      const works = new Set<string>()
+      const works = new Set<ComicId>(this.pendingSourceHistory)
       for (const turn of pageTurns) {
         works.add(turn.comicId)
         const current = this.progressByComicId.get(turn.comicId)

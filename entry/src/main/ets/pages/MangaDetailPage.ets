@@ -429,7 +429,7 @@ export struct MangaDetailPage {
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param readerProgressRevision: number = 0
-  @Event onReadingStateChanged: () => void = () => {}
+  @Event onReadingStateChanged: (comicId: string) => void = () => {}
   @Local private commentsShown: boolean = false
   @Local private commentsTarget?: SourceCommentsTarget = undefined
   @Param sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
@@ -2518,7 +2518,7 @@ export struct MangaDetailPage {
       return
     }
     this.applyChapterStatesToCurrent()
-    this.onReadingStateChanged()
+    this.onReadingStateChanged(this.currentComicId())
     if (isRead) {
       this.syncMarkedReadTrackerProgress([chapterId])
     }
@@ -2583,7 +2583,7 @@ export struct MangaDetailPage {
     }
     const changedCount = result.changedCount
     this.applyChapterStatesToCurrent()
-    this.onReadingStateChanged()
+    this.onReadingStateChanged(comicId)
     if (isRead) {
       this.syncMarkedReadTrackerProgress(targetIds)
     }
@@ -2987,7 +2987,7 @@ export struct MangaDetailPage {
               return
             }
             this.applyChapterStatesToCurrent()
-            this.onReadingStateChanged()
+            this.onReadingStateChanged(this.currentComicId())
             this.showToast(s('manga_detail_tracker_pull_done'))
           } },
         })
@@ -4084,7 +4084,7 @@ export struct MangaDetailPage {
         onBookmarkChapter: (chapterId: string, bookmarked: boolean) => {
           if (this.readerSessionStore.commitChapterBookmark(this.currentComicId(), chapterId, bookmarked, this.readingSourceIdentity())) {
             this.applyChapterStatesToCurrent()
-            this.onReadingStateChanged()
+            this.onReadingStateChanged(this.currentComicId())
           } else this.showToast(s('chapter_bookmark_save_failed'))
         },
         onOpenChapter: (chapterId: string) => {

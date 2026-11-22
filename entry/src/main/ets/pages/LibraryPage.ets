@@ -447,6 +447,7 @@ export struct LibraryPage {
   @Event onOpenMangaDetail: (comicId: ComicId) => void = (_comicId: ComicId) => {}
   @Event onContinueReading: (comicId: ComicId) => void = (_comicId: ComicId) => {}
   @Event onProgressStoreReloadRequested: () => void = () => {}
+  @Event onReadingStateChanged: (comicIds: string[]) => void = () => {}
   @Event onRefresh: () => Promise<void> = async () => {}
   @Local private scrollEnabled: boolean = true
   @Local private pullRefreshController: PullRefreshController = new PullRefreshController()
@@ -1751,12 +1752,11 @@ export struct LibraryPage {
       return
     }
     const changedCount = result.changedCount
-    this.onProgressStoreReloadRequested()
     if (changedCount > 0) {
+      this.onReadingStateChanged(Array.from(new Set(mutations.map((row: ChapterReadMutation): string => row.comicId))))
       console.info(`[Library] step=batch_read_state isRead=${isRead} comics=${comicIds.length} chapters=${changedCount}`)
       this.showToast(isRead ? s('library_batch_marked_read') : s('library_batch_marked_unread'))
       this.exitSelectionMode()
-      this.refreshDisplayedSnapshotFromStore()
     }
   }
 

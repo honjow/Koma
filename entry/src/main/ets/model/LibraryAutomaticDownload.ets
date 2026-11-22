@@ -1,10 +1,9 @@
 import { common } from '@kit.AbilityKit'
-import { Comic, Chapter } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import { ReaderSessionStore } from './ReaderSessionStore'
-import { LibraryUpdateSummary } from './LibraryUpdateService'
+import type { LibraryChapterUpdate } from './LibraryChapterUpdates'
 import { LibraryAutomationPreferencesStore } from './LibraryAutomationPreferencesStore'
-import { newlyAddedChapterIds, comicMatchesAutomationCategories } from './LibraryAutomationPolicy'
+import { comicMatchesAutomationCategories } from './LibraryAutomationPolicy'
 import { LibraryBatchDownloadQueue, LibraryBatchDownloadTarget } from './LibraryBatchDownloadQueue'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { AUTOMATIC_DOWNLOAD_WORK, GeneratedDownloadChapter, readGeneratedDownloadWork,
@@ -13,31 +12,16 @@ import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from './KomaConte
 
 let draining: Promise<void> = Promise.resolve()
 
-export function libraryChapterIdSnapshot(library: LibraryStore): Map<string, Set<string>> {
-  const snapshot: Map<string, Set<string>> = new Map()
-  library.listComics().forEach((comic: Comic): void => {
-    snapshot.set(comic.id, new Set<string>(comic.chapters.map((chapter: Chapter): string => chapter.id)))
-  })
-  return snapshot
-}
-
 export async function enqueueAutomaticallyAddedChapters(context: common.UIAbilityContext,
-  library: LibraryStore, reader: ReaderSessionStore, summary: LibraryUpdateSummary,
-  previousChapterIds: Map<string, Set<string>>): Promise<void> {
+  library: LibraryStore, reader: ReaderSessionStore, updates: LibraryChapterUpdate[]): Promise<void> {
   const policy = await new LibraryAutomationPreferencesStore(context).load()
   if (!policy.autoDownloadNewChapters) return
   const pending: GeneratedDownloadChapter[] = []
-  for (const entry of summary.results) {
-    if (entry.status !== 'updated') continue
+  for (const entry of updates) {
     const comic = library.getComic(entry.comicId)
     if (comic === undefined || !comicMatchesAutomationCategories(comic,
       policy.downloadIncludedCategories, policy.downloadExcludedCategories)) continue
-    const previous = previousChapterIds.get(comic.id)
-    if (previous === undefined) continue // No received pre-update baseline means no proven new chapters.
-    const ids = newlyAddedChapterIds(previous, comic)
-    for (const chapterId of ids) {
-      pending.push({ comicId: comic.id, chapterId })
-    }
+    pending.push({ comicId: comic.id, chapterId: entry.chapterId })
   }
   await BackupRestoreActivity.runWrite(() => saveGeneratedDownloadWork(context, AUTOMATIC_DOWNLOAD_WORK, pending))
   await drainPendingAutomaticChapters(context, library, reader)

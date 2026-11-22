@@ -46,9 +46,9 @@ export function shouldAutomaticallyUpdateComic(
   if (!comicMatchesAutomationCategories(comic, policy.updateIncludedCategories, policy.updateExcludedCategories)) return false
   if (policy.skipOutsideReleasePeriod && !comicUpdateScheduleDue(comic.updateSchedule, Date.now())) return false
   if (policy.skipCompleted && (comic.sourceMetadata?.status ?? comic.localMetadata?.status) === 'completed') return false
-  const started = reader.getProgress(comic.id) !== undefined || comic.chapters.some((chapter: Chapter): boolean =>
-    reader.isChapterRead(comic.id, chapter.id) || reader.getChapterProgress(comic.id, chapter.id) !== undefined)
-  if (policy.skipNotStarted && !started) return false
+  if (policy.skipNotStarted && reader.getProgress(comic.id) === undefined &&
+    !comic.chapters.some((chapter: Chapter): boolean =>
+      reader.isChapterRead(comic.id, chapter.id) || reader.getChapterProgress(comic.id, chapter.id) !== undefined)) return false
   return !(policy.skipHasUnread && comic.chapters.some((chapter: Chapter): boolean =>
     !reader.isChapterRead(comic.id, chapter.id)))
 }

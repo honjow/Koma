@@ -32,8 +32,8 @@ import { LibraryUpdateStateBridge } from '../state/LibraryUpdateState'
 import { connectAppForegroundState } from '../state/AppForegroundState'
 import { LibraryAutomationPreferencesStore } from './LibraryAutomationPreferencesStore'
 import { shouldAutomaticallyUpdateComic } from './LibraryAutomationPolicy'
-import { libraryChapterIdSnapshot, enqueueAutomaticallyAddedChapters } from './LibraryAutomaticDownload'
-import { collectLibraryChapterUpdates } from './LibraryChapterUpdates'
+import { enqueueAutomaticallyAddedChapters } from './LibraryAutomaticDownload'
+import { committedLibraryChapterUpdates } from './LibraryChapterUpdates'
 import { LibraryAutomationPreferences } from './LibraryAutomationPolicy'
 import { automaticUpdateConditionsSatisfied } from './AutomaticUpdateConditions'
 
@@ -89,11 +89,13 @@ export function requestLibraryUpdateCheck(request: LibraryUpdateCheckRequest): P
   }
   inFlightReason = request.reason
   let ran = false
+  let shelfChanged = false
   // Defer work until after the slot is reserved, including preference reads and running-state writes.
   const operation = Promise.resolve().then(() =>
     BackupRestoreActivity.runWrite(() => runLibraryUpdateCheck(request)))
     .then((result: LibraryUpdateCheckResult): LibraryUpdateCheckResult => {
       ran = result.status === 'completed' || result.status === 'failed'
+      shelfChanged = result.summary?.results.some((entry): boolean => entry.status === 'updated' || entry.metadataChanged === true) === true
       DiagnosticLogger.info('library_update', 'step', '[LibraryUpdateCoordinator] step=' + (ran ? 'check_done' : 'admission') +
         ' reason=' + request.reason + ' status=' + result.status)
       return result
@@ -103,7 +105,7 @@ export function requestLibraryUpdateCheck(request: LibraryUpdateCheckRequest): P
     inFlightReason = undefined
     LibraryUpdateStateBridge.setBusy(false)
     if (ran) {
-      LibraryUpdateStateBridge.notifyCompleted()
+      LibraryUpdateStateBridge.notifyCompleted(shelfChanged)
     }
   })
   return inFlight
@@ -160,7 +162,6 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
 
   let summary: LibraryUpdateSummary
   const reader = appReaderSessionStore(request.context.filesDir)
-  const previousChapterIds = libraryChapterIdSnapshot(request.libraryStore)
   try {
     const storageBase = await ensureKomaContentStorageBase(request.context)
     const runtimeKey = komaRuntimeStorageKey(request.context)
@@ -213,9 +214,10 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
 
   result.status = 'completed'
   result.summary = summary
+  const updates = committedLibraryChapterUpdates(summary)
   try {
     // Persisted library changes come first. Queue only received new chapter IDs, never a count or list position.
-    await enqueueAutomaticallyAddedChapters(request.context, request.libraryStore, reader, summary, previousChapterIds)
+    await enqueueAutomaticallyAddedChapters(request.context, request.libraryStore, reader, updates)
   } catch (error) {
     DiagnosticLogger.exception('library_update', 'automatic_download_enqueue_failed', error as Error)
   }
@@ -236,8 +238,7 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
   const snapshot = completedLibraryUpdateJobSnapshot(summary, startedAt, nextDueAt)
   setLatestLibraryUpdateJobSnapshot(snapshot)
   try {
-    await resultStore.save(summary, snapshot,
-      collectLibraryChapterUpdates(request.libraryStore.listComics(), summary, previousChapterIds))
+    await resultStore.save(summary, snapshot, updates)
   } catch (_error) {
     result.persistenceFailed = true
     DiagnosticLogger.warn('library_update_coordinator', 'summary_result_save_failed', '[LibraryUpdateCoordinator] step=summary_result_save_failed')

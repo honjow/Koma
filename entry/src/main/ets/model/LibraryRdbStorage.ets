@@ -551,23 +551,54 @@ export class LibraryRdbStorage {
   }
 
   saveMemberships(edits: LibraryMembershipEdit[]): void {
-    writeUserRecords(this.store, (): void => {
-      for (const edit of edits) {
-        const result = this.store.querySqlSync('SELECT s.comic_id FROM shelf_work_details d LEFT JOIN shelf_works s ' +
-          'ON s.comic_id = d.comic_id WHERE d.comic_id = ?', [edit.comicId])
-        let shared: boolean
-        try {
-          if (!result.goToNextRow()) throw new Error('library_work_missing')
-          shared = !result.isColumnNull(0)
-        } finally {
-          result.close()
-        }
-        // The category editor owns these columns and the selected works' memberships.
-        this.store.executeSync('UPDATE shelf_work_details SET has_categories = ?, updated_at = ? WHERE comic_id = ?',
-          [edit.categoryIds === undefined ? 0 : 1, edit.updatedAt, edit.comicId])
-        const table = shared ? shelfMemberships : shelfMembershipsLocal
-        table.replace(this.store, membershipRows(edit.comicId, edit.categoryIds), 'comic_id', edit.comicId)
+    writeUserRecords(this.store, (): void => { this.writeMemberships(edits) })
+    this.writeRevision += 1
+  }
+
+  private writeMemberships(edits: LibraryMembershipEdit[]): void {
+    for (const edit of edits) {
+      const result = this.store.querySqlSync('SELECT s.comic_id FROM shelf_work_details d LEFT JOIN shelf_works s ' +
+        'ON s.comic_id = d.comic_id WHERE d.comic_id = ?', [edit.comicId])
+      let shared: boolean
+      try {
+        if (!result.goToNextRow()) throw new Error('library_work_missing')
+        shared = !result.isColumnNull(0)
+      } finally {
+        result.close()
       }
+      // The category editor owns these columns and the selected works' memberships.
+      this.store.executeSync('UPDATE shelf_work_details SET has_categories = ?, updated_at = ? WHERE comic_id = ?',
+        [edit.categoryIds === undefined ? 0 : 1, edit.updatedAt, edit.comicId])
+      const table = shared ? shelfMemberships : shelfMembershipsLocal
+      table.replace(this.store, membershipRows(edit.comicId, edit.categoryIds), 'comic_id', edit.comicId)
+    }
+  }
+
+  categoryMemberIds(categoryId: string): string[] {
+    return Array.from(new Set(shelfMembershipsAll.read(this.store, 'category_id = ?', [categoryId])
+      .map((row: ShelfMembershipRow): string => row.comicId)))
+  }
+
+  /** Local edits keep the existing work order and update only their own
+   * collections. Collection presence stays compatible with the backup format. */
+  saveLocalEdits(image: LibraryShelfSyncImage, removed: string[] = [], memberships: LibraryMembershipEdit[] = []): void {
+    writeUserRecords(this.store, (): void => {
+      for (const id of removed) new ShelfWorkRows([]).replace(this.store, id)
+      if (image.works.length > 0) {
+        const rows = this.store.querySqlSync('SELECT COALESCE(MAX(list_order), -1) + 1 FROM shelf_work_details')
+        let order = 0
+        try {
+          if (rows.goToNextRow()) order = rows.getLong(0)
+        } finally {
+          rows.close()
+        }
+        for (const work of image.works) {
+          new ShelfWorkRows([work], order).replace(this.store, work.id)
+          order += 1
+        }
+      }
+      this.writeMemberships(memberships)
+      this.saveSyncCollections(image)
     })
     this.writeRevision += 1
   }

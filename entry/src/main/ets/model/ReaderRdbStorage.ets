@@ -296,6 +296,23 @@ export class ReaderRdbStorage {
     })
   }
 
+  /** Chapter actions and history removal commit with the same outbox as page turns. */
+  saveActivityEdits(reading: ReaderSessionDocumentSnapshot, removedHistory: string[] = []): void {
+    writeUserRecords(this.store, (): void => {
+      const scope = new ReadingScope(reading)
+      for (const chapter of reading.chapters) this.putChapter(chapter, scope)
+      for (const position of reading.progress) this.putPosition(position, scope)
+      for (const id of removedHistory) {
+        readerPositions.remove(this.store, [id])
+        readerSourceHistory.remove(this.store, [id])
+        readerRemoteHistory.remove(this.store, [id])
+        this.store.executeSync('DELETE FROM reader_remote_history_paths WHERE comic_id = ?', [id])
+        this.store.executeSync('DELETE FROM reader_sessions WHERE comic_id = ?', [id])
+      }
+      new ReaderOutboxRows(reading.syncPositions ?? [], reading.syncActions ?? []).replace(this.store)
+    })
+  }
+
   save(snapshot: ReaderSessionDocumentSnapshot, pageTurns?: ChapterReadingState[]): void {
     writeUserRecords(this.store, (): void => {
       const scope = new ReadingScope(snapshot, pageTurns)

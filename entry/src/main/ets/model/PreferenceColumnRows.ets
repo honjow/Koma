@@ -242,6 +242,30 @@ export class PreferenceColumnRows {
     writeUserRecords(this.store, (): void => this.putInTransaction(key, raw))
   }
 
+  /** Insert a batch at the front of an ordered collection, preserving the first value for existing keys. */
+  prependNewOrderedRecords(records: UserRecordValues): Set<string> {
+    const layout = this.layout
+    if (layout?.ordered !== true) throw new Error('ordered_preference_required')
+    const rows = this.store.querySqlSync('SELECT COALESCE(MIN(list_order), 0) FROM ' + layout.table)
+    let order = -records.size
+    try {
+      if (rows.goToNextRow()) order = rows.getLong(0) - records.size
+    } finally {
+      rows.close()
+    }
+    const inserted = new Set<string>()
+    for (const entry of records) {
+      const key = entry[0]
+      const value = entry[1]
+      if (this.get(key) !== undefined) continue
+      const record = JSON.parse(value) as OrderedRecord
+      record.order = order++
+      this.putInTransaction(key, JSON.stringify(record))
+      inserted.add(key)
+    }
+    return inserted
+  }
+
   putInTransaction(key: string, raw: string | undefined): void {
     const layout = this.layout
     const bookScalar = this.bookScalar

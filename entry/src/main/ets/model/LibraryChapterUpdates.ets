@@ -52,6 +52,16 @@ export function collectLibraryChapterUpdates(comics: Comic[], summary: LibraryUp
   return updates
 }
 
+export function committedLibraryChapterUpdates(summary: LibraryUpdateSummary): LibraryChapterUpdate[] {
+  const updates: LibraryChapterUpdate[] = []
+  for (const result of summary.results) {
+    for (const chapterId of result.addedChapterIds ?? []) {
+      updates.push({ comicId: result.comicId, chapterId, discoveredAt: summary.checkedAt })
+    }
+  }
+  return updates
+}
+
 export function parseLibraryChapterUpdates(value: string): LibraryChapterUpdate[] {
   if (value.length === 0) return []
   const records = JSON.parse(value) as LibraryChapterUpdate[]

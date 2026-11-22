@@ -144,9 +144,9 @@ async function mergeBackgroundResults(context: common.UIAbilityContext, library:
       return
     }
     const summary = summarizeResults(Date.now(), results)
-    await enqueueAutomaticallyAddedChapters(context, library, appReaderSessionStore(context.filesDir), summary, chapterIds)
-    await new LibraryUpdateResultStore(context).save(summary, undefined,
-      collectLibraryChapterUpdates(library.listComics(), summary, chapterIds))
+    const updates = collectLibraryChapterUpdates(appliedWorks, summary, chapterIds)
+    await enqueueAutomaticallyAddedChapters(context, library, appReaderSessionStore(context.filesDir), updates)
+    await new LibraryUpdateResultStore(context).save(summary, undefined, updates)
     const cursorPath = `${context.filesDir}/${UPDATE_CURSOR}`
     const cursor: BackgroundUpdateCursor | undefined = await fs.access(cursorPath)
       ? JSON.parse(await fs.readText(cursorPath)) as BackgroundUpdateCursor : undefined
@@ -158,6 +158,6 @@ async function mergeBackgroundResults(context: common.UIAbilityContext, library:
       summary.updatedCount, summary.skippedCount, summary.failedCount, true))
     setLatestLibraryUpdateSummary(summary)
     for (const name of names) await fs.unlink(`${directory}/${name}`)
-    LibraryUpdateStateBridge.notifyCompleted()
+    LibraryUpdateStateBridge.notifyCompleted(appliedWorks.length > 0)
   })
 }

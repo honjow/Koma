@@ -761,9 +761,9 @@ struct Index {
   @Monitor('libraryUpdateState.revision')
   private onLibraryUpdateCompleted(): void {
     this.refreshLibraryUpdateBadge(getContext(this) as common.UIAbilityContext)
+    if (this.libraryUpdateState.shelfChanged) this.refreshLibrarySnapshot()
   }
 
-  @Monitor('libraryUpdateState.revision')
   private refreshLibrarySnapshot(): void {
     this.libraryPresentationPending = true
     if (!this.isReaderRouteVisible()) this.publishDeferredReaderBackgroundPresentation()
@@ -984,7 +984,6 @@ struct Index {
       const result = await requestLibraryUpdateCheck({ context, libraryStore: this.libraryStore,
         sourceRegistry: this.sourceRegistry, libraryPersistenceService: this.libraryPersistenceService,
         reason: 'manual', requireForeground: true })
-      this.refreshLibrarySnapshot()
       this.showLibraryUpdateResult(result, true)
     } catch (error) {
       DiagnosticLogger.exception('library_updates', 'check_failed', error as Error)
@@ -2848,12 +2847,18 @@ struct Index {
         if (this.historyResumeLoadingTimer === timer) this.closeHistoryResumeLoading()
       }
       if (!current()) return true
-      this.refreshMihonImport()
-      imported = this.libraryStore.listMihonImports().find((record: MihonImportRecord): boolean => record.id === comicId)
-      if (imported === undefined) {
+      const updated = this.libraryStore.listMihonImports().find((record: MihonImportRecord): boolean => record.id === comicId)
+      if (updated === undefined) {
         this.showToast(AppStrings.get('mihon_import_resume_failed'))
         return true
       }
+      if (updated !== imported) {
+        // The reader can open from the committed rows. Refresh the covered
+        // list on its next appearance instead of rebuilding it during resume.
+        this.libraryPresentationPending = true
+        this.queueReadingPresentation(updated.targetComicId === undefined ? [comicId] : [comicId, updated.targetComicId])
+      }
+      imported = updated
     }
     const target = imported.targetComicId
     const existing = target === undefined ? undefined : this.libraryStore.getComic(target)
@@ -2898,6 +2903,9 @@ struct Index {
       // its detail route too when reading from it opened the matching flow.
       const fromDetail = paths[paths.length - 1] === RouteName.MANGA_DETAIL
       await this.openMangaMigration([comicId], fromDetail, true)
+    }
+    if (this.rootNavigation.visible && this.appPathStack.getAllPathName().length === 0) {
+      this.publishDeferredReaderBackgroundPresentation()
     }
     return true
   }
@@ -3801,7 +3809,7 @@ struct Index {
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           readerSessionStore: this.readerSessionStore,
           readerProgressRevision: this.readerProgressRevision,
-          onReadingStateChanged: () => { this.readerProgressRevision += 1 },
+          onReadingStateChanged: (comicId: string) => { this.queueReadingPresentation([comicId]) },
           sourceRegistry: this.sourceRegistry,
           chrome: RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam),
           onBack: () => {
@@ -3983,7 +3991,7 @@ struct Index {
           readerSessionStore: this.readerSessionStore, readerProgressRevision: this.readerProgressRevision,
           onOpenReader: (comicId: string, chapterId: string): void => { void this.openReader(comicId, chapterId) },
           onOpenComic: (comicId: string): void => { this.openLibraryMangaDetail(comicId) },
-          onReadingStateChanged: (): void => { this.readerProgressRevision += 1 },
+          onReadingStateChanged: (comicIds: string[]): void => { this.refreshReadingPresentation(comicIds) },
           onRefresh: async (): Promise<void> => { await this.checkLibraryUpdatesNow() } })
       }
       .titleBar(this.libraryUpdatesTitleBarOptions(param as LibraryUpdatesChrome))
@@ -4660,6 +4668,7 @@ struct Index {
                 onProgressStoreReloadRequested: () => {
                   this.reloadReaderSessionStore('bootstrap_sync')
                 },
+                onReadingStateChanged: (comicIds: string[]): void => { this.refreshReadingPresentation(comicIds) },
                 onRefresh: async (): Promise<void> => { await this.refreshBookshelf() },
                 onImportRequested: () => {
                   this.openImport()
@@ -4742,6 +4751,7 @@ struct Index {
                 readerSessionStore: this.readerSessionStore,
                 readerProgressRevision: this.readerProgressRevision,
                 readingPresentationChange: this.readingPresentationChange,
+                onReadingStateChanged: (comicIds: string[]): void => { this.refreshReadingPresentation(comicIds) },
                 onRefresh: async (): Promise<void> => { await this.syncFromRootRefresh() },
                 onOpenDetail: (comicId: ComicId, source?: SourceReadHistoryEntry, remote?: RemoteReadHistoryEntry) => {
                   this.openHistoryDetail(comicId, source, remote)

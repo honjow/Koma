@@ -4,6 +4,7 @@ import { AppStorageV2 } from '@kit.ArkUI'
 export class LibraryUpdateState {
   @Trace busy: boolean = false
   @Trace revision: number = 0
+  shelfChanged: boolean = false
 }
 
 const LIBRARY_UPDATE_STATE_KEY: string = 'v2:libraryUpdate'
@@ -17,7 +18,9 @@ export class LibraryUpdateStateBridge {
     connectLibraryUpdateState().busy = value
   }
 
-  static notifyCompleted(): void {
-    connectLibraryUpdateState().revision += 1
+  static notifyCompleted(shelfChanged: boolean = true): void {
+    const state = connectLibraryUpdateState()
+    state.shelfChanged = shelfChanged
+    state.revision += 1
   }
 }

@@ -2,6 +2,7 @@ import { chapterSortKey, enrichSourceChapterMetadata } from './SourceChapterMeta
 import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { estimateComicUpdateSchedule } from './ComicReleaseSchedule'
+import { newlyAddedChapterIds } from './LibraryAutomationPolicy'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   Chapter,
@@ -80,6 +81,8 @@ export interface LibraryUpdateComicResult {
   previousChapterCount: number
   newChapterCount: number
   addedChapterCount?: number
+  /** Newly saved chapter IDs, populated by the foreground batch after commit. */
+  addedChapterIds?: string[]
   message: string
   metadataChanged?: boolean
 }
@@ -534,12 +537,15 @@ export class LibraryUpdateService {
       const comics = this.libraryStore.listComics()
       const results: LibraryUpdateComicResult[] = []
       const modified: Comic[] = []
+      const updated = new Map<string, LibraryUpdateComicResult>()
       console.info(`[LibraryUpdate] step=start total=${comics.length}`)
       for (const comic of comics) {
-        const result = await this.checkComic(comic)
+        const before = this.libraryStore.getComic(comic.id) ?? comic
+        const result = await this.checkComic(before)
         if (result.status === 'updated' || result.metadataChanged === true) {
-          modified.push(comic)
+          modified.push(before)
         }
+        if (result.status === 'updated') updated.set(before.id, result)
         results.push(result)
       }
       if (modified.length > 0 && this.persistenceService !== undefined) {
@@ -559,6 +565,15 @@ export class LibraryUpdateService {
         } catch (error) {
           this.persistenceService.restoreFailedWorkUpdates(before)
           throw error as Error
+        }
+        // Only successfully committed updated works need a chapter comparison.
+        for (let index = 0; index < current.length; index += 1) {
+          const work = current[index]
+          const result = updated.get(work.id)
+          if (result !== undefined && before[index].chapters !== work.chapters) {
+            result.addedChapterIds = newlyAddedChapterIds(new Set<string>(
+              before[index].chapters.map((chapter: Chapter): string => chapter.id)), work)
+          }
         }
       }
       const summary = summarizeResults(checkedAt, results)
@@ -690,10 +705,10 @@ export class LibraryUpdateService {
       }
       const remoteIds = remoteChapters.map((chapter: MangaChapterItem): string => chapter.id)
       const previousCatalog = currentComic.sourceMetadata?.sharedChapterIds
-      const localIds = previousCatalog ?? currentComic.chapters.map((chapter: Chapter): string => chapter.id)
+      const localIds = new Set(previousCatalog ?? currentComic.chapters.map((chapter: Chapter): string => chapter.id))
       const firstCatalog = previousCatalog === undefined && currentComic.chapters.length === 0
       const addedChapterCount = new Set<string>(remoteIds.filter(
-        (chapterId: string): boolean => !localIds.includes(chapterId))).size
+        (chapterId: string): boolean => !localIds.has(chapterId))).size
       if (addedChapterCount === 0 || firstCatalog) {
         const nextComic = JSON.parse(JSON.stringify(currentComic)) as Comic
         const now = Date.now()

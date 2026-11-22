@@ -893,15 +893,23 @@ export class LibraryUpdateResultStore {
     chapterUpdates: LibraryChapterUpdate[] = []): Promise<void> {
     const database = await openUserDataDatabase(this.context)
     const fields = await updateFields.prepare(this.context)
-    const chapters = await chapterUpdateRecords.prepare(this.context)
-    const updates = mergeLibraryChapterUpdates(parseLibraryChapterUpdates(chapterUpdateRecords.readPreparedValue(chapters) ?? ''), chapterUpdates)
+    const chapters = chapterUpdates.length === 0 ? undefined : await chapterUpdateRecords.prepare(this.context)
+    const updates = mergeLibraryChapterUpdates([], chapterUpdates)
+    let inserted: Set<string> | undefined
     writeUserRecords(database, (): void => {
-      chapters.replaceInTransaction(updateArrayCodec.decode(JSON.stringify(updates)))
+      if (chapters !== undefined) {
+        const records = updateArrayCodec.decode(JSON.stringify(updates))
+        if (records !== undefined) inserted = chapters.prependNewOrderedRecords(records)
+      }
       fields.putInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, JSON.stringify(serializeLibraryUpdateSummary(summary)))
       fields.putInTransaction(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY,
         JSON.stringify(serializeLibraryUpdateJobSnapshot(snapshot ?? completedLibraryUpdateJobSnapshot(summary))))
     })
-    setCachedLibraryChapterUpdates(updates)
+    if (inserted !== undefined && inserted.size > 0) {
+      const cached = cachedLibraryChapterUpdates()
+      setCachedLibraryChapterUpdates(cached === undefined ? undefined : mergeLibraryChapterUpdates(cached,
+        updates.filter((row: LibraryChapterUpdate): boolean => inserted?.has(JSON.stringify([row.comicId, row.chapterId])) === true)))
+    }
   }
 
   async loadJobSnapshot(): Promise<LibraryUpdateJobSnapshot | undefined> {

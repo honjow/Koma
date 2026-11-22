@@ -566,15 +566,9 @@ export function serializeLibraryStore(libraryStore: LibraryStore): string {
   return JSON.stringify(createLibraryStorePersistenceDocument(libraryStore))
 }
 
-/** The original library transaction also owns smart rules and restores the previous document on failure. */
 export function replaceSmartCategoriesAndPersistLibraryStore(libraryStore: LibraryStore,
   persistence: LibraryStorePersistenceService, categories: LibrarySmartCategory[]): void {
-  const previous = serializeLibraryStore(libraryStore)
-  libraryStore.replaceSmartCategories(categories)
-  try { persistence.persist() } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previous)
-    throw error as Error
-  }
+  saveCategoryChange(libraryStore, persistence, 'smart', (): void => { libraryStore.replaceSmartCategories(categories) })
 }
 
 function assertSupportedLibraryStoreDocument(document: PersistedLibraryStoreDocument): void {
@@ -1002,6 +996,7 @@ function hydrateLibraryStoreFromDocument(libraryStore: LibraryStore, document: P
 }
 
 export interface LibraryStorePersistenceAdapter {
+  databaseForEdits?(): LibraryRdbStorage | undefined
   load(): string | undefined
   save(payload: string): void
   loadForRestore?(): PersistedLibraryStoreDocument | string | undefined
@@ -1051,6 +1046,11 @@ export class AppFilesLibraryStorePersistenceAdapter implements LibraryStorePersi
       if (work !== undefined) works.push(work)
     })
     return works
+  }
+
+  databaseForEdits(): LibraryRdbStorage | undefined {
+    if (this.libraryDirectory === undefined) return undefined
+    return liveLibraryStorage.get(this.libraryDirectory)
   }
 
   save(payload: string): void {
@@ -1133,6 +1133,12 @@ export class LibraryStorePersistenceService {
     }
   }
 
+  databaseForEdits(): LibraryRdbStorage | undefined {
+    const database = this.adapter.databaseForEdits?.()
+    if (database !== undefined && BackupRestoreActivity.hasPendingRecovery()) throw new Error('sync_local_busy')
+    return database
+  }
+
   restoreFailedWorkUpdates(previous: Comic[]): void {
     // Remote checks can span local edits. After a rolled-back transaction,
     // the still-committed rows include edits saved during the network requests.
@@ -1190,22 +1196,29 @@ export function upsertComicAndPersistLibraryStore(
     }
     return
   }
-  const newMembership = previousComic === undefined
-  const previousPayload = serializeLibraryStore(libraryStore)
-  libraryStore.addComic(comic)
-  if (newMembership) libraryStore.replaceSyncShelfMoves(libraryStore.listSyncShelfMoves().filter((move: SyncLocalShelfMove): boolean =>
-    move.source !== comic.sourceRuntimeId || move.work !== comic.remoteResourceId))
-  try {
-    persistenceService.persist()
-    if (newMembership && comic.sourceRuntimeId !== undefined && comic.remoteResourceId !== undefined) {
-      // Initial categories and the new shelf record share the same save and sync batch.
-      const edits: SyncLibrarySignal[] = [{ kind: 'add-book', source: comic.sourceRuntimeId, work: comic.remoteResourceId }]
-      edits.push(...syncLibraryMembershipChanges(comic, normalizeCategoryIds(comic.categoryIds), []))
-      signalDeviceSyncLibrary(edits)
+  const previousMoves = libraryStore.listSyncShelfMoves()
+  const moves = previousMoves.filter((move: SyncLocalShelfMove): boolean =>
+    move.source !== comic.sourceRuntimeId || move.work !== comic.remoteResourceId)
+  const database = persistenceService.databaseForEdits?.()
+  if (database !== undefined) {
+    database.saveLocalEdits({ present: true, works: [persistComic(comic)],
+      moves: moves.length === previousMoves.length ? undefined : moves.length === 0 ? null : moves })
+    libraryStore.addComic(comic)
+    libraryStore.replaceSyncShelfMoves(moves)
+    signalDeviceSyncChange('shelf')
+  } else {
+    const previous = serializeLibraryStore(libraryStore)
+    libraryStore.addComic(comic)
+    libraryStore.replaceSyncShelfMoves(moves)
+    try { persistenceService.persist() } catch (error) {
+      hydrateLibraryStoreFromJson(libraryStore, previous)
+      throw error as Error
     }
-  } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
-    throw error as Error
+  }
+  if (comic.sourceRuntimeId !== undefined && comic.remoteResourceId !== undefined) {
+    const edits: SyncLibrarySignal[] = [{ kind: 'add-book', source: comic.sourceRuntimeId, work: comic.remoteResourceId }]
+    edits.push(...syncLibraryMembershipChanges(comic, normalizeCategoryIds(comic.categoryIds), []))
+    signalDeviceSyncLibrary(edits)
   }
 }
 
@@ -1653,20 +1666,69 @@ export function editComicCategoriesAndPersistLibraryStore(
   }
 }
 
+function saveCategoryChange<T>(library: LibraryStore, persistence: LibraryStorePersistenceService,
+  kind: 'custom' | 'smart' | 'display', change: (memberIds?: string[]) => T, removedId?: string): T {
+  const database = persistence.databaseForEdits?.()
+  if (database === undefined) {
+    const previous = serializeLibraryStore(library)
+    const result = change()
+    if (result === false) return result
+    try { persistence.persist() } catch (error) {
+      hydrateLibraryStoreFromJson(library, previous)
+      throw error as Error
+    }
+    return result
+  }
+  const categoriesBefore = kind === 'custom' ? library.listCustomCategories() : undefined
+  const smartBefore = kind === 'smart' ? library.listSmartCategories() : undefined
+  const strategiesBefore = kind !== 'custom' || removedId !== undefined ? library.listCategoryDisplayStrategies() : undefined
+  const memberIds = removedId === undefined ? [] : database.categoryMemberIds(removedId)
+  const membersBefore: Comic[] = []
+  for (const id of memberIds) {
+    const comic = library.getComic(id)
+    if (comic !== undefined) membersBefore.push(comic)
+  }
+  const result = change(memberIds)
+  if (result === false) return result
+  try {
+    const image: LibraryShelfSyncImage = { present: true, works: [] }
+    if (categoriesBefore !== undefined) {
+      const categories = library.listCustomCategories().map(persistLibraryCategory)
+      image.categories = categories.length === 0 ? null : categories
+    }
+    if (smartBefore !== undefined) {
+      const smart = library.listSmartCategories()
+      image.smartCategories = smart.length === 0 ? null : smart
+    }
+    if (strategiesBefore !== undefined) {
+      const strategies = library.listCategoryDisplayStrategies().map(persistCategoryDisplayStrategy)
+      image.displayStrategies = strategies.length === 0 ? null : strategies
+    }
+    const memberships: LibraryMembershipEdit[] = []
+    for (const before of membersBefore) {
+      const comic = library.getComic(before.id)
+      if (comic !== undefined && comic !== before) {
+        memberships.push({ comicId: comic.id, categoryIds: comic.categoryIds, updatedAt: comic.updatedAt })
+      }
+    }
+    database.saveLocalEdits(image, [], memberships)
+  } catch (error) {
+    if (categoriesBefore !== undefined) library.replaceCustomCategories(categoriesBefore)
+    if (smartBefore !== undefined) library.replaceSmartCategories(smartBefore, true)
+    if (strategiesBefore !== undefined) library.replaceCategoryDisplayStrategies(strategiesBefore)
+    for (const comic of membersBefore) library.upsertComic(comic)
+    throw error as Error
+  }
+  signalDeviceSyncChange('shelf')
+  return result
+}
+
 export function createCustomCategoryAndPersistLibraryStore(
   libraryStore: LibraryStore,
   persistenceService: LibraryStorePersistenceService,
   name: string
 ): CustomLibraryCategory {
-  const previousPayload = serializeLibraryStore(libraryStore)
-  const category = libraryStore.createCustomCategory(name)
-  try {
-    persistenceService.persist()
-    return category
-  } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
-    throw error as Error
-  }
+  return saveCategoryChange(libraryStore, persistenceService, 'custom', () => libraryStore.createCustomCategory(name))
 }
 
 export function renameCustomCategoryAndPersistLibraryStore(
@@ -1675,15 +1737,8 @@ export function renameCustomCategoryAndPersistLibraryStore(
   categoryId: string,
   name: string
 ): CustomLibraryCategory {
-  const previousPayload = serializeLibraryStore(libraryStore)
-  const category = libraryStore.renameCustomCategory(categoryId, name)
-  try {
-    persistenceService.persist()
-    return category
-  } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
-    throw error as Error
-  }
+  return saveCategoryChange(libraryStore, persistenceService, 'custom',
+    () => libraryStore.renameCustomCategory(categoryId, name))
 }
 
 export function setCustomCategoryPrivacyAndPersistLibraryStore(
@@ -1692,14 +1747,8 @@ export function setCustomCategoryPrivacyAndPersistLibraryStore(
   categoryId: string,
   isPrivate: boolean,
 ): boolean {
-  const previous = serializeLibraryStore(libraryStore)
-  if (!libraryStore.setCustomCategoryPrivacy(categoryId, isPrivate)) return false
-  try {
-    persistence.persist()
-  } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previous)
-    throw error as Error
-  }
+  if (!saveCategoryChange(libraryStore, persistence, 'custom',
+    () => libraryStore.setCustomCategoryPrivacy(categoryId, isPrivate))) return false
   signalDeviceSyncLibrary([{ kind: 'category-privacy', category: categoryId, isPrivate }])
   return true
 }
@@ -1710,18 +1759,8 @@ export function moveCustomCategoryAndPersistLibraryStore(
   categoryId: string,
   destinationId: string,
 ): boolean {
-  const previousPayload = serializeLibraryStore(libraryStore)
-  const moved = libraryStore.moveCustomCategory(categoryId, destinationId)
-  if (!moved) {
-    return false
-  }
-  try {
-    persistenceService.persist()
-    return true
-  } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
-    throw error as Error
-  }
+  return saveCategoryChange(libraryStore, persistenceService, 'custom',
+    () => libraryStore.moveCustomCategory(categoryId, destinationId))
 }
 
 export function deleteCustomCategoryAndPersistLibraryStore(
@@ -1729,19 +1768,10 @@ export function deleteCustomCategoryAndPersistLibraryStore(
   persistenceService: LibraryStorePersistenceService,
   categoryId: string
 ): boolean {
-  const previousPayload = serializeLibraryStore(libraryStore)
-  const deleted = libraryStore.deleteCustomCategory(categoryId)
-  if (!deleted) {
-    return false
-  }
-  try {
-    persistenceService.persist()
-    signalDeviceSyncLibrary([{ kind: 'remove-category', category: categoryId }])
-    return true
-  } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
-    throw error as Error
-  }
+  if (!saveCategoryChange(libraryStore, persistenceService, 'custom',
+    (members?: string[]): boolean => libraryStore.deleteCustomCategory(categoryId, members), categoryId)) return false
+  signalDeviceSyncLibrary([{ kind: 'remove-category', category: categoryId }])
+  return true
 }
 
 export function setCategoryDisplayStrategyAndPersistLibraryStore(
@@ -1749,14 +1779,25 @@ export function setCategoryDisplayStrategyAndPersistLibraryStore(
   persistenceService: LibraryStorePersistenceService,
   strategy: LibraryCategoryDisplayStrategy
 ): LibraryCategoryDisplayStrategy {
-  const previousPayload = serializeLibraryStore(libraryStore)
-  const savedStrategy = libraryStore.setCategoryDisplayStrategy(strategy)
-  try {
-    persistenceService.persist()
-    return savedStrategy
-  } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
-    throw error as Error
+  return saveCategoryChange(libraryStore, persistenceService, 'display', () => libraryStore.setCategoryDisplayStrategy(strategy))
+}
+
+function removeShelfWorks(library: LibraryStore, persistence: LibraryStorePersistenceService,
+  ids: ComicId[], moves?: SyncLocalShelfMove[]): void {
+  const database = persistence.databaseForEdits?.()
+  const payload = database === undefined ? serializeLibraryStore(library) : undefined
+  if (database !== undefined) {
+    database.saveLocalEdits({ present: true, works: [], moves: moves === undefined ? undefined : moves.length ? moves : null }, ids)
+  }
+  if (moves !== undefined) library.replaceSyncShelfMoves(moves)
+  for (const id of ids) library.removeComic(id)
+  if (payload !== undefined) {
+    try { persistence.persist() } catch (error) {
+      hydrateLibraryStoreFromJson(library, payload)
+      throw error as Error
+    }
+  } else {
+    signalDeviceSyncChange('shelf')
   }
 }
 
@@ -1769,15 +1810,8 @@ export function removeComicAndPersistLibraryStore(
   if (!isRemovableLocalComic(comic)) {
     return false
   }
-  const previousPayload = serializeLibraryStore(libraryStore)
-  libraryStore.removeComic(comicId)
-  try {
-    persistenceService.persist()
-    return true
-  } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
-    throw error as Error
-  }
+  removeShelfWorks(libraryStore, persistenceService, [comicId])
+  return true
 }
 
 /**
@@ -1795,32 +1829,26 @@ export function removeComicRecordAndPersistLibraryStore(
   if (removedComic === undefined) {
     return false
   }
-  const previousPayload = serializeLibraryStore(libraryStore)
   const space = migrationTarget === undefined ? undefined : deviceSyncShelfSpace()
   const fromSource = removedComic.sourceRuntimeId
   const fromWork = removedComic.remoteResourceId
+  let moves: SyncLocalShelfMove[] | undefined
   if (space !== undefined && fromSource !== undefined && fromWork !== undefined && syncShelfIdentity(fromSource, fromWork)) {
     const toSource = migrationTarget?.sourceRuntimeId
     const toWork = migrationTarget?.remoteResourceId
     const move: SyncLocalShelfMove = { space, source: fromSource, work: fromWork,
       target: toSource !== undefined && toWork !== undefined && syncShelfIdentity(toSource, toWork) ?
         { toSource, toWork } : undefined }
-    // Record the replacement in the same file write that removes the original.
+    // Record the replacement in the same transaction that removes the original.
     // An unsyncable destination must never turn a migration into a bare delete.
-    libraryStore.replaceSyncShelfMoves(libraryStore.listSyncShelfMoves().filter((item: SyncLocalShelfMove): boolean =>
-      item.source !== fromSource || item.work !== fromWork).concat(move))
+    moves = libraryStore.listSyncShelfMoves().filter((item: SyncLocalShelfMove): boolean =>
+      item.source !== fromSource || item.work !== fromWork).concat(move)
   }
-  libraryStore.removeComic(comicId)
-  try {
-    persistenceService.persist()
-    if (migrationTarget === undefined && fromSource !== undefined && fromWork !== undefined) {
-      signalDeviceSyncLibrary([{ kind: 'remove-book', source: fromSource, work: fromWork }])
-    }
-    return true
-  } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
-    throw error as Error
+  removeShelfWorks(libraryStore, persistenceService, [comicId], moves)
+  if (migrationTarget === undefined && fromSource !== undefined && fromWork !== undefined) {
+    signalDeviceSyncLibrary([{ kind: 'remove-book', source: fromSource, work: fromWork }])
   }
+  return true
 }
 
 export function removeComicsAndPersistLibraryStore(
@@ -1844,16 +1872,7 @@ export function removeComicsAndPersistLibraryStore(
   if (removedIds.length === 0) {
     return []
   }
-  const previousPayload = serializeLibraryStore(libraryStore)
-  removedIds.forEach((comicId: ComicId) => {
-    libraryStore.removeComic(comicId)
-  })
-  try {
-    persistenceService.persist()
-    if (syncEdits.length > 0) signalDeviceSyncLibrary(syncEdits)
-    return removedIds
-  } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
-    throw error as Error
-  }
+  removeShelfWorks(libraryStore, persistenceService, removedIds)
+  if (syncEdits.length > 0) signalDeviceSyncLibrary(syncEdits)
+  return removedIds
 }

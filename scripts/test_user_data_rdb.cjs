@@ -673,6 +673,99 @@ test('page turns atomically update the current and chapter positions with the co
   }
 })
 
+test('chapter actions and one history deletion preserve other works and the sync outbox', async () => {
+  const env = fixture()
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { ReaderRdbStorage } = env.load('ReaderRdbStorage')
+    const database = await openUserDataDatabase({ filesDir: '/reading-user-actions' })
+    const reader = new ReaderRdbStorage(database)
+    const target = 'com.rumanhua.koma:/a/'
+    const other = 'com.rumanhua.koma:/b/'
+    const position = comicId => ({ comicId, chapterId: 'one', pageIndex: 3, totalPages: 10,
+      progressRatio: 0.4, completed: false, updatedAt: 100 })
+    const source = comicId => ({ comicId, sourceId: 'com.rumanhua.koma', mangaId: comicId.split(':')[1], chapterId: 'one' })
+    await reader.migrate({ progress: [position(target), position(other)], sourceHistory: [source(target), source(other)],
+      chapters: [{ comicId: other, chapterId: 'one', bookmarked: true, isRead: false, updatedAt: 100 }] })
+    const action = { id: 'mark', space: 'space', source: 'com.rumanhua.koma', work: '/a/', chapterId: 'two',
+      edits: [{ key: 'bookmark', kind: 'set', value: 'true', observed: [{ replica: 'other', sequence: 2 }] }] }
+    const chapter = { comicId: target, chapterId: 'two', bookmarked: true, isRead: true, updatedAt: 200 }
+    const edits = { progress: [], sourceHistory: [source(target)], chapters: [chapter], syncActions: [action] }
+    const before = plain(reader.read())
+    env.failNextCommit()
+    assert.throws(() => reader.saveActivityEdits(edits), /interrupted write/)
+    assert.deepEqual(plain(reader.read()), before)
+    reader.saveActivityEdits(edits)
+    const remove = { progress: [], sourceHistory: [], chapters: [], syncActions: [action] }
+    const afterChapter = plain(reader.read())
+    assert.deepEqual(afterChapter.chapters.find(row => row.comicId === target), chapter)
+    env.failNextCommit()
+    assert.throws(() => reader.saveActivityEdits(remove, [target]), /interrupted write/)
+    assert.deepEqual(plain(reader.read()), afterChapter)
+    reader.saveActivityEdits(remove, [target])
+    const after = plain(reader.read())
+    assert.deepEqual(after.progress, [position(other)])
+    assert.deepEqual(after.sourceHistory, [source(other)])
+    assert.deepEqual(after.chapters, afterChapter.chapters)
+    assert.deepEqual(after.syncActions, [action])
+  } finally {
+    env.close()
+  }
+})
+
+test('local shelf edits keep unrelated catalog rows and atomically save the affected memberships', async () => {
+  const env = fixture()
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
+    const database = await openUserDataDatabase({ filesDir: '/scoped-local-shelf' })
+    const shelf = new LibraryRdbStorage(database)
+    const category = { id: 'old', name: 'Old', createdAt: 1, updatedAt: 1, sortOrder: 0 }
+    const works = [{ id: 'original', title: 'Original', categoryIds: ['old'], chapters: [{ id: 'kept', pages: [] }] },
+      { id: 'other', title: 'Other', chapters: [{ id: 'unrelated', pages: [] }] }]
+    await shelf.migrate({ schemaVersion: 1, comics: works, customCategories: [category] })
+    const before = plain(shelf.read())
+    assert.deepEqual(shelf.categoryMemberIds('old'), ['original'])
+    const categoryId = 'test'
+    const added = { id: 'test-work', title: 'Test', categoryIds: [categoryId], chapters: [{ id: 'new', pages: [] }] }
+    const edits = { present: true, works: [added], categories: [{ ...category, id: categoryId, name: 'Test' }] }
+    const memberships = [{ comicId: 'original', categoryIds: [], updatedAt: 2 }]
+    env.failNextCommit()
+    assert.throws(() => shelf.saveLocalEdits(edits, [], memberships), /interrupted write/)
+    assert.deepEqual(plain(shelf.read()), before)
+    shelf.saveLocalEdits(edits, [], memberships)
+    assert.deepEqual(shelf.categoryMemberIds('test'), ['test-work'])
+    assert.deepEqual(shelf.readWork('original').categoryIds, [])
+    assert.deepEqual(plain(shelf.readWork('original').chapters), before.comics[0].chapters)
+    assert.deepEqual(plain(shelf.readWork('other')), before.comics[1])
+    shelf.saveLocalEdits({ present: true, works: [] }, ['test-work'])
+    assert.equal(shelf.readWork('test-work'), undefined)
+    assert.deepEqual(shelf.categoryMemberIds('test'), [])
+  } finally {
+    env.close()
+  }
+})
+
+test('a repeated chapter discovery keeps its original timestamp and unrelated entries', async () => {
+  const env = fixture()
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { PreferenceColumnRows } = env.load('PreferenceColumnRows')
+    const database = await openUserDataDatabase({ filesDir: '/scoped-discoveries' })
+    const rows = new PreferenceColumnRows(database, 'koma_library_update_results_v1', 'libraryUpdate.chapterUpdatesJson')
+    const discovery = (comicId, discoveredAt) => JSON.stringify({ order: 0, value: { comicId, chapterId: 'one', discoveredAt } })
+    rows.migrate(new Map([['["a","one"]', discovery('a', 10)]]))
+    const inserted = rows.prependNewOrderedRecords(new Map([
+      ['["b","one"]', discovery('b', 20)], ['["a","one"]', discovery('a', 20)],
+    ]))
+    assert.deepEqual(Array.from(inserted), ['["b","one"]'])
+    assert.equal(JSON.parse(rows.get('["a","one"]')).value.discoveredAt, 10)
+    assert.ok(JSON.parse(rows.get('["b","one"]')).order < JSON.parse(rows.get('["a","one"]')).order)
+  } finally {
+    env.close()
+  }
+})
+
 test('first Mihon catalog commits the shelf link and reading position together', async () => {
   const env = fixture()
   try {

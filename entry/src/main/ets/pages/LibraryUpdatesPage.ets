@@ -46,7 +46,7 @@ export struct LibraryUpdatesPage {
   @Event onOpenReader: (comicId: string, chapterId: string) => void = () => {}
   @Event onOpenComic: (comicId: string) => void = () => {}
   @Event onRefresh: () => Promise<void> = async () => {}
-  @Event onReadingStateChanged: () => void = () => {}
+  @Event onReadingStateChanged: (comicIds: string[]) => void = () => {}
   @Param refreshController: PullRefreshController = new PullRefreshController()
   @Local private refreshing: boolean = false
   @Local private updateState: LibraryUpdateState = connectLibraryUpdateState()
@@ -206,7 +206,7 @@ export struct LibraryUpdatesPage {
       return
     }
     this.chrome.exitSelection()
-    this.onReadingStateChanged()
+    this.onReadingStateChanged(Array.from(new Set(mutations.map((row: ChapterReadMutation): string => row.comicId))))
     this.toast('manga_detail_marked_count_read', result.changedCount)
   }
 

@@ -120,6 +120,7 @@ export struct HistoryPage {
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
   @Event onOpenSourceReader: (request: SourceReaderSessionRequest) => void = (_request: SourceReaderSessionRequest) => {}
   @Event onOpenRemoteReader: (entry: RemoteReadHistoryEntry) => void = () => {}
+  @Event onReadingStateChanged: (comicIds: string[]) => void = () => {}
   @Event onRefresh: () => Promise<void> = async () => {}
 
   @Monitor('active', 'rootNavigation.visible')
@@ -422,6 +423,7 @@ export struct HistoryPage {
     this.publishHistoryItems(this.historyItems.filter((historyItem: HistoryItem): boolean => {
       return historyItem.comicId !== item.comicId
     }))
+    this.onReadingStateChanged([item.comicId])
     console.info('[History] step=remove_item')
   }
 
@@ -459,6 +461,7 @@ export struct HistoryPage {
       return
     }
     this.reloadHistory('clear_public')
+    this.onReadingStateChanged(comicIds)
     console.info('[History] step=clear')
   }
 

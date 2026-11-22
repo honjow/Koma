@@ -97,7 +97,7 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
     triggerAutomaticBackup() {} triggerPendingTrackerProgressSync() {} runForegroundAutomaticBackup() {}
     loadLibraryChapterUpdateHistory() {} refreshLibraryUpdateBadge() {} resumeAutomaticDownloadQueue() {}
     showLibraryUpdateResult() {}
-    ${['aboutToAppear', 'runForegroundLibraryUpdate', 'refreshLibrarySnapshot']
+    ${['aboutToAppear', 'runForegroundLibraryUpdate', 'refreshLibrarySnapshot', 'onLibraryUpdateCompleted']
       .map((name) => method('pages/Index', name)).join('\n')}
   }`, dependencies).Index
   const index = new Index()
@@ -125,8 +125,20 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
 
 async function main() {
   assert.match(read('pages/Index'), /@Monitor\('appForegroundState.revision'\)\s+private runForegroundLibraryUpdate/)
-  assert.match(read('pages/Index'), /@Monitor\('libraryUpdateState.revision'\)\s+private refreshLibrarySnapshot/)
   assert.match(read('pages/SettingsPage'), /@Monitor\('libraryUpdateState.revision'\)\s+private reloadCompletedLibraryUpdate/)
+
+  const completed = environment().index
+  let shelfRefreshes = 0
+  let badgeRefreshes = 0
+  completed.refreshLibrarySnapshot = () => { shelfRefreshes++ }
+  completed.refreshLibraryUpdateBadge = () => { badgeRefreshes++ }
+  completed.libraryUpdateState.shelfChanged = false
+  completed.onLibraryUpdateCompleted()
+  assert.equal(shelfRefreshes, 0)
+  completed.libraryUpdateState.shelfChanged = true
+  completed.onLibraryUpdateCompleted()
+  assert.equal(shelfRefreshes, 1)
+  assert.equal(badgeRefreshes, 2)
 
   const foregroundFirst = environment()
   foregroundFirst.foregroundEvent()

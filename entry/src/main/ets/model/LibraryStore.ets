@@ -89,7 +89,7 @@ export interface LibraryStore {
   renameCustomCategory(categoryId: string, name: string, now?: number): CustomLibraryCategory
   setCustomCategoryPrivacy(categoryId: string, isPrivate: boolean, now?: number): boolean
   moveCustomCategory(categoryId: string, destinationId: string, now?: number): boolean
-  deleteCustomCategory(categoryId: string): boolean
+  deleteCustomCategory(categoryId: string, memberIds?: string[]): boolean
   listCategoryDisplayStrategies(): LibraryCategoryDisplayStrategy[]
   getCategoryDisplayStrategy(categoryId: LibraryCategoryDisplayCategoryId): LibraryCategoryDisplayStrategy | undefined
   replaceCategoryDisplayStrategies(strategies: LibraryCategoryDisplayStrategy[]): void
@@ -422,20 +422,24 @@ export class InMemoryLibraryStore implements LibraryStore {
     return true
   }
 
-  deleteCustomCategory(categoryId: string): boolean {
+  deleteCustomCategory(categoryId: string, memberIds?: string[]): boolean {
     if (!this.customCategories.has(categoryId)) {
       return false
     }
     this.customCategories.delete(categoryId)
     this.categoryDisplayStrategies.delete(categoryId)
-    this.comics.forEach((comic: Comic, comicId: ComicId) => {
-      const nextCategoryIds = normalizeCategoryIds(comic.categoryIds).filter((item: string): boolean => {
-        return item !== categoryId
-      })
-      if (normalizeCategoryIds(comic.categoryIds).length !== nextCategoryIds.length) {
+    const removeMembership = (comic: Comic, comicId: ComicId): void => {
+      const owned = normalizeCategoryIds(comic.categoryIds)
+      if (owned.includes(categoryId)) {
+        const nextCategoryIds = owned.filter((item: string): boolean => item !== categoryId)
         this.comics.set(comicId, withComicCategoryIds(comic, nextCategoryIds))
       }
-    })
+    }
+    if (memberIds === undefined) this.comics.forEach(removeMembership)
+    else for (const id of memberIds) {
+      const comic = this.comics.get(id)
+      if (comic !== undefined) removeMembership(comic, id)
+    }
     return true
   }
 
