@@ -1,5 +1,7 @@
 {
   "string": [
+    { "name": "startup_preparing_local_data", "value": "Preparing local data" },
+    { "name": "startup_local_data_failed", "value": "Couldn’t open local data. Reopen Koma to try again." },
     {"name": "source_catalog_search_placeholder", "value": "Search sources"},
     {"name": "source_catalog_search_close", "value": "Close search"},
     {"name": "source_catalog_search_no_matches", "value": "No matching sources"},

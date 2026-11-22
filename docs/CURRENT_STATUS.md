@@ -12610,6 +12610,18 @@
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
     {
+      "id": "startup-migration-dialog-197-20261122",
+      "at": "2026-11-22T20:29:26+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "title": "197 首次迁移显示加载弹窗",
+      "detail": "同一份 v1.5.6 恢复后的旧文件重跑真实首迁。启动等待超过 2 秒显示「正在准备本地数据」，约 19 秒完成书架和阅读迁移，弹窗自动关闭后显示原书架和续读卡。第二次冷启动直接进书架，无弹窗和重复迁移。实库保留 1,064 部收藏、21 个分类、1,064 条归类与 1,766 个续读位置，分类引用全部有效。197 保留新包和数据，华为云与 WebDAV 关闭，已恢复息屏并释租。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/local-data-governance/device197__ALN-AL80/not-applicable/portrait-1260x2720/startup-migration-dialog/verification.json",
+        ".hvigor/outputs/local-data-governance/device197__ALN-AL80/not-applicable/portrait-1260x2720/startup-migration-dialog/startup-loading.png"
+      ]
+    },
+    {
       "id": "published-v156-large-upgrade-197-20261122",
       "at": "2026-11-22T20:16:47+08:00",
       "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",

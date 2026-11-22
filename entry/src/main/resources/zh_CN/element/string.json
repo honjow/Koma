@@ -1,5 +1,7 @@
 {
   "string": [
+    { "name": "startup_preparing_local_data", "value": "正在准备本地数据" },
+    { "name": "startup_local_data_failed", "value": "无法打开本地数据，请重新打开 Koma" },
     {"name": "source_catalog_search_placeholder", "value": "搜索书源"},
     {"name": "source_catalog_search_close", "value": "关闭搜索"},
     {"name": "source_catalog_search_no_matches", "value": "没有匹配的书源"},

@@ -62,6 +62,8 @@ import { loadSourceSubscriptionPreferences } from '../sourceRuntime/SourceSubscr
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
 const ENTRY_PAGE: string = 'pages/Index'
+const STARTUP_WAIT_PAGE: string = 'pages/StartupWaitPage'
+const STARTUP_WAIT_MS: number = 2000
 const FALLBACK_TOP_AVOID: number = 40
 const FALLBACK_BOTTOM_AVOID: number = 0
 
@@ -71,6 +73,7 @@ export default class EntryAbility extends UIAbility {
   private keyboardHeightCallback: ((height: number) => void) | undefined = undefined
   private startupReady: boolean = false
   private startupPromise: Promise<void> = Promise.resolve()
+  private startupWindowStage?: window.WindowStage
   private syncForegroundGeneration: number = 0
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     DiagnosticLogger.configure(false)
@@ -226,40 +229,79 @@ export default class EntryAbility extends UIAbility {
       DiagnosticLogger.error('app', 'configure_window_failed', '[EntryAbility] step=configure_window_failed code=window_configure_failed')
     }
 
-    void this.startupPromise.then(async (): Promise<void> => {
-      if (!this.startupReady) return
-      try {
-        await prepareKomaContentStorage(this.context)
-        await waitKomaContentStorageReady()
-        // The public queue can only be resolved after the owning content root.
-        for (const base of new Set([this.context.filesDir, komaContentStorageBase(this.context)])) {
-          try {
-            new OfflineDownloadQueueStore(base, this.context.filesDir).loadPreferences()
-          } catch (error) {
-            DiagnosticLogger.exception('persistence', 'offline_queue_migration_failed', error as Error)
-          }
-        }
-        await new BackupService(this.context).ensureDefaultAutomaticBackupDirectory(komaContentStorageUri())
-      } catch (error) {
-        DiagnosticLogger.exception('backup', 'automatic_default_directory_failed', error as Error)
+    this.startupWindowStage = windowStage
+    void this.loadEntryContent(windowStage)
+  }
+
+  private async loadEntryContent(windowStage: window.WindowStage): Promise<void> {
+    // Keep the owning pages behind startup recovery and migration. Only slow
+    // starts replace the system splash with an app-owned loading dialog.
+    const storage = new LocalStorage()
+    storage.setOrCreate('startupFailed', false)
+    let waitPage: Promise<void> | undefined
+    const timer = setTimeout((): void => {
+      if (this.startupWindowStage === windowStage) waitPage = this.loadStartupWaitPage(windowStage, storage)
+    }, STARTUP_WAIT_MS)
+    try {
+      await this.startupPromise
+      if (this.startupReady) await this.prepareEntryContentStorage()
+    } finally {
+      clearTimeout(timer)
+    }
+    // loadContent replaces the current UI. Serialize the two loads even
+    // when startup completes while the waiting page is still opening.
+    await waitPage
+    if (this.startupWindowStage !== windowStage) return
+    if (!this.startupReady) {
+      storage.set('startupFailed', true)
+      if (waitPage === undefined) await this.loadStartupWaitPage(windowStage, storage)
+      return
+    }
+    windowStage.loadContent(ENTRY_PAGE, (err) => {
+      if (this.startupWindowStage !== windowStage) return
+      if (err.code) {
+        DiagnosticLogger.error('app', 'load_content_failed', '[EntryAbility] step=load_content_failed code=load_content_failed')
+        return
       }
-      if (!this.startupReady) return
-      windowStage.loadContent(ENTRY_PAGE, (err) => {
-        if (err.code) {
-          DiagnosticLogger.error('app', 'load_content_failed', '[EntryAbility] step=load_content_failed code=load_content_failed')
-          return
-        }
-        bindReaderThemeWindow(this.context)
-        this.applySavedThemeMode()
-        this.configureAvoidAreas(windowStage)
-        this.bindLayoutWindow(windowStage.getMainWindowSync())
-        if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
-          setTimeout(() => {
-            this.syncRemoteProgressInBackground()
-          }, 250)
-        }
-      })
+      bindReaderThemeWindow(this.context)
+      this.applySavedThemeMode()
+      this.configureAvoidAreas(windowStage)
+      this.bindLayoutWindow(windowStage.getMainWindowSync())
+      if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+        setTimeout(() => {
+          this.syncRemoteProgressInBackground()
+        }, 250)
+      }
     })
+  }
+
+  private loadStartupWaitPage(windowStage: window.WindowStage, storage: LocalStorage): Promise<void> {
+    return new Promise<void>((resolve): void => {
+      windowStage.loadContent(STARTUP_WAIT_PAGE, storage, (err) => {
+        if (err.code) DiagnosticLogger.error('app', 'load_startup_wait_failed', 'code=' + err.code)
+        resolve()
+      })
+    }).catch((error: Error): void => {
+      DiagnosticLogger.exception('app', 'load_startup_wait_failed', error)
+    })
+  }
+
+  private async prepareEntryContentStorage(): Promise<void> {
+    try {
+      await prepareKomaContentStorage(this.context)
+      await waitKomaContentStorageReady()
+      // The public queue can only be resolved after the owning content root.
+      for (const base of new Set([this.context.filesDir, komaContentStorageBase(this.context)])) {
+        try {
+          new OfflineDownloadQueueStore(base, this.context.filesDir).loadPreferences()
+        } catch (error) {
+          DiagnosticLogger.exception('persistence', 'offline_queue_migration_failed', error as Error)
+        }
+      }
+      await new BackupService(this.context).ensureDefaultAutomaticBackupDirectory(komaContentStorageUri())
+    } catch (error) {
+      DiagnosticLogger.exception('backup', 'automatic_default_directory_failed', error as Error)
+    }
   }
 
   onConfigurationUpdate(config: Configuration): void {
@@ -276,6 +318,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageDestroy(): void {
+    this.startupWindowStage = undefined
     connectLibraryPrivacyState().detach()
     this.unbindLayoutWindow()
     unbindReaderThemeWindow()
