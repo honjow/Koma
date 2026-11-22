@@ -181,6 +181,10 @@ function safeReadingWorkUrl(value: string): boolean {
     safeSharedWorkUrl(value, 4096)
 }
 
+export function syncReadingWorkAddress(value: string | undefined): string | undefined {
+  return value !== undefined && safeReadingWorkUrl(value) ? value : undefined
+}
+
 export function syncCoverAddress(value: string | undefined): string | undefined {
   if (value === undefined || value.length > 2048 || !safeReadingWorkUrl(value)) return undefined
   // The source may be hosted on the user's LAN; preserve its actual address.

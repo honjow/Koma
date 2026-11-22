@@ -332,6 +332,12 @@ export function writeLiveReadingEdits(filesDir: string, scope: ReaderSyncWorkSco
   storage.writeSyncEdits(scope, reading)
 }
 
+export function publishLiveCloudReading(filesDir: string, scope: ReaderSyncWorkScope[]): void {
+  const storage = liveReaderStorage.get(filesDir)
+  if (storage === undefined) throw new Error('reader_database_unavailable')
+  appReaderSessionStore(filesDir).applyCloudReading(storage, scope)
+}
+
 export function readLiveReaderSnapshot(filesDir: string): string | undefined {
   const storage = liveReaderStorage.get(filesDir)
   if (storage !== undefined) return serializeReaderSessionForDevice(storage.read())
@@ -1199,6 +1205,27 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.applyCommittedReadingRows(scope.map((work: ReaderSyncWorkScope): string => work.comicId), snapshot)
     this.syncPositions = snapshot.syncPositions ?? []
     this.syncActions = snapshot.syncActions ?? []
+  }
+
+  applyCloudReading(storage: ReaderRdbStorage, scope: ReaderSyncWorkScope[]): void {
+    const before: ReaderSessionDocumentSnapshot = { progress: [], chapters: [], sourceHistory: [] }
+    for (const item of scope) {
+      const progress = this.getProgress(item.comicId)
+      const history = this.getSourceHistory(item.comicId)
+      if (progress !== undefined) before.progress.push(progress)
+      if (history !== undefined) before.sourceHistory.push(history)
+      const chapterIds = new Set(item.chapterIds)
+      if (progress !== undefined) chapterIds.add(progress.chapterId)
+      for (const chapterId of chapterIds) {
+        const chapter = this.chapterStates.get(chapterStateKey(item.comicId, chapterId))
+        if (chapter !== undefined) before.chapters.push(chapter)
+      }
+    }
+    const received = storage.applyCloudReading(scope, before)
+    for (const item of scope) {
+      for (const chapterId of item.chapterIds) this.chapterStates.delete(chapterStateKey(item.comicId, chapterId))
+    }
+    this.applyCommittedReadingRows(scope.map((work: ReaderSyncWorkScope): string => work.comicId), received)
   }
 
   private applyCommittedReadingRows(comicIds: string[], snapshot: ReaderSessionDocumentSnapshot): void {

@@ -39,6 +39,7 @@ export class LocalDataRows<T> {
   private readonly orderBy: string
   private readonly upsert: string
   private readonly insertPrefix: string
+  private readonly orderedInsertPrefix: string
   private readonly valueSlots: string
   private readonly conflictClause: string
   private readonly columnCount: number
@@ -62,6 +63,7 @@ export class LocalDataRows<T> {
     const assignments = fields.map((field: string): string => field + '=excluded.' + field).join(', ')
     const changed = fields.map((field: string): string => field + ' IS NOT excluded.' + field).join(' OR ')
     this.insertPrefix = 'INSERT INTO ' + table + ' (' + columns.join(', ') + ') VALUES '
+    this.orderedInsertPrefix = 'INSERT INTO ' + table + ' (rowid, ' + columns.join(', ') + ') VALUES '
     this.valueSlots = '(' + columns.map((): string => '?').join(', ') + ')'
     this.conflictClause = ' ON CONFLICT(' + keys.join(', ') + ') ' +
       (fields.length === 0 ? 'DO NOTHING' : 'DO UPDATE SET ' + assignments + ' WHERE ' + changed)
@@ -83,13 +85,16 @@ export class LocalDataRows<T> {
     store.executeSync(this.deleteKey, key)
   }
 
-  async importRows(transaction: relationalStore.Transaction, records: T[]): Promise<void> {
-    const maxRows = Math.floor(900 / this.columnCount)
+  async importRows(transaction: relationalStore.Transaction, records: T[], rowIds?: number[]): Promise<void> {
+    const maxRows = Math.floor(900 / (this.columnCount + (rowIds === undefined ? 0 : 1)))
     for (let start = 0; start < records.length; start += maxRows) {
       const batch = records.slice(start, start + maxRows)
       const args: LocalColumnValue[] = []
-      for (const record of batch) args.push(...this.encode(record))
-      await transaction.execute(this.batchStatement(batch.length), args)
+      for (let index = 0; index < batch.length; index++) {
+        if (rowIds !== undefined) args.push(rowIds[start + index])
+        args.push(...this.encode(batch[index]))
+      }
+      await transaction.execute(this.batchStatement(batch.length, rowIds !== undefined), args)
     }
   }
 
@@ -122,9 +127,10 @@ export class LocalDataRows<T> {
     for (const key of previous.values()) store.executeSync(this.deleteKey, key)
   }
 
-  private batchStatement(count: number): string {
+  private batchStatement(count: number, ordered: boolean = false): string {
     const inserts: string[] = []
-    for (let index = 0; index < count; index++) inserts.push(this.valueSlots)
-    return this.insertPrefix + inserts.join(', ') + this.conflictClause
+    const slots = ordered ? '(?, ' + this.valueSlots.slice(1) : this.valueSlots
+    for (let index = 0; index < count; index++) inserts.push(slots)
+    return (ordered ? this.orderedInsertPrefix : this.insertPrefix) + inserts.join(', ') + this.conflictClause
   }
 }

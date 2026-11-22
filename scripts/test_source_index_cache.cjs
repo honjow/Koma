@@ -24,10 +24,15 @@ function harness(store=new Map(), installedOrigin, cacheFiles=new Map(), rdb=cre
  const activitySource=fs.readFileSync(sourcePath.replace('sourceRuntime/SourceIndexService.ets','model/BackupRestoreActivity.ets'),'utf8')
  const signalsSource=fs.readFileSync(sourcePath.replace('sourceRuntime/SourceIndexService.ets','deviceSync/DeviceSyncSignals.ets'),'utf8')
  const sqliteSource=[
+  'model/LocalDataRows.ets','model/ReaderDisplaySettings.ets','model/ReaderPreferenceColumns.ets','model/ShelfSharedRows.ets',
   'model/UserDataDatabase.ets','model/UserKeyedRecords.ets','sourceRuntime/SourceSubscriptionStorage.ets',
  ].map(file=>fs.readFileSync(sourcePath.replace('sourceRuntime/SourceIndexService.ets',file),'utf8')).join('\n')
- const source=(sqliteSource+'\n'+activitySource+'\n'+signalsSource+'\n'+workerSource+'\n'+serviceSource).replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/^export \{[^\n]+\} from '[^']+'\n/gm,'').replace(/@Concurrent/g,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
- const globals={exports,Map,Date,JSON,Array,Number,Promise,console,ArrayBuffer,Uint8Array,
+ const data=fs.readFileSync(sourcePath.replace('sourceRuntime/SourceIndexService.ets','deviceSync/DeviceSyncData.ets'),'utf8')
+ const dataTree=ts.createSourceFile('DeviceSyncData.ts',data,ts.ScriptTarget.Latest,true)
+ const publicFields=dataTree.statements.filter(node=>ts.isFunctionDeclaration(node) &&
+  ['checkText','syncCatalogAddress','syncPublicLabel'].includes(node.name?.text)).map(node=>node.getText(dataTree)).join('\n')
+ const source=(publicFields+'\n'+sqliteSource+'\n'+activitySource+'\n'+signalsSource+'\n'+workerSource+'\n'+serviceSource).replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/^export \{[^\n]+\} from '[^']+'\n/gm,'').replace(/@Concurrent/g,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
+ const globals={exports,Map,Date,JSON,Array,Number,Promise,console,ArrayBuffer,Uint8Array,setTimeout,clearTimeout,
   relationalStore:rdb.relationalStore,
   preferences:{getPreferences:async()=>pref},
   fs:{access:async p=>cacheFiles.has(p),readText:async p=>{if(failRead)throw Error('read');return cacheFiles.get(p)}},
@@ -48,7 +53,21 @@ function harness(store=new Map(), installedOrigin, cacheFiles=new Map(), rdb=cre
    assert.equal(isCurrent(),true);installs.push({bytes,id,origin,preserveSessionOnUpdate});return {ok:true,id}
   },
   http:{RequestMethod:{GET:'GET'},HttpDataType:{STRING:'STRING',ARRAY_BUFFER:'ARRAY_BUFFER'},createHttp(){
-   return {request(url){requestedUrls.push(url);return new Promise(resolve=>requests.push(resolve))},destroy(){}}
+   const events=new Map()
+   return {
+    request(url){requestedUrls.push(url);return new Promise(resolve=>requests.push(resolve))},
+    on(name,listener){events.set(name,listener)},
+    requestInStream(url){
+     requestedUrls.push(url)
+     return new Promise(resolve=>requests.push(({responseCode,result})=>{
+      resolve(responseCode)
+      if(responseCode!==200)return
+      events.get('dataReceive')?.(result)
+      events.get('dataEnd')?.()
+     }))
+    },
+    destroy(){events.clear()},
+   }
   }},
  }
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,globals)
@@ -68,6 +87,25 @@ test('adding and restoring more than twelve subscriptions keeps every saved addr
  await service.applyDeviceSyncSnapshot(snapshot)
  const reloaded=await h.make().loadSavedRepositories()
  assert.deepEqual([...reloaded.map(repo=>repo.url)].sort(),[...addresses].sort())
+})
+
+test('deleting the active cloud subscription clears its fallback address and retires pending results',async()=>{
+ const h=harness(),service=h.make(),active='https://alpha.example/index.json',other='https://beta.example/index.json'
+ try{
+  await service.saveRepository(other,'Keep')
+  await service.saveRepository(active,'Remove')
+  assert.equal(await service.loadSavedUrl(),active)
+  const pending=service.fetchIndex(active),reply=h.requests.shift()
+  assert.equal(typeof reply,'function')
+  const db=await h.rdb.relationalStore.getRdbStore({filesDir:'data'},{name:'Koma.db'})
+  await db.execute('DELETE FROM source_subscriptions WHERE url=?',[active])
+  await service.applyCloudRemovals(new Set([active]))
+  assert.equal(await service.loadSavedUrl(),other)
+  assert.deepEqual([...await service.loadSavedRepositories()].map(repo=>repo.url),[other])
+  reply({responseCode:200,result:JSON.stringify([item('retired')])})
+  assert.equal((await pending).ok,false)
+  assert.equal(await service.loadCachedIndex(active),undefined)
+ }finally{h.rdb.close()}
 })
 
 test('backup restore retires late subscription results even when the same URL remains enabled',async()=>{

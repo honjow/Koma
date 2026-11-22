@@ -14,7 +14,7 @@ import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
-import { loadSourceSubscriptionPreferences, saveSourceSubscriptionPreferences, SOURCE_INDEX_PREFERENCES,
+import { applyCloudSubscriptionRemovals, loadSourceSubscriptionPreferences, saveSourceSubscriptionPreferences, SOURCE_INDEX_PREFERENCES,
   SourceSubscriptionPreferences } from './SourceSubscriptionStorage'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
@@ -410,6 +410,14 @@ export class SourceIndexService {
         }
       })
       snapshot.repositories.forEach((repo: SourceIndexRepository): void => this.rememberSubscriptionState(repo))
+    })
+  }
+
+  async applyCloudRemovals(addresses: Set<string>): Promise<void> {
+    if (addresses.size === 0) return
+    await this.ordered(async (): Promise<void> => {
+      const removed = await applyCloudSubscriptionRemovals(this.context, addresses)
+      removed.forEach((url: string): void => { this.retireSubscription(url) })
     })
   }
 

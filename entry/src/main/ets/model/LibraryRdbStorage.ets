@@ -4,8 +4,9 @@ import type { PersistedCategoryDisplayStrategy, PersistedChapter, PersistedComic
 import type { LibrarySmartCategory } from './LibrarySmartCategory'
 import type { SyncLocalShelfMove } from '../deviceSync/DeviceSyncSignals'
 import type { MihonImportRecord } from './MihonBackupReader'
-import { shelfChapters, shelfPages, shelfWorks, ShelfChapterRow, ShelfPageRow, ShelfWorkRow } from './LibraryCoreRows'
+import { shelfChapters, shelfPages, shelfWorks, shelfWorkDetails, ShelfChapterRow, ShelfPageRow, ShelfWorkRow } from './LibraryCoreRows'
 import { appendMetadataItem, appendPageContent, metadataItems, metadataRow, shelfMemberships, shelfMetadataLists,
+  ShelfSharedChapter, shelfSharedChapters, shelfSharedChaptersAll, shelfSharedChaptersLocal, shelfMembershipsAll, shelfMembershipsLocal,
   shelfPageBalloons, shelfPageKey, shelfPageLines, ShelfMembershipRow, ShelfPageBalloon, ShelfPageLine, ShelfWorkListValue, ShelfWorkMetadata } from './LibraryRelations'
 import { orderShelfRows, readShelfMoves, readSmartCategories, shelfCategories, shelfCollectionRow, shelfCollections,
   shelfDisplayStrategies, shelfMoveCategories, shelfMoveCategoryRows, shelfMoves, shelfSmartCategories, shelfSmartFilters,
@@ -14,6 +15,7 @@ import { readMihonImports, ShelfMihonImports } from './LibraryMihonRows'
 import { collectLocalRows, textColumn } from './LocalDataRows'
 import { hasUserDataMigration } from './UserDataDatabase'
 import { writeUserRecords } from './UserKeyedRecords'
+import { sharedShelfIdentity, sharedShelfWork, ShelfSharedWork, shelfSharedWorks } from './ShelfSharedRows'
 
 const OLD_MIGRATION = 'library-from-json-v1'
 const MIGRATION = 'library-relational-v1'
@@ -131,10 +133,14 @@ function chapterKey(comicId: string, chapterId: string, occurrence: number): str
 
 class ShelfWorkRows {
   private readonly works: ShelfWorkRow[] = []
+  private readonly sharedWorks: ShelfSharedWork[] = []
   private readonly chapters: ShelfChapterRow[] = []
   private readonly pages: ShelfPageRow[] = []
   private readonly members: ShelfMembershipRow[] = []
+  private readonly localMembers: ShelfMembershipRow[] = []
   private readonly metadataList: ShelfWorkListValue[] = []
+  private readonly sharedChapters: ShelfSharedChapter[] = []
+  private readonly localSharedChapters: ShelfSharedChapter[] = []
   private readonly lines: ShelfPageLine[] = []
   private readonly balloons: ShelfPageBalloon[] = []
 
@@ -144,9 +150,16 @@ class ShelfWorkRows {
       if (ids.has(work.id)) throw new Error('library_duplicate_work')
       ids.add(work.id)
       this.works.push({ work, order: existingOrder ?? order, hasCategories: work.categoryIds !== undefined })
+      const shared = sharedShelfWork(work)
+      if (shared !== undefined) this.sharedWorks.push(shared)
       const metadata = metadataRow(work)
       metadataItems(metadata, this.metadataList)
-      this.members.push(...membershipRows(work.id, work.categoryIds))
+      const catalog = shared?.hasSharedChapters === 1 ? this.sharedChapters : this.localSharedChapters
+      metadata.sourceMetadata?.sharedChapterIds?.forEach((chapterId: string, chapterOrder: number): void => {
+        catalog.push({ comicId: work.id, order: chapterOrder, chapterId })
+      })
+      const members = shared === undefined ? this.localMembers : this.members
+      members.push(...membershipRows(work.id, work.categoryIds))
       const chapters = new Map<string, number>()
       work.chapters.forEach((chapter: PersistedChapter, index: number): void => {
         // Older snapshots may repeat a chapter ID. The occurrence within
@@ -165,9 +178,13 @@ class ShelfWorkRows {
   }
 
   async importRows(transaction: relationalStore.Transaction): Promise<void> {
-    await shelfWorks.importRows(transaction, this.works)
+    await shelfWorkDetails.importRows(transaction, this.works)
+    await shelfSharedWorks.importRows(transaction, this.sharedWorks)
     await shelfMetadataLists.importRows(transaction, this.metadataList)
+    await shelfSharedChapters.importRows(transaction, this.sharedChapters)
+    await shelfSharedChaptersLocal.importRows(transaction, this.localSharedChapters)
     await shelfMemberships.importRows(transaction, this.members)
+    await shelfMembershipsLocal.importRows(transaction, this.localMembers)
     await shelfChapters.importRows(transaction, this.chapters)
     await shelfPages.importRows(transaction, this.pages)
     await shelfPageLines.importRows(transaction, this.lines)
@@ -176,9 +193,13 @@ class ShelfWorkRows {
 
   replace(store: relationalStore.RdbStore, comicId?: string, replaceCatalog: boolean = true): void {
     const scope = comicId === undefined ? undefined : 'comic_id'
-    shelfWorks.replace(store, this.works, scope, comicId)
+    shelfWorkDetails.replace(store, this.works, scope, comicId)
+    shelfSharedWorks.replace(store, this.sharedWorks, scope, comicId)
     shelfMetadataLists.replace(store, this.metadataList, scope, comicId)
+    shelfSharedChapters.replace(store, this.sharedChapters, scope, comicId)
+    shelfSharedChaptersLocal.replace(store, this.localSharedChapters, scope, comicId)
     shelfMemberships.replace(store, this.members, scope, comicId)
+    shelfMembershipsLocal.replace(store, this.localMembers, scope, comicId)
     if (!replaceCatalog) return
     shelfChapters.replace(store, this.chapters, scope, comicId)
     shelfPages.replace(store, this.pages, scope, comicId)
@@ -216,7 +237,7 @@ function readWorks(store: relationalStore.RdbStore, comicId?: string, catalog: b
   const args = comicId === undefined ? undefined : [comicId]
   const chapters = catalog ? readWorkCatalogs(store, where, args) : undefined
   const memberships = new Map<string, string[]>()
-  for (const row of shelfMemberships.read(store, where, args)) addToGroup(memberships, row.comicId, row.categoryId)
+  for (const row of shelfMembershipsAll.read(store, where, args)) addToGroup(memberships, row.comicId, row.categoryId)
   const workRows = shelfWorks.read(store, where, args)
   const details = new Map<string, ShelfWorkMetadata>()
   for (const row of workRows) details.set(row.work.id, metadataRow(row.work))
@@ -224,10 +245,20 @@ function readWorks(store: relationalStore.RdbStore, comicId?: string, catalog: b
     const owner = details.get(item.comicId)
     if (owner !== undefined) appendMetadataItem(owner, item)
   }
+  for (const item of shelfSharedChaptersAll.read(store, where, args)) {
+    details.get(item.comicId)?.sourceMetadata?.sharedChapterIds?.push(item.chapterId)
+  }
   return workRows.map((row: ShelfWorkRow): PersistedComic => {
     const work = row.work
+    // The shared row may omit the public work URL. Cold restore and cloud
+    // publication must resolve the same source path from the source work ID.
+    if (!work.sourcePath && work.sourceKind === 'private_library' && work.remoteServerId === undefined &&
+      work.sourceRuntimeId !== undefined && work.remoteResourceId !== undefined &&
+      sharedShelfIdentity(work.id, work.sourceRuntimeId, work.remoteResourceId)) {
+      work.sourcePath = work.remoteResourceId
+    }
     work.chapters = chapters?.get(work.id) ?? []
-    work.categoryIds = row.hasCategories ? memberships.get(work.id) ?? [] : undefined
+    work.categoryIds = memberships.get(work.id) ?? (row.hasCategories ? [] : undefined)
     return work
   })
 }
@@ -313,13 +344,67 @@ export class LibraryRdbStorage {
     return readWorks(this.store, comicId, catalog)[0]
   }
 
+  cloudShelfEdits(comicIds: string[], categories: boolean, smart: boolean,
+    removedCategoryIds: string[] = []): LibraryShelfSyncEdits {
+    const works: PersistedComic[] = []
+    const affected = new Set(comicIds)
+    writeUserRecords(this.store, (): void => {
+      // A download can populate an empty library. Keep its collection flags
+      // with the affected rows so the same data is found on cold startup.
+      const header = shelfCollections.read(this.store)[0]
+      if (header === undefined || (categories && !header.categories) || (smart && !header.smart)) {
+        const updated = header ?? shelfCollectionRow({ schemaVersion: 1, comics: [] })
+        updated.categories ||= categories
+        updated.smart ||= smart
+        shelfCollections.put(this.store, updated)
+      }
+      // Match the ordinary category deletion. ArkData can deliver the
+      // category before its memberships, including device-only memberships.
+      for (const id of removedCategoryIds) {
+        const category = shelfCategories.read(this.store, 'category_id = ?', [id])
+        if (category.length !== 0) continue
+        for (const table of ['shelf_memberships', 'shelf_memberships_local']) {
+          const rows = this.store.querySqlSync('SELECT DISTINCT comic_id FROM ' + table + ' WHERE category_id = ?', [id])
+          try {
+            while (rows.goToNextRow()) affected.add(rows.getString(0))
+          } finally { rows.close() }
+          this.store.executeSync('DELETE FROM ' + table + ' WHERE category_id = ?', [id])
+        }
+        this.store.executeSync('DELETE FROM shelf_category_display_strategies WHERE category_id = ?', [id])
+      }
+      for (const comicId of affected) {
+        // An incoming favorite only has shared business fields. Device
+        // metadata and local chapter caches stay under their existing owner.
+        this.store.executeSync('INSERT OR IGNORE INTO shelf_work_details ' +
+          '(comic_id, list_order, has_categories, source_kind, sort_title, preferred_direction, chapter_count, page_count, ' +
+          'created_at, updated_at, last_imported_at, has_local_metadata, has_local_authors, has_source_metadata, has_source_tags, ' +
+          'has_excluded_chapters, has_shared_chapters, shared_scope) SELECT comic_id, ' +
+          '(SELECT COALESCE(MAX(list_order), -1) + 1 FROM shelf_work_details), 1, \'private_library\', COALESCE(title, \'\'), \'left_to_right\', ' +
+          '0, 0, ?, ?, ?, 0, 0, 1, 0, 0, 0, 1 FROM shelf_works WHERE comic_id = ?',
+          [Date.now(), Date.now(), Date.now(), comicId])
+        const work = this.readWork(comicId, false)
+        if (work !== undefined) {
+          if (!work.sortTitle) work.sortTitle = work.title
+          works.push(work)
+        }
+      }
+    })
+    comicIds = Array.from(affected)
+    const after: LibraryShelfSyncImage = { present: true, works,
+      categories: categories ? shelfCategories.read(this.store).map(row => row.entry) : undefined,
+      displayStrategies: removedCategoryIds.length === 0 ? undefined : shelfDisplayStrategies.read(this.store).map(row => row.entry),
+      smartCategories: smart ? readSmartCategories(this.store) : undefined }
+    this.writeRevision += 1
+    return { comicIds, unchangedCatalogs: comicIds, before: { present: true, works: [] }, after }
+  }
+
   /** Reading sync joins only its work identifiers and the saved chapter's label.
    * Opening the reader or recording progress must never reconstruct the shelf. */
   readReadingMetadata(comicId?: string, chapterId?: string): LibraryReadingMetadata[] {
     const scope = comicId === undefined
-      ? '(SELECT comic_id FROM reader_current_positions UNION SELECT comic_id FROM reader_chapter_states)'
+      ? '(SELECT comic_id FROM reader_current_positions_all UNION SELECT comic_id FROM reader_chapter_states_all)'
       : '(SELECT ? AS comic_id)'
-    const chapter = chapterId === undefined ? 'p.chapter_id' : '?'
+    const chapter = chapterId === undefined ? 'COALESCE(p.chapter_id, local.chapter_id)' : '?'
     const args: string[] = []
     if (chapterId !== undefined) args.push(chapterId)
     if (comicId !== undefined) args.push(comicId)
@@ -330,8 +415,9 @@ export class LibraryRdbStorage {
       'CASE WHEN w.has_source_metadata != 0 THEN w.source_name END, w.source_path, ' +
       'COALESCE(w.source_cover_uri, CASE WHEN w.custom_cover_uri IS NULL THEN w.cover_uri END), ' +
       chapter + ' AS saved_chapter ' +
-      'FROM ' + scope + ' r CROSS JOIN shelf_works w ON w.comic_id = r.comic_id ' +
+      'FROM ' + scope + ' r CROSS JOIN shelf_works_all w ON w.comic_id = r.comic_id ' +
       'LEFT JOIN reader_current_positions p ON p.comic_id = w.comic_id ' +
+      'LEFT JOIN reader_current_positions_local local ON local.comic_id = w.comic_id ' +
       'WHERE w.source_runtime_id IS NOT NULL AND w.remote_resource_id IS NOT NULL) work ORDER BY work.comic_id', args)
     return collectLocalRows(rows, (row: relationalStore.ResultSet): LibraryReadingMetadata => ({
       comicId: row.getString(0), source: row.getString(1), work: row.getString(2), title: textColumn(row, 3),
@@ -356,7 +442,7 @@ export class LibraryRdbStorage {
   }
 
   private existingWorkOrder(comicId: string): number {
-    const result = this.store.querySqlSync('SELECT list_order FROM shelf_works WHERE comic_id = ?', [comicId])
+    const result = this.store.querySqlSync('SELECT list_order FROM shelf_work_details WHERE comic_id = ?', [comicId])
     try {
       if (!result.goToNextRow()) throw new Error('library_work_missing')
       return result.getLong(0)
@@ -377,16 +463,20 @@ export class LibraryRdbStorage {
   saveMemberships(edits: LibraryMembershipEdit[]): void {
     writeUserRecords(this.store, (): void => {
       for (const edit of edits) {
-        const result = this.store.querySqlSync('SELECT 1 FROM shelf_works WHERE comic_id = ?', [edit.comicId])
+        const result = this.store.querySqlSync('SELECT s.comic_id FROM shelf_work_details d LEFT JOIN shelf_works s ' +
+          'ON s.comic_id = d.comic_id WHERE d.comic_id = ?', [edit.comicId])
+        let shared: boolean
         try {
           if (!result.goToNextRow()) throw new Error('library_work_missing')
+          shared = !result.isColumnNull(0)
         } finally {
           result.close()
         }
         // The category editor owns these columns and the selected works' memberships.
-        this.store.executeSync('UPDATE shelf_works SET has_categories = ?, updated_at = ? WHERE comic_id = ?',
+        this.store.executeSync('UPDATE shelf_work_details SET has_categories = ?, updated_at = ? WHERE comic_id = ?',
           [edit.categoryIds === undefined ? 0 : 1, edit.updatedAt, edit.comicId])
-        shelfMemberships.replace(this.store, membershipRows(edit.comicId, edit.categoryIds), 'comic_id', edit.comicId)
+        const table = shared ? shelfMemberships : shelfMembershipsLocal
+        table.replace(this.store, membershipRows(edit.comicId, edit.categoryIds), 'comic_id', edit.comicId)
       }
     })
     this.writeRevision += 1
@@ -417,7 +507,7 @@ export class LibraryRdbStorage {
       const cases = ids.map((): string => 'WHEN ? THEN ?').join(' ')
       const when: (string | number)[] = []
       ids.forEach((id: string, offset: number): void => { when.push(id, start + offset) })
-      this.store.executeSync('UPDATE shelf_works SET list_order = CASE comic_id ' + cases +
+      this.store.executeSync('UPDATE shelf_work_details SET list_order = CASE comic_id ' + cases +
         ' END WHERE comic_id IN (' + ids.map((): string => '?').join(',') +
         ') AND list_order IS NOT CASE comic_id ' + cases + ' END', [...when, ...ids, ...when])
     }

@@ -21,8 +21,9 @@ arkdata.relationalStore = rdb.relationalStore;
 const keyed = evaluate(model+'UserKeyedRecords.ets',{});
 const localRows = evaluate(model+'LocalDataRows.ets',{});
 const readerColumns = evaluate(model+'ReaderPreferenceColumns.ets',{'./LocalDataRows':localRows,'./ReaderDisplaySettings':display});
+const sharedShelfRows = evaluate(model+'ShelfSharedRows.ets',{'./LocalDataRows':localRows,'../deviceSync/DeviceSyncData':{}});
 const database = evaluate(model+'UserDataDatabase.ets',{'@kit.ArkData':arkdata,'@kit.CoreFileKit':{fileIo:fs},
- './ReaderPreferenceColumns':readerColumns});
+ './ReaderPreferenceColumns':readerColumns,'./ShelfSharedRows':sharedShelfRows});
 const updateReports = evaluate(model+'LibraryUpdateReportRows.ets',{'./LocalDataRows':localRows});
 const preferenceRows = evaluate(model+'PreferenceColumnRows.ets',{'./UserDataDatabase':database,'./UserKeyedRecords':keyed,
  './LocalDataRows':localRows,'./LibraryUpdateReportRows':updateReports,'./ReaderPreferenceColumns':readerColumns});

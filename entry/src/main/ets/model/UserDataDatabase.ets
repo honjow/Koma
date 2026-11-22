@@ -1,28 +1,45 @@
 import { common } from '@kit.AbilityKit'
 import { relationalStore } from '@kit.ArkData'
-import { CREATE_READER_PREFERENCES, copyReaderPreferenceColumns } from './ReaderPreferenceColumns'
+import { CREATE_READER_PREFERENCES, CREATE_READER_SHARED_PREFERENCES, copyReaderPreferenceColumns,
+  migrateSharedReaderPreferences } from './ReaderPreferenceColumns'
+import { movePublicReadingAddresses, splitShelfScope } from './ShelfSharedRows'
 
 const DATABASE_NAME = 'Koma.db'
 const PREVIOUS_DATABASE_NAME = 'koma-user-data.db'
-const DATABASE_VERSION = 6
+const DATABASE_VERSION = 9
 const PREVIOUS_DATABASE_VERSION = 5
 const RENAMED_DATABASE = 'business-database-renamed-v1'
+const SHARED_DATA_SPLIT = 'shared-business-columns-v1'
+const READER_SCOPE_SPLIT = 'reader-device-scope-v1'
+const BOOK_MODE_SCOPE_SPLIT = 'book-reader-mode-device-scope-v1'
 const opens = new Map<string, Promise<relationalStore.RdbStore>>()
 
 const READER_POSITION_COLUMNS = 'page_id TEXT, page_index INTEGER, total_pages INTEGER, progress_ratio REAL, ' +
   'completed INTEGER, saved_at INTEGER, column_mode TEXT'
+const READER_CURRENT_LAYOUT = '(comic_id TEXT PRIMARY KEY CHECK (comic_id IS NOT NULL), ' +
+  'chapter_id TEXT CHECK (chapter_id IS NOT NULL), ' + READER_POSITION_COLUMNS + ')'
+const READER_CHAPTER_LAYOUT = '(comic_id TEXT CHECK (comic_id IS NOT NULL), chapter_id TEXT CHECK (chapter_id IS NOT NULL), ' +
+  'is_read INTEGER, bookmarked INTEGER, updated_at INTEGER, source_id TEXT, source_work_id TEXT, ' +
+  'has_position INTEGER CHECK (has_position IS NOT NULL), position_comic_id_override TEXT, position_chapter_id_override TEXT, ' +
+  READER_POSITION_COLUMNS + ', PRIMARY KEY (comic_id, chapter_id))'
+const READER_SOURCE_LAYOUT = '(comic_id TEXT PRIMARY KEY CHECK (comic_id IS NOT NULL), source_id TEXT, manga_id TEXT, ' +
+  'manga_url TEXT, title TEXT, cover_uri TEXT, source_name TEXT, reading_format TEXT, chapter_id TEXT, chapter_title TEXT)'
+
+// These layouts share the read and write bindings. A business row is stored
+// in exactly one table. Only the source-backed table is eligible for ArkData.
+const READER_SCOPE_TABLES: string[] = ['reader_current_positions', 'reader_chapter_states', 'reader_source_history']
+const READER_SCOPE_LAYOUTS: string[] = [READER_CURRENT_LAYOUT, READER_CHAPTER_LAYOUT, READER_SOURCE_LAYOUT]
+
+// ArkData cloud registration rejects SQL CHECK constraints. Deduplication
+// uses these same business primary keys and requires matching nullability.
+function cloudTableLayout(sql: string): string {
+  return sql.replace(/ CHECK \([^)]*\)/g, '')
+}
+
 const READER_TABLES: string[] = [
-  'CREATE TABLE IF NOT EXISTS reader_current_positions (' +
-    'comic_id TEXT PRIMARY KEY NOT NULL, chapter_id TEXT NOT NULL, ' + READER_POSITION_COLUMNS + ')',
-  'CREATE TABLE IF NOT EXISTS reader_chapter_states (' +
-    'comic_id TEXT NOT NULL, chapter_id TEXT NOT NULL, is_read INTEGER, bookmarked INTEGER, updated_at INTEGER, ' +
-    'source_id TEXT, source_work_id TEXT, has_position INTEGER NOT NULL, position_comic_id_override TEXT, ' +
-    'position_chapter_id_override TEXT, ' + READER_POSITION_COLUMNS +
-    ', PRIMARY KEY (comic_id, chapter_id))',
-  'CREATE INDEX IF NOT EXISTS reader_chapter_states_read ON reader_chapter_states (comic_id, is_read)',
-  'CREATE TABLE IF NOT EXISTS reader_source_history (' +
-    'comic_id TEXT PRIMARY KEY NOT NULL, source_id TEXT, manga_id TEXT, manga_url TEXT, title TEXT, cover_uri TEXT, ' +
-    'source_name TEXT, reading_format TEXT, chapter_id TEXT, chapter_title TEXT)',
+  'CREATE TABLE IF NOT EXISTS reader_current_positions ' + READER_CURRENT_LAYOUT,
+  'CREATE TABLE IF NOT EXISTS reader_chapter_states ' + READER_CHAPTER_LAYOUT,
+  'CREATE TABLE IF NOT EXISTS reader_source_history ' + READER_SOURCE_LAYOUT,
   'CREATE TABLE IF NOT EXISTS reader_remote_history (' +
     'comic_id TEXT PRIMARY KEY NOT NULL, remote_kind TEXT, chapter_id TEXT, server_id TEXT, resource_id TEXT, title TEXT, ' +
     'chapter_title TEXT, library_id INTEGER, has_path INTEGER NOT NULL, is_opds_root_feed INTEGER, opds_feed_path TEXT, ' +
@@ -62,6 +79,16 @@ const READER_TABLES: string[] = [
     'FOREIGN KEY (space, capture_id, edit_order) REFERENCES reader_outbox_action_edits (space, capture_id, edit_order) ON DELETE CASCADE)',
 ]
 
+const CREATE_SHELF_CATEGORIES = 'CREATE TABLE IF NOT EXISTS shelf_categories (' +
+  'category_id TEXT PRIMARY KEY, list_order INTEGER, ' +
+  'name TEXT, sort_order INTEGER, created_at INTEGER, updated_at INTEGER, is_private INTEGER)'
+const CREATE_SHELF_SMART_CATEGORIES = 'CREATE TABLE IF NOT EXISTS shelf_smart_categories (' +
+  'category_id TEXT PRIMARY KEY, list_order INTEGER, ' +
+  'name TEXT, sort_order INTEGER, created_at INTEGER, updated_at INTEGER)'
+const CREATE_SHELF_SMART_FILTERS = 'CREATE TABLE IF NOT EXISTS shelf_smart_category_filters (' +
+  'category_id TEXT REFERENCES shelf_smart_categories (category_id) ON DELETE CASCADE, ' +
+  'filter_order INTEGER, method TEXT, filter_value TEXT, excluded INTEGER, PRIMARY KEY (category_id, filter_order))'
+
 const SHELF_TABLES: string[] = [
   'CREATE TABLE IF NOT EXISTS shelf_works (comic_id TEXT PRIMARY KEY NOT NULL, list_order INTEGER NOT NULL, ' +
     'has_categories INTEGER NOT NULL, title TEXT, subtitle TEXT, author TEXT, source_kind TEXT, source_path ' +
@@ -93,6 +120,8 @@ const SHELF_TABLES: string[] = [
   'CREATE TABLE IF NOT EXISTS shelf_work_metadata_items (comic_id TEXT NOT NULL REFERENCES shelf_works ' +
     '(comic_id) ON DELETE CASCADE, list_kind TEXT NOT NULL, item_order INTEGER NOT NULL, item_value TEXT NOT ' +
     'NULL, PRIMARY KEY (comic_id, list_kind, item_order))',
+  'CREATE TABLE IF NOT EXISTS shelf_shared_chapters (comic_id TEXT REFERENCES shelf_works (comic_id) ON DELETE CASCADE, ' +
+    'chapter_order INTEGER, chapter_id TEXT, PRIMARY KEY (comic_id, chapter_order))',
   'CREATE TABLE IF NOT EXISTS shelf_memberships (comic_id TEXT NOT NULL REFERENCES shelf_works (comic_id) ON ' +
     'DELETE CASCADE, category_id TEXT NOT NULL, category_occurrence INTEGER NOT NULL, list_order INTEGER NOT ' +
     'NULL, PRIMARY KEY (comic_id, category_id, category_occurrence))',
@@ -111,16 +140,12 @@ const SHELF_TABLES: string[] = [
   'CREATE TABLE IF NOT EXISTS shelf_collections (id INTEGER PRIMARY KEY CHECK (id = 1), has_categories INTEGER ' +
     'NOT NULL, has_display_strategies INTEGER NOT NULL, has_smart_categories INTEGER NOT NULL, has_mihon_imports ' +
     'INTEGER NOT NULL, has_sync_moves INTEGER NOT NULL)',
-  'CREATE TABLE IF NOT EXISTS shelf_categories (category_id TEXT PRIMARY KEY NOT NULL, list_order INTEGER NOT ' +
-    'NULL, name TEXT, sort_order INTEGER, created_at INTEGER, updated_at INTEGER, is_private INTEGER)',
+  CREATE_SHELF_CATEGORIES,
   'CREATE TABLE IF NOT EXISTS shelf_category_display_strategies (category_id TEXT PRIMARY KEY NOT NULL, ' +
     'list_order INTEGER NOT NULL, sort_by TEXT, sort_direction TEXT, follows_default_sort INTEGER, read_state ' +
     'TEXT, updated_at INTEGER)',
-  'CREATE TABLE IF NOT EXISTS shelf_smart_categories (category_id TEXT PRIMARY KEY NOT NULL, list_order ' +
-    'INTEGER NOT NULL, name TEXT, sort_order INTEGER, created_at INTEGER, updated_at INTEGER)',
-  'CREATE TABLE IF NOT EXISTS shelf_smart_category_filters (category_id TEXT NOT NULL REFERENCES ' +
-    'shelf_smart_categories (category_id) ON DELETE CASCADE, filter_order INTEGER NOT NULL, method TEXT NOT ' +
-    'NULL, filter_value TEXT, excluded INTEGER NOT NULL, PRIMARY KEY (category_id, filter_order))',
+  CREATE_SHELF_SMART_CATEGORIES,
+  CREATE_SHELF_SMART_FILTERS,
   'CREATE TABLE IF NOT EXISTS shelf_sync_moves (space TEXT NOT NULL, source_id TEXT NOT NULL, work_id TEXT NOT ' +
     'NULL, list_order INTEGER NOT NULL, target_source_id TEXT, target_work_id TEXT, has_target_categories ' +
     'INTEGER NOT NULL, PRIMARY KEY (space, source_id, work_id))',
@@ -193,13 +218,17 @@ const LEGACY_DATA_TABLES: string[] = [
   'CREATE TABLE user_record_collections (domain TEXT PRIMARY KEY)',
 ]
 
+const SEARCH_HISTORY_COLUMNS = '(entry_key TEXT PRIMARY KEY, query TEXT, updated_at INTEGER, list_order INTEGER, ' +
+  'source_filter TEXT, library_source_key TEXT, library_source_name TEXT, sync_source_set TEXT)'
+
 const CONFIG_TABLES: string[] = [
   CREATE_READER_PREFERENCES,
+  CREATE_READER_SHARED_PREFERENCES,
   'CREATE TABLE IF NOT EXISTS local_data_migrations (name TEXT PRIMARY KEY)',
-  'CREATE TABLE IF NOT EXISTS search_history (' +
-    'entry_key TEXT PRIMARY KEY, query TEXT, updated_at INTEGER, list_order INTEGER, ' +
-    'source_filter TEXT, library_source_key TEXT, library_source_name TEXT, sync_source_set TEXT)',
+  'CREATE TABLE IF NOT EXISTS search_history ' + SEARCH_HISTORY_COLUMNS,
+  'CREATE TABLE IF NOT EXISTS search_history_local ' + SEARCH_HISTORY_COLUMNS,
   'CREATE INDEX IF NOT EXISTS search_history_list ON search_history (updated_at DESC, list_order)',
+  'CREATE INDEX IF NOT EXISTS search_history_local_list ON search_history_local (updated_at DESC, list_order)',
   'CREATE TABLE IF NOT EXISTS library_maintenance_jobs (' +
     'enqueue_order INTEGER PRIMARY KEY, job_kind TEXT NOT NULL, comic_id TEXT NOT NULL, chapter_id TEXT NOT NULL, ' +
     'UNIQUE (job_kind, comic_id, chapter_id))',
@@ -272,9 +301,12 @@ const CONFIG_TABLES: string[] = [
     'REFERENCES typed_local_preferences (domain, preference_id) ON DELETE CASCADE)',
   'CREATE TABLE IF NOT EXISTS book_preferences (' +
     'comic_id TEXT PRIMARY KEY NOT NULL, sort_basis TEXT, sort_direction TEXT, read_filter TEXT, ' +
-    'language_filter TEXT, group_filter TEXT, bookmark_filter TEXT, page_mode TEXT, reading_direction TEXT, ' +
-    'banner_filter TEXT, synopsis_expanded INTEGER, has_chapter_settings INTEGER NOT NULL DEFAULT 0, ' +
-    'has_reader_mode INTEGER NOT NULL DEFAULT 0)',
+    'language_filter TEXT, group_filter TEXT, bookmark_filter TEXT, banner_filter TEXT, synopsis_expanded INTEGER, ' +
+    'has_chapter_settings INTEGER NOT NULL DEFAULT 0)',
+  'CREATE TABLE IF NOT EXISTS book_reader_modes (' +
+    'comic_id TEXT PRIMARY KEY, page_mode TEXT, reading_direction TEXT)',
+  'CREATE TABLE IF NOT EXISTS book_reader_modes_local (' +
+    'comic_id TEXT PRIMARY KEY, page_mode TEXT, reading_direction TEXT)',
   'CREATE TABLE IF NOT EXISTS tracker_mappings (' +
     'binding_key TEXT PRIMARY KEY NOT NULL, comic_id TEXT, provider_id TEXT, provider_title_id TEXT, provider_title TEXT, ' +
     'mapping_state TEXT, confidence REAL, user_confirmed INTEGER, created_at INTEGER, updated_at INTEGER, list_order INTEGER NOT NULL)',
@@ -372,9 +404,8 @@ async function copyBookPreferences(source: relationalStore.RdbStore, transaction
       'FROM chapter_list_settings ORDER BY rowid')
   }
   if (existing.has('reader_book_modes')) {
-    await transferTable(source, transaction, 'INSERT INTO book_preferences (comic_id, page_mode, reading_direction, has_reader_mode)',
-      'SELECT comic_id, page_mode, reading_direction, 1 FROM reader_book_modes ORDER BY rowid',
-      ' ON CONFLICT(comic_id) DO UPDATE SET page_mode=excluded.page_mode, reading_direction=excluded.reading_direction, has_reader_mode=1')
+    await transferTable(source, transaction, 'INSERT INTO book_reader_modes (comic_id, page_mode, reading_direction)',
+      'SELECT comic_id, page_mode, reading_direction FROM reader_book_modes ORDER BY rowid')
   }
   await transaction.execute('INSERT INTO book_preferences (comic_id, banner_filter) ' +
     "SELECT preference_id, value_text FROM typed_local_preferences WHERE domain = ? AND value_kind = 'string' " +
@@ -434,6 +465,189 @@ function tableName(ddl: string): string | undefined {
   return /^CREATE TABLE (?:IF NOT EXISTS )?([a-z_]+) /.exec(ddl)?.[1]
 }
 
+async function splitSharedBusinessData(transaction: relationalStore.Transaction): Promise<void> {
+  const marker = await transaction.querySql('SELECT name FROM local_data_migrations WHERE name = ?', [SHARED_DATA_SPLIT])
+  try {
+    if (marker.goToNextRow()) return
+  } finally {
+    marker.close()
+  }
+  await transaction.execute('INSERT INTO shelf_shared_chapters (comic_id, chapter_order, chapter_id) ' +
+    "SELECT comic_id, item_order, item_value FROM shelf_work_metadata_items WHERE list_kind = 'shared_chapter'")
+  await transaction.execute("DELETE FROM shelf_work_metadata_items WHERE list_kind = 'shared_chapter'")
+  const preferences = await transaction.querySql('PRAGMA table_info(book_preferences)')
+  let previousBookModes = false
+  try {
+    while (preferences.goToNextRow()) {
+      if (preferences.getString(1) === 'has_reader_mode') previousBookModes = true
+    }
+  } finally {
+    preferences.close()
+  }
+  if (previousBookModes) {
+    await transaction.execute('INSERT INTO book_reader_modes (comic_id, page_mode, reading_direction) ' +
+      'SELECT comic_id, page_mode, reading_direction FROM book_preferences WHERE has_reader_mode = 1 ORDER BY rowid')
+    await transaction.execute('DELETE FROM book_preferences WHERE has_reader_mode = 1 AND has_chapter_settings = 0 ' +
+      'AND banner_filter IS NULL AND synopsis_expanded IS NULL')
+    await transaction.execute('ALTER TABLE book_preferences DROP COLUMN page_mode')
+    await transaction.execute('ALTER TABLE book_preferences DROP COLUMN reading_direction')
+    await transaction.execute('ALTER TABLE book_preferences DROP COLUMN has_reader_mode')
+  }
+  await migrateSharedReaderPreferences(transaction)
+  await transaction.execute('INSERT INTO local_data_migrations (name) VALUES (?)', [SHARED_DATA_SPLIT])
+}
+
+async function updateCategoryConstraints(transaction: relationalStore.Transaction): Promise<void> {
+  const columns = await transaction.querySql('PRAGMA table_info(shelf_categories)')
+  let needsUpgrade = false
+  try {
+    while (columns.goToNextRow()) {
+      if (columns.getString(1) === 'category_id') needsUpgrade = columns.getLong(3) !== 0
+    }
+  } finally {
+    columns.close()
+  }
+  if (!needsUpgrade) return
+  await transaction.execute('ALTER TABLE shelf_categories RENAME TO shelf_categories_previous')
+  await transaction.execute('ALTER TABLE shelf_smart_category_filters RENAME TO shelf_smart_category_filters_previous')
+  await transaction.execute('ALTER TABLE shelf_smart_categories RENAME TO shelf_smart_categories_previous')
+  await transaction.execute(CREATE_SHELF_CATEGORIES)
+  await transaction.execute(CREATE_SHELF_SMART_CATEGORIES)
+  await transaction.execute(CREATE_SHELF_SMART_FILTERS)
+  await transaction.execute('INSERT INTO shelf_categories SELECT * FROM shelf_categories_previous ORDER BY rowid')
+  await transaction.execute('INSERT INTO shelf_smart_categories SELECT * FROM shelf_smart_categories_previous ORDER BY rowid')
+  await transaction.execute('INSERT INTO shelf_smart_category_filters SELECT * FROM shelf_smart_category_filters_previous ORDER BY rowid')
+  await transaction.execute('DROP TABLE shelf_smart_category_filters_previous')
+  await transaction.execute('DROP TABLE shelf_smart_categories_previous')
+  await transaction.execute('DROP TABLE shelf_categories_previous')
+}
+
+function readerScopeIdentity(source: string, work: string, comic: string): string {
+  const controls = "('*[' || char(1) || '-' || char(31) || char(127) || ']*')"
+  return 'length(' + source + ') BETWEEN 1 AND 96 AND ' + source + ' = trim(' + source + ') AND ' +
+    'length(' + work + ') BETWEEN 1 AND 512 AND trim(' + work + ") <> '' AND " +
+    'instr(' + source + ', char(0)) = 0 AND ' + source + ' NOT GLOB ' + controls + ' AND ' +
+    'instr(' + work + ', char(0)) = 0 AND ' + work + ' NOT GLOB ' + controls + ' AND ' +
+    comic + " = CASE WHEN instr(" + work + ", " + source + " || ':') = 1 THEN " + work + ' ELSE ' +
+    source + " || ':' || " + work + ' END'
+}
+
+async function splitReaderScopes(transaction: relationalStore.Transaction): Promise<void> {
+  const marker = await transaction.querySql('SELECT name FROM local_data_migrations WHERE name = ?', [READER_SCOPE_SPLIT])
+  try {
+    if (marker.goToNextRow()) return
+  } finally {
+    marker.close()
+  }
+  for (const name of READER_SCOPE_TABLES) await transaction.execute('ALTER TABLE ' + name + ' RENAME TO ' + name + '_previous')
+  const history = readerScopeIdentity('h.source_id', 'h.manga_id', 'h.comic_id')
+  const chapter = readerScopeIdentity('c.source_id', 'c.source_work_id', 'c.comic_id')
+  const sharedBook = 'EXISTS (SELECT 1 FROM reader_source_history_previous h WHERE h.comic_id = r.comic_id AND ' + history + ') ' +
+    'OR EXISTS (SELECT 1 FROM shelf_works w WHERE w.comic_id = r.comic_id AND w.source_kind = \'private_library\' ' +
+    'AND w.remote_server_id IS NULL AND ' + readerScopeIdentity('w.source_runtime_id', 'w.remote_resource_id', 'w.comic_id') + ')'
+  const chapterKey = "(length(r.chapter_id) BETWEEN 1 AND 512 AND trim(r.chapter_id) <> '' " +
+    "AND instr(r.chapter_id, char(0)) = 0 AND r.chapter_id NOT GLOB ('*[' || char(1) || '-' || char(31) || char(127) || ']*'))"
+  const chapterEvidence = 'EXISTS (SELECT 1 FROM reader_chapter_states_previous c WHERE c.comic_id = r.comic_id AND ' +
+    'c.chapter_id = r.chapter_id AND ' + chapter + ')'
+  const allowed: string[] = [
+    '(' + sharedBook + ' OR ' + chapterEvidence + ') AND ' + chapterKey,
+    '(' + sharedBook + ' OR ' + readerScopeIdentity('r.source_id', 'r.source_work_id', 'r.comic_id') + ') AND ' + chapterKey,
+    readerScopeIdentity('r.source_id', 'r.manga_id', 'r.comic_id') + ' AND ' + chapterKey,
+  ]
+  for (let index = 0; index < READER_SCOPE_TABLES.length; index++) {
+    const name = READER_SCOPE_TABLES[index]
+    await transaction.execute('CREATE TABLE ' + name + ' ' + cloudTableLayout(READER_SCOPE_LAYOUTS[index]))
+    await transaction.execute('CREATE TABLE ' + name + '_local ' + READER_SCOPE_LAYOUTS[index])
+    const split = 'CASE WHEN ' + allowed[index] + ' THEN 1 ELSE 0 END'
+    const columns = await transaction.querySql('PRAGMA table_info(' + name + ')')
+    const names: string[] = ['rowid']
+    try {
+      while (columns.goToNextRow()) names.push(columns.getString(1))
+    } finally {
+      columns.close()
+    }
+    const fields = ' (' + names.join(', ') + ') SELECT r.rowid, r.* FROM '
+    await transaction.execute('INSERT INTO ' + name + fields + name + '_previous r WHERE ' + split + ' = 1 ORDER BY r.rowid')
+    await transaction.execute('INSERT INTO ' + name + '_local' + fields + name +
+      '_previous r WHERE ' + split + ' = 0 ORDER BY r.rowid')
+    await transaction.execute('CREATE VIEW ' + name + '_all AS SELECT rowid AS storage_order, * FROM ' + name +
+      ' UNION ALL SELECT rowid AS storage_order, * FROM ' + name + '_local')
+  }
+  for (const name of READER_SCOPE_TABLES) await transaction.execute('DROP TABLE ' + name + '_previous')
+  await transaction.execute('CREATE INDEX reader_chapter_states_read ON reader_chapter_states (comic_id, is_read)')
+  await transaction.execute('CREATE INDEX reader_chapter_states_local_read ON reader_chapter_states_local (comic_id, is_read)')
+  await transaction.execute('INSERT INTO local_data_migrations (name) VALUES (?)', [READER_SCOPE_SPLIT])
+}
+
+async function splitBookReaderModes(transaction: relationalStore.Transaction): Promise<void> {
+  const marker = await transaction.querySql('SELECT name FROM local_data_migrations WHERE name = ?', [BOOK_MODE_SCOPE_SPLIT])
+  try {
+    if (marker.goToNextRow()) return
+  } finally { marker.close() }
+  const local = "page_mode IS 'auto_page' OR (NOT EXISTS (SELECT 1 FROM shelf_works WHERE comic_id = m.comic_id) " +
+    'AND NOT EXISTS (SELECT 1 FROM reader_source_history WHERE comic_id = m.comic_id) ' +
+    'AND NOT EXISTS (SELECT 1 FROM reader_chapter_states WHERE comic_id = m.comic_id))'
+  await transaction.execute('INSERT INTO book_reader_modes_local (rowid, comic_id, page_mode, reading_direction) ' +
+    'SELECT m.rowid, m.comic_id, m.page_mode, m.reading_direction FROM book_reader_modes m WHERE ' + local)
+  await transaction.execute('DELETE FROM book_reader_modes WHERE comic_id IN (SELECT comic_id FROM book_reader_modes_local)')
+  await transaction.execute('CREATE VIEW book_reader_modes_all AS SELECT rowid AS storage_order, * FROM book_reader_modes ' +
+    'UNION ALL SELECT rowid AS storage_order, * FROM book_reader_modes_local')
+  await transaction.execute('INSERT INTO local_data_migrations (name) VALUES (?)', [BOOK_MODE_SCOPE_SPLIT])
+}
+
+interface DatabaseDefinition {
+  name: string
+  sql: string
+}
+
+/** Rebuild tables made by the v8 development build in one transaction.
+ * Keep row identities, indexes, view definitions and parent-child keys.
+ */
+async function upgradeCloudTableConstraints(transaction: relationalStore.Transaction): Promise<void> {
+  const names = ['shelf_works', 'shelf_categories', 'shelf_smart_categories', 'shelf_memberships',
+    'shelf_shared_chapters', 'shelf_smart_category_filters', 'reader_shared_preferences'].concat(READER_SCOPE_TABLES)
+  const definitions = await transaction.querySql('SELECT name, sql FROM sqlite_master WHERE type = ? ' +
+    'AND name IN (' + names.map((): string => '?').join(', ') + ')', ['table'].concat(names))
+  const tables = new Map<string, string>()
+  try {
+    while (definitions.goToNextRow()) {
+      const sql = definitions.getString(1)
+      if (sql !== cloudTableLayout(sql)) tables.set(definitions.getString(0), sql)
+    }
+  } finally { definitions.close() }
+  if (tables.size === 0) return
+  const views = ['shelf_works_all', 'shelf_memberships_all', 'shelf_shared_chapters_all']
+    .concat(READER_SCOPE_TABLES.map((name: string): string => name + '_all'))
+  const dependentSql = await transaction.querySql('SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL AND ' +
+    '((type = ? AND name IN (' + views.map((): string => '?').join(', ') + ')) OR ' +
+    '(type = ? AND tbl_name IN (' + Array.from(tables.keys()).map((): string => '?').join(', ') + ')))',
+    ['view'].concat(views, ['index'], Array.from(tables.keys())))
+  const dependents: DatabaseDefinition[] = []
+  try {
+    while (dependentSql.goToNextRow()) dependents.push({ name: dependentSql.getString(0), sql: dependentSql.getString(1) })
+  } finally { dependentSql.close() }
+  for (const definition of dependents) {
+    if (views.includes(definition.name)) await transaction.execute('DROP VIEW ' + definition.name)
+  }
+  for (const name of names) {
+    const sql = tables.get(name)
+    if (sql === undefined) continue
+    await transaction.execute('ALTER TABLE ' + name + ' RENAME TO ' + name + '_v8')
+    await transaction.execute(cloudTableLayout(sql))
+    const fields: string[] = name === 'reader_shared_preferences' ? [] : ['rowid']
+    const columns = await transaction.querySql('PRAGMA table_info(' + name + ')')
+    try {
+      while (columns.goToNextRow()) fields.push(columns.getString(1))
+    } finally { columns.close() }
+    const list = fields.join(', ')
+    await transaction.execute('INSERT INTO ' + name + ' (' + list + ') SELECT ' + list + ' FROM ' + name + '_v8')
+  }
+  for (const name of names.reverse()) {
+    if (tables.has(name)) await transaction.execute('DROP TABLE ' + name + '_v8')
+  }
+  for (const definition of dependents) await transaction.execute(definition.sql)
+}
+
 /** This copy is a single startup transaction. Only tables owned by this store
  * are copied. Old RDB tables needed by a domain's migration remain available,
  * and all remote transport tables stay outside the new business store.
@@ -443,6 +657,7 @@ async function initializeTables(store: relationalStore.RdbStore, previous?: rela
   try {
     const statements = CONFIG_TABLES.concat(READER_TABLES, SHELF_TABLES)
     for (const statement of statements) await transaction.execute(statement)
+    await updateCategoryConstraints(transaction)
     const complete = await transaction.querySql('SELECT name FROM local_data_migrations WHERE name = ?', [RENAMED_DATABASE])
     let committed: boolean
     try {
@@ -473,6 +688,13 @@ async function initializeTables(store: relationalStore.RdbStore, previous?: rela
       await copyReaderPreferenceColumns(transaction)
       await copyBookPreferences(previous, transaction, existing)
     }
+    await splitSharedBusinessData(transaction)
+    await splitReaderScopes(transaction)
+    await movePublicReadingAddresses(transaction, 'reader_source_history')
+    await movePublicReadingAddresses(transaction, 'reader_source_history_local')
+    await splitShelfScope(transaction)
+    await splitBookReaderModes(transaction)
+    if (store.version === 8) await upgradeCloudTableConstraints(transaction)
     await transaction.execute('INSERT OR IGNORE INTO local_data_migrations (name) VALUES (?)', [RENAMED_DATABASE])
     await transaction.commit()
   } catch (error) {
@@ -487,6 +709,11 @@ async function initializeUserDataDatabase(context: common.Context): Promise<rela
   })
   if (store.version > DATABASE_VERSION) throw new Error('user_data_newer_schema')
   if (store.version === DATABASE_VERSION) return store
+  if (store.version >= 6) {
+    await initializeTables(store)
+    store.version = DATABASE_VERSION
+    return store
+  }
   // ArkData resolves its own sandbox path. Inferring it from databaseDir and
   // treating an inaccessible path as an absent database can select stale files.
   const oldConfig: relationalStore.StoreConfig = {

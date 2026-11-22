@@ -228,10 +228,36 @@ export struct DeviceSyncOverviewPage {
 
 function cloudStatus(state: HuaweiCloudSyncView): string {
   if (state.busy || state.configuring) return t('device_sync_running')
-  if (state.error === '3') return t('device_sync_cloud_system_disabled')
-  if (state.error === 'permission') return t('device_sync_cloud_denied')
-  if (state.error === 'empty') return t('device_sync_cloud_empty')
-  if (state.error !== '') return t('device_sync_cloud_failed').replace('%s', state.error)
+  const parts = state.error.split(':')
+  const reason = parts[0]
+  const group = SYNC_GROUPS.find((value: SyncGroup): boolean => value === parts[1])
+  if (group !== undefined && (reason === 'upload' || reason === 'download' || reason === 'partial')) {
+    const description = reason === 'upload' ? 'device_sync_cloud_upload_group_failed' : reason === 'download' ?
+      'device_sync_cloud_download_group_failed' : 'device_sync_cloud_partial_group_failed'
+    return t(description).replace('%s', t(groupKey(group)))
+  }
+  switch (state.error) {
+    case '2': return t('device_sync_cloud_network')
+    case '3': return t('device_sync_cloud_system_disabled')
+    case '4': return t('device_sync_cloud_other_device')
+    case '5':
+    case 'record_size': return t('device_sync_cloud_record_limit')
+    case '6': return t('device_sync_cloud_space_full')
+    case '7': return t('device_sync_cloud_network_policy')
+    case '8': return t('device_sync_paused')
+    case 'permission': return t('device_sync_cloud_denied')
+    case 'empty': return t('device_sync_cloud_empty')
+    case 'timeout': return t('device_sync_cloud_timeout')
+    case 'upload': return t('device_sync_cloud_upload_failed')
+    case 'download': return t('device_sync_cloud_download_failed')
+    case 'partial': return t('device_sync_cloud_partial')
+    case 'table_setup': return t('device_sync_cloud_table_setup')
+    case 'record_format': return t('device_sync_cloud_incompatible_record')
+    case 'sync_local_busy':
+    case 'sync_local_changed': return t('device_sync_error_local_busy')
+    case '': break
+    default: return t('device_sync_cloud_failed')
+  }
   if (!state.enabled) return t('device_sync_paused')
   if (state.lastSuccess === 0) return t('device_sync_waiting_first_run')
   return t('device_sync_last_success_time').replace('%s', new Date(state.lastSuccess).toLocaleString())
@@ -257,7 +283,6 @@ export struct DeviceSyncHuaweiCloudPage {
         GroupedListSection({ inModal: this.inModal }) {
           ConciseListRow({ title: t('device_sync_enabled'), hasSwitch: true, showChevron: false,
             checked: this.cloud.enabled, isEnabled: this.cloud.available && !this.cloud.configuring,
-            subtitle: this.cloud.verificationOnly ? t('device_sync_cloud_verification') : undefined,
             switchAction: (enabled: boolean): void => { void appHuaweiCloudSync.setEnabled(enabled) } })
           ListDivider()
           ConciseListRow({ title: t('device_sync_cloud_system'), action: (): void => { this.openSystemCloud() } })
@@ -265,19 +290,21 @@ export struct DeviceSyncHuaweiCloudPage {
       }
       ListItem() {
         GroupedListSection({ inModal: this.inModal }) {
-          ConciseListRow({ title: t('device_sync_last_result'), showChevron: false, subtitleMaxLines: 4,
-            subtitle: cloudStatus(this.cloud) })
-          if (this.cloud.enabled && this.cloud.lastSuccess > 0 && this.cloud.error === '') {
-            ListDivider()
-            ConciseListRow({ title: t('device_sync_cloud_counts').replace('%s', this.cloud.uploaded.toString())
-              .replace('%s', this.cloud.downloaded.toString()), showChevron: false })
-          }
-          ListDivider()
           ConciseListRow({ title: t('device_sync_now'), showChevron: false,
-            subtitle: this.state.selected.length === 0 && !this.cloud.verificationOnly ? t('device_sync_choose_in_overview') : undefined,
             isEnabled: this.cloud.enabled && !this.cloud.busy && !this.cloud.configuring &&
               (this.cloud.verificationOnly || this.state.selected.length > 0),
             action: (): void => { void appHuaweiCloudSync.sync() } })
+        }
+      }
+      if (this.cloud.enabled || this.cloud.configuring || this.cloud.error !== '') {
+        ListItem() {
+          Text(this.cloud.enabled && !this.cloud.busy && !this.cloud.configuring && this.cloud.error === '' &&
+            this.state.selected.length === 0 && !this.cloud.verificationOnly ?
+            t('device_sync_choose_in_overview') : cloudStatus(this.cloud))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+            .width('100%')
         }
       }
     }

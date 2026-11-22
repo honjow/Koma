@@ -10,6 +10,35 @@ const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
 
 const etsRoot = path.resolve(__dirname, '../entry/src/main/ets')
 const temporaryDatabase = 'upgrade.db'
+const cloudSchema = require('../entry/src/main/resources/rawfile/arkdata/cloud/cloud_schema.json')
+
+function compareCloudTables(database) {
+  for (const table of cloudSchema.databases[0].tables) {
+    const columns = database.prepare('SELECT name, type, "notnull", dflt_value, pk FROM pragma_table_info(?)').all(table.name)
+    const remoteNames = new Set(table.fields.map(field => field.colName))
+    const localKey = columns.filter(column => column.pk > 0).sort((a, b) => a.pk - b.pk).map(column => column.name)
+    const cloudKey = table.fields.filter(field => field.dupCheckCol).map(field => field.colName)
+    assert.deepEqual(cloudKey, localKey, `${table.name}: deduplication key`)
+    for (const field of table.fields) {
+      const local = columns.find(column => column.name === field.colName)
+      assert(local, `${table.name}.${field.colName} is missing`)
+      assert.equal(local.type, { 1: 'INTEGER', 2: 'REAL', 3: 'TEXT' }[field.type], `${table.name}.${field.colName}: type`)
+      assert.equal(local.notnull === 0, field.nullable, `${table.name}.${field.colName}: nullability`)
+    }
+    for (const local of columns) {
+      if (!remoteNames.has(local.name)) {
+        assert(local.notnull === 0 || local.dflt_value !== null, `${table.name}.${local.name}: omitted mandatory field`)
+      }
+    }
+  }
+}
+
+async function prepareCloudBusinessTables(env) {
+  const { SearchHistoryStore } = env.load('model/SearchHistoryStore')
+  const { loadSourceSubscriptionPreferences } = env.load('sourceRuntime/SourceSubscriptionStorage')
+  await new SearchHistoryStore(env.context).prepareStorage()
+  await loadSourceSubscriptionPreferences(env.context)
+}
 
 function jsonFile(root, name) {
   const file = path.join(root, name)
@@ -74,7 +103,8 @@ function moduleLoader(rdb, directory, archive, legacyPreferences) {
       } },
     },
     '@kit.CoreFileKit': { fileIo },
-    '@kit.ArkTS': { url: { URL: { parseURL: value => new URL(value) } }, taskpool: {} },
+    '@kit.ArkTS': { url: { URL: { parseURL: value => new URL(value) } },
+      taskpool: { execute: async (worker, ...args) => worker(...args) } },
     '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { info() {}, warn() {}, error() {} } },
     './OfflineDownloadRuntime': { OfflineDownloadRuntime: {} },
     './OfflineDownloadStore': {},
@@ -178,7 +208,8 @@ function compareVersionFive(source, target) {
   const tables = source.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all()
   const transformed = new Set(['local_data_migrations', 'shelf_works', 'shelf_work_metadata', 'shelf_mihon_imports',
     'shelf_mihon_source_works', 'shelf_mihon_linked_works', 'chapter_list_settings', 'reader_book_modes',
-    'typed_local_preferences'])
+    'typed_local_preferences', 'shelf_work_metadata_items', 'shelf_memberships',
+    'reader_current_positions', 'reader_chapter_states', 'reader_source_history'])
   for (const { name } of tables) {
     if (name.startsWith('cloud_sync_')) {
       assert.equal(target.prepare('SELECT 1 FROM sqlite_master WHERE name=?').get(name), undefined)
@@ -187,7 +218,8 @@ function compareVersionFive(source, target) {
     }
   }
   const works = new Map(rows(source, 'shelf_work_metadata').map(row => [row.comic_id, row]))
-  assertSame(rows(target, 'shelf_works'), rows(source, 'shelf_works').map(row => ({
+  assertSame(target.prepare('SELECT * FROM shelf_works_all ORDER BY list_order').all(),
+    source.prepare('SELECT * FROM shelf_works ORDER BY list_order').all().map(row => ({
     ...row, ...works.get(row.comic_id),
   })), 'merged work metadata')
   const originalWorks = new Map(rows(source, 'shelf_mihon_source_works').map(row => [row.import_id, row]))
@@ -204,12 +236,12 @@ function compareVersionFive(source, target) {
   }
   const chapter = 'SELECT comic_id, sort_basis, sort_direction, read_filter, language_filter, group_filter, bookmark_filter ' +
     'FROM book_preferences WHERE has_chapter_settings=1 ORDER BY comic_id'
-  const modes = 'SELECT comic_id, page_mode, reading_direction FROM book_preferences WHERE has_reader_mode=1 ORDER BY comic_id'
+  const modes = 'SELECT comic_id, page_mode, reading_direction FROM book_reader_modes_all ORDER BY comic_id'
   assertSame(target.prepare(chapter).all(), source.prepare('SELECT * FROM chapter_list_settings ORDER BY comic_id').all(), 'chapter options')
   assertSame(target.prepare(modes).all(), source.prepare('SELECT * FROM reader_book_modes ORDER BY comic_id').all(), 'book modes')
   const oldReader = source.prepare("SELECT preference_id, value_kind, value_text, value_number, value_boolean " +
     "FROM typed_local_preferences WHERE domain='preferences/koma_reader_preferences_v1/'").all()
-  const reader = target.prepare('SELECT * FROM reader_preferences WHERE id=1').get()
+  const reader = readSplitReaderPreferences(target)
   const snake = name => name.replace(/[A-Z]/g, letter => '_' + letter.toLowerCase())
   for (const row of oldReader) {
     const key = row.preference_id.slice('reader.'.length)
@@ -231,7 +263,66 @@ function compareVersionFive(source, target) {
       ' AS value FROM typed_local_preferences WHERE domain=? ORDER BY comic_id').all(domain), column)
   }
   assert.equal(target.prepare("SELECT count(*) AS total FROM typed_local_preferences WHERE preference_id='reader.displaySettings'").get().total, 0)
-  assert.equal(target.prepare('PRAGMA user_version').get().user_version, 6)
+  compareSplitChapterCatalogs(source, target)
+  compareScopedBusinessRows(source, target)
+  assert.equal(target.prepare('PRAGMA user_version').get().user_version, 9)
+  assert.equal(target.prepare('PRAGMA quick_check').get().quick_check, 'ok')
+  assert.equal(target.prepare('PRAGMA foreign_key_check').all().length, 0)
+}
+
+function compareSplitChapterCatalogs(source, target) {
+  const sort = ' ORDER BY comic_id, list_kind, item_order'
+  assertSame(target.prepare('SELECT * FROM shelf_work_metadata_items UNION ALL ' +
+    "SELECT comic_id, 'shared_chapter', chapter_order, chapter_id FROM shelf_shared_chapters_all" + sort).all(),
+  source.prepare('SELECT * FROM shelf_work_metadata_items' + sort).all(), 'split shared chapter IDs')
+}
+
+function readSplitReaderPreferences(database) {
+  const local = database.prepare('SELECT * FROM reader_preferences WHERE id=1').get()
+  const shared = database.prepare('SELECT * FROM reader_shared_preferences WHERE id=1').get()
+  if (!local && !shared) return undefined
+  return { ...local, ...shared, page_mode: local?.page_mode ?? shared?.page_mode ?? null }
+}
+
+const scopedTables = ['shelf_works', 'shelf_memberships', 'reader_current_positions', 'reader_chapter_states', 'reader_source_history']
+
+function compareScopedBusinessRows(source, target) {
+  for (const table of scopedTables.slice(1)) {
+    const names = source.prepare('PRAGMA table_info(' + table + ')').all()
+    if (names.length === 0) continue
+    const columns = names.map(row => row.name).join(', ')
+    const key = names.filter(row => row.pk > 0).sort((left, right) => left.pk - right.pk).map(row => row.name).join(', ')
+    const order = ' ORDER BY ' + key
+    const migrated = table === 'reader_source_history' ? names.map(({ name }) =>
+      name === 'manga_url' || name === 'cover_uri' ? `COALESCE(${name}, shared_${name}) AS ${name}` : name).join(', ') : columns
+    assertSame(target.prepare('SELECT ' + migrated + ' FROM ' + table + '_all' + order).all(),
+      source.prepare('SELECT ' + columns + ' FROM ' + table + order).all(), table)
+  }
+}
+
+function compareVersionSix(source, target) {
+  compareSplitChapterCatalogs(source, target)
+  assertSame(readSplitReaderPreferences(target), source.prepare('SELECT * FROM reader_preferences WHERE id=1').get(),
+    'effective global reader preferences')
+  assertSame(target.prepare('SELECT comic_id, page_mode, reading_direction FROM book_reader_modes_all ORDER BY comic_id').all(),
+    source.prepare('SELECT comic_id, page_mode, reading_direction FROM book_preferences ' +
+      'WHERE has_reader_mode=1 ORDER BY comic_id').all(), 'split book reader modes')
+  const order = ' ORDER BY comic_id'
+  const columns = target.prepare('PRAGMA table_info(book_preferences)').all().map(row => row.name).join(', ')
+  assertSame(target.prepare('SELECT ' + columns + ' FROM book_preferences' + order).all(),
+    source.prepare('SELECT ' + columns + ' FROM book_preferences WHERE has_reader_mode=0 OR has_chapter_settings=1 ' +
+      'OR banner_filter IS NOT NULL OR synopsis_expanded IS NOT NULL' + order).all(), 'retained book settings')
+  assertSame(target.prepare('SELECT * FROM shelf_works_all ORDER BY comic_id').all(),
+    source.prepare('SELECT * FROM shelf_works ORDER BY comic_id').all(), 'split shelf works')
+  compareScopedBusinessRows(source, target)
+  const transformed = new Set(['shelf_work_metadata_items', 'reader_preferences', 'book_preferences',
+    'local_data_migrations', ...scopedTables])
+  for (const { name } of source.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all()) {
+    if (transformed.has(name)) continue
+    assertSame(target.prepare('SELECT * FROM ' + name + ' ORDER BY rowid').all(),
+      source.prepare('SELECT * FROM ' + name + ' ORDER BY rowid').all(), name)
+  }
+  assert.equal(target.prepare('PRAGMA user_version').get().user_version, 9)
   assert.equal(target.prepare('PRAGMA quick_check').get().quick_check, 'ok')
   assert.equal(target.prepare('PRAGMA foreign_key_check').all().length, 0)
 }
@@ -384,7 +475,8 @@ async function verifyLegacyDomains(old, env, store, archive, preferences) {
 
 async function verify(archive) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-local-upgrade-'))
-  const sourcePath = path.join(archive, 'koma-user-data.db')
+  const sourceIsBusinessDatabase = fs.existsSync(path.join(archive, 'Koma.db'))
+  const sourcePath = path.join(archive, sourceIsBusinessDatabase ? 'Koma.db' : 'koma-user-data.db')
   const databasePath = path.join(directory, temporaryDatabase)
   let old
   let rdb
@@ -392,7 +484,7 @@ async function verify(archive) {
     const rdbDir = path.join(directory, 'rdb')
     fs.mkdirSync(rdbDir)
     if (fs.existsSync(sourcePath)) {
-      copyDatabase(sourcePath, path.join(rdbDir, 'koma-user-data.db'))
+      copyDatabase(sourcePath, sourceIsBusinessDatabase ? databasePath : path.join(rdbDir, 'koma-user-data.db'))
       old = new DatabaseSync(sourcePath, { readOnly: true })
     } else {
       assert(fs.existsSync(path.join(archive, 'library-store.v1.json')), 'missing old library input')
@@ -402,14 +494,19 @@ async function verify(archive) {
     rdb = createRdbPort(databasePath)
     const env = moduleLoader(rdb, directory, archive, preferences)
     const beforeVersion = old?.prepare('PRAGMA user_version').get().user_version ?? 0
-    if (beforeVersion === 5) {
+    if (beforeVersion === 5 || beforeVersion === 6) {
       const open = env.load('model/UserDataDatabase').openUserDataDatabase
-      rdb.failNextCommit('rename interrupted before commit')
-      await assert.rejects(open(env.context), /rename interrupted before commit/)
-      const empty = new DatabaseSync(databasePath, { readOnly: true })
+      rdb.failNextCommit('upgrade interrupted before commit')
+      await assert.rejects(open(env.context), /upgrade interrupted before commit/)
+      const interrupted = new DatabaseSync(databasePath, { readOnly: true })
       try {
-        assert.equal(empty.prepare("SELECT 1 FROM sqlite_master WHERE name='shelf_works'").get(), undefined)
-      } finally { empty.close() }
+        assert.equal(interrupted.prepare('PRAGMA user_version').get().user_version, beforeVersion === 6 ? 6 : 0)
+        assert.equal(interrupted.prepare("SELECT 1 FROM sqlite_master WHERE name='shelf_shared_chapters'").get(), undefined)
+        if (beforeVersion === 6) {
+          assertSame(interrupted.prepare('SELECT * FROM shelf_work_metadata_items ORDER BY rowid').all(),
+            old.prepare('SELECT * FROM shelf_work_metadata_items ORDER BY rowid').all(), 'rollback kept the old catalog')
+        }
+      } finally { interrupted.close() }
       await open(env.context)
       rdb.close()
       rdb = createRdbPort(databasePath)
@@ -417,8 +514,11 @@ async function verify(archive) {
       await reopened.load('model/UserDataDatabase').openUserDataDatabase(reopened.context)
       const target = new DatabaseSync(databasePath, { readOnly: true })
       try {
-        compareVersionFive(old, target)
-        console.log(JSON.stringify({ archive, schema: 5, migration: 'matched', rolledBackAndRetried: true, reopened: true }))
+        if (beforeVersion === 6) compareVersionSix(old, target)
+        else compareVersionFive(old, target)
+        await prepareCloudBusinessTables(reopened)
+        compareCloudTables(target)
+        console.log(JSON.stringify({ archive, schema: beforeVersion, migration: 'matched', rolledBackAndRetried: true, reopened: true }))
       } finally { target.close() }
       return
     }
@@ -449,6 +549,8 @@ async function verify(archive) {
     await verifyLegacyDomains(old, reopened, current, archive, preferences)
     const saved = new DatabaseSync(databasePath, { readOnly: true })
     try {
+      await prepareCloudBusinessTables(reopened)
+      compareCloudTables(saved)
       assert.equal(saved.prepare('PRAGMA quick_check').get().quick_check, 'ok')
       assert.equal(saved.prepare('PRAGMA foreign_key_check').all().length, 0)
       const schema = old?.prepare('PRAGMA user_version').get().user_version ?? 0

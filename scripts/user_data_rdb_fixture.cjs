@@ -59,7 +59,10 @@ function createRdbPort(databasePath = ':memory:') {
     readReaderPreferences(filesDir) {
       const db = databases.get(filesDir)
       return db.prepare("SELECT 'readerGlobal' AS domain, * FROM reader_preferences").all()
-        .concat(db.prepare("SELECT 'seriesModeOverrides' AS domain, * FROM book_preferences ORDER BY comic_id").all())
+        .concat(db.prepare("SELECT 'readerShared' AS domain, * FROM reader_shared_preferences").all())
+        .concat(db.prepare("SELECT 'bookPreferences' AS domain, * FROM book_preferences ORDER BY comic_id").all())
+        .concat(db.prepare("SELECT 'seriesModeOverrides' AS domain, comic_id, page_mode, reading_direction " +
+          'FROM book_reader_modes_all ORDER BY comic_id').all())
     },
     beforeCommit: callback => { beforeCommit = callback },
     failNextCommit(message = 'simulated interrupted write') {

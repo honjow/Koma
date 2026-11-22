@@ -230,6 +230,8 @@ async function verifyRoundTrip() {
   ports['./LocalDataRows'] = evaluate(read('model/LocalDataRows.ets'), ports)
   ports['./ReaderDisplaySettings'] = evaluate(read('model/ReaderDisplaySettings.ets'), ports)
   ports['./ReaderPreferenceColumns'] = evaluate(read('model/ReaderPreferenceColumns.ets'), ports)
+  ports['../deviceSync/DeviceSyncData'] = evaluate(read('deviceSync/DeviceSyncData.ets'), ports)
+  ports['./ShelfSharedRows'] = evaluate(read('model/ShelfSharedRows.ets'), ports)
   const database = evaluate(read('model/UserDataDatabase.ets'), ports)
   const keyed = evaluate(read('model/UserKeyedRecords.ets'), ports)
   ports['../model/UserDataDatabase'] = ports['./UserDataDatabase'] = database

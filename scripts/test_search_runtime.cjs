@@ -23,7 +23,7 @@ function load(name) {
       relationalStore: historyRdb.relationalStore,
     }
     if (dependency === '../deviceSync/DeviceSyncSignals') return { signalDeviceSyncChange() {}, signalDeviceSyncSearchRemoved() {} }
-    if (dependency === '../deviceSync/DeviceSyncData') return { syncSearchIdentity: value => value }
+    if (dependency === '@kit.CryptoArchitectureKit') return {}
     return load(path.posix.normalize(path.posix.join(path.posix.dirname(name), dependency)))
   } })
   modules.set(name, exports)
@@ -122,11 +122,19 @@ async function historyScope() {
   await store.record('', { sourceFilter: 'local', librarySource: { key: 'source:a', name: '漫画160' } })
   await store.record('alpha', { sourceFilter: 'local', librarySource: { key: 'source:a', name: '漫画160' } })
   await store.record('alpha', { sourceFilter: 'local', librarySource: { key: 'source:b', name: '另一源' } })
+  await store.record('token=local-only')
   const fresh = new SearchHistoryStore({ filesDir: '/fixture/library-search' })
   const entries = plain(await fresh.load())
-  assert.equal(entries.length, 4)
+  assert.equal(entries.length, 5)
   assert.equal(entries.find(e => e.query === '').librarySource.key, 'source:a')
   assert.equal(entries.filter(e => e.query === 'alpha').length, 2)
+  const database = await load('UserDataDatabase').openUserDataDatabase(context)
+  const shared = database.querySqlSync('SELECT entry_key, query FROM search_history ORDER BY entry_key')
+  try {
+    const terms = []
+    while (shared.goToNextRow()) terms.push([shared.getString(0), shared.getString(1)])
+    assert.deepEqual(terms, [['alpha', 'alpha'], ['legacy', 'legacy']])
+  } finally { shared.close() }
   assert.equal(await fresh.loadSourceFilter(), 'private')
   const removed = entries.find(e => e.librarySource?.key === 'source:b')
   await fresh.remove(removed.query, removed)

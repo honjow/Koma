@@ -3,7 +3,7 @@ import { hasUserDataMigration, markUserDataMigration } from './UserDataDatabase'
 import { booleanValue, collectLocalRows, LocalColumnValue } from './LocalDataRows'
 import { readLibraryUpdateReport, REPORT_JOB_KEY, REPORT_RESULT_KEY, writeLibraryUpdateReport } from './LibraryUpdateReportRows'
 import { UserKeyedRecords, UserRecordValues, writeUserRecords } from './UserKeyedRecords'
-import { READER_GLOBAL_DOMAIN, readReaderPreferenceColumns, readerPreferenceWrite } from './ReaderPreferenceColumns'
+import { READER_GLOBAL_DOMAIN, readReaderPreferenceColumns, readerPreferenceWrites } from './ReaderPreferenceColumns'
 
 interface PreferenceField {
   name: string
@@ -31,8 +31,7 @@ function layoutFor(key: string): PreferenceLayout | undefined {
     field('readFilter', 'read_filter', 'string'), field('languageFilter', 'language_filter', 'string'),
     field('groupFilter', 'group_filter', 'string'), field('bookmarkFilter', 'bookmark_filter', 'string'),
   ] }
-  if (key === 'reader.seriesModeOverrides.v1') return { table: 'book_preferences', keyColumn: 'comic_id',
-    presenceColumn: 'has_reader_mode', fields: [
+  if (key === 'reader.seriesModeOverrides.v1') return { table: 'book_reader_modes', keyColumn: 'comic_id', fields: [
     field('pageMode', 'page_mode', 'string'), field('readingDirection', 'reading_direction', 'string'),
   ] }
   if (key === 'tracker.comicMappings') return { table: 'tracker_mappings', keyColumn: 'binding_key', ordered: true, fields: [
@@ -165,9 +164,11 @@ export class PreferenceColumnRows {
     const extras = (layout.ordered ? ', list_order' : '') + (layout.chapters ? ', has_chapters' : '')
     const presence = layout.presenceColumn === undefined ? '' : ' WHERE ' + layout.presenceColumn + '=1'
     const keyFilter = key === undefined ? '' : (presence === '' ? ' WHERE ' : ' AND ') + layout.keyColumn + ' = ?'
+    const table = layout.table === 'book_reader_modes' ? 'book_reader_modes_all' : layout.table
+    const order = layout.table === 'book_reader_modes' ? 'storage_order, comic_id' : 'rowid'
     const result = this.store.querySqlSync('SELECT ' + layout.keyColumn + ', ' +
-      layout.fields.map((column: PreferenceField): string => column.column).join(', ') + extras + ' FROM ' + layout.table +
-      presence + keyFilter + ' ORDER BY rowid',
+      layout.fields.map((column: PreferenceField): string => column.column).join(', ') + extras + ' FROM ' + table +
+      presence + keyFilter + ' ORDER BY ' + order,
       key === undefined ? undefined : [key])
     const chapters = layout.chapters ? this.chapterIds(key) : new Map<string, string[]>()
     return collectLocalRows(result, (row: relationalStore.ResultSet): EncodedPreference => {
@@ -228,9 +229,12 @@ export class PreferenceColumnRows {
   }
 
   entries(): UserRecordValues | undefined {
-    if (!this.collectionExists()) return undefined
+    const present = this.collectionExists()
+    // Rows received from the cloud have no device-local collection marker.
+    if (!present && this.layout?.table !== 'book_reader_modes' && this.domain !== READER_GLOBAL_DOMAIN) return undefined
     const entries: UserRecordValues = new Map()
     for (const row of this.rows()) entries.set(row.key, row.value)
+    if (!present && entries.size === 0) return undefined
     return entries
   }
 
@@ -255,10 +259,10 @@ export class PreferenceColumnRows {
       return
     }
     if (this.domain === READER_GLOBAL_DOMAIN) {
-      const reader = readerPreferenceWrite(key, raw)
+      const reader = readerPreferenceWrites(key, raw)
       if (reader !== undefined) {
         if (raw !== undefined) this.ensureCollection()
-        this.store.executeSync(reader.sql, reader.values)
+        for (const write of reader) this.store.executeSync(write.sql, write.values)
         return
       }
     }
@@ -266,6 +270,10 @@ export class PreferenceColumnRows {
       (key === REPORT_RESULT_KEY || key === REPORT_JOB_KEY)) {
       if (raw !== undefined) this.ensureCollection()
       writeLibraryUpdateReport(this.store, key, raw)
+      return
+    }
+    if (layout?.table === 'book_reader_modes') {
+      this.putBookMode(layout, key, raw)
       return
     }
     if (raw === undefined) {
@@ -292,7 +300,28 @@ export class PreferenceColumnRows {
 
   private deleteEmptyBookPreferences(key: string): void {
     this.store.executeSync('DELETE FROM book_preferences WHERE comic_id=? AND has_chapter_settings=0 AND ' +
-      'has_reader_mode=0 AND banner_filter IS NULL AND synopsis_expanded IS NULL', [key])
+      'banner_filter IS NULL AND synopsis_expanded IS NULL', [key])
+  }
+
+  private putBookMode(layout: PreferenceLayout, key: string, raw: string | undefined): void {
+    if (raw === undefined) {
+      this.store.executeSync('DELETE FROM book_reader_modes WHERE comic_id = ?', [key])
+      this.store.executeSync('DELETE FROM book_reader_modes_local WHERE comic_id = ?', [key])
+      return
+    }
+    this.ensureCollection()
+    const mode = JSON.parse(raw) as Record<string, Object>
+    const rows = this.store.querySqlSync('SELECT 1 FROM shelf_works WHERE comic_id = ? ' +
+      'UNION ALL SELECT 1 FROM reader_source_history WHERE comic_id = ? ' +
+      'UNION ALL SELECT 1 FROM reader_chapter_states WHERE comic_id = ? LIMIT 1', [key, key, key])
+    let portable: boolean
+    try {
+      portable = mode['pageMode'] !== 'auto_page' && rows.goToNextRow()
+    } finally { rows.close() }
+    const target = portable ? 'book_reader_modes' : 'book_reader_modes_local'
+    const previous = portable ? 'book_reader_modes_local' : 'book_reader_modes'
+    this.putRecord(layout, key, raw, target)
+    this.store.executeSync('DELETE FROM ' + previous + ' WHERE comic_id = ?', [key])
   }
 
   private putScalar(key: string, raw: string): void {
@@ -315,7 +344,7 @@ export class PreferenceColumnRows {
     }
   }
 
-  private putRecord(layout: PreferenceLayout, key: string, raw: string): void {
+  private putRecord(layout: PreferenceLayout, key: string, raw: string, table: string = layout.table): void {
     const parsed = JSON.parse(raw) as Object
     const value = layout.ordered ? (parsed as OrderedRecord).value : parsed as Record<string, Object>
     const columns = layout.fields.map((column: PreferenceField): string => column.column)
@@ -338,7 +367,7 @@ export class PreferenceColumnRows {
       columns.push(layout.presenceColumn)
       args.push(1)
     }
-    this.store.executeSync('INSERT INTO ' + layout.table + ' (' + layout.keyColumn + ', ' + columns.join(', ') +
+    this.store.executeSync('INSERT INTO ' + table + ' (' + layout.keyColumn + ', ' + columns.join(', ') +
       ') VALUES (' + args.map((): string => '?').join(', ') + ') ON CONFLICT(' + layout.keyColumn + ') DO UPDATE SET ' +
       columns.map((column: string): string => column + '=excluded.' + column).join(', '), args)
     if (layout.chapters) {

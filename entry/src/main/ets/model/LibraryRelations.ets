@@ -71,6 +71,24 @@ export const shelfMetadataLists = new LocalDataRows<ShelfWorkListValue>('shelf_w
   (row: relationalStore.ResultSet): ShelfWorkListValue =>
     ({ comicId: row.getString(0), kind: row.getString(1), order: row.getLong(2), value: row.getString(3) }))
 
+export interface ShelfSharedChapter {
+  comicId: string
+  order: number
+  chapterId: string
+}
+
+function sharedChapterRows(table: string): LocalDataRows<ShelfSharedChapter> {
+  return new LocalDataRows<ShelfSharedChapter>(table,
+  ['comic_id', 'chapter_order'], ['chapter_id'], 'comic_id, chapter_order',
+  (entry: ShelfSharedChapter): LocalColumnValue[] => [entry.comicId, entry.order, entry.chapterId],
+  (row: relationalStore.ResultSet): ShelfSharedChapter =>
+    ({ comicId: row.getString(0), order: row.getLong(1), chapterId: row.getString(2) }))
+}
+
+export const shelfSharedChapters = sharedChapterRows('shelf_shared_chapters')
+export const shelfSharedChaptersLocal = sharedChapterRows('shelf_shared_chapters_local')
+export const shelfSharedChaptersAll = sharedChapterRows('shelf_shared_chapters_all')
+
 export function metadataRow(work: PersistedComic): ShelfWorkMetadata {
   return { comicId: work.id, localMetadata: work.localMetadata, localImportOrigin: work.localImportOrigin,
     sourceMetadata: work.sourceMetadata, updateSchedule: work.updateSchedule }
@@ -81,7 +99,6 @@ export function metadataItems(row: ShelfWorkMetadata, items: ShelfWorkListValue[
   collectMetadataList(items, row.comicId, 'import_uri', row.localImportOrigin?.sourceUris)
   collectMetadataList(items, row.comicId, 'source_tag', row.sourceMetadata?.tags)
   collectMetadataList(items, row.comicId, 'excluded_chapter', row.sourceMetadata?.excludedChapterIds)
-  collectMetadataList(items, row.comicId, 'shared_chapter', row.sourceMetadata?.sharedChapterIds)
 }
 
 function collectMetadataList(items: ShelfWorkListValue[], comicId: string, kind: string, values: string[] | undefined): void {
@@ -93,7 +110,6 @@ export function appendMetadataItem(row: ShelfWorkMetadata, item: ShelfWorkListVa
   if (item.kind === 'import_uri') row.localImportOrigin?.sourceUris.push(item.value)
   if (item.kind === 'source_tag') row.sourceMetadata?.tags?.push(item.value)
   if (item.kind === 'excluded_chapter') row.sourceMetadata?.excludedChapterIds?.push(item.value)
-  if (item.kind === 'shared_chapter') row.sourceMetadata?.sharedChapterIds?.push(item.value)
 }
 
 export interface ShelfMembershipRow {
@@ -103,12 +119,17 @@ export interface ShelfMembershipRow {
   order: number
 }
 
-export const shelfMemberships = new LocalDataRows<ShelfMembershipRow>('shelf_memberships',
+function membershipDataRows(table: string): LocalDataRows<ShelfMembershipRow> {
+  return new LocalDataRows<ShelfMembershipRow>(table,
   ['comic_id', 'category_id', 'category_occurrence'], ['list_order'], 'comic_id, list_order',
   (row: ShelfMembershipRow): LocalColumnValue[] => [row.comicId, row.categoryId, row.occurrence, row.order],
   (row: relationalStore.ResultSet): ShelfMembershipRow => ({
     comicId: row.getString(0), categoryId: row.getString(1), occurrence: row.getLong(2), order: row.getLong(3),
   }))
+}
+export const shelfMemberships = membershipDataRows('shelf_memberships')
+export const shelfMembershipsLocal = membershipDataRows('shelf_memberships_local')
+export const shelfMembershipsAll = membershipDataRows('shelf_memberships_all')
 
 interface ShelfPageKey {
   comicId: string

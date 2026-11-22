@@ -1,12 +1,13 @@
 import { BackupRestoreActivity } from './BackupRestoreActivity'
-import { syncSearchIdentity } from '../deviceSync/DeviceSyncData'
+import { safeSyncSearch, syncSearchIdentity } from '../deviceSync/DeviceSyncData'
 import { signalDeviceSyncChange, signalDeviceSyncSearchRemoved } from '../deviceSync/DeviceSyncSignals'
 import { common } from '@kit.AbilityKit'
 import { preferences, relationalStore } from '@kit.ArkData'
 import { taskpool } from '@kit.ArkTS'
 import { CrossSearchSourceFilter } from './CrossSearchService'
 import { LibrarySearchSource, copyLibrarySearchSource } from './LibrarySearchQuery'
-import { openUserDataDatabase, openUserDataSnapshotDatabase } from './UserDataDatabase'
+import { hasUserDataMigration, markUserDataMigration, openUserDataDatabase, openUserDataSnapshotDatabase } from './UserDataDatabase'
+import { writeUserRecords } from './UserKeyedRecords'
 
 export interface SearchHistoryScope {
   syncSourceSet?: string
@@ -148,15 +149,16 @@ export function removeSearchHistoryEntry(entries: SearchHistoryEntry[], query: s
 }
 
 const HISTORY_MIGRATION = 'search-history-from-preferences-v1'
-const SAVE_HISTORY_ROW = 'INSERT INTO search_history (' +
-  'entry_key, query, updated_at, list_order, source_filter, library_source_key, library_source_name, sync_source_set' +
-  ') VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(entry_key) DO UPDATE SET ' +
+const SHARED_HISTORY_MIGRATION = 'search-history-shared-terms-v1'
+const HISTORY_COLUMNS = 'entry_key, query, updated_at, list_order, source_filter, library_source_key, library_source_name, sync_source_set'
+const SAVE_HISTORY_ROW = ' (' + HISTORY_COLUMNS + ') VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(entry_key) DO UPDATE SET ' +
   'query=excluded.query, updated_at=excluded.updated_at, list_order=excluded.list_order, ' +
   'source_filter=excluded.source_filter, library_source_key=excluded.library_source_key, ' +
   'library_source_name=excluded.library_source_name, sync_source_set=excluded.sync_source_set'
 
 interface StoredSearchHistoryEntry {
   key: string
+  table: string
   order: number
   value: SearchHistoryEntry
 }
@@ -167,8 +169,9 @@ interface StoredSearchHistoryEntry {
 async function readSearchHistoryRows(context: common.UIAbilityContext): Promise<StoredSearchHistoryEntry[]> {
   const store = await openUserDataSnapshotDatabase(context)
   try {
-    const result = store.querySqlSync('SELECT entry_key, query, updated_at, list_order, source_filter, ' +
-      'library_source_key, library_source_name, sync_source_set FROM search_history ORDER BY updated_at DESC, list_order')
+    const columns = 'entry_key, query, updated_at, list_order, source_filter, library_source_key, library_source_name, sync_source_set'
+    const result = store.querySqlSync('SELECT ' + columns + ", 'search_history' FROM search_history UNION ALL " +
+      'SELECT ' + columns + ", 'search_history_local' FROM search_history_local ORDER BY updated_at DESC, list_order")
     const rows: StoredSearchHistoryEntry[] = []
     try {
       while (result.goToNextRow()) {
@@ -176,7 +179,7 @@ async function readSearchHistoryRows(context: common.UIAbilityContext): Promise<
         if (!result.isColumnNull(4)) value.sourceFilter = result.getString(4) as CrossSearchSourceFilter
         if (!result.isColumnNull(5)) value.librarySource = { key: result.getString(5), name: result.getString(6) }
         if (!result.isColumnNull(7)) value.syncSourceSet = result.getString(7)
-        rows.push({ key: result.getString(0), order: result.getLong(3), value })
+        rows.push({ key: result.getString(0), table: result.getString(8), order: result.getLong(3), value })
       }
     } finally {
       result.close()
@@ -216,16 +219,15 @@ export class SearchHistoryStore {
 
   private async historyStore(): Promise<relationalStore.RdbStore> {
     const store = await openUserDataDatabase(this.context)
-    const migration = await store.querySql('SELECT name FROM local_data_migrations WHERE name = ?', [HISTORY_MIGRATION])
-    try {
-      if (migration.goToNextRow()) return store
-    } finally {
-      migration.close()
+    if (hasUserDataMigration(store, SHARED_HISTORY_MIGRATION)) return store
+    if (hasUserDataMigration(store, HISTORY_MIGRATION)) {
+      const previous = await this.readRows()
+      this.writeHistory(store, previous, previous.map((row: StoredSearchHistoryEntry): SearchHistoryEntry => row.value), true)
+    } else {
+      const legacy = await (await this.preferences()).get(SEARCH_HISTORY_QUERIES_KEY, '[]') as string
+      // Commit even an empty migration. A later clear cannot reread the old key.
+      this.writeHistory(store, [], parseStoredSearchHistory(legacy), true)
     }
-    const legacy = await (await this.preferences()).get(SEARCH_HISTORY_QUERIES_KEY, '[]') as string
-    const entries = parseStoredSearchHistory(legacy)
-    // Commit even an empty migration. A later clear must never reread the old key.
-    this.writeHistory(store, [], entries, true)
     return store
   }
 
@@ -246,37 +248,42 @@ export class SearchHistoryStore {
   private writeHistory(store: relationalStore.RdbStore, previous: StoredSearchHistoryEntry[],
     entries: SearchHistoryEntry[], migrating: boolean = false): void {
     const remaining = new Map<string, StoredSearchHistoryEntry>()
-    previous.forEach((row: StoredSearchHistoryEntry): void => { remaining.set(row.key, row) })
+    previous.forEach((row: StoredSearchHistoryEntry): void => { remaining.set(row.table + ':' + row.key, row) })
+    const sharedTerms = new Set<string>()
     // The list is bounded to 20 entries. Finish the write without yielding
     // while holding the shared database's write transaction.
-    store.beginTransaction()
-    try {
+    writeUserRecords(store, (): void => {
+      if (migrating && hasUserDataMigration(store, SHARED_HISTORY_MIGRATION)) return
       let tieOrder = 0
       for (let index = 0; index < entries.length; index += 1) {
         const entry = entries[index]
         tieOrder = index > 0 && entries[index - 1].updatedAt === entry.updatedAt ? tieOrder + 1 : 0
-        const key = searchHistoryEntryKey(entry.query, entry)
-        const old = remaining.get(key)
-        remaining.delete(key)
+        const term = safeSyncSearch(entry.query) ? syncSearchIdentity(entry.query) : ''
+        // Each portable term has one real history row. The other local
+        // contexts for that term and unsafe terms retain their own device rows.
+        const shared = term !== '' && !sharedTerms.has(term)
+        if (shared) sharedTerms.add(term)
+        const table = shared ? 'search_history' : 'search_history_local'
+        const key = shared ? term : searchHistoryEntryKey(entry.query, entry)
+        const identity = table + ':' + key
+        const old = remaining.get(identity)
+        remaining.delete(identity)
         if (old !== undefined && old.order === tieOrder && old.value.query === entry.query &&
           old.value.updatedAt === entry.updatedAt && old.value.sourceFilter === entry.sourceFilter &&
           old.value.syncSourceSet === entry.syncSourceSet && old.value.librarySource?.name === entry.librarySource?.name &&
           old.value.librarySource?.key === entry.librarySource?.key) continue
-        store.executeSync(SAVE_HISTORY_ROW, [key, entry.query, entry.updatedAt, tieOrder,
+        store.executeSync('INSERT INTO ' + table + SAVE_HISTORY_ROW, [key, entry.query, entry.updatedAt, tieOrder,
           entry.sourceFilter ?? null, entry.librarySource?.key ?? null, entry.librarySource?.name ?? null,
           entry.syncSourceSet ?? null])
       }
-      for (const key of remaining.keys()) {
-        store.executeSync('DELETE FROM search_history WHERE entry_key = ?', [key])
+      for (const row of remaining.values()) {
+        store.executeSync('DELETE FROM ' + row.table + ' WHERE entry_key = ?', [row.key])
       }
       if (migrating) {
-        store.executeSync('INSERT INTO local_data_migrations (name) VALUES (?)', [HISTORY_MIGRATION])
+        markUserDataMigration(store, HISTORY_MIGRATION)
+        markUserDataMigration(store, SHARED_HISTORY_MIGRATION)
       }
-      store.commit()
-    } catch (error) {
-      store.rollBack()
-      throw error as Error
-    }
+    })
   }
 
   /** Capture the persisted value under the same ordering as UI reads and edits. */
@@ -322,6 +329,20 @@ export class SearchHistoryStore {
     return this.ordered(async (): Promise<void> => {
       const store = await this.historyStore()
       this.writeHistory(store, await this.readRows(), normalizeSearchHistoryEntries(entries))
+    })
+  }
+
+  async applyCloudTermRemovals(terms: Set<string>): Promise<void> {
+    if (terms.size === 0) return
+    await this.ordered(async (): Promise<void> => {
+      const store = await this.historyStore()
+      const rows = await this.readRows()
+      const restored = new Set(rows.filter(row => row.table === 'search_history').map(row => row.key))
+      const retained = rows.filter(row => {
+        const term = syncSearchIdentity(row.value.query)
+        return !terms.has(term) || restored.has(term) || !safeSyncSearch(row.value.query)
+      })
+      if (retained.length !== rows.length) this.writeHistory(store, rows, retained.map(row => row.value))
     })
   }
 

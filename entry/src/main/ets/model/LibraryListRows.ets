@@ -103,7 +103,10 @@ export function readSmartCategories(store: relationalStore.RdbStore): LibrarySma
   const byId = new Map<string, LibrarySmartCategory>()
   for (const category of categories) byId.set(category.id, category)
   for (const row of shelfSmartFilters.read(store)) byId.get(row.categoryId)?.filters.push(row.filter)
-  return categories
+  // ArkData can commit a category before its first rule, or remove its last
+  // rule before the category itself. Both cold restore and live publication
+  // expose only complete categories, without changing their stored rows.
+  return categories.filter((category: LibrarySmartCategory): boolean => category.filters.length > 0)
 }
 
 // A move records either an explicit cancellation or a target. A missing

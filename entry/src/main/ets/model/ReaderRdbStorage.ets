@@ -5,6 +5,7 @@ import type { SourceReadHistoryEntry } from './SourceReaderSession'
 import type { RemoteReadHistoryEntry } from './RemoteReaderSession'
 import type { ReadingSessionRecord } from './ReadingStatistics'
 import type { SyncReadingActionCapture, SyncReadingCapture } from '../deviceSync/DeviceSyncSignals'
+import { syncReadingIdentity } from '../deviceSync/DeviceSyncData'
 import { collectLocalRows } from './LocalDataRows'
 import { orderedReaderSessions, readerChapterStates, readerPositions, readerRemoteHistory, readerRemotePaths,
   readerSessions, readerSourceHistory, readRemoteHistory, remoteHistoryRows, remotePathRows } from './ReaderDataRows'
@@ -14,6 +15,49 @@ import { writeUserRecords } from './UserKeyedRecords'
 
 const OLD_READER_MIGRATION = 'reading-from-json-v1'
 const READER_MIGRATION = 'reader-relational-v1'
+
+function sameSourceWork(comicId: string, source: string, work: string, chapterId?: string): boolean {
+  if (!syncReadingIdentity(source, work, chapterId)) return false
+  const prefix = source + ':'
+  return comicId === (work.startsWith(prefix) ? work : prefix + work)
+}
+
+function sharedHistory(row: SourceReadHistoryEntry): boolean {
+  return sameSourceWork(row.comicId, row.sourceId, row.mangaId, row.chapterId)
+}
+
+function cloudMovedReadingPosition(received: ReadingProgress, before: ReadingProgress | undefined): boolean {
+  return received.pageId !== undefined && (before === undefined || received.chapterId !== before.chapterId ||
+    received.pageIndex !== before.pageIndex || received.totalPages !== before.totalPages)
+}
+
+/** Identity comes from the same staged reading snapshot as the pages. It
+ * needs neither catalog hydration nor a cross-library scan during a turn. */
+class ReadingScope {
+  private readonly sources = new Map<string, string>()
+  private readonly works = new Map<string, string>()
+
+  constructor(snapshot: ReaderSessionDocumentSnapshot, turns: ChapterReadingState[] = snapshot.chapters) {
+    for (const row of snapshot.sourceHistory) {
+      if (!sharedHistory(row)) continue
+      this.sources.set(row.comicId, row.sourceId)
+      this.works.set(row.comicId, row.mangaId)
+    }
+    for (const row of turns) {
+      const identity = row.sourceIdentity
+      if (identity === undefined || this.sources.has(row.comicId) ||
+        !sameSourceWork(row.comicId, identity.source, identity.work)) continue
+      this.sources.set(row.comicId, identity.source)
+      this.works.set(row.comicId, identity.work)
+    }
+  }
+
+  shares(comicId: string, chapterId: string): boolean {
+    const source = this.sources.get(comicId)
+    const work = this.works.get(comicId)
+    return source !== undefined && work !== undefined && syncReadingIdentity(source, work, chapterId)
+  }
+}
 
 export interface ReaderSyncWorkScope {
   comicId: string
@@ -73,11 +117,14 @@ export class ReaderRdbStorage {
           await readPreviousDatabase(transaction) : legacy
         if (snapshot === undefined) throw new Error('reader_migration_source_missing')
         const remote = snapshot.remoteHistory ?? []
-        await readerPositions.importRows(transaction, snapshot.progress)
-        await readerSourceHistory.importRows(transaction, snapshot.sourceHistory)
+        const scope = new ReadingScope(snapshot)
+        await readerPositions.importRows(transaction, snapshot.progress,
+          (row: ReadingProgress): boolean => scope.shares(row.comicId, row.chapterId))
+        await readerSourceHistory.importRows(transaction, snapshot.sourceHistory, sharedHistory)
         await readerRemoteHistory.importRows(transaction, remoteHistoryRows(remote))
         await readerRemotePaths.importRows(transaction, remotePathRows(remote))
-        await readerChapterStates.importRows(transaction, snapshot.chapters)
+        await readerChapterStates.importRows(transaction, snapshot.chapters,
+          (row: ChapterReadingState): boolean => scope.shares(row.comicId, row.chapterId))
         await readerSessions.importRows(transaction, orderedReaderSessions(snapshot.readingSessions ?? []))
         await new ReaderOutboxRows(snapshot.syncPositions ?? [], snapshot.syncActions ?? []).importRows(transaction)
         await transaction.execute('INSERT INTO local_data_migrations (name) VALUES (?)', [READER_MIGRATION])
@@ -133,8 +180,65 @@ export class ReaderRdbStorage {
     return reading
   }
 
+  applyCloudReading(scope: ReaderSyncWorkScope[], before: ReaderSessionDocumentSnapshot): ReaderSessionDocumentSnapshot {
+    const reading: ReaderSessionDocumentSnapshot = { progress: [], chapters: [], sourceHistory: [] }
+    const local = new ReadingScope(before)
+    writeUserRecords(this.store, (): void => {
+      for (const work of scope) {
+        const id = work.comicId
+        const recent = readerPositions.read(this.store, 'comic_id = ?', [id])[0]
+        const old = before.progress.find((row: ReadingProgress): boolean => row.comicId === id)
+        let history = readerSourceHistory.read(this.store, 'comic_id = ?', [id])[0]
+        const retained = recent !== undefined && old !== undefined && old.updatedAt >= recent.updatedAt &&
+          (old.chapterId !== recent.chapterId || old.pageIndex !== recent.pageIndex)
+        if (retained) {
+          readerPositions.put(this.store, old, local.shares(id, old.chapterId))
+          const priorHistory = before.sourceHistory.find((row: SourceReadHistoryEntry): boolean => row.comicId === id)
+          // The page conflict only decides the position. An absent history
+          // row is already deleted, so retaining the page cannot restore it.
+          if (history !== undefined && priorHistory !== undefined) {
+            readerSourceHistory.put(this.store, priorHistory, sharedHistory(priorHistory))
+            history = priorHistory
+          }
+          reading.progress.push(old)
+        } else {
+          if (recent !== undefined) {
+            // ArkData updates the portable position and leaves the local page ID
+            // in the row. It belongs to the previous position on this device.
+            if (cloudMovedReadingPosition(recent, old)) {
+              this.store.executeSync('UPDATE reader_current_positions SET page_id = NULL WHERE comic_id = ?', [id])
+              recent.pageId = undefined
+            }
+            reading.progress.push(recent)
+          }
+        }
+        if (history !== undefined) reading.sourceHistory.push(history)
+        const chapters = new Set(work.chapterIds)
+        if (recent !== undefined) chapters.add(recent.chapterId)
+        if (old !== undefined && retained) chapters.add(old.chapterId)
+        for (const chapterId of chapters) {
+          const row = readerChapterStates.read(this.store, 'comic_id = ? AND chapter_id = ?', [id, chapterId])[0]
+          if (row === undefined) continue
+          const prior = before.chapters.find((entry: ChapterReadingState): boolean => entry.comicId === id && entry.chapterId === chapterId)
+          if (row.position !== undefined && prior?.position !== undefined &&
+            prior.position.updatedAt >= row.position.updatedAt && prior.position.pageIndex !== row.position.pageIndex) {
+            row.position = prior.position
+            readerChapterStates.put(this.store, row, local.shares(id, chapterId))
+          } else if (row.position !== undefined && cloudMovedReadingPosition(row.position, prior?.position)) {
+            this.store.executeSync('UPDATE reader_chapter_states SET page_id = NULL WHERE comic_id = ? AND chapter_id = ?',
+              [id, chapterId])
+            row.position.pageId = undefined
+          }
+          reading.chapters.push(row)
+        }
+      }
+    })
+    return reading
+  }
+
   writeSyncEdits(scope: ReaderSyncWorkScope[], reading: ReaderSessionDocumentSnapshot): void {
     writeUserRecords(this.store, (): void => {
+      const share = new ReadingScope(reading)
       const progress = new Map<string, ReadingProgress>()
       const history = new Map<string, SourceReadHistoryEntry>()
       const chapters = new Map<string, Map<string, ChapterReadingState>>()
@@ -151,14 +255,14 @@ export class ReaderRdbStorage {
       for (const work of scope) {
         const position = progress.get(work.comicId)
         if (position === undefined) readerPositions.remove(this.store, [work.comicId])
-        else readerPositions.put(this.store, position)
+        else readerPositions.put(this.store, position, share.shares(position.comicId, position.chapterId))
         const source = history.get(work.comicId)
         if (source === undefined) readerSourceHistory.remove(this.store, [work.comicId])
-        else readerSourceHistory.put(this.store, source)
+        else readerSourceHistory.put(this.store, source, sharedHistory(source))
         for (const chapterId of work.chapterIds) {
           const chapter = chapters.get(work.comicId)?.get(chapterId)
           if (chapter === undefined) readerChapterStates.remove(this.store, [work.comicId, chapterId])
-          else readerChapterStates.put(this.store, chapter)
+          else readerChapterStates.put(this.store, chapter, share.shares(chapter.comicId, chapter.chapterId))
         }
       }
       new ReaderOutboxRows(reading.syncPositions ?? [], reading.syncActions ?? []).replace(this.store)
@@ -167,22 +271,24 @@ export class ReaderRdbStorage {
 
   save(snapshot: ReaderSessionDocumentSnapshot, pageTurns?: ChapterReadingState[]): void {
     writeUserRecords(this.store, (): void => {
+      const scope = new ReadingScope(snapshot, pageTurns)
       if (pageTurns === undefined) {
         const remote = snapshot.remoteHistory ?? []
-        readerPositions.replace(this.store, snapshot.progress)
-        readerSourceHistory.replace(this.store, snapshot.sourceHistory)
+        readerPositions.replace(this.store, snapshot.progress, (row: ReadingProgress): boolean => scope.shares(row.comicId, row.chapterId))
+        readerSourceHistory.replace(this.store, snapshot.sourceHistory, sharedHistory)
         readerRemoteHistory.replace(this.store, remoteHistoryRows(remote))
         readerRemotePaths.replace(this.store, remotePathRows(remote))
-        readerChapterStates.replace(this.store, snapshot.chapters)
+        readerChapterStates.replace(this.store, snapshot.chapters, (row: ChapterReadingState): boolean => scope.shares(row.comicId, row.chapterId))
         readerSessions.replace(this.store, orderedReaderSessions(snapshot.readingSessions ?? []))
       } else {
         // The chapter position, current position and outbox advance together.
         for (const chapter of pageTurns) {
           if (chapter.position === undefined) continue
-          readerChapterStates.put(this.store, chapter)
-          readerPositions.put(this.store, chapter.position)
+          const share = scope.shares(chapter.comicId, chapter.chapterId)
+          readerChapterStates.put(this.store, chapter, share)
+          readerPositions.put(this.store, chapter.position, share)
         }
-        for (const history of snapshot.sourceHistory) readerSourceHistory.put(this.store, history)
+        for (const history of snapshot.sourceHistory) readerSourceHistory.put(this.store, history, sharedHistory(history))
       }
       new ReaderOutboxRows(snapshot.syncPositions ?? [], snapshot.syncActions ?? []).replace(this.store)
     })

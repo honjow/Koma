@@ -6,17 +6,19 @@ const { createRdbPort } = require('./user_data_rdb_fixture.cjs')
 const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
   '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 
-function fixture(preferences = new Map()) {
+function fixture(preferences = new Map(), runtimeImports = new Map()) {
   const rdb = createRdbPort()
   const modules = new Map()
   function load(name) {
     if (modules.has(name)) return modules.get(name)
     const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model', name + '.ets'), 'utf8')
+      .replace(/^@ObservedV2\s*$/gm, '').replace(/@Trace /g, '')
     const js = ts.transpileModule(source, { compilerOptions: {
       target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS,
     } }).outputText
     const exports = {}
     new Function('exports', 'require', js)(exports, dependency => {
+      if (runtimeImports.has(dependency)) return runtimeImports.get(dependency)
       if (dependency === '@kit.ArkData') return {
         relationalStore: rdb.relationalStore,
         preferences: { getPreferences: async (_context, name) => {
@@ -30,8 +32,9 @@ function fixture(preferences = new Map()) {
       }
       if (dependency === './TrackerModels') return { TRACKER_REMOTE_PROVIDER_IDS: ['anilist'] }
       if (dependency === '@kit.CoreFileKit') return { fileIo: fs }
+      if (dependency === '@kit.ArkTS' || dependency === '@kit.CryptoArchitectureKit') return {}
       if (dependency === '../sourceRuntime/SourceSubscriptionStorage') return {}
-      if (dependency.startsWith('./')) return load(dependency.slice(2))
+      if (dependency.startsWith('.')) return load(path.posix.normalize(path.posix.join(path.posix.dirname(name), dependency)))
       throw new Error('Unexpected import ' + dependency)
     })
     modules.set(name, exports)
@@ -41,6 +44,216 @@ function fixture(preferences = new Map()) {
 }
 
 const plain = value => JSON.parse(JSON.stringify(value))
+
+test('a synced removal refreshes only the affected work when its membership row is already gone', async () => {
+  const env = fixture()
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
+    const cloud = env.load('../deviceSync/HuaweiCloudBusinessTables')
+    const store = await openUserDataDatabase({ filesDir: '/cloud-membership-delete' })
+    const library = new LibraryRdbStorage(store)
+    const affected = 'com.rumanhua.koma:/affected/'
+    const other = 'com.rumanhua.koma:/other/'
+    const sharedWork = id => ({
+      id, title: id, sourceKind: 'private_library', sourceRuntimeId: 'com.rumanhua.koma',
+      remoteResourceId: id.slice(id.indexOf(':') + 1), categoryIds: ['reading'], chapters: [],
+    })
+    await library.migrate({
+      schemaVersion: 1, comics: [sharedWork(affected), sharedWork(other)],
+      customCategories: [{ id: 'reading', name: 'Reading', sortOrder: 0, createdAt: 1, updatedAt: 1 }],
+    })
+    assert.deepEqual(library.readWork(affected).categoryIds, ['reading'])
+    await cloud.prepareCloudWorkDeletions(store)
+    const row = store.querySqlSync('SELECT rowid FROM shelf_memberships WHERE comic_id = ?', [affected])
+    assert.equal(row.goToNextRow(), true)
+    const rowId = row.getLong(0)
+    row.close()
+    await cloud.startCloudWorkDeletions(store)
+    await store.execute('DELETE FROM shelf_memberships WHERE rowid = ?', [rowId])
+    await cloud.stopCloudWorkDeletions(store)
+    const change = { table: 'shelf_memberships', inserted: [], updated: [], deleted: [rowId] }
+
+    // Exercise publication with and without the delayed ArkData callback.
+    for (const changes of [[], [change]]) {
+      const effects = await cloud.cloudBusinessChanges(store, changes, ['shelf'])
+      assert.deepEqual(Array.from(effects.groups), ['shelf'])
+      assert.deepEqual(Array.from(effects.shelfWorks), [affected])
+      const edits = library.cloudShelfEdits(Array.from(effects.shelfWorks), effects.categories, effects.smartCategories)
+      assert.deepEqual(edits.after.works.map(work => [work.id, work.categoryIds]), [[affected, []]])
+    }
+    const effects = await cloud.cloudBusinessChanges(store, [change], ['shelf'])
+    await cloud.acknowledgeCloudWorkDeletions(store, effects.deletedWorkSerial)
+    assert.deepEqual(Array.from((await cloud.cloudBusinessChanges(store, [change], ['shelf'])).groups), [])
+    assert.deepEqual(library.readWork(other).categoryIds, ['reading'])
+  } finally {
+    env.close()
+  }
+})
+
+test('cloud category changes publish valid rules and clear only memberships in the deleted category', async () => {
+  const env = fixture()
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
+    const store = await openUserDataDatabase({ filesDir: '/cloud-category-delete' })
+    const library = new LibraryRdbStorage(store)
+    const deleted = 'custom_deleted'
+    const kept = 'custom_kept'
+    const shared = 'com.rumanhua.koma:/category-delete/'
+    const category = id => ({ id, name: id, sortOrder: 0, createdAt: 1, updatedAt: 1 })
+    await library.migrate({
+      schemaVersion: 1,
+      comics: [
+        { id: shared, title: 'Shared work', sourceRuntimeId: 'com.rumanhua.koma', sourceKind: 'private_library',
+          remoteResourceId: '/category-delete/', chapters: [], categoryIds: [deleted, kept] },
+        { id: 'device-book', chapters: [], categoryIds: [deleted] },
+        { id: 'untouched', chapters: [], categoryIds: [kept] },
+      ],
+      customCategories: [category(deleted), category(kept)],
+    })
+    await store.execute('DELETE FROM shelf_categories WHERE category_id = ?', [deleted])
+    const edits = library.cloudShelfEdits([], true, false, [deleted])
+    assert.deepEqual(edits.comicIds.sort(), [shared, 'device-book'].sort())
+    assert.deepEqual(library.readWork(shared).categoryIds, [kept])
+    assert.deepEqual(library.readWork('device-book').categoryIds, [])
+    assert.deepEqual(library.readWork('untouched').categoryIds, [kept])
+
+    const smart = 'smart:rule-delta'
+    await store.execute('INSERT INTO shelf_smart_categories (category_id, name, sort_order, created_at, updated_at) ' +
+      'VALUES (?, ?, ?, ?, ?)', [smart, 'Smart', 0, 1, 1])
+    assert.deepEqual(library.cloudShelfEdits([], false, true).after.smartCategories, [])
+    await store.execute('INSERT INTO shelf_smart_category_filters (category_id, filter_order, method, excluded) ' +
+      'VALUES (?, ?, ?, ?)', [smart, 0, 'downloaded', 0])
+    assert.equal(library.cloudShelfEdits([], false, true).after.smartCategories[0].id, smart)
+    await store.execute('DELETE FROM shelf_smart_category_filters WHERE category_id = ?', [smart])
+    assert.deepEqual(library.cloudShelfEdits([], false, true).after.smartCategories, [])
+    assert.deepEqual(library.read().smartCategories, [])
+  } finally {
+    env.close()
+  }
+})
+
+test('a downloaded work with no shared URL can be loaded again after restarting the shelf', async () => {
+  const env = fixture()
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
+    const store = await openUserDataDatabase({ filesDir: '/cloud-shelf-reopen' })
+    const library = new LibraryRdbStorage(store)
+    await library.migrate({ schemaVersion: 1, comics: [] })
+    const source = 'com.rumanhua.koma'
+    const work = '/downloaded-work/'
+    const comicId = `${source}:${work}`
+    await store.execute('INSERT INTO shelf_works (comic_id, source_runtime_id, remote_resource_id, title) VALUES (?, ?, ?, ?)',
+      [comicId, source, work, 'Downloaded work'])
+
+    const edits = library.cloudShelfEdits([comicId], false, false)
+    assert.equal(edits.after.works[0].sourcePath, work)
+    const reopened = new LibraryRdbStorage(store).read()
+    assert.equal(reopened.comics[0].sourcePath, work)
+    assert.equal(reopened.comics[0].remoteResourceId, work)
+  } finally {
+    env.close()
+  }
+})
+
+test('retaining a newer page does not restore deleted source history', async () => {
+  const env = fixture()
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { ReaderRdbStorage } = env.load('ReaderRdbStorage')
+    const store = await openUserDataDatabase({ filesDir: '/cloud-history-delete' })
+    const reader = new ReaderRdbStorage(store)
+    const comicId = 'com.rumanhua.koma:/history-delete/'
+    const chapterId = 'chapter'
+    const progress = { comicId, chapterId, pageIndex: 3, totalPages: 8, progressRatio: 0.5, completed: false, updatedAt: 200 }
+    const history = { comicId, sourceId: 'com.rumanhua.koma', mangaId: '/history-delete/', title: 'Test', chapterId }
+    const before = { progress: [progress], sourceHistory: [history], chapters: [{
+      comicId, chapterId, position: progress, sourceIdentity: { source: 'com.rumanhua.koma', work: '/history-delete/' },
+      isRead: false, bookmarked: true, updatedAt: 200,
+    }] }
+    await reader.migrate(before)
+    await store.execute('UPDATE reader_current_positions SET page_index = 1, saved_at = 100 WHERE comic_id = ?', [comicId])
+    await store.execute('DELETE FROM reader_source_history WHERE comic_id = ?', [comicId])
+    const scope = [{ comicId, chapterIds: [chapterId] }]
+    const reading = reader.applyCloudReading(scope, before)
+    assert.equal(reading.progress[0].pageIndex, 3)
+    assert.equal(reading.chapters[0].bookmarked, true)
+    assert.deepEqual(reading.sourceHistory, [])
+    assert.deepEqual(reader.readSyncEdits(scope).sourceHistory, [])
+  } finally {
+    env.close()
+  }
+})
+
+test('cloud publication drains late and partially successful changes without another transfer', async () => {
+  const env = fixture(new Map(), new Map([
+    ['@kit.AbilityKit', {}],
+    ['./DeviceSyncOwners', {}],
+    ['./DeviceSyncStorage', {}],
+    ['../model/ReaderSessionStore', {}],
+    ['../model/ReaderPreferencesStore', {}],
+    ['../model/SearchHistoryStore', { SearchHistoryStore: class { async applyCloudTermRemovals() {} } }],
+    ['../model/SourceLibraryComic', {}],
+    ['../sourceRuntime/SourceIndexService', {}],
+    ['../viewmodel/SourcePackageManagerCache', {}],
+    ['../diagnostics/DiagnosticLogger', { DiagnosticLogger: { warn() {}, exception() {} } }],
+  ]))
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
+    const { prepareCloudWorkDeletions } = env.load('../deviceSync/HuaweiCloudBusinessTables')
+    const { appHuaweiCloudSync: sync } = env.load('../deviceSync/HuaweiCloudSync')
+    const context = { filesDir: '/cloud-publication' }
+    const store = await openUserDataDatabase(context)
+    const library = new LibraryRdbStorage(store)
+    const id = 'com.rumanhua.koma:/publication/'
+    const categoryId = 'custom_publication'
+    const work = { id, title: 'Test work', sourceKind: 'private_library', sourceRuntimeId: 'com.rumanhua.koma',
+      remoteResourceId: '/publication/', chapters: [] }
+    await library.migrate({ schemaVersion: 1, comics: [work],
+      customCategories: [{ id: categoryId, name: 'Test', sortOrder: 0, createdAt: 1, updatedAt: 1 }] })
+    await prepareCloudWorkDeletions(store)
+    Object.assign(sync, { context, storage: { update: action => action({}) }, selection: () => ['shelf'],
+      distributedStore: async () => store })
+    sync.view.enabled = true
+
+    let visible = library.readWork(id)
+    let published
+    sync.attachPublisher((_groups, _reading, shelf) => {
+      if (!shelf?.comicIds.includes(id)) return
+      visible = shelf.after.works.find(comic => comic.id === id)
+      published?.()
+    })
+    sync.transfer = async (_store, tables) => {
+      if (tables.includes('shelf_works')) await store.execute('DELETE FROM shelf_works WHERE comic_id = ?', [id])
+    }
+    await sync.sync()
+    assert.equal(library.readWork(id), undefined)
+    assert.equal(visible.id, id)
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(Error('late change was not published')), 1000)
+      published = () => { clearTimeout(timer); resolve() }
+      sync.receiveChanges([{ table: 'shelf_works', inserted: [], updated: [], deleted: [id] }])
+    })
+    assert.equal(visible, undefined)
+
+    library.saveExistingWorks([{ ...work, categoryIds: [categoryId] }])
+    visible = library.readWork(id)
+    assert.deepEqual(visible.categoryIds, [categoryId])
+    sync.transfer = async (_store, tables) => {
+      if (!tables.includes('shelf_memberships')) return
+      await store.execute('DELETE FROM shelf_memberships WHERE comic_id = ?', [id])
+      throw Error('partial')
+    }
+    await sync.sync()
+    assert.deepEqual(visible.categoryIds, [])
+    assert.equal(sync.view.error, 'partial')
+  } finally {
+    env.close()
+  }
+})
 
 test('keyed migration retries atomically and a cleared domain never reloads retained legacy values', async () => {
   const env = fixture()
@@ -181,6 +394,38 @@ test('reading sync joins saved chapter metadata without loading unrelated shelf 
     assert.deepEqual(plain(reader.readForSync().progress), [position])
     assert.equal(reader.readForSync().readingSessions, undefined)
     assert.equal(reader.read().readingSessions.length, 1)
+  } finally {
+    env.close()
+  }
+})
+
+test('a cloud page update discards the receiver’s previous page anchor', async () => {
+  const env = fixture()
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { ReaderRdbStorage } = env.load('ReaderRdbStorage')
+    const { readingProgressPageIndex } = env.load('ComicModels')
+    const store = await openUserDataDatabase({ filesDir: '/cloud-page-anchor' })
+    const reader = new ReaderRdbStorage(store)
+    const position = { comicId: 'source:work', chapterId: 'chapter', pageId: 'old-image', pageIndex: 1,
+      totalPages: 5, progressRatio: 0.4, completed: false, updatedAt: 100 }
+    const chapter = { comicId: position.comicId, chapterId: position.chapterId, position,
+      sourceIdentity: { source: 'source', work: 'work' }, isRead: false, bookmarked: true, updatedAt: 100 }
+    const before = { progress: [position], chapters: [chapter], sourceHistory: [] }
+    const scope = [{ comicId: position.comicId, chapterIds: [position.chapterId] }]
+    await reader.migrate(before)
+
+    for (const table of ['reader_current_positions', 'reader_chapter_states']) {
+      store.executeSync('UPDATE ' + table + ' SET page_index = ?, saved_at = ? WHERE comic_id = ?', [3, 200, position.comicId])
+    }
+    const received = reader.applyCloudReading(scope, before)
+    const pages = ['first', 'old-image', 'middle', 'new-image', 'last']
+    assert.equal(readingProgressPageIndex(received.chapters[0].position, pages.length, pages), 3)
+    const reopened = new ReaderRdbStorage(store).readSyncEdits(scope)
+    assert.equal(reopened.progress[0].pageIndex, 3)
+    assert.equal(reopened.progress[0].pageId, undefined)
+    assert.equal(reopened.chapters[0].position.pageId, undefined)
+    assert.equal(reopened.chapters[0].bookmarked, true)
   } finally {
     env.close()
   }

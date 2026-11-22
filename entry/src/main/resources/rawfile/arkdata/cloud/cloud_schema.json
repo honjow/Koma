@@ -1,127 +1,120 @@
 {
   "metaVersion": 65537,
-  "version": 5,
+  "version": 29,
   "bundleName": "com.honjow.koma",
   "e2eeEnable": false,
-  "databases": [
-    {
-      "name": "koma_user_data",
+  "databases": [{
+    "name": "Koma",
       "alias": "koma_user_data",
-      "bundleName": "com.honjow.koma",
-      "version": 5,
-      "autoSyncType": 0,
-      "tables": [
-        {
-          "name": "cloud_sync_shelf",
-          "alias": "CloudSyncShelf",
-          "fields": [
-            {
-              "colName": "record_id",
-              "alias": "record_id",
-              "type": 3,
-              "primary": true,
-              "nullable": true,
-              "dupCheckCol": true
-            },
-            {
-              "colName": "payload",
-              "alias": "payload",
-              "type": 3,
-              "primary": false,
-              "nullable": true,
-              "dupCheckCol": false
-            }
-          ]
-        },
-        {
-          "name": "cloud_sync_reading",
-          "alias": "CloudSyncReading",
-          "fields": [
-            {
-              "colName": "record_id",
-              "alias": "record_id",
-              "type": 3,
-              "primary": true,
-              "nullable": true,
-              "dupCheckCol": true
-            },
-            {
-              "colName": "payload",
-              "alias": "payload",
-              "type": 3,
-              "primary": false,
-              "nullable": true,
-              "dupCheckCol": false
-            }
-          ]
-        },
-        {
-          "name": "cloud_sync_reader_settings",
-          "alias": "CloudSyncReaderSettings",
-          "fields": [
-            {
-              "colName": "record_id",
-              "alias": "record_id",
-              "type": 3,
-              "primary": true,
-              "nullable": true,
-              "dupCheckCol": true
-            },
-            {
-              "colName": "payload",
-              "alias": "payload",
-              "type": 3,
-              "primary": false,
-              "nullable": true,
-              "dupCheckCol": false
-            }
-          ]
-        },
-        {
-          "name": "cloud_sync_source_subscriptions",
-          "alias": "CloudSyncSourceSubscriptions",
-          "fields": [
-            {
-              "colName": "record_id",
-              "alias": "record_id",
-              "type": 3,
-              "primary": true,
-              "nullable": true,
-              "dupCheckCol": true
-            },
-            {
-              "colName": "payload",
-              "alias": "payload",
-              "type": 3,
-              "primary": false,
-              "nullable": true,
-              "dupCheckCol": false
-            }
-          ]
-        },
-        {
-          "name": "cloud_sync_search_history",
-          "alias": "CloudSyncSearchHistory",
-          "fields": [
-            {
-              "colName": "record_id",
-              "alias": "record_id",
-              "type": 3,
-              "primary": true,
-              "nullable": true,
-              "dupCheckCol": true
-            },
-            {
-              "colName": "payload",
-              "alias": "payload",
-              "type": 3,
-              "primary": false,
-              "nullable": true,
-              "dupCheckCol": false
-            }
-          ]
-        }
-      ]
-    }
-  ]
+    "bundleName": "com.honjow.koma",
+      "version": 29,
+    "autoSyncType": 0,
+    "tables": [
+      {"name": "shelf_works", "alias": "ShelfWorks", "fields": [
+        {"colName": "comic_id", "alias": "comic_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "source_runtime_id", "alias": "source_runtime_id", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "remote_resource_id", "alias": "remote_resource_id", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "title", "alias": "title", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "source_name", "alias": "source_name", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "source_path", "alias": "source_path", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "cover_uri", "alias": "cover_uri", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "source_cover_uri", "alias": "source_cover_uri", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "chapter_catalog_updated_at", "alias": "chapter_catalog_updated_at", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "has_shared_chapters", "alias": "has_shared_chapters", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "shelf_categories", "alias": "ShelfCategories", "fields": [
+        {"colName": "category_id", "alias": "category_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "list_order", "alias": "list_order", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "name", "alias": "name", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "sort_order", "alias": "sort_order", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "created_at", "alias": "created_at", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "updated_at", "alias": "updated_at", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "is_private", "alias": "is_private", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "shelf_memberships", "alias": "ShelfMemberships", "fields": [
+        {"colName": "comic_id", "alias": "comic_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "category_id", "alias": "category_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "category_occurrence", "alias": "category_occurrence", "type": 1, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "list_order", "alias": "list_order", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "shelf_smart_categories", "alias": "ShelfSmartCategories", "fields": [
+        {"colName": "category_id", "alias": "category_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "list_order", "alias": "list_order", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "name", "alias": "name", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "sort_order", "alias": "sort_order", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "created_at", "alias": "created_at", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "updated_at", "alias": "updated_at", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "shelf_smart_category_filters", "alias": "ShelfSmartCategoryFilters", "fields": [
+        {"colName": "category_id", "alias": "category_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "filter_order", "alias": "filter_order", "type": 1, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "method", "alias": "method", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "filter_value", "alias": "filter_value", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "excluded", "alias": "excluded", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "shelf_shared_chapters", "alias": "ShelfSharedChapters", "fields": [
+        {"colName": "comic_id", "alias": "comic_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "chapter_order", "alias": "chapter_order", "type": 1, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "chapter_id", "alias": "chapter_id", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "reader_current_positions", "alias": "ReaderCurrentPositions", "fields": [
+        {"colName": "comic_id", "alias": "comic_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "chapter_id", "alias": "chapter_id", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "page_index", "alias": "page_index", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "total_pages", "alias": "total_pages", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "progress_ratio", "alias": "progress_ratio", "type": 2, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "completed", "alias": "completed", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "saved_at", "alias": "saved_at", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "reader_chapter_states", "alias": "ReaderChapterStates", "fields": [
+        {"colName": "comic_id", "alias": "comic_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "chapter_id", "alias": "chapter_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "is_read", "alias": "is_read", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "bookmarked", "alias": "bookmarked", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "updated_at", "alias": "updated_at", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "source_id", "alias": "source_id", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "source_work_id", "alias": "source_work_id", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "has_position", "alias": "has_position", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "page_index", "alias": "page_index", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "total_pages", "alias": "total_pages", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "progress_ratio", "alias": "progress_ratio", "type": 2, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "completed", "alias": "completed", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "saved_at", "alias": "saved_at", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "reader_source_history", "alias": "ReaderSourceHistory", "fields": [
+        {"colName": "comic_id", "alias": "comic_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "source_id", "alias": "source_id", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "manga_id", "alias": "manga_id", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "title", "alias": "title", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "source_name", "alias": "source_name", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "reading_format", "alias": "reading_format", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "chapter_id", "alias": "chapter_id", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "chapter_title", "alias": "chapter_title", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "shared_manga_url", "alias": "shared_manga_url", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "shared_cover_uri", "alias": "shared_cover_uri", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "reader_shared_preferences", "alias": "ReaderSharedPreferences", "fields": [
+        {"colName": "id", "alias": "id", "type": 1, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "page_mode", "alias": "page_mode", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "reading_direction", "alias": "reading_direction", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "image_fit_mode", "alias": "image_fit_mode", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "show_page_number", "alias": "show_page_number", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "page_turn_animation", "alias": "page_turn_animation", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "book_reader_modes", "alias": "BookReaderModes", "fields": [
+        {"colName": "comic_id", "alias": "comic_id", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "page_mode", "alias": "page_mode", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "reading_direction", "alias": "reading_direction", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "source_subscriptions", "alias": "SourceSubscriptions", "fields": [
+        {"colName": "url", "alias": "url", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "custom_name", "alias": "custom_name", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]},
+      {"name": "search_history", "alias": "SearchHistory", "fields": [
+        {"colName": "entry_key", "alias": "entry_key", "type": 3, "primary": true, "nullable": true, "dupCheckCol": true},
+        {"colName": "query", "alias": "query", "type": 3, "primary": false, "nullable": true, "dupCheckCol": false},
+        {"colName": "updated_at", "alias": "updated_at", "type": 1, "primary": false, "nullable": true, "dupCheckCol": false}
+      ]}
+    ]
+  }]
 }

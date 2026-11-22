@@ -1,4 +1,5 @@
 import type { relationalStore } from '@kit.ArkData'
+import { syncCoverAddress, syncReadingWorkAddress } from '../deviceSync/DeviceSyncData'
 import type { ReaderSeriesFormat, ReadingProgress } from './ComicModels'
 import type { ChapterReadingState } from './ReaderSessionStore'
 import type { ReadingSessionRecord } from './ReadingStatistics'
@@ -28,18 +29,76 @@ function positionFromRow(row: relationalStore.ResultSet, offset: number, comicId
   }
 }
 
-export const readerPositions = new LocalDataRows<ReadingProgress>('reader_current_positions', ['comic_id'],
-  ['chapter_id'].concat(POSITION_FIELDS), 'rowid',
+class ScopedReaderRows<T> {
+  private readonly shared: LocalDataRows<T>
+  private readonly local: LocalDataRows<T>
+  private readonly combined: LocalDataRows<T>
+  private readonly key: (row: T) => LocalColumnValue[]
+
+  constructor(table: string, rows: (table: string, order: string) => LocalDataRows<T>,
+    key: (row: T) => LocalColumnValue[]) {
+    this.shared = rows(table, 'rowid')
+    this.local = rows(table + '_local', 'rowid')
+    this.combined = rows(table + '_all', 'storage_order, comic_id')
+    this.key = key
+  }
+
+  read(store: relationalStore.RdbStore, filter?: string, args?: LocalColumnValue[]): T[] {
+    return this.combined.read(store, filter, args)
+  }
+
+  put(store: relationalStore.RdbStore, row: T, share: boolean): void {
+    const target = share ? this.shared : this.local
+    const previous = share ? this.local : this.shared
+    target.put(store, row)
+    previous.remove(store, this.key(row))
+  }
+
+  remove(store: relationalStore.RdbStore, key: LocalColumnValue[]): void {
+    this.shared.remove(store, key)
+    this.local.remove(store, key)
+  }
+
+  async importRows(transaction: relationalStore.Transaction, rows: T[], share: (row: T) => boolean): Promise<void> {
+    const shared: T[] = []
+    const local: T[] = []
+    const sharedOrder: number[] = []
+    const localOrder: number[] = []
+    // The combined read preserves the original order across both partitions.
+    rows.forEach((row: T, index: number): void => {
+      const portable = share(row)
+      if (portable) {
+        shared.push(row)
+        sharedOrder.push(index + 1)
+      } else {
+        local.push(row)
+        localOrder.push(index + 1)
+      }
+    })
+    await this.shared.importRows(transaction, shared, sharedOrder)
+    await this.local.importRows(transaction, local, localOrder)
+  }
+
+  replace(store: relationalStore.RdbStore, rows: T[], share: (row: T) => boolean): void {
+    this.shared.replace(store, rows.filter(share))
+    this.local.replace(store, rows.filter((row: T): boolean => !share(row)))
+  }
+}
+
+function positionRows(table: string, order: string): LocalDataRows<ReadingProgress> {
+  return new LocalDataRows<ReadingProgress>(table, ['comic_id'], ['chapter_id'].concat(POSITION_FIELDS), order,
   (position: ReadingProgress): LocalColumnValue[] => {
     const keys: LocalColumnValue[] = [position.comicId, position.chapterId]
     return keys.concat(positionValues(position))
   },
-  (row: relationalStore.ResultSet): ReadingProgress => positionFromRow(row, 2, row.getString(0), row.getString(1)))
+    (row: relationalStore.ResultSet): ReadingProgress => positionFromRow(row, 2, row.getString(0), row.getString(1)))
+}
 
-export const readerChapterStates = new LocalDataRows<ChapterReadingState>('reader_chapter_states', ['comic_id', 'chapter_id'],
+function chapterRows(table: string, order: string): LocalDataRows<ChapterReadingState> {
+  return new LocalDataRows<ChapterReadingState>(table, ['comic_id', 'chapter_id'],
   ['is_read', 'bookmarked', 'updated_at', 'source_id', 'source_work_id', 'has_position', 'position_comic_id_override',
     'position_chapter_id_override']
-    .concat(POSITION_FIELDS), 'rowid',
+    .concat(POSITION_FIELDS), order,
   (chapter: ChapterReadingState): LocalColumnValue[] => {
     const values: LocalColumnValue[] = [chapter.comicId, chapter.chapterId, booleanValue(chapter.isRead),
       booleanValue(chapter.bookmarked), chapter.updatedAt ?? null, chapter.sourceIdentity?.source ?? null,
@@ -58,25 +117,41 @@ export const readerChapterStates = new LocalDataRows<ChapterReadingState>('reade
     position: row.getLong(7) === 0 ? undefined :
       positionFromRow(row, 10, textColumn(row, 8) ?? row.getString(0), textColumn(row, 9) ?? row.getString(1)),
   }))
+}
 
-export const readerSourceHistory = new LocalDataRows<SourceReadHistoryEntry>('reader_source_history', ['comic_id'],
-  ['source_id', 'manga_id', 'manga_url', 'title', 'cover_uri', 'source_name', 'reading_format', 'chapter_id', 'chapter_title'],
-  'rowid',
-  (entry: SourceReadHistoryEntry): LocalColumnValue[] => [entry.comicId, entry.sourceId ?? null, entry.mangaId ?? null,
-    entry.mangaUrl ?? null, entry.title ?? null, entry.coverUri ?? null, entry.sourceName ?? null,
-    entry.readingFormat ?? null, entry.chapterId ?? null, entry.chapterTitle ?? null],
+function sourceHistoryRows(table: string, order: string): LocalDataRows<SourceReadHistoryEntry> {
+  return new LocalDataRows<SourceReadHistoryEntry>(table, ['comic_id'],
+  ['source_id', 'manga_id', 'manga_url', 'title', 'cover_uri', 'source_name', 'reading_format', 'chapter_id', 'chapter_title',
+    'shared_manga_url', 'shared_cover_uri'],
+  order,
+  (entry: SourceReadHistoryEntry): LocalColumnValue[] => {
+    const url = syncReadingWorkAddress(entry.mangaUrl)
+    const cover = syncCoverAddress(entry.coverUri)
+    return [entry.comicId, entry.sourceId ?? null, entry.mangaId ?? null,
+      url === undefined ? entry.mangaUrl ?? null : null, entry.title ?? null,
+      cover === undefined ? entry.coverUri ?? null : null, entry.sourceName ?? null,
+      entry.readingFormat ?? null, entry.chapterId ?? null, entry.chapterTitle ?? null, url ?? null, cover ?? null]
+  },
   (row: relationalStore.ResultSet): SourceReadHistoryEntry => ({
     comicId: row.getString(0),
     sourceId: textColumn(row, 1) as string,
     mangaId: textColumn(row, 2) as string,
-    mangaUrl: textColumn(row, 3),
+    mangaUrl: textColumn(row, 3) ?? textColumn(row, 10),
     title: textColumn(row, 4) as string,
-    coverUri: textColumn(row, 5),
+    coverUri: textColumn(row, 5) ?? textColumn(row, 11),
     sourceName: textColumn(row, 6),
     readingFormat: textColumn(row, 7) as ReaderSeriesFormat | undefined,
     chapterId: textColumn(row, 8) as string,
     chapterTitle: textColumn(row, 9),
   }))
+}
+
+export const readerPositions = new ScopedReaderRows<ReadingProgress>('reader_current_positions', positionRows,
+  (row: ReadingProgress): LocalColumnValue[] => [row.comicId])
+export const readerChapterStates = new ScopedReaderRows<ChapterReadingState>('reader_chapter_states', chapterRows,
+  (row: ChapterReadingState): LocalColumnValue[] => [row.comicId, row.chapterId])
+export const readerSourceHistory = new ScopedReaderRows<SourceReadHistoryEntry>('reader_source_history', sourceHistoryRows,
+  (row: SourceReadHistoryEntry): LocalColumnValue[] => [row.comicId])
 
 interface ReaderRemoteRow {
   entry: RemoteReadHistoryEntry

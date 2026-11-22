@@ -3,6 +3,7 @@ import type { ComicSourceKind, ReadingDirection } from './ComicModels'
 import type { PersistedChapter, PersistedComic, PersistedPage } from './LibraryPersistence'
 import type { SourceRequiredImageDecode } from './SourceRequiredImageDecode'
 import { metadataRow, readShelfMetadata, SHELF_METADATA_FIELDS, shelfMetadataValues } from './LibraryRelations'
+import { ShelfSharedWork, sharedShelfWork } from './ShelfSharedRows'
 import { booleanColumn, booleanValue, integerColumn, LocalColumnValue, LocalDataRows, realColumn, textColumn } from './LocalDataRows'
 
 export interface ShelfWorkRow {
@@ -39,14 +40,17 @@ function requiredDecode(row: relationalStore.ResultSet, offset: number): SourceR
   return undefined
 }
 
-export const shelfWorks = new LocalDataRows<ShelfWorkRow>('shelf_works', ['comic_id'], [
+function workRows(table: string, detailsTable: boolean = false): LocalDataRows<ShelfWorkRow> {
+  return new LocalDataRows<ShelfWorkRow>(table, ['comic_id'], [
     'list_order', 'has_categories', 'title', 'subtitle', 'author',
     'source_kind', 'source_path', 'source_runtime_id', 'remote_server_id', 'remote_resource_id',
     'cover_uri', 'personal_notes', 'custom_cover_uri', 'source_cover_uri', 'sort_title',
     'preferred_direction', 'chapter_count', 'page_count', 'created_at', 'updated_at',
     'last_imported_at',
-  ].concat(SHELF_METADATA_FIELDS), 'list_order',
-  (entry: ShelfWorkRow): LocalColumnValue[] => [
+  ].concat(SHELF_METADATA_FIELDS, detailsTable ? ['shared_scope'] : []), 'list_order',
+  (entry: ShelfWorkRow): LocalColumnValue[] => {
+    const shared: ShelfSharedWork | undefined = sharedShelfWork(entry.work)
+    const local: LocalColumnValue[] = [
     entry.work.id, entry.order, booleanValue(entry.hasCategories),
     entry.work.title ?? null, entry.work.subtitle ?? null, entry.work.author ?? null,
     entry.work.sourceKind ?? null, entry.work.sourcePath ?? null, entry.work.sourceRuntimeId ?? null,
@@ -55,7 +59,21 @@ export const shelfWorks = new LocalDataRows<ShelfWorkRow>('shelf_works', ['comic
     entry.work.sortTitle ?? null, entry.work.preferredDirection ?? null, entry.work.chapterCount ?? null,
     entry.work.pageCount ?? null, entry.work.createdAt ?? null, entry.work.updatedAt ?? null,
     entry.work.lastImportedAt ?? null, ...shelfMetadataValues(metadataRow(entry.work)),
-  ],
+    ]
+    if (shared !== undefined) {
+      if (local[3] === shared.title) local[3] = null
+      if (local[7] === shared.workUrl) local[7] = null
+      local[8] = null
+      local[10] = null
+      if (local[11] === shared.coverUri) local[11] = null
+      if (local[14] === shared.sourceCoverUri) local[14] = null
+      if (local[32] === shared.sourceName) local[32] = null
+      if (local[38] === shared.catalogUpdatedAt) local[38] = null
+      if (shared.hasSharedChapters === 1) local[41] = 0
+    }
+    if (detailsTable) local.push(shared === undefined ? 0 : 1)
+    return local
+  },
   (row: relationalStore.ResultSet): ShelfWorkRow => {
     const details = readShelfMetadata(row, 22, row.getString(0))
     return {
@@ -89,7 +107,11 @@ export const shelfWorks = new LocalDataRows<ShelfWorkRow>('shelf_works', ['comic
         chapters: [],
       },
     }
-})
+  })
+}
+
+export const shelfWorks = workRows('shelf_works_all')
+export const shelfWorkDetails = workRows('shelf_work_details', true)
 
 export const shelfChapters = new LocalDataRows<ShelfChapterRow>('shelf_chapters', ['comic_id', 'chapter_id', 'chapter_occurrence'], [
     'list_order', 'title', 'chapter_index', 'chapter_number', 'volume_number',

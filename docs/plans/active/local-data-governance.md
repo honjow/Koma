@@ -1,6 +1,6 @@
 # 本地数据治理与升级验收
 
-当前本地业务库是 `Koma.db`，库版本为 6。按 NextE 的命名方式使用一个业务库。升级时 ArkData 按库名打开原 `koma-user-data.db`，把业务表及已有迁移标记分批复制到新库，写入和完成标记使用同一笔事务。已有华为云镜像有独立存储，本地改名不会把它复制进 `Koma.db`。华为云同步在本地设计收尾后单独处理。
+当前本地业务库是 `Koma.db`，库版本为 9。旧版升级时由 ArkData 打开原 `koma-user-data.db`，分批复制业务表及迁移标记。版本 6 起直接在现有 `Koma.db` 中升级。作品详情、共享章节、阅读位置与设置按所属范围保存，原记录和完成标记在同一事务内处理。历史华为云镜像不进入业务库。
 
 版本 4 曾把旧文件和 Preferences 搬入 RDB 的 JSON 或通用键值表。版本 5 是第一次关系表实现。两者都是自动升级输入。版本 6 合并随同一业务对象读写的作品元数据、Mihon 一对一记录及按书选项。阅读器全局设置使用固定字段，显示设置的亮度、HDR、颜色和反色等 11 个值各有一列。
 
@@ -12,7 +12,7 @@
 
 | 业务 | 表及记录身份 | 保存和查询 |
 | --- | --- | --- |
-| 书架作品 | `shelf_works` 按作品 ID，作品元数据在同一行。 | 标题、来源、路径、封面、笔记、时间、目录及页数均为独立列。作者、导入路径、标签和共享章节目录中的每个条目在子表单独占行。 |
+| 书架作品 | `shelf_works` 和 `shelf_work_details` 按作品 ID。 | 可共享的来源、标题和目录属性写 `shelf_works`，本机详情存 `shelf_work_details`。按作品键联读。作者、导入路径、标签及共享章节按条目保存。 |
 | 目录和页面 | `shelf_chapters` 按作品、章节 ID；`shelf_pages` 按章节和页面 ID。 | 目录顺序与行身份分开。旧备份中重复 ID 的记录按同 ID 内的出现次数保留。正文页的模板、尺寸、必需解码配置、文字段落和气泡分别存列或子记录。保存一本现有作品按作品范围更新。 |
 | 分类 | `shelf_memberships` 按作品及分类；`shelf_categories` 和 `shelf_smart_categories` 按分类 ID。 | 分类名称、私密状态、展示策略和智能条件各自有列。归属支持内置分类 ID，因此由书架校验分类身份。按分类查询成员有索引。 |
 | Mihon 与跨源关联 | `shelf_mihon_imports` 按原导入 ID；`shelf_sync_moves` 按同步空间、原书源及原作品。 | 导入行包含原作品和匹配作品字段。原始章节、阅读历史、追踪等多条记录用子表。跨源关联用列保存目标，保留取消与明确空分类的区别。 |
@@ -22,10 +22,17 @@
 | 下载和自动任务 | `offline_download_queues`、`offline_download_tasks`、`library_maintenance_jobs`。 | 按任务所属队列、作品、章节定位。进度、重试原因、暂停、网络限制和队列顺序为独立列。自动下载和读后清理按工作类型区分，下载正文仍由章节文件管理。 |
 | 书源订阅与登记 | `source_subscriptions` 按 URL，活动地址在 `source_subscription_selection`；`source_registry_entries` 按书源 ID。 | 订阅日期、禁用、名称与顺序可直接查询。登记保存包版本、路径、登录声明、本地化名称与能力；凭据仍归安全存储。 |
 | 书源配置与图片规则 | `source_preference_sources`、配置组、字段和列表项目子表；`image_rule_subscriptions` 与 `image_rule_installations` 分开。 | 书源和插件声明的字段名在运行时确定，值按文本、数值、开关或有序字符串列表存储。查询预设按书源分组。图片规则资产用已有不可变文件，表保存摘要和来源，安装配置与资产同属原 owner。 |
-| 阅读与章节设置 | `reader_preferences` 保存全局设置，`book_preferences` 每部作品一行。 | 章节排序、语言组、状态筛选、阅读方向与模式、横幅及简介展开各有专用列。各设置入口只更新所属列。备份仍沿原设置字段。 |
+| 阅读与章节设置 | `reader_shared_preferences` 保存全局可共享设置，`reader_preferences` 保存设备设置。按书的阅读覆盖在 `book_reader_modes`，其他按书设置在 `book_preferences`。 | 自动翻页模式覆盖留在设备设置。各设置入口只更新所属列。备份仍沿原设置字段。 |
+
+共享目录的章节 ID 和顺序位于 `shelf_shared_chapters`。只在本机使用的目录条目位于 `shelf_shared_chapters_local`。可共享目录的更新时间在 `shelf_works`。导入路径、作者、标签和排除章节仍由 `shelf_work_metadata_items` 持有。正常编辑沿用单作品事务及主键查询。
+
 | 追踪 | `tracker_mappings`、`tracker_progress_outbox` 和待发送章集合子表。 | 追踪搭配、媒体 ID、进度、重试和失败原因分列，按 provider 和作品查询。保留旧记录中相同业务键的出现次数及原处理顺序。 |
 | 书架更新 | `library_chapter_discoveries`、`library_update_job`、汇总及按作品/提供方的结果和失败原因表。 | 发现的章节按作品与时间查询。检查任务、汇总和各条结果可独立读写。 |
-| 搜索历史 | 原 `search_history` 保留显式搜索词、时间和范围列。 | 按更新时间及同一时刻的顺序读取，有现有索引。 |
+| 搜索历史 | `search_history` 按规范化搜索词，`search_history_local` 保留设备范围。 | 按更新时间及同一时刻的顺序读取，有现有索引。 |
+
+搜索历史按词归并后，把可共享的最新一条放入 `search_history`。同词的其他设备范围和不适合共享的词留在 `search_history_local`。书源订阅按已有的规范地址归并，`source_subscriptions` 中每个规范地址只有一条，备用地址保留在 `source_subscriptions_local`。正常入口合并两边本地记录，备份和 WebDAV 仍使用原有数据格式。
+
+版本 8 把可同步的阅读位置、章节状态、书源历史及按书模式与本机专属记录分开。旧页位和阅读来源原样保留。章页保存仍只更新该作品、该章节和相应待发送记录。AGC 直接使用[对应的 13 张业务表](huawei-cloud-sync-schema.md)。版本 9 移除版本 8 开发包中 ArkData 拒绝注册的 `CHECK` 约束，从该开发包升级时保留行、主键、外键、索引和读取视图。
 
 旧的整段 JSON 表从新增安装的建库语句中移除。旧设备现存的表在此次升级后作为历史输入留存，业务模块成功切换后只读写新表。备份、Mihon、书源协议及 WebDAV 的交换格式由原有入口转换。
 

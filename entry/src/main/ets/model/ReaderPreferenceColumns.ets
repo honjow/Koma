@@ -59,24 +59,36 @@ function sqlType(type: string): string {
   return type === 'boolean' ? 'INTEGER' : 'TEXT'
 }
 
+const SHARED_KEYS: string[] = ['reader.pageMode', 'reader.readingDirection', 'reader.imageFitMode',
+  'reader.showPageNumber', 'reader.pageTurnAnimation']
+const SHARED_FIELDS = fields.filter((field: ReaderPreferenceField): boolean => SHARED_KEYS.includes(field.key))
+const LOCAL_FIELDS = fields.filter((field: ReaderPreferenceField): boolean =>
+  !SHARED_KEYS.includes(field.key) || field.key === 'reader.pageMode')
+
+// page_mode in the device table is only the automatic mode override. The
+// portable mode and the other shared controls have a single durable owner.
 export const CREATE_READER_PREFERENCES = 'CREATE TABLE IF NOT EXISTS reader_preferences (' +
   'id INTEGER PRIMARY KEY CHECK (id = 1), ' +
-  fields.map((field: ReaderPreferenceField): string => field.column + ' ' + sqlType(field.type)).join(', ') + ', ' +
+  LOCAL_FIELDS.map((field: ReaderPreferenceField): string => field.column + ' ' + sqlType(field.type)).join(', ') + ', ' +
   DISPLAY_COLUMNS.map((column: string): string => column + (column === 'display_blend_mode' ? ' TEXT' : ' INTEGER'))
     .join(', ') + ')'
+
+export const CREATE_READER_SHARED_PREFERENCES = 'CREATE TABLE IF NOT EXISTS reader_shared_preferences (' +
+  'id INTEGER PRIMARY KEY, ' +
+  SHARED_FIELDS.map((field: ReaderPreferenceField): string => field.column + ' ' + sqlType(field.type)).join(', ') + ')'
 
 export interface ReaderPreferenceWrite {
   sql: string
   values: LocalColumnValue[]
 }
 
-function upsert(columns: string[]): string {
-  return 'INSERT INTO reader_preferences (id, ' + columns.join(', ') + ') VALUES (1, ' +
+function upsert(columns: string[], table: string = 'reader_preferences'): string {
+  return 'INSERT INTO ' + table + ' (id, ' + columns.join(', ') + ') VALUES (1, ' +
     columns.map((): string => '?').join(', ') + ') ON CONFLICT(id) DO UPDATE SET ' +
     columns.map((column: string): string => column + '=excluded.' + column).join(', ')
 }
 
-export function readerPreferenceWrite(key: string, raw?: string): ReaderPreferenceWrite | undefined {
+export function readerPreferenceWrites(key: string, raw?: string): ReaderPreferenceWrite[] | undefined {
   if (key !== DISPLAY_KEY) {
     const field = fields.find((item: ReaderPreferenceField): boolean => item.key === key)
     if (field === undefined) return undefined
@@ -85,26 +97,36 @@ export function readerPreferenceWrite(key: string, raw?: string): ReaderPreferen
     if (field.type === 'boolean' && typeof parsed === 'boolean') value = booleanValue(parsed)
     if (field.type === 'number' && typeof parsed === 'number') value = parsed
     if (field.type === 'string' && typeof parsed === 'string') value = parsed
-    return { sql: upsert([field.column]), values: [value] }
+    if (!SHARED_KEYS.includes(key)) return [{ sql: upsert([field.column]), values: [value] }]
+    const sharedSql = upsert([field.column], 'reader_shared_preferences')
+    if (key !== 'reader.pageMode') return [{ sql: sharedSql, values: [value] }]
+    return [
+      { sql: upsert([field.column]), values: [value === 'auto_page' ? value : null] },
+      { sql: sharedSql, values: [value === 'auto_page' ? 'single_page' : value] },
+    ]
   }
-  if (raw === undefined) return { sql: upsert(DISPLAY_COLUMNS), values: DISPLAY_COLUMNS.map((): LocalColumnValue => null) }
+  if (raw === undefined) return [{ sql: upsert(DISPLAY_COLUMNS), values: DISPLAY_COLUMNS.map((): LocalColumnValue => null) }]
   // The Preferences and backup formats supply display settings as an encoded string.
   const display = parseReaderDisplaySettings(JSON.parse(raw) as string)
-  return { sql: upsert(DISPLAY_COLUMNS), values: [
+  return [{ sql: upsert(DISPLAY_COLUMNS), values: [
     booleanValue(display.brightnessEnabled), display.brightness, booleanValue(display.hdrBrightnessEnabled),
     booleanValue(display.filterEnabled), display.red, display.green, display.blue, display.alpha, display.blendMode,
     booleanValue(display.grayscale), booleanValue(display.inverted),
-  ] }
+  ] }]
 }
 
 export function readReaderPreferenceColumns(store: relationalStore.RdbStore, key?: string): Map<string, string> {
   const values = new Map<string, string>()
   const selected = key === undefined ? fields : fields.filter((field: ReaderPreferenceField): boolean => field.key === key)
   const readDisplay = key === undefined || key === DISPLAY_KEY
-  const columns = selected.map((field: ReaderPreferenceField): string => field.column)
-  if (readDisplay) columns.push(...DISPLAY_COLUMNS)
+  const columns = selected.map((field: ReaderPreferenceField): string => {
+    if (field.key === 'reader.pageMode') return 'COALESCE(l.page_mode, s.page_mode)'
+    return (SHARED_KEYS.includes(field.key) ? 's.' : 'l.') + field.column
+  })
+  if (readDisplay) columns.push(...DISPLAY_COLUMNS.map((column: string): string => 'l.' + column))
   if (columns.length === 0) return values
-  const row = store.querySqlSync('SELECT ' + columns.join(', ') + ' FROM reader_preferences WHERE id = 1')
+  const row = store.querySqlSync('SELECT ' + columns.join(', ') + ' FROM (SELECT 1 AS id) p ' +
+    'LEFT JOIN reader_preferences l ON l.id = p.id LEFT JOIN reader_shared_preferences s ON s.id = p.id')
   try {
     if (!row.goToNextRow()) return values
     selected.forEach((field: ReaderPreferenceField, index: number): void => {
@@ -133,11 +155,31 @@ export function readReaderPreferenceColumns(store: relationalStore.RdbStore, key
   } finally { row.close() }
 }
 
+export async function migrateSharedReaderPreferences(transaction: relationalStore.Transaction): Promise<void> {
+  const result = await transaction.querySql('PRAGMA table_info(reader_preferences)')
+  let previousLayout = false
+  try {
+    while (result.goToNextRow()) {
+      if (result.getString(1) === 'reading_direction') previousLayout = true
+    }
+  } finally { result.close() }
+  if (!previousLayout) return
+  const columns = SHARED_FIELDS.map((field: ReaderPreferenceField): string => field.column)
+  const previous = columns.map((column: string): string => column === 'page_mode' ?
+    "CASE WHEN page_mode = 'auto_page' THEN 'single_page' ELSE page_mode END" : column)
+  await transaction.execute('INSERT INTO reader_shared_preferences (id, ' + columns.join(', ') + ') SELECT id, ' +
+    previous.join(', ') + ' FROM reader_preferences')
+  await transaction.execute("UPDATE reader_preferences SET page_mode = NULL WHERE page_mode <> 'auto_page'")
+  for (const column of columns) {
+    if (column !== 'page_mode') await transaction.execute('ALTER TABLE reader_preferences DROP COLUMN ' + column)
+  }
+}
+
 /** Convert version 5 reader settings inside the rename transaction. */
 export async function copyReaderPreferenceColumns(transaction: relationalStore.Transaction): Promise<void> {
   const result = await transaction.querySql('SELECT preference_id, value_kind, value_text, value_number, value_boolean ' +
     'FROM typed_local_preferences WHERE domain = ?', [READER_GLOBAL_DOMAIN])
-  const writes = new Map<string, ReaderPreferenceWrite>()
+  const writes = new Map<string, ReaderPreferenceWrite[]>()
   try {
     while (result.goToNextRow()) {
       const key = result.getString(0)
@@ -145,13 +187,13 @@ export async function copyReaderPreferenceColumns(transaction: relationalStore.T
       const encoded = kind === 'string' ? JSON.stringify(result.getString(2)) :
         (kind === 'number' ? JSON.stringify(result.getDouble(3)) :
           (kind === 'boolean' ? JSON.stringify(result.getLong(4) !== 0) : undefined))
-      const write = readerPreferenceWrite(key, encoded)
+      const write = readerPreferenceWrites(key, encoded)
       if (write !== undefined) writes.set(key, write)
     }
   } finally { result.close() }
   for (const key of writes.keys()) {
-    const write = writes.get(key) as ReaderPreferenceWrite
-    await transaction.execute(write.sql, write.values)
+    const operations = writes.get(key) ?? []
+    for (const write of operations) await transaction.execute(write.sql, write.values)
     await transaction.execute('DELETE FROM typed_local_preferences WHERE domain = ? AND preference_id = ?',
       [READER_GLOBAL_DOMAIN, key])
   }
