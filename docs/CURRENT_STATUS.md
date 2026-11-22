@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T03:51:28+08:00",
+  "updatedAt": "2026-11-23T04:00:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -12670,6 +12670,23 @@
         ".hvigor/outputs/published-source-order-audit-20261123/tongli-fix-final.json"
       ],
       "updatedAt": "2026-11-23T03:51:28+08:00"
+    },
+    {
+      "id": "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY",
+      "number": 345,
+      "title": "条漫从章首或章末续读后立即跨章会卡住",
+      "kind": "pending_verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "本会话用户反馈，从第 1、2 页退出续读后向上回翻，或从末页退出续读后向后翻，第一次惯性滚动会卡在章节边界。",
+      "updatedAt": "2026-11-23T04:00:00+08:00",
+      "status": "201 三种续读起点均已实测首划跨章，Koma 已固定共享依赖",
+      "result": "201 包子漫画《大象無形》第 94 章普通续读，原包在相同第一划的三组早手势均未跨章。候选在 730 ms 和 1700 ms 两组动作间隔均到正确相邻章，730 ms 从第 1、2 页均回到第 93 章 43/43，从末页 38/38 到第 95 章 2/39。旧包在正文页表返回后仍会重新拉取完整 605 章目录，样本耗时 3.11–3.13 秒。Koma 提交 b1bd4825 复用已验证章序，并固定到独立 reader-kit 已公开的提交 43e80fb，保持回滑接缝。",
+      "remaining": "当前具名真机范围为 201 已验证目录的在线作品，首次打开且缺少目录、登录型书源和其他设备未覆盖。按原规则获取新鲜正文页表。",
+      "relatedItems": ["AUTO_CHAPTER_BOUNDARY_TARGET", "NEXT_CHAPTER_PREFETCH_REUSE"],
+      "evidence": [".hvigor/outputs/reader-resume-previous-chapter/Koma-1.6.0-resume-previous-chapter.hap", ".hvigor/outputs/reader-resume-previous-chapter/build.log", ".hvigor/outputs/reader-resume-previous-chapter/Koma-1.6.0-verified-catalog-resume.hap", ".hvigor/outputs/reader-resume-previous-chapter/201-resume-seam-comparison.json"]
     }
   ],
   "source": {
@@ -29710,6 +29727,31 @@
       "kind": "progress",
       "title": "统一阅读器选章为所选依据的正向目录",
       "detail": "用户先确认固定正向，再重申排序依据必须联动。原半模态只读原数组，现共用ReaderChapterSequence中的完整目录正向投影，三入口（书库续读、未入库直读、后台目录恢复）均接入。保全部真实版本、权限和无编号条目，不用当前有限续章链代替完整列表；计数和邻章原规则保持。16项实际逻辑检查通过，设备未验不写通过。"
+    },
+    {
+      "id": "reader-resume-predecessor-seam-candidate-20261123",
+      "at": "2026-11-23T03:32:10+08:00",
+      "itemId": "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY",
+      "kind": "progress",
+      "title": "章首续读回滑接缝已有签名候选",
+      "detail": "实现及本地验证在独立 reader-kit 原仓进行，共享会话和连续阅读入场检查 128 项通过。使用原仓构建 Koma 1.6.0 候选后恢复原依赖路径。197 有有效的其他会话租约，未安装候选。"
+    },
+    {
+      "id": "reader-resume-both-directions-device201-20261123",
+      "at": "2026-11-23T03:55:00+08:00",
+      "itemId": "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY",
+      "kind": "progress",
+      "title": "201 普通续读第一划双向对照",
+      "detail": "按用户指定测试第 94 章第 1、2、38 页。旧包早手势三次均停在原章，晚组回滑仅有一次从第 2 页回到本章第 1 页。新包两档手势共六次均进入对应相邻章，代表章末候选复用目录后跳过旧包 3.11 秒的目录请求。两个提交均在各自原仓。留用候选包，验证过程使用暂时无痕进度。",
+      "evidence": [".hvigor/outputs/reader-resume-previous-chapter/201-resume-seam-comparison.json"]
+    },
+    {
+      "id": "reader-resume-both-directions-dependency-20261123",
+      "at": "2026-11-23T04:00:00+08:00",
+      "itemId": "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY",
+      "kind": "progress",
+      "title": "共享续读修复已公开，Koma 已固定依赖",
+      "detail": "从独立 reader-kit 原仓推送 main，原远端和 Koma 配置的公共 HTTPS 地址均读回 43e80fb。Koma 在本仓记录该依赖指针。"
     },
     {
       "id": "source-coordinate-five-published-20261123",
