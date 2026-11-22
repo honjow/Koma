@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-21T20:02:00+08:00",
+  "updatedAt": "2026-11-22T21:07:57+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -85,6 +85,37 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "SOURCE_BROWSE_LAST_DESTINATION",
+      "number": 341,
+      "title": "书源浏览记住最后分类",
+      "kind": "accepted",
+      "priority": "用户要求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-22",
+      "reportedAtSource": "本会话用户建议浏览分类记住最后选择，随后明确要求实施并在197验证；原始提出精确时刻未核实。",
+      "registeredAt": "2026-11-22T20:52:25+08:00",
+      "updatedAt": "2026-11-22T21:07:57+08:00",
+      "status": "197已验每源分类、重进和重启恢复",
+      "result": "包子漫画选热门后退出重进，仍显示热门和对应列表；Komiic选择最近更新后，包子仍保留热门。结束App进程再启动后，Komiic仍恢复最近更新。显式切回包子首页，退出重进仍为首页。已在本机执行验证旧分类失效回到原默认、失败请求保留选择及验证重放不覆盖选择；现有搜索筛选和设置备份检查通过。197已返回原书架，原电源和超时已读回并释租，保留验证包。",
+      "remaining": "实现与197验证完成；功能随后续App版本提供，本轮未发布App，书源无需更新。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-last-category/verification.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-last-category/11-baozi-popular-full-journey/layout.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-last-category/16-cross-source-baozi/layout.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-last-category/17-cold-start-komiic/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-last-category/19-home-selection/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-last-category/20-session-restore/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-last-category/logic-checks.tap",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-last-category/backup-settings-check.log"
+      ],
+      "relatedItems": [
+        "SOURCE_BROWSE_DESTINATION_CACHE",
+        "SOURCE_BROWSE_HOME_STRUCTURE"
+      ],
+      "closedAt": "2026-11-22T21:07:57+08:00"
+    },
     {
       "id": "READER_REVISIT_LOADING_STALL",
       "number": 340,
@@ -12609,6 +12640,18 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-last-category-197-20261122",
+      "at": "2026-11-22T21:07:57+08:00",
+      "itemId": "SOURCE_BROWSE_LAST_DESTINATION",
+      "title": "197已验按书源记住最后分类",
+      "detail": "复用本机RDB按稳定书源ID保存首页或分类ID，首次无记录沿原默认；恢复前核当前get_listings，失效ID清理后回默认。真实普通路径验证包子热门重进、Komiic最近更新与包子互不覆盖、进程重建后恢复及首页选择。包子两次403分别通过现有网页会话恢复，未将验证浮层期间的点击算作分类成功。测试输入与菜单路径失败原件保留，按真实成功路径验收。197原国漫书架、120000ms默认/10000ms覆盖和休眠已恢复，租约已释放。App未发布。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-last-category/verification.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-last-category/20-session-restore/run-metadata.json"
+      ]
+    },
     {
       "id": "startup-migration-dialog-197-20261122",
       "at": "2026-11-22T20:29:26+08:00",

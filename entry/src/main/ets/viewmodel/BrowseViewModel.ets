@@ -20,6 +20,7 @@ import {
   sourceFiltersForQuery,
 } from '../model/SourceModels'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from '../model/SourceTextNormalizer'
+import { appSourceBrowseDestinationPreferences } from '../model/SourceBrowseDestinationPreferences'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { safeDiagnosticCode, safeSearchDiagnostic } from '../model/SearchStateMapper'
 import { SourceRuntimeError } from '../model/SourceRuntimeError'
@@ -838,7 +839,8 @@ export class BrowseViewModel {
   ): Promise<void> {
     const sourceMatchesCurrent = this.isCurrentBrowseSource(source)
     const sameSourceRefresh = intent === BrowseLoadIntent.REFRESH && this.isSameBrowseSource(source)
-    const previousListingId = sameSourceRefresh ? this.selectedListingId : ''
+    const previousListingId = sameSourceRefresh ? this.selectedListingId :
+      appSourceBrowseDestinationPreferences.load(source.sourceId) ?? ''
     const previousHomeAvailable = this.homeAvailable
     const previousCacheContext = this.browseCacheContext
     const refreshKey = sameSourceRefresh ? this.browseDestinationCacheKey(source) : ''
@@ -888,6 +890,11 @@ export class BrowseViewModel {
       // Only an independent source home may advertise this capability (source-runtime-abi).
       // Do not invent it from an existing listing or infer it from matching sampled cards.
       let listing = listings.find((item: SourceListingDescriptor): boolean => item.id === previousListingId)
+      // Persist navigation, not responses: restore directly into the chosen listing,
+      // but never send a removed ID or reinterpret it by translated name/list position.
+      if (previousListingId.length > 0 && listing === undefined) {
+        appSourceBrowseDestinationPreferences.clear(source.sourceId)
+      }
       let homeAvailable = source.capabilities.indexOf('home') >= 0 ||
         (source.capabilities.indexOf('sourceInfo') < 0 && previousHomeAvailable)
       let homeSections: SourceHomeSectionState[] = []
@@ -965,6 +972,9 @@ export class BrowseViewModel {
     operationGuardId?: string): Promise<void> {
     const source = this.selectedSource
     if (source === undefined || (this.loadingBrowse && this.browseLoadIntent === BrowseLoadIntent.INITIAL)) return
+    if (!automaticRecovery && operationGuardId === undefined) {
+      appSourceBrowseDestinationPreferences.save(source.sourceId, listing?.id ?? '')
+    }
     const cacheKey = this.browseDestinationCacheKey(source, listing)
     const cached = automaticRecovery ? undefined : this.browseDestinationCache.get(cacheKey)
     const requestId = ++this.browseRequestId

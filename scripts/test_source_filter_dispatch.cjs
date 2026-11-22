@@ -36,6 +36,7 @@ function fixture(searchQuery, useSearchForFilters = false) {
       resetBrowseFilters: () => calls.push(['reset-browse']),
       runSearch: (source, query, _recover, _guard, fromFilters) =>
         calls.push(query.length === 0 && fromFilters ? ['filter-only-search', source] : ['search', source, query]),
+      submitSearch: (source, query) => calls.push(['search', source, query]),
       clearSearch: source => calls.push(['clear-search', source]),
     },
   })

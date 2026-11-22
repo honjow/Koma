@@ -1,6 +1,7 @@
 import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { ChapterListPreferencesStore } from '../model/ChapterListPreferencesStore'
+import { appSourceBrowseDestinationPreferences } from '../model/SourceBrowseDestinationPreferences'
 import { sourceBrowseLayoutRecords, synopsisRecords, trackerMappingRecords, readerGlobalRecords,
   readerModeRecords, readerBannerRecords, catalogFilterRecords } from '../model/MigratedPreferenceRecords'
 import { deviceInfo } from '@kit.BasicServicesKit'
@@ -127,6 +128,9 @@ export default class EntryAbility extends UIAbility {
     })
     await sourceBrowseLayoutRecords.prepare(this.context).catch((error: Error): void => {
       DiagnosticLogger.exception('browse', 'preferences_prepare_failed', error)
+    })
+    await appSourceBrowseDestinationPreferences.prepare(this.context).catch((error: Error): void => {
+      DiagnosticLogger.exception('browse', 'destination_prepare_failed', error)
     })
     await synopsisRecords.prepare(this.context).catch((error: Error): void => {
       DiagnosticLogger.exception('detail', 'preferences_prepare_failed', error)
