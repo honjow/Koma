@@ -21,7 +21,48 @@ import {
 import { coverImageAutomaticRetryDelayMs } from '../model/CoverImageRetryPolicy'
 
 const COVER_DECODE_MAX_EDGE: number = 320
+const COVER_RESAMPLE_MAX_INPUT_EDGE: number = 2048
 const COVER_FADE_DURATION_MS: number = 200
+
+/** Round physical pixels upward to reuse cache entries across near-identical layouts. */
+export function coverDecodeEdgeForDisplay(heightVp: number, fallback: number = COVER_DECODE_MAX_EDGE): number {
+  if (!Number.isFinite(heightVp) || heightVp <= 0) return fallback
+  return Math.min(768, Math.max(fallback, Math.ceil(vp2px(heightVp) / 32) * 32))
+}
+
+async function decodeCoverThumbnail(source: image.ImageSource, size: image.Size, maxEdge: number): Promise<image.PixelMap> {
+  const sourceEdge = Math.max(size.width, size.height)
+  if (sourceEdge <= maxEdge) return source.createPixelMap()
+
+  // ArkUI interpolation runs after decoding and cannot recover pixels omitted
+  // by the decoder's resize. Bound the intermediate bitmap for large covers,
+  // then explicitly low-pass the image when generating the cached thumbnail.
+  const inputEdge = Math.max(maxEdge, COVER_RESAMPLE_MAX_INPUT_EDGE)
+  const inputScale = Math.min(1, inputEdge / sourceEdge)
+  const pixels = inputScale < 1 ? await source.createPixelMap({ desiredSize: {
+    width: Math.max(1, Math.round(size.width * inputScale)),
+    height: Math.max(1, Math.round(size.height * inputScale)),
+  } }) : await source.createPixelMap()
+  try {
+    const decodedSize = pixels.getImageInfoSync().size
+    const ratio = maxEdge / Math.max(decodedSize.width, decodedSize.height)
+    const width = Math.max(1, Math.round(decodedSize.width * ratio))
+    const height = Math.max(1, Math.round(decodedSize.height * ratio))
+    return await pixels.createScaledPixelMap(width / decodedSize.width, height / decodedSize.height,
+      image.AntiAliasingLevel.MEDIUM)
+  } catch (_error) {
+    // Preserve the existing decoder route if the bitmap backing rejects scaling.
+    const ratio = maxEdge / sourceEdge
+    return await source.createPixelMap({ desiredSize: {
+      width: Math.max(1, Math.round(size.width * ratio)),
+      height: Math.max(1, Math.round(size.height * ratio)),
+    } })
+  } finally {
+    await pixels.release().catch((error: BusinessError): void => {
+      DiagnosticLogger.warn('cached_cover_image', 'resample_release_failed', 'code=' + error.code)
+    })
+  }
+}
 
 interface AnimatedCover {
   uri: string
@@ -71,6 +112,44 @@ export function cachedCoverFailureKey(
   const route = sourceMangaUrl?.trim() ?? ''
   const routedKey = route.length === 0 ? key : `${key}::${route}`
   return sourceCoverHeaders === undefined ? routedKey : `${routedKey}::${JSON.stringify(sourceCoverHeaders)}`
+}
+
+/** Resolve the same full-resolution artwork for storage and display. */
+export async function resolveComicCoverArtwork(
+  context: common.UIAbilityContext,
+  uri: string,
+  sourceRuntimeId: string,
+  sourceImageId: string,
+  sourceKind: ComicSourceKind | undefined,
+  remoteServerId: string,
+  sourceMangaUrl: string,
+  sourceCoverHeaders?: SourceCoverHeaders,
+  downloadedComicId: string = '',
+): Promise<string> {
+  if (uri.startsWith('file://')) return uri
+  if (downloadedComicId.length > 0) {
+    const path = await resolveDownloadCover(context, downloadedComicId, {
+      uri,
+      sourceId: sourceRuntimeId,
+      imageId: sourceImageId,
+      mangaUrl: sourceMangaUrl,
+      sourceKind,
+      serverId: remoteServerId,
+    })
+    if (path.length > 0 || uri.length === 0) return path
+  }
+  // Mihon records store a backup thumbnail URL before they have a runtime source.
+  // Load that URL through the cover cache until the shelf record is linked.
+  if (sourceRuntimeId.trim().length > 0 && !sourceRuntimeId.startsWith('mihon:')) {
+    configureReaderRemoteImageCache(context.cacheDir)
+    return fetchAndCacheSourceRuntimeCoverImage(sourceRuntimeId, uri, sourceImageId, sourceMangaUrl, sourceCoverHeaders)
+  }
+  return resolveCachedCoverImage(context, {
+    uri,
+    identity: sourceImageId.trim().length > 0 ? sourceImageId : uri,
+    sourceKind,
+    remoteServerId,
+  })
 }
 
 @ComponentV2
@@ -259,33 +338,9 @@ export struct CachedCoverImage {
     remoteServerId: string,
     sourceMangaUrl: string,
   ): Promise<string> {
-    // A selected/restored cover is owned by the app, even when its comic still
-    // belongs to a source. Never hand that local file to the source's HTTP resolver.
-    if (uri.startsWith('file://')) return uri
     const context = getContext(this) as common.UIAbilityContext
-    if (this.downloadedComicId.length > 0) {
-      const path = await resolveDownloadCover(context, this.downloadedComicId, {
-        uri,
-        sourceId: sourceRuntimeId,
-        imageId: sourceImageId,
-        mangaUrl: sourceMangaUrl,
-        sourceKind,
-        serverId: remoteServerId,
-      })
-      if (path.length > 0 || uri.length === 0) return path
-    }
-    // Mihon records store a backup thumbnail URL before they have a runtime source.
-    // Load that URL through the cover cache until the shelf record is linked.
-    if (sourceRuntimeId.trim().length > 0 && !sourceRuntimeId.startsWith('mihon:')) {
-      configureReaderRemoteImageCache(context.cacheDir)
-      return fetchAndCacheSourceRuntimeCoverImage(sourceRuntimeId, uri, sourceImageId, sourceMangaUrl, this.sourceCoverHeaders)
-    }
-    return resolveCachedCoverImage(context, {
-      uri,
-      identity: sourceImageId.trim().length > 0 ? sourceImageId : uri,
-      sourceKind,
-      remoteServerId,
-    })
+    return resolveComicCoverArtwork(context, uri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId,
+      sourceMangaUrl, this.sourceCoverHeaders, this.downloadedComicId)
   }
 
   private async decodeImage(
@@ -364,21 +419,10 @@ export struct CachedCoverImage {
           return
         }
       }
-      const sourceWidth = Math.max(1, imageInfo.size.width)
-      const sourceHeight = Math.max(1, imageInfo.size.height)
       const maxEdge = Math.max(1, this.decodeMaxEdge)
-      const scale = Math.min(1, maxEdge / Math.max(sourceWidth, sourceHeight))
-      const desiredWidth = Math.max(1, Math.round(sourceWidth * scale))
-      const desiredHeight = Math.max(1, Math.round(sourceHeight * scale))
       decodeStep = 'pixel_map'
-      const lease = await coverPixelMapMemoryCache.acquireOrLoad(memoryCacheKey, async (): Promise<image.PixelMap> => {
-        return imageSource!.createPixelMap({
-          desiredSize: {
-            width: desiredWidth,
-            height: desiredHeight,
-          },
-        })
-      })
+      const lease = await coverPixelMapMemoryCache.acquireOrLoad(memoryCacheKey,
+        () => decodeCoverThumbnail(imageSource!, imageInfo.size, maxEdge))
       if (this.disposed || this.sourceSignature !== signature || this.decodeGeneration !== generation) {
         await coverPixelMapMemoryCache.release(lease)
         return

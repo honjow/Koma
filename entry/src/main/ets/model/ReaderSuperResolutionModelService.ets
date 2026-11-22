@@ -71,11 +71,44 @@ export class ReaderSuperResolutionModelPaths {
   acceleratedModelPath: string = ''
 }
 
+interface ModelDownloadObserver {
+  directory: string
+  accelerator: string
+  update: (loaded: number) => void
+  received: Map<string, number>
+}
+
 /** Downloads and verifies immutable model assets before the native runtime can see them. */
 export class ReaderSuperResolutionModelService {
   private static waifu2xInstallTask: Promise<void> | null = null
   private static realEsrganInstallTask: Promise<void> | null = null
   private static directInstallTasks: Map<string, Promise<void>> = new Map<string, Promise<void>>()
+
+  private static downloadObservers: Set<ModelDownloadObserver> = new Set<ModelDownloadObserver>()
+
+  static observeDownload(context: common.UIAbilityContext, model: string,
+    update: (loaded: number) => void): () => void {
+    const definition = ReaderSuperResolutionModelRegistry.find(model)
+    if (definition === null) return (): void => {}
+    const observer: ModelDownloadObserver = {
+      directory: ReaderSuperResolutionModelService.definitionDir(context, definition) + '/',
+      accelerator: ReaderSuperResolutionModelService.paths(context, definition).acceleratedModelPath,
+      update,
+      received: new Map<string, number>(),
+    }
+    ReaderSuperResolutionModelService.downloadObservers.add(observer)
+    return (): void => { ReaderSuperResolutionModelService.downloadObservers.delete(observer) }
+  }
+
+  private static reportDownload(path: string, loaded: number): void {
+    ReaderSuperResolutionModelService.downloadObservers.forEach((observer: ModelDownloadObserver): void => {
+      if (!path.startsWith(observer.directory) && path !== observer.accelerator + '.part') return
+      observer.received.set(path, Math.max(loaded, observer.received.get(path) ?? 0))
+      let total = 0
+      observer.received.forEach((bytes: number): void => { total += bytes })
+      observer.update(total)
+    })
+  }
 
   static definitions(): ReaderSuperResolutionModelDefinition[] {
     const definitions: ReaderSuperResolutionModelDefinition[] =
@@ -1089,7 +1122,7 @@ export class ReaderSuperResolutionModelService {
         const bytes: number = await ReaderModelAssetDownload.download(
           urls[i],
           path,
-          (_loaded: number, _total: number): void => {},
+          (loaded: number, _total: number): void => { ReaderSuperResolutionModelService.reportDownload(path, loaded) },
           DOWNLOAD_CONNECT_TIMEOUT_MS,
           0,
           'application/octet-stream,text/plain,*/*',

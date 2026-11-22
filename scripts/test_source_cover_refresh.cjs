@@ -33,9 +33,10 @@ function fixture() {
     coverUri: 'https://owned.invalid/old', title: 'Owned title', sourcePath: 'https://source.invalid/work', createdAt: 1, updatedAt: 2, lastImportedAt: 3,
     chapters: [{ id: 'owned-chapter', pages: [{ id: 'owned-page', uri: 'file://owned-cache' }], index: 0 }],
     chapterCount: 458, pageCount: 18, categoryIds: ['owned-category'], localMetadata: { custom: 'keep' } }
-  const store = { values: { [original.id]: clone(original) }, getComic(id) { return this.values[id] }, addComic(row) { this.values[row.id] = row }, listComics() { return Object.values(this.values) } }
+  const store = { values: { [original.id]: clone(original) }, getComic(id) { return this.values[id] }, addComic(row) { this.values[row.id] = row },
+    upsertComic(row) { this.values[row.id] = row }, listComics() { return Object.values(this.values) } }
   let saves = 0
-  return { original, store, service: { persist() { saves++ } }, saves: () => saves }
+  return { original, store, service: { persist() { saves++ }, persistExistingWorks() { saves++ } }, saves: () => saves }
 }
 test('fresh cover changes only the cover field and persists once, preserving chapter/cache/category/order data', () => {
   const f = fixture()
@@ -65,7 +66,7 @@ test('missing/wrong identity, local work, empty/invalid cover never writes or re
 })
 test('persistence failure rolls back the live owner and rethrows the original error', () => {
   const f = fixture(), failure = new Error('owned failure')
-  assert.throws(() => refresh(f.store, { persist() { throw failure } }, 'owned-work', 'owned-source', 'owned-remote', 'https://owned.invalid/new'), e => e === failure)
+  assert.throws(() => refresh(f.store, { persist() { throw failure }, persistExistingWorks() { throw failure } }, 'owned-work', 'owned-source', 'owned-remote', 'https://owned.invalid/new'), e => e === failure)
   assert.deepEqual(f.store.getComic('owned-work'), f.original)
 })
 
@@ -77,7 +78,7 @@ test('uninstall retains public source identity without touching library content,
   assert.equal(retain(f.store, f.service, 'different-source', 'Other'), false)
   assert.equal(f.saves(), 1)
   const before = clone(f.store.values), failure = new Error('disk unavailable')
-  assert.throws(() => retain(f.store, { persist() { throw failure } }, 'owned-source', 'New name'), e => e === failure)
+  assert.throws(() => retain(f.store, { persist() { throw failure }, persistExistingWorks() { throw failure } }, 'owned-source', 'New name'), e => e === failure)
   assert.deepEqual(f.store.values, before)
 })
 
@@ -152,7 +153,7 @@ test('metadata save failure rolls back all stored comics and preserves held owne
   const f = chapterFixture(), held = f.store.getComic('owned-work'), failure = new Error('owned failure')
   f.store.values.other = { id: 'other', progress: 'keep' }
   const before = clone(f.store.values)
-  assert.throws(() => refreshChapters(f.store, { persist() { throw failure } }, 'owned-work', 'owned-source', 'owned-remote', f.remote), error => error === failure)
+  assert.throws(() => refreshChapters(f.store, { persist() { throw failure }, persistExistingWorks() { throw failure } }, 'owned-work', 'owned-source', 'owned-remote', f.remote), error => error === failure)
   assert.deepEqual(f.store.values, before)
   assert.deepEqual(held, f.before)
 })

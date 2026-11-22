@@ -26,6 +26,7 @@ export enum MangaDetailTitleAction {
   MIGRATE = 'migrate',
   EDIT_NOTES = 'edit_notes',
   CHANGE_COVER = 'change_cover',
+  ENHANCE_COVER = 'enhance_cover',
   RESTORE_COVER = 'restore_cover',
 }
 
@@ -52,6 +53,7 @@ export class MangaDetailRouteChromeState {
   @Trace migrationAvailable: boolean = false
   @Trace personalDataAvailable: boolean = false
   @Trace coverActionsAvailable: boolean = false
+  @Trace coverEnhancementAvailable: boolean = false
   @Trace customCoverAvailable: boolean = false
   @Trace personalizationBusy: boolean = false
   @Trace localRefreshBusy: boolean = false

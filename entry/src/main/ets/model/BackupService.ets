@@ -180,6 +180,7 @@ interface KomaBackupDocument {
   encryption: BackupEncryptionMetadata
   libraryStore: string
   customCovers?: ComicCoverBackup[]
+  enhancedCovers?: ComicCoverBackup[]
   localLibraryMetadata?: LocalLibraryMetadataBackupEntry[]
   readingProgress: string
   remoteServers: RemoteServerBackupDocument
@@ -1331,6 +1332,7 @@ export class BackupService {
         },
         libraryStore,
         customCovers: backgroundTemplate ? undefined : await exportComicCovers(this.context, libraryStore),
+        enhancedCovers: backgroundTemplate ? undefined : await exportComicCovers(this.context, libraryStore, true),
         readingProgress: normalizeReaderSessionBackupPayload(readLiveReaderSnapshot(this.context.filesDir) ?? emptyReaderProgressPayload()),
         remoteServers: await this.exportRemoteServers(),
         sourcePackages: backgroundTemplate ? undefined : exportInstalledSourcePackages(),
@@ -1398,7 +1400,8 @@ export class BackupService {
       const sessionStore = appReaderSessionStore(this.context.filesDir)
       // Include the user's already pending progress in the original state.
       if (sessionStore.flush() === false) throw new Error('reader_progress_save_failed')
-      coverPlan = await prepareRestoredComicCovers(this.context, libraryStoreBackupPayload(document.libraryStore), document.customCovers)
+      coverPlan = await prepareRestoredComicCovers(this.context, libraryStoreBackupPayload(document.libraryStore),
+        document.customCovers, document.enhancedCovers)
       document.libraryStore = coverPlan.libraryStore
       if (document.downloadQueue !== undefined || document.applicationSettings?.downloadPreferences !== undefined) {
         // Move the original queue before the restore records which private files existed.

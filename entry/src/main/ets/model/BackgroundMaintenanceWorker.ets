@@ -92,6 +92,7 @@ export async function executeBackgroundMaintenance(context: common.Context, work
     }
     document['sourcePackages'] = exportInstalledSourcePackages()
     document['customCovers'] = await exportComicCovers(context, document['libraryStore'] as string)
+    document['enhancedCovers'] = await exportComicCovers(context, document['libraryStore'] as string, true)
     document['localLibraryMetadata'] = exportLocalLibraryMetadataBackupEntries(document['libraryStore'] as string)
     const exportedAt = Date.now()
     document['exportedAt'] = exportedAt

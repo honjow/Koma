@@ -169,6 +169,8 @@ export interface Comic {
   personalNotes?: string
   customCoverUri?: string
   sourceCoverUri?: string
+  enhancedCoverUri?: string
+  enhancedCoverModel?: string
   updateSchedule?: ComicUpdateSchedule
   localMetadata?: LocalLibraryStoredMetadata
   localImportOrigin?: LocalImportOrigin
@@ -188,7 +190,14 @@ export function copyComicPersonalFields(source: Comic, target: Comic): void {
   target.personalNotes = source.personalNotes
   target.customCoverUri = source.customCoverUri
   target.sourceCoverUri = source.sourceCoverUri
+  target.enhancedCoverUri = source.enhancedCoverUri
+  target.enhancedCoverModel = source.enhancedCoverModel
   if (source.customCoverUri) target.coverUri = source.customCoverUri
+}
+
+/** Display-only override. Source requests, downloads and sync still read the base cover. */
+export function comicDisplayCover(comic: Comic): string | undefined {
+  return comic.enhancedCoverUri ?? comic.coverUri
 }
 
 export function assignComicSourceCover(comic: Comic, coverUri: string): void {
@@ -491,7 +500,7 @@ export function comicToLibraryItem(comic: Comic, progress?: ReadingProgress): Li
     kind: LibraryItemKind.LOCAL_COMIC,
     comicId: comic.id,
     title: comic.title,
-    coverUri: comic.coverUri,
+    coverUri: comicDisplayCover(comic),
     sourceRuntimeId: comic.sourceRuntimeId,
     sourceImageId: comic.remoteResourceId ?? comic.id,
     sourceKind: comic.sourceKind,

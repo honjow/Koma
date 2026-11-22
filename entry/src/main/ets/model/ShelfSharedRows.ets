@@ -122,6 +122,14 @@ export async function splitShelfScope(transaction: relationalStore.Transaction):
   await transaction.execute('INSERT INTO shelf_memberships SELECT m.* FROM shelf_memberships_local m WHERE ' +
     exists + 'm.comic_id)')
   await transaction.execute('DELETE FROM shelf_memberships_local WHERE ' + exists + 'shelf_memberships_local.comic_id)')
+  await createShelfWorkView(transaction, workColumns)
+  await transaction.execute('CREATE VIEW shelf_memberships_all AS SELECT * FROM shelf_memberships ' +
+    'UNION ALL SELECT * FROM shelf_memberships_local')
+  await transaction.execute('CREATE VIEW shelf_shared_chapters_all AS SELECT * FROM shelf_shared_chapters ' +
+    'UNION ALL SELECT * FROM shelf_shared_chapters_local')
+}
+
+async function createShelfWorkView(transaction: relationalStore.Transaction, workColumns: string[]): Promise<void> {
   const projection = workColumns.map((column: string): string => {
     if (MOVED_COLUMNS.includes(column) || column === 'has_shared_chapters') {
       return 'COALESCE(d.' + column + ', s.' + column + ') AS ' + column
@@ -133,10 +141,25 @@ export async function splitShelfScope(transaction: relationalStore.Transaction):
   await transaction.execute('CREATE VIEW shelf_works_all AS SELECT ' + projection.join(', ') +
     ' FROM shelf_work_details d LEFT JOIN shelf_works s ON s.comic_id = d.comic_id ' +
     'WHERE d.shared_scope = 0 OR s.comic_id IS NOT NULL')
-  await transaction.execute('CREATE VIEW shelf_memberships_all AS SELECT * FROM shelf_memberships ' +
-    'UNION ALL SELECT * FROM shelf_memberships_local')
-  await transaction.execute('CREATE VIEW shelf_shared_chapters_all AS SELECT * FROM shelf_shared_chapters ' +
-    'UNION ALL SELECT * FROM shelf_shared_chapters_local')
+}
+
+/** Local personalization columns must never enter the shared shelf table. */
+export async function addShelfCoverEnhancement(transaction: relationalStore.Transaction): Promise<void> {
+  const columns = await transaction.querySql('PRAGMA table_info(shelf_work_details)')
+  const workColumns: string[] = []
+  try {
+    while (columns.goToNextRow()) {
+      const name = columns.getString(1)
+      if (name !== 'shared_scope') workColumns.push(name)
+    }
+  } finally { columns.close() }
+  for (const name of ['enhanced_cover_uri', 'enhanced_cover_model']) {
+    if (workColumns.includes(name)) continue
+    await transaction.execute('ALTER TABLE shelf_work_details ADD COLUMN ' + name + ' TEXT')
+    workColumns.push(name)
+  }
+  await transaction.execute('DROP VIEW shelf_works_all')
+  await createShelfWorkView(transaction, workColumns)
 }
 
 export async function movePublicReadingAddresses(transaction: relationalStore.Transaction, table: string): Promise<void> {

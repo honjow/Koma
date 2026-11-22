@@ -40,6 +40,8 @@ export interface SyncKeptShelfDetails {
   id: string
   notes?: string
   cover?: string
+  enhancedCover?: string
+  enhancedModel?: string
 }
 
 export interface SyncProjection {
@@ -436,13 +438,14 @@ function applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDoc
       move.source !== key[1] || move.work !== key[2])
     if (change.value === '') {
       if (existing === undefined) return
-      if (id !== acceptedRemoval && (existing.personalNotes || existing.customCoverUri)) {
+      if (id !== acceptedRemoval && (existing.personalNotes || existing.customCoverUri || existing.enhancedCoverUri)) {
         if (!projection.blockedShelf.includes(id)) projection.blockedShelf.push(id)
         return
       }
       if (id === acceptedRemoval) {
         projection.blockedShelf = projection.blockedShelf.filter((value: string): boolean => value !== id)
-        const details: SyncKeptShelfDetails = { id, notes: existing.personalNotes, cover: existing.customCoverUri }
+        const details: SyncKeptShelfDetails = { id, notes: existing.personalNotes, cover: existing.customCoverUri,
+          enhancedCover: existing.enhancedCoverUri, enhancedModel: existing.enhancedCoverModel }
         projection.keptShelfDetails = (projection.keptShelfDetails ?? []).filter((entry: SyncKeptShelfDetails): boolean =>
           entry.id !== id).concat(details)
       }
@@ -454,6 +457,7 @@ function applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDoc
         sourceMetadata: { sourceName: label.sourceName }, sortTitle: normalizeSortKey(label.title),
         preferredDirection: ReadingDirection.RIGHT_TO_LEFT, chapters: [], chapterCount: 0, pageCount: 0,
         personalNotes: kept?.notes, customCoverUri: kept?.cover, coverUri: kept?.cover,
+        enhancedCoverUri: kept?.enhancedCover, enhancedCoverModel: kept?.enhancedModel,
         createdAt: now, updatedAt: now, lastImportedAt: now })
     } else {
       const label = JSON.parse(change.value) as SyncWorkLabel
@@ -461,6 +465,10 @@ function applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDoc
       projection.blockedShelf = projection.blockedShelf.filter((value: string): boolean => value !== id)
       if (kept !== undefined) {
         existing.personalNotes = existing.personalNotes ?? kept.notes
+        if (existing.enhancedCoverUri === undefined) {
+          existing.enhancedCoverUri = kept.enhancedCover
+          existing.enhancedCoverModel = kept.enhancedModel
+        }
         if (existing.customCoverUri === undefined && kept.cover !== undefined) {
           existing.sourceCoverUri = existing.sourceCoverUri ?? existing.coverUri
           existing.customCoverUri = kept.cover
@@ -533,12 +541,13 @@ function applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDoc
     const id = sourceLibraryComicId(key[1], key[2])
     const existing = library.comics.find((comic: PersistedComic): boolean => matchesShelfWork(comic, key[1], key[2]))
     if (existing === undefined) return
-    if (id !== acceptedRemoval && (existing.personalNotes || existing.customCoverUri)) {
+    if (id !== acceptedRemoval && (existing.personalNotes || existing.customCoverUri || existing.enhancedCoverUri)) {
       if (!projection.blockedShelf.includes(id)) projection.blockedShelf.push(id)
       return
     }
     if (id === acceptedRemoval) {
-      const details: SyncKeptShelfDetails = { id, notes: existing.personalNotes, cover: existing.customCoverUri }
+      const details: SyncKeptShelfDetails = { id, notes: existing.personalNotes, cover: existing.customCoverUri,
+          enhancedCover: existing.enhancedCoverUri, enhancedModel: existing.enhancedCoverModel }
       projection.keptShelfDetails = (projection.keptShelfDetails ?? []).filter((item: SyncKeptShelfDetails): boolean =>
         item.id !== id).concat(details)
     }

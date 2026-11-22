@@ -1,4 +1,4 @@
-import { CachedCoverImage, NativeCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
+import { CachedCoverImage, NativeCoverImage, cachedCoverFailureKey, coverDecodeEdgeForDisplay } from './CachedCoverImage'
 import { ComicSourceKind } from '../model/ComicModels'
 import { SourceManga } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -29,6 +29,7 @@ export struct MangaGridItem {
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
   @Local private failedCoverUrl: string = ''
   @Local private coverWasVisible: boolean = false
+  @Local private gridCoverDecodeEdge: number = 0
   @Local private retryWhenVisibleAgain: boolean = false
 
   private coverVisibilityChanged(visible: boolean): void {
@@ -79,12 +80,13 @@ export struct MangaGridItem {
           uri: this.manga.coverUrl ?? '',
           onError: () => { this.failedCoverUrl = this.coverFailureKey() },
         })
-      } else {
+      } else if (this.listLayout || this.gridCoverDecodeEdge > 0) {
         CachedCoverImage({
           uri: this.manga.coverUrl ?? '',
           // Both layouts reuse cards. Keep the old cover only while the same work reloads.
           coverOwnerId: JSON.stringify([this.manga.sourceId, this.manga.id]),
           objectFit: ImageFit.Cover,
+          decodeMaxEdge: this.listLayout ? coverDecodeEdgeForDisplay(SOURCE_LIST_COVER_HEIGHT) : this.gridCoverDecodeEdge,
           sourceRuntimeId: this.manga.sourceId,
           sourceImageId: this.coverOptions?.imageId ?? this.manga.id,
           sourceMangaUrl: this.manga.url ?? '',
@@ -118,6 +120,14 @@ export struct MangaGridItem {
       .clip(true)
       .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
       .shadow({ radius: 14, color: ThemeConstants.SHADOW_CARD, offsetY: 7 })
+      .onSizeChange((_old: SizeOptions, size: SizeOptions): void => {
+        // Search carousels and source grids can have different lane widths.
+        // Resolve the actual cover box before requesting its first still image.
+        const height = Number(size.height)
+        if (height <= 0 || this.coverOptions?.nativeImage === true) return
+        const edge = coverDecodeEdgeForDisplay(height)
+        if (edge !== this.gridCoverDecodeEdge) this.gridCoverDecodeEdge = edge
+      })
       .onVisibleAreaChange([0.01], (visible: boolean) => { this.coverVisibilityChanged(visible) })
 
       Text(this.manga.title)

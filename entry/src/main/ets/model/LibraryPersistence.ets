@@ -237,6 +237,8 @@ export interface PersistedComic {
   personalNotes?: string
   customCoverUri?: string
   sourceCoverUri?: string
+  enhancedCoverUri?: string
+  enhancedCoverModel?: string
   updateSchedule?: ComicUpdateSchedule
   localMetadata?: LocalLibraryStoredMetadata
   localImportOrigin?: LocalImportOrigin
@@ -416,6 +418,7 @@ function hydrateChapter(row: PersistedChapter, isMihonPlaceholder: boolean): Cha
 export function persistComic(comic: Comic): PersistedComic {
   const row: PersistedComic = {
     personalNotes: comic.personalNotes, customCoverUri: comic.customCoverUri, sourceCoverUri: comic.sourceCoverUri,
+    enhancedCoverUri: comic.enhancedCoverUri, enhancedCoverModel: comic.enhancedCoverModel,
     updateSchedule: comic.updateSchedule,
     id: comic.id,
     title: comic.title,
@@ -470,6 +473,7 @@ export function hydrateComic(row: PersistedComic): Comic {
   const chapters = row.chapters.map((chapter: PersistedChapter) => hydrateChapter(chapter, isMihonPlaceholder))
   const comic: Comic = {
     personalNotes: row.personalNotes, customCoverUri: row.customCoverUri, sourceCoverUri: row.sourceCoverUri,
+    enhancedCoverUri: row.enhancedCoverUri, enhancedCoverModel: row.enhancedCoverModel,
     updateSchedule: row.updateSchedule,
     id: row.id,
     title: row.title,
@@ -708,6 +712,8 @@ function assertValidPersistedComic(row: PersistedComic): void {
   assertOptionalStringField(row.personalNotes, 'comic.personalNotes')
   assertOptionalStringField(row.customCoverUri, 'comic.customCoverUri')
   assertOptionalStringField(row.sourceCoverUri, 'comic.sourceCoverUri')
+  assertOptionalStringField(row.enhancedCoverUri, 'comic.enhancedCoverUri')
+  assertOptionalStringField(row.enhancedCoverModel, 'comic.enhancedCoverModel')
   if (row.updateSchedule !== undefined) {
     assertPersistedObject(row.updateSchedule as Object, 'comic.updateSchedule')
     assertNumberField(row.updateSchedule.intervalDays, 'comic.updateSchedule.intervalDays')

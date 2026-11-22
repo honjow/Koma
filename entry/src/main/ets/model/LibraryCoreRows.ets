@@ -47,7 +47,7 @@ function workRows(table: string, detailsTable: boolean = false): LocalDataRows<S
     'cover_uri', 'personal_notes', 'custom_cover_uri', 'source_cover_uri', 'sort_title',
     'preferred_direction', 'chapter_count', 'page_count', 'created_at', 'updated_at',
     'last_imported_at',
-  ].concat(SHELF_METADATA_FIELDS, detailsTable ? ['shared_scope'] : []), 'list_order',
+  ].concat(SHELF_METADATA_FIELDS, ['enhanced_cover_uri', 'enhanced_cover_model'], detailsTable ? ['shared_scope'] : []), 'list_order',
   (entry: ShelfWorkRow): LocalColumnValue[] => {
     const shared: ShelfSharedWork | undefined = sharedShelfWork(entry.work)
     const local: LocalColumnValue[] = [
@@ -59,6 +59,7 @@ function workRows(table: string, detailsTable: boolean = false): LocalDataRows<S
     entry.work.sortTitle ?? null, entry.work.preferredDirection ?? null, entry.work.chapterCount ?? null,
     entry.work.pageCount ?? null, entry.work.createdAt ?? null, entry.work.updatedAt ?? null,
     entry.work.lastImportedAt ?? null, ...shelfMetadataValues(metadataRow(entry.work)),
+    entry.work.enhancedCoverUri ?? null, entry.work.enhancedCoverModel ?? null,
     ]
     if (shared !== undefined) {
       if (local[3] === shared.title) local[3] = null
@@ -92,6 +93,8 @@ function workRows(table: string, detailsTable: boolean = false): LocalDataRows<S
         coverUri: textColumn(row, 11),
         personalNotes: textColumn(row, 12),
         customCoverUri: textColumn(row, 13),
+        enhancedCoverUri: textColumn(row, 22 + SHELF_METADATA_FIELDS.length),
+        enhancedCoverModel: textColumn(row, 23 + SHELF_METADATA_FIELDS.length),
         sourceCoverUri: textColumn(row, 14),
         sortTitle: textColumn(row, 15) as string,
         preferredDirection: textColumn(row, 16) as ReadingDirection,

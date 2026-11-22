@@ -91,6 +91,8 @@ async function packSystemSuperResolution(source: sendableImage.PixelMap | ArrayB
   }
 }
 
+export const COVER_ENHANCEMENT_MAX_INPUT_EDGE: number = 1024
+
 const MAX_CACHE_FILE_COUNT: number = 64
 const MAX_CACHE_BYTES: number = 256 * 1024 * 1024
 const SUPER_RESOLUTION_SUPERSEDED_ERROR: string = 'super-resolution request superseded'
@@ -144,7 +146,8 @@ export enum ReaderSuperResolutionTaskState {
 
 export enum ReaderSuperResolutionTaskPriority {
   CURRENT = 0,
-  PREFETCH = 1,
+  COVER = 1,
+  PREFETCH = 2,
 }
 
 class ReaderSuperResolutionInFlightTask {
@@ -401,11 +404,50 @@ export class ReaderSuperResolutionService {
     current: () => boolean = (): boolean => true,
   ): Promise<ReaderSuperResolutionResult> {
     if (!current()) return ReaderSuperResolutionService.originalResult(sourcePath, 'cancelled')
-    if (!connectReadMode().superResolutionEnabled) {
+    const settings = connectReadMode()
+    if (!settings.superResolutionEnabled) {
       ReaderSuperResolutionService.releaseOwner(ownerKey)
       return ReaderSuperResolutionService.originalResult(sourcePath, 'disabled')
     }
-    const model: string = connectReadMode().superResolutionModel
+    const model = settings.superResolutionModel
+    const backend = settings.superResolutionBackend
+    const maxHeight = settings.superResolutionMaxHeight
+    return ReaderSuperResolutionService.processImage(context, sourcePath, sourceKey, model, backend, maxHeight,
+      onTaskState, ownerKey, priority, (): boolean => {
+        const latest = connectReadMode()
+        return current() && latest.superResolutionEnabled && latest.superResolutionModel === model &&
+          latest.superResolutionBackend === backend && latest.superResolutionMaxHeight === maxHeight
+      })
+  }
+
+  static processCover(
+    context: common.UIAbilityContext,
+    sourcePath: string,
+    sourceKey: string,
+    model: string,
+    onTaskState: (state: ReaderSuperResolutionTaskState) => void,
+    ownerKey: string,
+    current: () => boolean,
+  ): Promise<ReaderSuperResolutionResult> {
+    // Covers are explicitly requested and independent of the reader switch and size settings.
+    return ReaderSuperResolutionService.processImage(context, sourcePath, sourceKey, model,
+      ReaderSuperResolutionBackend.AUTO, COVER_ENHANCEMENT_MAX_INPUT_EDGE, onTaskState, ownerKey,
+      (): number => ReaderSuperResolutionTaskPriority.COVER, current)
+  }
+
+  private static async processImage(
+    context: common.UIAbilityContext,
+    sourcePath: string,
+    sourceKey: string,
+    model: string,
+    backendPreference: string,
+    maxHeight: number,
+    onTaskState: (state: ReaderSuperResolutionTaskState) => void,
+    ownerKey: string,
+    priority: () => number,
+    current: () => boolean,
+  ): Promise<ReaderSuperResolutionResult> {
+    if (!current()) return ReaderSuperResolutionService.originalResult(sourcePath, 'cancelled')
     if (model === ReaderSuperResolutionModel.NONE) {
       ReaderSuperResolutionService.releaseOwner(ownerKey)
       return ReaderSuperResolutionService.originalResult(sourcePath, 'model_not_selected')
@@ -419,14 +461,11 @@ export class ReaderSuperResolutionService {
       ReaderSuperResolutionService.releaseOwner(ownerKey)
       return ReaderSuperResolutionService.originalResult(sourcePath, 'backend_unavailable')
     }
-    const backendPreference: string = connectReadMode().superResolutionBackend
-
     const sourceStat: fileIo.Stat | null = ReaderSuperResolutionService.fileStat(sourcePath)
     if (sourceStat === null || sourceStat.size <= 0) {
       ReaderSuperResolutionService.releaseOwner(ownerKey)
       return ReaderSuperResolutionService.originalResult(sourcePath, 'source_missing')
     }
-    const maxHeight: number = connectReadMode().superResolutionMaxHeight
     let sourceDigest: string = ''
     try {
       sourceDigest = await readerImageFileSha256(sourcePath)
@@ -441,9 +480,7 @@ export class ReaderSuperResolutionService {
     }
     // Hashing now yields to UI input. Retire a cancelled/changed request before
     // claiming an owner, using a cached result or scheduling any native work.
-    const latest = connectReadMode()
-    if (!current() || !latest.superResolutionEnabled || latest.superResolutionModel !== model ||
-      latest.superResolutionBackend !== backendPreference || latest.superResolutionMaxHeight !== maxHeight) {
+    if (!current()) {
       ReaderSuperResolutionService.releaseOwner(ownerKey)
       return ReaderSuperResolutionService.originalResult(sourcePath, 'cancelled')
     }
@@ -713,9 +750,7 @@ export class ReaderSuperResolutionService {
   ): void {
     ReaderSuperResolutionService.pendingTasks.push(inFlight)
     ReaderSuperResolutionService.sortPendingTasks()
-    if (inFlight.priority === ReaderSuperResolutionTaskPriority.CURRENT) {
-      ReaderSuperResolutionService.preemptActivePrefetch(sourceKey)
-    }
+    ReaderSuperResolutionService.preemptLowerPriority(inFlight.priority, sourceKey)
     ReaderSuperResolutionService.drainQueue()
   }
 
@@ -728,10 +763,9 @@ export class ReaderSuperResolutionService {
     ReaderSuperResolutionService.sortPendingTasks()
     // Once the reader leaves a page, its retained work is lookahead again.
     // A pending current page can supersede it at the existing backend boundary.
-    if (ReaderSuperResolutionService.pendingTasks.some((pending: ReaderSuperResolutionInFlightTask): boolean =>
-      pending.priority === ReaderSuperResolutionTaskPriority.CURRENT && ReaderSuperResolutionService.hasActiveOwner(pending))) {
-      ReaderSuperResolutionService.preemptActivePrefetch(sourceKey)
-    }
+    const next = ReaderSuperResolutionService.pendingTasks.find(
+      (pending: ReaderSuperResolutionInFlightTask): boolean => ReaderSuperResolutionService.hasActiveOwner(pending))
+    if (next !== undefined) ReaderSuperResolutionService.preemptLowerPriority(next.priority, sourceKey)
     DiagnosticLogger.info(
       'reader-super-resolution',
       'queue_priority',
@@ -754,11 +788,11 @@ export class ReaderSuperResolutionService {
     )
   }
 
-  private static preemptActivePrefetch(sourceKey: string): void {
+  private static preemptLowerPriority(priority: number, sourceKey: string): void {
     const active: ReaderSuperResolutionInFlightTask | null =
       ReaderSuperResolutionService.activeTask
     if (active === null ||
-      active.priority === ReaderSuperResolutionTaskPriority.CURRENT || active.superseded) {
+      active.priority <= priority || active.superseded) {
       return
     }
     active.superseded = true

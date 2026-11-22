@@ -1,11 +1,13 @@
 import { LengthMetrics } from '@kit.ArkUI'
-import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
+import { CachedCoverImage, cachedCoverFailureKey, coverDecodeEdgeForDisplay } from './CachedCoverImage'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { MangaDetail, MangaStatus } from '../model/MangaDetailModels'
 import { ComicSourceKind } from '../model/ComicModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { formatMangaCreatorList } from './MangaCreatorText'
+
+const DETAIL_COVER_HEIGHT = 148
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -106,6 +108,7 @@ export struct MangaDetailHeader {
       if (this.hasCover()) {
         CachedCoverImage({
           uri: this.manga.coverUrl ?? '',
+          decodeMaxEdge: coverDecodeEdgeForDisplay(DETAIL_COVER_HEIGHT),
           objectFit: ImageFit.Cover,
           sourceRuntimeId: this.manga.sourceId ?? '',
           sourceImageId: this.manga.sourceImageId ?? this.manga.id,
@@ -119,7 +122,7 @@ export struct MangaDetailHeader {
       }
     }
     .width(104)
-    .height(148)
+    .height(DETAIL_COVER_HEIGHT)
     .backgroundColor(this.hasCover() ? ThemeConstants.COVER_PLACEHOLDER : ThemeConstants.BRAND_PRIMARY)
     .borderRadius(ThemeConstants.RADIUS_THUMB)
     .clip(true)

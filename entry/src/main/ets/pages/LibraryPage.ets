@@ -9,9 +9,9 @@ import { privateLibraryCategoryIds, showLibraryComic } from '../model/LibraryPri
 import { connectLibraryPrivacyState, LibraryPrivacyAuthResult, LibraryPrivacyState, libraryPrivacyAuthMessage } from '../state/LibraryPrivacyState'
 import { FrameCallback, SymbolGlyphModifier } from '@kit.ArkUI'
 import { KomaMenuController, KomaMenuAction as LibraryTitleMenuItem, komaTitleMoreIcon } from '../components/ui/KomaMenuController'
-import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
+import { COMIC_COVER_ASPECT_RATIO, ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { PullRefresh, PullRefreshController } from '../components/PullRefresh'
-import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
+import { CachedCoverImage, cachedCoverFailureKey, coverDecodeEdgeForDisplay } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { RootNavigationState } from '../state/RootNavigationState'
@@ -250,6 +250,8 @@ enum LibraryProjectionState {
   READY,
 }
 
+const CONTINUE_READING_COVER_HEIGHT = 102
+
 @ComponentV2
 struct ContinueReadingShelfCard {
   @Param compactList: boolean = false
@@ -295,7 +297,7 @@ struct ContinueReadingShelfCard {
             sourceKind: this.info.sourceKind,
             remoteServerId: this.info.remoteServerId ?? '',
             sourceMangaUrl: this.info.sourceMangaUrl ?? '',
-            decodeMaxEdge: 256,
+            decodeMaxEdge: coverDecodeEdgeForDisplay(CONTINUE_READING_COVER_HEIGHT, 256),
             onError: () => {
               this.failedCoverUri = this.coverFailureKey()
             },
@@ -303,7 +305,7 @@ struct ContinueReadingShelfCard {
         }
       }
       .width(76)
-      .height(102)
+      .height(CONTINUE_READING_COVER_HEIGHT)
       .borderRadius(ThemeConstants.RADIUS_COVER)
       .clip(true)
       .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
@@ -1348,7 +1350,14 @@ export struct LibraryPage {
       this.gridAdjustment.width(this.coverLayout.gridColumnWidth))
   }
 
- private libraryGridColumnGap(): number {
+  private libraryGridCoverDecodeEdge(): number {
+    const columns = this.libraryGridColumnCount()
+    const gap = this.libraryGridColumnGap()
+    const available = this.libraryViewportWidth() - 2 * this.libraryHorizontalInset() - (columns - 1) * gap
+    return coverDecodeEdgeForDisplay(available / columns / COMIC_COVER_ASPECT_RATIO)
+  }
+
+  private libraryGridColumnGap(): number {
     return libraryCoverGridGap(this.listDensity)
   }
 
@@ -2304,6 +2313,7 @@ export struct LibraryPage {
         unreadBadgeCount: this.unreadForCover(readComic().id),
         selected: this.isComicSelected(readComic().id),
         reuseAcrossWorks: true,
+        coverDecodeMaxEdge: this.libraryGridCoverDecodeEdge(),
       })
         .onTouch((event: TouchEvent) => {
           const comicId = this.publishedGridComicId(index)
@@ -2521,6 +2531,7 @@ export struct LibraryPage {
         )) {
           CachedCoverImage({
             uri: row.item.coverUri ?? '',
+            decodeMaxEdge: coverDecodeEdgeForDisplay(this.libraryListCoverHeight()),
             coverOwnerId: row.item.id,
             objectFit: ImageFit.Cover,
             sourceRuntimeId: row.item.sourceRuntimeId ?? '',

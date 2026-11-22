@@ -39,9 +39,10 @@ import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/So
 import { trackerChapterProgress } from '../model/TrackerReadingProgress'
 import { mangaHttpUrl } from '../model/MangaWebLink'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
+import { ComicCoverEnhancementSheet, coverEnhancementPreviewHeight, coverEnhancementSheetHeight } from '../components/ComicCoverEnhancementSheet'
 import { CachedCoverImage } from '../components/CachedCoverImage'
 import { ChapterArchiveActions, chapterArchiveFailureText } from '../model/ChapterArchiveExport'
-import { selectComicCover, saveComicPersonalization, discardUncommittedComicCover } from '../model/ComicPersonalization'
+import { selectComicCover, saveComicPersonalization, discardUncommittedComicCover, saveComicCoverEnhancement } from '../model/ComicPersonalization'
 import { ColorMetrics, ComponentContent, FrameCallback, LengthMetrics, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { privateLibraryCategoryIds, showLibraryComic } from '../model/LibraryPrivacyVisibility'
@@ -350,7 +351,7 @@ export struct MangaDetailPage {
   @Local private trackingSheetShown: boolean = false
   @Local private trackingFieldGridWidth: number = 0
   @Local private trackingBodyHeight: number = 0
-  @Local private trackingViewportHeight: number = 0
+  @Local private detailViewportHeight: number = 0
   @Local private trackingSheetType?: SheetType
   @Local private trackingProviders: TrackerProviderConfig[] = []
   @Local private trackingMappings: ComicTrackerMapping[] = []
@@ -375,6 +376,10 @@ export struct MangaDetailPage {
   @Local private personalNotes: string = ''
   @Local private notesDraft: string = ''
   @Local private notesEditorShown: boolean = false
+  @Local private coverEnhancementShown: boolean = false
+  @Local private coverEnhancementComic: Comic | undefined = undefined
+  @Local private coverEnhancementArtwork: string = ''
+  @Local private detailBackdropDecodeEdge: number = 0
   @Local private personalizationBusy: boolean = false
   private readonly downloadMenu: KomaMenuController = new KomaMenuController()
   private readonly downloadButtonId: string = 'manga-detail-download-button'
@@ -714,6 +719,7 @@ export struct MangaDetailPage {
     this.unsubscribeTrackingMappings?.()
     this.unsubscribeTrackingMappings = undefined
     this.notesEditorShown = false
+    this.coverEnhancementShown = false
     this.favoriteCategoryPickerShown = false
     // A hidden detail route must not let an old source response repaint a later route instance.
     this.closeDetailWebChallenge()
@@ -759,6 +765,8 @@ export struct MangaDetailPage {
     this.chrome.personalDataAvailable = actionsAvailable && comic !== undefined
     this.chrome.coverActionsAvailable = actionsAvailable && comic !== undefined && !chapterPagesAreLocalOffline(comic.sourceKind)
     this.chrome.customCoverAvailable = comic?.customCoverUri !== undefined
+    this.chrome.coverEnhancementAvailable = this.chrome.coverActionsAvailable &&
+      (comic?.enhancedCoverUri !== undefined || (this.baseCoverForEnhancement(comic).length > 0))
     this.chrome.chapterDownloadAvailable = actionsAvailable &&
       (comic === undefined || !chapterPagesAreLocalOffline(comic.sourceKind))
     this.chrome.personalizationBusy = this.personalizationBusy
@@ -888,6 +896,10 @@ export struct MangaDetailPage {
     }
     if (action === MangaDetailTitleAction.CHANGE_COVER && this.chrome.coverActionsAvailable) {
       void this.changeCover()
+      return
+    }
+    if (action === MangaDetailTitleAction.ENHANCE_COVER && this.chrome.coverEnhancementAvailable) {
+      this.openCoverEnhancement()
       return
     }
     if (action === MangaDetailTitleAction.RESTORE_COVER && this.chrome.customCoverAvailable) {
@@ -3019,8 +3031,9 @@ export struct MangaDetailPage {
   }
 
   private visibleCoverUrl(manga: MangaDetail): string {
-    const custom = this.libraryStore?.getComic(this.currentComicId())?.customCoverUri
-    if (custom) return custom
+    const comic = this.libraryStore?.getComic(this.currentComicId())
+    const override = comic?.enhancedCoverUri ?? comic?.customCoverUri
+    if (override) return override
     // A source can keep the opened preview stable while its detail cover
     // remains available to the source snapshot and shelf.
     const sourceId = manga.sourceId
@@ -3307,11 +3320,11 @@ export struct MangaDetailPage {
     const content = this.trackingBodyHeight > 0 ? this.trackingBodyHeight : estimatedBody
     const searchHeight = this.trackingSearchProvider === undefined ? 0 : SEARCH_TITLE_BOTTOM_HEIGHT
     const chrome = ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_MD + this.detailSafeArea.bottomAvoidHeight + searchHeight
-    const limit = this.trackingViewportHeight > 0 ? this.trackingViewportHeight * 0.8 : 520
+    const limit = this.detailViewportHeight > 0 ? this.detailViewportHeight * 0.8 : 520
     // The system clamps centered sheets to 90% of the window's short side.
     // Give the inner list the same bounds so the outer sheet cannot scroll its title away.
     const centeredLimit = this.trackingSheetType === SheetType.CENTER && this.detailContentWidth > 0
-      ? Math.floor(Math.min(this.detailContentWidth, this.trackingViewportHeight) * 0.9) : limit
+      ? Math.floor(Math.min(this.detailContentWidth, this.detailViewportHeight) * 0.9) : limit
     return Math.min(Math.ceil(content + chrome), limit, centeredLimit)
   }
 
@@ -3694,6 +3707,57 @@ export struct MangaDetailPage {
     })
   }
 
+  private baseCoverForEnhancement(comic: Comic | undefined): string {
+    return (comic?.customCoverUri ?? comic?.coverUri ?? this.manga?.coverUrl ?? '').trim()
+  }
+
+  private openCoverEnhancement(): void {
+    const comic = this.libraryStore?.getComic(this.currentComicId())
+    if (comic === undefined || this.coverEnhancementShown) return
+    this.coverEnhancementComic = JSON.parse(JSON.stringify(comic)) as Comic
+    this.coverEnhancementArtwork = this.baseCoverForEnhancement(comic)
+    this.coverEnhancementShown = true
+  }
+
+  private applyCoverEnhancement(cover: string | undefined, model: string | undefined): boolean {
+    const baseline = this.coverEnhancementComic
+    if (!this.chrome.visible || baseline === undefined || this.libraryStore === undefined ||
+      this.libraryPersistenceService === undefined) return false
+    try {
+      saveComicCoverEnhancement(this.libraryStore, this.libraryPersistenceService, baseline, cover, model)
+      if (this.manga !== undefined) this.manga = JSON.parse(JSON.stringify(this.manga)) as MangaDetail
+      this.syncTitleActions()
+      this.onLibraryChanged()
+      DiagnosticLogger.info('cover-enhancement', cover === undefined ? 'undone' : 'applied', 'model=' + (model ?? ''))
+      return true
+    } catch (error) {
+      DiagnosticLogger.exception('cover-enhancement', 'save_failed', error as Error)
+      return false
+    }
+  }
+
+  private coverEnhancementHeight(): number {
+    return coverEnhancementSheetHeight(this.detailViewportHeight || 640, this.detailSafeArea.bottomAvoidHeight,
+      this.coverEnhancementComic?.enhancedCoverUri !== undefined)
+  }
+
+  @Builder
+  private CoverEnhancement() {
+    Column() {
+      if (this.coverEnhancementComic !== undefined) {
+        ComicCoverEnhancementSheet({
+          comic: this.coverEnhancementComic,
+          baseCover: this.coverEnhancementArtwork,
+          previewHeight: coverEnhancementPreviewHeight(this.detailViewportHeight || 640),
+          sourceImageId: this.manga?.sourceImageId ?? this.coverEnhancementComic.remoteResourceId ?? this.coverEnhancementComic.id,
+          active: this.coverEnhancementShown && this.chrome.visible,
+          onClose: (): void => { this.coverEnhancementShown = false },
+          onApply: (cover: string | undefined, model: string | undefined): boolean => this.applyCoverEnhancement(cover, model),
+        })
+      }
+    }.width('100%').height(this.coverEnhancementHeight())
+  }
+
   @Builder
   private NotesEditor() {
     KomaModalScaffold({ title: s('manga_notes'), contentHorizontalPadding: ThemeConstants.SPACE_LG,
@@ -3877,6 +3941,8 @@ export struct MangaDetailPage {
           Column() {
             CachedCoverImage({
               uri: this.visibleCoverUrl(this.manga),
+              decodeMaxEdge: this.detailBackdropDecodeEdge > 0 ? this.detailBackdropDecodeEdge :
+                this.backdropCoverDecodeEdge(this.detailContentWidth, 0),
               objectFit: ImageFit.Cover,
               sourceRuntimeId: this.manga.sourceId ?? '',
               sourceImageId: this.manga.sourceImageId ?? this.manga.id,
@@ -3902,6 +3968,8 @@ export struct MangaDetailPage {
         .scale({ x: this.coverBackdropScale, y: this.coverBackdropScale, centerX: '50%', centerY: 0 })
         .onSizeChange((_old: SizeOptions, size: SizeOptions): void => {
           this.coverBackdropHeight = Number(size.height)
+          const decodeEdge = this.backdropCoverDecodeEdge(Number(size.width), this.coverBackdropHeight)
+          if (decodeEdge !== this.detailBackdropDecodeEdge) this.detailBackdropDecodeEdge = decodeEdge
           this.updateCoverBackdropTransform()
         })
         .clip(true)
@@ -3913,6 +3981,14 @@ export struct MangaDetailPage {
       .clip(true)
       .hitTestBehavior(HitTestMode.None)
     }
+  }
+
+  private backdropCoverDecodeEdge(width: number, height: number): number {
+    // The backdrop crops portrait artwork across the pane. Budget more
+    // pixels than a thumbnail before applying the existing blur and gradient.
+    const edge = Math.max(width / 0.68, height)
+    if (!Number.isFinite(edge) || edge <= 0) return 320
+    return Math.max(320, Math.min(1600, Math.ceil(vp2px(edge) / 128) * 128))
   }
 
   private backdropFadeStart(): string {
@@ -4352,6 +4428,13 @@ export struct MangaDetailPage {
             height: SheetSize.LARGE, detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false,
             enableOutsideInteractive: false, scrollSizeMode: ScrollSizeMode.CONTINUOUS,
           }))
+        Column() {}.width(0).height(0)
+          .bindSheet($$this.coverEnhancementShown, this.CoverEnhancement, komaModalSheetOptions({
+            height: SheetSize.FIT_CONTENT, detents: [this.coverEnhancementHeight(), SheetSize.LARGE],
+            detentSelection: this.coverEnhancementHeight(), showClose: false, enableOutsideInteractive: false,
+            scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+            onDisappear: (): void => { this.coverEnhancementComic = undefined },
+          }))
         this.DetailLayout()
       }
       .width('100%')
@@ -4360,7 +4443,7 @@ export struct MangaDetailPage {
       .onSizeChange((_old: SizeOptions, size: SizeOptions): void => {
         const width = Number(size.width)
         const height = Number(size.height)
-        if (height > 0 && height !== this.trackingViewportHeight) this.trackingViewportHeight = height
+        if (height > 0 && height !== this.detailViewportHeight) this.detailViewportHeight = height
         if (Number.isFinite(width) && width > 0) {
           const availableWidth = Math.max(0, width - 2 * ThemeConstants.SPACE_MD)
           if ((availableWidth >= DETAIL_PANES_MIN_CONTENT_WIDTH) !== this.usesDetailPanes) {

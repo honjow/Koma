@@ -86,6 +86,29 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "WORK_COVER_SUPER_RESOLUTION",
+      "number": 342,
+      "title": "单部作品封面图像增强与撤销",
+      "kind": "accepted",
+      "priority": "用户要求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-22",
+      "reportedAtSource": "本会话用户提出，随后确认系统模型优先并要求在197和201实施验证。",
+      "registeredAt": "2026-11-22T22:54:41+08:00",
+      "updatedAt": "2026-11-22T23:57:51+08:00",
+      "status": "197、201 已验证，用户确认具名样本改善",
+      "result": "系统模型默认、源图与增强预览、应用、冷启动持久化和撤销均走真实作品页。197 已下载模型重新增强时主按钮坐标和主题色一致。201 超限样本 2304×3072 采样至 768×1024 后成功增强，撤销恢复原手动选图。瓜子漫画《从姑获鸟开始》的源内网格、普通书架和详情同图证实，仅增大解码尺寸后衣领斜边仍有台阶。对缓存缩略图的缩小显式使用中质量抗锯齿后，同一源图及同一系统增强缓存的衣领和肩线明显顺滑。201 在普通书架、继续阅读、详情封面和背景验证增强覆盖，冷启动与应用后封面像素一致，撤销后与应用前一致。",
+      "remaining": "Koma 备份双资产回放已在主机验证，未做真机备份恢复或云端同步验收。尚未发布。",
+      "evidence": [
+        ".hvigor/outputs/cover-enhancement-20261122/build.log",
+        ".hvigor/outputs/cover-enhancement-20261122/197-guazi-source-grid-before-after.png",
+        ".hvigor/outputs/cover-enhancement-20261122/201-guazi-shelf-detail-background.png",
+        ".hvigor/outputs/cover-enhancement-20261122/197-repeat-button-contact.png",
+        ".hvigor/outputs/cover-enhancement-20261122/201-guazi-enhanced-collar-aa-before-after.png"
+      ]
+    },
+    {
       "id": "SOURCE_BROWSE_LAST_DESTINATION",
       "number": 341,
       "title": "书源浏览记住最后分类",
@@ -12640,6 +12663,46 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "cover-thumbnail-antialias-197-201-20261122",
+      "at": "2026-11-22T23:53:00+08:00",
+      "itemId": "WORK_COVER_SUPER_RESOLUTION",
+      "title": "修正瓜子漫画样本衣领方波",
+      "detail": "沿用同一部《从姑获鸟开始》及相同卡片尺寸。197 的源内结果、201 普通书架和详情小图，均在缩略图显式抗锯齿后减少衣领及肩线台阶。201 复用前一候选的系统增强缓存，应用后对比仍有效，单独隔离了模型输出变化。绘制的 Medium 插值继续沿用。201 撤销临时增强后，书架和详情的封面截取区域恢复至逐像素一致。两台都返回原书架、读回原超时和休眠、释放租约并保留同一签名候选。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/cover-enhancement-20261122/197-guazi-collar-aa-grid.png",
+        ".hvigor/outputs/cover-enhancement-20261122/201-guazi-collar-aa-before-after.png",
+        ".hvigor/outputs/cover-enhancement-20261122/201-guazi-enhanced-collar-aa-before-after.png",
+        ".hvigor/outputs/cover-enhancement-20261122/device201__LMR-AL00/not-applicable/portrait-1276x2848/work-cover/collar-aa-201-system-run/hilog.txt"
+      ]
+    },
+    {
+      "id": "cover-enhancement-device-197-201-20261122",
+      "at": "2026-11-22T23:43:38+08:00",
+      "itemId": "WORK_COVER_SUPER_RESOLUTION",
+      "title": "两台真机验证封面图像增强与具名样本",
+      "detail": "197 同源同书修前后的网格截图显示发丝、衣领和封面题字的像素化减少。201 的书架卡片覆盖面积大于详情小图，仍能看出原图的部分硬边。指定样本原图 600×800，系统增强至 2400×3200，推理 938ms。应用后书架和详情前景的锐化更明显，原模糊渐变背景的变化较轻。进程重启后仍生效，撤销后原截取区域像素一致。临时增强和图像测试数据已清理，两台设备电源与租约读回。",
+      "kind": "verification",
+      "evidence": [
+        ".hvigor/outputs/cover-enhancement-20261122/device201__LMR-AL00/not-applicable/portrait-1276x2848/work-cover/guazi-system-preview/hilog.txt",
+        ".hvigor/outputs/cover-enhancement-20261122/device201__LMR-AL00/not-applicable/portrait-1276x2848/work-cover/guazi-system-undone/run-metadata.json",
+        ".hvigor/outputs/cover-enhancement-20261122/device201__LMR-AL00/not-applicable/portrait-1276x2848/work-cover/large-system-run/hilog.txt",
+        ".hvigor/outputs/cover-enhancement-20261122/device197__ALN-AL80/not-applicable/portrait-1260x2720/work-cover/final-session-restored/run-metadata.json",
+        ".hvigor/outputs/cover-enhancement-20261122/device201__LMR-AL00/not-applicable/portrait-1276x2848/work-cover/final-session-restored/run-metadata.json"
+      ]
+    },
+    {
+      "id": "cover-super-resolution-implementation-20261122",
+      "at": "2026-11-22T22:54:41+08:00",
+      "itemId": "WORK_COVER_SUPER_RESOLUTION",
+      "title": "作品封面图像增强及持久化检查",
+      "detail": "作品菜单接入系统和本机模型选择、预览、应用和撤销。结果保存在本机作品数据并参与 Koma 备份，详情背景维持原模糊与渐变。签名构建及自选封面、增强结果双资产回放通过。",
+      "kind": "implementation",
+      "evidence": [
+        ".hvigor/outputs/cover-enhancement-20261122/build.log"
+      ]
+    },
     {
       "id": "source-last-category-197-20261122",
       "at": "2026-11-22T21:07:57+08:00",

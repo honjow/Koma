@@ -2,11 +2,11 @@ import { common } from '@kit.AbilityKit'
 import { relationalStore } from '@kit.ArkData'
 import { CREATE_READER_PREFERENCES, CREATE_READER_SHARED_PREFERENCES, copyReaderPreferenceColumns,
   migrateSharedReaderPreferences } from './ReaderPreferenceColumns'
-import { movePublicReadingAddresses, splitShelfScope } from './ShelfSharedRows'
+import { addShelfCoverEnhancement, movePublicReadingAddresses, splitShelfScope } from './ShelfSharedRows'
 
 const DATABASE_NAME = 'Koma.db'
 const PREVIOUS_DATABASE_NAME = 'koma-user-data.db'
-const DATABASE_VERSION = 9
+const DATABASE_VERSION = 10
 const PREVIOUS_DATABASE_VERSION = 5
 const RENAMED_DATABASE = 'business-database-renamed-v1'
 const SHARED_DATA_SPLIT = 'shared-business-columns-v1'
@@ -695,6 +695,7 @@ async function initializeTables(store: relationalStore.RdbStore, previous?: rela
     await splitShelfScope(transaction)
     await splitBookReaderModes(transaction)
     if (store.version === 8) await upgradeCloudTableConstraints(transaction)
+    await addShelfCoverEnhancement(transaction)
     await transaction.execute('INSERT OR IGNORE INTO local_data_migrations (name) VALUES (?)', [RENAMED_DATABASE])
     await transaction.commit()
   } catch (error) {

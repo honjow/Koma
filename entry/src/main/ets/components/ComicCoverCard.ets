@@ -4,6 +4,8 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { ComicCoverInfo } from '../model/ComicModels'
 export { ComicCoverInfo } from '../model/ComicModels'
 
+export const COMIC_COVER_ASPECT_RATIO: number = 0.68
+
 @ComponentV2
 export struct ComicCoverCard {
   @Param comic: ComicCoverInfo = {
@@ -21,6 +23,7 @@ export struct ComicCoverCard {
   @Param selected: boolean = false
   @Param unreadBadgeCount: number | undefined = undefined
   @Param reuseAcrossWorks: boolean = false
+  @Param coverDecodeMaxEdge: number = 320
   @Local private failedCoverUri: string = ''
   @Local private categoryMarqueeStarted: boolean = false
   private categoryMarqueeStartTimer: number = -1
@@ -99,6 +102,7 @@ export struct ComicCoverCard {
       uri: this.displayCoverUri(),
       coverOwnerId: this.reuseAcrossWorks ? this.comic.id : '',
       objectFit: ImageFit.Cover,
+      decodeMaxEdge: this.coverDecodeMaxEdge,
       sourceRuntimeId: this.displaySourceRuntimeId(),
       sourceImageId: this.displaySourceImageId(),
       sourceKind: this.comic.sourceKind,
@@ -128,7 +132,7 @@ export struct ComicCoverCard {
           }
         }
         .width('100%')
-        .aspectRatio(0.68)
+        .aspectRatio(COMIC_COVER_ASPECT_RATIO)
         // Keep the placeholder in the same surface as the image fade.
         .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
         .borderRadius(ThemeConstants.RADIUS_COVER)

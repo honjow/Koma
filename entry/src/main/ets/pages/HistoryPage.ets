@@ -3,7 +3,7 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { connectLibraryPrivacyState, LibraryPrivacyState } from '../state/LibraryPrivacyState'
 import { privateLibraryCategoryIds, showLibraryComic } from '../model/LibraryPrivacyVisibility'
-import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
+import { CachedCoverImage, cachedCoverFailureKey, coverDecodeEdgeForDisplay } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { PullRefresh } from '../components/PullRefresh'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -45,6 +45,8 @@ const MS_PER_DAY: number = 24 * MS_PER_HOUR
 const MS_PER_WEEK: number = 7 * MS_PER_DAY
 const MS_PER_MONTH: number = 30 * MS_PER_DAY
 const MS_PER_YEAR: number = 365 * MS_PER_DAY
+
+const HISTORY_COVER_HEIGHT = 88
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -645,7 +647,7 @@ export struct HistoryPage {
           sourceKind: row.item.item!.sourceKind,
           remoteServerId: row.item.item!.remoteServerId ?? '',
           sourceMangaUrl: row.item.item!.sourceMangaUrl ?? '',
-          decodeMaxEdge: 192,
+          decodeMaxEdge: coverDecodeEdgeForDisplay(HISTORY_COVER_HEIGHT, 192),
           onError: () => {
             const item = row.item.item!
             this.markCoverUriFailed(
@@ -666,7 +668,7 @@ export struct HistoryPage {
       }
     }
     .width(64)
-    .height(88)
+    .height(HISTORY_COVER_HEIGHT)
     .borderRadius(ThemeConstants.RADIUS_CARD - ThemeConstants.SPACE_MD)
     .clip(true)
     .backgroundColor(this.coverColor(row.item.item!))

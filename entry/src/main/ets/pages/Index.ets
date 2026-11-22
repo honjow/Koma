@@ -5454,6 +5454,7 @@ struct Index {
       if (chrome.personalDataAvailable) add(work, 'manga_notes', MangaDetailTitleAction.EDIT_NOTES, !chrome.personalizationBusy)
       if (chrome.coverActionsAvailable) {
         add(work, 'manga_cover_change', MangaDetailTitleAction.CHANGE_COVER, !chrome.personalizationBusy)
+        if (chrome.coverEnhancementAvailable) add(work, 'cover_sr_title', MangaDetailTitleAction.ENHANCE_COVER, !chrome.personalizationBusy)
         if (chrome.customCoverAvailable) add(work, 'manga_cover_restore', MangaDetailTitleAction.RESTORE_COVER, !chrome.personalizationBusy)
       }
       if (chrome.migrationAvailable) add(work, 'migration_title', MangaDetailTitleAction.MIGRATE)

@@ -2,7 +2,7 @@ import { ComicId } from '../model/ComicModels'
 import { ContinueReadingCardViewModel } from '../model/MockLibraryData'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { CachedCoverImage } from './CachedCoverImage'
+import { CachedCoverImage, coverDecodeEdgeForDisplay } from './CachedCoverImage'
 import { KomaIconButton } from './ui/KomaIconButton'
 
 const COVER_SIZE = 44
@@ -31,7 +31,7 @@ export struct LibraryResumeMiniBar {
           sourceKind: this.info.sourceKind,
           remoteServerId: this.info.remoteServerId ?? '',
           sourceMangaUrl: this.info.sourceMangaUrl ?? '',
-          decodeMaxEdge: 160,
+          decodeMaxEdge: coverDecodeEdgeForDisplay(COVER_SIZE, 160),
         })
       }
     }
