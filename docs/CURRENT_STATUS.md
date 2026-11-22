@@ -236,8 +236,14 @@
       "status": "已修复同页缓存复用及前台超分优先级，待真机验证",
       "result": "已准备的超分结果在临时关闭时保留，再开可直接采用。同页已有原图文件也可复用。翻页后新当前页接管处理优先级，旧页回落到预载。",
       "remaining": "在真机核对单页、双页和条漫同页往返，观察相邻页超分执行时的切换及可见画面。",
-      "relatedItems": ["READER_HISTORY_RESUME_CATALOG_WAIT", "IMAGE_PLUGIN_READER_ENTRY_FLICKER", "NEXTE_READER_FEATURE_MIGRATION"],
-      "evidence": ["reader-kit 63953ac，测试覆盖同页往返、文件复用及前台优先。"]
+      "relatedItems": [
+        "READER_HISTORY_RESUME_CATALOG_WAIT",
+        "IMAGE_PLUGIN_READER_ENTRY_FLICKER",
+        "NEXTE_READER_FEATURE_MIGRATION"
+      ],
+      "evidence": [
+        "reader-kit 63953ac，测试覆盖同页往返、文件复用及前台优先。"
+      ]
     },
     {
       "id": "READER_HISTORY_RESUME_CATALOG_WAIT",
@@ -253,7 +259,10 @@
       "status": "用户实测确认书架续读改善，离线下载图片缓存复用已在 201 验证",
       "result": "日漫分类顶部卡片三轮续读同一页，每轮重新取得正文页表和九张图的票据，随后命中正文文件。目录补齐和取图共用同源串行队列。捕获的三轮超分使用已有结果，未见推理启动。已修复源生成文件未命中时跳过普通正文缓存的问题。",
       "remaining": "其他书源已核对调用链及本地缓存回放，未逐源实机测速。收到同步进度的续读路径仍会刷新页表。",
-      "relatedItems": ["READER_TEMPORARY_ENHANCEMENT_REUSE", "HISTORY_RESUME_WAIT_FEEDBACK"],
+      "relatedItems": [
+        "READER_TEMPORARY_ENHANCEMENT_REUSE",
+        "HISTORY_RESUME_WAIT_FEEDBACK"
+      ],
       "evidence": [
         "本地执行验证了目录未返回时目标章可准备，目录返回后更新选章标题和相邻章节。",
         "本会话用户实测反馈：这一个加载速度好了很多。修复提交 67e9f33a。",
@@ -12634,11 +12643,11 @@
       "dependencies": [
         "CHAPTER_SORT_MENU"
       ],
-      "result": "冻结正式索引119源已逐源读码并尝试真实请求。按作品ID去重取得438份非空完整目录、45161章，覆盖99源，其中77源至少5份。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。 MangaDex英文0.1.29、简繁0.1.16及NamiComi简繁0.1.9已由fcf7d22公开，CI45059665307成功；25份真实完整目录653章含175条两页目录完成候选验证。最终公开五包索引、清单及实际WASM版本一致，代表187章整份响应与精确候选在同原件下相等。 Zero0.1.12（bcbd88f、CI45060983479）及东立0.1.13（9e4d6e9、CI45062292943）已公开。Zero现站5部97章、两章348页表保持，最终公开代表17章与候选同原件整份响应相等；旧站EOF未恢复。东立8部37章及真实SP11页验证，无号章恢复邻章并保留相邻明确缺话/权限断点；最终公开目录与精确候选分别联网Data一致、SP11页成功，不称同原件回放。",
-      "remaining": "优酷候选237已见原生详情和7章，但开始阅读选到完结章；正在用既有源日志接口抓实际移动目录，不发布诊断包，取证后删除临时模块。Noy字段与完整性候选已本地保护22312624，当前同源v4适配继续，尚无真实已登录目录/正文。原20项CLI受限源的普通237验证仍在进行，保留未执行/补样和具名站点、认证条件；不把App半模态验收当全部源通过。",
+      "result": "冻结正式索引119源已逐源读码并尝试真实请求。按作品ID去重取得442份非空完整目录、45506章，覆盖99源，其中80源至少5份。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。 MangaDex英文0.1.29、简繁0.1.16及NamiComi简繁0.1.9已由fcf7d22公开，CI45059665307成功；25份真实完整目录653章含175条两页目录完成候选验证。最终公开五包索引、清单及实际WASM版本一致，代表187章整份响应与精确候选在同原件下相等。 Zero0.1.12（bcbd88f、CI45060983479）及东立0.1.13（9e4d6e9、CI45062292943）已公开。Zero现站5部97章、两章348页表保持，最终公开代表17章与候选同原件整份响应相等；旧站EOF未恢复。东立8部37章及真实SP11页验证，无号章恢复邻章并保留相邻明确缺话/权限断点；最终公开目录与精确候选分别联网Data一致、SP11页成功，不称同原件回放。",
+      "remaining": "优酷237实际移动目录沿用桌面UL ID且data-sort=asc陈旧，已据真实模板修正并本地保护91cd899；最终0.1.8候选d89a1d7f待普通开始阅读与上下章验收，未发布。Noy同源v4分类数组提供完整位置，字段及接口增量继续复核，尚无真实已登录目录/正文。237用户刚亲自登录哔咔，保留新会话继续其目录与阅读验证。原20项CLI受限源的普通237验证仍在进行；不以单源或App半模态通过代替全部源。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
-        "优酷采得实际移动目录方向后修正，验证正常开始阅读及页图后发布。",
+        "237验证优酷最终候选的正常开始阅读、序章和下一章，验证后直接发布。",
         "完成Noy当前API、分组、单章回退和正文对齐，真实会话验证后发布。",
         "继续237原20源与可用源补样，区分CLI能力、实际目录、页图及站点/登录条件；收束设备时独立恢复释租。"
       ],
@@ -12667,7 +12676,9 @@
         ".hvigor/outputs/published-source-order-audit-20261123/tongli-audit-final.json",
         ".hvigor/outputs/published-source-order-audit-20261123/zero-publication-commit.json",
         ".hvigor/outputs/published-source-order-audit-20261123/tongli-publication-commit.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/tongli-fix-final.json"
+        ".hvigor/outputs/published-source-order-audit-20261123/tongli-fix-final.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/supplemental-samples/app-consumption.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/youku-investigation/mobile-order/local-protection.json"
       ],
       "updatedAt": "2026-11-23T03:51:28+08:00"
     },
@@ -12685,8 +12696,16 @@
       "status": "201 三种续读起点均已实测首划跨章，Koma 已固定共享依赖",
       "result": "201 包子漫画《大象無形》第 94 章普通续读，原包在相同第一划的三组早手势均未跨章。候选在 730 ms 和 1700 ms 两组动作间隔均到正确相邻章，730 ms 从第 1、2 页均回到第 93 章 43/43，从末页 38/38 到第 95 章 2/39。旧包在正文页表返回后仍会重新拉取完整 605 章目录，样本耗时 3.11–3.13 秒。Koma 提交 b1bd4825 复用已验证章序，并固定到独立 reader-kit 已公开的提交 43e80fb，保持回滑接缝。",
       "remaining": "当前具名真机范围为 201 已验证目录的在线作品，首次打开且缺少目录、登录型书源和其他设备未覆盖。按原规则获取新鲜正文页表。",
-      "relatedItems": ["AUTO_CHAPTER_BOUNDARY_TARGET", "NEXT_CHAPTER_PREFETCH_REUSE"],
-      "evidence": [".hvigor/outputs/reader-resume-previous-chapter/Koma-1.6.0-resume-previous-chapter.hap", ".hvigor/outputs/reader-resume-previous-chapter/build.log", ".hvigor/outputs/reader-resume-previous-chapter/Koma-1.6.0-verified-catalog-resume.hap", ".hvigor/outputs/reader-resume-previous-chapter/201-resume-seam-comparison.json"]
+      "relatedItems": [
+        "AUTO_CHAPTER_BOUNDARY_TARGET",
+        "NEXT_CHAPTER_PREFETCH_REUSE"
+      ],
+      "evidence": [
+        ".hvigor/outputs/reader-resume-previous-chapter/Koma-1.6.0-resume-previous-chapter.hap",
+        ".hvigor/outputs/reader-resume-previous-chapter/build.log",
+        ".hvigor/outputs/reader-resume-previous-chapter/Koma-1.6.0-verified-catalog-resume.hap",
+        ".hvigor/outputs/reader-resume-previous-chapter/201-resume-seam-comparison.json"
+      ]
     }
   ],
   "source": {
@@ -29743,7 +29762,9 @@
       "kind": "progress",
       "title": "201 普通续读第一划双向对照",
       "detail": "按用户指定测试第 94 章第 1、2、38 页。旧包早手势三次均停在原章，晚组回滑仅有一次从第 2 页回到本章第 1 页。新包两档手势共六次均进入对应相邻章，代表章末候选复用目录后跳过旧包 3.11 秒的目录请求。两个提交均在各自原仓。留用候选包，验证过程使用暂时无痕进度。",
-      "evidence": [".hvigor/outputs/reader-resume-previous-chapter/201-resume-seam-comparison.json"]
+      "evidence": [
+        ".hvigor/outputs/reader-resume-previous-chapter/201-resume-seam-comparison.json"
+      ]
     },
     {
       "id": "reader-resume-both-directions-dependency-20261123",
@@ -29788,6 +29809,12 @@
         ".hvigor/outputs/published-source-order-audit-20261123/zero-publication-commit.json",
         ".hvigor/outputs/published-source-order-audit-20261123/tongli-publication-commit.json"
       ]
+    },
+    {
+      "at": "2026-11-23T04:09:31+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "title": "移动目录反例修正已保护；继续新登录哔咔与原队列",
+      "detail": "优酷实际移动7行倒排带陈旧asc，按模板合同修正并删除临时诊断模块；本地91cd899，最终包d89a1d7f待237验收。三源新增四部345章真实公开目录经App生产解析/章序/四依据消费，按ID去重累计442部45506章、80源至少五部。用户刚登录237哔咔，保留其新会话继续普通路径，不覆盖旧认证快照。其余源队列保留，App不推送发布。"
     }
   ],
   "reportAgeAudit": {
