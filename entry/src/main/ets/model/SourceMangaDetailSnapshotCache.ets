@@ -214,6 +214,21 @@ export class SourceMangaDetailSnapshotCache {
     return cloneSnapshot(snapshot)
   }
 
+  /** The reader can verify chronology while the detail still holds an older catalog.
+   * Refresh the matching cache record without scheduling another UI-thread snapshot write. */
+  rememberVerifiedReaderCatalog(entry: SourceRuntimeRegistryEntry, mangaId: string, mangaUrl: string | undefined,
+    settingsRevision: string, chapters: MangaChapterItem[], excludedChapterIds?: string[]): void {
+    if (entry.authentication !== undefined) return
+    const key = sourceMangaDetailSnapshotCacheKey(entry, entry.sourceId, mangaId)
+    const cached = this.snapshots.get(key)
+    if (cached === undefined || cached.settingsRevision !== settingsRevision ||
+      settingsRevision !== appSourceSettingsStore.revisionForSource(entry.sourceId) ||
+      cached.snapshot.detail.url?.trim() !== mangaUrl?.trim()) return
+    cached.snapshot.chapters = chapters.map((chapter: MangaChapterItem): MangaChapterItem => cloneMangaChapterItem(chapter))
+    cached.snapshot.chaptersResolved = true
+    cached.snapshot.excludedChapterIds = excludedChapterIds?.slice()
+  }
+
   write(
     entry: SourceRuntimeRegistryEntry,
     sourceId: string,

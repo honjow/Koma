@@ -14,6 +14,7 @@ const preferencePort = {
   async delete(key) { preferenceData.delete(key) }, async flush() {},
 }
 const ports = {
+  'libkoma_source_runtime.so': {},
   '@kit.ArkData': { preferences: { getPreferences: async () => preferencePort } },
   '@kit.ArkTS': { buffer: Buffer },
   '@kit.CoreFileKit': { fileIo: { accessSync: () => false } },
@@ -179,6 +180,29 @@ test('local detail snapshots survive reconstruction but reject package or settin
   assert.equal(cleared.length, 1)
   restored.clear()
 })
+
+test('reader chronology updates the matching live detail catalog without starting a persistence write', () => {
+  const { SourceMangaDetailSnapshotCache } = load('model/SourceMangaDetailSnapshotCache')
+  const cache = new SourceMangaDetailSnapshotCache()
+  const entry = { sourceId: 'source.test', manifestId: 'pkg', manifestVersion: '1.0.0', wasmByteCount: 42 }
+  const mangaUrl = 'https://example.test/work'
+  const original = { id: 'current', title: 'Current' }
+  const resolved = [{ id: 'previous', title: 'Previous', readingOrder: 10 }, { ...original, readingOrder: 11 },
+    { id: 'next', title: 'Next', readingOrder: 12 }]
+  let persisted = 0
+  cache.setPersistence({ persist: () => { persisted++ }, clear() {} })
+  cache.write(entry, entry.sourceId, 'work', { detail: { id: 'work', title: 'Series', url: mangaUrl },
+    chapters: [original], chaptersResolved: true }, '0', 'settings-a')
+  cache.rememberVerifiedReaderCatalog(entry, 'work', `${mangaUrl}/other`, '0', resolved)
+  cache.rememberVerifiedReaderCatalog(entry, 'work', mangaUrl, 'old', resolved)
+  assert.equal(cache.read(entry, entry.sourceId, 'work', mangaUrl).chapters.length, 1)
+  cache.rememberVerifiedReaderCatalog(entry, 'work', mangaUrl, '0', resolved)
+  const reopened = cache.read(entry, entry.sourceId, 'work', mangaUrl)
+  assert.deepEqual(clone(reopened.chapters.map(chapter => chapter.readingOrder)), [10, 11, 12])
+  assert.equal(reopened.chaptersResolved, true)
+  assert.equal(persisted, 1)
+})
+
 test('a failed Reader persistence commit restores old memory and disk, and a retry preserves read timestamps', () => {
   let disk = { progress: [], sourceHistory: [], chapters: [] }, fail = true
   const store = new PersistentReaderSessionStore({ load: () => [], loadSnapshot: () => clone(disk),

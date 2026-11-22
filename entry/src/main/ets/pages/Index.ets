@@ -104,7 +104,7 @@ import { MangaGridItem } from '../components/MangaGridItem'
 import { MangaMigrationPage } from './MangaMigrationPage'
 import { MihonImportRecord } from '../model/MihonBackupReader'
 import { MihonImportService } from '../model/MihonImportService'
-import { SourceMangaDetailSnapshot } from '../model/SourceMangaDetailSnapshotCache'
+import { SourceMangaDetailSnapshot, sourceMangaDetailSnapshotCache } from '../model/SourceMangaDetailSnapshotCache'
 import { MangaMigrationPreferencesStore } from '../model/MangaMigrationPreferencesStore'
 import { MigrationCommand } from '../state/MangaMigrationRouteChromeState'
 import { MangaMigrationRouteParam, MangaMigrationSearchRouteParam } from '../common/RouterHelper'
@@ -232,7 +232,7 @@ import {
   appSourceRuntimeRegistry,
   bootstrapSourceRuntimeAppRegistry,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { appSourceSettingsStore, configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { appSourceWebSessionStore, sourceWebOrigin } from '../sourceRuntime/SourceWebSessionStore'
 import { openSourceWebSession, prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { clearSourceRejectedRequest, sourceRejectedRequestUrl } from '../sourceRuntime/SourceRuntimeHttpTransport'
@@ -1564,6 +1564,7 @@ struct Index {
     if (source !== undefined && source.comicId === target.work) {
       const lookup = this.sourceRegistry.lookup(source.sourceId)
       if (!lookup.ok || lookup.entry === undefined || !sourceRuntimeEntryEnabled(lookup.entry)) return undefined
+      const settingsRevision = appSourceSettingsStore.revisionForSource(source.sourceId)
       const sourceCurrent = (): boolean => isCurrent() && this.sourceRegistry.lookup(source.sourceId).entry === lookup.entry
       const catalog = await this.readReaderPagesWithVerification<SourceChapterListResult>(source.sourceId,
         (guard?: string): Promise<SourceChapterListResult> => resolveSourceChapterList(lookup.entry!, source.mangaId,
@@ -1582,6 +1583,8 @@ struct Index {
       updated.chaptersResolved = true
       this.activeSourceReaderRequest = updated
       this.rememberSharedChapterCatalog(updated)
+      sourceMangaDetailSnapshotCache.rememberVerifiedReaderCatalog(lookup.entry, source.mangaId, source.mangaUrl,
+        settingsRevision, catalog.chapters, catalog.excludedChapterIds)
       const picker = readerChapterPickerChapters(catalog.chapters, sourceChapterOrderFor(source.sourceId),
         chapterReadingSortFor(target.work))
       return {
@@ -1842,6 +1845,23 @@ struct Index {
     }
   }
 
+  private reuseVerifiedReaderCatalog(request: SourceReaderSessionRequest): void {
+    const existing = request.chapters?.find((chapter: ReaderChapterDescriptor): boolean => chapter.id === request.chapterId)
+    if (request.chaptersResolved === true && existing !== undefined && !needsSourceCatalogChronology(existing)) return
+    const lookup = this.sourceRegistry.lookup(request.sourceId)
+    if (!lookup.ok || lookup.entry === undefined || !sourceRuntimeEntryEnabled(lookup.entry) ||
+      lookup.entry.authentication !== undefined) return
+    const cached = sourceMangaDetailSnapshotCache.read(lookup.entry, request.sourceId, request.mangaId, request.mangaUrl)
+    const current = cached?.chapters.find((chapter: ReaderChapterDescriptor): boolean => chapter.id === request.chapterId)
+    if (cached?.chaptersResolved !== true || current === undefined || needsSourceCatalogChronology(current)) return
+    // Restore only a verified catalog. Each new source-reader entry still
+    // requests fresh page descriptors so signed URLs and auth stay current.
+    request.chapters = cached.chapters
+    request.chapterIds = cached.chapters.map((chapter: ReaderChapterDescriptor): string => chapter.id)
+    request.chapterTitles = cached.chapters.map((chapter: ReaderChapterDescriptor): string => chapter.title)
+    request.chaptersResolved = true
+  }
+
   private async openSourceReader(
     request: SourceReaderSessionRequest,
     intent: ReaderChapterOpenIntent = 'resume',
@@ -1860,6 +1880,7 @@ struct Index {
       if (!await this.openMihonImportedWork(nextRequest.comicId)) this.showToast(AppStrings.get('mihon_import_resume_failed'))
       return
     }
+    this.reuseVerifiedReaderCatalog(nextRequest)
     const sourceIncognito = this.incognito.isSourceEnabled(nextRequest.sourceId)
     if (appDeviceSync.openReading(nextRequest, !sourceIncognito) === 'missing') {
       const name = nextRequest.sourceName || nextRequest.sourceId
