@@ -67,6 +67,35 @@ export function cloneReaderChapterDescriptor(chapter: ReaderChapterDescriptor): 
   }
 }
 
+/** Manual selection follows the reading basis in its forward direction, while
+ * retaining every edition and locked/manual entry. Display reversal belongs to
+ * the detail page. Independent source groups have independent ordinals, so sort
+ * inside each stream rather than comparing their unrelated positions globally.
+ * Source-declared variants share a sequence and may share a position. */
+export function readerChapterPickerChapters<T extends ReaderChapterDescriptor>(
+  chapters: T[], sourceOrder?: SourceChapterOrder, sort?: ChapterSortPolicy,
+): T[] {
+  const ordered = chapters.slice()
+  if (sourceOrder === 'newest_first') ordered.reverse()
+  const streams = new Map<string, number[]>()
+  ordered.forEach((chapter: T, index: number): void => {
+    if (chapter.readingOrder === undefined || !Number.isFinite(chapter.readingOrder) ||
+      chapter.readingOrder < 0 || !chapter.readingGroup) return
+    const key = chapter.readingVariantSequence === undefined
+      ? `group:${chapter.readingGroup}` : `variants:${chapter.readingVariantSequence}`
+    const indexes = streams.get(key) ?? []
+    indexes.push(index)
+    streams.set(key, indexes)
+  })
+  streams.forEach((indexes: number[]): void => {
+    const stream = indexes.map((index: number): T => ordered[index])
+      .sort((left: T, right: T): number => (left.readingOrder as number) - (right.readingOrder as number))
+    indexes.forEach((index: number, offset: number): void => { ordered[index] = stream[offset] })
+  })
+  if (sort !== undefined) ordered.sort((left: T, right: T): number => compareChapterSort(left, right, sort))
+  return ordered
+}
+
 /** Initial reading follows published chapter metadata, never the display-list direction. */
 export function firstReaderChapter(
   chapters: ReaderChapterDescriptor[],

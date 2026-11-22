@@ -12,7 +12,7 @@ import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
-import { continuationChapterIds, firstReaderChapter, needsSourceCatalogChronology, ReaderChapterOpenIntent } from './ReaderChapterSequence'
+import { continuationChapterIds, firstReaderChapter, needsSourceCatalogChronology, readerChapterPickerChapters, ReaderChapterOpenIntent } from './ReaderChapterSequence'
 import { chapterReadingSortFor } from './ChapterListPreferencesStore'
 import {
   Chapter,
@@ -1737,13 +1737,14 @@ export function createReaderSessionConfigFromComic(
     : (firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId), undefined, sort)?.id ?? '')
   const chapter = comic.chapters.find((item) => item.id === targetChapterId)
   const pages = preparedPages ?? chapter?.pages ?? []
+  const picker = readerChapterPickerChapters(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId), sort)
   return {
     comicId: comic.id,
     chapterId: targetChapterId,
-    chapterIds: comic.chapters.map((item) => item.id),
+    chapterIds: picker.map((item) => item.id),
     continuationChapterIds: continuationChapterIds(comic.chapters, targetChapterId, true, sort),
     sourceChapterChronologyPending: comic.sourceRuntimeId !== undefined && needsSourceCatalogChronology(chapter, true),
-    chapterTitles: comic.chapters.map((item) => readerChapterDisplayTitle(item)),
+    chapterTitles: picker.map((item) => readerChapterDisplayTitle(item)),
     title: comic.title,
     chapterTitle: chapter === undefined ? undefined : readerChapterDisplayTitle(chapter),
     readingFormat: readerFormatFromTags(comic.sourceMetadata?.tags),

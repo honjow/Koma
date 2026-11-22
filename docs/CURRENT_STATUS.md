@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T03:00:40+08:00",
+  "updatedAt": "2026-11-23T03:16:16+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -6223,26 +6223,29 @@
       "id": "CHAPTER_SORT_MENU",
       "number": 103,
       "title": "章节排序菜单无作用",
-      "status": "底部计数补丁2682eb51已提交、编译并在237验收",
-      "kind": "accepted",
+      "status": "计数已验收；选章列表统一正向已实现、待237验收",
+      "kind": "open",
       "priority": "P0（人类再次复现：通用排序及菜单状态）",
       "owner": "本会话：章节排序与全部已发布源章序检查",
       "dependencies": [],
       "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。 对照 Mihon 的四种章排序，Koma 增加「按上传日期」「名称」并对齐「按图源」「按章节编号」。保留默认按图源及原生菜单正反序。所选依据用于同一已核实阅读组的阅读起点和正向邻章，反转显示不改变邻章。漫画1234 0.1.15 的 711 条具名目录遵守原站及 Keiyoushi 顺序，章节 ID 与阅读位置先后保持。 197 使用本轮同签候选和漫画1234 0.1.15。默认按图源的首行是第五百七十六章。无记录开始阅读打开原站入口《鸽之魔界大门—— 2》。按名称后列表前两项是《40进20PK赛》和《超紧急事态！！》。反转显示后仍从前者开始，末页滑到后者，后者首页滑回前者末页。章节编号和上传日期选项也在真机选中。该目录未提供上传时间，日期比较另外用有日期值和缺日期值的执行用例覆盖。 2026-11-23：c263ce77 修正图源方向标签与四项文案；3bafce88 使新作品默认倒序，已有排序记录保持。两个候选均 assembleHap 成功。237 普通导入瓜子0.1.9并下拉刷新，341章目录完整保留，两个档案及预告获得0/1/2位置。真实条漫滚动验证封面档案→人物档案→预告→001，档案间向前/向后均可跨章；恢复倒序显示后，人物档案向前仍回封面档案。原当前进度、页码与saved_at逐字段未变。 最终 App 候选在237验证漫画1234《我的微信连三界》原目录最早在前、新作品无排序记录时默认倒序，实际首行为最终话。瓜子最终公开0.1.9普通导入后刷新341章，全部有唯一阅读位置。原进度人物档案、场景第1/12页及saved_at未改，原source_order/forward保留，临时源无痕恢复关闭，两份临时导入文件及自有设备截图布局已清理。独立恢复SLEEP/OverrideTimeout10000ms并释租。 2026-11-23发布后补正：先前验收漏查底部章序。KomaReaderLabPage原取手动选章目录下标；现由Adapter与adjacent共用readingChapterIds计算章序/总数，目录未完整时不显示误导的1/1。本次不改书源、共享Kit、版本号或持久进度。 2682eb51补丁最终237验收：普通源内搜索进入瓜子《从姑获鸟开始》，原图源倒序目录341章，继续人物档案第1/12页，实际底部为章节2/341。临时源无痕false已读回，原详情倒序目录、SLEEP和OverrideTimeout10000ms已恢复并释租。读取到的较新读态时间早于本次阅读，未用旧快照覆盖。",
-      "remaining": "本轮App计数补正已完成，可追加当前发布版；各源剩余修复继续在#343。",
+      "remaining": "用户确认半模态固定正向，并重申按作品所选排序依据联动。已补书架/历史、源详情直读和后台补齐目录三入口；正在编译和237验证。书源全量审计继续#343。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "evidencePoints": [],
-      "remainingActions": [],
+      "remainingActions": [
+        "237检查默认图源及切换排序依据后的半模态、上下章与计数方向一致，详情展示反转独立。"
+      ],
       "boundaries": [
         "本次新反馈明确重开通用展示反序与菜单状态，不继续按源补章号来掩盖菜单缺陷。",
         "原始章节对象/ID/源返回顺序、持久阅读数据和Reader自动邻章语义保持；跨季年代不能由显示反序推定。",
         "允许差异为升降序真正互逆、默认降序单一状态、原生选中对勾和同项选择无变更；不改控件尺寸/排布/字体。",
         "源方向必须来自声明或完整阅读位置，不能把网站原数组一律叫正序；旧保存方向换算显示，不能悄悄翻转用户列表。",
-        "无编号本身不构成手选限制；列表反转不反转阅读器的正向上下章。"
+        "无编号本身不构成手选限制；列表反转不反转阅读器的正向上下章。",
+        "本轮用户明确选择：阅读器半模态固定按作品所选排序依据正向显示，详情展示方向不传入；完整版本、锁定和无编号条目保留。"
       ],
       "modificationBasis": {
         "object": "ChapterListSection展示排序和MangaDetailModels排序状态；原章节对象/ID不变",
@@ -6251,7 +6254,7 @@
         "reopenEvidence": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
         "allowedDifference": "SOURCE_ORDER/CHAPTER_NUMBER与FORWARD/REVERSE独立，整表反转；原生选中标记、当前项无重选；排序分组小号常规字及公共材质。保其他布局、ID、读态和Reader邻章语义。"
       },
-      "updatedAt": "2026-11-23T02:38:00+08:00",
+      "updatedAt": "2026-11-23T03:16:16+08:00",
       "evidence": [
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/37-mh1234-baseline-chapter-title/layout.json",
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/46-mh1234-final-native-catalogue/layout.json",
@@ -29679,6 +29682,14 @@
       "evidence": [
         ".hvigor/outputs/mihon-large-mapping-audit/rdb-first-catalog-20261123/summary.json"
       ]
+    },
+    {
+      "id": "reader-picker-forward-basis-20261123",
+      "at": "2026-11-23T03:16:16+08:00",
+      "itemId": "CHAPTER_SORT_MENU",
+      "kind": "progress",
+      "title": "统一阅读器选章为所选依据的正向目录",
+      "detail": "用户先确认固定正向，再重申排序依据必须联动。原半模态只读原数组，现共用ReaderChapterSequence中的完整目录正向投影，三入口（书库续读、未入库直读、后台目录恢复）均接入。保全部真实版本、权限和无编号条目，不用当前有限续章链代替完整列表；计数和邻章原规则保持。16项实际逻辑检查通过，设备未验不写通过。"
     }
   ],
   "reportAgeAudit": {

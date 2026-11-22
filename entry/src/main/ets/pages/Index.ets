@@ -31,7 +31,7 @@ import { bindRemoteProgressLibrary } from '../model/RemoteProgressBootstrapSync'
 import { SourcePackageManagerCache, appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaDialogMaterial, komaMenuOptions, komaSheetOptions, komaToastOptions } from "../theme/KomaPopupOptions"
-import { firstReaderChapter } from '../model/ReaderChapterSequence'
+import { firstReaderChapter, readerChapterPickerChapters } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
 import { AutomaticDownloadController } from '../model/AutomaticDownloadController'
@@ -1333,11 +1333,16 @@ struct Index {
       }
       return request.chapterTitles?.[selectedIndex] ?? ''
     })
+    const metadata = new Map<string, ReaderChapterDescriptor>()
+    request.chapters?.forEach((chapter: ReaderChapterDescriptor): void => { metadata.set(chapter.id, chapter) })
+    const picker = readerChapterPickerChapters(chapterIds.map((id: string, index: number): ReaderChapterDescriptor =>
+      metadata.get(id) ?? { id, title: chapterTitles[index] }), sourceChapterOrderFor(request.sourceId),
+      chapterReadingSortFor(request.comicId))
     return {
       comicId: request.comicId,
       chapterId: request.chapterId,
-      chapterIds,
-      chapterTitles,
+      chapterIds: picker.map((chapter: ReaderChapterDescriptor): string => chapter.id),
+      chapterTitles: picker.map((chapter: ReaderChapterDescriptor): string => chapter.title),
       continuationChapterIds: request.chaptersResolved === true && request.chapters !== undefined
         ? continuationChapterIds(request.chapters, request.chapterId, true, chapterReadingSortFor(request.comicId)) : undefined,
       sourceChapterChronologyPending: needsSourceCatalogChronology(request.chapters?.find(
@@ -1577,17 +1582,23 @@ struct Index {
       updated.chaptersResolved = true
       this.activeSourceReaderRequest = updated
       this.rememberSharedChapterCatalog(updated)
+      const picker = readerChapterPickerChapters(catalog.chapters, sourceChapterOrderFor(source.sourceId),
+        chapterReadingSortFor(target.work))
       return {
         continuation: continuationChapterIds(catalog.chapters, target.unit, true, chapterReadingSortFor(target.work)),
-        chapterIds: updated.chapterIds,
-        chapterTitles: updated.chapterTitles,
+        chapterIds: picker.map((chapter: ReaderChapterDescriptor): string => chapter.id),
+        chapterTitles: picker.map((chapter: ReaderChapterDescriptor): string => chapter.title),
       }
     }
     const continuation = await this.readReaderPagesWithVerification<string[] | undefined>(
       this.readerComicForOpen(target.work)?.sourceRuntimeId,
       (guard?: string): Promise<string[] | undefined> => new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
         this.ensureLibraryPersistenceService()).resolveChapterSequence(target.work, target.unit, isCurrent, guard), isCurrent)
-    return continuation === undefined ? undefined : { continuation }
+    if (continuation === undefined) return undefined
+    const comic = this.readerComicForOpen(target.work)
+    if (comic === undefined) return { continuation }
+    const updated = createReaderSessionConfigFromComic(comic, target.unit)
+    return { continuation, chapterIds: updated.chapterIds, chapterTitles: updated.chapterTitles }
   }
 
   private createReaderLabCatalogHost(production: boolean = false): KomaReaderCatalogHost {

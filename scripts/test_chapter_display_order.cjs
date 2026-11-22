@@ -40,6 +40,14 @@ new Function('exports', ts.transpileModule(fs.readFileSync(path.join(base, 'mode
 new Function('exports','ChapterReadFilter','compareChapterSort','sourceCatalogDirection',js)(
   exported,readFilter,comparison.compareChapterSort,chronology.sourceCatalogDirection)
 const SOURCE='source_order', NUMBER='chapter_number', UPLOAD='upload_date', NAME='name', FORWARD='forward', REVERSE='reverse'
+const reading = {}
+new Function('exports', 'require', ts.transpileModule(
+  fs.readFileSync(path.join(base, 'model/ReaderChapterSequence.ets'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText)(reading, id => {
+    if (id === './ChapterSortOrder') return comparison
+    throw new Error(`Unexpected runtime dependency ${id}`)
+  })
 function make(chapters) {
   const o=exported.make();o.chapters=chapters
   o.languageState={effectiveLocale:'zh-CN'}
@@ -142,4 +150,38 @@ test('oldest-first catalogs reset to chronological descending while saved raw-ar
   assert.equal(o.hasActiveFilters(),false)
   o.setSortDirection(o.storageSortDirection(FORWARD))
   assert.deepEqual(o.sortedChapters.map(c=>c.id),['profile','001'])
+})
+
+// User decision: the picker uses the reading basis forward, independently of the detail display.
+test('reader picker and neighbors share all four forward bases regardless of detail reversal',()=>{
+  const rows=Object.freeze([
+    chapter('last',2,{title:'A',dateUpload:200,readingOrder:2,readingGroup:'catalog',continuationEligible:true}),
+    chapter('extra',undefined,{title:'C',dateUpload:300,readingOrder:1,readingGroup:'catalog',continuationEligible:true}),
+    chapter('first',1,{title:'B',dateUpload:100,readingOrder:0,readingGroup:'catalog',continuationEligible:true}),
+  ])
+  for(const basis of [SOURCE,NUMBER,UPLOAD,NAME]){
+    const sort=basis===SOURCE?undefined:{basis,locale:'en'}
+    const expected=reading.continuationChapterIds(rows,'first',true,sort)
+    const ids=()=>reading.readerChapterPickerChapters(rows,'newest_first',sort).map(c=>c.id)
+    const o=make(rows);o.setSortBasis(basis)
+    for(const direction of [FORWARD,REVERSE]){
+      o.setSortDirection(direction)
+      assert.deepEqual(ids(),expected,`${basis}/${direction}`)
+    }
+  }
+  assert.deepEqual(rows.map(c=>c.id),['last','extra','first'])
+})
+
+test('reader picker keeps all editions and locked entries while each independent stream runs forward',()=>{
+  const rows=Object.freeze([
+    chapter('a2',2,{readingOrder:1,readingGroup:'a'}),chapter('locked',undefined,{continuationEligible:false}),
+    chapter('a1',1,{readingOrder:0,readingGroup:'a'}),
+    chapter('b2',2,{readingOrder:1,readingGroup:'b'}),chapter('b1',1,{readingOrder:0,readingGroup:'b'}),
+  ])
+  assert.deepEqual(reading.readerChapterPickerChapters(rows).map(c=>c.id),['a1','locked','a2','b1','b2'])
+  const variants=[chapter('v2',2,{readingOrder:1,readingGroup:'g1',readingVariantSequence:'zh'}),
+    chapter('v1b',1,{readingOrder:0,readingGroup:'g2',readingVariantSequence:'zh'}),
+    chapter('v1a',1,{readingOrder:0,readingGroup:'g1',readingVariantSequence:'zh'})]
+  assert.deepEqual(reading.readerChapterPickerChapters(variants).map(c=>c.id),['v1b','v1a','v2'])
+  assert.equal(reading.readerChapterPickerChapters(rows).length,rows.length)
 })

@@ -455,8 +455,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   adjacent(unit: ReaderUnit, direction: 'next' | 'previous'): ReaderUnitKey | null {
     const config = this.configs.get(this.unitId(unit.key))
     if (config === undefined) return null
-    // Online adjacency must use the same chronology as preloading. Raw source
-    // catalog order may be newest-first and is only the manual picker's order.
+    // Online adjacency shares preloading's verified edition boundary. The manual
+    // picker has a forward presentation too, but retains all other editions.
     const chapterIds = this.readingChapterIds(config)
     const index = chapterIds.indexOf(unit.key.unit)
     const target = index + (direction === 'next' ? 1 : -1)
