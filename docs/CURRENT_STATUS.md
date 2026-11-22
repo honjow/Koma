@@ -12639,17 +12639,18 @@
       "status": "119源持续核对；24个修复与漫画1234维护版已发布",
       "kind": "open",
       "priority": "P1",
-      "owner": "本会话统筹；Aristotle 237普通宿主复核，Volta优酷移动方向，Boole NoyAcg当前API",
+      "owner": "本会话统筹；Aristotle独占237，Volta創漫失败分层，Boole有限源补样，Galileo外部端点复核",
       "dependencies": [
         "CHAPTER_SORT_MENU"
       ],
-      "result": "冻结正式索引119源已逐源读码并尝试真实请求。按作品ID去重取得442份非空完整目录、45506章，覆盖99源，其中80源至少5份。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。 MangaDex英文0.1.29、简繁0.1.16及NamiComi简繁0.1.9已由fcf7d22公开，CI45059665307成功；25份真实完整目录653章含175条两页目录完成候选验证。最终公开五包索引、清单及实际WASM版本一致，代表187章整份响应与精确候选在同原件下相等。 Zero0.1.12（bcbd88f、CI45060983479）及东立0.1.13（9e4d6e9、CI45062292943）已公开。Zero现站5部97章、两章348页表保持，最终公开代表17章与候选同原件整份响应相等；旧站EOF未恢复。东立8部37章及真实SP11页验证，无号章恢复邻章并保留相邻明确缺话/权限断点；最终公开目录与精确候选分别联网Data一致、SP11页成功，不称同原件回放。",
-      "remaining": "优酷237实际移动目录沿用桌面UL ID且data-sort=asc陈旧，已据真实模板修正并本地保护91cd899；最终0.1.8候选d89a1d7f待普通开始阅读与上下章验收，未发布。Noy同源v4分类数组提供完整位置，字段及接口增量继续复核，尚无真实已登录目录/正文。237用户刚亲自登录哔咔，保留新会话继续其目录与阅读验证。原20项CLI受限源的普通237验证仍在进行；不以单源或App半模态通过代替全部源。",
+      "result": "冻结正式索引119源已逐源读码并尝试真实请求。按作品ID去重取得442份非空完整目录、45506章，覆盖99源，其中80源至少5份。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。 MangaDex英文0.1.29、简繁0.1.16及NamiComi简繁0.1.9已由fcf7d22公开，CI45059665307成功；25份真实完整目录653章含175条两页目录完成候选验证。最终公开五包索引、清单及实际WASM版本一致，代表187章整份响应与精确候选在同原件下相等。 Zero0.1.12（bcbd88f、CI45060983479）及东立0.1.13（9e4d6e9、CI45062292943）已公开。Zero现站5部97章、两章348页表保持，最终公开代表17章与候选同原件整份响应相等；旧站EOF未恢复。东立8部37章及真实SP11页验证，无号章恢复邻章并保留相邻明确缺话/权限断点；最终公开目录与精确候选分别联网Data一致、SP11页成功，不称同原件回放。 哔咔用户新登录后，237取得五部普通UI完整目录计数8/2/70/3/2，首作实图及菜单双向邻章通过；临时无痕恢复false，新认证保留。未导出原始完整ID和权限元数据，未混入前述原件数量。",
+      "remaining": "优酷移动方向修正已本地保护91cd899，最终0.1.8包d89a1d7f待237普通开始阅读与上下章验收，未发布。Noy完整v4和分类数组位置已本地保护648a2ed；237实际为原站登录表单、无有效会话，真实目录、正文和旧新ID映射待登录，不发布候选。創漫隆少年详情可用、章节失败；正式页表独立HTTP已得30页，最小阶段诊断包待237采完整请求终态后定位，不将图片406或CLI选择器差异当原因。其余原20项受限源继续按原队列补验，具体站点/认证条件逐项记录。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
         "237验证优酷最终候选的正常开始阅读、序章和下一章，验证后直接发布。",
-        "完成Noy当前API、分组、单章回退和正文对齐，真实会话验证后发布。",
-        "继续237原20源与可用源补样，区分CLI能力、实际目录、页图及站点/登录条件；收束设备时独立恢复释租。"
+        "Noy原站有效登录后验证当前v4目录、普通/单章正文与历史业务ID；当前候选已保护，不宣称通过。",
+        "237采創漫目录失败完整终态，找到具体失败层再修并验。",
+        "继续原20源与外部端点、有限源补样；设备范围结束独立恢复释租，保留用户新认证。"
       ],
       "boundaries": [
         "不靠补章节编号替代真实目录顺序。",
@@ -12678,7 +12679,10 @@
         ".hvigor/outputs/published-source-order-audit-20261123/tongli-publication-commit.json",
         ".hvigor/outputs/published-source-order-audit-20261123/tongli-fix-final.json",
         ".hvigor/outputs/published-source-order-audit-20261123/supplemental-samples/app-consumption.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/youku-investigation/mobile-order/local-protection.json"
+        ".hvigor/outputs/published-source-order-audit-20261123/youku-investigation/mobile-order/local-protection.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/picacomic-result.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/runtime-1/noyacg-order-contract-20261123/local-protection.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/weicomic-followup/diagnostic-ready.json"
       ],
       "updatedAt": "2026-11-23T03:51:28+08:00"
     },
@@ -29815,6 +29819,12 @@
       "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "title": "移动目录反例修正已保护；继续新登录哔咔与原队列",
       "detail": "优酷实际移动7行倒排带陈旧asc，按模板合同修正并删除临时诊断模块；本地91cd899，最终包d89a1d7f待237验收。三源新增四部345章真实公开目录经App生产解析/章序/四依据消费，按ID去重累计442部45506章、80源至少五部。用户刚登录237哔咔，保留其新会话继续普通路径，不覆盖旧认证快照。其余源队列保留，App不推送发布。"
+    },
+    {
+      "at": "2026-11-23T04:28:23+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "title": "哔咔五部普通目录与代表阅读已验；Noy增量已保护",
+      "detail": "237用户新登录已生效，五部普通UI目录和首作实图、明确菜单双向邻章完成，原始ID/权限全量未导出；临时无痕恢复，新会话不登出不回旧快照。Noy当前API/数组合同648a2ed本地保护，待有效登录，不发未验源。創漫正式页表30页独立可用，原生目录具体阶段仍需最小诊断，已审不发布包；优酷最终候选和原队列继续。App未推送发布。"
     }
   ],
   "reportAgeAudit": {
