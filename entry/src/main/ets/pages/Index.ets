@@ -3008,6 +3008,7 @@ struct Index {
   private settingsPaneFromParam(param: Object): SettingsPaneKey {
     const pane = (param as Record<string, string>)?.pane
     if (pane === 'appearance' ||
+      pane === 'app-icon' ||
       pane === 'library' ||
       pane === 'grid-column-width' ||
       pane === 'reader' ||

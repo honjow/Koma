@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<title>Koma 夜读 · 背景</title>
+<defs><linearGradient id="palette" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3C4B55"/><stop offset="0.52" stop-color="#26313A"/><stop offset="1" stop-color="#171D24"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#palette)"/>
+</svg>

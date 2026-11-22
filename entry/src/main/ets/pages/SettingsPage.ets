@@ -12,6 +12,8 @@ import { LibraryAutomationSettingRow, LIBRARY_AUTOMATION_SETTING_KEYS } from '..
 import { LibraryAutomationPreferences, defaultLibraryAutomationPreferences } from '../model/LibraryAutomationPolicy'
 import { AppearanceState, connectAppearanceState, effectiveAppearanceAccent, isCustomAppearanceAccentColor } from '../state/AppearanceState'
 import { AppColorPicker } from '../components/AppColorPicker'
+import { AppIconPicker, AppIconPreview } from '../components/AppIconPicker'
+import { AppIconSettings, AppIconState, connectAppIconState } from '../model/AppIconSettings'
 import { KomaModalScaffold, komaModalSheetOptions } from '../components/KomaModalScaffold'
 import { LibraryAutomationPreferencesStore } from '../model/LibraryAutomationPreferencesStore'
 import { CustomLibraryCategory, LibraryCategoryDefinition, LegacyLibraryCategory, LEGACY_LIBRARY_CATEGORIES } from '../model/ComicModels'
@@ -181,6 +183,7 @@ export type SettingsPaneKey =
   'root' |
   'incognito' |
   'appearance' |
+  'app-icon' |
   'library' |
   'grid-column-width' |
   'reader' |
@@ -242,17 +245,21 @@ const READER_PAGED_ROW_KEYS: string[] = [
 ]
 
 function createSettingsSections(): SettingsSection[] {
+  const appearanceRows: SettingsRow[] = [
+    { key: 'theme', titleKey: 'settings_row_theme_title', detailKey: 'settings_row_theme_detail' },
+    { key: 'theme-color', titleKey: 'settings_row_theme_color_title', detailKey: 'settings_row_theme_color_detail' },
+    { key: 'language', titleKey: 'settings_row_language_title', detailKey: 'settings_row_language_detail' },
+    { key: 'auto-hide-bottom-bar', titleKey: 'settings_auto_hide_bottom_bar', detailKey: 'settings_auto_hide_bottom_bar_hint' },
+    { key: 'show-resume-mini-bar', titleKey: 'settings_show_resume_mini_bar', detailKey: 'settings_show_resume_mini_bar_hint' },
+  ]
+  if (AppIconSettings.supported()) {
+    appearanceRows.splice(2, 0, { key: 'app-icon', titleKey: 'settings_app_icon_title', detailKey: 'settings_app_icon_detail' })
+  }
   return [
     {
       key: 'appearance',
       titleKey: '',
-      rows: [
-        { key: 'theme', titleKey: 'settings_row_theme_title', detailKey: 'settings_row_theme_detail' },
-        { key: 'theme-color', titleKey: 'settings_row_theme_color_title', detailKey: 'settings_row_theme_color_detail' },
-        { key: 'language', titleKey: 'settings_row_language_title', detailKey: 'settings_row_language_detail' },
-        { key: 'auto-hide-bottom-bar', titleKey: 'settings_auto_hide_bottom_bar', detailKey: 'settings_auto_hide_bottom_bar_hint' },
-        { key: 'show-resume-mini-bar', titleKey: 'settings_show_resume_mini_bar', detailKey: 'settings_show_resume_mini_bar_hint' },
-      ],
+      rows: appearanceRows,
     },
     {
       key: 'reader',
@@ -500,6 +507,7 @@ function safeSettingsErrorCode(error: Error): string {
 }
 
 export function settingsPaneTitle(pane: SettingsPaneKey): string {
+  if (pane === 'app-icon') return s('settings_app_icon_title')
   if (pane === 'grid-column-width') return s('settings_column_width')
   if (pane === 'advanced') return s('settings_pane_advanced_title')
   if (pane === 'translation') return s('comic_translation_settings_title')
@@ -541,6 +549,7 @@ export struct SettingsPage {
   @Param scroller: Scroller = new Scroller()
   @Event onRootScroll: (offset: number, state: ScrollState) => void = (_offset: number, _state: ScrollState) => {}
   @Local private appearanceState: AppearanceState = connectAppearanceState()
+  @Local private appIconState: AppIconState = connectAppIconState()
   @Event onLibraryPreferencesChanged: () => void = () => {}
   @Event onOpenSettingsPane: (pane: SettingsPaneKey, rowKey?: string) => void = (_pane: SettingsPaneKey, _rowKey?: string) => {}
   @Param searchTarget: string = ''
@@ -2649,6 +2658,8 @@ export struct SettingsPage {
   private handleRowClick(row: SettingsRow): void {
     if (row.key === 'grid-column-width') {
       this.onOpenSettingsPane('grid-column-width')
+    } else if (row.key === 'app-icon' && AppIconSettings.supported()) {
+      this.onOpenSettingsPane('app-icon')
     } else if (row.key === 'download-system-notification-settings') {
       this.openDownloadSystemNotificationSettings()
     } else if (row.key === 'komga') {
@@ -2697,7 +2708,12 @@ export struct SettingsPage {
 
   @Builder
   private SectionRow(row: SettingsRow) {
-    if (row.key === 'grid-column-width' || row.key === 'download-system-notification-settings') {
+    if (row.key === 'app-icon') {
+      ConciseListRow({ title: this.rowTitle(row),
+        action: () => { this.handleRowClick(row) },
+        suffixBuilderParam: () => { this.AppIconRowSuffix() },
+      })
+    } else if (row.key === 'grid-column-width' || row.key === 'download-system-notification-settings') {
       ConciseListRow({ title: this.rowTitle(row), subtitle: this.rowBaseDetail(row), subtitleMaxLines: 2,
         showChevron: true, action: () => { this.handleRowClick(row) } })
     } else if (row.key === 'translation-cache') {
@@ -2769,6 +2785,18 @@ export struct SettingsPage {
     }
   }
 
+  @Builder
+  private AppIconRowSuffix() {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      if (this.appIconState.activeOption() !== undefined) {
+        AppIconPreview({ option: this.appIconState.activeOption()!, iconSize: 28 })
+      }
+      SymbolGlyph($r('sys.symbol.chevron_right'))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor([ThemeConstants.TEXT_TERTIARY])
+    }
+  }
+
   private openSearchResult(result: SettingsSearchResult): void {
     this.getUIContext().getFocusController().clearFocus()
     // Backup and the two WebDAV destinations share a search return path.
@@ -2788,7 +2816,7 @@ export struct SettingsPage {
     }
     const navigationRows: string[] = ['komga', 'kavita', 'opds', 'webdav', 'sources',
       'translation', 'enhancement-models', 'diagnostics',
-      'image-plugins', 'grid-column-width']
+      'image-plugins', 'grid-column-width', 'app-icon']
     if (navigationRows.includes(result.row.key)) {
       this.handleRowClick(result.row)
     } else {
@@ -3019,6 +3047,8 @@ export struct SettingsPage {
   private SettingsContent() {
     if (this.isSettingsSearchActive()) {
       this.SearchResults()
+    } else if (this.pane === 'app-icon' && AppIconSettings.supported()) {
+      AppIconPicker({ inModal: this.inModal })
     } else if (this.pane === 'diagnostics') {
       DiagnosticsSettingsContent()
     } else if (this.pane === 'grid-column-width') {
@@ -3085,7 +3115,10 @@ export struct SettingsPage {
   private loadPanePreferences(): void {
     if (this.pane === 'library' || this.pane === 'downloads') this.loadAutomationPolicy()
     if (this.pane === 'reader' || this.pane === 'enhancement-models' || this.pane === 'appearance') this.loadPreferences()
-    if (this.pane === 'appearance') this.loadAppearancePreferences()
+    if (this.pane === 'appearance') {
+      this.loadAppearancePreferences()
+      void AppIconSettings.refresh()
+    }
     if (this.pane === 'library') {
       this.loadLatestLibraryUpdateSummary()
       this.loadLibraryUpdatePreferences()
