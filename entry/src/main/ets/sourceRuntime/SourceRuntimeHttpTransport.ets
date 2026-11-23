@@ -894,6 +894,11 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     !includeResponseUrl && envelope.dnsOverride === undefined && identity?.credentialGrantId === undefined &&
     probe === undefined && identity !== undefined && ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
     ? appSourceWebSessionStore.requestContext(identity, url) : undefined
+  // Select the Web budget before readiness/queueing: a bridge miss must not
+  // turn an oversized UTF-8 body into a native send. Pure native keeps its
+  // historical character budget; Web data is uniformly capped by byte count.
+  if ((envelope.webFetch !== undefined || webHttpContext !== undefined) &&
+    new util.TextEncoder().encodeInto(body).byteLength > 1048576) return transportError('request_too_large', false)
   if (envelope.requestBodyRef !== undefined && bodyScope !== undefined) {
     try {
       // Web uploads are uniformly 1 MiB, including a reference whose native

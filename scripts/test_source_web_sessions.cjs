@@ -490,6 +490,30 @@ test('production HTTP transport never duplicates an attempted Web mutation or fa
     assert.equal(prepared, authorized ? 1 : 0)
     assert.equal(result.calls.length, 1, 'known before-send unavailability preserves ordinary native path')
   }
+  const multibyte = '中'.repeat(400000)
+  assert.equal(new TextEncoder().encode(multibyte).byteLength, 1200000)
+  for (const [explicit, authorized] of [[true, false], [true, true], [false, true]]) {
+    const f = fixture(); f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } }))
+    if (authorized) f.grant()
+    let prepared = 0
+    const bridge = { availableFor: () => false, prepare: async () => { prepared++; return false } }
+    const request = { method: 'POST', body: multibyte, ...(explicit ? { webFetch: { version: 1 } } : {}) }
+    const result = await f.http([], JSON.stringify(f.identity()), request, { bridge })
+    assert.equal(result.result.error.code, 'request_too_large')
+    assert.equal(result.result.networkPerformed, false)
+    assert.equal(result.calls.length, 0, 'a selected Web budget cannot be bypassed through native fallback')
+    assert.equal(prepared, 0, 'reject before hidden Web preparation or send')
+  }
+  for (const [selectedWeb, body] of [[false, multibyte], [true, '中'.repeat(349525) + 'x']]) {
+    const f = fixture(); f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: selectedWeb } }))
+    if (selectedWeb) f.grant()
+    const result = await f.http([response(200)], JSON.stringify(f.identity()), { method: 'POST', body }, {
+      bridge: { availableFor: () => false, prepare: async () => false },
+    })
+    assert.equal(result.result.status, 200)
+    assert.equal(result.calls.length, 1, 'pure native retains its old budget; exactly 1MiB Web can fall back before send')
+    assert.equal(result.calls[0].options.extraData, body)
+  }
   const scoped = fixture(); scoped.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } })); scoped.grant()
   // WebHTTP v1 is still unreleased: its completed data contract now permits
   // byte/ref combinations. Keep rejection coverage for genuinely invalid data.
@@ -1210,7 +1234,9 @@ function fixture(sdkApiVersion = 23) {
     const transport = moduleFrom('SourceRuntimeHttpTransport', name => {
       if (name === './SourceBodyHost') return { SourceBodyHost: network.bodyHost ?? {} }
       if (name === './SourceHttpBodyStream') return { requestSourceBodyStream: () => { throw Error('unexpected body stream in legacy fixture') } }
-      if (name === '@kit.ArkTS') return { url: { URL }, util: { Base64Helper: class {
+      if (name === '@kit.ArkTS') return { url: { URL }, util: { TextEncoder: class {
+        encodeInto(value) { return new TextEncoder().encode(value) }
+      }, Base64Helper: class {
         encodeToStringSync(bytes) { return Buffer.from(bytes).toString('base64') }
         decodeSync(value) { return Uint8Array.from(Buffer.from(value, 'base64')) }
       } } }
