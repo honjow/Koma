@@ -1,4 +1,4 @@
-import { libraryUnreadBadgeOptions } from './LibraryUnreadBadge'
+import { libraryUnreadBadgeBackdrop, libraryUnreadBadgeOptions } from './LibraryUnreadBadge'
 import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ComicCoverInfo } from '../model/ComicModels'
@@ -103,6 +103,7 @@ export struct ComicCoverCard {
       coverOwnerId: this.reuseAcrossWorks ? this.comic.id : '',
       objectFit: ImageFit.Cover,
       decodeMaxEdge: this.coverDecodeMaxEdge,
+      extractMainColor: true,
       sourceRuntimeId: this.displaySourceRuntimeId(),
       sourceImageId: this.displaySourceImageId(),
       sourceKind: this.comic.sourceKind,
@@ -114,7 +115,8 @@ export struct ComicCoverCard {
 
   build() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      Badge(libraryUnreadBadgeOptions(this.unreadBadgeCount ?? this.comic.unreadChapterCount, this.displayAccentColor())) {
+      Badge(libraryUnreadBadgeOptions(this.unreadBadgeCount ?? this.comic.unreadChapterCount,
+        this.displayAccentColor(), this.coverFailureKey())) {
         Stack({ alignContent: Alignment.Center }) {
           SymbolGlyph($r('sys.symbol.book'))
             .fontSize(42)
@@ -130,6 +132,8 @@ export struct ComicCoverCard {
               .height('100%')
               .backgroundColor(ThemeConstants.SELECTED_OVERLAY)
           }
+
+          libraryUnreadBadgeBackdrop(this.unreadBadgeCount ?? this.comic.unreadChapterCount, this.getUIContext())
         }
         .width('100%')
         .aspectRatio(COMIC_COVER_ASPECT_RATIO)

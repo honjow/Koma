@@ -1,6 +1,6 @@
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
-import { libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
+import { libraryUnreadBadgeBackdrop, libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
 import { LibrarySortMenuItems, librarySortLabel, librarySortSummary } from '../components/LibrarySortMenu'
 import { cachedLibraryChapterUpdateTimes } from '../model/LibraryChapterUpdates'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -2524,7 +2524,9 @@ export struct LibraryPage {
 
   @Builder
   private LibraryListCover(row: RepeatItem<ComicCoverInfo>) {
-    Badge(libraryUnreadBadgeOptions(this.unreadForCover(row.item.id), row.item.accentColor)) {
+    Badge(libraryUnreadBadgeOptions(this.unreadForCover(row.item.id), row.item.accentColor,
+      cachedCoverFailureKey(row.item.coverUri, row.item.sourceRuntimeId, this.sourceImageIdForComic(row.item),
+        row.item.sourceKind, row.item.remoteServerId, row.item.sourceMangaUrl))) {
       Stack({ alignContent: Alignment.Center }) {
         if (this.shouldShowCoverUri(
           row.item.coverUri,
@@ -2538,6 +2540,7 @@ export struct LibraryPage {
             uri: row.item.coverUri ?? '',
             decodeMaxEdge: coverDecodeEdgeForDisplay(this.libraryListCoverHeight()),
             coverOwnerId: row.item.id,
+            extractMainColor: true,
             objectFit: ImageFit.Cover,
             sourceRuntimeId: row.item.sourceRuntimeId ?? '',
             sourceImageId: this.sourceImageIdForComic(row.item),
@@ -2560,6 +2563,7 @@ export struct LibraryPage {
             .fontSize(ThemeConstants.FONT_SIZE_H2)
             .fontColor([ThemeConstants.TEXT_TERTIARY])
         }
+        libraryUnreadBadgeBackdrop(this.unreadForCover(row.item.id), this.getUIContext())
       }
       .width(this.libraryListCoverWidth())
       .height(this.libraryListCoverHeight())

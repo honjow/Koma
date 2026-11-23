@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T18:59:39+08:00",
+  "updatedAt": "2026-11-23T19:12:58+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -13045,6 +13045,64 @@
         ".hvigor/outputs/source-descriptions-20261123/legacy-name-projection-check.json"
       ],
       "progressPhase": "needs_work"
+    },
+    {
+      "id": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "number": 354,
+      "title": "书架未读数字角标使用封面主色与半透明模糊背景",
+      "kind": "verified",
+      "priority": "用户本轮界面调整",
+      "owner": "Root",
+      "status": "封面取色、单层白字和胶囊轻外阴影已完成，197已复验",
+      "updatedAt": "2026-11-23T19:12:58+08:00",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "用户本会话要求数字标识背景采用带透明度的模糊，原消息精确时刻未核实。",
+      "relatedItems": [
+        "LIBRARY_READING_PROGRESS_SEMANTICS"
+      ],
+      "result": "取色沿用AndroidX Palette鲜明色目标评分，系统量化色板与后台像素占比作宿主适配，所选RGB保持原值。用户要求避免过白后，对全部候选及回退设置HSL明度不超过70%的过滤。已彻底删除造成重影的额外文字层，数字只由原生Badge绘制，空Row负责模糊底板，几何通过系统文字测量取得。用户评价“总算是好多了”后继续要求胶囊外阴影，现使用系统OUTER_DEFAULT_XS。197按用户指定的未读章节数倒序，连续4屏核对21部带标作品；此前偏白的108已换为较深的封面色块，199等重影消失。网格、列表计数一致，正常速度上下滚动抽帧未见底板脱离。发行候选构建与取色关键逻辑检查通过，原网格、原SLEEP/10000ms已恢复并释租，保留同签1.6.1开发包。",
+      "remainingActions": [],
+      "remaining": "本轮改动及实机复验完成，按用户要求纳入本次提交。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/geometry-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/candidate-174346744465/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/list-candidate-174453193069/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/normal-speed-01/koma_library_badge_blur_20261123_1746.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/device-restored-174622721867/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-geometry-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-candidate-175620197801/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-list-candidate-175700490076/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/main-color-normal-speed-01/koma_cover_main_color_20261123.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-device-restored-175824817659/run-metadata.json",
+        "scripts/test_cover_main_color.cjs",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-comparison.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-candidate-180607256087/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-list-candidate-180649504752/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/contrast-normal-speed-01/koma_badge_contrast_20261123.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-device-restored-180812495547/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-package-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-desc-samples.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-list-grid-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-desc-page-3-185147094238/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-list-candidate-185235951961/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/capsule-shadow-normal-speed-01/summary.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/capsule-shadow-normal-speed-01/frames/frame-timeline.tsv",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-device-restored-185426740948/run-metadata.json",
+        "entry/src/main/ets/model/CoverPaletteSelection.ets",
+        "docs/licenses/AndroidX-Palette.txt"
+      ],
+      "boundaries": [
+        "保留用户确认的彩色底板、50%透明、背景模糊、单层白色原生数字以及尺寸、左上位置和零值隐藏；不改变未读计数、已读状态、阅读进度或分类归属。",
+        "禁止把整体压暗成灰、黑白字自动切换或叠加文字阴影恢复回来。过白色块在选色前排除，不缩放实际RGB；无合格色块或取色失败沿用原配色。",
+        "胶囊外缘轻阴影仅使用空底板的系统OUTER_DEFAULT_XS。不会给文字叠加阴影或第二套数字。",
+        "按用户要求保留未读章节数倒序。预设颜色就近匹配是用户提出的效果不佳时备选；当前改进获肯定，未切换此方案。",
+        "保留原动图显示路径；本轮未覆盖动图取色实机样本。本次仅提交代码，未发布。"
+      ]
     }
   ],
   "source": {
@@ -30652,6 +30710,102 @@
         "docs/source-runtime-abi-design.md",
         "entry/src/main/ets/sourceRuntime/SourceLocalizedNames.ets"
       ]
+    },
+    {
+      "id": "library-unread-badge-blur-197-20261123",
+      "at": "2026-11-23T17:47:20+08:00",
+      "itemId": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "kind": "verification",
+      "title": "数字角标半透明模糊背景已在197核对",
+      "detail": "保留原生Badge的数字、位置、尺寸和50%透明底色，在数字背后增加同形背景模糊。197安装1.6.1开发候选，网格与原版的角标值和bounds一致，列表与三位数可见，零未读保持隐藏；正常速度上下滚动未见底板脱离或闪烁。原网格布局及睡眠、10000ms超时已恢复，租约已释放。未提交。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/geometry-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/candidate-174346744465/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/list-candidate-174453193069/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/normal-speed-01/koma_library_badge_blur_20261123_1746.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/device-restored-174622721867/run-metadata.json"
+      ]
+    },
+    {
+      "id": "library-cover-main-color-trial-197-20261123",
+      "at": "2026-11-23T17:59:26+08:00",
+      "itemId": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "kind": "verification",
+      "title": "封面主色角标试用候选已在197核对",
+      "detail": "按用户本轮要求试用系统从封面缩略图提取的原始主色，保留原生数字、50%透明底色和背景模糊。197的1.6.1开发候选已核网格、列表与正常速度上下滚动；原生角标计数、相对位置和尺寸与本轮基线一致，未见底板脱离或串位。粉色、灰褐等色调随封面变化，浅色封面底板较淡；未额外调整亮度或数字样式。取色有缓存与独立图片租约，旧结果不能覆盖新封面，失败保原配色。原网格与SLEEP/10000ms已恢复并释租，保留候选，未提交。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-geometry-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-candidate-175620197801/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-list-candidate-175700490076/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/main-color-normal-speed-01/koma_cover_main_color_20261123.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-device-restored-175824817659/run-metadata.json",
+        "scripts/test_cover_main_color.cjs"
+      ]
+    },
+    {
+      "id": "library-cover-color-contrast-reopened-20261123",
+      "at": "2026-11-23T18:05:24+08:00",
+      "itemId": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "kind": "implementation",
+      "title": "用户指出角标不可见，纠正平均色与合成亮度",
+      "detail": "用户指出主色版部分角标看不清。已确认旧getMainColor返回整图平均色，并且只保留原色未约束50%透明合成后的亮度。候选改取占比最高的颜色，只压暗过亮底色，保留白字、原透明度和背景模糊；浅粉、米色、白色合成边界已执行检查，真机待核。"
+    },
+    {
+      "id": "library-dominant-color-contrast-197-20261123",
+      "at": "2026-11-23T18:09:16+08:00",
+      "itemId": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "kind": "verification",
+      "title": "修正平均色误用，浅色封面白字已在197对照",
+      "detail": "已将误用的全图平均色改为占比最高的颜色；仅对过亮底色压暗，保留50%透明、背景模糊及原白色数字。197同页浅色封面的21、9、10均明显可见，角标计数、相对位置与尺寸逐项保持；列表与正常速度上下滚动已核，未见底板脱离或闪烁。实际背景抽样中原最淡10的白字对比度由1.49提高到4.51，该值仅代表所取样本，不冒全图或全设备无障碍认证。原网格及SLEEP/10000ms已恢复，租约已释放，保留修正包，尚未提交。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-comparison.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-candidate-180607256087/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-list-candidate-180649504752/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/contrast-normal-speed-01/koma_badge_contrast_20261123.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-device-restored-180812495547/run-metadata.json",
+        "scripts/test_cover_main_color.cjs"
+      ]
+    },
+    {
+      "id": "library-cover-palette-gray-rejected-20261123",
+      "at": "2026-11-23T18:17:02+08:00",
+      "itemId": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "kind": "implementation",
+      "title": "撤销被用户否定的压暗方案，恢复实际封面色板",
+      "detail": "用户指出上一候选全变灰，并明确要求执行者自行检查。已撤销按全白背景亮度阈值缩放RGB的方案；从系统按占比返回的实际色板中选有彩色且适合白字的色块，选中颜色原样使用。旧亮度测试保护的是已否定方案，已改为真实色块选择及不制造灰色的行为覆盖；异步图片租约与晚到结果保护保留。尚未新候选真机确认。"
+    },
+    {
+      "id": "library-cover-palette-single-digits-shadow-197-20261123",
+      "at": "2026-11-23T18:55:18+08:00",
+      "itemId": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "kind": "verification",
+      "title": "按未读倒序核多屏，去掉叠字并增加胶囊轻外阴影",
+      "detail": "取色沿用AndroidX Palette鲜明色目标评分，系统量化色板与后台像素占比作宿主适配，所选RGB保持原值。用户要求避免过白后，对全部候选及回退设置HSL明度不超过70%的过滤。已彻底删除造成重影的额外文字层，数字只由原生Badge绘制，空Row负责模糊底板，几何通过系统文字测量取得。用户评价“总算是好多了”后继续要求胶囊外阴影，现使用系统OUTER_DEFAULT_XS。197按用户指定的未读章节数倒序，连续4屏核对21部带标作品；此前偏白的108已换为较深的封面色块，199等重影消失。网格、列表计数一致，正常速度上下滚动抽帧未见底板脱离。发行候选构建与取色关键逻辑检查通过，原网格、原SLEEP/10000ms已恢复并释租，保留同签1.6.1开发包。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-package-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-desc-samples.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-list-grid-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-desc-page-3-185147094238/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-list-candidate-185235951961/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/capsule-shadow-normal-speed-01/summary.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/capsule-shadow-normal-speed-01/frames/frame-timeline.tsv",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-device-restored-185426740948/run-metadata.json",
+        "scripts/test_cover_main_color.cjs",
+        "entry/src/main/ets/model/CoverPaletteSelection.ets",
+        "docs/licenses/AndroidX-Palette.txt"
+      ]
+    },
+    {
+      "id": "library-cover-palette-capsule-commit-20261123",
+      "at": "2026-11-23T19:12:58+08:00",
+      "itemId": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "kind": "delivery",
+      "title": "按用户要求提交书架角标封面取色与模糊胶囊",
+      "detail": "提交范围为角标取色、过白色块过滤、原生单层白字、半透明模糊底板、系统轻外阴影，以及相应关键逻辑测试、移植许可证和本项文档。沿用197网格、多屏未读倒序、列表与正常速度滚动的已核结果。本次不包含其他阅读器WIP，不推送或发布。"
     }
   ],
   "reportAgeAudit": {

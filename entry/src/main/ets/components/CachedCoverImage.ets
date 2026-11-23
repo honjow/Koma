@@ -19,6 +19,7 @@ import {
   coverPixelMapMemoryCacheKey,
 } from '../model/CoverPixelMapMemoryCache'
 import { coverImageAutomaticRetryDelayMs } from '../model/CoverImageRetryPolicy'
+import { cacheCoverMainColor } from '../model/CoverMainColor'
 
 const COVER_DECODE_MAX_EDGE: number = 320
 const COVER_RESAMPLE_MAX_INPUT_EDGE: number = 2048
@@ -165,6 +166,7 @@ export struct CachedCoverImage {
   @Param sourceKind: ComicSourceKind | undefined = undefined
   @Param remoteServerId: string = ''
   @Param decodeMaxEdge: number = COVER_DECODE_MAX_EDGE
+  @Param extractMainColor: boolean = false
   @Event onError: () => void = () => {}
   @Local private pixelMap: image.PixelMap | undefined = undefined
   @Local private displayedOwnerId: string = ''
@@ -287,7 +289,13 @@ export struct CachedCoverImage {
     this.failedSignature = ''
     this.completedAutomaticRetries = 0
     this.cancelAutomaticRetry()
+    if (this.extractMainColor) void cacheCoverMainColor(this.mainColorKey(), lease)
     await coverPixelMapMemoryCache.release(previousLease)
+  }
+
+  private mainColorKey(): string {
+    return cachedCoverFailureKey(this.uri, this.sourceRuntimeId, this.sourceImageId,
+      this.sourceKind, this.remoteServerId, this.sourceMangaUrl, this.sourceCoverHeaders)
   }
 
   private onAnimatedCoverReady(cover: AnimatedCover): void {
@@ -416,6 +424,18 @@ export struct CachedCoverImage {
           this.displayedSignature = signature
           this.displayedOwnerId = this.requestedOwnerId
           this.failedSignature = ''
+          if (this.extractMainColor) {
+            try {
+              const lease = await coverPixelMapMemoryCache.acquireOrLoad(memoryCacheKey,
+                () => decodeCoverThumbnail(imageSource!, imageInfo.size, Math.max(1, this.decodeMaxEdge)))
+              if (!this.disposed && this.sourceSignature === signature && this.decodeGeneration === generation) {
+                void cacheCoverMainColor(this.mainColorKey(), lease)
+              }
+              await coverPixelMapMemoryCache.release(lease)
+            } catch (_) {
+              // A missing optional thumbnail must not fail the animated cover.
+            }
+          }
           return
         }
       }
