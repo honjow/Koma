@@ -240,6 +240,8 @@ RPC 成功返回 `ok:true`，失败只返回 `ok:false,error:{code}`。`nowMs` �
 
 站点的验证文档可能以不同 HTTP 状态返回。书源对可能呈现验证文档的 GET 设置 `wantChallengeRequestId: "document"`，宿主为实际收到的响应附加短 ID，不按状态码判断验证。书源识别表单后才把同一个 ID 附加到挑战错误，宿主校验本源声明的网页域和当前操作后，以该次实际请求地址打开网页。源可在 `websitePolicy.webSessionReadySelector` 声明验证成功页面的 CSS 选择器。宿主在当前仍有效的同源主文档匹配选择器后，保存会话、关闭半模态并发出原请求。选择器只判断是否就绪，重试仍由原生网络执行。缺少标志时继续保留网页和手动完成入口。普通请求继续使用原策略。旧宿主忽略新增声明，保留原网页入口。
 
+本地1.6.1也可将同一`webSessionReadySelector`用于允许自动重试的普通challenge会话（包括没有GET因果ID的POST）：仅在不属于上述文档验证、且没有既有`renderedDocumentFallback.readySelector`时，用它判断当前授权页是否已有源声明的真实成功内容。R5真实主页已就绪但clearance未变化、仍需手动完成，是本轮依据；Cookie存在或未变化本身不是内容就绪证明。该分支只读readyState/querySelector布尔结果，同params.url精确origin及epoch/source/session/文档URL/revision必须在异步读取和Cookie保存前后持续有效，才沿原完成流程保存实际UA的会话并重试原操作一次。它不读取/交接HTML、不启用DOMfallback、不伪造GET探测、不清Cookie，也不代表原请求或正文已成功。`autoRetryOnClearance:false`的账号登录及webToken入口不适用。既有文档验证、renderedFallback selector优先、跨origin/native probe及手动完成行为保留；缺selector、标志未匹配或上下文失效不新增授权。旧宿主在普通challenge中不消费该声明，保留原clearance/probe/手动路径；无需新API或feature，源须等待含该消费分支的实际宿主验收。
+
 `source_http_batch_v1` 在原 `http_request` import 上支持 `{version:1,requests:[单请求对象]}`，每组1至5个且不能嵌套，只用于彼此独立的请求；存在响应或会话依赖时仍逐个发送。宿主先校验整组基本请求格式，再并行复用原单请求通道；每项保留源身份、会话、限速、重定向及网络超时。响应为 `{ok:true,responses:[单请求响应对象]}`，顺序与输入一致；外层 `ok` 只表示组格式有效，每项仍可能是原HTTP或传输失败，源必须逐项检查。宿主不自动重试、不缓存组结果、不扩大网络权限；未声明此特性的旧Host沿原逐个请求路径，不需要新增WASM导入。
 
 `source_settings_context_v1` 允许 `get_settings` 的 `args.settingValues` 携带本源当前已保存的公开设置副本，供源在设置键或类型迁移时继承原选择；顶层 `settings` 仍为空，`network:false` 保持。成功读取且未保存时传 `{}`；读取失败则省略该字段，源须保留原 schema，不把缺失当作已读空值。其它源的值及凭据字段不进入该上下文；读取不写文件、不修改 revision、不主动迁移或清设置，表单沿原保存与读取错误处理。源对新 schema 同时核 feature 和上下文；依赖该支持的新设置消费也须核 feature，旧 Host 保留旧设置和请求合同。

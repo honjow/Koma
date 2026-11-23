@@ -315,10 +315,12 @@ export struct SourceWebSessionSheet {
     })
   }
 
-  private async renderedDocumentReady(selector: string): Promise<boolean> {
+  private async renderedDocumentReady(selector: string, expectedDocument?: string): Promise<boolean> {
     try {
       const raw = await this.controller.runJavaScript(
-        "(() => { try { return (document.readyState === 'interactive' || document.readyState === 'complete') && document.querySelector(" +
+        "(() => { try { return " + (expectedDocument === undefined ? '' :
+          'location.href === ' + JSON.stringify(expectedDocument) + ' && ') +
+        "(document.readyState === 'interactive' || document.readyState === 'complete') && document.querySelector(" +
         JSON.stringify(selector) + ") !== null } catch (e) { return false } })()")
       if (typeof raw !== 'string' || raw.length === 0 || raw.length > 16) return false
       if (raw === 'true' || raw === '"true"') return true
@@ -333,21 +335,36 @@ export struct SourceWebSessionSheet {
     documentVisible: boolean = false): Promise<void> {
     const policy = appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy
     const verification = this.params.sourceSession?.requiresDocumentReadiness === true
-    const selector = verification ? (policy?.webSessionReadySelector ?? '') : renderedDocumentReadySelector(policy)
+    const fallbackSelector = renderedDocumentReadySelector(policy)
+    // R5 showed a real, ready homepage but unchanged clearance kept a POST's
+    // verifier open. An explicit success marker can finish only its Web grant;
+    // it neither authorizes HTML handoff nor completes an account login.
+    const authorizationOnly = !verification && fallbackSelector.length === 0 && this.autoRetryOnClearance &&
+      this.webTokenStorageKey.length === 0
+    const selector = verification ? (policy?.webSessionReadySelector ?? '') :
+      fallbackSelector.length > 0 ? fallbackSelector : authorizationOnly ? (policy?.webSessionReadySelector ?? '') : ''
     if (selector.length === 0 || this.autoRetryStarted || (this.loading && !documentVisible) || this.pageFailed || this.completing ||
       this.completed) return
     const documentUrl = this.pageUrl
     const revision = this.pageRevision
     const initialOrigin = sourceWebOrigin(this.params.url)
-    if (verification && (initialOrigin.length === 0 || sourceWebOrigin(documentUrl) !== initialOrigin)) return
+    if ((verification || authorizationOnly) && (initialOrigin.length === 0 || sourceWebOrigin(documentUrl) !== initialOrigin)) return
+    const authorizationCurrent: (() => boolean) | undefined = authorizationOnly ? (): boolean => {
+      try {
+        return this.isCurrent(epoch, sourceId, sessionId) && this.controllerReady && !this.pageFailed &&
+          this.pageRevision === revision && this.pageUrl === documentUrl && this.controller.getUrl() === documentUrl &&
+          sourceWebOrigin(this.params.url) === initialOrigin && sourceWebOrigin(documentUrl) === initialOrigin
+      } catch (_error) { return false }
+    } : undefined
     const attempt = this.autoDocumentAttempt + 1
     this.autoDocumentAttempt = attempt
     const current = (): boolean => this.isCurrent(epoch, sourceId, sessionId) && !this.autoRetryStarted &&
       (!this.loading || documentVisible) && !this.pageFailed && !this.completing && this.autoDocumentAttempt === attempt &&
-      this.pageRevision === revision && this.pageUrl === documentUrl
+      this.pageRevision === revision && this.pageUrl === documentUrl &&
+      (authorizationCurrent === undefined || authorizationCurrent())
     for (let index = 0; index < 40; index += 1) {
       if (!current()) return
-      const ready = await this.renderedDocumentReady(selector)
+      const ready = await this.renderedDocumentReady(selector, authorizationOnly ? documentUrl : undefined)
       if (!current()) return
       if (ready) {
         if (documentVisible) {
@@ -357,7 +374,8 @@ export struct SourceWebSessionSheet {
         this.autoRetryStarted = true
         // Verification can redirect to same-origin results. Retry the original
         // request with the verified session instead of staging that HTML.
-        await this.completeSourceSession(true, false, false, !verification)
+        if (authorizationCurrent === undefined) await this.completeSourceSession(true, false, false, !verification)
+        else await this.completeSourceSession(true, false, false, false, authorizationCurrent)
         return
       }
       await this.delay(500)
@@ -426,7 +444,7 @@ export struct SourceWebSessionSheet {
   }
 
   private async completeSourceSession(automatic: boolean = false, needsNativeProbe: boolean = false,
-    failedLanding: boolean = false, documentReady: boolean = false): Promise<void> {
+    failedLanding: boolean = false, documentReady: boolean = false, authorizationCurrent?: () => boolean): Promise<void> {
     DiagnosticLogger.info('source_web_session', 'complete_enter',
       'automatic=' + automatic + ' loading=' + this.loading + ' completing=' + this.completing +
       ' completed=' + this.completed + ' controllerReady=' + this.controllerReady +
@@ -434,6 +452,7 @@ export struct SourceWebSessionSheet {
       ' sessionPresent=' + (this.params.sourceSession !== undefined))
     if (!this.active || !this.controllerReady || this.loading || this.completing || this.completed ||
       this.params.sourceSession === undefined || this.params.sourceSession.sessionId.length === 0) return
+    if (authorizationCurrent !== undefined && !authorizationCurrent()) return
     const epoch = this.epoch
     const pageRevision = this.pageRevision
     const sourceId = this.params.sourceSession.sourceId
@@ -469,6 +488,7 @@ export struct SourceWebSessionSheet {
       catch (_error) { await webview.WebCookieManager.saveCookieAsync() }
       // Neither a close, unmount nor replacement session may complete an old grant.
       if (!this.isCurrent(epoch, sourceId, sessionId) || !this.controllerReady) return
+      if (authorizationCurrent !== undefined && !authorizationCurrent()) return
       const canProbeFailedLanding = automatic && needsNativeProbe && failedLanding
       if (automatic && ((this.pageFailed && !canProbeFailedLanding) || this.loading || this.pageRevision !== pageRevision)) return
       const customUa = this.controller.getCustomUserAgent()
@@ -479,7 +499,8 @@ export struct SourceWebSessionSheet {
       const redirectedDocument = sourceWebOrigin(documentUrl) !== sourceWebOrigin(this.params.url) && this.canProbeOriginal() &&
         appSourceWebSessionStore.canProbeRedirectedDocument(sourceId, sessionId, documentUrl)
       let documentStaged = false
-      if (!redirectedDocument && this.renderedDocumentFallbackEnabled(sourceId) && (!automatic || documentReady)) {
+      if (authorizationCurrent === undefined && !redirectedDocument &&
+        this.renderedDocumentFallbackEnabled(sourceId) && (!automatic || documentReady)) {
         const staged = await this.stageRenderedDocument(epoch, sourceId, sessionId)
         documentStaged = staged
         if (!staged && !automatic) {
@@ -505,6 +526,7 @@ export struct SourceWebSessionSheet {
         }
       }
       // A successful replay proves the original origin. The landing page grants no cross-origin cookies.
+      if (authorizationCurrent !== undefined && !authorizationCurrent()) return
       const grantUrl = redirectedDocument ? this.params.url : this.controller.getUrl()
       const status = appSourceWebSessionStore.complete(sourceId, sessionId, grantUrl, actualUa)
       if (status.state !== 'available') throw new Error('session_unavailable')

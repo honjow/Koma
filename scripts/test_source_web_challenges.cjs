@@ -524,11 +524,13 @@ const sheetText = read('components/SourceWebSessionSheet').replace('export struc
 const sheetAst = ts.createSourceFile('sheet.ts', sheetText, ts.ScriptTarget.Latest, true)
 const sheetOwner = sheetAst.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SourceWebSessionSheet')
 const sheetMethods = ['isCurrent','updateNavState','loadInitialPage','pageBegan','pageEnded','mainPageFailed',
-  'completeSourceSession','close','sessionChanged','aboutToDisappear','consoleMessage','resourceFailed','navigationRequested']
+  'completeSourceSession','close','sessionChanged','aboutToDisappear','consoleMessage','resourceFailed','navigationRequested',
+  'pageVisible','renderedDocumentFallbackEnabled','renderedDocumentReady','autoCompleteRenderedDocument','delay']
 const sheetSource = `export class Sheet { ${sheetMethods.map(name => sheetOwner.members.find(n => n.name?.text === name).getText(sheetAst).replace(/@Monitor\([^\n]*\)\s*/g, '')).join('\n')} }`
 function sheetFixture(loginUserAgent, websitePolicy, nativeUserAgent = 'Web UA') {
   let cookies = 'cf_clearance=old', failRead = false, saveError = false, saveWait = Promise.resolve(), probeResult = Promise.resolve(false)
-  const probes = [], cancelledProbes = []
+  let redirectedProbeAllowed = false
+  const probes = [], cancelledProbes = [], staged = [], selectors = [], readySelectors = new Set()
   const exports = {}, granted = [], completed = [], events = [], pageLoads = []
   const webview = { WebCookieManager: {
     isCookieAllowed: () => true, isThirdPartyCookieAllowed: () => false,
@@ -536,30 +538,106 @@ function sheetFixture(loginUserAgent, websitePolicy, nativeUserAgent = 'Web UA')
     saveCookieSync: () => { if (saveError) throw Error('async required') }, saveCookieAsync: () => saveWait,
   } }
   new Function('exports','webview','appSourceWebSessionStore','sourceWebOrigin','hasNewSourceClearance','sourceClearanceCookieState','DiagnosticLogger','AppStrings','mangaHttpUrl','readSourceWebCookies','probeSourceWebSession','cancelSourceWebProbe',
-    'appSourceRuntimeRegistry', 'sourceChallengeWebUserAgent', 'renderedDocumentReadySelector', 'cancelSourceWebDocument', compile(sheetSource))(
+    'appSourceRuntimeRegistry', 'sourceChallengeWebUserAgent', 'renderedDocumentReadySelector', 'cancelSourceWebDocument',
+    'sourceRenderedDocumentFallbackEnabled', compile(sheetSource))(
     exports, webview, { pendingLoginUserAgent: () => loginUserAgent,
+      canProbeRedirectedDocument: () => redirectedProbeAllowed,
       complete: (...args) => { granted.push(args); return { state:'available' } } },
     u => { try { return new URL(u).origin } catch { return '' } }, hasNewSourceClearance, sourceClearanceCookieState,
     { info: (...args) => events.push(args) }, { get: s => s }, moduleFrom('model/MangaWebLink').mangaHttpUrl,
     fullUrl => webview.WebCookieManager.fetchCookieSync(fullUrl, false),
     (...args) => { probes.push(args); return probeResult }, (...args) => cancelledProbes.push(args),
-    { lookup: () => ({ entry: { websitePolicy } }) }, sourceChallengeWebUserAgent, () => '', () => {})
+    { lookup: () => ({ entry: { websitePolicy } }) }, sourceChallengeWebUserAgent,
+    policy => typeof policy?.renderedDocumentFallback === 'object' ? policy.renderedDocumentFallback.readySelector ?? '' : '',
+    () => {}, policy => policy?.renderedDocumentFallback === true || typeof policy?.renderedDocumentFallback === 'object')
   const sheet = new exports.Sheet(), initialUrl = 'https://test.invalid/catalog'
   Object.assign(sheet, { params: {url:initialUrl,sourceSession:{sourceId:'test',sessionId:'attempt1'}},
     autoRetryOnClearance:true,canProbeOriginal:()=>true,active:true,epoch:1,controllerReady:true,loading:false,completing:false,completed:false,
-    autoRetryStarted:false,pageRevision:0,pageUrl:'',pageFailed:false,clearanceBaseline:undefined,
+    autoRetryStarted:false,autoDocumentAttempt:0,pageRevision:0,pageUrl:'',pageFailed:false,clearanceBaseline:undefined,webTokenStorageKey:'',
     controller:{loadUrl:()=>pageLoads.push(sheet.customUa),getUrl:()=>sheet.pageUrl,getCustomUserAgent:()=>sheet.customUa??'',
       setCustomUserAgent: ua => { sheet.customUa=ua },getUserAgent:()=>nativeUserAgent,
-      accessBackward:()=>false,accessForward:()=>false},
-    renderedDocumentFallbackEnabled: () => false, autoCompleteRenderedDocument: async () => {},
+      accessBackward:()=>false,accessForward:()=>false,
+      runJavaScript: async script => JSON.stringify(require('node:vm').runInNewContext(script, {
+        location: { href: sheet.pageUrl }, document: { readyState: 'complete', querySelector: selector => {
+          selectors.push(selector); return readySelectors.has(selector) ? {} : null
+        } },
+      })) },
+    delay: async () => {}, stageRenderedDocument: async (...args) => { staged.push(args); return true },
     onCompleted: status => completed.push(status),onClose:()=>events.push('closed'),
     getUIContext:()=>({getPromptAction:()=>({showToast:()=>{}})}),
   })
   sheet.loadInitialPage(); sheet.navigationRequested({data:{isMainFrame:()=>true,getRequestUrl:()=>initialUrl}}); sheet.pageBegan({url:initialUrl})
-  return { sheet, initialUrl, granted, completed, events, probes, cancelledProbes, pageLoads, setProbe:p=>probeResult=p, setCookies:s=>cookies=s, failRead:()=>failRead=true,
+  return { sheet, initialUrl, granted, completed, events, probes, cancelledProbes, pageLoads, staged, selectors,
+    readySelector: selector => readySelectors.add(selector),
+    allowRedirectProbe: () => { redirectedProbeAllowed = true },
+    setProbe:p=>probeResult=p, setCookies:s=>cookies=s, failRead:()=>failRead=true,
     delaySave:()=> { saveError=true; let resolve; saveWait=new Promise(r=>resolve=r); return resolve } }
 }
 const settled = () => new Promise(resolve=>setImmediate(resolve))
+test('authorization-only selector completes an unchanged-clearance POST grant without HTML or GET probe', async () => {
+  const f = sheetFixture(undefined, { webSessionReadySelector: '.real-content', renderedDocumentFallback: true })
+  f.sheet.canProbeOriginal = () => false // POST has no rejected GET handle
+  f.readySelector('.real-content')
+  f.sheet.pageEnded({ url: f.initialUrl }); await settled()
+  assert.equal(f.granted.length, 1)
+  assert.equal(f.completed.length, 1)
+  assert.equal(f.granted[0][2], f.initialUrl)
+  assert.equal(f.staged.length, 0, 'a session selector never stages HTML, even with boolean fallback declared')
+  assert.equal(f.probes.length, 0)
+  f.sheet.pageEnded({ url: f.initialUrl }); await settled()
+  assert.equal(f.granted.length, 1)
+})
+
+test('session readiness keeps fallback priority and excludes login while retaining redirected native probe', async () => {
+  const fallback = sheetFixture(undefined, { webSessionReadySelector: '.session',
+    renderedDocumentFallback: { readySelector: '.rendered' } })
+  fallback.readySelector('.rendered')
+  fallback.sheet.pageEnded({ url: fallback.initialUrl }); await settled()
+  assert.equal(fallback.granted.length, 1)
+  assert.equal(fallback.staged.length, 1)
+  assert.ok(fallback.selectors.length > 0 && fallback.selectors.every(selector => selector === '.rendered'))
+  const login = sheetFixture(undefined, { webSessionReadySelector: '.session' })
+  login.sheet.autoRetryOnClearance = false; login.readySelector('.session')
+  login.sheet.pageEnded({ url: login.initialUrl }); await settled()
+  assert.equal(login.granted.length, 0)
+  assert.equal(login.selectors.length, 0)
+  const missing = sheetFixture(undefined, { webSessionReadySelector: '.not-present' })
+  await missing.sheet.autoCompleteRenderedDocument(1, 'test', 'attempt1', true)
+  assert.equal(missing.granted.length, 0)
+  const redirected = sheetFixture(undefined, { webSessionReadySelector: '.session' })
+  redirected.readySelector('.session'); redirected.allowRedirectProbe(); redirected.setProbe(Promise.resolve(true))
+  redirected.sheet.pageUrl = 'https://other.invalid/landing'
+  redirected.sheet.pageEnded({ url: redirected.sheet.pageUrl }); await settled()
+  assert.equal(redirected.selectors.length, 0, 'the new selector cannot authorize another origin')
+  assert.equal(redirected.probes.length, 1, 'the prior explicit redirected GET proof remains available')
+  assert.equal(redirected.granted.length, 1)
+  assert.equal(redirected.granted[0][2], redirected.initialUrl)
+})
+
+test('authorization readiness rejects stale document/session state before and after asynchronous Cookie save', async () => {
+  const changes = [
+    f => { f.sheet.epoch++ },
+    f => { f.sheet.params.sourceSession.sourceId = 'other' },
+    f => { f.sheet.params.sourceSession.sessionId = 'replacement' },
+    f => { f.sheet.pageRevision++ },
+    f => { f.sheet.pageUrl = 'https://test.invalid/another-document' },
+    f => { f.sheet.pageUrl = 'https://other.invalid/landing' },
+    f => { f.sheet.params.url = 'https://other.invalid/initial' },
+    f => { f.sheet.pageFailed = true },
+  ]
+  for (const phase of ['selector', 'cookie']) for (const change of changes) {
+    const f = sheetFixture(undefined, { webSessionReadySelector: '.session' })
+    f.sheet.canProbeOriginal = () => false; f.readySelector('.session')
+    const release = phase === 'cookie' ? f.delaySave() : undefined
+    const pending = f.sheet.autoCompleteRenderedDocument(1, 'test', 'attempt1', true)
+    if (phase === 'cookie') { await settled(); assert.equal(f.sheet.completing, true) }
+    change(f); release?.(); await pending
+    assert.equal(f.granted.length, 0, phase)
+    assert.equal(f.completed.length, 0, phase)
+    assert.equal(f.staged.length, 0, phase)
+  }
+})
+
 test('challenge uses the current ArkWeb identity before navigation and on completion', async () => {
   const native = 'Mozilla/5.0 (Phone; OpenHarmony 7.0) AppleWebKit/537.36 ArkWeb/7.0 Mobile'
   const mobile = 'Mozilla/5.0 (Phone; OpenHarmony 7.0; Android 10) AppleWebKit/537.36 ArkWeb/7.0 Mobile'
