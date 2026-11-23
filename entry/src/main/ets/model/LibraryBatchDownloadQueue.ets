@@ -1,6 +1,7 @@
 import { Chapter, Comic, ComicId, ComicSourceKind } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import { ReaderSessionStore } from './ReaderSessionStore'
+import { selectedChapterIdsInReadingOrder } from './ReaderChapterSequence'
 import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
 import { OfflineDownloadStatus, OfflineDownloadStore } from './OfflineDownloadStore'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
@@ -73,13 +74,17 @@ export class LibraryBatchDownloadQueue {
         plan.unavailableComicCount += 1
         return
       }
-      const seen = new Set<string>()
-      comic.chapters.forEach((chapter: Chapter) => {
-        if (chapter.id.length === 0 || seen.has(chapter.id) ||
+      const chapters = new Map<string, Chapter>()
+      comic.chapters.forEach((chapter: Chapter): void => {
+        if (!chapters.has(chapter.id)) chapters.set(chapter.id, chapter)
+      })
+      const chapterIds = selectedChapterIdsInReadingOrder(comic.chapters, Array.from(chapters.keys()))
+      chapterIds.forEach((chapterId: string): void => {
+        const chapter = chapters.get(chapterId)
+        if (chapter === undefined || chapter.id.length === 0 ||
           (unreadOnly && this.reader.isChapterRead(comicId, chapter.id))) {
           return
         }
-        seen.add(chapter.id)
         plan.matchedChapterCount += 1
         const status = this.existingStatus(comicId, chapter.id, entries)
         if (status === OfflineDownloadStatus.DOWNLOADED) {
@@ -103,22 +108,36 @@ export class LibraryBatchDownloadQueue {
     await OfflineDownloadService.ensureQueueInitialized(this.filesDir, this.runtimeKeyValue)
     const entries = this.queue.load()
     const additions: OfflineDownloadQueueEntry[] = []
-    for (const target of snapshot) {
-      const comic = this.library.getComic(target.comicId)
-      if (comic === undefined || !this.isRemoteComic(comic) ||
-        !comic.chapters.some((chapter: Chapter): boolean => chapter.id === target.chapterId) ||
-        (unreadOnly && this.reader.isChapterRead(target.comicId, target.chapterId)) ||
-        this.existingStatus(target.comicId, target.chapterId, entries) !== undefined) {
-        continue
-      }
-      additions.push({
-        automatic: automatic ? true : undefined,
-        comicId: target.comicId, chapterId: target.chapterId,
-        comicTitle: target.comicTitle, chapterTitle: target.chapterTitle,
-        status: OfflineDownloadStatus.QUEUED, pageCount: target.pageCount,
-        downloadedPageCount: 0, updatedAt: Date.now(),
+    // Preserve the first requested book's batch position. Recheck chapter order
+    // against current metadata after initialization, including automatic requests.
+    const byComic = new Map<ComicId, LibraryBatchDownloadTarget[]>()
+    snapshot.forEach((target: LibraryBatchDownloadTarget): void => {
+      const selected = byComic.get(target.comicId) ?? []
+      selected.push(target)
+      byComic.set(target.comicId, selected)
+    })
+    byComic.forEach((selected: LibraryBatchDownloadTarget[], comicId: ComicId): void => {
+      const comic = this.library.getComic(comicId)
+      if (comic === undefined || !this.isRemoteComic(comic)) return
+      const byChapter = new Map<string, LibraryBatchDownloadTarget>()
+      selected.forEach((target: LibraryBatchDownloadTarget): void => {
+        if (!byChapter.has(target.chapterId)) byChapter.set(target.chapterId, target)
       })
-    }
+      const chapterIds = selectedChapterIdsInReadingOrder(comic.chapters, Array.from(byChapter.keys()))
+      chapterIds.forEach((chapterId: string): void => {
+        const target = byChapter.get(chapterId)
+        if (target === undefined || !comic.chapters.some((chapter: Chapter): boolean => chapter.id === chapterId) ||
+          (unreadOnly && this.reader.isChapterRead(comicId, chapterId)) ||
+          this.existingStatus(comicId, chapterId, entries) !== undefined) return
+        additions.push({
+          automatic: automatic ? true : undefined,
+          comicId, chapterId,
+          comicTitle: target.comicTitle, chapterTitle: target.chapterTitle,
+          status: OfflineDownloadStatus.QUEUED, pageCount: target.pageCount,
+          downloadedPageCount: 0, updatedAt: Date.now(),
+        })
+      })
+    })
     return this.queue.addNewEntries(additions)
   }
 }

@@ -5,6 +5,7 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { Chapter, Comic, ComicId } from './ComicModels'
+import { selectedChapterIdsInReadingOrder } from './ReaderChapterSequence'
 import { sourceLibraryComicId } from './SourceLibraryComic'
 import { hasUserDataMigration, markUserDataMigration, openUserDataDatabase } from './UserDataDatabase'
 import { UserKeyedRecords, writeUserRecords } from './UserKeyedRecords'
@@ -1101,7 +1102,8 @@ export class OfflineDownloadQueueStore {
     batches.forEach((batch: OfflineDownloadChapterBatch): void => {
       const comic = batch.comic
       const chapters = new Map(comic.chapters.map((chapter: Chapter): [string, Chapter] => [chapter.id, chapter]))
-      new Set(batch.chapterIds).forEach((id: string): void => {
+      const chapterIds = selectedChapterIdsInReadingOrder(comic.chapters, batch.chapterIds)
+      chapterIds.forEach((id: string): void => {
         const chapter = chapters.get(id)
         const key = offlineDownloadTaskKey({ comicId: comic.id, chapterId: id })
         const entry = entries.get(key)

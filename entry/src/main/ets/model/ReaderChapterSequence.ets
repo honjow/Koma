@@ -96,6 +96,24 @@ export function readerChapterPickerChapters<T extends ReaderChapterDescriptor>(
   return ordered
 }
 
+/** New download selections always follow the source's forward catalog, not
+ * the detail page's sort basis or reversal. Keep unnumbered, manual and all
+ * independent editions. Persisted metadata supplies order without a Registry/UI
+ * lookup; missing order keeps catalog order. Unknown IDs stay in request order
+ * for caller validation.
+ * This must never be used to reorder an existing user-managed download queue. */
+export function selectedChapterIdsInReadingOrder(
+  chapters: ReaderChapterDescriptor[], chapterIds: string[],
+): string[] {
+  const selected = new Set<string>(chapterIds)
+  const ordered: string[] = []
+  readerChapterPickerChapters(chapters).forEach((chapter: ReaderChapterDescriptor): void => {
+    if (selected.delete(chapter.id)) ordered.push(chapter.id)
+  })
+  selected.forEach((id: string): void => { ordered.push(id) })
+  return ordered
+}
+
 /** Initial reading follows published chapter metadata, never the display-list direction. */
 export function firstReaderChapter(
   chapters: ReaderChapterDescriptor[],
