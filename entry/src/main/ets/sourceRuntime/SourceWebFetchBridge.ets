@@ -362,12 +362,19 @@ export class SourceWebFetchBridge {
           if (!active() || started || location.origin !== new URL(url).origin) return false;
           started = true;
           const options = {method:${JSON.stringify(request.method)},headers:${JSON.stringify(headers)},
-            credentials:'include',mode:'same-origin',redirect:'error',cache:'no-store',signal:abort.signal};
+            credentials:'include',mode:'cors',redirect:'error',cache:'no-store',signal:abort.signal};
           ${referrer === undefined ? '' : 'options.referrer=' + JSON.stringify(referrer) + "; options.referrerPolicy='same-origin';"}
           if (${binaryUpload}) { options.body = new Blob(job.parts); job.parts = []; }
           else if (textBody && !['GET','HEAD'].includes(options.method)) options.body=textBody;
           (async () => { try {
             const r = await fetch(url,options); if (!active()) return;
+            // cors is an internal wire experiment, not cross-origin authority.
+            // Retain same-origin mode's rejection of SW-returned cors/opaque
+            // responses; verify the final URL before publishing headers/body.
+            const responseOrigin = r.url && new URL(r.url).origin;
+            if (r.type !== 'basic' || responseOrigin !== new URL(url).origin || responseOrigin !== location.origin) {
+              finish({error:'network_error'}); abort.abort(); return;
+            }
             const headers = Object.create(null); let headerBytes = 0;
             r.headers && r.headers.forEach((v,k) => { if (!['set-cookie','set-cookie2'].includes(k.toLowerCase())) {
               headerBytes += new TextEncoder().encode(k+v).byteLength; headers[k]=[v];

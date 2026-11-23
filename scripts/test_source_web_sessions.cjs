@@ -295,7 +295,15 @@ function fetchBridgeFixture(fetchRequest, runtimeDate = Date) {
   const f = fixture(), window = {}, calls = []
   const context = vm.createContext({ window, URL, location: { origin: 'https://site.invalid' },
     AbortController, TextEncoder, TextDecoder, Blob, atob, btoa, Date: runtimeDate, setTimeout, clearTimeout,
-    fetch: fetchRequest ?? (async () => ({ status: 200, text: async () => '<main>public document</main>' })) })
+    fetch: async (url, options) => {
+      const reply = await (fetchRequest ?? (async () => ({ status: 200, text: async () => '<main>public document</main>' })))(url, options)
+      // A constructor-created Node Response is default/empty-url, unlike an
+      // actual same-origin HTTP Fetch response (basic/final URL). Model the
+      // latter here; explicit own metadata below always remains authoritative.
+      if (!Object.hasOwn(reply, 'url') && !reply.url) Object.defineProperty(reply, 'url', { value: url })
+      if (!Object.hasOwn(reply, 'type') && (!reply.type || reply.type === 'default')) Object.defineProperty(reply, 'type', { value: 'basic' })
+      return reply
+    } })
   const controller = { runJavaScript: async script => {
     calls.push(script)
     return JSON.stringify(vm.runInContext(script, context))
@@ -442,7 +450,7 @@ test('generic Web HTTP executes method, text body and ordinary headers with real
     assert.deepEqual(JSON.parse(JSON.stringify(actual.headers)), {
       'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' })
     assert.equal(actual.credentials, 'include')
-    assert.equal(actual.mode, 'same-origin')
+    assert.equal(actual.mode, 'cors') // Parent-authorized internal wire experiment; not document navigation.
     assert.equal(actual.redirect, 'error')
     assert.equal(actual.referrer, 'https://site.invalid/')
     assert.equal(actual.referrerPolicy, 'same-origin')
@@ -457,6 +465,34 @@ test('generic Web HTTP executes method, text body and ordinary headers with real
   assert.equal(sent.length, 6)
   assert.deepEqual(Object.keys(f.window.__komaFetch), [])
   assert.deepEqual(Object.keys(f.window.__komaFetchJobs), [])
+})
+
+test('explicit Web HTTP rejects non-basic or foreign final responses before publishing data', async () => {
+  const address = 'https://site.invalid/form', agent = 'VerifiedUA'
+  for (const [type, finalUrl] of [['cors', 'https://other.invalid/result'], ['basic', 'https://other.invalid/result'],
+    ['cors', address], ['opaque', ''], ['opaqueredirect', ''], ['default', ''], ['basic', '']]) {
+    let sends = 0, signal, reads = 0, chunks = 0
+    const f = fetchBridgeFixture(async (_url, options) => {
+      sends++; signal = options.signal
+      const reply = new Response('not-exportable', { status: 200 })
+      Object.defineProperties(reply, { type: { value: type }, url: { value: finalUrl },
+        body: { value: { getReader() { reads++; throw Error('must reject before reading') } } } })
+      return reply
+    })
+    f.bridge.attach(f.controller, 'source.one', address, agent, 1)
+    f.bridge.markReady('source.one', address, agent, 1)
+    const result = await f.bridge.request('source.one', { url: address, method: 'POST', body: 'only=once', headers: {},
+      responseKind: 'bodyRef', onResponseChunk: () => { chunks++ } }, agent, 1, () => true)
+    assert.equal(result.attempted, true)
+    assert.equal(result.error, 'network_error')
+    assert.equal(result.status, undefined)
+    assert.equal(sends, 1)
+    assert.equal(reads, 0)
+    assert.equal(chunks, 0)
+    assert.equal(signal.aborted, true)
+    assert.deepEqual(Object.keys(f.window.__komaFetch), [])
+    assert.deepEqual(Object.keys(f.window.__komaFetchJobs), [])
+  }
 })
 
 test('Web abort removes the job before late success; timeout, cancellation and replacement cannot republish', async () => {
@@ -504,13 +540,18 @@ test('Web abort removes the job before late success; timeout, cancellation and r
 })
 
 test('production HTTP transport never duplicates an attempted Web mutation or falls back on its empty/error result', async () => {
-  for (const terminal of ['empty', 'http-error', 'network-error', 'timeout', 'cancelled']) {
+  for (const terminal of ['empty', 'http-error', 'network-error', 'foreign-response', 'timeout', 'cancelled']) {
     const f = fixture(), sent = []
     f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } }))
     f.grant()
     const web = fetchBridgeFixture(async (_url, options) => {
       sent.push(options)
       if (terminal === 'network-error') throw Error('actual fetch rejection')
+      if (terminal === 'foreign-response') {
+        const reply = new Response('foreign', { status: 200 })
+        Object.defineProperties(reply, { type: { value: 'cors' }, url: { value: 'https://other.invalid/result' } })
+        return reply
+      }
       return new Response(null, { status: terminal === 'empty' ? 204 : 403 })
     })
     web.bridge.attach(web.controller, 'source.one', 'https://site.invalid/', 'ActualWebViewUA',
@@ -527,8 +568,9 @@ test('production HTTP transport never duplicates an attempted Web mutation or fa
     assert.equal(sent.length, 1)
     assert.equal(sent[0].body, 'form=one')
     assert.equal(result.calls.length, 0, 'no native send after Web fetch has been attempted')
-    if (['network-error', 'timeout', 'cancelled'].includes(terminal)) {
-      assert.equal(result.result.error.code, terminal === 'cancelled' ? 'source_request_cancelled' : terminal.replace('-', '_'))
+    if (['network-error', 'foreign-response', 'timeout', 'cancelled'].includes(terminal)) {
+      assert.equal(result.result.error.code, terminal === 'cancelled' ? 'source_request_cancelled' :
+        terminal === 'foreign-response' ? 'network_error' : terminal.replace('-', '_'))
       assert.equal(result.result.error.retryable, false)
     } else {
       assert.equal(result.result.status, terminal === 'empty' ? 204 : 403)
