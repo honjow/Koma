@@ -2070,11 +2070,12 @@
       "reportedDate": "2026-11-10",
       "reportedAtSource": "用户反馈下载任务多或下载进行中时滑动卡顿，下载管理页较明显，并要求继续深挖 UI 线程密集运算。",
       "registeredAt": "2026-11-10T18:30:00+08:00",
-      "updatedAt": "2026-11-19T05:12:57+08:00",
-      "status": "197 同队列前后对照通过",
-      "result": "《装备我最强》273 章下载期间，展开和收起最长帧 69.5→23.2 ms，六次惯性滚动 335.9→3.4 ms，作品详情滚动 163.8→7.3 ms。长距离滑到第 000 话，单个最慢帧 27.3 ms，惯性滚动最大帧间间隔 12.8 ms。第 224 话录屏确认页数和进度条逐页更新。",
-      "remaining": "",
+      "updatedAt": "2026-11-23T17:03:00+08:00",
+      "status": "197 已验证下载与本地打开",
+      "result": "已去掉每章重复处理整本目录和每页重复遍历进度。197 下载《開局一座山》番外 29 页并冷启动打开本地正文。此前《装备我最强》273 章下载期间，展开和收起最长帧 69.5→23.2 ms，六次惯性滚动 335.9→3.4 ms，作品详情滚动 163.8→7.3 ms。长距离滑到第 000 话，单个最慢帧 27.3 ms，惯性滚动最大帧间间隔 12.8 ms。第 224 话录屏确认页数和进度条逐页更新。",
+      "remaining": "下载发热尚无同条件温度对照。",
       "evidence": [
+        ".hvigor/outputs/download-hot-path-20261123/summary.json",
         ".hvigor/outputs/device-sync-independent/notification-services-qa/download-jank-log/run-metadata.json",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/navigate-20261110T182802388553/screen.png",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/settings-and-sync/install-20261110T182711234520/run-metadata.json",
@@ -13067,6 +13068,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "download-hot-path-20261123",
+      "at": "2026-11-23T17:03:00+08:00",
+      "itemId": "DOWNLOAD_MANAGER_UI_JANK",
+      "title": "减少下载期间重复处理",
+      "detail": "下载按章构造配置、按页键累计进度、按队列顺序取首个可运行任务。最终校验只读取当前章节。197 从普通详情下载《開局一座山》番外 29 页，重启应用后经已下载筛选打开，命中本地清单并显示 1/29。下载回归核对暂停保留前两页，恢复只下载剩余页，完成后通过完整性检查。",
+      "kind": "verification",
+      "evidence": ".hvigor/outputs/download-hot-path-20261123/summary.json"
+    },
     {
       "id": "library-density-and-press-237-accepted-20261123",
       "at": "2026-11-23T13:54:44+08:00",

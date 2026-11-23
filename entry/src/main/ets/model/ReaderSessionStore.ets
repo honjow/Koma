@@ -2199,19 +2199,23 @@ export function createReaderSessionConfigFromComic(
   comic: Comic,
   chapterId?: ChapterId,
   preparedPages?: Page[],
+  includeChapterNavigation: boolean = true,
 ): ReaderSessionConfig {
-  const sort = chapterReadingSortFor(comic.id)
+  const sort = includeChapterNavigation || !chapterId ? chapterReadingSortFor(comic.id) : undefined
   const targetChapterId = chapterId !== undefined && chapterId.length > 0
     ? chapterId
     : (firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId), undefined, sort)?.id ?? '')
   const chapter = comic.chapters.find((item) => item.id === targetChapterId)
   const pages = preparedPages ?? chapter?.pages ?? []
-  const picker = readerChapterPickerChapters(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId), sort)
+  // Downloads resolve images for one chapter and do not open the reader's
+  // chapter picker or cross-chapter navigation.
+  const picker = includeChapterNavigation ? readerChapterPickerChapters(comic.chapters,
+    sourceChapterOrderFor(comic.sourceRuntimeId), sort) : []
   return {
     comicId: comic.id,
     chapterId: targetChapterId,
     chapterIds: picker.map((item) => item.id),
-    continuationChapterIds: continuationChapterIds(comic.chapters, targetChapterId, true, sort),
+    continuationChapterIds: includeChapterNavigation ? continuationChapterIds(comic.chapters, targetChapterId, true, sort) : undefined,
     sourceChapterChronologyPending: comic.sourceRuntimeId !== undefined && needsSourceCatalogChronology(chapter, true),
     chapterTitles: picker.map((item) => readerChapterDisplayTitle(item)),
     title: comic.title,

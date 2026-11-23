@@ -13,7 +13,7 @@ export async function runOrderedDownloadQueueBatch(queue: OfflineDownloadQueueSt
     while (canRun()) {
       // Claim synchronously before yielding. Active chapters retain their slots;
       // only the next selection changes when a user reorders the queue.
-      const entry = queue.loadRunnableEntries().find((item: OfflineDownloadQueueEntry): boolean => {
+      const entry = queue.findRunnableEntry((item: OfflineDownloadQueueEntry): boolean => {
         const key = offlineDownloadTaskKey(item)
         return requests.has(key) && requests.get(key) === item.requestId && !claimed.has(key)
       })

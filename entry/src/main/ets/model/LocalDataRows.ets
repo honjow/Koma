@@ -117,6 +117,21 @@ export class LocalDataRows<T> {
     return collectLocalRows(store.querySqlSync(this.select + where + this.orderBy, args), this.decode)
   }
 
+  /** A scheduler consumes the first eligible row in live storage order. */
+  find(store: relationalStore.RdbStore, filter: string, args: LocalColumnValue[],
+    predicate: (row: T) => boolean): T | undefined {
+    const rows = store.querySqlSync(this.select + ' WHERE ' + filter + this.orderBy, args)
+    try {
+      while (rows.goToNextRow()) {
+        const row = this.decode(rows)
+        if (predicate(row)) return row
+      }
+      return undefined
+    } finally {
+      rows.close()
+    }
+  }
+
   put(store: relationalStore.RdbStore, record: T): void {
     store.executeSync(this.upsert, this.encode(record))
   }

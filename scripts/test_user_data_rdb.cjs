@@ -943,6 +943,27 @@ test('automatic download recovery reads only pending tasks in their saved order'
     assert.deepEqual(queue.loadAutomaticPendingEntries().map(item => item.chapterId), ['offline', 'next'])
     assert.deepEqual(queue.loadAutomaticPendingEntries(true).map(item => item.chapterId), ['paused', 'offline', 'next'])
     assert.deepEqual(queue.loadRunnableEntries().map(item => item.chapterId), ['offline', 'manual', 'next', 'error'])
+    const visited = []
+    const next = queue.findRunnableEntry(item => {
+      visited.push(item.chapterId)
+      return item.chapterId === 'manual'
+    })
+    assert.equal(next.requestId, 'request-manual')
+    assert.deepEqual(visited, ['offline', 'manual'])
+    const { runOrderedDownloadQueueBatch } = env.load('OfflineDownloadQueueExecution')
+    const started = []
+    let finishFirst
+    const first = new Promise(resolve => { finishFirst = resolve })
+    const targets = queue.loadRunnableEntries().filter(item => item.chapterId !== 'error')
+    const running = runOrderedDownloadQueueBatch(queue, targets, async item => {
+      started.push(item.chapterId)
+      if (started.length === 1) await first
+    }, () => true)
+    assert.deepEqual(started, ['offline'])
+    queue.move('sample', 'next', true)
+    finishFirst()
+    await running
+    assert.deepEqual(started, ['offline', 'next', 'manual'])
     assert.equal(queue.loadTask({ comicId: 'sample', chapterId: 'complete' }).requestId, 'request-complete')
     assert.equal(queue.load().length, 7)
   } finally {

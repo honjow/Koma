@@ -380,6 +380,12 @@ function downloadManifestEntryRank(entry: string): number {
   return slash >= 0 && pathBaseName(entry.substring(0, slash)) === '.koma' ? 1 : 2
 }
 
+function findDownloadManifestPath(chapterDir: string): string | undefined {
+  const candidates: string[] = [downloadManifestPath(chapterDir), previousDownloadManifestPath(chapterDir),
+    legacyDownloadManifestPath(chapterDir)]
+  return candidates.find((path: string): boolean => fs.accessSync(path))
+}
+
 export function persistDownloadManifest(filesDir: string, chapterDir: string,
   manifest: OfflineChapterDownloadManifest): OfflineChapterDownloadManifest {
   assertSafeOfflineDownloadRoot(filesDir, chapterDir)
@@ -496,13 +502,6 @@ export class OfflineDownloadStore {
     return downloadManifestPath(this.chapterDir(comicId, chapterId))
   }
 
-  private manifestReadPath(comicId: ComicId, chapterId: string): string | undefined {
-    const chapterDir = this.chapterDir(comicId, chapterId)
-    const candidates: string[] = [downloadManifestPath(chapterDir), previousDownloadManifestPath(chapterDir),
-      legacyDownloadManifestPath(chapterDir)]
-    return candidates.find((path: string): boolean => fs.accessSync(path))
-  }
-
   pageFilePath(comicId: ComicId, chapterId: string, pageId: string, pageIndex: number, extension: string): string {
     const fileName = downloadPageFileName(pageIndex, normalizeExtension(extension))
     const path = joinOfflineDownloadPath(this.chapterDir(comicId, chapterId), fileName)
@@ -511,7 +510,7 @@ export class OfflineDownloadStore {
   }
 
   loadManifest(comicId: ComicId, chapterId: string): OfflineChapterDownloadManifest | undefined {
-    const path = this.manifestReadPath(comicId, chapterId)
+    const path = findDownloadManifestPath(this.chapterDir(comicId, chapterId))
     if (path === undefined) return undefined
     try {
       return safeParseManifest(fs.readTextSync(path, { encoding: 'utf-8' }))
@@ -525,7 +524,16 @@ export class OfflineDownloadStore {
     chapterId: string,
     options?: OfflineDownloadValidationOptions
   ): OfflineDownloadManifestValidation {
-    const path = this.manifestReadPath(comicId, chapterId)
+    return OfflineDownloadStore.validateChapterDirectory(this.filesDir, this.chapterDir(comicId, chapterId),
+      comicId, chapterId, options)
+  }
+
+  /** A validation worker uses the already resolved chapter, without opening
+   * the entire content root and reading its directory index again. */
+  static validateChapterDirectory(filesDir: string, chapterDir: string, comicId: ComicId, chapterId: string,
+    options?: OfflineDownloadValidationOptions): OfflineDownloadManifestValidation {
+    assertSafeOfflineDownloadRoot(filesDir, chapterDir)
+    const path = findDownloadManifestPath(chapterDir)
     if (path === undefined) {
       return {
         comicId,
@@ -637,13 +645,12 @@ export class OfflineDownloadStore {
         reasonCode: pageCount <= 0 ? 'page_count_empty' : 'pages_missing',
       }
     }
-    const chapterDir = this.chapterDir(comicId, chapterId)
     let availablePageCount = 0
-    const seenIndexes: number[] = []
+    const seenIndexes = new Set<number>()
     for (let index = 0; index < manifest.pages.length; index += 1) {
       const page = manifest.pages[index]
       try {
-        assertSafeOfflineDownloadRoot(this.filesDir, page.localPath)
+        assertSafeOfflineDownloadRoot(filesDir, page.localPath)
       } catch (_err) {
         return {
           comicId,
@@ -668,7 +675,7 @@ export class OfflineDownloadStore {
           reasonCode: 'outside_chapter_dir',
         }
       }
-      if (page.pageIndex < 0 || page.pageIndex >= manifest.pageCount || seenIndexes.includes(page.pageIndex)) {
+      if (page.pageIndex < 0 || page.pageIndex >= manifest.pageCount || seenIndexes.has(page.pageIndex)) {
         return {
           comicId,
           chapterId,
@@ -680,7 +687,7 @@ export class OfflineDownloadStore {
           reasonCode: 'page_index_invalid',
         }
       }
-      seenIndexes.push(page.pageIndex)
+      seenIndexes.add(page.pageIndex)
       if (fs.accessSync(page.localPath)) {
         const stat = fs.statSync(page.localPath)
         if (stat.size !== Math.max(0, Math.floor(page.size))) {

@@ -148,3 +148,67 @@ async function verifyDownload() {
   console.log('download writes canonical descriptor output and does not decode resolved local image again')
 }
 verifyDownload().catch(error=>{console.error(error);process.exitCode=1})
+
+async function verifyDownloadResume() {
+  const source = fs.readFileSync(base + 'OfflineDownloadService.ets', 'utf8').replace(/@Concurrent\s*/g, '')
+  const sessionTree = ts.createSourceFile('session.ets', fs.readFileSync(base + 'ReaderSessionStore.ets', 'utf8'),
+    ts.ScriptTarget.Latest, true)
+  const chapterConfig = sessionTree.statements.find(node => node.name?.text === 'createReaderSessionConfigFromComic')
+  const { createReaderSessionConfigFromComic } = load(chapterConfig.getText(sessionTree), {
+    ...models, readerChapterDisplayTitle: chapter => chapter.title,
+    chapterReadingSortFor: () => assert.fail('Download should not read the reader chapter sort'),
+  })
+  let paused = false
+  let onChange
+  let preferenceReads = 0
+  const runtime = {
+    subscribe(_key, callback) { onChange = callback; return () => { onChange = undefined } },
+    isPauseRequested: () => false,
+    publishProgress() {},
+  }
+  const tasks = { execute: async (fn, ...args) => fn(...args) }
+  const manifests = load(fs.readFileSync(base + 'OfflineDownloadManifestWorker.ets', 'utf8').replace(/@Concurrent\s*/g, ''),
+    { ...offline, taskpool: tasks })
+  const { OfflineDownloadService } = load(source, {
+    ...offline, ...manifests, fs: io, taskpool: tasks, createReaderSessionConfigFromComic,
+    appSourceRuntimeRegistry: { lookup: () => ({}) },
+    createReaderPageRenderSource: (_config, index) => ({ kind: 'image', uri: '', imageUri: '', index }),
+    ReaderPageRenderKind: { SOURCE_TEXT_REQUEST: 'text' }, OfflineDownloadRuntime: runtime,
+    DiagnosticLogger: { errorSummary: error => String(error) }, BackgroundDownloadOwner: { progress() {} },
+    connection: { getDefaultNetSync: () => ({ netId: 1 }) },
+  })
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-download-resume-'))
+  try {
+    const store = new offline.OfflineDownloadStore(dir)
+    const queue = {
+      loadPreferences: () => { preferenceReads++; return { isPaused: paused, wifiOnly: false } },
+      fromManifest: value => value, upsert() {},
+    }
+    const service = new OfflineDownloadService(store, queue)
+    const written = []
+    service.writePage = async (page, target) => {
+      written.push(page.index)
+      fs.writeFileSync(target, Buffer.from([1, 2, page.index]))
+      if (written.length === 2) {
+        paused = true
+        onChange('change')
+      }
+      return { size: 3, contentHash: offline.createOfflineDownloadFileContentHash(target) }
+    }
+    const comic = { ...book, chapters: [{ ...book.chapters[0], pageCount: 4,
+      pages: Array.from({ length: 4 }, (_, index) => ({ id: 'p' + index, index })) }] }
+    const trace = { info() {}, warn() {} }
+    const partial = await service.runChapterDownload(comic, 'chapter', 'session', trace)
+    assert.equal(partial.status, 'partial')
+    assert.deepEqual(store.loadManifest(comic.id, 'chapter').pages.map(page => page.pageIndex), [0, 1])
+    assert.equal(onChange, undefined)
+    paused = false
+    preferenceReads = 0
+    const completed = await service.runChapterDownload(comic, 'chapter', 'session', trace)
+    assert.equal(completed.status, 'downloaded')
+    assert.equal(preferenceReads, 3, 'Preferences are reused across page transfers')
+    assert.deepEqual(written, [0, 1, 2, 3])
+    assert.equal(store.validateDownloadedChapter(comic.id, 'chapter').availablePageCount, 4)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+}
+verifyDownloadResume().catch(error => { console.error(error); process.exitCode = 1 })

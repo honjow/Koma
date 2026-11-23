@@ -187,6 +187,9 @@ interface OfflineTaskRow {
   entry: OfflineDownloadQueueEntry
 }
 
+const INCOMPLETE_DOWNLOAD_SQL: string = 'queue_id = ? AND status <> ? AND (is_canceling IS NULL OR is_canceling = 0)'
+const UNPAUSED_DOWNLOAD_SQL: string = ' AND (paused_by_user IS NULL OR paused_by_user = 0)'
+
 const offlineTasks = new LocalDataRows<OfflineTaskRow>('offline_download_tasks',
   ['queue_id', 'comic_id', 'chapter_id', 'task_occurrence'], [
     'list_order', 'is_automatic', 'paused_by_user', 'is_canceling', 'request_id', 'source_name', 'source_id',
@@ -284,11 +287,16 @@ class OfflineQueueRdbStorage {
   }
 
   incompleteEntries(automaticOnly: boolean, includePaused: boolean): OfflineDownloadQueueEntry[] {
-    let filter = 'queue_id = ? AND status <> ? AND (is_canceling IS NULL OR is_canceling = 0)'
+    let filter = INCOMPLETE_DOWNLOAD_SQL
     if (automaticOnly) filter += ' AND is_automatic = 1'
-    if (!includePaused) filter += ' AND (paused_by_user IS NULL OR paused_by_user = 0)'
+    if (!includePaused) filter += UNPAUSED_DOWNLOAD_SQL
     return offlineTasks.read(this.database, filter, [this.queueId, OfflineDownloadStatus.DOWNLOADED])
       .map((row: OfflineTaskRow): OfflineDownloadQueueEntry => row.entry)
+  }
+
+  findRunnableEntry(matches: (entry: OfflineDownloadQueueEntry) => boolean): OfflineDownloadQueueEntry | undefined {
+    return offlineTasks.find(this.database, INCOMPLETE_DOWNLOAD_SQL + UNPAUSED_DOWNLOAD_SQL,
+      [this.queueId, OfflineDownloadStatus.DOWNLOADED], (row: OfflineTaskRow): boolean => matches(row.entry))?.entry
   }
 
   private taskRow(task: OfflineDownloadTaskId): OfflineTaskRow | undefined {
@@ -649,6 +657,13 @@ export class OfflineDownloadQueueStore {
     if (database !== undefined) return database.incompleteEntries(false, false)
     return this.loadDocument(false).entries.filter((entry: OfflineDownloadQueueEntry): boolean =>
       !entry.pausedByUser && !entry.canceling && entry.status !== OfflineDownloadStatus.DOWNLOADED)
+  }
+
+  findRunnableEntry(matches: (entry: OfflineDownloadQueueEntry) => boolean): OfflineDownloadQueueEntry | undefined {
+    const database = this.database()
+    if (database !== undefined) return database.findRunnableEntry(matches)
+    return this.loadDocument(false).entries.find((entry: OfflineDownloadQueueEntry): boolean =>
+      !entry.pausedByUser && !entry.canceling && entry.status !== OfflineDownloadStatus.DOWNLOADED && matches(entry))
   }
 
   loadTask(task: OfflineDownloadTaskId): OfflineDownloadQueueEntry | undefined {
