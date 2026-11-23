@@ -1652,7 +1652,8 @@ struct Index {
   private commitReaderLabCatalog(target: ReaderUnitKey, config: ReaderSessionConfig): void {
     if (target.scope !== 'koma-local' || config.comicId !== target.work || config.chapterId !== target.unit ||
       config.totalPages < 1 || config.pageUris.length !== config.totalPages) return
-    this.readerSessionConfig = cloneReaderSessionConfig(config)
+    // The catalog host has already detached this snapshot from the adapter.
+    this.readerSessionConfig = config
     const sourceRequest = this.activeSourceReaderRequest
     if (sourceRequest === undefined || sourceRequest.comicId !== target.work) {
       this.beginShelfReadingSync(this.readerComicForOpen(target.work), target.unit)
@@ -1664,15 +1665,17 @@ struct Index {
       this.readerSessionStore.getSourceHistory(target.work)?.chapterId === target.unit) return
     this.activeSourceReaderRequest = committedRequest
     if (!this.incognito.isEnabledForSource(committedRequest.sourceId)) appDeviceSync.beginReadingChapter(committedRequest)
-    this.saveSourceReaderHistory(committedRequest)
+    // The first displayed page queues its position immediately after this
+    // callback. Keep chapter history in that batch, outside the scroll callback.
+    this.saveSourceReaderHistory(committedRequest, false)
   }
 
-  private saveSourceReaderHistory(request: SourceReaderSessionRequest): void {
+  private saveSourceReaderHistory(request: SourceReaderSessionRequest, flush: boolean = true): void {
     // A private source doesn't publish activity even into the global incognito
     // history overlay. Existing recorded history remains available for resume.
     if (this.incognito.isSourceEnabled(request.sourceId)) return
     this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(request))
-    this.readerSessionStore.flush()
+    if (flush) this.readerSessionStore.flush()
   }
 
   private readerNeedsAsyncPreparation(comic: Comic, chapterId: string | undefined): boolean {

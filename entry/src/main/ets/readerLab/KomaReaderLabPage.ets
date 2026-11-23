@@ -243,6 +243,7 @@ export struct KomaReaderLabPage {
   @Local private commentsShown: boolean = false
   @Local private commentsTarget?: SourceCommentsTarget = undefined
   @Local private chapterChoices: KomaReaderLabChapterChoice[] = []
+  @Local private chapterPickerKind: '' | 'chapters' | 'contents' = ''
   @Local private currentChapterUnit: string = ''
   @Local private readingChapterIndex: number = -1
   @Local private readingChapterTotal: number = 0
@@ -456,7 +457,10 @@ export struct KomaReaderLabPage {
       adapter.onSequenceReady = (): void => {
         session.refreshAdjacency()
         const unit = session.snapshot().unit?.key
-        if (unit !== undefined) this.syncChapterChoices(unit)
+        if (unit !== undefined) {
+          if (this.chapterPickerShown) this.syncChapterChoices(unit)
+          else this.syncChapterControls(unit)
+        }
       }
       if (this.request.readingChrome) {
         this.trialWindow.open(context)
@@ -773,7 +777,7 @@ export struct KomaReaderLabPage {
       if (!cancellation.isCancelled() && !this.readerClosed && opened.phase === 'ready' &&
         opened.unit?.key.equals(target) === true && this.chapterRequest === cancellation &&
         this.session === session && this.routeActive && this.labVisibility.foreground) {
-        this.syncChapterChoices(target)
+        this.syncChapterControls(target)
         const title = adapter.chapterTitle(target).trim()
         if (reason !== 'picker' && title.length > 0) {
           this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: title }))
@@ -805,11 +809,19 @@ export struct KomaReaderLabPage {
     if (target !== null) await this.openChapterTarget(target, sourceUnit, direction)
   }
 
-  private syncChapterChoices(unit: ReaderUnitKey): void {
+  // Only the picker needs materialized directory rows. Crossing a chapter
+  // updates its toolbar and action metadata while the original list scrolls.
+  private syncChapterControls(unit: ReaderUnitKey): void {
     this.chapterCatalogIncomplete = this.adapter?.chapterCatalogPending(unit) ?? false
     const position = this.adapter?.chapterReadingPosition(unit)
     this.readingChapterIndex = position?.index ?? -1
     this.readingChapterTotal = position?.total ?? 0
+    this.chapterPickerKind = this.adapter?.chapterPickerKind(unit) ?? ''
+    this.currentChapterUnit = unit.unit
+  }
+
+  private syncChapterChoices(unit: ReaderUnitKey): void {
+    this.syncChapterControls(unit)
     const choices = this.adapter?.chapterChoices(unit) ?? []
     const identity = JSON.stringify(choices.map((choice: KomaReaderLabChapterChoice): string =>
       `${choice.key.scope}:${choice.key.work}:${choice.key.unit}:${choice.title}:${choice.pageIndex ?? -1}`))
@@ -817,11 +829,10 @@ export struct KomaReaderLabPage {
       this.chapterChoiceIdentity = identity
       this.chapterChoices = choices
     }
-    this.currentChapterUnit = unit.unit
   }
 
   private chapterControlLabel(): string {
-    if (this.chapterChoices.some((choice: KomaReaderLabChapterChoice): boolean => choice.pageIndex !== undefined)) {
+    if (this.chapterPickerKind === 'contents') {
       return AppStrings.get('reader_control_contents')
     }
     const title = AppStrings.get('reader_control_chapter')
@@ -923,7 +934,8 @@ export struct KomaReaderLabPage {
     session.setPreloadDepth(this.readerPreloadDepth(position.anchor.unit))
     if (this.observedCatalogUnit?.equals(position.anchor.unit) !== true) {
       const chapterChanged = this.observedCatalogUnit !== null
-      this.syncChapterChoices(position.anchor.unit)
+      if (this.chapterPickerShown) this.syncChapterChoices(position.anchor.unit)
+      else this.syncChapterControls(position.anchor.unit)
       const config = this.adapter?.sessionConfig(position.anchor.unit) ?? null
       if (config !== null) this.catalogHost?.commit(position.anchor.unit, config)
       this.observedCatalogUnit = position.anchor.unit.copy()
@@ -1655,7 +1667,7 @@ export struct KomaReaderLabPage {
               hostStatus: this.translationStatus(),
               active: this.routeActive && this.labVisibility.foreground && !this.authenticationShown && !this.readerSettingsSheetShown &&
                 !this.chapterPickerShown && !this.commentsShown && this.presentedWebChallenge === null,
-              centerAction: this.chapterChoices.length > 0
+              centerAction: this.chapterPickerKind.length > 0
                 ? new ReaderCenterAction(this.chapterControlLabel(),
                   (sourceUnit: ReaderUnitKey, navigation: number): void => {
                     this.openChapterPicker(sourceUnit, navigation)

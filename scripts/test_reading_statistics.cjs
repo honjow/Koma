@@ -110,13 +110,43 @@ test('Shared Reader reports all visible pages after committing the new chapter, 
     readerClosed:false,routeActive:true,labVisibility:{foreground:true},hostPreferences:{columnMode:'odd_left'},
     request:{progressReadWrite:true},observedCatalogUnit:null,readerPreloadDepth:()=>2,
     adapter:{sessionConfig:()=>({chapterId:'new'})},catalogHost:{commit(_key,config){committed=config.chapterId}},
-    syncChapterChoices(){},observeTranslationPosition(){},persistObserved(){writes++},
+    syncChapterControls(){}, syncChapterChoices(){ assert.fail('The closed picker must not build directory rows') },
+    observeTranslationPosition(){},persistObserved(){writes++},
     observeReadingPages(work,chapter,pages){assert.equal(committed,chapter);recorder.observePages(work,chapter,pages)},
   })
   const position={anchor:{unit:key,pageKey:'0',sourceIndexHint:0},displayedSourceIndexes:[0,1],pageCount:4,terminalSourceDisplayed:false}
   reader.onObservedPosition(position);now+=1000
   reader.onObservedPosition({...position,displayedSourceIndexes:[0,1,2]});now+=1000;recorder.close()
   assert.equal(writes,1);assert.equal(records[0].pagesRead,3)
+})
+
+test('cached chapter crossings batch only touched reading rows and keep the latest source history', () => {
+  const saved = []
+  const adapter = {
+    loadSnapshot: () => ({ progress: [], sourceHistory: [{ comicId: 'untouched', sourceId: 'source',
+      mangaId: 'other', title: 'Other', chapterId: 'a' }], chapters: [] }),
+    supportsPageTurnWrites: () => true,
+    saveSnapshot: (snapshot, pageTurns) => saved.push({ snapshot, pageTurns }),
+  }
+  const store = new owner.PersistentReaderSessionStore(adapter)
+  const history = { comicId: 'work', sourceId: 'source', mangaId: 'manga', title: 'Work' }
+  for (const [chapterId, pageIndex] of [['a', 4], ['b', 0], ['a', 3]]) {
+    store.saveSourceHistory({ ...history, chapterId })
+    store.saveProgress({ comicId: 'work', chapterId, pageIndex, totalPages: 5, progressRatio: (pageIndex + 1) / 5,
+      completed: false, updatedAt: Date.now() })
+  }
+  assert.equal(saved.length, 0)
+  assert.equal(store.getSourceHistory('work').chapterId, 'a')
+  assert.equal(store.flush(), true)
+  assert.equal(saved.length, 1)
+  assert.deepEqual(saved[0].snapshot.sourceHistory.map(entry => [entry.comicId, entry.chapterId]), [['work', 'a']])
+  assert.deepEqual(saved[0].snapshot.progress.map(entry => [entry.chapterId, entry.pageIndex]), [['a', 3]])
+  assert.deepEqual(saved[0].pageTurns.map(entry => [entry.chapterId, entry.position.pageIndex]), [['b', 0], ['a', 3]])
+
+  store.saveSourceHistory({ ...history, chapterId: 'b' })
+  assert.equal(store.flush(), true)
+  assert.deepEqual(saved[1].pageTurns, [])
+  assert.deepEqual(saved[1].snapshot.sourceHistory.map(entry => [entry.comicId, entry.chapterId]), [['work', 'b']])
 })
 test('calendar/month/year statistics use actual sessions and keep zero-activity days', () => {
   const record = (book, year, month, day, pages = 1) => {

@@ -480,6 +480,14 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     return index < 0 ? undefined : { index, total: ids.length }
   }
 
+  chapterPickerKind(unit: ReaderUnitKey): '' | 'chapters' | 'contents' {
+    const id = this.unitId(unit)
+    const config = this.configs.get(id)
+    if (config === undefined || config.chapterIds.length === 0) return ''
+    if ((this.archiveBookmarks.get(id)?.length ?? 0) > 0 && config.chapterIds.includes(unit.unit)) return 'contents'
+    return 'chapters'
+  }
+
   /** Host-owned chapter catalog projection for the optional picker; reader-kit never sees these titles. */
   chapterChoices(unit: ReaderUnitKey): KomaReaderLabChapterChoice[] {
     const config = this.configs.get(this.unitId(unit))

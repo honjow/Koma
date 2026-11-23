@@ -46,17 +46,18 @@ test('manual picker keeps the complete host catalog and aligned titles', () => {
   })
   const adapter = new Adapter()
   adapter.configs = new Map()
+  adapter.archiveBookmarks = new Map()
   const current = new ReaderUnitKey('koma-local', 'work', 'B')
   adapter.configs.set(JSON.stringify(['koma-local', 'work', 'B']), {
     chapterIds: ['A', 'B', 'C'], chapterTitles: ['Alpha', 'Beta', 'Gamma'], continuationChapterIds: ['B', 'C'],
   })
-  assert.deepEqual(adapter.chapterChoices(current).map(value => [value.key.unit, value.title]),
+  assert.deepEqual(Array.from(adapter.chapterChoices(current), value => [value.key.unit, value.title]),
     [['A', 'Alpha'], ['B', 'Beta'], ['C', 'Gamma']])
 })
 
 test('picker opens only for an exact current unit/navigation and dismisses before switching', () => {
   const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage',
-    ['syncChapterChoices', 'chapterControlLabel', 'openChapterPicker', 'selectChapterFromPicker',
+    ['syncChapterControls', 'syncChapterChoices', 'chapterControlLabel', 'openChapterPicker', 'selectChapterFromPicker',
       'finishChapterPickerDismissal'],
     { AppStrings: { get: () => 'Chapter' } })
   const page = new Page()
@@ -64,7 +65,7 @@ test('picker opens only for an exact current unit/navigation and dismisses befor
   const choices = [new Choice(current, 'Alpha'), new Choice(key('B'), 'Beta')]
   const opened = []
   Object.assign(page, {
-    adapter: { chapterChoices: () => choices, chapterCatalogPending: () => false,
+    adapter: { chapterChoices: () => choices, chapterCatalogPending: () => false, chapterPickerKind: () => 'chapters',
       chapterReadingPosition: () => ({ index: 0, total: 2 }) }, chapterChoices: [], chapterChoiceIdentity: '',
     session: { snapshot: () => ({ phase: 'ready', navigationRevision: 4, unit: { key: current } }) },
     openChapterTarget: (...args) => opened.push(args.map(value => value?.unit ?? value)),
@@ -89,7 +90,8 @@ test('a newer picker target cancels preparation and is the only chapter opened',
     check() { if (this.cancelled) throw new Error('cancelled') }
   }
   const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['openChapterTarget'], {
-    ReaderCancellation, $r: value => value, DiagnosticLogger: { info() {}, warn() {} },
+    ReaderCancellation, $r: value => value, komaToastOptions: options => options,
+    DiagnosticLogger: { info() {}, warn() {} },
   })
   const page = new Page()
   const source = key('A')
@@ -106,7 +108,7 @@ test('a newer picker target cancels preparation and is the only chapter opened',
   Object.assign(page, {
     session, adapter, routeActive: true, labVisibility: { foreground: true }, readerClosed: false,
     chapterRequest: null, chapterBusy: false, request: { chapterProbe: '' },
-    runChapterPreparationProbe: async () => {}, syncChapterChoices() {},
+    runChapterPreparationProbe: async () => {}, syncChapterControls() {},
     getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }),
   })
   const first = page.openChapterTarget(key('B'), source, 'picker')
@@ -156,7 +158,8 @@ test('backward chapter continuation uses prepared final page while next and pick
     isCancelled() { return this.cancelled === true }
   }
   const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['openChapterTarget'], {
-    ReaderCancellation, $r: value => value, DiagnosticLogger: { info() {}, warn() {} },
+    ReaderCancellation, $r: value => value, komaToastOptions: options => options,
+    DiagnosticLogger: { info() {}, warn() {} },
   })
   for (const [reason, count, expected] of [['previous', 19, 18], ['previous', 1, 0], ['next', 19, 0], ['picker', 19, 0]]) {
     const page = new Page(), source = key('A'), opened = []
@@ -170,7 +173,7 @@ test('backward chapter continuation uses prepared final page while next and pick
         chapterPrepared: () => false, chapterTitle: () => '' },
       routeActive: true, labVisibility: { foreground: true }, readerClosed: false,
       chapterRequest: null, chapterBusy: false,
-      runChapterPreparationProbe: async () => {}, syncChapterChoices() {},
+      runChapterPreparationProbe: async () => {}, syncChapterControls() {},
       getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }),
     })
     await page.openChapterTarget(key('B'), source, reason)
@@ -185,7 +188,8 @@ test('a prepared boundary skips the loading toast and announces only the opened 
     isCancelled() { return this.cancelled === true }
   }
   const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['openChapterTarget'], {
-    ReaderCancellation, $r: value => value, DiagnosticLogger: { info() {}, warn() {} },
+    ReaderCancellation, $r: value => value, komaToastOptions: options => options,
+    DiagnosticLogger: { info() {}, warn() {} },
   })
   for (const [prepared, reason, expected] of [
     [true, 'next', ['Beta']],
@@ -201,7 +205,7 @@ test('a prepared boundary skips the loading toast and announces only the opened 
         prepare: async target => ({ key: target, pageCount: 1 }) },
       routeActive: true, labVisibility: { foreground: true }, readerClosed: false,
       chapterRequest: null, chapterBusy: false,
-      runChapterPreparationProbe: async () => {}, syncChapterChoices() {},
+      runChapterPreparationProbe: async () => {}, syncChapterControls() {},
       getUIContext: () => ({ getPromptAction: () => ({ showToast: value => toasts.push(value.message) }) }),
     })
     await page.openChapterTarget(key('B'), source, reason)
@@ -279,7 +283,7 @@ function preparationFixture(hostPrepare, fetchSource = async source => '/cache/'
   const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter',
     ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'prepareArchiveBookmarks', 'authenticationSource',
       'installConfig', 'prepareSequence', 'chapterCatalogPending', 'retryChapterCatalog', 'readingChapterIds',
-      'chapterReadingPosition', 'adjacent', 'preloadNextUnit',
+      'chapterReadingPosition', 'chapterPickerKind', 'adjacent', 'preloadNextUnit',
       'page', 'preload', 'prepareImageSize', 'publishPreparedSize', 'recoverableImageFailure', 'refreshPageSources', 'sourceFile', 'load', 'close'], {
       ...sharedCore, ...sharedProcessing, DiagnosticLogger: { info() {}, warn() {} }, KomaReaderFailure: { catalogMessage: error => error.message },
       SourceRuntimeError: class extends Error {}, RemoteImageFileRequest,
@@ -410,7 +414,7 @@ test('online adjacent chapters and lookahead consume the same sequence instead o
 test('reader chapter counter follows reading chronology while the 341-item picker can remain reversed', () => {
   const adapter = preparationFixture(async () => { throw Error('must not fetch chapter pages') })
   const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage',
-    ['syncChapterChoices', 'chapterControlLabel'], { AppStrings: { get: () => 'Chapter' } })
+    ['syncChapterControls', 'syncChapterChoices', 'chapterControlLabel'], { AppStrings: { get: () => 'Chapter' } })
   const sequence = Array.from({ length: 341 }, (_, i) => `chapter:${i}`)
   const page = new Page(), unit = unitKey(sequence[1])
   const config = { ...chapterConfig(unit.unit), sourceRuntimeId: 'source',
@@ -744,6 +748,57 @@ test('ordinary first-read owners keep explicit chapter and resume before earlies
  assert.deepEqual([...detail.downloadUnreadChapterIds(1)],['down'],'download the next unread chapter without duplicating local files')
 })
 
+test('detail chapter selection rereads completed chapters while continue keeps a valid saved page', async () => {
+  const { firstReaderChapter } = chapterSequence()
+  const { readingProgressPageIndex } = loadHostModel('ComicModels')
+  const Store = subject('../model/ReaderSessionStore.ets', 'ReaderSessionStore',
+    ['openPageIndex', 'restorePageIndex'], { readingProgressPageIndex })
+  const Detail = subject('../pages/MangaDetailPage.ets', 'MangaDetailPage',
+    ['currentReadingProgress', 'readingChaptersValue', 'progressChapterValue', 'progressChapterId', 'firstUnreadChapterValue', 'firstUnreadChapterId',
+      'primaryReadChapterValue', 'primaryReadChapterId', 'hasReadableChapters', 'handleStartReading',
+      'handleOpenChapter', 'openDetailChapter'], {
+      Computed: () => {}, firstReaderChapter, sourceChapterOrderFor: () => 'newest_first',
+      chapterReadingSortFor: () => undefined,
+      filterChapterMetadata: chapterSequence().filterChapterMetadata,
+    })
+  const detail = new Detail()
+  const store = new Store()
+  const catalogs = ['4', '3', '2', '1'].map(id => ({ id, title: `第 ${id} 章` }))
+  const positions = new Map(catalogs.map(chapter => [chapter.id, { chapterId: chapter.id, pageIndex: 9, totalPages: 10 }]))
+  const read = new Set(positions.keys())
+  let recent = positions.get('4')
+  store.getProgress = () => recent
+  store.getChapterProgress = (_comic, chapter) => positions.get(chapter)
+  store.isChapterRead = (_comic, chapter) => read.has(chapter)
+  const opened = []
+  const open = (route, chapterId, intent) => opened.push([route, chapterId,
+    store.openPageIndex({ comicId: 'work', chapterId, totalPages: 10 }, intent)])
+  Object.assign(detail, {
+    currentComicId: () => 'work', chapters: catalogs, manga: { sourceId: 'declared' }, chapterPresentation: {},
+    readerSessionStore: store, isInLibrary: true,
+    sourceReaderSessionRequest: chapterId => ({ chapterId }),
+    onOpenReader: (_comicId, chapterId, intent) => open('library', chapterId, intent),
+    onOpenSourceReader: (request, intent) => open('source', request.chapterId, intent),
+  })
+  await detail.handleOpenChapter('2')
+  assert.equal(detail.hasReadableChapters(), true)
+  await detail.handleStartReading()
+  detail.isInLibrary = false
+  await detail.handleOpenChapter('3')
+
+  recent = { chapterId: 'removed-from-catalog' }
+  assert.equal(detail.hasReadableChapters(), true)
+  await detail.handleStartReading()
+  read.delete('2')
+  positions.get('2').pageIndex = 4
+  await detail.handleOpenChapter('2')
+  assert.deepEqual(opened, [
+    ['library', '2', 0], ['library', '4', 9], ['source', '3', 0], ['source', '1', 0], ['source', '2', 4],
+  ])
+  detail.chapters = []
+  assert.equal(detail.hasReadableChapters(), false)
+})
+
 test('first reading uses a named source sequence after the catalogue has been reordered', () => {
   const { firstReaderChapter, continuationChapterIds } = chapterSequence()
   const rows = [
@@ -1000,56 +1055,4 @@ test('saved edition filters constrain source and shelf reading without changing 
   await store.save('work', { ...store.load('work'), groupFilter: '', languageFilter: '' })
   verify(createReaderSessionConfigFromComic(comic), ['s1', 'v1', 's2', 'v2'])
   assert.equal(JSON.stringify(comic), original)
-})
-
-
-test('detail chapter selection rereads completed chapters while continue keeps a valid saved page', async () => {
-  const { firstReaderChapter } = chapterSequence()
-  const { readingProgressPageIndex } = loadHostModel('ComicModels')
-  const Store = subject('../model/ReaderSessionStore.ets', 'ReaderSessionStore',
-    ['openPageIndex', 'restorePageIndex'], { readingProgressPageIndex })
-  const Detail = subject('../pages/MangaDetailPage.ets', 'MangaDetailPage',
-    ['currentReadingProgress', 'readingChaptersValue', 'progressChapterValue', 'progressChapterId', 'firstUnreadChapterValue', 'firstUnreadChapterId',
-      'primaryReadChapterValue', 'primaryReadChapterId', 'hasReadableChapters', 'handleStartReading',
-      'handleOpenChapter', 'openDetailChapter'], {
-      Computed: () => {}, firstReaderChapter, sourceChapterOrderFor: () => 'newest_first',
-      chapterReadingSortFor: () => undefined,
-      filterChapterMetadata: chapterSequence().filterChapterMetadata,
-    })
-  const detail = new Detail()
-  const store = new Store()
-  const catalogs = ['4', '3', '2', '1'].map(id => ({ id, title: `第 ${id} 章` }))
-  const positions = new Map(catalogs.map(chapter => [chapter.id, { chapterId: chapter.id, pageIndex: 9, totalPages: 10 }]))
-  const read = new Set(positions.keys())
-  let recent = positions.get('4')
-  store.getProgress = () => recent
-  store.getChapterProgress = (_comic, chapter) => positions.get(chapter)
-  store.isChapterRead = (_comic, chapter) => read.has(chapter)
-  const opened = []
-  const open = (route, chapterId, intent) => opened.push([route, chapterId,
-    store.openPageIndex({ comicId: 'work', chapterId, totalPages: 10 }, intent)])
-  Object.assign(detail, {
-    currentComicId: () => 'work', chapters: catalogs, manga: { sourceId: 'declared' }, chapterPresentation: {},
-    readerSessionStore: store, isInLibrary: true,
-    sourceReaderSessionRequest: chapterId => ({ chapterId }),
-    onOpenReader: (_comicId, chapterId, intent) => open('library', chapterId, intent),
-    onOpenSourceReader: (request, intent) => open('source', request.chapterId, intent),
-  })
-  await detail.handleOpenChapter('2')
-  assert.equal(detail.hasReadableChapters(), true)
-  await detail.handleStartReading()
-  detail.isInLibrary = false
-  await detail.handleOpenChapter('3')
-
-  recent = { chapterId: 'removed-from-catalog' }
-  assert.equal(detail.hasReadableChapters(), true)
-  await detail.handleStartReading()
-  read.delete('2')
-  positions.get('2').pageIndex = 4
-  await detail.handleOpenChapter('2')
-  assert.deepEqual(opened, [
-    ['library', '2', 0], ['library', '4', 9], ['source', '3', 0], ['source', '1', 0], ['source', '2', 4],
-  ])
-  detail.chapters = []
-  assert.equal(detail.hasReadableChapters(), false)
 })
