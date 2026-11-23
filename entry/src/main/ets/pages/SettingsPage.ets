@@ -167,6 +167,9 @@ import { LibraryUpdateState, connectLibraryUpdateState } from '../state/LibraryU
 import { mutateLibraryUpdatePreferences, requestLibraryUpdateCheck } from '../model/LibraryUpdateCoordinator'
 import { LibraryGridWidthSettings } from '../components/LibraryGridWidthSettings'
 
+import { SourceBrowsePreferencesStore } from '../model/SourceBrowsePreferencesStore'
+import { connectSourceBrowseState, SourceBrowseState } from '../state/SourceBrowseState'
+
 interface SettingsRow {
   key: string
   titleKey: string
@@ -330,7 +333,8 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'library-continue-reading-card', titleKey: 'settings_row_library_continue_reading_card_title',
           detailKey: 'settings_row_library_continue_reading_card_detail' },
         { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
-        { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
+        { key: 'source-hide-in-library', titleKey: 'source_hide_in_library', detailKey: 'source_hide_in_library_hint' },
+        { key: 'sources', titleKey: 'route_source_package_manager_title', detailKey: 'settings_row_sources_detail' },
         { key: 'download-notifications', titleKey: 'settings_row_download_notifications_title', detailKey: 'settings_row_download_notifications_detail' },
         { key: 'download-system-notification-settings', titleKey: 'settings_download_system_notification_title',
           detailKey: 'settings_download_system_notification_detail' },
@@ -558,6 +562,7 @@ export struct SettingsPage {
   @Provider('koma.modal.groupedCards') private modalGroupedCards: boolean = false
   @Local private settingsSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private incognito: IncognitoState = connectIncognitoState()
+  @Local private sourceBrowseState: SourceBrowseState = connectSourceBrowseState()
   private positionedSearchTarget: boolean = false
   @Event onOpenKomgaSettings: () => void = () => {}
   @Event onOpenKavitaSettings: () => void = () => {}
@@ -947,9 +952,14 @@ export struct SettingsPage {
           rows: this.rowsByKeys(['komga', 'kavita', 'opds', 'webdav']),
         },
         {
-          key: 'content-services',
-          titleKey: '',
-          rows: this.rowsByKeys(['sources', 'translation']),
+          key: 'sources',
+          titleKey: 'settings_section_sources',
+          rows: this.rowsByKeys(['source-hide-in-library', 'sources']),
+        },
+        {
+          key: 'translation',
+          titleKey: 'comic_translation_settings_title',
+          rows: this.rowsByKeys(['translation']),
         },
       ]
     }
@@ -2338,7 +2348,7 @@ export struct SettingsPage {
   }
 
   private isSwitchRow(row: SettingsRow): boolean {
-    return row.key === 'auto-hide-bottom-bar' || row.key === 'show-resume-mini-bar' || row.key === 'double-back-to-exit' ||
+    return row.key === 'source-hide-in-library' || row.key === 'auto-hide-bottom-bar' || row.key === 'show-resume-mini-bar' || row.key === 'double-back-to-exit' ||
       row.key === 'library-background-update' || row.key === 'library-auto-update' ||
       row.key === 'library-badges' || row.key === 'library-continue-reading-card' ||
       row.key === 'cache-auto-clean' ||
@@ -2358,6 +2368,7 @@ export struct SettingsPage {
   }
 
   private switchRowValue(row: SettingsRow): boolean {
+    if (row.key === 'source-hide-in-library') return this.sourceBrowseState.hideInLibrary
     if (row.key === 'auto-hide-bottom-bar') return this.appearanceState.autoHideBottomBar
     if (row.key === 'show-resume-mini-bar') return this.appearanceState.showResumeMiniBar
     if (row.key === 'double-back-to-exit') return this.appearanceState.doubleBackToExit
@@ -2408,6 +2419,13 @@ export struct SettingsPage {
   }
 
   private setSwitchRowValue(row: SettingsRow, value: boolean): void {
+    if (row.key === 'source-hide-in-library') {
+      void new SourceBrowsePreferencesStore(this.context()).saveHideInLibrary(value).catch((error: Error): void => {
+        DiagnosticLogger.exception('settings_page', 'save_source_hide_in_library_failed', error)
+        this.showToast(s('source_hide_in_library_save_failed'))
+      })
+      return
+    }
     if (row.key === 'auto-hide-bottom-bar') {
       void this.appearancePreferencesStore().saveAutoHideBottomBar(value).catch((error: Error): void => {
         DiagnosticLogger.exception('settings_page', 'save_bottom_bar_auto_hide_failed', error)
@@ -3101,6 +3119,7 @@ export struct SettingsPage {
     this.searchPreferencesLoaded = true
     this.loadPreferences()
     this.loadAppearancePreferences()
+    void new SourceBrowsePreferencesStore(this.context()).load().catch(() => {})
     this.loadLibraryUpdatePreferences()
     this.loadAutomationPolicy()
     this.loadDownloadQueuePreferences()
@@ -3111,6 +3130,7 @@ export struct SettingsPage {
   }
 
   private loadPanePreferences(): void {
+    if (this.pane === 'services') void new SourceBrowsePreferencesStore(this.context()).load().catch(() => {})
     if (this.pane === 'library' || this.pane === 'downloads') this.loadAutomationPolicy()
     if (this.pane === 'reader' || this.pane === 'enhancement-models' || this.pane === 'appearance') this.loadPreferences()
     if (this.pane === 'appearance') {

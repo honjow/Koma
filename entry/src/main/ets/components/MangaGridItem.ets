@@ -3,6 +3,7 @@ import { ComicSourceKind } from '../model/ComicModels'
 import { SourceManga } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ConciseListRow } from './ui/ConciseListRow'
+import { AppStrings } from '../i18n/AppStrings'
 
 const SOURCE_LIST_COVER_WIDTH = 56
 const SOURCE_LIST_COVER_HEIGHT = 78
@@ -16,6 +17,7 @@ export interface MangaGridCoverOptions {
 
 @ComponentV2
 export struct MangaGridItem {
+  @Param inLibrary: boolean = false
   @Param reserveTitleSpace: boolean = false
   @Param listLayout: boolean = false
   @Param deferOffscreenCover: boolean = false
@@ -100,8 +102,27 @@ export struct MangaGridItem {
   }
 
   @Builder
+  private InLibraryBadge() {
+    if (this.inLibrary) {
+      SymbolGlyph($r('sys.symbol.bookmark_fill'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor([Color.White])
+        .padding(ThemeConstants.SPACE_XS)
+        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+        .borderRadius(ThemeConstants.RADIUS_COVER)
+        .margin(ThemeConstants.SPACE_XS)
+        .hitTestBehavior(HitTestMode.None)
+        .accessibilityText(AppStrings.get('source_in_library'))
+        .id('source-in-library-' + this.manga.sourceId + ':' + this.manga.id)
+    }
+  }
+
+  @Builder
   private ListCover() {
-    Stack({ alignContent: Alignment.Center }) { this.CoverContent() }
+    Stack({ alignContent: Alignment.TopStart }) {
+      this.CoverContent()
+      this.InLibraryBadge()
+    }
     .width(SOURCE_LIST_COVER_WIDTH)
     .height(SOURCE_LIST_COVER_HEIGHT)
     .borderRadius(ThemeConstants.RADIUS_COVER)
@@ -113,7 +134,10 @@ export struct MangaGridItem {
   @Builder
   private GridCard() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      Stack({ alignContent: Alignment.Center }) { this.CoverContent() }
+      Stack({ alignContent: Alignment.TopStart }) {
+        this.CoverContent()
+        this.InLibraryBadge()
+      }
       .width('100%')
       .aspectRatio(0.68)
       .borderRadius(ThemeConstants.RADIUS_COVER)

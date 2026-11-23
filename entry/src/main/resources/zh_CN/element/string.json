@@ -2666,6 +2666,13 @@
     {"name": "source_login_destination", "value": "登录地址：%s"},
     {"name": "source_login_storage_private", "value": "书源为保持登录会在本机保存账号和密码，退出书源账号时清除。"},
     {"name": "source_login_storage_memory", "value": "书源仅在本次登录时使用账号和密码。"},
-    {"name": "source_login_origin_not_allowed", "value": "当前镜像尚未声明登录权限，请更新书源或选择已支持的镜像"}
+    {"name": "source_login_origin_not_allowed", "value": "当前镜像尚未声明登录权限，请更新书源或选择已支持的镜像"},
+    {"name": "settings_section_sources", "value": "书源"},
+    {"name": "source_hide_in_library", "value": "隐藏已添加到书架的作品"},
+    {"name": "source_hide_in_library_hint", "value": "浏览书源时，不显示已添加到书架的作品"},
+    {"name": "source_hide_in_library_save_failed", "value": "保存书源浏览设置失败"},
+    {"name": "source_in_library", "value": "已加入书架"},
+    {"name": "source_all_in_library", "value": "当前作品均已添加到书架"},
+    {"name": "source_all_in_library_hint", "value": "如需查看，可在设置的服务页关闭“隐藏已添加到书架的作品”"}
   ]
 }

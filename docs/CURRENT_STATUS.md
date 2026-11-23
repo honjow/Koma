@@ -86,6 +86,31 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "SOURCE_BROWSE_LIBRARY_VISIBILITY",
+      "number": 347,
+      "title": "书源浏览隐藏已入书架作品并标识收藏",
+      "kind": "done",
+      "priority": "用户要求",
+      "owner": "Root",
+      "reportedAt": "2026-11-23T09:37:29+08:00",
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "用户本轮要求参考 Mihon 隐藏已入书架作品，未隐藏时显示标识；设置服务下单独书源卡片放开关与书源管理，翻译另起卡片。",
+      "registeredAt": "2026-11-23T09:37:29+08:00",
+      "updatedAt": "2026-11-23T09:59:30+08:00",
+      "status": "197 具名普通路径验证通过",
+      "result": "采用 Mihon 的「隐藏已添加到书架的作品」文案，默认关闭；服务下独立书源卡片放开关与书源管理，漫画翻译另卡。按书源和作品身份匹配实际书架，源浏览与源内搜索共用显示投影；保留原始结果及分页，迁移匹配不隐藏。197 包子漫画《國王的大象》普通详情临时加入书架后，返回源内搜索立即出现收藏标识；修正居中错误后，网格及列表均已亲审封面左上角的主题色书签徽标。开启隐藏后该作品消失、其他搜索结果保留；冷启动开关仍为开启。关闭后作品及标识恢复，移除测试作品后仍在结果中但标识消失。开关、原网格布局、SLEEP/10000ms 均恢复且租约已释放。偏好有序保存及失败回退测试、非默认设置备份恢复和构建通过。",
+      "remaining": "未发布。实机覆盖 197 包子漫画普通源内搜索及网格/列表；其他源未逐个复测。",
+      "evidence": [
+        ".hvigor/outputs/source-library-browse-20261123/build.log",
+        ".hvigor/outputs/source-library-browse-20261123/behavior-tests.log",
+        ".hvigor/outputs/source-library-browse-20261123/backup-check.log",
+        ".hvigor/outputs/source-library-browse-20261123/device197/marker-grid-095133783666/screen.png",
+        ".hvigor/outputs/source-library-browse-20261123/device197/list-marker-095230365944/screen.png",
+        ".hvigor/outputs/source-library-browse-20261123/device197/hidden-result-095350050915/screen.png",
+        ".hvigor/outputs/source-library-browse-20261123/device197/test-work-added.json"
+      ]
+    },
+    {
       "id": "WORK_COVER_SUPER_RESOLUTION",
       "number": 342,
       "title": "单部作品封面图像增强与撤销",
@@ -12857,6 +12882,22 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-library-visibility-commit-approved-20261123",
+      "at": "2026-11-23T09:59:30+08:00",
+      "itemId": "SOURCE_BROWSE_LIBRARY_VISIBILITY",
+      "title": "用户确认提交书源收藏隐藏与标识",
+      "detail": "用户明确要求提交本次修改；本地提交范围包含源内浏览/搜索、收藏徽标、服务设置分组、各语言文案及偏好备份恢复。",
+      "kind": "decision"
+    },
+    {
+      "id": "source-library-visibility-197-20261123",
+      "at": "2026-11-23T09:57:16+08:00",
+      "itemId": "SOURCE_BROWSE_LIBRARY_VISIBILITY",
+      "title": "197 验证书源收藏标识、隐藏和冷启动保存",
+      "detail": "用户指定采用 Mihon 现成文案。亲审并修正首次徽标居中错误，最终网格和列表位于左上角；临时加入、隐藏、冷启动、恢复及移除回验通过，测试数据与设备状态已恢复。",
+      "kind": "verification"
+    },
     {
       "id": "library-update-source-names-accepted-20261123",
       "at": "2026-11-23T00:17:01+08:00",

@@ -2,6 +2,7 @@ import { SourceSearchPresetSheetHost } from '../components/SourceSearchPresetShe
 import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
 import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { komaSheetOptions, komaToastOptions } from "../theme/KomaPopupOptions"
+import { common } from '@kit.AbilityKit'
 import { HdsNavigationMenuItemOptions } from '@kit.UIDesignKit'
 import { SourceSettingsSheetHost } from '../components/SourceSettingsSheetHost'
 import { MangaWebRouteParam } from '../common/RouterHelper'
@@ -30,6 +31,11 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 
+import { LibraryStore } from '../model/LibraryStore'
+import { SourceBrowsePreferencesStore } from '../model/SourceBrowsePreferencesStore'
+import { connectSourceBrowseState, SourceBrowseState } from '../state/SourceBrowseState'
+import { projectSourceLibrary, sourceLibraryKeys, SourceLibraryItem } from '../model/SourceLibraryProjection'
+
 function s(name: string): string {
   return AppStrings.get(name)
 }
@@ -38,6 +44,7 @@ interface SourceSearchGridRow {
   key: string
   kind: 'manga' | 'loading' | 'empty' | 'error' | 'footer'
   manga?: SourceManga
+  inLibrary?: boolean
   bottomPadding: number
 }
 interface SourceSearchGridProjection {
@@ -63,6 +70,16 @@ export struct SourceSearchPage {
     status: 'staged',
     capabilities: [],
   }
+  @Param libraryStore?: LibraryStore = undefined
+  @Param libraryRevision: number = 0
+  @Local private sourceBrowseState: SourceBrowseState = connectSourceBrowseState()
+
+  @Computed
+  private get shelvedKeys(): Set<string> {
+    void this.libraryRevision
+    return sourceLibraryKeys(this.libraryStore?.listComics(false) ?? [])
+  }
+
   @Param viewModel: BrowseViewModel = new BrowseViewModel()
   @Param chrome: SourceSearchRouteChromeState = new SourceSearchRouteChromeState()
   @Local private languageState: LanguageState = connectLanguageState()
@@ -364,6 +381,7 @@ export struct SourceSearchPage {
     if (this.query.trim().length === 0 && !this.viewModel.hasActiveSearch) {
       return s('source_search_empty_idle_title')
     }
+    if (!this.selectionMode && this.sourceBrowseState.hideInLibrary && this.viewModel.searchResults.length > 0) return s('source_all_in_library')
     return this.isFilteredEmptySearch() ? s('source_search_filtered_empty_title') : s('source_search_empty_results_title')
   }
 
@@ -371,6 +389,7 @@ export struct SourceSearchPage {
     if (this.query.trim().length === 0 && !this.viewModel.hasActiveSearch) {
       return s('source_search_empty_idle_message')
     }
+    if (!this.selectionMode && this.sourceBrowseState.hideInLibrary && this.viewModel.searchResults.length > 0) return s('source_all_in_library_hint')
     return this.isFilteredEmptySearch() ? s('source_search_filtered_empty_message') : s('source_search_empty_results_message')
   }
 
@@ -406,15 +425,19 @@ export struct SourceSearchPage {
   @Computed
   private get gridProjection(): SourceSearchGridProjection {
     const rows: SourceSearchGridRow[] = []
-    if (this.viewModel.searchResults.length === 0) {
+    // Migration matching must retain its complete candidate list.
+    const visible = projectSourceLibrary(this.viewModel.searchResults, this.shelvedKeys,
+      !this.selectionMode && this.sourceBrowseState.hideInLibrary)
+    if (visible.length === 0) {
       const kind: 'loading' | 'error' | 'empty' = this.viewModel.loadingSearch ? 'loading' : this.viewModel.searchErrorMessage.length > 0 ? 'error' : 'empty'
       rows.push({ key: kind, kind, bottomPadding: ThemeConstants.SPACE_MD })
     } else {
       const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
       const columns = libraryCoverGridColumnCount(width, this.coverLayout.density, this.coverLayout.gridColumnWidth)
-      const lastRowStart = Math.floor((this.viewModel.searchResults.length - 1) / columns) * columns
-      this.viewModel.searchResults.forEach((item: SourceManga, index: number) => {
-        rows.push({ key: `manga:${item.sourceId}:${item.id}`, kind: 'manga', manga: item,
+      const lastRowStart = Math.floor((visible.length - 1) / columns) * columns
+      visible.forEach((item: SourceLibraryItem, index: number) => {
+        rows.push({ key: `manga:${item.manga.sourceId}:${item.manga.id}`, kind: 'manga', manga: item.manga,
+          inLibrary: item.inLibrary,
           bottomPadding: index >= lastRowStart ? ThemeConstants.SPACE_MD : ThemeConstants.SPACE_LG })
       })
       rows.push({ key: 'footer', kind: 'footer', bottomPadding: ThemeConstants.SPACE_MD })
@@ -429,19 +452,19 @@ export struct SourceSearchPage {
   @Computed
   private get paginationItemIndex(): number {
     return this.chrome.visible && !this.viewModel.loadingSearch && this.viewModel.hasMoreSearch &&
-      this.viewModel.searchErrorMessage.length === 0 ? this.viewModel.searchResults.length - 1 : -1
+      this.viewModel.searchErrorMessage.length === 0 ? this.gridProjection.rows.length - 1 : -1
   }
 
   @Builder
   private GridRowContent(row: RepeatItem<SourceSearchGridRow>) {
     if (row.item.kind === 'manga' && this.selectionMode) {
       Column() {
-        MangaGridItem({ manga: row.item.manga!, reserveTitleSpace: true,
+        MangaGridItem({ manga: row.item.manga!, inLibrary: row.item.inLibrary === true, reserveTitleSpace: true,
           onMangaTap: (selected: SourceManga) => { this.onMangaSelected(selected) } })
       }.width('100%')
       .priorityGesture(LongPressGesture({ repeat: false }).onAction((): void => { this.onMangaTap(row.item.manga!) }))
     } else if (row.item.kind === 'manga') {
-      MangaGridItem({ manga: row.item.manga!, onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
+      MangaGridItem({ manga: row.item.manga!, inLibrary: row.item.inLibrary === true, onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
     } else if (row.item.kind === 'loading') {
       this.LoadingSearchState()
     } else if (row.item.kind === 'error') {
@@ -513,6 +536,7 @@ export struct SourceSearchPage {
 
   aboutToAppear(): void {
     this.routeActive = true
+    void new SourceBrowsePreferencesStore(getContext(this) as common.UIAbilityContext).load().catch(() => {})
     this.viewModel.loadInstalledSources()
     this.query = this.chrome.query
     this.syncTitleActions()

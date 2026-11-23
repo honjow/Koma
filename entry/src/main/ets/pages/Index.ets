@@ -3606,6 +3606,7 @@ struct Index {
   private SourceBrowseDestination(param: SourceBrowseRouteParam) {
     HdsNavDestination() {
       SourceBrowsePage({
+        libraryStore: this.libraryStore, libraryRevision: this.libraryRevision,
         source: param.source,
         chrome: param.chrome,
         onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => {
@@ -3658,6 +3659,7 @@ struct Index {
   private SourceSearchDestination(param: SourceSearchRouteParam) {
     HdsNavDestination() {
       SourceSearchPage({
+        libraryStore: this.libraryStore, libraryRevision: this.libraryRevision,
         source: param.source,
         chrome: param.chrome,
         selectionMode: param.onMangaSelected !== undefined,

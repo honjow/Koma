@@ -2666,6 +2666,13 @@
     {"name": "source_login_destination", "value": "Login address: %s"},
     {"name": "source_login_storage_private", "value": "The source stores your account and password on this device to keep you signed in and removes them when you sign out."},
     {"name": "source_login_storage_memory", "value": "The source uses your account and password for this sign-in only."},
-    {"name": "source_login_origin_not_allowed", "value": "This mirror has no declared login permission. Update the source or choose a supported mirror"}
+    {"name": "source_login_origin_not_allowed", "value": "This mirror has no declared login permission. Update the source or choose a supported mirror"},
+    {"name": "settings_section_sources", "value": "Sources"},
+    {"name": "source_hide_in_library", "value": "Hide works in library"},
+    {"name": "source_hide_in_library_hint", "value": "Hide works already added to your library when browsing a source"},
+    {"name": "source_hide_in_library_save_failed", "value": "Could not save source browsing preference"},
+    {"name": "source_in_library", "value": "In library"},
+    {"name": "source_all_in_library", "value": "Works already in library are hidden"},
+    {"name": "source_all_in_library_hint", "value": "You can turn this off in Settings · Services · Sources"}
   ]
 }

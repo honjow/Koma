@@ -5,6 +5,9 @@
     ]
   },
   "applicationSettings": {
+    "model/SourceBrowsePreferencesStore.ets": [
+      "koma_source_browse_preferences_v1"
+    ],
     "i18n/LanguageSettings.ets": [
       "koma_app_preferences_v1"
     ],

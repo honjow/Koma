@@ -2666,6 +2666,13 @@
     {"name": "source_login_destination", "value": "登錄地址：%s"},
     {"name": "source_login_storage_private", "value": "書源為保持登錄會在本機保存賬號和密碼，退出書源賬號時清除。"},
     {"name": "source_login_storage_memory", "value": "書源僅在本次登錄時使用賬號和密碼。"},
-    {"name": "source_login_origin_not_allowed", "value": "當前鏡像尚未聲明登錄權限，請更新書源或選擇已支持的鏡像"}
+    {"name": "source_login_origin_not_allowed", "value": "當前鏡像尚未聲明登錄權限，請更新書源或選擇已支持的鏡像"},
+    {"name": "settings_section_sources", "value": "書源"},
+    {"name": "source_hide_in_library", "value": "隱藏已加入書架的作品"},
+    {"name": "source_hide_in_library_hint", "value": "瀏覽書源時，不顯示已加入書架的作品"},
+    {"name": "source_hide_in_library_save_failed", "value": "儲存書源瀏覽設定失敗"},
+    {"name": "source_in_library", "value": "已加入書架"},
+    {"name": "source_all_in_library", "value": "目前作品皆已加入書架"},
+    {"name": "source_all_in_library_hint", "value": "如需檢視，可在設定的服務頁關閉「隱藏已加入書架的作品」"}
   ]
 }

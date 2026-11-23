@@ -1,3 +1,4 @@
+import { SourceBrowsePreferencesStore } from './SourceBrowsePreferencesStore'
 import { AppearancePreferencesStore } from './AppearancePreferencesStore'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
@@ -36,6 +37,7 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
   'koma_chapter_list_preferences_v1': ['chapterList.overrides.v1'],
   'koma_library_automation_v1': ['automation.policy'],
   'koma_app_preferences_v1': ['app.language'],
+  'koma_source_browse_preferences_v1': ['sourceBrowse.hideInLibrary'],
   // Keep accepting the alert style in older backups. The system now owns sound and vibration.
   'koma_download_notifications_v1': ['download.notifications.enabled', 'download.notifications.sound'],
   'koma_appearance_preferences_v1': [
@@ -68,7 +70,9 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
 export const APPLICATION_SETTINGS_BACKUP_STORES: string[] = Object.keys(PORTABLE_FIELDS)
 
 function checkPortableValue(name: string, key: string, value: ApplicationSettingValue): void {
-  if (migratedBackupPreference(name, key) !== undefined) {
+  if (name === 'koma_source_browse_preferences_v1') {
+    if (typeof value !== 'boolean') throw new Error('backup_application_settings_invalid')
+  } else if (migratedBackupPreference(name, key) !== undefined) {
     decodePreferenceRecordMap(value)
   } else if (name === 'koma_library_filter_preferences' && key === 'library.gridColumnWidth') {
     if (typeof value !== 'number' || value < 0) throw new Error('backup_application_settings_invalid')
@@ -251,6 +255,7 @@ export function countApplicationSettings(value: ApplicationSettingsBackup | unde
 export async function reloadApplicationSettingsRuntime(context: common.UIAbilityContext): Promise<void> {
   await LanguageSettings.restore(context)
   await new AppearancePreferencesStore(context).load()
+  await new SourceBrowsePreferencesStore(context).load()
   invalidateLibraryAutomationPolicyCache()
   await restoreReaderRemoteImageCache(context)
 }

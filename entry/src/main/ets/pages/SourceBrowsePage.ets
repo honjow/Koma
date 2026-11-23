@@ -44,14 +44,21 @@ import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/So
 import { reloadInstalledSourcePackages } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 
+import { LibraryStore } from '../model/LibraryStore'
+import { SourceBrowsePreferencesStore } from '../model/SourceBrowsePreferencesStore'
+import { connectSourceBrowseState, SourceBrowseState } from '../state/SourceBrowseState'
+import { projectSourceLibrary, sourceLibraryKeys, SourceLibraryItem } from '../model/SourceLibraryProjection'
+
 function s(name: string): string {
   return AppStrings.get(name)
 }
 
 interface SourceBrowseGridRow {
   key: string
-  kind: 'home-header' | 'browse-selector' | 'manga' | 'loading' | 'empty-search' | 'empty-browse' | 'error' | 'footer'
+  kind: 'home-header' | 'browse-selector' | 'manga' | 'loading' | 'empty-search' | 'empty-browse' | 'error' | 'footer' | 'empty-library'
   manga?: SourceManga
+  inLibrary?: boolean
+  visibleMangaCount?: number
   homeSection?: SourceHomeSectionState
   bottomPadding: number
 }
@@ -77,6 +84,16 @@ export struct SourceBrowsePage {
     status: 'staged',
     capabilities: [],
   }
+  @Param libraryStore?: LibraryStore = undefined
+  @Param libraryRevision: number = 0
+  @Local private sourceBrowseState: SourceBrowseState = connectSourceBrowseState()
+
+  @Computed
+  private get shelvedKeys(): Set<string> {
+    void this.libraryRevision
+    return sourceLibraryKeys(this.libraryStore?.listComics(false) ?? [])
+  }
+
   @Param viewModel: BrowseViewModel = new BrowseViewModel()
   @Param chrome: SourceBrowseRouteChromeState = new SourceBrowseRouteChromeState()
   @Local private languageState: LanguageState = connectLanguageState()
@@ -588,7 +605,7 @@ export struct SourceBrowsePage {
             },
           })
         } else {
-          Text(s('library_count_books').replace('%s', `${row.item.homeSection!.manga.length}`))
+          Text(s('library_count_books').replace('%s', `${row.item.visibleMangaCount ?? row.item.homeSection!.manga.length}`))
             .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
@@ -604,9 +621,11 @@ export struct SourceBrowsePage {
 
   private appendMangaRows(rows: SourceBrowseGridRow[], prefix: string, manga: SourceManga[]): void {
     const columns = this.sourceGridColumnCount()
-    const lastRowStart = Math.floor((manga.length - 1) / columns) * columns
-    manga.forEach((item: SourceManga, index: number) => {
-      rows.push({ key: `${prefix}:manga:${item.sourceId}:${item.id}`, kind: 'manga', manga: item,
+    const visible = projectSourceLibrary(manga, this.shelvedKeys, this.sourceBrowseState.hideInLibrary)
+    const lastRowStart = Math.floor((visible.length - 1) / columns) * columns
+    visible.forEach((item: SourceLibraryItem, index: number) => {
+      rows.push({ key: `${prefix}:manga:${item.manga.sourceId}:${item.manga.id}`, kind: 'manga', manga: item.manga,
+        inLibrary: item.inLibrary,
         bottomPadding: index >= lastRowStart ? ThemeConstants.SPACE_MD : ThemeConstants.SPACE_LG })
     })
   }
@@ -639,6 +658,7 @@ export struct SourceBrowsePage {
         this.viewModel.homeSections.forEach((section: SourceHomeSectionState) => {
           const prefix = `home:${section.id}`
           rows.push({ key: `${prefix}:header`, kind: 'home-header', homeSection: section,
+            visibleMangaCount: projectSourceLibrary(section.manga, this.shelvedKeys, this.sourceBrowseState.hideInLibrary).length,
             bottomPadding: section.manga.length > 0 ? ThemeConstants.SPACE_MD : ThemeConstants.SPACE_MD * 2 })
           this.appendMangaRows(rows, prefix, section.manga)
         })
@@ -654,6 +674,14 @@ export struct SourceBrowsePage {
         }
       }
     }
+    const hasRawManga = this.isSearchActive() ? this.viewModel.searchResults.length > 0 :
+      this.viewModel.homeSections.some((section: SourceHomeSectionState): boolean => section.manga.length > 0) ||
+      this.viewModel.browseSections.some((section: BrowseSourceSectionState): boolean => section.manga.length > 0)
+    if (hasRawManga && this.sourceBrowseState.hideInLibrary && !rows.some((row: SourceBrowseGridRow): boolean => row.kind === 'manga')) {
+      const footer = rows.findIndex((row: SourceBrowseGridRow): boolean => row.kind === 'footer')
+      rows.splice(footer < 0 ? rows.length : footer, 0,
+        { key: 'hidden-library-empty', kind: 'empty-library', bottomPadding: ThemeConstants.SPACE_MD })
+    }
     const fullRowIndexes: number[] = []
     let lastMangaIndex = -1
     rows.forEach((row: SourceBrowseGridRow, index: number) => {
@@ -668,7 +696,8 @@ export struct SourceBrowsePage {
     if (!this.chrome.visible) return -1
     if (this.isSearchActive()) {
       return !this.viewModel.loadingSearch && this.viewModel.hasMoreSearch &&
-        this.viewModel.searchErrorMessage.length === 0 ? this.gridProjection.lastMangaIndex : -1
+        this.viewModel.searchErrorMessage.length === 0 ?
+          (this.gridProjection.lastMangaIndex >= 0 ? this.gridProjection.lastMangaIndex : this.gridProjection.rows.length - 1) : -1
     }
     if (this.viewModel.loadingBrowse || !this.viewModel.hasMoreBrowse ||
       this.viewModel.browseErrorIntent !== BrowseLoadIntent.NONE) return -1
@@ -686,7 +715,7 @@ export struct SourceBrowsePage {
   @Builder
   private GridRowContent(row: RepeatItem<SourceBrowseGridRow>) {
     if (row.item.kind === 'manga') {
-      MangaGridItem({ manga: row.item.manga!, listLayout: this.chrome.layout === 'list', deferOffscreenCover: true,
+      MangaGridItem({ manga: row.item.manga!, inLibrary: row.item.inLibrary === true, listLayout: this.chrome.layout === 'list', deferOffscreenCover: true,
         onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
     } else if (row.item.kind === 'home-header') {
       this.HomeSectionHeader(row)
@@ -694,6 +723,8 @@ export struct SourceBrowsePage {
       this.ListingSelector()
     } else if (row.item.kind === 'loading') {
       this.LoadingBrowseState()
+    } else if (row.item.kind === 'empty-library') {
+      KomaEmptyState({ title: s('source_all_in_library'), message: s('source_all_in_library_hint') })
     } else if (row.item.kind === 'empty-search') {
       KomaEmptyState({ title: s('source_search_empty_results_title'),
         message: s('source_search_empty_results_message') })
@@ -834,6 +865,7 @@ export struct SourceBrowsePage {
     } catch (_error) {
       // A failed local preference read keeps the route's default grid.
     }
+    void new SourceBrowsePreferencesStore(context).load().catch(() => {})
     reloadInstalledSourcePackages(context)
     this.viewModel.loadInstalledSources()
     this.syncTitleActions()

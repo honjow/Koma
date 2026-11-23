@@ -9807,6 +9807,13 @@
     {
       "name": "source_login_origin_not_allowed",
       "value": "このマイングは、ログインの権限を宣言していないためです。ソースを更新またはサポートされているマイングを選択してください。"
-    }
+    },
+    {"name": "settings_section_sources", "value": "ソース"},
+    {"name": "source_hide_in_library", "value": "本棚の作品を非表示"},
+    {"name": "source_hide_in_library_hint", "value": "ソースの閲覧時に本棚に追加済みの作品を非表示にします"},
+    {"name": "source_hide_in_library_save_failed", "value": "ソースの表示設定を保存できませんでした"},
+    {"name": "source_in_library", "value": "本棚に追加済み"},
+    {"name": "source_all_in_library", "value": "本棚の作品は非表示です"},
+    {"name": "source_all_in_library_hint", "value": "設定 · サービス · ソースで非表示を解除できます"}
   ]
 }
