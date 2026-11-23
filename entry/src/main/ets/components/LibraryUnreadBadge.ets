@@ -1,15 +1,20 @@
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ColorMetrics, UIContext } from '@kit.ArkUI'
+import { image } from '@kit.ImageKit'
 import { coverMainColor } from '../model/CoverMainColor'
 
 const BADGE_SIZE: number = 20
-const BADGE_INSET: number = 4
+export const BADGE_INSET: number = 4
+export const UNREAD_BADGE_BLUR_RADIUS: number = 10
+// The shelf defaults to a translucent surface. Retain the tested, cropped
+// frosting for a deliberate change to the grid appearance.
+export const LIBRARY_UNREAD_BADGE_FROSTING_ENABLED: boolean = false
 
-function badgeBackdropHeight(context: UIContext): number {
+export function badgeBackdropHeight(context: UIContext): number {
   return context.px2vp(context.fp2px(BADGE_SIZE))
 }
 
-function badgeBackdropWidth(count: number, context: UIContext): number {
+export function badgeBackdropWidth(count: number, context: UIContext): number {
   if (count < 10) return badgeBackdropHeight(context)
   // Native text measurement supplies geometry only; it creates no Text node.
   const textWidth = context.getMeasureUtils().measureText({ textContent: `${count}`,
@@ -17,13 +22,14 @@ function badgeBackdropWidth(count: number, context: UIContext): number {
   return Math.max(badgeBackdropHeight(context), context.px2vp(textWidth) + 12)
 }
 
-// Badge owns the digits, visibility and layout. Only its translucent surface
-// samples the cover beneath it; never blur the Badge container or its text.
+// Badge owns the digits, visibility and layout. Optional frosting is drawn
+// below the Badge. The shadow uses the same capsule geometry in either mode.
 // Match ArkUI's numeric badge geometry (one-digit circle, otherwise 6vp padding):
 // frameworks/core/components_ng/pattern/badge/badge_layout_algorithm.cpp.
 interface LibraryUnreadBadgeBackdropParams {
   count: number | undefined
   context: UIContext
+  blurredCover?: image.PixelMap
 }
 
 // One object literal passed by reference is required here. A multi-argument
@@ -32,14 +38,22 @@ interface LibraryUnreadBadgeBackdropParams {
 @Builder
 export function libraryUnreadBadgeBackdrop($$: LibraryUnreadBadgeBackdropParams) {
   if (($$.count ?? 0) > 0) {
-    // A plain empty surface owns the blur. Badge is the only digit renderer;
-    // never add duplicate, transparent or shadow text to imitate its glyphs.
-    Row()
+    // Badge is the only digit renderer.
+    Stack() {
+      if ($$.blurredCover !== undefined) {
+        Image($$.blurredCover)
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Fill)
+          .interpolation(ImageInterpolation.Medium)
+      }
+    }
       .width(badgeBackdropWidth($$.count ?? 0, $$.context))
       .height(badgeBackdropHeight($$.context))
       .borderRadius(badgeBackdropHeight($$.context) / 2)
-      .backdropBlur(10)
-      .shadow(ShadowStyle.OUTER_DEFAULT_XS)
+      .clip($$.blurredCover !== undefined)
+      // Separate the capsule from busy artwork without increasing the tint opacity.
+      .shadow(ShadowStyle.OUTER_DEFAULT_SM)
       .position({ x: BADGE_INSET, y: BADGE_INSET })
       .hitTestBehavior(HitTestMode.None)
       .accessibilityLevel('no')
@@ -59,8 +73,8 @@ export function libraryUnreadBadgeOptions(count: number | undefined, color: Reso
       fontSize: ThemeConstants.FONT_SIZE_TAG,
       fontWeight: FontWeight.Medium,
       badgeSize: BADGE_SIZE,
-      // The user's 50% transparency applies to the surface, not the digits.
-      badgeColor: ColorMetrics.rgba(background.red, background.green, background.blue, 0.5).color,
+      // Give the surface 70% opacity and keep the digits at their native opacity.
+      badgeColor: ColorMetrics.rgba(background.red, background.green, background.blue, 0.7).color,
       borderColor: color,
       borderWidth: 0,
     },

@@ -3,7 +3,9 @@ import { MangaDetailTransitionCoordinator } from '../navigation/MangaDetailTrans
 import { connectMangaDetailTransition, MangaDetailTransitionState } from '../state/MangaDetailTransitionState'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
-import { libraryUnreadBadgeBackdrop, libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
+import {
+  LIBRARY_UNREAD_BADGE_FROSTING_ENABLED, libraryUnreadBadgeBackdrop, libraryUnreadBadgeOptions,
+} from '../components/LibraryUnreadBadge'
 import { LibrarySortMenuItems, librarySortLabel, librarySortSummary } from '../components/LibrarySortMenu'
 import { cachedLibraryChapterUpdateTimes } from '../model/LibraryChapterUpdates'
 import { createLibraryListDetails, LibraryListDetails } from '../model/LibraryListPresentation'
@@ -2377,6 +2379,7 @@ export struct LibraryPage {
         unreadBadgeCount: this.unreadForCover(readComic().id),
         selected: this.isComicSelected(readComic().id),
         reuseAcrossWorks: true,
+        cacheUnreadBackdrop: LIBRARY_UNREAD_BADGE_FROSTING_ENABLED,
         coverDecodeMaxEdge: this.libraryGridCoverDecodeEdge(),
       })
         .onTouch((event: TouchEvent) => {

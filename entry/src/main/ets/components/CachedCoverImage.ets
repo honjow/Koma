@@ -4,6 +4,7 @@ import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
+import { effectKit } from '@kit.ArkGraphics2D'
 import {
   configureReaderRemoteImageCache,
   fetchAndCacheSourceRuntimeCoverImage,
@@ -15,15 +16,57 @@ import { invalidateCachedCoverImagePath, resolveCachedCoverImage } from '../mode
 import { waitForRestoredLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAccessService'
 import {
   CoverPixelMapLease,
+  CoverPixelMapMemoryCache,
   coverPixelMapMemoryCache,
   coverPixelMapMemoryCacheKey,
 } from '../model/CoverPixelMapMemoryCache'
 import { coverImageAutomaticRetryDelayMs } from '../model/CoverImageRetryPolicy'
 import { cacheCoverMainColor } from '../model/CoverMainColor'
+import {
+  BADGE_INSET, badgeBackdropHeight, badgeBackdropWidth, libraryUnreadBadgeBackdrop, UNREAD_BADGE_BLUR_RADIUS,
+} from './LibraryUnreadBadge'
 
 const COVER_DECODE_MAX_EDGE: number = 320
 const COVER_RESAMPLE_MAX_INPUT_EDGE: number = 2048
 const COVER_FADE_DURATION_MS: number = 200
+const BADGE_COVER_SCALE: number = 0.5
+const unreadBadgeCovers = new CoverPixelMapMemoryCache(96, 6 * 1024 * 1024)
+
+async function blurBadgeCover(source: CoverPixelMapLease, radius: number, cover: image.Size,
+  badge: image.Region): Promise<image.PixelMap> {
+  const retained = coverPixelMapMemoryCache.acquire(source.key)
+  if (retained === undefined || retained.entryToken !== source.entryToken) {
+    await coverPixelMapMemoryCache.release(retained)
+    throw new Error('Cover was replaced before preparing its unread backdrop')
+  }
+  let input: image.PixelMap | undefined
+  let result: image.PixelMap | undefined
+  let keepResult = false
+  try {
+    input = await retained.pixelMap.createScaledPixelMap(BADGE_COVER_SCALE, BADGE_COVER_SCALE,
+      image.AntiAliasingLevel.MEDIUM)
+    result = await effectKit.createEffect(input).blur(radius).getEffectPixelMap(true)
+    // Blur before taking the badge rectangle so pixels outside the capsule
+    // still influence its edges. Match ImageFit.Cover's centered crop.
+    const bitmap = result.getImageInfoSync().size
+    const scale = Math.max(cover.width / bitmap.width, cover.height / bitmap.height)
+    const x = Math.min(bitmap.width - 1,
+      Math.max(0, Math.round((bitmap.width - cover.width / scale) / 2 + badge.x / scale)))
+    const y = Math.min(bitmap.height - 1,
+      Math.max(0, Math.round((bitmap.height - cover.height / scale) / 2 + badge.y / scale)))
+    const width = Math.min(bitmap.width - x, Math.max(1, Math.round(badge.size.width / scale)))
+    const height = Math.min(bitmap.height - y, Math.max(1, Math.round(badge.size.height / scale)))
+    await result.crop({ x, y, size: { width, height } })
+    const cropped = result.getImageInfoSync().size
+    if (cropped.width !== width || cropped.height !== height) throw new Error('Unexpected unread backdrop crop')
+    keepResult = true
+    return result
+  } finally {
+    if (result !== undefined && !keepResult && result !== input) await result.release().catch((): void => {})
+    if (input !== undefined && (input !== result || !keepResult)) await input.release().catch((): void => {})
+    await coverPixelMapMemoryCache.release(retained)
+  }
+}
 
 /** Round physical pixels upward to reuse cache entries across near-identical layouts. */
 export function coverDecodeEdgeForDisplay(heightVp: number, fallback: number = COVER_DECODE_MAX_EDGE): number {
@@ -167,9 +210,13 @@ export struct CachedCoverImage {
   @Param remoteServerId: string = ''
   @Param decodeMaxEdge: number = COVER_DECODE_MAX_EDGE
   @Param extractMainColor: boolean = false
+  @Param unreadBackdropCount: number | undefined = undefined
   @Event onError: () => void = () => {}
   @Event onReady: () => void = () => {}
   @Local private pixelMap: image.PixelMap | undefined = undefined
+  @Local private unreadBackdrop: image.PixelMap | undefined = undefined
+  @Local private coverWidth: number = 0
+  @Local private coverHeight: number = 0
   @Local private displayedOwnerId: string = ''
   @Local private animatedCover: AnimatedCover | undefined = undefined
   @Local private animatedCoverVisible: boolean = false
@@ -188,6 +235,9 @@ export struct CachedCoverImage {
   private loadingSignature: string = ''
   private loadingGeneration: number = 0
   private pixelMapLease: CoverPixelMapLease | undefined = undefined
+  private unreadBackdropLease: CoverPixelMapLease | undefined = undefined
+  private unreadBackdropGeneration: number = 0
+  private unreadBackdropTimer: number = -1
   private failedAnimationSignature: string = ''
   private automaticRetryTimer: number = -1
   private completedAutomaticRetries: number = 0
@@ -246,6 +296,7 @@ export struct CachedCoverImage {
     this.disposed = true
     this.decodeGeneration += 1
     this.cancelAutomaticRetry()
+    this.releaseUnreadBackdrop()
     // Do not mutate @Local render state during component destruction. The
     // component tree is leaving; only return the ownership lease to the cache.
     const lease = this.pixelMapLease
@@ -261,6 +312,7 @@ export struct CachedCoverImage {
   }
 
   private async releasePixelMap(): Promise<void> {
+    this.releaseUnreadBackdrop()
     this.pixelMap = undefined
     this.animatedCover = undefined
     this.displayedSignature = ''
@@ -279,6 +331,7 @@ export struct CachedCoverImage {
     // this order would leave Image bound to a released PixelMap (and visibly
     // flash blank) between detail-list cover identities.
     const previousLease = this.pixelMapLease
+    this.releaseUnreadBackdrop()
     this.pixelMapLease = lease
     // A memory hit can paint in the first frame. Keep it immediate; fade only
     // when a loaded image actually replaces a placeholder, not another cover.
@@ -291,6 +344,7 @@ export struct CachedCoverImage {
     this.completedAutomaticRetries = 0
     this.cancelAutomaticRetry()
     if (this.extractMainColor) void cacheCoverMainColor(this.mainColorKey(), lease)
+    this.updateUnreadBackdrop()
     await coverPixelMapMemoryCache.release(previousLease)
   }
 
@@ -311,6 +365,7 @@ export struct CachedCoverImage {
     this.completedAutomaticRetries = 0
     this.cancelAutomaticRetry()
     const lease = this.pixelMapLease
+    this.releaseUnreadBackdrop()
     this.pixelMapLease = undefined
     this.pixelMap = undefined
     void coverPixelMapMemoryCache.release(lease)
@@ -548,6 +603,65 @@ export struct CachedCoverImage {
     this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId, this.sourceKind, this.remoteServerId, this.sourceMangaUrl)
   }
 
+  private releaseUnreadBackdrop(): void {
+    if (this.unreadBackdropCount === undefined && this.unreadBackdropGeneration === 0) return
+    this.unreadBackdropGeneration += 1
+    if (this.unreadBackdropTimer !== -1) {
+      clearTimeout(this.unreadBackdropTimer)
+      this.unreadBackdropTimer = -1
+    }
+    if (!this.disposed) this.unreadBackdrop = undefined
+    const lease = this.unreadBackdropLease
+    this.unreadBackdropLease = undefined
+    void unreadBadgeCovers.release(lease)
+  }
+
+  @Monitor('unreadBackdropCount')
+  private updateUnreadBackdrop(): void {
+    const source = this.pixelMapLease
+    if (this.disposed || (this.unreadBackdropCount ?? 0) <= 0 || source === undefined ||
+      this.coverWidth <= 0 || this.coverHeight <= 0 || this.animatedCover !== undefined) {
+      if (this.unreadBackdropLease !== undefined || this.unreadBackdropTimer !== -1) this.releaseUnreadBackdrop()
+      return
+    }
+    let dimensions: image.Size
+    try {
+      dimensions = source.pixelMap.getImageInfoSync().size
+    } catch (_error) {
+      this.releaseUnreadBackdrop()
+      return
+    }
+    const context = this.getUIContext()
+    const cover: image.Size = { width: context.vp2px(this.coverWidth), height: context.vp2px(this.coverHeight) }
+    const inset = context.vp2px(BADGE_INSET)
+    const badge: image.Region = { x: inset, y: inset, size: {
+      width: context.vp2px(badgeBackdropWidth(this.unreadBackdropCount ?? 0, context)),
+      height: context.vp2px(badgeBackdropHeight(context)),
+    } }
+    const scale = Math.max(cover.width / dimensions.width, cover.height / dimensions.height)
+    if (!Number.isFinite(scale) || scale <= 0) return
+    const radius = Math.max(1, Math.round(context.vp2px(UNREAD_BADGE_BLUR_RADIUS) * BADGE_COVER_SCALE / scale))
+    const key = `${source.entryToken}:${radius}:${cover.width}:${cover.height}:${badge.size.width}:${badge.size.height}:${inset}`
+    if (this.unreadBackdropLease?.key === key) return
+    this.releaseUnreadBackdrop()
+    const generation = this.unreadBackdropGeneration
+    const prepare = (): void => {
+      this.unreadBackdropTimer = -1
+      void unreadBadgeCovers.acquireOrLoad(key, () => blurBadgeCover(source, radius, cover, badge)).then((lease: CoverPixelMapLease) => {
+        if (this.disposed || generation !== this.unreadBackdropGeneration || this.pixelMapLease !== source ||
+          (this.unreadBackdropCount ?? 0) <= 0) {
+          void unreadBadgeCovers.release(lease)
+          return
+        }
+        this.unreadBackdropLease = lease
+        this.unreadBackdrop = lease.pixelMap
+      }).catch((): void => { /* The translucent badge already has a cover behind it. */ })
+    }
+    // The existing image fade must finish before its static backdrop appears.
+    if (this.fadeStaticCover) this.unreadBackdropTimer = setTimeout(prepare, COVER_FADE_DURATION_MS)
+    else prepare()
+  }
+
   @Builder
   private AnimatedCoverImage(cover: AnimatedCover) {
     Image(cover.uri)
@@ -558,6 +672,26 @@ export struct CachedCoverImage {
       .opacity(this.animatedCoverVisible ? 1 : 0)
       .onComplete(() => { this.onAnimatedCoverReady(cover); this.onReady() })
       .onError(() => { this.onAnimatedCoverError(cover) })
+  }
+
+  @Builder
+  private FrostedUnreadBadge() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      libraryUnreadBadgeBackdrop({ count: this.unreadBackdropCount, context: this.getUIContext(),
+        blurredCover: this.unreadBackdrop })
+    }
+    .width('100%')
+    .height('100%')
+    .hitTestBehavior(HitTestMode.None)
+    .accessibilityLevel('no')
+    .onSizeChange((_old: SizeOptions, size: SizeOptions): void => {
+      const width = Number(size.width)
+      const height = Number(size.height)
+      if (width === this.coverWidth && height === this.coverHeight) return
+      this.coverWidth = width
+      this.coverHeight = height
+      this.updateUnreadBackdrop()
+    })
   }
 
   build() {
@@ -575,6 +709,9 @@ export struct CachedCoverImage {
       }
       if (this.animatedCover !== undefined && this.displayedOwnerId === this.coverOwnerId) {
         this.AnimatedCoverImage(this.animatedCover)
+      }
+      if ((this.unreadBackdropCount ?? 0) > 0) {
+        this.FrostedUnreadBadge()
       }
     }
     .width('100%')

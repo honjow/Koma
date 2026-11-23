@@ -24,6 +24,7 @@ export struct ComicCoverCard {
   @Param selected: boolean = false
   @Param unreadBadgeCount: number | undefined = undefined
   @Param reuseAcrossWorks: boolean = false
+  @Param cacheUnreadBackdrop: boolean = false
   @Param coverDecodeMaxEdge: number = 320
   @Local private failedCoverUri: string = ''
   @Local private categoryMarqueeStarted: boolean = false
@@ -105,6 +106,8 @@ export struct ComicCoverCard {
       objectFit: ImageFit.Cover,
       decodeMaxEdge: this.coverDecodeMaxEdge,
       extractMainColor: true,
+      unreadBackdropCount: this.cacheUnreadBackdrop && !this.selected
+        ? (this.unreadBadgeCount ?? this.comic.unreadChapterCount ?? 0) : undefined,
       sourceRuntimeId: this.displaySourceRuntimeId(),
       sourceImageId: this.displaySourceImageId(),
       sourceKind: this.comic.sourceKind,
@@ -134,7 +137,9 @@ export struct ComicCoverCard {
               .backgroundColor(ThemeConstants.SELECTED_OVERLAY)
           }
 
-          libraryUnreadBadgeBackdrop({ count: this.unreadBadgeCount ?? this.comic.unreadChapterCount, context: this.getUIContext() })
+          if (!this.cacheUnreadBackdrop || this.selected || !this.shouldDisplayCoverImage()) {
+            libraryUnreadBadgeBackdrop({ count: this.unreadBadgeCount ?? this.comic.unreadChapterCount, context: this.getUIContext() })
+          }
         }
         .width('100%')
         .aspectRatio(COMIC_COVER_ASPECT_RATIO)

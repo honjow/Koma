@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-24T02:34:52+08:00",
+  "updatedAt": "2026-11-24T04:08:59+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -2765,19 +2765,20 @@
       "number": 244,
       "title": "书架滑动偶发卡顿",
       "kind": "exception",
-      "progressPhase": "verification",
+      "progressPhase": "needs_work",
       "priority": "用户反馈",
-      "status": "103 复测确认角标模糊是已拆分装饰层中最大开销",
-      "stage": "同一五列网格八次惯性已完成分项追踪",
+      "status": "103 已验证默认 70% 半透明，角标实时滤镜开销归零",
+      "stage": "用户选定半透明，103 保留普通入口验证通过的同签包",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-08",
       "reportedAtSource": "本轮用户反馈，原始消息时刻未核实。",
       "result": "197 最终候选从主屏恢复书架后 150ms 开始连续六次上下滑动，trace 覆盖 1021 个应用帧，最长 5.572ms，0 帧超过 8.3ms。代码路径上，回前台的私有库进度同步不再在 UI 线程重读并 hydrate 整份书库；后台更新结果合并也不再为回滚序列化整库，只回滚受影响的几本。2026-11-24 在 103 已安装的 1.6.1 (27) 沿「全部」五列网格滚动，首屏 15 张作品卡，后段同屏 20 张，与首屏无重合。四次惯性期间系统分别报告合成最长帧 16、16、16、18ms，应用 UI 帧回调最长 11.1ms；系统追踪记录 5.17 秒内 492 次合成。较慢帧的主要耗时集中在重绘 Koma 窗口和提交图形命令。",
-      "remaining": "两轮合计 1003 个合成帧。按两轮均值，未读角标模糊 0.79–0.90ms/合成帧，底部原生导航栏和续读迷你栏合计 0.29–0.33ms，顶部标题栏相关模糊 0.21–0.24ms。应用布局均值约 1.36ms/应用帧，列表空闲预构建最长 10.34ms；首次样本出现后台封面取色，重复滚动无同类取色事件仍掉帧。真机追踪没有逐效果 GPU 计时，封面最终绘制、阴影和裁剪仍在整窗合成内。可优先研究复用已解码封面预生成角标局部模糊，保留原未读数字、颜色、透明度、模糊和阴影。候选及逐项开关对照尚未验证。",
-      "updatedAt": "2026-11-24T02:20:45+08:00",
+      "remaining": "同包 A/B 关闭 50% 半透明角标的实时滤镜后，系统合成 P95 由 21.768–22.695 降到 14.071–14.158ms，超过 20ms 的帧由 82 降到 0。裁后磨砂较纯半透明仍多 0.8–1.3ms，默认关闭。103 普通五列书架以 70% 底色用同一四次惯性协议对照小号外阴影：合成 P95 15.095 → 15.309ms，最长 18.413 → 17.256ms，角标实时滤镜调用仍为零。更多负载、设备和列表实际性能未由本次网格测量覆盖。",
+      "updatedAt": "2026-11-24T04:08:59+08:00",
       "relatedItems": [
-        "CONTINUOUS_PERFORMANCE"
+        "CONTINUOUS_PERFORMANCE",
+        "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR"
       ],
       "evidencePaths": [
         ".hvigor/outputs/reader-stall-root-20261108/shelf-base-frames.jsonl",
@@ -2789,7 +2790,15 @@
         ".hvigor/outputs/shelf-grid-jank-20261124/103-summary.json",
         ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/02-inertia-trace/trace.htrace",
         ".hvigor/outputs/shelf-grid-jank-20261124/103-attribution.json",
-        ".hvigor/outputs/shelf-grid-jank-20261124/103-attribution-repeat.json"
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-attribution-repeat.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-optimization-comparison.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-card-reuse-comparison.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-badge-blur-ab-comparison.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-badge-blur-ab-appearance.png",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-static-vs-plain-comparison.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-cropped-vs-plain-comparison.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/77-translucent-70-inertia/attribution.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/80-translucent-70-shadow-sm-inertia/attribution.json"
       ],
       "latestCounterexampleAt": "2026-11-08T21:10:00+08:00"
     },
@@ -13110,22 +13119,26 @@
     {
       "id": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
       "number": 354,
-      "title": "书架未读数字角标使用封面主色与半透明模糊背景",
+      "title": "书架未读数字角标使用封面主色与半透明背景",
       "kind": "verified",
       "priority": "用户本轮界面调整",
       "owner": "Root",
-      "status": "分组复用双层背景及零未读空背景已修正，201实机复验通过",
-      "updatedAt": "2026-11-23T22:24:25+08:00",
+      "status": "默认采用 70% 半透明与小号外阴影，103 网格已实测",
+      "updatedAt": "2026-11-24T04:08:59+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求数字标识背景采用带透明度的模糊，原消息精确时刻未核实。",
       "relatedItems": [
-        "LIBRARY_READING_PROGRESS_SEMANTICS"
+        "LIBRARY_READING_PROGRESS_SEMANTICS",
+        "LIBRARY_SCROLL_OCCASIONAL_STALL"
       ],
       "result": "取色沿用AndroidX Palette鲜明色目标评分，系统量化色板与后台像素占比作宿主适配，所选RGB保持原值。用户要求避免过白后，对全部候选及回退设置HSL明度不超过70%的过滤。已彻底删除造成重影的额外文字层，数字只由原生Badge绘制，空Row负责模糊底板，几何通过系统文字测量取得。用户评价“总算是好多了”后继续要求胶囊外阴影，现使用系统OUTER_DEFAULT_XS。197按用户指定的未读章节数倒序，连续4屏核对21部带标作品；此前偏白的108已换为较深的封面色块，199等重影消失。网格、列表计数一致，正常速度上下滚动抽帧未见底板脱离。发行候选构建与取色关键逻辑检查通过，原网格、原SLEEP/10000ms已恢复并释租，保留同签1.6.1开发包。 本轮按用户实际反例修正公共Builder刷新：原多参数按值Builder在复用时保留旧未读数，改为单个$$对象按引用传参，两处封面入口共用原生Badge可见性和当前计数。保留原白字、封面主色、50%透明、模糊、尺寸及轻外阴影。201从包子496/159切全部51/78无双层背景；已有5部零未读作品不显示数字或空胶囊，未修改任何读数。最终整合包冷启动及书架进退后原496/159仍在。",
       "remainingActions": [],
-      "remaining": "本轮修复与201具名复验完成，未提交或推送。",
+      "remaining": "用户采用 70% 不透明度的半透明底色，并要求加深胶囊周围的阴影。外阴影由系统微型档调为小号档。原生数字、零未读隐藏和封面主色沿用。裁后磨砂保留为网格可选实现，默认关闭。103 已同签复核五列书架并保留新包。列表共用底色和阴影组件，本次未单独实机复测列表。",
       "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-70-shadow-sm-comparison.png",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-70-preview.png",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-70-appearance-check.json",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/build.log",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/geometry-check.json",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/candidate-174346744465/screen.png",
@@ -31613,6 +31626,82 @@
       "detail": "106份已有设备协议单独提交c0825e52作为历史记录，不冒当前验收。已补交存储5305ac49、重读fafc56cf与跨章候选35af6d83；候选性能待验边界保留。剩余Lexbor只是发版时保留的原检出差异，2附件与1工具路径未混入产品。执行规则补充跨轮完整核对和及时提交约束。",
       "evidence": [
         ".hvigor/outputs/workspace-audit-20261124/ownership.json"
+      ]
+    },
+    {
+      "id": "library-grid-card-reuse-103-20261124",
+      "at": "2026-11-24T03:04:02+08:00",
+      "itemId": "LIBRARY_SCROLL_OCCASIONAL_STALL",
+      "kind": "verification",
+      "title": "103 撤回未通过完整滚动验证的两版卡片复用",
+      "detail": "首版多次滚动后卡片仍显示占位图，先前帧时间对照作废。更新复用绑定后正常封面通过十次往返核对，两轮同手势系统合成 95 分位为 15.716 和 23.198ms，第二轮列表预构建尖峰 43.759ms，撤回该方案。",
+      "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-card-reuse-comparison.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-reuse-remount-extended-pixels.json"
+      ]
+    },
+    {
+      "id": "library-grid-badge-blur-ab-103-20261124",
+      "at": "2026-11-24T03:16:10+08:00",
+      "itemId": "LIBRARY_SCROLL_OCCASIONAL_STALL",
+      "kind": "verification",
+      "title": "103 同包验证实时角标模糊的合成开销",
+      "detail": "用户授权临时软开关。相同 HAP、相同五列「全部」书架和惯性手势，开关只改变实时模糊。关闭后滤镜轨迹归零。两轮关闭无超过 20ms 的系统合成帧，恢复时同区域角标截图像素回到原值并重现长帧。临时开关和安装包证据留本地，生产工作区回到原外观。",
+      "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-badge-blur-ab-comparison.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-badge-blur-ab-appearance.png",
+        ".hvigor/outputs/shelf-grid-jank-20261124/shelf-badge-ab-temporary-switch.diff"
+      ]
+    },
+    {
+      "id": "library-grid-static-vs-plain-103-20261124",
+      "at": "2026-11-24T03:34:13+08:00",
+      "itemId": "LIBRARY_SCROLL_OCCASIONAL_STALL",
+      "kind": "verification",
+      "title": "103 直接对照静态磨砂与纯半透明",
+      "detail": "用户接受磨砂有轻微外观差异。相同 HAP 及匹配的起点，模式各四次首次滑动、四次重复滑动。排除重启后作品顺序与续读卡变化的半透明样本。系统合成 P95 首轮 16.719 对 14.954ms，重复 16.530 对 14.127ms，静态和半透明超过16.67ms 分别 39/817 和 5/999；静态重复追踪仍有 68 次异步底图生成。试验只切换磨砂位图与纯半透明，两个模式的实时角标滤镜均为零。103 回到原外观的缺源修复包和原屏幕超时，已释租。",
+      "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-static-vs-plain-comparison.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/static-vs-plain-tested.diff"
+      ]
+    },
+    {
+      "id": "library-grid-cropped-badge-103-20261124",
+      "at": "2026-11-24T03:46:41+08:00",
+      "itemId": "LIBRARY_SCROLL_OCCASIONAL_STALL",
+      "kind": "verification",
+      "title": "103 先模糊后裁剪并缓存角标底图的同包对照",
+      "detail": "相同书架起点和手势各八次惯性。裁后与纯半透明系统合成 P95 首次 15.965 对 15.141ms、重复 15.593 对 14.332ms，最长 19.225 对 17.878ms，超过 16.67ms 分别 16/951 和 4/1007。裁后底图最大 4000 字节，重复追踪生成 35 次，上一整张静态封面试验为 68 次。首屏相同作品封面核对区域像素一致，磨砂与纯半透明在角标区域可区分。103 留同签裁后磨砂测试包，原屏幕超时恢复且释租；正式实现未采用试验参数。",
+      "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-cropped-vs-plain-comparison.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-cropped-vs-plain-appearance.png",
+        ".hvigor/outputs/shelf-grid-jank-20261124/cropped-vs-plain-tested.diff"
+      ]
+    },
+    {
+      "id": "library-badge-translucent-70-103-20261124",
+      "at": "2026-11-24T03:54:38+08:00",
+      "itemId": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "kind": "verification",
+      "title": "采用 70% 半透明角标并实机复核",
+      "detail": "默认去掉实时背景滤镜，网格与列表用封面主色的 70% 不透明度。保留先模糊后裁剪的备选代码和有界缓存，默认无底图生成。103 普通网格三个区域核对底色变化、封面本身像素相同。四次惯性合成 P95 15.095ms，最长 18.413ms，实时角标滤镜计时为零。设备保留新包，书架回到原位置，原 600000ms 屏幕超时读回并释放租约。",
+      "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-70-appearance-check.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-70-tests.log",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/77-translucent-70-inertia/attribution.json"
+      ]
+    },
+    {
+      "id": "library-badge-shadow-103-20261124",
+      "at": "2026-11-24T04:08:59+08:00",
+      "itemId": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "kind": "verification",
+      "title": "103 复核 70% 角标的小号外阴影",
+      "detail": "同位置实拍抽查三个胶囊，右侧及下沿变深，胶囊内部像素一致或近似一致。四次惯性协议与微型阴影版匹配，519 个合成帧 P95 15.309ms、最长 17.256ms，实时角标滤镜调用为零。发行候选构建和未读计数、取色、分类检查通过。103 回到原书架位置，原 10000ms override 读回，保留同签包并释放租约。",
+      "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-70-shadow-sm-comparison.png",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/80-translucent-70-shadow-sm-inertia/attribution.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/81-translucent-70-shadow-sm-retained-anchor/run-metadata.json"
       ]
     }
   ],

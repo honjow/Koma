@@ -24,7 +24,7 @@ function channelHex(channel: number): string {
 
 // Main color is a display-only derivative of the decoded cover, never a new
 // network request or a change to the stored artwork. Keep the original color
-// as fallback, and retain 50% opacity/blur in LibraryUnreadBadge.
+// as fallback and let LibraryUnreadBadge own opacity and shadow.
 export function cacheCoverMainColor(key: string, lease: CoverPixelMapLease): Promise<void> {
   const requestKey = `${key}::${lease.entryToken}`
   const inFlight = pending.get(requestKey)

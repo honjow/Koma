@@ -55,6 +55,14 @@ export class CoverPixelMapMemoryCache {
   private readonly entriesByToken: Map<number, CoverPixelMapCacheEntry> = new Map<number, CoverPixelMapCacheEntry>()
   private readonly inFlightByKey: Map<string, Promise<CoverPixelMapLease>> = new Map<string, Promise<CoverPixelMapLease>>()
   private nextToken: number = 1
+  private readonly maxEntries: number
+  private readonly maxBytes: number
+
+  constructor(maxEntries: number = COVER_PIXEL_MAP_MEMORY_MAX_ENTRIES,
+    maxBytes: number = COVER_PIXEL_MAP_MEMORY_MAX_BYTES) {
+    this.maxEntries = maxEntries
+    this.maxBytes = maxBytes
+  }
 
   acquire(key: string): CoverPixelMapLease | undefined {
     const entry = this.entriesByKey.get(key)
@@ -157,8 +165,7 @@ export class CoverPixelMapMemoryCache {
   }
 
   private async evictIfNeeded(): Promise<void> {
-    while (this.entriesByKey.size > COVER_PIXEL_MAP_MEMORY_MAX_ENTRIES ||
-      this.indexedByteSize() > COVER_PIXEL_MAP_MEMORY_MAX_BYTES) {
+    while (this.entriesByKey.size > this.maxEntries || this.indexedByteSize() > this.maxBytes) {
       const candidate = this.oldestUnleasedEntry()
       if (candidate === undefined) {
         // Visible components own the remaining maps. Keeping them until their
