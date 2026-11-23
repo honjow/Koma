@@ -2774,7 +2774,8 @@ test('declared public GET redirect drops prior-origin credentials without creati
   f.changeEntry(e => ({ ...e, webSessionOrigins: ['https://site.invalid', 'https://mobile.invalid'] }))
   f.grant()
   const headers = { Cookie: 'source-private', Authorization: 'Bearer private', 'X-Api-Key': 'private',
-    Referer: 'https://site.invalid/private', 'User-Agent': 'SourceUA', Accept: 'text/html' }
+    Referer: 'https://site.invalid/private', 'User-Agent': 'SourceUA', Accept: 'text/html',
+    'Cache-Control': 'no-cache', 'Sec-Fetch-Dest': 'image', 'Sec-CH-UA-Mobile': '?1' }
   const r = await f.http([response(301, { Location: 'https://mobile.invalid/chapter' }), response()],
     JSON.stringify(f.identity()), { headers })
   assert.equal(r.result.status, 200)
@@ -2791,7 +2792,8 @@ test('redirected target challenge is probed at that origin and handed back only 
   const f = fixture(), initial = 'https://site.invalid/a', target = 'https://mobile.invalid/a'
   f.changeEntry(e => ({ ...e, webSessionOrigins: ['https://site.invalid', 'https://mobile.invalid'] }))
   f.grant()
-  const headers = { Cookie: 'source-private', Authorization: 'Bearer private', Accept: 'text/html' }
+  const headers = { Cookie: 'source-private', Authorization: 'Bearer private', Accept: 'text/html',
+    Referer: 'https://site.invalid/private', 'Cache-Control': 'no-cache', 'Sec-Fetch-Dest': 'image' }
   const context = JSON.stringify(f.identity())
   const r = await f.http([response(301, { location: target }), response(403), response()], context, { headers }, {
     afterInitial: async ({ transport, execute }) => {
@@ -2809,6 +2811,11 @@ test('redirected target challenge is probed at that origin and handed back only 
   assert.equal(r.calls[2].options.header.Cookie, 'mobile-session')
   assert.equal(r.calls[2].options.header.Authorization, undefined)
   assert.equal(r.calls[2].options.header['User-Agent'], 'MobileUA')
+  for (const call of r.calls.slice(1)) {
+    assert.equal(call.options.header.Referer, undefined)
+    assert.equal(call.options.header['Cache-Control'], undefined)
+    assert.equal(call.options.header['Sec-Fetch-Dest'], undefined)
+  }
   assert.equal(f.diagnostics.includes('state=used_once'), true)
 })
 
@@ -2816,7 +2823,8 @@ test('effective response URL requires an installed HTTPS scope and keeps credent
   const f = fixture()
   const final = 'https://viewer.invalid/read?cid=demo%2Ftoken'
   const redirect = () => ({ responseCode: 302, result: '', header: { location: [final] } })
-  const read = { includeResponseUrl: true, headers: { Accept: 'text/html', Referer: 'https://site.invalid/reader' } }
+  const read = { includeResponseUrl: true, headers: { Accept: 'text/html', Referer: 'https://site.invalid/reader',
+    'Cache-Control': 'no-cache', 'Sec-Fetch-Dest': 'document' } }
   const noGrant = await f.http([redirect()], JSON.stringify(f.identity()), read)
   assert.equal(noGrant.result.error.code, 'invalid_request')
   assert.equal(noGrant.calls.length, 0)
@@ -2829,6 +2837,10 @@ test('effective response URL requires an installed HTTPS scope and keeps credent
   assert.equal(success.result.bodyText, 'reader')
   assert.ok(success.calls[0].options.header.Cookie)
   assert.deepEqual(Object.keys(success.calls[1].options.header), ['Accept'])
+
+  const sourceSession = await f.http([redirect(), response()], context, { ...read, session: 'source' })
+  assert.equal(sourceSession.result.responseUrl, final)
+  assert.deepEqual(Object.keys(sourceSession.calls[1].options.header), ['Accept'])
 
   const rejected = await f.http([{ ...redirect(), header: { Location: 'https://other.invalid/read' } }], context, read)
   assert.equal(rejected.result.error.code, 'invalid_request')
@@ -2885,25 +2897,51 @@ test('declared target does not authorize anonymous cross-origin POST redirect', 
   assert.equal(r.result.error.code, 'web_session_redirect_rejected')
 })
 
-test('binary source HTTP preserves exact bytes and its cookie session survives a following request', async () => {
+test('binary source HTTP preserves public IMAGE headers across redirects and isolates each origin cookie session', async () => {
   const f = fixture()
   const bytes = Uint8Array.from([0, 255, 137, 80, 78, 71, 0, 128])
   const context = JSON.stringify(f.identity())
-  const request = { session: 'source', responseKind: 'bodyBytes' }
-  const initial = { responseCode: 200, result: bytes.buffer, header: { 'Set-Cookie': ['own-session=one; Secure; HttpOnly; Path=/'] } }
-  const result = await f.http([initial, response()], context, request, {
-    afterInitial: async ({ execute }) => JSON.parse(await execute(JSON.stringify({
-      url: 'https://site.invalid/next', method: 'GET', session: 'source',
-    }), context)),
+  // Pinned Madara.getImageRequest sets the full page.url, while bare Fetch.IMAGE
+  // has no FromPage tag. Keep that explicit public Referer rather than apply
+  // Web-grant credential filtering to the source's separate HTTP Cookie jar.
+  const publicHeaders = { Referer: 'https://site.invalid/manga/work/c-104/?style=list',
+    Accept: 'image/avif,image/webp,image/*,*/*;q=0.8', 'Accept-Language': 'zh-CN,zh;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br', 'User-Agent': 'SourceUA',
+    'Cache-Control': 'no-cache', Pragma: 'no-cache', Priority: 'u=5, i',
+    'Sec-Fetch-Mode': 'no-cors', 'Sec-Fetch-Dest': 'image', 'Sec-Fetch-Site': 'cross-site',
+    'Sec-Fetch-Storage-Access': 'none', 'Sec-CH-UA': '"Chromium";v="131"', 'Sec-CH-UA-Mobile': '?1',
+    'Sec-CH-UA-Platform': '"Android"', 'Sec-CH-UA-Full-Version-List': '"Chromium";v="131.0.0.0"' }
+  const request = { session: 'source', responseKind: 'bodyBytes', headers: { ...publicHeaders,
+    Cookie: 'explicit=origin-only', Authorization: 'Bearer origin-only',
+    'Proxy-Authorization': 'Basic origin-only', 'X-Api-Key': 'origin-only' } }
+  const initial = { responseCode: 302, result: new ArrayBuffer(0), header: {
+    Location: 'https://cdn.invalid/image', 'Set-Cookie': ['own-session=one; Secure; HttpOnly; Path=/'] } }
+  const target = { responseCode: 200, result: bytes.buffer, header: {
+    'Set-Cookie': ['cdn-session=two; Secure; HttpOnly; Path=/'] } }
+  const result = await f.http([initial, target, response(), response()], context, request, {
+    afterInitial: async ({ execute }) => {
+      const cdn = JSON.parse(await execute(JSON.stringify({
+        url: 'https://cdn.invalid/next', method: 'GET', session: 'source',
+      }), context))
+      const site = JSON.parse(await execute(JSON.stringify({
+        url: 'https://site.invalid/next', method: 'GET', session: 'source',
+      }), context))
+      return { cdn, site }
+    },
   })
   assert.deepEqual([...Buffer.from(result.result.bodyBase64, 'base64')], [...bytes])
   assert.equal(result.result.bodyText, '')
-  assert.equal(result.after.status, 200)
-  assert.equal(result.calls[1].options.header.Cookie, 'own-session=one')
-  assert.equal(result.calls[1].options.header['User-Agent'], undefined)
+  assert.deepEqual(JSON.parse(JSON.stringify(result.calls[1].options.header)), publicHeaders)
+  assert.equal(result.after.cdn.status, 200)
+  assert.equal(result.after.site.status, 200)
+  assert.equal(result.calls[2].options.header.Cookie, 'cdn-session=two')
+  assert.equal(result.calls[3].options.header.Cookie, 'own-session=one')
+  assert.equal(result.calls[3].options.header['User-Agent'], undefined)
   assert.equal(result.calls[0].options.maxLimit, 1024 * 1024)
-  assert.equal(Object.hasOwn(result.calls[1].options, 'maxLimit'), false)
+  assert.equal(result.calls[1].options.maxLimit, 1024 * 1024)
+  assert.equal(Object.hasOwn(result.calls[3].options, 'maxLimit'), false)
   assert.equal(f.cookieReads.length, 0)
+  assert(result.instances.every(request => request.destroyed))
 })
 
 test('binary upload reaches NetworkKit as bytes and public response headers retain error data without cookies', async () => {

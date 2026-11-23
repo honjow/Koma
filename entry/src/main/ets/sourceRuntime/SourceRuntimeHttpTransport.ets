@@ -419,6 +419,24 @@ function sourcePublicRedirectHeaders(headers: Record<string, string>): Record<st
   return publicHeaders
 }
 
+// SourceCookies owns an independent HTTP jar, not a Web/CF authorization grant.
+// A source's explicit public Referer (Madara's bare Fetch.IMAGE uses page.url)
+// and browser metadata describe the request; they are not granted credentials.
+// Keep those headers intact, then let the jar select this hop's own cookies.
+// Web grants, pending probes and response-URL reads retain the narrower filter above.
+function sourceCookieRedirectHeaders(headers: Record<string, string>): Record<string, string> {
+  const publicHeaders: Record<string, string> = {}
+  Object.keys(headers).forEach((name: string): void => {
+    const lower = name.toLowerCase()
+    if (!/^[a-z0-9!#$%&'*+.^_`|~-]+$/i.test(name) || /[\u0000-\u0008\u000a-\u001f\u007f]/.test(headers[name])) return
+    if (['accept', 'accept-language', 'accept-encoding', 'user-agent', 'referer', 'cache-control',
+      'pragma', 'priority', 'dnt', 'sec-gpc', 'upgrade-insecure-requests'].includes(lower) ||
+      /^sec-fetch-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(lower) ||
+      /^sec-ch-ua(?:-[a-z0-9]+)*$/.test(lower)) publicHeaders[name] = headers[name]
+  })
+  return publicHeaders
+}
+
 function sourceAllowsAnonymousRedirect(identity: SourceHttpIdentity | undefined, initialUrl: string,
   nextUrl: string, method: string, body: string, probe: SourceWebProbeContext | undefined): boolean {
   if (probe !== undefined || identity === undefined || method !== 'GET' || body.length > 0) return false
@@ -1262,8 +1280,11 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     // timeout budget intact once its slot becomes available.
     policyWaitMs += Math.max(0, Date.now() - policyStartedAt)
     const crossOrigin = sourceWebOrigin(currentUrl) !== sourceWebOrigin(url)
-    let originalHeaders = crossOrigin && (sourceSession || session !== undefined || includeResponseUrl)
-      ? sourcePublicRedirectHeaders(sourceHeaders(envelope.headers)) : sourceHeaders(envelope.headers)
+    let originalHeaders = sourceHeaders(envelope.headers)
+    if (crossOrigin) {
+      if (sourceSession && !includeResponseUrl) originalHeaders = sourceCookieRedirectHeaders(originalHeaders)
+      else if (session !== undefined || includeResponseUrl) originalHeaders = sourcePublicRedirectHeaders(originalHeaders)
+    }
     if (dnsOverride !== undefined && crossOrigin) {
       // OkHttp drops Authorization when a redirect changes origin. The ordinary
       // transports retain their established behavior; this is only the opt-in channel path.
