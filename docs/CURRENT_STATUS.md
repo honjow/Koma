@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-24T04:08:59+08:00",
+  "updatedAt": "2026-11-24T04:16:56+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3566,8 +3566,8 @@
       "kind": "active",
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
-      "status": "13个候选仍待交付；巴卡漫画0.1.2已发布",
-      "updatedAt": "2026-11-24T02:34:52+08:00",
+      "status": "13个候选仍待交付；WNACG／巴卡上游同步已验，未发布",
+      "updatedAt": "2026-11-24T04:16:56+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -13416,6 +13416,21 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "keiyoushi-source-sync-20261124",
+      "at": "2026-11-24T04:16:56+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "checkpoint",
+      "title": "两源上游同步已本地提交，237具名路径通过，未发布",
+      "detail": "紳士漫畫0.1.11同步官网备用域名发现、普通Chrome UA与系统验证页UA分离、实际镜像身份匹配和失败时新旧域兼容；巴卡0.1.3同步标题／别名两路搜索、按稳定身份合并、原始页数判断、同标题别名去重及题材operator=AND，修正HTTP结束同时取消的竞态。源仓本地提交3b909b5、bde86fa、ef52e0d、8053473，未推送或公开发布，App代码及最低版本未改。237最终包读回一致：WNACG完成列表封面、南浜搜索、作品407003详情／单章目录及1/267首图，前五张正文请求200；巴卡最终包e16978b完成迷宫查询的两路POST200、4个去重作品，同词重复搜索无新验证。首次人工CF勾选后自动收起；最终重装后的包绑定授权也自动恢复原查询。题材实测暴露两项差异：旧WebHTTP GET403，改按上游Fetch.DOCUMENT复用现有Native文档路径后授权请求200；当前归档已无div.genres目录，仅有当页作品标签，对齐上游空目录省略题材控件而保留其余六项筛选，不能拿卡片标签冒充完整目录。最终实际WASM的13项搜索、9项文档边界、真实旧归档6题材及仅卡片标签两例均通过。简介Markdown转换仍保持已登记的纯段落适配差异；本轮未重验巴卡阅读／下载，不继承0.1.2验收充数。WNACG无痕恢复false；两份本轮传入源包及UI临时文件已清理，回原书架及第5页续读位置，10000ms和SLEEP读回，237已独立释租。#023其余13个候选继续开放，不由本次两源同步关闭。",
+      "evidence": [
+        ".hvigor/outputs/keiyoushi-sync-20261124/wnacg-wasm-results.json",
+        ".hvigor/outputs/keiyoushi-sync-20261124/bakamh-actual-wasm/results.json",
+        ".hvigor/outputs/keiyoushi-sync-20261124/bakamh-catalogue-review/final-genre-directory-results.json",
+        ".hvigor/outputs/keiyoushi-sync-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/upstream-sync/67-final-native-dynamic-filters/app.log",
+        ".hvigor/outputs/keiyoushi-sync-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/upstream-sync/71-final-navigation-and-power-restore/run-metadata.json"
+      ]
+    },
     {
       "id": "keiyoushi-wnacg-madara-behavior-gaps-20261124",
       "at": "2026-11-24T02:34:52+08:00",
