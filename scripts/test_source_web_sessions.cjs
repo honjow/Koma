@@ -291,10 +291,10 @@ test('bridge agent comes from the current exact-origin grant without reading coo
   assert.equal(f.store.requestContext(f.identity(), address), undefined)
 })
 
-function fetchBridgeFixture(fetchRequest) {
+function fetchBridgeFixture(fetchRequest, runtimeDate = Date) {
   const f = fixture(), window = {}, calls = []
   const context = vm.createContext({ window, URL, location: { origin: 'https://site.invalid' },
-    AbortController, TextEncoder, TextDecoder, setTimeout, clearTimeout,
+    AbortController, TextEncoder, TextDecoder, Blob, atob, btoa, Date: runtimeDate, setTimeout, clearTimeout,
     fetch: fetchRequest ?? (async () => ({ status: 200, text: async () => '<main>public document</main>' })) })
   const controller = { runJavaScript: async script => {
     calls.push(script)
@@ -304,10 +304,16 @@ function fetchBridgeFixture(fetchRequest) {
     if (name === './SourceWebSessionStore') return f.api
     if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { info() {} } }
     if (name === '@kit.ArkWeb') return {}
+    if (name === '@kit.ArkTS') return { util: { Base64Helper: class {
+      encodeToStringSync(bytes) { return Buffer.from(bytes).toString('base64') }
+      decodeSync(value) { return Uint8Array.from(Buffer.from(value, 'base64')) }
+    } } }
     throw Error('unexpected bridge import ' + name)
-  }, { setTimeout, setInterval, clearInterval, AppStorage: { setOrCreate() {} } })
+  }, { setTimeout, setInterval, clearInterval, Date: runtimeDate, AppStorage: { setOrCreate() {} } })
   const bridge = new SourceWebFetchBridge()
-  bridge.delay = async () => {}
+  // Real ReadableStream delivery may arrive on the next event-loop turn. A
+  // microtask-only busy loop starves that delivery, unlike the production timer.
+  bridge.delay = async () => { await new Promise(setImmediate) }
   return { bridge, controller, calls, window }
 }
 
@@ -402,10 +408,16 @@ test('generic Web HTTP executes method, text body and ordinary headers with real
 test('Web abort removes the job before late success; timeout, cancellation and replacement cannot republish', async () => {
   for (const reason of ['cancel', 'replace', 'timeout', 'script-timeout']) {
     let resolve, signal, live = true, sends = 0
+    let now = 0
+    const clock = class extends Date { static now() { return now } }
     const f = fetchBridgeFixture(async (_url, options) => {
       sends++; signal = options.signal
+      // This case asserts abort AFTER send. Advance a controlled clock only
+      // after observing fetch; a 1ms wall budget could legitimately expire
+      // before JS submission and never produce an AbortSignal to inspect.
+      if (reason.endsWith('timeout')) now = 1001
       return new Promise(done => { resolve = done }) // deliberately ignores abort
-    })
+    }, clock)
     const address = 'https://site.invalid/form', agent = 'VerifiedUA'
     f.bridge.attach(f.controller, 'source.one', address, agent, 1)
     f.bridge.markReady('source.one', address, agent, 1)
@@ -425,7 +437,7 @@ test('Web abort removes the job before late success; timeout, cancellation and r
       else await new Promise(done => setTimeout(done, 3))
     }
     const result = await f.bridge.request('source.one', { url: address, method: 'POST', headers: {}, body: 'one=send',
-      timeoutMs: reason.endsWith('timeout') ? 1 : 1000 }, agent, 1, () => live)
+      timeoutMs: 1000 }, agent, 1, () => live)
     assert.equal(result.attempted, true)
     assert.equal(result.error, reason.endsWith('timeout') ? 'timeout' : 'source_request_cancelled')
     assert.equal(signal.aborted, true)
@@ -479,11 +491,243 @@ test('production HTTP transport never duplicates an attempted Web mutation or fa
     assert.equal(result.calls.length, 1, 'known before-send unavailability preserves ordinary native path')
   }
   const scoped = fixture(); scoped.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } })); scoped.grant()
-  for (const invalid of [{ method: 'HEAD', body: 'not-allowed' }, { method: 'POST', requestBytes: 'AA==' },
-    { method: 'POST', responseKind: 'bodyBytes' }, { method: 'POST', session: 'source' }]) {
+  // WebHTTP v1 is still unreleased: its completed data contract now permits
+  // byte/ref combinations. Keep rejection coverage for genuinely invalid data.
+  for (const invalid of [{ method: 'HEAD', body: 'not-allowed' }, { method: 'POST', requestBytes: 'A===' },
+    { method: 'POST', responseKind: 'unknown' }, { method: 'POST', session: 'source' }]) {
     const result = await scoped.http([], JSON.stringify(scoped.identity()), { ...invalid, webFetch: { version: 1 } })
     assert.equal(result.result.error.code, 'invalid_request')
     assert.equal(result.calls.length, 0)
+  }
+})
+
+test('Web data preserves binary upload/response bytes and bounds the browser mailbox', async () => {
+  const address = 'https://site.invalid/image', agent = 'VerifiedUA'
+  const upload = Uint8Array.from({ length: 131073 }, (_, i) => i % 256)
+  for (const kind of ['bodyBytes', 'bodyRef']) {
+    const expected = Buffer.alloc(kind === 'bodyRef' ? 2 * 1048576 + 19 : 131079)
+    for (let i = 0; i < expected.length; i++) expected[i] = i % 256
+    let sends = 0, peak = 0
+    const chunks = []
+    const f = fetchBridgeFixture(async (url, options) => {
+      sends++
+      assert.deepEqual(Buffer.from(await new Request(url, options).arrayBuffer()), Buffer.from(upload))
+      assert.equal(options.redirect, 'error')
+      return new Response(expected, { status: 404, headers: { 'Content-Type': 'image/png' } })
+    })
+    const execute = f.controller.runJavaScript
+    f.controller.runJavaScript = async script => {
+      for (const box of Object.values(f.window.__komaFetch ?? {})) peak = Math.max(peak, box.chunks?.length ?? 0)
+      return execute(script)
+    }
+    f.bridge.attach(f.controller, 'source.one', address, agent, 1)
+    f.bridge.markReady('source.one', address, agent, 1)
+    const result = await f.bridge.request('source.one', { url: address, method: 'POST', headers: {},
+      requestBytes: upload.buffer, responseKind: kind,
+      onResponseChunk: bytes => { assert.ok(bytes.byteLength <= 65536); chunks.push(Buffer.from(bytes)) } }, agent, 1, () => true)
+    assert.equal(sends, 1)
+    assert.equal(result.status, 404)
+    assert.equal(result.error, undefined)
+    assert.deepEqual(kind === 'bodyRef' ? Buffer.concat(chunks) : Buffer.from(result.bytes), expected)
+    assert.ok(peak > 0 && peak <= 4, 'the actual browser producer is backpressured')
+    assert.deepEqual(Object.keys(f.window.__komaFetchJobs), [])
+    assert.deepEqual(Object.keys(f.window.__komaFetch), [])
+  }
+  let sends = 0
+  const empty = fetchBridgeFixture(async () => { sends++; return new Response(null, { status: 204 }) })
+  empty.bridge.attach(empty.controller, 'source.one', address, agent, 1)
+  empty.bridge.markReady('source.one', address, agent, 1)
+  const head = await empty.bridge.request('source.one', { url: address, method: 'HEAD', headers: {},
+    responseKind: 'bodyRef', onResponseChunk: () => assert.fail('empty HEAD has no chunk') }, agent, 1, () => true)
+  assert.equal(head.status, 204)
+  for (const data of [{ body: '中'.repeat(349526) }, { requestBytes: new ArrayBuffer(1048577) }]) {
+    const rejected = await empty.bridge.request('source.one', { url: address, method: 'POST', headers: {}, ...data }, agent, 1, () => true)
+    assert.equal(rejected.error, 'request_too_large')
+    assert.equal(rejected.attempted, false)
+  }
+  assert.equal(sends, 1, 'oversized text and bytes never send')
+  const oversized = fetchBridgeFixture(async () => new Response(new Uint8Array(1048577)))
+  oversized.bridge.attach(oversized.controller, 'source.one', address, agent, 1)
+  oversized.bridge.markReady('source.one', address, agent, 1)
+  const rejected = await oversized.bridge.request('source.one', { url: address, method: 'GET', headers: {},
+    responseKind: 'bodyBytes' }, agent, 1, () => true)
+  assert.equal(rejected.error, 'response_too_large')
+  assert.equal(rejected.attempted, true)
+  let live = true, binarySends = 0, callbacks = 0
+  const cancelled = fetchBridgeFixture(async () => { binarySends++; return new Response(null, { status: 204 }) })
+  const execute = cancelled.controller.runJavaScript
+  cancelled.controller.runJavaScript = async script => {
+    const raw = await execute(script)
+    if (++callbacks === 2) live = false // the first upload chunk staged; fetch has not started
+    return raw
+  }
+  cancelled.bridge.attach(cancelled.controller, 'source.one', address, agent, 1)
+  cancelled.bridge.markReady('source.one', address, agent, 1)
+  const cancelledUpload = await cancelled.bridge.request('source.one', { url: address, method: 'POST', headers: {},
+    requestBytes: upload.buffer }, agent, 1, () => live)
+  assert.equal(cancelledUpload.error, 'source_request_cancelled')
+  assert.equal(binarySends, 0)
+  assert.deepEqual(Object.keys(cancelled.window.__komaFetchJobs), [])
+  let lateScript, lateLive = true, delayedSends = 0
+  const delayed = fetchBridgeFixture(async () => { delayedSends++; return new Response('late') })
+  const run = delayed.controller.runJavaScript
+  delayed.controller.runJavaScript = async script => {
+    if (lateScript === undefined) {
+      lateScript = script; lateLive = false
+      return new Promise(() => {}) // submission accepted; execution/callback arrives after retirement
+    }
+    return run(script)
+  }
+  delayed.bridge.attach(delayed.controller, 'source.one', address, agent, 1)
+  delayed.bridge.markReady('source.one', address, agent, 1)
+  const late = await delayed.bridge.request('source.one', { url: address, method: 'POST', headers: {}, body: 'only=once' },
+    agent, 1, () => lateLive)
+  assert.equal(late.error, 'source_request_cancelled')
+  await run(lateScript)
+  assert.equal(delayedSends, 0, 'a retired initial script cannot start a late fetch')
+  assert.deepEqual(Object.keys(delayed.window.__komaFetchJobs ?? {}), [])
+})
+
+test('Web BodyRef transport returns real errors and closes partial bodies without a native resend', async () => {
+  for (const terminal of ['http-error', 'cancel', 'replace', 'timeout', 'sink-error', 'stream-error', 'empty']) {
+    const f = fixture(); f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } })); f.grant()
+    const buffers = new Map(), closed = [], expected = Buffer.from([0, 255, 128, 137, 80, 78, 71])
+    let live = true, sends = 0, release
+    const bodyHost = {
+      available: () => true,
+      create: () => { buffers.set('body', []); return { id: 'body', length: 0 } },
+      append: (_scope, id, data) => {
+        buffers.get(id).push(Buffer.from(data)); release?.()
+        if (terminal === 'cancel') live = false
+        if (terminal === 'replace') f.grant()
+        if (terminal === 'sink-error') throw Error('body_limit_exceeded')
+      },
+      close: (_scope, id) => { closed.push(id); buffers.delete(id) },
+    }
+    const web = fetchBridgeFixture(async () => {
+      sends++
+      if (terminal === 'empty') return new Response(null, { status: 204 })
+      if (terminal === 'timeout') {
+        let first = true
+        return { status: 200, headers: new Headers(), body: { getReader: () => ({ read: async () => {
+          if (first) { first = false; return { value: expected, done: false } }
+          return new Promise(() => {}) // deliberately ignores abort, as a late browser task might
+        } }) } }
+      }
+      if (terminal === 'stream-error') {
+        let sent = false
+        return new Response(new ReadableStream({ async pull(controller) {
+          if (!sent) { sent = true; controller.enqueue(expected); return }
+          await new Promise(done => { release = done }); controller.error(Error('actual body read failed'))
+        } }))
+      }
+      return new Response(expected, { status: 403, headers: { 'cf-mitigated': 'challenge' } })
+    })
+    const origin = 'https://site.invalid/', revision = f.store.requestContext(f.identity(), origin).authorizationRevision
+    web.bridge.attach(web.controller, 'source.one', origin, 'ActualWebViewUA', revision)
+    web.bridge.markReady('source.one', origin, 'ActualWebViewUA', revision)
+    const privateHost = Object.create(f.privateHost)
+    privateHost.callIsActive = () => live
+    const result = await f.http([], JSON.stringify({ ...f.identity(), privateCallId: 'call' }),
+      { method: 'GET', webFetch: { version: 1 }, responseKind: 'bodyRef', timeoutMs: 1000 }, { bridge: web.bridge, bodyHost, privateHost })
+    assert.equal(sends, 1)
+    assert.equal(result.calls.length, 0, 'attempted Web image is never fetched again natively')
+    if (['http-error', 'empty'].includes(terminal)) {
+      assert.equal(result.result.status, terminal === 'empty' ? 204 : 403)
+      assert.equal(result.result.bodyRef.length, terminal === 'empty' ? 0 : expected.length)
+      if (terminal === 'http-error') {
+        assert.equal(result.result.accessSignal, 'challenge_required')
+        assert.deepEqual(Buffer.concat(buffers.get('body')), expected)
+      }
+      assert.deepEqual(closed, [])
+    } else {
+      assert.equal(result.result.error.code, ['cancel', 'replace'].includes(terminal) ? 'source_request_cancelled' :
+        terminal === 'timeout' ? 'timeout' :
+        terminal === 'sink-error' ? 'body_limit_exceeded' : 'network_error')
+      assert.deepEqual(closed, ['body'])
+      assert.equal(buffers.size, 0)
+    }
+    assert.deepEqual(Object.keys(web.window.__komaFetchJobs), [])
+  }
+})
+
+test('Web transport composes inline/ref uploads with inline byte responses and rejects oversized refs before send', async () => {
+  for (const mode of ['inline', 'ref', 'oversized-ref']) {
+    const f = fixture(); f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } })); f.grant()
+    const expected = Buffer.from([0, 255, 128, 0, 137])
+    let sends = 0, reads = 0
+    const web = fetchBridgeFixture(async (url, options) => {
+      sends++
+      assert.deepEqual(Buffer.from(await new Request(url, options).arrayBuffer()), expected)
+      return new Response(expected, { status: 200 })
+    })
+    const origin = 'https://site.invalid/', revision = f.store.requestContext(f.identity(), origin).authorizationRevision
+    web.bridge.attach(web.controller, 'source.one', origin, 'ActualWebViewUA', revision)
+    web.bridge.markReady('source.one', origin, 'ActualWebViewUA', revision)
+    const privateHost = Object.create(f.privateHost); privateHost.callIsActive = () => true
+    const bodyHost = { bytes: (_scope, id, limit) => {
+      reads++; assert.equal(id, 'input'); assert.equal(limit, 1048576)
+      if (mode === 'oversized-ref') throw Error('request_too_large')
+      return Uint8Array.from(expected).buffer
+    } }
+    const request = { method: 'POST', responseKind: 'bodyBytes', webFetch: { version: 1 },
+      ...(mode === 'inline' ? { requestBytes: expected.toString('base64') } : { requestBodyRef: 'input' }) }
+    const result = await f.http([], JSON.stringify({ ...f.identity(), privateCallId: 'call' }), request,
+      { bridge: web.bridge, bodyHost, privateHost })
+    assert.equal(result.calls.length, 0)
+    assert.equal(reads, mode === 'inline' ? 0 : 1)
+    assert.equal(sends, mode === 'oversized-ref' ? 0 : 1)
+    if (mode === 'oversized-ref') assert.equal(result.result.error.code, 'request_too_large')
+    else {
+      assert.equal(result.result.status, 200)
+      assert.equal(result.result.bodyText, '')
+      assert.equal(result.result.bodyBase64, expected.toString('base64'))
+    }
+  }
+})
+
+test('Web GET denial retains its causal URL and consumes only its own verified document once', async () => {
+  for (const challenge of [false, true]) {
+    const f = fixture(); f.changeEntry(entry => ({ ...entry,
+      websitePolicy: { webFetchBridge: true, renderedDocumentFallback: true } })); f.grant()
+    const url = 'https://site.invalid/a', source = 'source.one', agent = 'ActualWebViewUA'
+    const handle = f.guards.newSourceRuntimeOperationGuardId()
+    const release = f.guards.registerSourceRuntimeOperationGuard(handle, () => true)
+    let sends = 0
+    const web = fetchBridgeFixture(async () => { sends++; return new Response('denied', { status: 403,
+      headers: challenge ? { 'cf-mitigated': 'challenge' } : {} }) })
+    const ready = () => {
+      const revision = f.store.requestContext(f.identity(), url).authorizationRevision
+      web.bridge.attach(web.controller, source, url, agent, revision)
+      web.bridge.markReady(source, url, agent, revision)
+    }
+    ready()
+    const context = JSON.stringify({ ...f.identity(), operationGuardId: handle })
+    const request = { url, method: 'GET', webFetch: { version: 1 }, wantChallengeRequestId: 'document' }
+    try {
+      const result = await f.http([], context, request, { bridge: web.bridge,
+        afterInitial: async ({ transport, execute, initial }) => {
+          assert.equal(initial.accessSignal, challenge ? 'challenge_required' : undefined)
+          assert.equal(typeof initial.challengeRequestId, 'string')
+          transport.selectSourceRejectedRequest(source, handle, initial.challengeRequestId)
+          assert.equal(transport.sourceRejectedRequestUrl(source, handle), url)
+          const pending = f.store.begin(f.registry, source, url)
+          assert.equal(transport.stageSourceWebDocument(source, pending.sessionId, handle,
+            'https://site.invalid/wrong', '<main>wrong URL</main>'), false)
+          assert.equal(transport.stageSourceWebDocument(source, pending.sessionId, handle,
+            url, '<main>actual verified document</main>'), true)
+          f.store.complete(source, pending.sessionId, url, agent); ready()
+          const once = JSON.parse(await execute(JSON.stringify(request), context))
+          const again = JSON.parse(await execute(JSON.stringify(request), context))
+          return { once, again }
+        } })
+      assert.equal(result.result.status, 403)
+      assert.equal(result.after.once.bodyText, '<main>actual verified document</main>')
+      assert.equal(result.after.once.networkPerformed, false)
+      assert.equal(result.after.again.status, 403)
+      assert.equal(sends, 2, 'the successful handoff never fetches again; next call does')
+      assert.equal(result.calls.length, 0)
+    } finally { release() }
   }
 })
 
@@ -964,7 +1208,7 @@ function fixture(sdkApiVersion = 23) {
     const calls = [], instances = [], intercepts = []
     const trace = { info: (_event, detail) => diagnostics.push(detail), warn: (_event, detail) => diagnostics.push(detail), fail: () => {}, finish: (_state, detail) => diagnostics.push(detail) }
     const transport = moduleFrom('SourceRuntimeHttpTransport', name => {
-      if (name === './SourceBodyHost') return { SourceBodyHost: {} }
+      if (name === './SourceBodyHost') return { SourceBodyHost: network.bodyHost ?? {} }
       if (name === './SourceHttpBodyStream') return { requestSourceBodyStream: () => { throw Error('unexpected body stream in legacy fixture') } }
       if (name === '@kit.ArkTS') return { url: { URL }, util: { Base64Helper: class {
         encodeToStringSync(bytes) { return Buffer.from(bytes).toString('base64') }

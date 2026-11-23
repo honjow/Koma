@@ -1,4 +1,5 @@
 import { webview } from '@kit.ArkWeb'
+import { util } from '@kit.ArkTS'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { sourceWebOrigin } from './SourceWebSessionStore'
 
@@ -12,6 +13,9 @@ export interface SourceWebHttpRequest {
   method: string
   headers: Record<string, string>
   body?: string
+  requestBytes?: ArrayBuffer
+  responseKind?: string
+  onResponseChunk?: (bytes: ArrayBuffer) => void
   timeoutMs?: number
 }
 
@@ -20,6 +24,7 @@ export interface SourceWebHttpResult {
   attempted: boolean
   status?: number
   body?: string
+  bytes?: ArrayBuffer
   headers?: Record<string, string[]>
   error?: string
 }
@@ -27,6 +32,7 @@ export interface SourceWebHttpResult {
 interface ActiveWebFetch {
   controller: webview.WebviewController
   id: string
+  deadline: number
 }
 
 const WEB_FETCH_TIMEOUT_MS: number = 20000
@@ -51,7 +57,8 @@ export function requestSourceWebFetchBridgeHost(sourceId: string, url: string): 
 /**
  * Host-owned bridge for sources whose native transport is rejected by a site but whose
  * granted WebView session can still read same-origin documents. The controller stays on a
- * persistent page; the source only ever receives status and body text.
+ * persistent page. HTTP data is returned through bounded text/byte envelopes or
+ * an internal chunk sink; it never grants the source a WebView/script handle.
  */
 export class SourceWebFetchBridge {
   private controller?: webview.WebviewController
@@ -67,6 +74,10 @@ export class SourceWebFetchBridge {
   private runScript(controller: webview.WebviewController, script: string, deadline: number,
     current: () => boolean): Promise<string> {
     return new Promise<string>((resolve: (value: string) => void, reject: (reason: Error) => void): void => {
+      if (!current() || Date.now() >= deadline) {
+        reject(new Error(current() ? 'timeout' : 'source_request_cancelled'))
+        return
+      }
       let finished = false
       const timer = setInterval((): void => {
         if (!finished && (!current() || Date.now() >= deadline)) {
@@ -80,7 +91,8 @@ export class SourceWebFetchBridge {
           if (finished) return
           finished = true
           clearInterval(timer)
-          resolve(value)
+          if (!current() || Date.now() >= deadline) reject(new Error(current() ? 'timeout' : 'source_request_cancelled'))
+          else resolve(value)
         }, (): void => {
           if (finished) return
           finished = true
@@ -99,7 +111,10 @@ export class SourceWebFetchBridge {
     this.active.delete(call.id)
     try {
       await this.runScript(call.controller, "(() => { const id = " + JSON.stringify(call.id) +
-        "; const job = window.__komaFetchJobs && window.__komaFetchJobs[id]; if (job) job.abort(); " +
+        "; const retired=window.__komaFetchRetired || (window.__komaFetchRetired=Object.create(null)); " +
+        "for (const k of Object.keys(retired)) if (retired[k] <= Date.now()) delete retired[k]; " +
+        "retired[id]=" + call.deadline + "; " +
+        "const job = window.__komaFetchJobs && window.__komaFetchJobs[id]; if (job) job.abort(); " +
         "if (window.__komaFetch) delete window.__komaFetch[id]; return ''; })()", Date.now() + 1000, (): boolean => true)
     } catch (_error) { /* A destroyed document has no live fetch mailbox. */ }
   }
@@ -192,8 +207,14 @@ export class SourceWebFetchBridge {
     if (controller === undefined || !operationCurrent() ||
       !this.availableFor(sourceId, request.url, userAgent, authorizationRevision)) return { attempted: false }
     if (!['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) ||
-      (['GET', 'HEAD'].includes(request.method) && (request.body?.length ?? 0) > 0)) {
+      (['GET', 'HEAD'].includes(request.method) && ((request.body?.length ?? 0) > 0 || request.requestBytes !== undefined)) ||
+      (request.requestBytes !== undefined && ((request.body?.length ?? 0) > 0 || !['POST', 'PUT', 'PATCH'].includes(request.method))) ||
+      (request.responseKind !== undefined && !['bodyText', 'bodyBytes', 'bodyRef'].includes(request.responseKind)) ||
+      (request.responseKind === 'bodyRef' && request.onResponseChunk === undefined)) {
       return { attempted: false, error: 'invalid_request' }
+    }
+    if (request.requestBytes !== undefined && request.requestBytes.byteLength > 1048576) {
+      return { attempted: false, error: 'request_too_large' }
     }
     const headers: Record<string, string> = {}
     let referrer: string | undefined = undefined
@@ -224,17 +245,19 @@ export class SourceWebFetchBridge {
       this.availableFor(sourceId, request.url, userAgent, authorizationRevision)
     this.sequence += 1
     const id = 'koma-' + this.sequence
-    const call: ActiveWebFetch = { controller, id }
-    this.active.set(id, call)
     const timeoutMs = Math.max(1, request.timeoutMs ?? WEB_FETCH_TIMEOUT_MS)
     const deadline = Date.now() + timeoutMs
+    const call: ActiveWebFetch = { controller, id, deadline }
+    this.active.set(id, call)
     try {
+      if (!legacy) return await this.performData(controller, id, request, headers, referrer, timeoutMs, deadline, current)
       // The closure's live flag is cleared BEFORE abort/delete. Even a fetch
       // implementation that resolves after abort cannot resurrect its mailbox.
       // New HTTP requests reject redirects, including same-origin redirects:
       // browsers hide manual Location, so guessing/reposting is unsafe.
       const script = "(() => { const id = " + JSON.stringify(id) + ", url = " + JSON.stringify(request.url) +
-        "; if (typeof AbortController !== 'function') return 'unavailable'; " +
+        "; if (Date.now() >= " + deadline + " || (window.__komaFetchRetired && window.__komaFetchRetired[id]) || " +
+        "typeof AbortController !== 'function') return 'unavailable'; " +
         (legacy ? '' : "if (location.origin !== " + JSON.stringify(this.origin) +
           " || new URL(url).origin !== location.origin) return 'unavailable'; ") +
         "const jobs = window.__komaFetchJobs || (window.__komaFetchJobs = Object.create(null)); " +
@@ -282,12 +305,149 @@ export class SourceWebFetchBridge {
       return { attempted: true, error: 'timeout' }
     } catch (error) {
       // JS submission errors are ambiguous: it may already have called fetch.
-      const reason = error instanceof Error && ['timeout', 'source_request_cancelled'].includes(error.message)
+      const reason = error instanceof Error && ['timeout', 'source_request_cancelled', 'body_limit_exceeded',
+        'body_write_failed', 'body_unavailable'].includes(error.message)
         ? error.message : 'network_error'
       return { attempted: true, error: reason }
     } finally {
       await this.retire(call)
     }
+  }
+
+  /** The browser owns fetch; this bounded mailbox only moves data. Four 64 KiB
+   * chunks apply backpressure to its reader. Drain immediately when populated,
+   * rather than paying the legacy document polling interval for every chunk.
+   */
+  private async performData(controller: webview.WebviewController, id: string, request: SourceWebHttpRequest,
+    headers: Record<string, string>, referrer: string | undefined, timeoutMs: number, deadline: number,
+    current: () => boolean): Promise<SourceWebHttpResult> {
+    const kind = request.responseKind ?? 'bodyText'
+    const limit = kind === 'bodyRef' ? 134217728 : kind === 'bodyBytes' ? 1048576 : 4194304
+    const binaryUpload = request.requestBytes !== undefined
+    const script = `(() => {
+      const id = ${JSON.stringify(id)}, url = ${JSON.stringify(request.url)}, kind = ${JSON.stringify(kind)};
+      if (Date.now() >= ${deadline} || (window.__komaFetchRetired && window.__komaFetchRetired[id]) ||
+          typeof AbortController !== 'function' || location.origin !== ${JSON.stringify(this.origin)} ||
+          new URL(url).origin !== location.origin ||
+          (kind !== 'bodyText' && typeof btoa !== 'function') ||
+          (${binaryUpload} && (typeof atob !== 'function' || typeof Blob !== 'function'))) return 'unavailable';
+      const textBody = ${JSON.stringify(request.body ?? '')};
+      if (new TextEncoder().encode(textBody).byteLength > 1048576) return 'request_too_large';
+      const jobs = window.__komaFetchJobs || (window.__komaFetchJobs = Object.create(null));
+      const boxes = window.__komaFetch || (window.__komaFetch = Object.create(null));
+      const box = {chunks:[],done:false}; boxes[id] = box;
+      const abort = new AbortController(); let live = true, completed = false, started = false, wake, timer;
+      const active = () => live && !completed && jobs[id] === job;
+      const notify = () => { if (wake) { const f = wake; wake = undefined; f(); } };
+      const finish = value => { if (active()) { completed = true; clearTimeout(timer); Object.assign(box,value,{done:true}); notify(); } };
+      const job = {parts:[],length:0,notify,
+        abort: () => { live = false; clearTimeout(timer); abort.abort(); notify(); delete jobs[id]; delete boxes[id]; },
+        push: encoded => {
+          if (!active() || started) return false;
+          const raw = atob(encoded); if (raw.length > 65536 || job.length + raw.length > 1048576) return false;
+          const bytes = new Uint8Array(raw.length); for (let i=0;i<raw.length;i++) bytes[i]=raw.charCodeAt(i);
+          job.parts.push(bytes); job.length += bytes.length; return true;
+        },
+        start: () => {
+          if (!active() || started || location.origin !== new URL(url).origin) return false;
+          started = true;
+          const options = {method:${JSON.stringify(request.method)},headers:${JSON.stringify(headers)},
+            credentials:'include',mode:'same-origin',redirect:'error',cache:'no-store',signal:abort.signal};
+          ${referrer === undefined ? '' : 'options.referrer=' + JSON.stringify(referrer) + "; options.referrerPolicy='same-origin';"}
+          if (${binaryUpload}) { options.body = new Blob(job.parts); job.parts = []; }
+          else if (textBody && !['GET','HEAD'].includes(options.method)) options.body=textBody;
+          (async () => { try {
+            const r = await fetch(url,options); if (!active()) return;
+            const headers = Object.create(null); let headerBytes = 0;
+            r.headers && r.headers.forEach((v,k) => { if (!['set-cookie','set-cookie2'].includes(k.toLowerCase())) {
+              headerBytes += new TextEncoder().encode(k+v).byteLength; headers[k]=[v];
+            }});
+            if (headerBytes > 65536) { finish({error:'response_headers_too_large'}); abort.abort(); return; }
+            box.status = r.status; box.headers = headers;
+            let count = 0, text = ''; const decoder = kind === 'bodyText' ? new TextDecoder() : undefined;
+            if (r.body && r.body.getReader) {
+              const reader = r.body.getReader();
+              while (active()) {
+                const part = await reader.read(); if (!active()) return; if (part.done) break;
+                count += part.value.byteLength;
+                if (count > ${limit}) { finish({error:'response_too_large'}); abort.abort(); return; }
+                if (decoder) { text += decoder.decode(part.value,{stream:true}); continue; }
+                for (let offset=0;offset<part.value.byteLength;offset+=65536) {
+                  while (active() && box.chunks.length >= 4) await new Promise(resolve => { wake=resolve; });
+                  if (!active()) return;
+                  const chunk=part.value.subarray(offset,offset+65536); let raw='';
+                  for (let i=0;i<chunk.length;i++) raw+=String.fromCharCode(chunk[i]);
+                  box.chunks.push(btoa(raw));
+                }
+              }
+              if (decoder) text += decoder.decode();
+            } else if (kind === 'bodyText') {
+              text = await r.text(); if (!active()) return;
+              if (new TextEncoder().encode(text).byteLength > ${limit}) { finish({error:'response_too_large'}); return; }
+            } else if (r.body) { finish({error:'unsupported_response_stream'}); abort.abort(); return; }
+            finish(kind === 'bodyText' ? {body:text} : {});
+          } catch(e) { finish({error:'network_error'}); } })(); return true;
+        }
+      }; jobs[id]=job;
+      timer=setTimeout(() => { finish({error:'timeout'}); abort.abort(); },${timeoutMs});
+      return ${binaryUpload ? "'ready'" : "job.start() ? 'started' : 'unavailable'"};
+    })()`
+    const initial = this.decode(await this.runScript(controller, script, deadline, current))
+    if (initial === 'unavailable') return { attempted: false }
+    if (initial === 'request_too_large') return { attempted: false, error: initial }
+    if (!current()) return { attempted: true, error: 'source_request_cancelled' }
+    if (binaryUpload) {
+      if (initial !== 'ready') return { attempted: true, error: 'network_error' }
+      const bytes = new Uint8Array(request.requestBytes as ArrayBuffer)
+      for (let offset = 0; offset < bytes.length; offset += 65536) {
+        const encoded = new util.Base64Helper().encodeToStringSync(bytes.subarray(offset, offset + 65536))
+        const accepted = this.decode(await this.runScript(controller,
+          "(() => { const j=window.__komaFetchJobs && window.__komaFetchJobs[" + JSON.stringify(id) +
+          "]; return !!j && j.push(" + JSON.stringify(encoded) + "); })()", deadline, current))
+        if (accepted !== 'true') return { attempted: false, error: 'network_error' }
+      }
+      const started = this.decode(await this.runScript(controller,
+        "(() => { const j=window.__komaFetchJobs && window.__komaFetchJobs[" + JSON.stringify(id) +
+        "]; return !!j && j.start(); })()", deadline, current))
+      if (started !== 'true') return { attempted: false, error: 'network_error' }
+    } else if (initial !== 'started') return { attempted: true, error: 'network_error' }
+    const inline = kind === 'bodyBytes' ? new Uint8Array(1048576) : undefined
+    let received = 0
+    while (Date.now() < deadline) {
+      if (!current()) return { attempted: true, error: 'source_request_cancelled' }
+      const raw = this.decode(await this.runScript(controller,
+        "(() => { const b=window.__komaFetch && window.__komaFetch[" + JSON.stringify(id) +
+        "], j=window.__komaFetchJobs && window.__komaFetchJobs[" + JSON.stringify(id) +
+        "]; if (!b || !j) return ''; const chunks=b.chunks.splice(0,4); j.notify(); " +
+        "return JSON.stringify({chunks,done:b.done,status:b.status,headers:b.headers,body:b.body,error:b.error}); })()", deadline, current))
+      if (!current()) return { attempted: true, error: 'source_request_cancelled' }
+      if (raw.length === 0) { await this.delay(8); continue }
+      const part = JSON.parse(raw) as Record<string, Object>
+      if (typeof part['error'] === 'string') return { attempted: true, error: part['error'] as string }
+      const chunks = part['chunks'] as string[]
+      if (!Array.isArray(chunks) || chunks.length > 4) return { attempted: true, error: 'network_error' }
+      for (const chunk of chunks) {
+        if (typeof chunk !== 'string' || chunk.length > 87384 ||
+          !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(chunk)) {
+          return { attempted: true, error: 'network_error' }
+        }
+        const decoded = new util.Base64Helper().decodeSync(chunk)
+        if (decoded.byteLength > 65536 || received + decoded.byteLength > limit) return { attempted: true, error: 'response_too_large' }
+        if (!current()) return { attempted: true, error: 'source_request_cancelled' }
+        if (inline !== undefined) inline.set(decoded, received)
+        else if (request.onResponseChunk !== undefined) request.onResponseChunk(
+          decoded.buffer.slice(decoded.byteOffset, decoded.byteOffset + decoded.byteLength) as ArrayBuffer)
+        received += decoded.byteLength
+      }
+      if (part['done'] === true) {
+        const status = part['status']
+        if (typeof status !== 'number' || status < 100 || status > 599) return { attempted: true, error: 'network_error' }
+        return { attempted: true, status: status as number, body: typeof part['body'] === 'string' ? part['body'] as string : '',
+          headers: part['headers'] as Record<string, string[]>, bytes: inline?.buffer.slice(0, received) as ArrayBuffer | undefined }
+      }
+      if (chunks.length === 0) await this.delay(8)
+    }
+    return { attempted: true, error: 'timeout' }
   }
 
   private decode(raw: string): string {

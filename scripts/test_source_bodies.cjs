@@ -56,6 +56,9 @@ test('multiple inputs, offsets and image handoff preserve bytes after call retir
   const a = host.create(scope), b = host.create(scope)
   const bytes = crypto.randomBytes(2 * 1024 * 1024 + 31)
   host.append(scope, a.id, Uint8Array.from(bytes).buffer)
+  // A Web upload must reject the same native-valid reference before reading it.
+  assert.throws(() => host.bytes(scope, a.id, 1048576), /request_too_large/)
+  assert.deepEqual(Buffer.from(host.bytes(scope, a.id)), bytes)
   host.write(scope, a.id, 5, Uint8Array.from([0, 255, 128]).buffer)
   bytes.set([0, 255, 128], 5)
   for (let offset = 0; offset < bytes.length; offset += 65536) {

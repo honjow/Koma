@@ -113,8 +113,11 @@ export class SourceBodyHost {
     return result
   }
 
-  static bytes(scope: SourcePrivateSessionScope, id: string): ArrayBuffer {
+  static bytes(scope: SourcePrivateSessionScope, id: string, maxBytes: number = SOURCE_BODY_MAX_BYTES): ArrayBuffer {
     const entry = SourceBodyHost.owned(scope, id)
+    // Web HTTP has a smaller upload budget than native HTTP. Reject before
+    // allocating/reading an oversized reference; native callers keep their cap.
+    if (entry.length > maxBytes) throw new Error('request_too_large')
     return SourceBodyHost.readEntry(entry, 0, entry.length)
   }
 

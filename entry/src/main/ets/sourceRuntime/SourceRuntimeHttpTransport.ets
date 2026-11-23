@@ -859,8 +859,6 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       if (value !== undefined || typeof envelope.requestBodyRef !== 'string' || bodyScope === undefined ||
         !SourcePrivateSessionHost.callIsActive(bodyScope) || body.length !== 0 ||
         !['POST', 'PUT', 'PATCH'].includes(method)) return transportError('invalid_request', false)
-      try { requestBytes = SourceBodyHost.bytes(bodyScope, envelope.requestBodyRef) }
-      catch (_error) { return transportError('body_not_found', false) }
     } else {
     if (typeof value !== 'string' || body.length !== 0 || value.length > 1398104 ||
       !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value) ||
@@ -885,50 +883,181 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   }
   const webHttp = envelope.webFetch !== undefined || method !== 'GET'
   if (envelope.webFetch !== undefined && (envelope.webFetch === null || typeof envelope.webFetch !== 'object' || envelope.webFetch.version !== 1 ||
-    binaryRequest || binaryResponse || (envelope.responseKind !== undefined && envelope.responseKind !== 'bodyText') ||
+    (envelope.responseKind !== undefined && !['bodyText', 'bodyBytes', 'bodyRef'].includes(envelope.responseKind)) ||
     sourceSession || webToken || nativeSession || guestSearch ||
     includeResponseUrl || envelope.dnsOverride !== undefined || identity?.credentialGrantId !== undefined ||
     !['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method) ||
     (['GET', 'HEAD'].includes(method) && body.length > 0))) return transportError('invalid_request', false)
   const webHttpContext = webHttp && installedEntry?.websitePolicy?.webFetchBridge === true &&
-    !binaryRequest && !binaryResponse && (envelope.responseKind === undefined || envelope.responseKind === 'bodyText') &&
+    (envelope.responseKind === undefined || ['bodyText', 'bodyBytes', 'bodyRef'].includes(envelope.responseKind)) &&
     !sourceSession && !webToken && !nativeSession && !guestSearch &&
     !includeResponseUrl && envelope.dnsOverride === undefined && identity?.credentialGrantId === undefined &&
     probe === undefined && identity !== undefined && ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
     ? appSourceWebSessionStore.requestContext(identity, url) : undefined
+  if (envelope.requestBodyRef !== undefined && bodyScope !== undefined) {
+    try {
+      // Web uploads are uniformly 1 MiB, including a reference whose native
+      // upload budget is larger. Reject before allocation/send, never fall back
+      // to native merely to evade the selected Web channel's limit.
+      requestBytes = SourceBodyHost.bytes(bodyScope, envelope.requestBodyRef,
+        envelope.webFetch !== undefined || webHttpContext !== undefined ? 1048576 : 134217728)
+    } catch (error) {
+      return transportError((error as Error).message === 'request_too_large' ? 'request_too_large' : 'body_not_found', false)
+    }
+  }
+  const consumeVerifiedResponse = (): string | undefined => {
+    if (!binaryResponse && !webToken && !guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceGet !== undefined) {
+      const ready = verifiedSourceGet
+      if (identity !== undefined && ready.request.requestJson === requestJson &&
+        ready.request.httpContextJson === httpContextJson) {
+        // Other global-search sources can finish while this original read waits
+        // in WAMR's queue. Only its exact request may consume the single handoff.
+        verifiedSourceGet = undefined
+        if (appSourceWebSessionStore.status(identity.sourceId, sourceWebOrigin(ready.request.rejectedUrl)).sessionId === ready.sessionId &&
+          appSourceWebSessionStore.requestSession(identity, ready.request.rejectedUrl) !== undefined) {
+          DiagnosticLogger.info('source_http', 'verification_response_reused', 'state=used_once')
+          trace.finish('completed', 'state=verification_response_reused')
+          return ready.responseJson
+        }
+      }
+    }
+    if (!binaryResponse && !webToken && (reportsDocumentUrl || envelope.includeResponseUrl !== true) && !guestSearch && !freshHttp && !nativeSession &&
+      probe === undefined && verifiedSourceDocument !== undefined) {
+      const ready = verifiedSourceDocument
+      const requestMatch = ready.request.requestJson === requestJson
+      const byteContextMatch = ready.request.httpContextJson === httpContextJson
+      // The staged document is bound to the same operation identity, not to a
+      // byte-identical identity string: re-entry may serialize the same fields
+      // in a different order. The exact request text above still anchors the
+      // target GET, and the package fingerprint prevents cross-build reuse.
+      const contextMatch = identity !== undefined && (byteContextMatch ||
+        (ready.request.identity.sourceId === identity.sourceId &&
+          ready.request.identity.sourceVersion === identity.sourceVersion &&
+          ready.request.identity.packageIdentity === identity.packageIdentity &&
+          ready.request.identity.operationGuardId === identity.operationGuardId &&
+          ready.request.identity.diagnosticOperation === identity.diagnosticOperation))
+      if (identity !== undefined && requestMatch && contextMatch) {
+        verifiedSourceDocument = undefined
+        const sessionMatch = appSourceWebSessionStore.status(identity.sourceId,
+          sourceWebOrigin(ready.request.rejectedUrl)).sessionId === ready.sessionId
+        const granted = appSourceWebSessionStore.requestSession(identity, ready.request.rejectedUrl) !== undefined
+        DiagnosticLogger.info('source_http', 'document_handoff_reuse',
+          'request=true context=true session=' + sessionMatch + ' granted=' + granted)
+        if (sessionMatch && granted) {
+          DiagnosticLogger.info('source_http', 'document_handoff_reused', 'state=used_once')
+          trace.finish('completed', 'state=document_handoff_reused')
+          return ready.responseJson
+        }
+      } else {
+        const guardMatch = ready.request.identity.operationGuardId === identity?.operationGuardId
+        const versionMatch = ready.request.identity.sourceVersion === identity?.sourceVersion
+        const packageMatch = ready.request.identity.packageIdentity === identity?.packageIdentity
+        const operationMatch = ready.request.identity.diagnosticOperation === identity?.diagnosticOperation
+        DiagnosticLogger.info('source_http', 'document_handoff_reuse',
+          'state=miss request=' + requestMatch + ' context=' + contextMatch + ' bytes=' + byteContextMatch +
+          ' identity=' + (identity !== undefined) +
+          ' guard=' + guardMatch + ' version=' + versionMatch + ' package=' + packageMatch + ' op=' + operationMatch +
+          ' savedLength=' + ready.request.httpContextJson.length + ' nowLength=' + httpContextJson.length)
+      }
+    }
+    return undefined
+  }
+  // Web responses return before the native hop loop. Both paths must retain
+  // the same observed URL and causal GET handle; recording a plain 403 does not
+  // classify it as a challenge. Only the explicit Host signal does that.
+  const observeRejectedResponse = (status: number, target: string, signal?: string): string | undefined => {
+    let challengeRequestId: string | undefined = undefined
+    const trackedOperation = identity?.operationGuardId !== undefined
+    // The source identifies its own verification document. Transport only
+    // supplies an operation-scoped reference to a permitted GET it made.
+    const documentCandidate = trackedOperation && envelope.wantChallengeRequestId === 'document'
+    const optedIn = trackedOperation && envelope.wantChallengeRequestId === true
+    if (!guestSearch && !nativeSession && !webToken && identity !== undefined && (documentCandidate ||
+      status === 403 ||
+      ((signal === 'challenge_required' || optedIn) && (status === 401 || status === 503)))) {
+      if (status === 403 || signal === 'challenge_required') {
+        appSourceWebSessionStore.observeRejectedRequest(identity, target)
+      }
+      const origin = sourceWebOrigin(target)
+      if (!freshHttp && probe === undefined && method === 'GET' && body.length === 0 && requestJson.length <= 65536 &&
+        origin.length > 0 && identity.webSessionOrigins.includes(origin)) {
+        const key = rejectedSourceGetKey(identity.sourceId, identity.operationGuardId)
+        const previous = rejectedSourceGets.get(key)
+        const rejected: RejectedSourceGet = {
+          requestJson, httpContextJson, identity, rejectedUrl: target,
+          requiresDocumentReadiness: documentCandidate, reportsDocumentUrl
+        }
+        if (optedIn || documentCandidate) {
+          rejectedSourceSequence += 1
+          challengeRequestId = `request-${rejectedSourceSequence}`
+          let candidates = rejectedSourceCandidates.get(key)
+          if (candidates === undefined) {
+            candidates = new Map<string, RejectedSourceGet>()
+            rejectedSourceCandidates.set(key, candidates)
+          }
+          candidates.set(challengeRequestId, rejected)
+        }
+        // Without a source-provided causal ID, two different rejected GETs
+        // in one operation are ambiguous and must not be probed as one.
+        if (!documentCandidate) {
+          if (identity.operationGuardId !== undefined && previous !== undefined &&
+            (previous === null || previous.requestJson !== requestJson || previous.rejectedUrl !== target)) {
+            rejectedSourceGets.set(key, null)
+          } else rejectedSourceGets.set(key, rejected)
+        }
+      }
+    }
+    return challengeRequestId
+  }
   const requestAdmission: SourceRequestAdmission = {}
   // A reserved slot may transfer to native only if Web did not send. This is
   // distinct from oncePerRequest, which applies only when a rule declares it.
   let requestSlotReserved = false
   if (webHttpContext !== undefined && identity !== undefined) {
+    // A verified text GET/document is an operation-bound one-shot result, not
+    // a new Web send. Binary body references never pass this legacy handoff.
+    const verifiedResponse = consumeVerifiedResponse()
+    if (verifiedResponse !== undefined) return verifiedResponse
     if (['GET', 'HEAD'].includes(method) && body.length > 0) return transportError('invalid_request', false)
     const webIdentity = identity
     const granted = (): boolean => {
       const context = appSourceWebSessionStore.requestContext(webIdentity, url)
       return current() && context !== undefined && context.userAgent === webHttpContext.userAgent &&
-        context.authorizationRevision === webHttpContext.authorizationRevision
+        context.authorizationRevision === webHttpContext.authorizationRevision &&
+        (bodyScope === undefined || (!bodyResponse && !binaryRequest) || SourcePrivateSessionHost.callIsActive(bodyScope))
     }
     // Limit before any Web request, just like the native lane. Preparing the
     // origin document must not navigate a POST endpoint with an invented GET.
     let webAttempted = false
+    let webBody: SourceBodyRef | undefined = undefined
+    let bodyAccepted = false
     try {
       await waitForSourceRequestSlot(installedEntry?.requestLimits, url, granted, envelope.headers, requestAdmission)
       requestSlotReserved = true
-      if (!current()) return transportError('source_request_cancelled', false)
+      if (!granted()) return transportError('source_request_cancelled', false)
       const webStarted = Date.now()
       if (granted() && !sourceWebFetchBridge.availableFor(identity.sourceId, url,
         webHttpContext.userAgent, webHttpContext.authorizationRevision)) {
         await sourceWebFetchBridge.prepare(identity.sourceId, sourceWebOrigin(url) + '/',
           webHttpContext.userAgent, webHttpContext.authorizationRevision, granted, sourceTimeout(envelope.timeoutMs))
       }
-      if (!current()) return transportError('source_request_cancelled', false)
+      if (!granted()) return transportError('source_request_cancelled', false)
       if (granted() && sourceWebFetchBridge.availableFor(identity.sourceId, url,
         webHttpContext.userAgent, webHttpContext.authorizationRevision)) {
         const remaining = sourceTimeout(envelope.timeoutMs) - (Date.now() - webStarted)
         if (remaining <= 0) return transportError('timeout', false)
+        if (bodyResponse && bodyScope !== undefined) webBody = SourceBodyHost.create(bodyScope)
+        const responseBody = webBody
+        const responseScope = bodyScope
         webAttempted = true
         const result = await sourceWebFetchBridge.request(identity.sourceId,
-          { url, method, headers: sourceHeaders(envelope.headers), body, timeoutMs: remaining },
+          { url, method, headers: sourceHeaders(envelope.headers), body, timeoutMs: remaining,
+            requestBytes, responseKind: envelope.responseKind,
+            onResponseChunk: responseBody === undefined || responseScope === undefined ? undefined : (bytes: ArrayBuffer): void => {
+              if (!granted()) throw new Error('source_request_cancelled')
+              SourceBodyHost.append(responseScope, responseBody.id, bytes)
+              responseBody.length += bytes.byteLength
+            } },
           webHttpContext.userAgent, webHttpContext.authorizationRevision, granted)
         webAttempted = result.attempted
         requestSlotReserved = !result.attempted
@@ -945,18 +1074,29 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
             return JSON.stringify(failure)
           }
           const response = new SourceHttpSuccessEnvelope(result.status, result.body ?? '')
+          if (bodyResponse) response.bodyRef = webBody
+          else if (binaryResponse && result.bytes !== undefined) response.bodyBase64 =
+            new util.Base64Helper().encodeToStringSync(new Uint8Array(result.bytes))
           response.headers = result.headers ?? {}
           const mitigation = response.headers['cf-mitigated']
           if (mitigation?.length === 1 && mitigation[0].trim() === 'challenge') response.accessSignal = 'challenge_required'
+          response.challengeRequestId = observeRejectedResponse(result.status, url, response.accessSignal)
+          bodyAccepted = true
           trace.finish('completed', 'state=web_http status=' + result.status)
           return JSON.stringify(response)
         }
       }
-    } catch (_error) {
-      const failure = new SourceHttpErrorEnvelope(granted() ? 'network_error' : 'source_request_cancelled', false)
+    } catch (error) {
+      const code = (error as Error).message
+      const failure = new SourceHttpErrorEnvelope(!granted() ? 'source_request_cancelled' :
+        ['body_limit_exceeded', 'body_write_failed', 'body_unavailable', 'request_too_large'].includes(code) ? code : 'network_error', false)
       failure.networkPerformed = webAttempted
       trace.finish('failed', 'reason=' + failure.error.code)
       return JSON.stringify(failure)
+    } finally {
+      if (!bodyAccepted && webBody !== undefined && bodyScope !== undefined) {
+        try { SourceBodyHost.close(bodyScope, webBody.id) } catch (_error) { /* Call retirement may already have removed it. */ }
+      }
     }
     // Only known before-send unavailability may use the ordinary native path.
   }
@@ -1059,60 +1199,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       return transportError('invalid_request', false)
     }
   }
-  if (!binaryResponse && !webToken && !guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceGet !== undefined) {
-    const ready = verifiedSourceGet
-    if (identity !== undefined && ready.request.requestJson === requestJson &&
-      ready.request.httpContextJson === httpContextJson) {
-      // Other global-search sources can finish while this original read waits
-      // in WAMR's queue. Only its exact request may consume the single handoff.
-      verifiedSourceGet = undefined
-      if (appSourceWebSessionStore.status(identity.sourceId, sourceWebOrigin(ready.request.rejectedUrl)).sessionId === ready.sessionId &&
-        appSourceWebSessionStore.requestSession(identity, ready.request.rejectedUrl) !== undefined) {
-        DiagnosticLogger.info('source_http', 'verification_response_reused', 'state=used_once')
-        trace.finish('completed', 'state=verification_response_reused')
-        return ready.responseJson
-      }
-    }
-  }
-  if (!binaryResponse && !webToken && (reportsDocumentUrl || envelope.includeResponseUrl !== true) && !guestSearch && !freshHttp && !nativeSession &&
-    probe === undefined && verifiedSourceDocument !== undefined) {
-    const ready = verifiedSourceDocument
-    const requestMatch = ready.request.requestJson === requestJson
-    const byteContextMatch = ready.request.httpContextJson === httpContextJson
-    // The staged document is bound to the same operation identity, not to a
-    // byte-identical identity string: re-entry may serialize the same fields
-    // in a different order. The exact request text above still anchors the
-    // target GET, and the package fingerprint prevents cross-build reuse.
-    const contextMatch = identity !== undefined && (byteContextMatch ||
-      (ready.request.identity.sourceId === identity.sourceId &&
-        ready.request.identity.sourceVersion === identity.sourceVersion &&
-        ready.request.identity.packageIdentity === identity.packageIdentity &&
-        ready.request.identity.operationGuardId === identity.operationGuardId &&
-        ready.request.identity.diagnosticOperation === identity.diagnosticOperation))
-    if (identity !== undefined && requestMatch && contextMatch) {
-      verifiedSourceDocument = undefined
-      const sessionMatch = appSourceWebSessionStore.status(identity.sourceId,
-        sourceWebOrigin(ready.request.rejectedUrl)).sessionId === ready.sessionId
-      const granted = appSourceWebSessionStore.requestSession(identity, ready.request.rejectedUrl) !== undefined
-      DiagnosticLogger.info('source_http', 'document_handoff_reuse',
-        'request=true context=true session=' + sessionMatch + ' granted=' + granted)
-      if (sessionMatch && granted) {
-        DiagnosticLogger.info('source_http', 'document_handoff_reused', 'state=used_once')
-        trace.finish('completed', 'state=document_handoff_reused')
-        return ready.responseJson
-      }
-    } else {
-      const guardMatch = ready.request.identity.operationGuardId === identity?.operationGuardId
-      const versionMatch = ready.request.identity.sourceVersion === identity?.sourceVersion
-      const packageMatch = ready.request.identity.packageIdentity === identity?.packageIdentity
-      const operationMatch = ready.request.identity.diagnosticOperation === identity?.diagnosticOperation
-      DiagnosticLogger.info('source_http', 'document_handoff_reuse',
-        'state=miss request=' + requestMatch + ' context=' + contextMatch + ' bytes=' + byteContextMatch +
-        ' identity=' + (identity !== undefined) +
-        ' guard=' + guardMatch + ' version=' + versionMatch + ' package=' + packageMatch + ' op=' + operationMatch +
-        ' savedLength=' + ready.request.httpContextJson.length + ' nowLength=' + httpContextJson.length)
-    }
-  }
+  const verifiedResponse = consumeVerifiedResponse()
+  if (verifiedResponse !== undefined) return verifiedResponse
   if (freshHttp) {
     if (deviceInfo.sdkApiVersion < SOURCE_FRESH_HTTP_MIN_SDK) {
       trace.finish('rejected', 'reason=unsupported')
@@ -1335,47 +1423,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       catch (_error) { trace.warn('web_token', 'state=delete_failed') }
     }
     const accessSignal = sourceResponseAccessSignal(response.header)
-    let challengeRequestId: string | undefined = undefined
-    const trackedOperation = identity?.operationGuardId !== undefined
-    // The source identifies its own verification document. Transport only
-    // supplies an operation-scoped reference to a permitted GET it made.
-    const documentCandidate = trackedOperation && envelope.wantChallengeRequestId === 'document'
-    const optedIn = trackedOperation && envelope.wantChallengeRequestId === true
-    if (!guestSearch && !nativeSession && !webToken && identity !== undefined && (documentCandidate ||
-      response.responseCode === 403 ||
-      ((accessSignal === 'challenge_required' || optedIn) && (response.responseCode === 401 || response.responseCode === 503)))) {
-      if (response.responseCode === 403 || accessSignal === 'challenge_required') {
-        appSourceWebSessionStore.observeRejectedRequest(identity, currentUrl)
-      }
-      const origin = sourceWebOrigin(currentUrl)
-      if (!freshHttp && probe === undefined && method === 'GET' && body.length === 0 && requestJson.length <= 65536 &&
-        origin.length > 0 && identity.webSessionOrigins.includes(origin)) {
-        const key = rejectedSourceGetKey(identity.sourceId, identity.operationGuardId)
-        const previous = rejectedSourceGets.get(key)
-        const rejected: RejectedSourceGet = {
-          requestJson, httpContextJson, identity, rejectedUrl: currentUrl,
-          requiresDocumentReadiness: documentCandidate, reportsDocumentUrl
-        }
-        if (optedIn || documentCandidate) {
-          rejectedSourceSequence += 1
-          challengeRequestId = `request-${rejectedSourceSequence}`
-          let candidates = rejectedSourceCandidates.get(key)
-          if (candidates === undefined) {
-            candidates = new Map<string, RejectedSourceGet>()
-            rejectedSourceCandidates.set(key, candidates)
-          }
-          candidates.set(challengeRequestId, rejected)
-        }
-        // Without a source-provided causal ID, two different rejected GETs
-        // in one operation are ambiguous and must not be probed as one.
-        if (!documentCandidate) {
-          if (identity.operationGuardId !== undefined && previous !== undefined &&
-            (previous === null || previous.requestJson !== requestJson || previous.rejectedUrl !== currentUrl)) {
-            rejectedSourceGets.set(key, null)
-          } else rejectedSourceGets.set(key, rejected)
-        }
-      }
-    }
+    const challengeRequestId = observeRejectedResponse(response.responseCode, currentUrl, accessSignal)
     if ((binaryRequest || bodyResponse || sourceSession || session !== undefined || dnsOverride !== undefined || freshHttp || guestSearch || includeResponseUrl) &&
       [301, 302, 303, 307, 308].includes(response.responseCode)) {
       const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
