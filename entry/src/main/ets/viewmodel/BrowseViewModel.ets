@@ -263,6 +263,7 @@ function sourceItemCoverUrl(item: RuntimeRecord): string | undefined {
 function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): SourceManga {
   const title = optionalString(item['title']) ?? optionalString(item['id']) ?? AppStrings.get('browse_untitled_manga')
   const coverUrl = sourceItemCoverUrl(item)
+  const tags = normalizeStringArray(item['tags'])
   return {
     id: optionalString(item['id']) ?? title,
     sourceId,
@@ -275,7 +276,8 @@ function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): Source
     coverHeaders: sourceStaticCoverHeaders(itemRecord(item['cover']), coverUrl),
     status: normalizeStatus(item['status']),
     contentRating: normalizeSourceDisplayText(optionalString(item['content_rating']) ?? optionalString(item['contentRating'])),
-    tags: normalizeStringArray(item['tags'] ?? item['sourceTags']),
+    tags: tags ?? normalizeStringArray(item['sourceTags']),
+    listTags: tags ?? [],
     listInfo: normalizeSourceMangaListInfo(item['listInfo'] as Object | undefined),
     url: optionalString(item['url']),
   }

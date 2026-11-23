@@ -19,6 +19,8 @@ export interface SourceManga {
   status?: SourceMangaStatus
   contentRating?: string
   tags?: string[]
+  // Content tags explicitly supplied as `tags`; legacy sourceTags can be provenance only.
+  listTags?: string[]
   listInfo?: SourceMangaListInfo[]
   url?: string
   webUrl?: string
@@ -304,6 +306,7 @@ function normalizeTags(payload: SourceRuntimeMangaPayload): string[] | undefined
 
 export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMangaPayload): SourceManga {
   const title = firstNonEmpty([payload.title, payload.subtitle, payload.id]) ?? AppStrings.get('manga_detail_title_fallback')
+  const tags = normalizeTags(payload)
   const coverUrl = normalizeSourceImageUrl(firstNonEmpty([
     payload.cover_url, payload.coverUrl, payload.cover_uri, payload.coverUri, payload.thumbnail, payload.thumbnailUrl,
     payload.imageUrl, payload.image_url, payload.cover?.url, payload.cover?.uri, payload.cover?.src, payload.cover?.href,
@@ -321,7 +324,8 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
     coverHeaders: sourceStaticCoverHeaders(payload.cover, coverUrl),
     status: normalizeSourceMangaStatus(payload.status),
     contentRating: optionalString(payload.contentRating ?? payload.content_rating),
-    tags: normalizeTags(payload),
+    tags,
+    listTags: payload.tags !== undefined ? tags ?? [] : [],
     listInfo: normalizeSourceMangaListInfo(payload.listInfo),
     url: optionalString(payload.url),
     webUrl: sourceMangaWebUrl(payload.links, payload.url),
@@ -337,7 +341,8 @@ export function sourceMangaListInfo(manga: SourceManga): SourceMangaListInfo[] {
   if (manga.author) creator.push(manga.author)
   if (manga.status && manga.status !== 'unknown') creator.push(AppStrings.get(`manga_status_${manga.status}`))
   if (creator.length > 0) rows.push({ type: 'text', text: creator.join(' · ') })
-  if (manga.tags && manga.tags.length > 0) rows.push({ type: 'tags', items: manga.tags })
+  const tags = manga.listTags ?? manga.tags
+  if (tags && tags.length > 0) rows.push({ type: 'tags', items: tags })
   return normalizeSourceMangaListInfo(rows) ?? []
 }
 

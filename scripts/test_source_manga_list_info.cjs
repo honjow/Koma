@@ -29,7 +29,7 @@ function cards(items) {
 
 test('legacy cards expose existing summary data without changing identity or pagination', () => {
   const result = cards([{ id: 'work:1', title: '作品', subtitle: '更新至第23话', authors: ['作者'],
-    status: 'ongoing', sourceTags: ['奇幻', '冒险'] }])
+    status: 'ongoing', tags: ['奇幻', '冒险'] }])
   assert.equal(result.manga[0].id, 'work:1')
   assert.equal(result.nextCursor, '2')
   assert.equal(result.hasNextPage, true)
@@ -89,11 +89,15 @@ test('ordinary Browse parsing keeps summaries through its independent response p
     normalizer.normalizeSourceDisplayText, normalizer.normalizeSourceImageUrl,
     info.normalizeSourceMangaListInfo, models.sourceStaticCoverHeaders, { get: key => key })
   const result = actual.parseSourceMangaListFromResponse('source', { ok: true, data: { items: [
-    { items: [{ id: 'legacy', title: '作品', subtitle: '更新至23话', sourceTags: ['冒险'] }] },
+    { items: [{ id: 'legacy', title: '作品', subtitle: '更新至23话', tags: ['冒险'] }] },
     { id: 'modern', title: '作品2', listInfo: [{ type: 'text', text: '站点自定摘要' }] },
+    { id: 'provenance', title: '作品3', sourceTags: ['komiic'] },
   ], page: { nextCursor: 'next', hasMore: true } } })
   assert.equal(result.nextCursor, 'next')
-  assert.equal(result.manga.length, 2)
+  assert.equal(result.manga.length, 3)
   assert.deepEqual(models.sourceMangaListInfo(result.manga[0]).map(info.sourceMangaListInfoText), ['更新至23话', '冒险'])
   assert.deepEqual(models.sourceMangaListInfo(result.manga[1]).map(info.sourceMangaListInfoText), ['站点自定摘要'])
+  // Actual older source cards use sourceTags:['komiic'] as provenance, not a genre.
+  assert.deepEqual(result.manga[2].tags, ['komiic'])
+  assert.deepEqual(models.sourceMangaListInfo(result.manga[2]), [])
 })
