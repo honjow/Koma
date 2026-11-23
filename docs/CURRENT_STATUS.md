@@ -13051,7 +13051,7 @@
         ".hvigor/outputs/detail-transition-20261123/frame-candidate13-list-cover-roundtrip-review",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate13-original-grid-restored-014248104906/screen.png",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-014313076164/run-metadata.json",
-        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-current.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-current-completed-014336.json",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/library-after-settings-013322187750/screen.png",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate13-filtered-state-log-013707209246/app-state-log.txt",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate9-list-count-result.json",
@@ -13299,9 +13299,9 @@
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求移植 NextE 列表转场，覆盖书架打开作品页和浏览进入作品页，随后明确要求开子代理并直接在 201 验证；精确原始消息时刻未核实。",
-      "status": "完整三模式已验；按新增要求缺省改封面展开，既有显式偏好保留，201新列表进退与恢复完成",
-      "updatedAt": "2026-11-24T01:54:32+08:00",
-      "result": "完整移植NextE系统默认/一镜到底/封面展开，用户最新要求默认改为封面展开：缺省与非法值统一coverExpand，既有显式system/seamless/coverExpand保留；Root执行现有真实偏好保存/重载/失败回滚和备份检查，未清201偏好凑默认。外观原生菜单、当前项/持久化及备份owner沿既有模型；系统模式原生横向，自定义350ms与曲线/空间淡入保持。异步快照、真实布局握手、V2 applySync初态与几何、资源IDENTITY、迟到token/source取消与合法4.5秒超时普通打开回退保留。候选6三模式各书架/漫画屋普通进退、连续两本、封面展开列表及冷启勾选均有完整原片；本轮13临时选封面展开新列表98帧双方亲审，末97原魔王53·51/03話1/18页、封面角标及原位置/背景恢复，无终态残层。201原显式一镜到底及其他设置已恢复，本次SLEEP/10000与独立released已核；保留13新包。5×仅旧轮系统诊断，产品350ms从未改，本轮未重跑大矩阵。候选7同605章warm trace的动画段UI冲刷改善仍成立，但准备46.400ms/点击至动画192.678ms慢于旧124.587ms，POP前置25.422ms、按键至动画61.187ms及落地33.385ms仍为实测限制，不能把新录像或7统计当13新性能trace。旧联系表整页移动与媒体query时刻误当末PTS的误判已撤回，原件保留。 用户已确认本轮效果并授权本地提交，未推送。",
+      "status": "封面展开目标灰块已改透明，201书架网格/列表与源浏览列表全程验收，原状态恢复释租",
+      "updatedAt": "2026-11-24T05:21:55+08:00",
+      "result": "用户新反馈在旧13原片中直接成立：封面尚未到顶时，详情目标位置被永久灰遮罩挡住。现去除灰Column，按原coverMaskVisible把目标Stack整体停止绘制，连底色/备用图标/阴影一起透明，保挂载/id/测量，落位恢复原封面。候选14已在201本次跟随系统深色现场覆盖安装；Root与执行代理按序亲审书架网格91帧、国漫同作品列表102帧、漫画屋真实单列92帧，并放大飞行中30/26/31帧：目标确实透出详情背景纹理，无灰矩形/备用图标/阴影，落地正常。末帧归还原国漫大象605/495、7/39页或原漫画屋热门斗破首卡与位置，无终态残留。完整三模式和用户已定默认封面展开、既有显式偏好保留；350ms与曲线/空间阈值未改。本次只重验灰块相关三条coverExpand路径，不冒原三模式/字号全矩阵新结果。漫画屋原网格、书架原国漫网格/宽松/封面展开/简中及跟随系统深色均保留或恢复，原大象495与第7页18%续读读回；本次原SLEEP/10000独立恢复，05:17:36释租released，保留14新包。此前7同605章warm trace的动画段冲刷改善仍为原证据；准备46.400ms/点击至动画192.678ms慢于旧124.587ms，POP前置25.422ms、按键至动画61.187ms和落地33.385ms仍属保留限制，本轮录像不证明FPS或这些开销已消除。未改阅读数据，已按用户明确授权纳入本地提交，未推送。",
       "remainingActions": [],
       "evidence": [
         "entry/src/main/ets/navigation/MangaDetailTransitionCoordinator.ets",
@@ -13332,7 +13332,16 @@
         ".hvigor/outputs/detail-transition-20261123/frame-candidate13-list-cover-roundtrip-review",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/transition-selected-menu-coverExpand-013925023446/screen.png",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/transition-selected-menu-seamless-014142877077/screen.png",
-        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-014313076164/run-metadata.json"
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-014313076164/run-metadata.json",
+        ".hvigor/outputs/detail-transition-20261123/three-modes-candidate-14.hap",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate14-transparent-cover-result.json",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate13-list-cover-roundtrip-review/frames/frame_000027.png",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate14-cover-library-grid-review",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate14-cover-library-list-review",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate14-cover-browse-list-review",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate14-original-library-restored-051702621121/screen.png",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-051721107557/run-metadata.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-cover-transparent-20261124.json"
       ],
       "boundaries": [],
       "stage": "已验证，按用户授权本地提交"
@@ -31750,6 +31759,32 @@
         ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-80-shadow-tests.log",
         ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/89-translucent-80-shadow-inertia/attribution.json",
         ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/90-translucent-80-shadow-retained-anchor/run-metadata.json"
+      ]
+    },
+    {
+      "id": "nexte-cover-target-transparency-feedback-20261124",
+      "at": "2026-11-24T05:07:26+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "verification",
+      "title": "用户指出飞行封面目标灰块，原项重开实机验证",
+      "detail": "候选13列表原片frame27直接可见目标灰矩形；用户期望透明透出详情背景。Root仅把真实封面Stack整体绘制隐藏而保持挂载及测量，已构建14；201新租约，按原场景验coverExpand三条普通路径，不改350ms或系统倍率，不重开完整三模式性能矩阵。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate13-list-cover-roundtrip-review/frames/frame_000027.png",
+        ".hvigor/outputs/detail-transition-20261123/three-modes-candidate-14.hap"
+      ]
+    },
+    {
+      "id": "nexte-cover-target-transparent-final201-20261124",
+      "at": "2026-11-24T05:19:43+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "verification",
+      "title": "封面展开落点改透明，201三条普通进退完整原片通过并恢复释租",
+      "detail": "Root去除Header永久灰遮罩并整体隐藏目标封面Stack绘制，保挂载测量。双方顺序亲审14网格91/书架列表102/源单列92帧及飞行中30/26/31原图，目标透出详情背景，无灰块/备用图标/阴影；末帧归还原卡、角标和位置。按本次fresh国漫/495/续读7页18%保留，原漫画屋网格、书架网格/宽松/封面展开/简中/跟随系统深色恢复或未动；SLEEP10000独立读回，05:17:36 released，新14保留。未改350ms或系统倍率，不据本轮录像冒称性能限制消失。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate14-transparent-cover-result.json",
+        ".hvigor/outputs/detail-transition-20261123/report.md",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-051721107557/run-metadata.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-cover-transparent-20261124.json"
       ]
     }
   ],

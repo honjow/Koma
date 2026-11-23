@@ -90,12 +90,6 @@ export struct MangaDetailHeader {
           },
         })
       }
-      // Permanent mask keeps the actual cached image mounted while the root flight owns its pixels.
-      Column() {}.width('100%').height('100%')
-        .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
-        .opacity(this.transitionCoverId.length > 0 &&
-          this.detailTransition.targetCoverComponentId === this.transitionCoverId && this.detailTransition.coverMaskVisible() ? 1 : 0)
-        .hitTestBehavior(HitTestMode.None)
     }
     .id(this.transitionCoverId)
     .width(104)
@@ -104,6 +98,12 @@ export struct MangaDetailHeader {
     .borderRadius(ThemeConstants.RADIUS_THUMB)
     .clip(true)
     .shadow({ radius: 10, color: ThemeConstants.SHADOW_CARD, offsetY: 4 })
+    // CURRENT_STATUS #359: the flight owns the only visible cover. Keep this
+    // node mounted for its landing geometry and cached image, but hide its
+    // entire paint (including placeholder, fallback glyph and shadow) so the
+    // detail background shows through until the flying cover lands.
+    .opacity(this.transitionCoverId.length > 0 &&
+      this.detailTransition.targetCoverComponentId === this.transitionCoverId && this.detailTransition.coverMaskVisible() ? 0 : 1)
   }
 
   build() {
