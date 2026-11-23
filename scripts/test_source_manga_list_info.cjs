@@ -70,3 +70,30 @@ test('UTF-8 budgets, unknown rows and whitespace are handled independently', () 
   assert.equal(rows[0].text, '😀'.repeat(128))
   assert.deepEqual(rows[1].items, ['a b', 'tag0', 'tag1', 'tag2', 'tag3'])
 })
+
+test('ordinary Browse parsing keeps summaries through its independent response path', () => {
+  // Execute the actual Browse response functions, which also accept nested home sections.
+  const source = fs.readFileSync(path.join(root, '../viewmodel/BrowseViewModel.ets'), 'utf8')
+  const ast = ts.createSourceFile('BrowseViewModel.ets', source, ts.ScriptTarget.Latest, true)
+  const names = ['optionalString', 'normalizeStatus', 'normalizeStringArray', 'firstDisplayText',
+    'itemRecord', 'sourceItemCoverUrl', 'parseSourceMangaFromItem', 'sourceMangaIdentityKey',
+    'appendUniqueSourceManga', 'parseSourceMangaListFromResponse']
+  const functions = ast.statements.filter(node => ts.isFunctionDeclaration(node) && names.includes(node.name?.text))
+    .map(node => node.getText(ast)).join('\n')
+  const js = ts.transpileModule(functions + '\nexport { parseSourceMangaListFromResponse };', {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText
+  const actual = {}
+  new Function('exports', 'normalizeSourceDisplayText', 'normalizeSourceImageUrl',
+    'normalizeSourceMangaListInfo', 'sourceStaticCoverHeaders', 'AppStrings', js)(actual,
+    normalizer.normalizeSourceDisplayText, normalizer.normalizeSourceImageUrl,
+    info.normalizeSourceMangaListInfo, models.sourceStaticCoverHeaders, { get: key => key })
+  const result = actual.parseSourceMangaListFromResponse('source', { ok: true, data: { items: [
+    { items: [{ id: 'legacy', title: '作品', subtitle: '更新至23话', sourceTags: ['冒险'] }] },
+    { id: 'modern', title: '作品2', listInfo: [{ type: 'text', text: '站点自定摘要' }] },
+  ], page: { nextCursor: 'next', hasMore: true } } })
+  assert.equal(result.nextCursor, 'next')
+  assert.equal(result.manga.length, 2)
+  assert.deepEqual(models.sourceMangaListInfo(result.manga[0]).map(info.sourceMangaListInfoText), ['更新至23话', '冒险'])
+  assert.deepEqual(models.sourceMangaListInfo(result.manga[1]).map(info.sourceMangaListInfoText), ['站点自定摘要'])
+})
