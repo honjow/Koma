@@ -16,7 +16,7 @@ import { http } from '@kit.NetworkKit'
 import { NativeSourceRuntime, SourceBrowserHttpTiming } from './NativeSourceRuntime'
 import { appSourceSettingsStore } from './SourceSettingsStore'
 import { sourceDnsTarget, sourceResponseUrlTarget, SOURCE_FRESH_HTTP_MIN_SDK, SourceGuestHttp, SourceGuestCookie, SourceGuestCookieCapture, SourceGuestNumberedPath, declaredSourceHttpProfile, mergeDeclaredSourceCookies, renderedDocumentFallbackEnabled } from './SourceWebsitePolicy'
-import { sourceWebFetchBridge } from './SourceWebFetchBridge'
+import { sourceWebFetchBridge, SourceWebFetchResult } from './SourceWebFetchBridge'
 import { initializeSourceDnsBootstrap, requestSourceDnsHop, sourceDnsBootstrapIp, sourceDnsOverride,
   SourceDnsOverride, SourceDnsBootstrapScope } from './SourceDnsBootstrapTransport'
 import { requestSourceRcpHop, sourceRcpResponseText, SourceRcpTransportFailure } from './SourceRcpTransport'
@@ -897,6 +897,9 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     probe === undefined && identity !== undefined && ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
     ? appSourceWebSessionStore.requestContext(identity, url) : undefined
   const requestAdmission: SourceRequestAdmission = {}
+  // A reserved slot may transfer to native only if Web did not send. This is
+  // distinct from oncePerRequest, which applies only when a rule declares it.
+  let requestSlotReserved = false
   if (webHttpContext !== undefined && identity !== undefined) {
     if (['GET', 'HEAD'].includes(method) && body.length > 0) return transportError('invalid_request', false)
     const webIdentity = identity
@@ -910,6 +913,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     let webAttempted = false
     try {
       await waitForSourceRequestSlot(installedEntry?.requestLimits, url, granted, envelope.headers, requestAdmission)
+      requestSlotReserved = true
       if (!current()) return transportError('source_request_cancelled', false)
       const webStarted = Date.now()
       if (granted() && !sourceWebFetchBridge.availableFor(identity.sourceId, url,
@@ -927,6 +931,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
           { url, method, headers: sourceHeaders(envelope.headers), body, timeoutMs: remaining },
           webHttpContext.userAgent, webHttpContext.authorizationRevision, granted)
         webAttempted = result.attempted
+        requestSlotReserved = !result.attempted
         // Once submitted, HTTP errors, empty/HEAD responses and ambiguous JS or
         // transport failures are terminal. Never retry/replay a mutation natively.
         trace.info('web_http', 'attempted=' + result.attempted + ' state=' +
@@ -998,8 +1003,21 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         sourceWebFetchBridge.detach(identity.sourceId)
         break
       }
-      const bridged = sourceWebFetchBridge.availableFor(identity.sourceId, url, bridgeUserAgent, authorizationRevision)
-        ? await sourceWebFetchBridge.fetch(identity.sourceId, url, bridgeUserAgent, authorizationRevision) : undefined
+      let bridged: SourceWebFetchResult | undefined = undefined
+      if (sourceWebFetchBridge.availableFor(identity.sourceId, url, bridgeUserAgent, authorizationRevision)) {
+        try {
+          await waitForSourceRequestSlot(installedEntry?.requestLimits, url,
+            (): boolean => current() && granted(), envelope.headers, requestAdmission)
+          requestSlotReserved = true
+        } catch (_error) {
+          trace.finish('cancelled', 'reason=source_request_cancelled')
+          return transportError('source_request_cancelled', false)
+        }
+        if (!current()) return transportError('source_request_cancelled', false)
+        if (!granted() || !sourceWebFetchBridge.availableFor(identity.sourceId, url, bridgeUserAgent, authorizationRevision)) break
+        requestSlotReserved = false
+        bridged = await sourceWebFetchBridge.fetch(identity.sourceId, url, bridgeUserAgent, authorizationRevision)
+      }
       if (!current()) {
         trace.finish('cancelled', 'reason=source_request_cancelled')
         return transportError('source_request_cancelled', false)
@@ -1138,7 +1156,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     }
     const policyStartedAt: number = Date.now()
     const requestLimits = installedEntry?.requestLimits
-    await waitForSourceRequestSlot(requestLimits, currentUrl, current, envelope.headers, requestAdmission)
+    if (!requestSlotReserved) {
+      await waitForSourceRequestSlot(requestLimits, currentUrl, current, envelope.headers, requestAdmission)
+    }
+    requestSlotReserved = false
     if (!current()) {
       trace.finish('cancelled', 'reason=source_request_cancelled')
       return transportError('source_request_cancelled', false)

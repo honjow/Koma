@@ -555,6 +555,63 @@ test('bridge preparation rechecks authorization before issuing a page fetch', as
   }
 })
 
+test('legacy GET and Web POST share the declared rate window and unused reservations transfer without a second debit', async () => {
+  const setup = () => {
+    const f = fixture(), sends = [], waits = []
+    let now = 0, admissions = 0, afterAdmission = () => {}
+    const clock = { now: () => now }
+    const timer = (callback, ms) => { now += ms; waits.push(ms); callback(); return 0 }
+    const actual = moduleFrom('SourceRequestPolicy', () => ({ url: { URL } }), { Date: clock, setTimeout: timer })
+    const policy = { waitForSourceRequestSlot: async (...args) => {
+      await actual.waitForSourceRequestSlot(...args); admissions++; afterAdmission()
+    } }
+    f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true },
+      requestLimits: [{ group: 'shared', hosts: ['site.invalid'], permits: 2, periodMs: 1000 }] }))
+    f.grant()
+    return { f, sends, waits, clock, timer, policy, now: () => now, admissions: () => admissions,
+      afterAdmission: callback => { afterAdmission = callback } }
+  }
+  const shared = setup()
+  const ready = { availableFor: () => true,
+    fetch: async () => { shared.sends.push(['GET', shared.now()]); return { status: 200, body: 'legacy' } },
+    request: async (_source, request) => { shared.sends.push([request.method, shared.now()]); return { attempted: true, status: 200, body: 'modern' } } }
+  for (const method of ['GET', 'POST', 'GET']) {
+    const result = await shared.f.http([], JSON.stringify(shared.f.identity()),
+      { method, ...(method === 'POST' ? { body: 'form=one' } : {}) },
+      { bridge: ready, policy: shared.policy, clock: shared.clock, setTimeout: shared.timer })
+    assert.equal(result.calls.length, 0)
+    assert.equal(result.result.bodyText, method === 'GET' ? 'legacy' : 'modern')
+  }
+  assert.deepEqual(shared.sends, [['GET', 0], ['POST', 0], ['GET', 1000]])
+  assert.deepEqual(shared.waits, [1000])
+  assert.equal(shared.admissions(), 3)
+
+  for (const [method, initiallyReady] of [['GET', true], ['POST', true], ['GET', false], ['POST', false]]) {
+    const s = setup(); let available = initiallyReady, fetches = 0
+    s.afterAdmission(() => { available = false })
+    const bridge = { availableFor: () => available, prepare: async () => false, detach: () => { available = false },
+      fetch: async () => { fetches++; throw Error('must not fetch after readiness changes') },
+      request: async () => { fetches++; throw Error('must not POST after readiness changes') } }
+    const result = await s.f.http([response(200)], JSON.stringify(s.f.identity()),
+      { method, ...(method === 'POST' ? { body: 'form=one' } : {}) },
+      { bridge, policy: s.policy, clock: s.clock, setTimeout: s.timer })
+    assert.equal(fetches, 0)
+    assert.equal(result.calls.length, 1)
+    assert.equal(s.admissions(), 1, 'a reserved but unused Web slot belongs to the native send')
+  }
+
+  const retried = setup(); let readyAgain = true
+  const retryBridge = { availableFor: () => readyAgain, detach: () => { readyAgain = false },
+    prepare: async () => { readyAgain = true; return true },
+    fetch: async () => { retried.sends.push(retried.now()); return retried.sends.length === 1 ? undefined : { status: 200, body: 'retry' } } }
+  const result = await retried.f.http([], JSON.stringify(retried.f.identity()), {},
+    { bridge: retryBridge, policy: retried.policy, clock: retried.clock, setTimeout: retried.timer })
+  assert.equal(result.result.bodyText, 'retry')
+  assert.equal(result.calls.length, 0)
+  assert.equal(retried.sends.length, 2)
+  assert.equal(retried.admissions(), 2, 'each actually attempted legacy GET retains the normal per-send rule')
+})
+
 test('package identity keeps legacy bytes and only new declarations extend their own installed identity', () => {
   const f = fixture(), old = f.registry.lookup('source.one').entry
   const expected = JSON.stringify([old.sourceId, old.manifestVersion, old.wasmPath, JSON.stringify(old.webSessionOrigins.slice().sort())])
@@ -991,7 +1048,7 @@ function fixture(sdkApiVersion = 23) {
       } }
       if (name === '@kit.BasicServicesKit') return {}
       throw Error('unexpected import: ' + name)
-    }, { setInterval, clearInterval, Uint8Array, ArrayBuffer, ...(network.clock ? { Date: network.clock } : {}) })
+    }, { setInterval, clearInterval, setTimeout: network.setTimeout ?? setTimeout, Uint8Array, ArrayBuffer, ...(network.clock ? { Date: network.clock } : {}) })
     transport.configureSourceRuntimeHttpTransport()
     const result = await callback(JSON.stringify({ url: 'https://site.invalid/a', method: 'GET', ...sourceRequest }), context)
     const after = network.afterInitial === undefined ? undefined :
