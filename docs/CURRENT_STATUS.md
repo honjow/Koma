@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T20:08:21+08:00",
+  "updatedAt": "2026-11-23T20:39:02+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -13033,12 +13033,11 @@
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话反馈“目前的书源简介太敷衍了”，原消息精确时刻未核实。",
-      "updatedAt": "2026-11-23T20:08:21+08:00",
-      "status": "87项简介已完成导出核对，正式分发进行中",
-      "result": "87源标准locked编译、最终WASM info及三语生产投影全部通过；逐字段对照原公开包，身份与语言等不变，优酷既有未发正文能力另列。恢复了本轮打包误收窄的旧索引字段，真实Komiic打包回读确认原authentication/websitePolicy与新presentation共存，整包与237候选相同。修改已从源独立原仓正确身份推送，既有CI正在完整构建并发布，尚未宣称公开回读完成。优酷依赖未发App1.6.1，发布层经固定官方包验证保留完整0.1.7旧入口，其余86个简介更新独立交付。",
+      "updatedAt": "2026-11-23T20:39:02+08:00",
+      "status": "86个源的简介更新已发布，优酷新版随App验证后承接",
+      "result": "已保留32个已有有效介绍，并完成其余87个源的简介与简繁英资料整改；其中86个已正式发布。公开索引仍保留原119个源，更新简介与多语言资料均已回读核对。Komiic、包子及优酷公开包已下载校验并执行实际WASM；Komiic公开构建与237候选在既有语言、设置、栏目和筛选请求中结果一致。优酷新版依赖尚未正式发布的App，当前完整保留原可用旧版入口和原包，不阻塞其它简介更新。",
       "remainingActions": [
-        "跟进既有CI至正式发布，回读完整公开索引、包及校验和；核旧优酷入口和其它源数量保持。",
-        "依赖未正式发布App的优酷新候选保持不可用声明；正式App1.6.1发布后再复核解除稳定包保留。"
+        "正式App承接优酷新版能力后，验证并解除其发布保留；不提前覆盖当前可用旧包。"
       ],
       "evidence": [
         ".hvigor/outputs/source-descriptions-20261123/published-index-receipt.json",
@@ -13052,7 +13051,11 @@
         ".hvigor/outputs/source-descriptions-20261123/actual-info/summary.md",
         ".hvigor/outputs/source-descriptions-20261123/actual-info/old-new-comparison.json",
         ".hvigor/outputs/source-descriptions-20261123/index-metadata-restored/verification.json",
-        ".hvigor/outputs/source-descriptions-20261123/release-pin-validation/verification.json"
+        ".hvigor/outputs/source-descriptions-20261123/release-pin-validation/verification.json",
+        ".hvigor/outputs/source-descriptions-20261123/public-release-b9fcd8d/index-readback.json",
+        ".hvigor/outputs/source-descriptions-20261123/public-release-b9fcd8d/package-readback.json",
+        ".hvigor/outputs/source-descriptions-20261123/public-release-b9fcd8d/komiic-execution-parity/report.md",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-b9fcd8dbe67f9a231ba38ed3482bc60c1be92838"
       ],
       "progressPhase": "verification"
     },
@@ -13125,18 +13128,21 @@
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求将包子默认镜像改为tw.webmata.com，经问题回复确认实际指tw.webmota.com；随后补充部分镜像切换后CF难以通过，精确消息时刻未核实。",
-      "status": "已确认目标域名，调整默认并核对验证链",
-      "updatedAt": "2026-11-23T20:08:21+08:00",
-      "result": "现有17镜像中tw.webmota.com为稳定value4，普通公开网页已实际200。将默认及无效设置回退从WWW/value2改为value4，已保存的显式选择不迁移。同步默认主页及WWW/value2的显式主页映射，并将官方WWW canonical地址允许与默认站点分离，防止改默认影响其它镜像目录。部分镜像CF不过尚未确定原因，先核所选域、验证因果URL、UA及会话原点，不把网络或站点作为猜测结论。",
+      "status": "台湾Webmota默认值已改，镜像验证路由已修，237实测中",
+      "updatedAt": "2026-11-23T20:39:02+08:00",
+      "result": "包子新版已将无设置及无效设置时的默认镜像改为tw.webmota.com；17个显式选择值保持，原来手动选的镜像不迁移。同步包默认主页与显式域名映射，并把网站canonical允许范围和默认选择分离，保留原章序和阅读资源规则。App中发现镜像源手动验证可能借用旧失败域名，已改为跟随已保存选择或包默认；自动验证保持精确失败请求。另修复详情/目录验证遗漏请求凭据与操作生命周期的接线，避免错误归属。源及App代码已分别本地提交，237正验证新包的普通入口、切换镜像与正文；尚未把部分镜像CF现象登记为全部解决。",
       "remainingActions": [
-        "完成包子0.1.31源配置、真实WASM默认/显式17镜像和身份对照；不改已验章序、AMP/AppCN阅读和CDN处理。",
-        "237普通入口验证默认站、切换镜像后的主页/验证页/原请求与列表、详情及正文，定位实测未通过的具体链路。",
-        "验证通过后按已有授权发布书源；原Baka、简介和App版本窗口任务继续。"
+        "完成237默认台湾入口及原显式偏好保留、WWW和App镜像切换后的网页与原生请求、详情和正文验证。",
+        "验证通过后发布包子源；App保持1.6.1本地提交，不推送或发布。"
       ],
       "evidence": [
         ".hvigor/outputs/baozimh-default-mirror-20261123/domain-check.json",
         "/Users/honjow/git/koma-sources/sources/baozimh/src/mirror.rs",
-        "/Users/honjow/git/koma-sources/sources/baozimh/metadata.json"
+        "/Users/honjow/git/koma-sources/sources/baozimh/metadata.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/default-tw-031/candidate-ready.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/default-tw-031/report.md",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/app-detail-guard-validation/results.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/app-candidate-ready.json"
       ]
     }
   ],
@@ -30907,6 +30913,34 @@
         ".hvigor/outputs/baozimh-default-mirror-20261123/domain-check.json",
         "/Users/honjow/git/koma-sources/sources/baozimh/src/mirror.rs",
         "/Users/honjow/git/koma-sources/sources/baozimh/metadata.json"
+      ]
+    },
+    {
+      "id": "source-descriptions-public86-readback-20261123",
+      "at": "2026-11-23T20:39:02+08:00",
+      "itemId": "SOURCE_DESCRIPTION_QUALITY",
+      "kind": "delivery",
+      "title": "86个简介更新已正式发布并回读，优酷完整保留旧包",
+      "detail": "已保留32个已有有效介绍，并完成其余87个源的简介与简繁英资料整改；其中86个已正式发布。公开索引仍保留原119个源，更新简介与多语言资料均已回读核对。Komiic、包子及优酷公开包已下载校验并执行实际WASM；Komiic公开构建与237候选在既有语言、设置、栏目和筛选请求中结果一致。优酷新版依赖尚未正式发布的App，当前完整保留原可用旧版入口和原包，不阻塞其它简介更新。",
+      "evidence": [
+        ".hvigor/outputs/source-descriptions-20261123/public-release-b9fcd8d/index-readback.json",
+        ".hvigor/outputs/source-descriptions-20261123/public-release-b9fcd8d/package-readback.json",
+        ".hvigor/outputs/source-descriptions-20261123/public-release-b9fcd8d/komiic-execution-parity/report.md",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-b9fcd8dbe67f9a231ba38ed3482bc60c1be92838"
+      ]
+    },
+    {
+      "id": "baozimh-default31-and-host-routing-fixed-20261123",
+      "at": "2026-11-23T20:39:02+08:00",
+      "itemId": "BAOZI_DEFAULT_MIRROR_AND_VERIFICATION_CONTEXT",
+      "kind": "implementation",
+      "title": "默认台湾入口与验证归属修复已提交，237继续实测",
+      "detail": "包子新版已将无设置及无效设置时的默认镜像改为tw.webmota.com；17个显式选择值保持，原来手动选的镜像不迁移。同步包默认主页与显式域名映射，并把网站canonical允许范围和默认选择分离，保留原章序和阅读资源规则。App中发现镜像源手动验证可能借用旧失败域名，已改为跟随已保存选择或包默认；自动验证保持精确失败请求。另修复详情/目录验证遗漏请求凭据与操作生命周期的接线，避免错误归属。源及App代码已分别本地提交，237正验证新包的普通入口、切换镜像与正文；尚未把部分镜像CF现象登记为全部解决。",
+      "evidence": [
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/default-tw-031/candidate-ready.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/default-tw-031/report.md",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/app-detail-guard-validation/results.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/app-candidate-ready.json"
       ]
     }
   ],
