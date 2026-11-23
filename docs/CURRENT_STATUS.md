@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-24T01:54:32+08:00",
+  "updatedAt": "2026-11-24T02:24:31+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -85,6 +85,39 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "LOCAL_FOLDER_IMPORT_CRASH_AUDIT_20261123",
+      "number": 358,
+      "title": "文件夹导入后闪退排查",
+      "kind": "open",
+      "progressPhase": "needs_work",
+      "priority": "用户反馈",
+      "owner": "Root：本地文件夹导入",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "用户转述有用户导入文件夹后 App 闪退，现场没有日志；精确消息时刻未核实。",
+      "status": "已确认的导入及全量访问风险修正已补交；原现场闪退原因待日志",
+      "updatedAt": "2026-11-24T02:12:46+08:00",
+      "result": "本地生产函数回放：原实现从已有100本延迟目录的书架导入一本单页作品，会读取原100本目录并准备写入101本、2001章、20001页；修后无关目录读取0次，只保存本次1本1章1页。同一事务只提交新增或变化的作品，提交后发布内存并沿用同步通知；保留顺序、分类和阅读状态，首次导入与重扫的提交失败均不发布内存，重试成功。43项相关回归、本地重扫回归及最终debug构建通过。197 普通书架菜单→导入→文件夹实际导入独立复制的图片样本，封面实显、2章共4页；普通详情检查本地库返回1根目录无新增或变更，最终包冷启动后同一作品与2章4页仍在且无重复，重扫再验通过。最初样本写入被系统权限拒绝的空目录返回不计验收。临时作品、Koma内本轮查询和复制目录已清理，原样本未改，原日漫分类及未读数倒序已核；恢复原桌面、SLEEP/10000ms并读回，租约已释放。保留最终候选包；原时点尚未提交，现已补交。 继续执行用户要求的全量读写收口：此前确认的17个入口改为摘要、指定作品或指定章节范围；备份预览只读ID，普通同步改关系表投影和逐记录版本摘要，Mihon批量在同一事务提交本次作品、原记录、阅读及追踪候选，检查点改原生数据库镜像。完整JSON编码集中到备份导出，旧输入与已落盘恢复日志解码保留。修后同数据真实SQLite回放中，本地元数据和源名从读写6本缩为1本；远程历史、源历史删除、阅读迁移和EPUB归一化均未生成完整阅读快照，未改无关作品的阅读位置和会话。82项域回归及98项同步回归、备份设置普通/旧恢复兼容检查通过；最终debug包构建通过并在201覆盖安装与冷启动，原书架、未读数及续读终态保持。 2026-11-24工作区核查：原界面修改会话中遗漏的43个关联文件已补交5305ac49；197导入、201冷启及原域回归/同步/备份记录已核，不把当前未知闪退写成已复现或已关闭。",
+      "remaining": "用户现场的具体进程终止原因仍无日志，真实小型目录验证和已确认风险修正不等同复现该次闪退。超大目录整理/同步写库、封面总并发风险尚无现场因果证据；未降低画质或改变既定样式。App已本地提交，按原约定不推送或发布。",
+      "evidence": [
+        ".hvigor/outputs/local-folder-import-audit-20261123/baseline.json",
+        ".hvigor/outputs/local-folder-import-audit-20261123/candidate.json",
+        ".hvigor/outputs/local-folder-import-audit-20261123/final-logic-regression.log",
+        ".hvigor/outputs/local-folder-import-audit-20261123/final-local-rescan.log",
+        ".hvigor/outputs/local-folder-import-audit-20261123/final-build-result.json",
+        ".hvigor/outputs/local-folder-import-audit-20261123/cover-inflight-audit.json",
+        ".hvigor/outputs/local-folder-import-audit-20261123/audit-result.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/folder-import-audit/",
+        ".hvigor/outputs/full-data-audit-20261123/scoped-results.json",
+        ".hvigor/outputs/full-data-audit-20261123/domain-final.log",
+        ".hvigor/outputs/full-data-audit-20261123/sync-final-all.log",
+        ".hvigor/outputs/full-data-audit-20261123/backup-contract-final-3.log",
+        ".hvigor/outputs/full-data-audit-20261123/final-build-4.log",
+        ".hvigor/outputs/detail-transition-20261123/report.md",
+        ".hvigor/outputs/workspace-audit-20261124/ownership.json"
+      ]
+    },
     {
       "id": "LANGUAGE_PICKER_AUTONYMS",
       "number": 352,
@@ -2734,15 +2767,15 @@
       "kind": "exception",
       "progressPhase": "verification",
       "priority": "用户反馈",
-      "status": "197 回前台后立即滑动未再复现长帧",
-      "stage": "197 最终候选回前台路径已采样",
+      "status": "103 复测确认角标模糊是已拆分装饰层中最大开销",
+      "stage": "同一五列网格八次惯性已完成分项追踪",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-08",
       "reportedAtSource": "本轮用户反馈，原始消息时刻未核实。",
-      "result": "197 最终候选从主屏恢复书架后 150ms 开始连续六次上下滑动，trace 覆盖 1021 个应用帧，最长 5.572ms，0 帧超过 8.3ms。代码路径上，回前台的私有库进度同步不再在 UI 线程重读并 hydrate 整份书库；后台更新结果合并也不再为回滚序列化整库，只回滚受影响的几本。",
-      "remaining": "用户主观的偶发小停顿继续在实际使用中观察；本轮只覆盖 197 单机回前台路径和六次滑动，不是所有后台任务或其他设备组合。",
-      "updatedAt": "2026-11-10T04:06:00+08:00",
+      "result": "197 最终候选从主屏恢复书架后 150ms 开始连续六次上下滑动，trace 覆盖 1021 个应用帧，最长 5.572ms，0 帧超过 8.3ms。代码路径上，回前台的私有库进度同步不再在 UI 线程重读并 hydrate 整份书库；后台更新结果合并也不再为回滚序列化整库，只回滚受影响的几本。2026-11-24 在 103 已安装的 1.6.1 (27) 沿「全部」五列网格滚动，首屏 15 张作品卡，后段同屏 20 张，与首屏无重合。四次惯性期间系统分别报告合成最长帧 16、16、16、18ms，应用 UI 帧回调最长 11.1ms；系统追踪记录 5.17 秒内 492 次合成。较慢帧的主要耗时集中在重绘 Koma 窗口和提交图形命令。",
+      "remaining": "两轮合计 1003 个合成帧。按两轮均值，未读角标模糊 0.79–0.90ms/合成帧，底部原生导航栏和续读迷你栏合计 0.29–0.33ms，顶部标题栏相关模糊 0.21–0.24ms。应用布局均值约 1.36ms/应用帧，列表空闲预构建最长 10.34ms；首次样本出现后台封面取色，重复滚动无同类取色事件仍掉帧。真机追踪没有逐效果 GPU 计时，封面最终绘制、阴影和裁剪仍在整窗合成内。可优先研究复用已解码封面预生成角标局部模糊，保留原未读数字、颜色、透明度、模糊和阴影。候选及逐项开关对照尚未验证。",
+      "updatedAt": "2026-11-24T02:20:45+08:00",
       "relatedItems": [
         "CONTINUOUS_PERFORMANCE"
       ],
@@ -2752,7 +2785,11 @@
         ".hvigor/outputs/reader-stall-source-refresh-20261108/shelf-fixed-frames.jsonl",
         ".hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/foreground-shelf-resume-early/trace.htrace",
         ".hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/foreground-shelf-resume-early/audit/trace.db",
-        ".hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/foreground-shelf-resume-early/after.png"
+        ".hvigor/outputs/foreground-jank-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/foreground-shelf-resume-early/after.png",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-summary.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/02-inertia-trace/trace.htrace",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-attribution.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-attribution-repeat.json"
       ],
       "latestCounterexampleAt": "2026-11-08T21:10:00+08:00"
     },
@@ -6289,13 +6326,13 @@
       "id": "CHAPTER_SORT_MENU",
       "number": 103,
       "title": "章节排序菜单无作用",
-      "status": "阅读器半模态按所选依据正向，已提交并在237验收",
-      "kind": "accepted",
+      "status": "237已验：阅读目录沿用连载/单行本选择",
+      "kind": "done",
       "priority": "P0（人类再次复现：通用排序及菜单状态）",
       "owner": "本会话：章节排序与全部已发布源章序检查",
       "dependencies": [],
-      "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。 对照 Mihon 的四种章排序，Koma 增加「按上传日期」「名称」并对齐「按图源」「按章节编号」。保留默认按图源及原生菜单正反序。所选依据用于同一已核实阅读组的阅读起点和正向邻章，反转显示不改变邻章。漫画1234 0.1.15 的 711 条具名目录遵守原站及 Keiyoushi 顺序，章节 ID 与阅读位置先后保持。 197 使用本轮同签候选和漫画1234 0.1.15。默认按图源的首行是第五百七十六章。无记录开始阅读打开原站入口《鸽之魔界大门—— 2》。按名称后列表前两项是《40进20PK赛》和《超紧急事态！！》。反转显示后仍从前者开始，末页滑到后者，后者首页滑回前者末页。章节编号和上传日期选项也在真机选中。该目录未提供上传时间，日期比较另外用有日期值和缺日期值的执行用例覆盖。 2026-11-23：c263ce77 修正图源方向标签与四项文案；3bafce88 使新作品默认倒序，已有排序记录保持。两个候选均 assembleHap 成功。237 普通导入瓜子0.1.9并下拉刷新，341章目录完整保留，两个档案及预告获得0/1/2位置。真实条漫滚动验证封面档案→人物档案→预告→001，档案间向前/向后均可跨章；恢复倒序显示后，人物档案向前仍回封面档案。原当前进度、页码与saved_at逐字段未变。 最终 App 候选在237验证漫画1234《我的微信连三界》原目录最早在前、新作品无排序记录时默认倒序，实际首行为最终话。瓜子最终公开0.1.9普通导入后刷新341章，全部有唯一阅读位置。原进度人物档案、场景第1/12页及saved_at未改，原source_order/forward保留，临时源无痕恢复关闭，两份临时导入文件及自有设备截图布局已清理。独立恢复SLEEP/OverrideTimeout10000ms并释租。 2026-11-23发布后补正：先前验收漏查底部章序。KomaReaderLabPage原取手动选章目录下标；现由Adapter与adjacent共用readingChapterIds计算章序/总数，目录未完整时不显示误导的1/1。本次不改书源、共享Kit、版本号或持久进度。 2682eb51补丁最终237验收：普通源内搜索进入瓜子《从姑获鸟开始》，原图源倒序目录341章，继续人物档案第1/12页，实际底部为章节2/341。临时源无痕false已读回，原详情倒序目录、SLEEP和OverrideTimeout10000ms已恢复并释租。读取到的较新读态时间早于本次阅读，未用旧快照覆盖。 131e70b9统一完整手动目录的正向投影，书架/历史、未入库源直读和后台补目录均接入。16项实际逻辑覆盖四依据；237瓜子341章实见图源首四项封面→人物→预告→001，详情反转后半模态不反转、人物仍2/341。名称依据下人物338/341，明确菜单上一章公告339→人物338、下一章人物338→公告339。原图源倒序、源无痕false及读态四字段已精确恢复。设备本轮仅图源和名称，未把编号/日期逻辑检查写作设备验收。",
-      "remaining": "本轮半模态方向补正已完成；所有源的目录修复与抽样继续#343。",
+      "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。 对照 Mihon 的四种章排序，Koma 增加「按上传日期」「名称」并对齐「按图源」「按章节编号」。保留默认按图源及原生菜单正反序。所选依据用于同一已核实阅读组的阅读起点和正向邻章，反转显示不改变邻章。漫画1234 0.1.15 的 711 条具名目录遵守原站及 Keiyoushi 顺序，章节 ID 与阅读位置先后保持。 197 使用本轮同签候选和漫画1234 0.1.15。默认按图源的首行是第五百七十六章。无记录开始阅读打开原站入口《鸽之魔界大门—— 2》。按名称后列表前两项是《40进20PK赛》和《超紧急事态！！》。反转显示后仍从前者开始，末页滑到后者，后者首页滑回前者末页。章节编号和上传日期选项也在真机选中。该目录未提供上传时间，日期比较另外用有日期值和缺日期值的执行用例覆盖。 2026-11-23：c263ce77 修正图源方向标签与四项文案；3bafce88 使新作品默认倒序，已有排序记录保持。两个候选均 assembleHap 成功。237 普通导入瓜子0.1.9并下拉刷新，341章目录完整保留，两个档案及预告获得0/1/2位置。真实条漫滚动验证封面档案→人物档案→预告→001，档案间向前/向后均可跨章；恢复倒序显示后，人物档案向前仍回封面档案。原当前进度、页码与saved_at逐字段未变。 最终 App 候选在237验证漫画1234《我的微信连三界》原目录最早在前、新作品无排序记录时默认倒序，实际首行为最终话。瓜子最终公开0.1.9普通导入后刷新341章，全部有唯一阅读位置。原进度人物档案、场景第1/12页及saved_at未改，原source_order/forward保留，临时源无痕恢复关闭，两份临时导入文件及自有设备截图布局已清理。独立恢复SLEEP/OverrideTimeout10000ms并释租。 2026-11-23发布后补正：先前验收漏查底部章序。KomaReaderLabPage原取手动选章目录下标；现由Adapter与adjacent共用readingChapterIds计算章序/总数，目录未完整时不显示误导的1/1。本次不改书源、共享Kit、版本号或持久进度。 2682eb51补丁最终237验收：普通源内搜索进入瓜子《从姑获鸟开始》，原图源倒序目录341章，继续人物档案第1/12页，实际底部为章节2/341。临时源无痕false已读回，原详情倒序目录、SLEEP和OverrideTimeout10000ms已恢复并释租。读取到的较新读态时间早于本次阅读，未用旧快照覆盖。 131e70b9统一完整手动目录的正向投影，书架/历史、未入库源直读和后台补目录均接入。16项实际逻辑覆盖四依据；237瓜子341章实见图源首四项封面→人物→预告→001，详情反转后半模态不反转、人物仍2/341。名称依据下人物338/341，明确菜单上一章公告339→人物338、下一章人物338→公告339。原图源倒序、源无痕false及读态四字段已精确恢复。设备本轮仅图源和名称，未把编号/日期逻辑检查写作设备验收。 2026-11-24用户补报连载/单行本过滤仅影响详情，阅读器仍混合。已定位为创建会话和后台补目录只读取排序、不读取分组；正在公共管线修复，并核对旧目录元数据恢复。 公共过滤已覆盖详情起读、书架与源直读会话、后台补目录、邻章和预载；旧库缺元数据时补齐，失效组选择只在完整目录确认后同步撤销。App候选已构建、本地提交a0d426a6；相关执行检查通过，普通设备验收进行中。 237最终使用Komiic0.1.25《腦洞學生會》204项具名目录：旧包详情連載192/204但阅读器选章混入卷；原1/192计数本来正确。新候选連載192项只列话，00↔01实际上下章为1↔2/192；單行本12项只列卷，01↔02为1↔2/12，重入保持12/204。清空后详情204/204且选章恢复两组，重入仍为全部。原連載/正序、源设置与无痕false恢复，原11任务及队列逐字段相同；本作现存读态时间均早于会话，未做猜测写回。02:22:04独立读回SLEEP/10000ms，02:22:34释租。候选App1.6.1留在237，未公开；未把单源普通详情路径冒全部源、历史或独立预载HTTP验收。",
+      "remaining": "本轮阅读分组一致性修复已完成，本地提交a0d426a6；App按原约定未推送或发布。原全部书源章序审计仍见#343。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
@@ -6312,16 +6349,16 @@
         "允许差异为升降序真正互逆、默认降序单一状态、原生选中对勾和同项选择无变更；不改控件尺寸/排布/字体。",
         "源方向必须来自声明或完整阅读位置，不能把网站原数组一律叫正序；旧保存方向换算显示，不能悄悄翻转用户列表。",
         "无编号本身不构成手选限制；列表反转不反转阅读器的正向上下章。",
-        "本轮用户明确选择：阅读器半模态固定按作品所选排序依据正向显示，详情展示方向不传入；完整版本、锁定和无编号条目保留。"
+        "阅读器半模态按作品所选排序依据固定正向；详情展示反转不传入。用户本轮明确要求所选语言和分组同时限制阅读目录、起读、邻章及预载，范围内完整版本、锁定和无编号条目仍保留；清空后恢复全部。"
       ],
       "modificationBasis": {
         "object": "ChapterListSection展示排序和MangaDetailModels排序状态；原章节对象/ID不变",
         "history": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
         "originalReason": "话数语义比较保留；源目录和可选数值不能混为同一排序输入。旧二项菜单未同步默认状态。",
         "reopenEvidence": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
-        "allowedDifference": "SOURCE_ORDER/CHAPTER_NUMBER与FORWARD/REVERSE独立，整表反转；原生选中标记、当前项无重选；排序分组小号常规字及公共材质。保其他布局、ID、读态和Reader邻章语义。"
+        "allowedDifference": "SOURCE_ORDER/CHAPTER_NUMBER与FORWARD/REVERSE独立，整表反转；原生选中标记、当前项无重选；排序分组小号常规字及公共材质。保其他布局、ID、读态和Reader邻章语义。 2026-11-24新增用户决定：连载/单行本等所选分组和语言作为阅读集合边界，公共会话及后台补目录沿用；不改原始目录、已读状态和界面样式。"
       },
-      "updatedAt": "2026-11-23T03:51:28+08:00",
+      "updatedAt": "2026-11-24T02:24:31+08:00",
       "evidence": [
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/37-mh1234-baseline-chapter-title/layout.json",
         ".hvigor/outputs/elephant-chronology-20261120/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-host/46-mh1234-final-native-catalogue/layout.json",
@@ -6338,9 +6375,15 @@
         ".hvigor/report/report-202611230220466350.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/57-counter-second-reading-chapter/screen.png",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unknown/portrait-1320x2120/chapter-order-guazi/61-counter-final-restoration/run-metadata.json",
-        ".hvigor/outputs/chapter-counter-check-summary.json"
+        ".hvigor/outputs/chapter-counter-check-summary.json",
+        ".hvigor/outputs/reader-edition-filter-20261124/candidate-ready.json",
+        ".hvigor/outputs/reader-edition-filter-20261124/targeted-tests-final.log",
+        ".hvigor/outputs/reader-edition-filter-20261124/display-tests-final.log",
+        ".hvigor/outputs/reader-edition-filter-20261124/existing-fixture-failures.log",
+        ".hvigor/outputs/chapter-filter-reader-20261124/final-result.json"
       ],
-      "closedAt": "2026-11-23T02:38:00+08:00"
+      "progressPhase": "completed",
+      "closedAt": "2026-11-24T02:24:31+08:00"
     },
     {
       "id": "APP_POPUP_SYSTEM_MATERIAL",
@@ -12705,7 +12748,7 @@
         "CHAPTER_SORT_MENU"
       ],
       "result": "119个正式源已逐源核代码并尝试真实请求，取得490份非空完整目录、56332章，覆盖105源，其中91源至少5份；原始响应、候选回放与普通设备结果分别计数。27源章序修复及漫画1234维护版已发布，最终公开资产与具名代表原件另有核对，未将构建当作阅读验收。\n原20个受限源的237普通宿主队列已逐项结算：15源完成约定的目录/代表阅读范围，5源保留具体访问或登录条件，不是20源全站通过。包子五作及两长章、明确邻章和镜像具名范围已验；无号章沿真实位置保有前后关系。额外漫画柜7580完整453条，四组唯一位置、132条无章号仍可续章；原四部599行另列。MYCOMIC原站自身含1→20等顺序，真实邻域已核，不擅自按标题数字重排。\n优酷当前最低1.6.1候选另四作78/6/3/36完整目录、两组关系及代表清晰正文/明确邻章已验；旧Cat7章为另候选与宿主，分列保留。漫画屋正常词搜取得非人哉1275章与明确1→2实图，但分类Native及同请求正常Web仍403；热门/最新路径与固定MCCMSWeb上游相同，无源路由改错依据，不称分类入口已恢复。\n237已恢复SLEEP/10000并释租，自有临时上传及取证文件已清理并读回；新App、合法源、用户新哔咔登录及较新阅读位置保留。App1.6.1和优酷按用户决定暂不公开。",
-      "remaining": "本次开局一座山1244章混向已修并公开；原490份/56332章冻结快照不改，本作新增原件单列。其余已发布修复具名范围保持，继续保留原外部访问/账号条件与优酷最低1.6.1本地候选的发版决定。237设备按当前Baka/下载验证授权继续hold，最后电源/释租由当前owner独立执行。",
+      "remaining": "本次开局一座山1244章混向已修并公开；原490份/56332章冻结快照不改，本作新增原件单列。其余已发布修复具名范围保持，继续保留原外部访问/账号条件与优酷最低1.6.1本地候选的发版决定。此前Baka/下载验收已恢复释租；本轮分组阅读237验收也已独立恢复，结果见#103。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
         "原已确认的站点访问/账号条件发生变化时再复核，不重跑已接受路径。",
@@ -12804,6 +12847,29 @@
       "stage": "包子新混向修复已交付；原外部条件保留"
     },
     {
+      "id": "READER_CACHED_CHAPTER_CROSSING_JANK",
+      "number": 344,
+      "title": "条漫缓存热跨章时随章节 Toast 顿一下",
+      "kind": "pending_verification",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "本会话用户报告，两个已缓存章节之间反复惯性滚动，基本每次章节 Toast 出现时都顿一下。",
+      "updatedAt": "2026-11-24T02:12:46+08:00",
+      "status": "跨章优化候选已单独提交，仍待真机性能对照",
+      "result": "新章实际显示时，书源直读先更新内存历史，和翻页一起按受影响作品、章节保存。跨章只刷新工具栏所需的目录信息，打开半模态时才生成完整目录条目。原生章节提示及实际跨章条件保持。相关本地逻辑通过，197 正由另一会话验证存储和历史，尚无同机真机对照。 2026-11-24工作区核查：原性能问题调研和修复会话01a204af中的跨章优化候选已单独保存35af6d83；本地逻辑及构建原证据保留，尚无同条件帧时间对照，不标为性能修复已通过。",
+      "remaining": "同一设备同一对已缓存章节双向惯性跨章，对齐 Toast 与帧追踪，核对跨章耗时与可能剩余的原生提示或布局开销，并验证退出后的进度。",
+      "relatedItems": [
+        "AUTO_CHAPTER_BOUNDARY_TARGET",
+        "CONTINUOUS_PERFORMANCE"
+      ],
+      "evidence": [
+        ".hvigor/outputs/reader-cached-chapter-crossing/Koma-1.6.0-cached-chapter-crossing.hap",
+        ".hvigor/outputs/workspace-audit-20261124/ownership.json"
+      ]
+    },
+    {
       "id": "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY",
       "number": 345,
       "title": "条漫从章首或章末续读后立即跨章会卡住",
@@ -12819,7 +12885,8 @@
       "remaining": "当前具名真机范围为 201 已验证目录的在线作品，首次打开且缺少目录、登录型书源和其他设备未覆盖。按原规则获取新鲜正文页表。",
       "relatedItems": [
         "AUTO_CHAPTER_BOUNDARY_TARGET",
-        "NEXT_CHAPTER_PREFETCH_REUSE"
+        "NEXT_CHAPTER_PREFETCH_REUSE",
+        "READER_CACHED_CHAPTER_CROSSING_JANK"
       ],
       "evidence": [
         ".hvigor/outputs/reader-resume-previous-chapter/Koma-1.6.0-resume-previous-chapter.hap",
@@ -13041,6 +13108,66 @@
       "progressPhase": "completed"
     },
     {
+      "id": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "number": 354,
+      "title": "书架未读数字角标使用封面主色与半透明模糊背景",
+      "kind": "verified",
+      "priority": "用户本轮界面调整",
+      "owner": "Root",
+      "status": "分组复用双层背景及零未读空背景已修正，201实机复验通过",
+      "updatedAt": "2026-11-23T22:24:25+08:00",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "用户本会话要求数字标识背景采用带透明度的模糊，原消息精确时刻未核实。",
+      "relatedItems": [
+        "LIBRARY_READING_PROGRESS_SEMANTICS"
+      ],
+      "result": "取色沿用AndroidX Palette鲜明色目标评分，系统量化色板与后台像素占比作宿主适配，所选RGB保持原值。用户要求避免过白后，对全部候选及回退设置HSL明度不超过70%的过滤。已彻底删除造成重影的额外文字层，数字只由原生Badge绘制，空Row负责模糊底板，几何通过系统文字测量取得。用户评价“总算是好多了”后继续要求胶囊外阴影，现使用系统OUTER_DEFAULT_XS。197按用户指定的未读章节数倒序，连续4屏核对21部带标作品；此前偏白的108已换为较深的封面色块，199等重影消失。网格、列表计数一致，正常速度上下滚动抽帧未见底板脱离。发行候选构建与取色关键逻辑检查通过，原网格、原SLEEP/10000ms已恢复并释租，保留同签1.6.1开发包。 本轮按用户实际反例修正公共Builder刷新：原多参数按值Builder在复用时保留旧未读数，改为单个$$对象按引用传参，两处封面入口共用原生Badge可见性和当前计数。保留原白字、封面主色、50%透明、模糊、尺寸及轻外阴影。201从包子496/159切全部51/78无双层背景；已有5部零未读作品不显示数字或空胶囊，未修改任何读数。最终整合包冷启动及书架进退后原496/159仍在。",
+      "remainingActions": [],
+      "remaining": "本轮修复与201具名复验完成，未提交或推送。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/geometry-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/candidate-174346744465/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/list-candidate-174453193069/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/normal-speed-01/koma_library_badge_blur_20261123_1746.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/device-restored-174622721867/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-geometry-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-candidate-175620197801/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-list-candidate-175700490076/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/main-color-normal-speed-01/koma_cover_main_color_20261123.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-device-restored-175824817659/run-metadata.json",
+        "scripts/test_cover_main_color.cjs",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-comparison.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-candidate-180607256087/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-list-candidate-180649504752/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/contrast-normal-speed-01/koma_badge_contrast_20261123.mp4",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-device-restored-180812495547/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-package-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-desc-samples.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-list-grid-check.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-desc-page-3-185147094238/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-list-candidate-185235951961/screen.png",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/capsule-shadow-normal-speed-01/summary.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/capsule-shadow-normal-speed-01/frames/frame-timeline.tsv",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-device-restored-185426740948/run-metadata.json",
+        "entry/src/main/ets/model/CoverPaletteSelection.ets",
+        "docs/licenses/AndroidX-Palette.txt",
+        ".hvigor/outputs/detail-transition-20261123/report.md",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/back-220501691672/screen.png"
+      ],
+      "boundaries": [
+        "保留用户确认的彩色底板、50%透明、背景模糊、单层白色原生数字以及尺寸、左上位置和零值隐藏；不改变未读计数、已读状态、阅读进度或分类归属。",
+        "禁止把整体压暗成灰、黑白字自动切换或叠加文字阴影恢复回来。过白色块在选色前排除，不缩放实际RGB；无合格色块或取色失败沿用原配色。",
+        "胶囊外缘轻阴影仅使用空底板的系统OUTER_DEFAULT_XS。不会给文字叠加阴影或第二套数字。",
+        "按用户要求保留未读章节数倒序。预设颜色就近匹配是用户提出的效果不佳时备选；当前改进获肯定，未切换此方案。",
+        "保留原动图显示路径；本轮未覆盖动图取色实机样本。本次仅提交代码，未发布。"
+      ]
+    },
+    {
       "id": "SOURCE_DESCRIPTION_QUALITY",
       "number": 355,
       "title": "书源简介补充站点信息，清理空白及技术套话",
@@ -13077,61 +13204,34 @@
       "progressPhase": "verification"
     },
     {
-      "id": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
-      "number": 354,
-      "title": "书架未读数字角标使用封面主色与半透明模糊背景",
-      "kind": "verified",
-      "priority": "用户本轮界面调整",
+      "id": "READER_REREAD_COMPLETED_CHAPTER",
+      "number": 356,
+      "title": "已读章节重开落到末页和全书读完后续读不可用",
+      "kind": "done",
+      "priority": "用户反馈",
       "owner": "Root",
-      "status": "封面取色、单层白字和胶囊轻外阴影已完成，197已复验",
-      "updatedAt": "2026-11-23T19:12:58+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
-      "reportedAtSource": "用户本会话要求数字标识背景采用带透明度的模糊，原消息精确时刻未核实。",
+      "reportedAtSource": "本会话用户反馈，精确原始提出时刻未核实。",
+      "updatedAt": "2026-11-24T02:12:46+08:00",
+      "closedAt": "2026-11-23T20:09:42+08:00",
+      "status": "197已验的重读与末页续读修复已补交",
+      "result": "目录点章原来走恢复章节页位，读完后因此落在末页。新行为从第一页重读已读章，未读章仍可恢复原页。197 上普通导入每章三页的四章测试作品，依次读到四章末页。回详情显示「继续阅读 · Chapter 4 · 第3/3页」，点击实际返回第 4 章第 3 页；再点已读的第 2 章打开第 1 页。移除该作品的历史后，已读筛选仍有四章，「开始阅读」实际打开第 1 章第 1 页。 2026-11-24工作区核查：原排查超分切换与续读加载会话的197验收修复已补交fafc56cf，未推送或发布App。",
+      "remaining": "真机覆盖本地四章归档与普通详情入口；未复测在线书源。197 保留签名候选，临时作品已移出书架，测试历史、两条临时查询和导入归档已清理。原日漫书架和续读卡片已读回，设备回到原桌面休眠、10000 ms 超时，租约已释放。",
       "relatedItems": [
-        "LIBRARY_READING_PROGRESS_SEMANTICS"
+        "DETAIL_RESUME_AND_SHELF_REFRESH",
+        "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY"
       ],
-      "result": "取色沿用AndroidX Palette鲜明色目标评分，系统量化色板与后台像素占比作宿主适配，所选RGB保持原值。用户要求避免过白后，对全部候选及回退设置HSL明度不超过70%的过滤。已彻底删除造成重影的额外文字层，数字只由原生Badge绘制，空Row负责模糊底板，几何通过系统文字测量取得。用户评价“总算是好多了”后继续要求胶囊外阴影，现使用系统OUTER_DEFAULT_XS。197按用户指定的未读章节数倒序，连续4屏核对21部带标作品；此前偏白的108已换为较深的封面色块，199等重影消失。网格、列表计数一致，正常速度上下滚动抽帧未见底板脱离。发行候选构建与取色关键逻辑检查通过，原网格、原SLEEP/10000ms已恢复并释租，保留同签1.6.1开发包。",
-      "remainingActions": [],
-      "remaining": "本轮改动及实机复验完成，按用户要求纳入本次提交。",
       "evidence": [
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/build.log",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/geometry-check.json",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/candidate-174346744465/screen.png",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/list-candidate-174453193069/screen.png",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/normal-speed-01/koma_library_badge_blur_20261123_1746.mp4",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/device-restored-174622721867/run-metadata.json",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-build.log",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-geometry-check.json",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-candidate-175620197801/screen.png",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-list-candidate-175700490076/screen.png",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/main-color-normal-speed-01/koma_cover_main_color_20261123.mp4",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/main-color-device-restored-175824817659/run-metadata.json",
-        "scripts/test_cover_main_color.cjs",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-build.log",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-comparison.json",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-candidate-180607256087/screen.png",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-list-candidate-180649504752/screen.png",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/contrast-normal-speed-01/koma_badge_contrast_20261123.mp4",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/contrast-device-restored-180812495547/run-metadata.json",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-build.log",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-package-check.json",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-desc-samples.json",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-list-grid-check.json",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-desc-page-3-185147094238/screen.png",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-unread-list-candidate-185235951961/screen.png",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/capsule-shadow-normal-speed-01/summary.json",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/scroll/capsule-shadow-normal-speed-01/frames/frame-timeline.tsv",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-badge-blur/capsule-shadow-device-restored-185426740948/run-metadata.json",
-        "entry/src/main/ets/model/CoverPaletteSelection.ets",
-        "docs/licenses/AndroidX-Palette.txt"
-      ],
-      "boundaries": [
-        "保留用户确认的彩色底板、50%透明、背景模糊、单层白色原生数字以及尺寸、左上位置和零值隐藏；不改变未读计数、已读状态、阅读进度或分类归属。",
-        "禁止把整体压暗成灰、黑白字自动切换或叠加文字阴影恢复回来。过白色块在选色前排除，不缩放实际RGB；无合格色块或取色失败沿用原配色。",
-        "胶囊外缘轻阴影仅使用空底板的系统OUTER_DEFAULT_XS。不会给文字叠加阴影或第二套数字。",
-        "按用户要求保留未读章节数倒序。预设颜色就近匹配是用户提出的效果不佳时备选；当前改进获肯定，未切换此方案。",
-        "保留原动图显示路径；本轮未覆盖动图取色实机样本。本次仅提交代码，未发布。"
+        ".hvigor/outputs/reader-reread-20261123/host-tests.log",
+        ".hvigor/outputs/reader-reread-20261123/build.log",
+        ".hvigor/outputs/reader-reread-20261123/Koma-reader-reread-debug-signed.hap",
+        ".hvigor/outputs/reader-reread-20261123/device197__ALN-AL80/not-applicable/portrait-1260x2720/reread-and-continue/observed-page-comparison.png",
+        ".hvigor/outputs/reader-reread-20261123/device197__ALN-AL80/not-applicable/portrait-1260x2720/reread-and-continue/26-all-read-no-resume/all-four-read.json",
+        ".hvigor/outputs/reader-reread-20261123/device197__ALN-AL80/not-applicable/portrait-1260x2720/reread-and-continue/26-all-read-no-resume/restart-from-first.png",
+        ".hvigor/outputs/reader-reread-20261123/device197__ALN-AL80/not-applicable/portrait-1260x2720/reread-and-continue/36-power-restored/run-metadata.json",
+        ".hvigor/outputs/reader-reread-20261123/197-lease-final.json",
+        ".hvigor/outputs/workspace-audit-20261124/ownership.json"
       ]
     },
     {
@@ -13163,39 +13263,6 @@
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
         ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-7a9e34b/public-readback.json",
         "https://github.com/honjow/koma-sources/releases/tag/sources-7a9e34b7695fb21886208fe5560b3e073ce1ac31",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32clean-scoped-result.json",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-6a5363b/publication-verification.json",
-        "https://github.com/honjow/koma-sources/releases/tag/sources-6a5363b24fb635dd2bc1cf0200b99744ee75748c"
-      ]
-    },
-    {
-      "id": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
-      "number": 360,
-      "title": "包子正常渐变漫画页被误判为加载故障（误报撤销）",
-      "kind": "done",
-      "progressPhase": "completed",
-      "priority": "本轮源验收新增观察",
-      "owner": "Root定位与集成；Aristotle图像链只读核对；Darwin独占237",
-      "reportedAt": null,
-      "reportedDate": "2026-11-23",
-      "reportedAtSource": "本轮237包子0.1.31镜像验收中观察；不是用户原始反馈，不用登记时间冒充提出时刻。",
-      "status": "正常漫画内容，撤销错误故障结论",
-      "updatedAt": "2026-11-23T23:30:37+08:00",
-      "result": "该P2为正常渐变内容，错误故障结论已撤销。逐项审计发现两组源运行时调整：统一App reader有固定上游真实调用依据，清洁0.1.32已在237两章普通阅读通过并正式发布；缺少对应404回退的CDN主机改写已定点撤回，没有为本误报扩展App。P2不可读断言和误导注释、源README及工作单结论已更正。原始写入、Git和16个核心文件核对未发现本支线改动App生产运行时或测试预期，保留其它会话WIP。完整操作时间线和账户共享费用边界已记录，不把共享扣减冒充本项净费用。",
-      "remainingActions": [],
-      "evidence": [
-        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/P2-original-enhancement-comparison.json",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-28-WWW2-image-settled-readonly/screen.png",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/P2-exact-device-files-result.json",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/p2-public-reference/metadata.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/upstream/Baozi.kt",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/app-reader-032/candidate-ready.json",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-real-P2-counterexample.json",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-62-active-221759-log-readback/diagnostics.log",
-        ".hvigor/outputs/baozi-p2-misdiagnosis-audit-20261123/audit.md",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/app-reader-032/final-no-r2/own-change-audit.json",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/p2-app-change-audit/report.md",
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32clean-scoped-result.json",
         ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-6a5363b/publication-verification.json",
         "https://github.com/honjow/koma-sources/releases/tag/sources-6a5363b24fb635dd2bc1cf0200b99744ee75748c"
@@ -13249,6 +13316,39 @@
       ],
       "boundaries": [],
       "stage": "已验证，按用户授权本地提交"
+    },
+    {
+      "id": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
+      "number": 360,
+      "title": "包子正常渐变漫画页被误判为加载故障（误报撤销）",
+      "kind": "done",
+      "progressPhase": "completed",
+      "priority": "本轮源验收新增观察",
+      "owner": "Root定位与集成；Aristotle图像链只读核对；Darwin独占237",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "本轮237包子0.1.31镜像验收中观察；不是用户原始反馈，不用登记时间冒充提出时刻。",
+      "status": "正常漫画内容，撤销错误故障结论",
+      "updatedAt": "2026-11-23T23:30:37+08:00",
+      "result": "该P2为正常渐变内容，错误故障结论已撤销。逐项审计发现两组源运行时调整：统一App reader有固定上游真实调用依据，清洁0.1.32已在237两章普通阅读通过并正式发布；缺少对应404回退的CDN主机改写已定点撤回，没有为本误报扩展App。P2不可读断言和误导注释、源README及工作单结论已更正。原始写入、Git和16个核心文件核对未发现本支线改动App生产运行时或测试预期，保留其它会话WIP。完整操作时间线和账户共享费用边界已记录，不把共享扣减冒充本项净费用。",
+      "remainingActions": [],
+      "evidence": [
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/P2-original-enhancement-comparison.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-28-WWW2-image-settled-readonly/screen.png",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/P2-exact-device-files-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/p2-public-reference/metadata.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/upstream/Baozi.kt",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/app-reader-032/candidate-ready.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-real-P2-counterexample.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-62-active-221759-log-readback/diagnostics.log",
+        ".hvigor/outputs/baozi-p2-misdiagnosis-audit-20261123/audit.md",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/app-reader-032/final-no-r2/own-change-audit.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/p2-app-change-audit/report.md",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32clean-scoped-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-6a5363b/publication-verification.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-6a5363b24fb635dd2bc1cf0200b99744ee75748c"
+      ]
     }
   ],
   "source": {
@@ -13304,6 +13404,77 @@
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
     {
+      "id": "business-scoped-io-final-20261123",
+      "at": "2026-11-23T22:24:25+08:00",
+      "itemId": "LOCAL_FOLDER_IMPORT_CRASH_AUDIT_20261123",
+      "kind": "verification",
+      "title": "日常全量序列化收口与编译恢复验证完成",
+      "detail": "17个已确认入口及Mihon、同步、检查点调用方已收口；真实SQLite修前后范围回放、原子失败恢复、同步与备份兼容通过，最终包201冷启动读回。现场无日志的闪退具体原因保持未知。",
+      "evidence": [
+        ".hvigor/outputs/full-data-audit-20261123/scoped-results.json",
+        ".hvigor/outputs/full-data-audit-20261123/domain-final.log",
+        ".hvigor/outputs/full-data-audit-20261123/sync-final-all.log",
+        ".hvigor/outputs/full-data-audit-20261123/backup-contract-final-3.log",
+        ".hvigor/outputs/full-data-audit-20261123/final-build-4.log"
+      ]
+    },
+    {
+      "id": "unread-badge-reuse-zero-201-20261123",
+      "at": "2026-11-23T22:24:25+08:00",
+      "itemId": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "kind": "verification",
+      "title": "201复验角标分组复用和零未读无残底",
+      "detail": "背景Builder改按引用对象，保留既定样式；496/159到51/78无双层，5部现有零未读作品无空胶囊。未改用户读数，已恢复设备原状态并释租。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/report.md"
+      ]
+    },
+    {
+      "id": "local-folder-import-crash-audit-20261123",
+      "at": "2026-11-23T20:52:38+08:00",
+      "itemId": "LOCAL_FOLDER_IMPORT_CRASH_AUDIT_20261123",
+      "kind": "verification",
+      "title": "文件夹导入局部保存修正及 197 普通路径复验完成",
+      "detail": "本地生产函数回放：原实现从已有100本延迟目录的书架导入一本单页作品，会读取原100本目录并准备写入101本、2001章、20001页；修后无关目录读取0次，只保存本次1本1章1页。同一事务只提交新增或变化的作品，提交后发布内存并沿用同步通知；保留顺序、分类和阅读状态，首次导入与重扫的提交失败均不发布内存，重试成功。43项相关回归、本地重扫回归及最终debug构建通过。197 普通书架菜单→导入→文件夹实际导入独立复制的图片样本，封面实显、2章共4页；普通详情检查本地库返回1根目录无新增或变更，最终包冷启动后同一作品与2章4页仍在且无重复，重扫再验通过。最初样本写入被系统权限拒绝的空目录返回不计验收。临时作品、Koma内本轮查询和复制目录已清理，原样本未改，原日漫分类及未读数倒序已核；恢复原桌面、SLEEP/10000ms并读回，租约已释放。保留最终候选包，未提交或推送。",
+      "evidence": [
+        ".hvigor/outputs/local-folder-import-audit-20261123/baseline.json",
+        ".hvigor/outputs/local-folder-import-audit-20261123/candidate.json",
+        ".hvigor/outputs/local-folder-import-audit-20261123/final-logic-regression.log",
+        ".hvigor/outputs/local-folder-import-audit-20261123/final-local-rescan.log",
+        ".hvigor/outputs/local-folder-import-audit-20261123/final-build-result.json",
+        ".hvigor/outputs/local-folder-import-audit-20261123/cover-inflight-audit.json",
+        ".hvigor/outputs/local-folder-import-audit-20261123/audit-result.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/folder-import-audit/"
+      ]
+    },
+    {
+      "id": "reader-reread-197-accepted-20261123",
+      "at": "2026-11-23T20:09:42+08:00",
+      "itemId": "READER_REREAD_COMPLETED_CHAPTER",
+      "kind": "verification",
+      "title": "197 核对已读章重读及全书读完后再次进入",
+      "detail": "真实分页顺序从第 1 章读完到第 4 章第 3 页。从普通详情继续阅读返回第 4 章第 3 页；从同一详情点已读第 2 章返回第 1 页。仅移除临时作品的最近阅读后，四章仍是已读，开始阅读打开第 1 章第 1 页。清理临时作品、历史、查询及文件，读回原日漫分类、原卡片及电源，保留候选并释租。",
+      "evidence": [
+        ".hvigor/outputs/reader-reread-20261123/device197__ALN-AL80/not-applicable/portrait-1260x2720/reread-and-continue/observed-page-comparison.png",
+        ".hvigor/outputs/reader-reread-20261123/device197__ALN-AL80/not-applicable/portrait-1260x2720/reread-and-continue/26-all-read-no-resume/restart-from-first.png",
+        ".hvigor/outputs/reader-reread-20261123/device197__ALN-AL80/not-applicable/portrait-1260x2720/reread-and-continue/35-restore-fixture-and-search/shelf-restored.json",
+        ".hvigor/outputs/reader-reread-20261123/device197__ALN-AL80/not-applicable/portrait-1260x2720/reread-and-continue/36-power-restored/run-metadata.json"
+      ]
+    },
+    {
+      "id": "reader-reread-completed-chapter-20261123",
+      "at": "2026-11-23T19:48:01+08:00",
+      "itemId": "READER_REREAD_COMPLETED_CHAPTER",
+      "kind": "implementation",
+      "title": "详情选章重读和继续阅读使用各自的打开位置",
+      "detail": "本地用四章目录执行已读章重开、有保留的全书末页续读、保存章从目录消失时的全已读入口和未读章中间页恢复。覆盖书架作品及未收藏书源作品。旧套件的其他失败在改动前也存在；本轮未安装真机。",
+      "evidence": [
+        ".hvigor/outputs/reader-reread-20261123/host-tests.log",
+        ".hvigor/outputs/reader-reread-20261123/chapter-picker-tests.log",
+        ".hvigor/outputs/reader-reread-20261123/chapter-picker-baseline.log"
+      ]
+    },
+    {
       "id": "source-description-audit-and-legacy-name-boundary-20261123",
       "at": "2026-11-23T18:59:39+08:00",
       "itemId": "SOURCE_DESCRIPTION_QUALITY",
@@ -13350,17 +13521,6 @@
       ]
     },
     {
-      "id": "source-ui-text-localization-implementation-approved-20261123",
-      "at": "2026-11-23T17:21:29+08:00",
-      "itemId": "SOURCE_UI_TEXT_LOCALIZATION",
-      "kind": "implementation",
-      "title": "用户明确同意一并开发多语言，设计项继续进入实施",
-      "detail": "按原已评审方案实施，Hindsight倡议kp-ee867feda5904a969a0b427790a1d895已登记一次；Aristotle为App owner，Boole在独立源仓实现SDK/打包，Root集成并接入现有源试点，Darwin仍唯一237 owner。巴卡R14取证并行继续，不因新增任务丢弃；暂不声明source_localization_v1已可用，不推发App。",
-      "evidence": [
-        "docs/source-runtime-abi-design.md"
-      ]
-    },
-    {
       "id": "download-hot-path-20261123",
       "at": "2026-11-23T17:03:00+08:00",
       "itemId": "DOWNLOAD_MANAGER_UI_JANK",
@@ -13368,6 +13528,18 @@
       "detail": "下载按章构造配置、按页键累计进度、按队列顺序取首个可运行任务。最终校验只读取当前章节。197 从普通详情下载《開局一座山》番外 29 页，重启应用后经已下载筛选打开，命中本地清单并显示 1/29。下载回归核对暂停保留前两页，恢复只下载剩余页，完成后通过完整性检查。",
       "kind": "verification",
       "evidence": ".hvigor/outputs/download-hot-path-20261123/summary.json"
+    },
+    {
+      "id": "bakamh-r3-web-vs-native-binary-proof-20261123",
+      "at": "2026-11-23T14:13:09+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "investigation",
+      "title": "237确认自动验证已修，图片与详情访问继续定位",
+      "detail": "精确R3包5d606b26/WASMec4a32b0，普通浏览触发Sheet；14:05仅标准真人勾选后，日志automatic=true/retry_original_once，原POST经WebHTTP200。get_image_request经已有BodyRef且session=attached、cookieState=present、uaSource=webview仍HTTP403，拒绝正文未交图片缓存。不是缺Cookie或只加UA即可解决，当前图片未通过；复用同一个WebHTTP Request/Response把原有数据类型可组合起来，源/App同1.6.1候选再验。 同一轮canonical详情GET即使使用WebHTTP也403；普通作品网页使用不同UA/授权身份，不能据其可见内容宣称同一验证会话可用。新数据类型仅补传输组合，不据此判定站点GET已恢复。",
+      "evidence": [
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r3-automatic-cf-post200-native-image403.log",
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r3-canonical-detail-and-ordinary-page-comparison.log"
+      ]
     },
     {
       "id": "library-density-and-press-237-accepted-20261123",
@@ -13402,6 +13574,22 @@
       "detail": "9a9999bc保原HDS内容内距及按下表面、原封面/菜单/长按；标题14fp最多两行靠上，原话数分类靠下。更多元信息产品取舍仍待用户，不以沉默授权；237候选验收另记。"
     },
     {
+      "id": "language-picker-autonyms-commit-approved-20261123",
+      "at": "2026-11-23T13:12:55+08:00",
+      "itemId": "LANGUAGE_PICKER_AUTONYMS",
+      "kind": "decision",
+      "title": "用户要求提交语言名称修正",
+      "detail": "提交语言名称原名显示及对应资源、规则和197验收记录；其他任务改动保留。"
+    },
+    {
+      "id": "language-picker-autonyms-197-20261123",
+      "at": "2026-11-23T13:11:30+08:00",
+      "itemId": "LANGUAGE_PICKER_AUTONYMS",
+      "kind": "verification",
+      "title": "197 验证语言菜单使用原名",
+      "detail": "英语、简中、繁中、日语、韩语五种界面均显示简体中文、繁體中文、English、日本語、한국어；恢复原语言与电源后释租。"
+    },
+    {
       "id": "baozi029-mixed-direction-published-final-20261123",
       "at": "2026-11-23T12:42:08+08:00",
       "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
@@ -13432,28 +13620,6 @@
         "entry/src/main/ets/sourceRuntime/SourceRuntimeHttpTransport.ets:886",
         "entry/src/main/ets/sourceRuntime/SourceWebFetchBridge.ets:102"
       ]
-    },
-    {
-      "at": "2026-11-23T11:35:01+08:00",
-      "itemId": "SOURCE_BROWSE_LIST_INFO",
-      "title": "按用户指出的内距不协调去掉重复上下留白",
-      "detail": "实际卡片上下留白约为左侧两倍；保留HDS原生上下8vp及前缀左8vp，移除外Row重复上下8vp。字体、文字上下分层、封面尺寸与摘要接口不变；重建后仅复核这一视觉差异。"
-    },
-    {
-      "id": "language-picker-autonyms-commit-approved-20261123",
-      "at": "2026-11-23T13:12:55+08:00",
-      "itemId": "LANGUAGE_PICKER_AUTONYMS",
-      "kind": "decision",
-      "title": "用户要求提交语言名称修正",
-      "detail": "提交语言名称原名显示及对应资源、规则和197验收记录；其他任务改动保留。"
-    },
-    {
-      "id": "language-picker-autonyms-197-20261123",
-      "at": "2026-11-23T13:11:30+08:00",
-      "itemId": "LANGUAGE_PICKER_AUTONYMS",
-      "kind": "verification",
-      "title": "197 验证语言菜单使用原名",
-      "detail": "英语、简中、繁中、日语、韩语五种界面均显示简体中文、繁體中文、English、日本語、한국어；恢复原语言与电源后释租。"
     },
     {
       "id": "source-list-info-published-insets237-reviewed-20261123",
@@ -30544,6 +30710,14 @@
       "detail": "用户先确认固定正向，再重申排序依据必须联动。原半模态只读原数组，现共用ReaderChapterSequence中的完整目录正向投影，三入口（书库续读、未入库直读、后台目录恢复）均接入。保全部真实版本、权限和无编号条目，不用当前有限续章链代替完整列表；计数和邻章原规则保持。16项实际逻辑检查通过，设备未验不写通过。"
     },
     {
+      "id": "reader-cached-crossing-host-work-20261123",
+      "at": "2026-11-23T03:22:00+08:00",
+      "itemId": "READER_CACHED_CHAPTER_CROSSING_JANK",
+      "kind": "progress",
+      "title": "移除缓存跨章时的同步刷盘和目录重建",
+      "detail": "源码确认两处工作与 Toast 在同一次新章观测任务内执行。书源直读进入已有的增量保存批次，目录在打开时生成。签名候选已构建，默认测试机 197 有其他会话的有效租约，未安装或执行设备交互。"
+    },
+    {
       "id": "reader-resume-predecessor-seam-candidate-20261123",
       "at": "2026-11-23T03:32:10+08:00",
       "itemId": "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY",
@@ -30727,16 +30901,10 @@
       "detail": "15源完成具名目录/代表阅读范围、5源保留具体访问或登录条件；不报全站通过。漫画屋正常词搜/1275章/代表1→2图通过，分类Native和同请求Web403保留；两条列表路由与固定MCCMSWeb上游相同，不作无依据改动。优酷四作与漫画柜补样已验。App及优酷继续按用户暂不公开。"
     },
     {
-      "id": "bakamh-r3-web-vs-native-binary-proof-20261123",
-      "at": "2026-11-23T14:13:09+08:00",
-      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
-      "kind": "investigation",
-      "title": "237确认自动验证已修，图片与详情访问继续定位",
-      "detail": "精确R3包5d606b26/WASMec4a32b0，普通浏览触发Sheet；14:05仅标准真人勾选后，日志automatic=true/retry_original_once，原POST经WebHTTP200。get_image_request经已有BodyRef且session=attached、cookieState=present、uaSource=webview仍HTTP403，拒绝正文未交图片缓存。不是缺Cookie或只加UA即可解决，当前图片未通过；复用同一个WebHTTP Request/Response把原有数据类型可组合起来，源/App同1.6.1候选再验。 同一轮canonical详情GET即使使用WebHTTP也403；普通作品网页使用不同UA/授权身份，不能据其可见内容宣称同一验证会话可用。新数据类型仅补传输组合，不据此判定站点GET已恢复。",
-      "evidence": [
-        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r3-automatic-cf-post200-native-image403.log",
-        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r3-canonical-detail-and-ordinary-page-comparison.log"
-      ]
+      "at": "2026-11-23T11:35:01+08:00",
+      "itemId": "SOURCE_BROWSE_LIST_INFO",
+      "title": "按用户指出的内距不协调去掉重复上下留白",
+      "detail": "实际卡片上下留白约为左侧两倍；保留HDS原生上下8vp及前缀左8vp，移除外Row重复上下8vp。字体、文字上下分层、封面尺寸与摘要接口不变；重建后仅复核这一视觉差异。"
     },
     {
       "id": "bakamh-web-data-paired-candidate-20261123",
@@ -30855,6 +31023,17 @@
       "evidence": [
         "docs/source-runtime-abi-design.md",
         "entry/src/main/ets/sourceRuntime/SourceLocalizedNames.ets"
+      ]
+    },
+    {
+      "id": "source-ui-text-localization-implementation-approved-20261123",
+      "at": "2026-11-23T17:21:29+08:00",
+      "itemId": "SOURCE_UI_TEXT_LOCALIZATION",
+      "kind": "implementation",
+      "title": "用户明确同意一并开发多语言，设计项继续进入实施",
+      "detail": "按原已评审方案实施，Hindsight倡议kp-ee867feda5904a969a0b427790a1d895已登记一次；Aristotle为App owner，Boole在独立源仓实现SDK/打包，Root集成并接入现有源试点，Darwin仍唯一237 owner。巴卡R14取证并行继续，不因新增任务丢弃；暂不声明source_localization_v1已可用，不推发App。",
+      "evidence": [
+        "docs/source-runtime-abi-design.md"
       ]
     },
     {
@@ -31062,6 +31241,18 @@
       ]
     },
     {
+      "id": "nexte-detail-transition-implementation-20261123",
+      "at": "2026-11-23T21:38:56+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "implementation",
+      "title": "NextE 默认整卡转场已接入，201 验收准备中",
+      "detail": "书架和源浏览的网格、列表接同一快照转场；沿用 350ms 进退和空间进度交叉淡入。当前只确认实现与静态差异，统一构建和 201 连续录像尚未完成。",
+      "evidence": [
+        "entry/src/main/ets/navigation/MangaDetailTransitionCoordinator.ets",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/"
+      ]
+    },
+    {
       "id": "baozimh-031-official-release-verified-20261123",
       "at": "2026-11-23T21:47:30+08:00",
       "itemId": "BAOZI_DEFAULT_MIRROR_AND_VERIFICATION_CONTEXT",
@@ -31126,6 +31317,19 @@
       ]
     },
     {
+      "id": "nexte-detail-transition201-final-20261123",
+      "at": "2026-11-23T22:20:39+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "verification",
+      "title": "201完成两入口完整进退及最终整合包冷启动复核，设备已恢复释租",
+      "detail": "书架两作品和漫画屋热门两作品完整进退原片共378帧已亲审；最终整合包70e6dbee冷启动读回原包子、最近阅读降序、全部阅读状态、496/159和原续读，再录89帧详情进退。附带角标大→小和现有零未读作品无残底均有完整画面。未修改读数，已还原桌面与SLEEP/10000ms并独立释租。即时冷启动续读卡短暂未显示、随后稳定恢复的证据保留；没有用构建、布局或录像命令exit冒充画面通过。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/report.md",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/final-library-221630862189",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final.json"
+      ]
+    },
+    {
       "id": "baozi032-real-app-p2-still-placeholder-20261123",
       "at": "2026-11-23T22:30:12+08:00",
       "itemId": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
@@ -31146,6 +31350,18 @@
       "detail": "该P2是正常渐变背景，主代理未经同页原站和相邻页对照就认定异常，后将上游一般注释套成这张图的根因。下载、解码、显示和内容一致均已成功，不能拿画面是否有清晰人物作为验收。错误判定从21:20:10持续至22:32:40明确撤回；原占位图、下载墙反例及修复失败结论全部撤销。0.1.32本地候选及未提交CDN增量保持冻结、未推发，不将上游对齐差异冒充本页故障修复；已正式发布的台湾默认镜像保持。时间、操作、用量及费用边界见审计原件。",
       "evidence": [
         ".hvigor/outputs/baozi-p2-misdiagnosis-audit-20261123/audit.md"
+      ]
+    },
+    {
+      "id": "nexte-full-detail-transition-correction-20261123",
+      "at": "2026-11-23T22:54:03+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "correction",
+      "title": "撤回只做默认效果的完成结论，补齐参考三模式",
+      "detail": "原默认整卡进退证据保留，但没有系统默认/一镜到底/封面展开选择和外观入口，不构成完整移植。现完整三模式及持久化已接入，异步截图和真实详情布局握手候选整合中；201保留原全部分类、最近阅读降序、496和605章普通路径基线。新包三模式两入口、冷启动与性能对比尚未验收。",
+      "evidence": [
+        "entry/src/main/ets/navigation/MangaDetailTransitionCoordinator.ets",
+        ".hvigor/outputs/detail-transition-20261123/frame-baseline-analysis/transition-performance-with-preparation.json"
       ]
     },
     {
@@ -31185,70 +31401,6 @@
       ]
     },
     {
-      "id": "baka-complete-client-contract-ready-20261124",
-      "at": "2026-11-24T00:38:48+08:00",
-      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
-      "kind": "verification",
-      "title": "巴卡按完整上游合同补齐公共依赖，整套候选进入237验收",
-      "detail": "巴卡：完整静态对照已核上游普通OkHttp、默认Android UA、IMAGE BrowserHeaders、CookieJar与全client限速；源0.1.2已一次补齐SDK共享普通图片请求策略、匿名CDN SourceCookies和2/s限速，保完整Referer与原页/章身份，未新增重试或诊断。App1.6.1仅修现有CookieJar跨域跳转过度删除公开头的问题，原授权/验证过滤不变；已本地提交a70247f0并构建HAP，未推送发布。源e4b2f2a及锁05c51bf已本地提交，完整候选ad0f6b3d已冻结交237普通阅读、跨章和一章完整下载/离线验收；旧c0fb与同图textprofile均403，不写成已修。源最低App1.6.1，当前distribution:false及其余候选进度保持。",
-      "evidence": [
-        ".hvigor/outputs/bakamh-client-parity-20261124/app-candidate-ready.json",
-        ".hvigor/outputs/bakamh-client-parity-20261124/frozen/freeze.json",
-        ".hvigor/outputs/bakamh-client-parity-20261124/final-acceptance-protocol.md"
-      ]
-    },
-    {
-      "id": "baka012-named-acceptance-published-20261124",
-      "at": "2026-11-24T01:33:02+08:00",
-      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
-      "kind": "release",
-      "title": "巴卡0.1.2完整具名验收后正式发布",
-      "detail": "巴卡漫画0.1.2已通过237具名完整验收并正式发布，最低Koma1.6.1。补齐上游普通HTTP客户端的共享UA、完整IMAGE请求头、独立CookieJar和全client限速；原104话稳定403首图现正常显示，1/37/73页、103→104连续跨章、73页整章下载及冷启动本地首尾读取均通过。原11个下载及完整队列/设置恢复，自有下载与上传清除，设备休眠并释租。正式订阅保留旧119源并仅新增巴卡至120，优酷旧版pin不动；正式清单及关键图片请求与已验候选一致。App通用重定向小修已本地提交a70247f0，未推送或发布；本轮未新增Host接口或C++能力。",
-      "evidence": [
-        ".hvigor/outputs/bakamh-client-parity-20261124/client012-final-result.json",
-        ".hvigor/outputs/bakamh-client-parity-20261124/client012-scoped-result.json",
-        ".hvigor/outputs/bakamh-client-parity-20261124/public-release-dd4576f/publication-verification.json",
-        "https://github.com/honjow/koma-sources/releases/tag/sources-dd4576f745ee04c125d699ced0680cd98619571c"
-      ]
-    },
-    {
-      "id": "nexte-detail-transition-implementation-20261123",
-      "at": "2026-11-23T21:38:56+08:00",
-      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
-      "kind": "implementation",
-      "title": "NextE 默认整卡转场已接入，201 验收准备中",
-      "detail": "书架和源浏览的网格、列表接同一快照转场；沿用 350ms 进退和空间进度交叉淡入。当前只确认实现与静态差异，统一构建和 201 连续录像尚未完成。",
-      "evidence": [
-        "entry/src/main/ets/navigation/MangaDetailTransitionCoordinator.ets",
-        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/"
-      ]
-    },
-    {
-      "id": "nexte-detail-transition201-final-20261123",
-      "at": "2026-11-23T22:20:39+08:00",
-      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
-      "kind": "verification",
-      "title": "201完成两入口完整进退及最终整合包冷启动复核，设备已恢复释租",
-      "detail": "书架两作品和漫画屋热门两作品完整进退原片共378帧已亲审；最终整合包70e6dbee冷启动读回原包子、最近阅读降序、全部阅读状态、496/159和原续读，再录89帧详情进退。附带角标大→小和现有零未读作品无残底均有完整画面。未修改读数，已还原桌面与SLEEP/10000ms并独立释租。即时冷启动续读卡短暂未显示、随后稳定恢复的证据保留；没有用构建、布局或录像命令exit冒充画面通过。",
-      "evidence": [
-        ".hvigor/outputs/detail-transition-20261123/report.md",
-        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/final-library-221630862189",
-        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final.json"
-      ]
-    },
-    {
-      "id": "nexte-full-detail-transition-correction-20261123",
-      "at": "2026-11-23T22:54:03+08:00",
-      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
-      "kind": "correction",
-      "title": "撤回只做默认效果的完成结论，补齐参考三模式",
-      "detail": "原默认整卡进退证据保留，但没有系统默认/一镜到底/封面展开选择和外观入口，不构成完整移植。现完整三模式及持久化已接入，异步截图和真实详情布局握手候选整合中；201保留原全部分类、最近阅读降序、496和605章普通路径基线。新包三模式两入口、冷启动与性能对比尚未验收。",
-      "evidence": [
-        "entry/src/main/ets/navigation/MangaDetailTransitionCoordinator.ets",
-        ".hvigor/outputs/detail-transition-20261123/frame-baseline-analysis/transition-performance-with-preparation.json"
-      ]
-    },
-    {
       "id": "nexte-full-transition201-candidate7-20261124",
       "at": "2026-11-24T00:20:24+08:00",
       "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
@@ -31260,6 +31412,19 @@
         ".hvigor/outputs/detail-transition-20261123/candidate7-performance-comparison.json",
         ".hvigor/outputs/detail-transition-20261123/frame-seamless-candidate7-normal-review/",
         ".hvigor/outputs/detail-transition-20261123/frame-candidate7-normal-analysis/trace.db"
+      ]
+    },
+    {
+      "id": "baka-complete-client-contract-ready-20261124",
+      "at": "2026-11-24T00:38:48+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "verification",
+      "title": "巴卡按完整上游合同补齐公共依赖，整套候选进入237验收",
+      "detail": "巴卡：完整静态对照已核上游普通OkHttp、默认Android UA、IMAGE BrowserHeaders、CookieJar与全client限速；源0.1.2已一次补齐SDK共享普通图片请求策略、匿名CDN SourceCookies和2/s限速，保完整Referer与原页/章身份，未新增重试或诊断。App1.6.1仅修现有CookieJar跨域跳转过度删除公开头的问题，原授权/验证过滤不变；已本地提交a70247f0并构建HAP，未推送发布。源e4b2f2a及锁05c51bf已本地提交，完整候选ad0f6b3d已冻结交237普通阅读、跨章和一章完整下载/离线验收；旧c0fb与同图textprofile均403，不写成已修。源最低App1.6.1，当前distribution:false及其余候选进度保持。",
+      "evidence": [
+        ".hvigor/outputs/bakamh-client-parity-20261124/app-candidate-ready.json",
+        ".hvigor/outputs/bakamh-client-parity-20261124/frozen/freeze.json",
+        ".hvigor/outputs/bakamh-client-parity-20261124/final-acceptance-protocol.md"
       ]
     },
     {
@@ -31302,6 +31467,28 @@
       ]
     },
     {
+      "id": "baka012-named-acceptance-published-20261124",
+      "at": "2026-11-24T01:33:02+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "release",
+      "title": "巴卡0.1.2完整具名验收后正式发布",
+      "detail": "巴卡漫画0.1.2已通过237具名完整验收并正式发布，最低Koma1.6.1。补齐上游普通HTTP客户端的共享UA、完整IMAGE请求头、独立CookieJar和全client限速；原104话稳定403首图现正常显示，1/37/73页、103→104连续跨章、73页整章下载及冷启动本地首尾读取均通过。原11个下载及完整队列/设置恢复，自有下载与上传清除，设备休眠并释租。正式订阅保留旧119源并仅新增巴卡至120，优酷旧版pin不动；正式清单及关键图片请求与已验候选一致。App通用重定向小修已本地提交a70247f0，未推送或发布；本轮未新增Host接口或C++能力。",
+      "evidence": [
+        ".hvigor/outputs/bakamh-client-parity-20261124/client012-final-result.json",
+        ".hvigor/outputs/bakamh-client-parity-20261124/client012-scoped-result.json",
+        ".hvigor/outputs/bakamh-client-parity-20261124/public-release-dd4576f/publication-verification.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-dd4576f745ee04c125d699ced0680cd98619571c"
+      ]
+    },
+    {
+      "id": "chapter-edition-filter-reopened-20261124",
+      "itemId": "CHAPTER_SORT_MENU",
+      "at": "2026-11-24T01:44:22+08:00",
+      "title": "修复目录分组未约束阅读范围",
+      "detail": "用户要求详情选择连载或单行本后，阅读器目录、上下章和预载沿同一分组。公共会话和后台补目录两处遗漏已定位，保留原排序和显示方向约定。",
+      "kind": "fix"
+    },
+    {
       "id": "library-list-spacing-final201-20261124",
       "at": "2026-11-24T01:45:13+08:00",
       "itemId": "LIBRARY_LIST_CARD_LAYOUT",
@@ -31335,6 +31522,84 @@
       "items": [
         "LIBRARY_LIST_CARD_LAYOUT",
         "NEXTE_MANGA_DETAIL_TRANSITION"
+      ]
+    },
+    {
+      "id": "library-grid-inertia-103-20261124",
+      "at": "2026-11-24T02:10:03+08:00",
+      "itemId": "LIBRARY_SCROLL_OCCASIONAL_STALL",
+      "kind": "verification",
+      "title": "103 现有五列书架网格采到合成掉帧",
+      "detail": "按用户指定使用当前安装的 1.6.1 (27) 和原布局，三次向后、一次反向惯性滚动覆盖不同作品。系统合成最慢帧 18ms，应用主线程帧回调峰值 11.1ms。恢复首屏同一组作品，首卡与起点差 2px，确认原屏幕超时和 Koma 书架前台，设备租约已释放。",
+      "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-summary.json"
+      ]
+    },
+    {
+      "id": "workspace-ownership-5305ac49-20261124",
+      "at": "2026-11-24T02:12:46+08:00",
+      "itemId": "LOCAL_FOLDER_IMPORT_CRASH_AUDIT_20261123",
+      "kind": "commit",
+      "title": "补交已核来源的工作区改动",
+      "detail": "原界面修改会话中遗漏的43个关联文件已补交5305ac49；197导入、201冷启及原域回归/同步/备份记录已核，不把当前未知闪退写成已复现或已关闭。",
+      "evidence": [
+        ".hvigor/outputs/workspace-audit-20261124/ownership.json"
+      ]
+    },
+    {
+      "id": "workspace-ownership-fafc56cf-20261124",
+      "at": "2026-11-24T02:12:46+08:00",
+      "itemId": "READER_REREAD_COMPLETED_CHAPTER",
+      "kind": "commit",
+      "title": "补交已核来源的工作区改动",
+      "detail": "原排查超分切换与续读加载会话的197验收修复已补交fafc56cf，未推送或发布App。",
+      "evidence": [
+        ".hvigor/outputs/workspace-audit-20261124/ownership.json"
+      ]
+    },
+    {
+      "id": "workspace-ownership-35af6d83-20261124",
+      "at": "2026-11-24T02:12:46+08:00",
+      "itemId": "READER_CACHED_CHAPTER_CROSSING_JANK",
+      "kind": "commit",
+      "title": "补交已核来源的工作区改动",
+      "detail": "原性能问题调研和修复会话01a204af中的跨章优化候选已单独保存35af6d83；本地逻辑及构建原证据保留，尚无同条件帧时间对照，不标为性能修复已通过。",
+      "evidence": [
+        ".hvigor/outputs/workspace-audit-20261124/ownership.json"
+      ]
+    },
+    {
+      "id": "library-grid-effects-attribution-103-20261124",
+      "at": "2026-11-24T02:20:45+08:00",
+      "itemId": "LIBRARY_SCROLL_OCCASIONAL_STALL",
+      "kind": "verification",
+      "title": "103 复测拆分角标、底部栏、标题栏与列表处理耗时",
+      "detail": "同包五列网格同一组起点和终点样本，复测四次惯性增加同步追踪类别，共两轮八次及 1003 个系统合成帧。角标小面积滤镜每帧约 8 次失去有效缓存，直接可归属平均 0.79–0.90ms，峰值 2.34ms。列表预构建的 16 个超过 8ms 事件结束后才收到下一次应用帧回调。两轮无逐效果 GPU 计时，不将整窗残余耗时归给封面。103 回到原首屏，恢复原屏幕超时，租约已释放。",
+      "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-attribution.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-attribution-repeat.json"
+      ]
+    },
+    {
+      "id": "chapter-edition-filter-237-accepted-20261124",
+      "at": "2026-11-24T02:24:31+08:00",
+      "itemId": "CHAPTER_SORT_MENU",
+      "kind": "verification",
+      "title": "237连载及单行本阅读范围验收完成",
+      "detail": "Komiic《腦洞學生會》连载192/204和单行本12/204分别核目录及真实上下章，重入保持；清空后204/204恢复两组。原过滤和设置恢复、原11下载队列逐字段相同，SLEEP10000并释租。App仅本地提交，不发布。",
+      "evidence": [
+        ".hvigor/outputs/chapter-filter-reader-20261124/final-result.json"
+      ]
+    },
+    {
+      "id": "workspace-ownership-records-preserved-20261124",
+      "at": "2026-11-24T02:24:31+08:00",
+      "itemId": "LOCAL_FOLDER_IMPORT_CRASH_AUDIT_20261123",
+      "kind": "commit",
+      "title": "工作区历史协议与交付归属已保存",
+      "detail": "106份已有设备协议单独提交c0825e52作为历史记录，不冒当前验收。已补交存储5305ac49、重读fafc56cf与跨章候选35af6d83；候选性能待验边界保留。剩余Lexbor只是发版时保留的原检出差异，2附件与1工具路径未混入产品。执行规则补充跨轮完整核对和及时提交约束。",
+      "evidence": [
+        ".hvigor/outputs/workspace-audit-20261124/ownership.json"
       ]
     }
   ],
