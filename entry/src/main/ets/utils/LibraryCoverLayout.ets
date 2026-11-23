@@ -8,25 +8,24 @@ export function clampLibraryGridColumnWidth(width: number): number {
   return Math.min(LIBRARY_GRID_MAX_COLUMN_WIDTH, Math.max(LIBRARY_GRID_MIN_COLUMN_WIDTH, width))
 }
 
-/** The existing shelf density is also the source-grid policy. Column counts
- * remain derived from the current viewport, never persisted as another setting. */
-export function libraryCoverGridGap(density: string): number {
-  if (density === 'compact') return ThemeConstants.SPACE_SM
-  if (density === 'comfortable') return ThemeConstants.SPACE_XL
+/** Spacing is shared by shelf/source grids, independent of list size and cover
+ * width. Column counts remain derived from the current viewport. */
+export function libraryCoverGridGap(gridSpacing: string): number {
+  if (gridSpacing === 'compact') return ThemeConstants.SPACE_SM
+  if (gridSpacing === 'comfortable') return ThemeConstants.SPACE_XL
   return ThemeConstants.SPACE_MD
 }
 
-export function libraryCoverGridMinimumWidth(width: number, density: string, preferredWidth: number): number {
+export function libraryCoverGridMinimumWidth(width: number, preferredWidth: number): number {
   if (preferredWidth > 0) return clampLibraryGridColumnWidth(preferredWidth)
   // Preserve the shelf's narrow-window target so standard phone layouts do
   // not collapse to two oversized covers.
-  return density === 'compact' ? 96 : density === 'comfortable' ? 140 :
-    width > 0 && width < 480 ? 96 : 112
+  return width > 0 && width < 480 ? 96 : 112
 }
 
-export function libraryCoverGridColumnCount(width: number, density: string, preferredWidth: number = 0): number {
-  const target = libraryCoverGridMinimumWidth(width, density, preferredWidth)
-  const gap = libraryCoverGridGap(density)
+export function libraryCoverGridColumnCount(width: number, gridSpacing: string, preferredWidth: number = 0): number {
+  const target = libraryCoverGridMinimumWidth(width, preferredWidth)
+  const gap = libraryCoverGridGap(gridSpacing)
   return gridColumnCount(width, target, gap, gap)
 }
 

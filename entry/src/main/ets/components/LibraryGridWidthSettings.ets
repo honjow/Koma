@@ -16,12 +16,12 @@ export struct LibraryGridWidthSettings {
   private readonly covers: number[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
   private columnWidth(): number {
-    return libraryCoverGridMinimumWidth(this.previewWidth, this.layout.density,
+    return libraryCoverGridMinimumWidth(this.previewWidth,
       this.adjustment.width(this.layout.gridColumnWidth))
   }
 
   private previewColumns(): string {
-    const columns = libraryCoverGridColumnCount(this.previewWidth, this.layout.density, this.columnWidth())
+    const columns = libraryCoverGridColumnCount(this.previewWidth, this.layout.gridSpacing, this.columnWidth())
     return `repeat(${columns}, 1fr)`
   }
 
@@ -39,9 +39,9 @@ export struct LibraryGridWidthSettings {
         }, (cover: number): string => cover.toString())
       }
       .columnsTemplate(this.previewColumns())
-      .columnsGap(libraryCoverGridGap(this.layout.density))
-      .rowsGap(libraryCoverGridGap(this.layout.density))
-      .padding({ left: libraryCoverGridGap(this.layout.density), right: libraryCoverGridGap(this.layout.density) })
+      .columnsGap(libraryCoverGridGap(this.layout.gridSpacing))
+      .rowsGap(libraryCoverGridGap(this.layout.gridSpacing))
+      .padding({ left: libraryCoverGridGap(this.layout.gridSpacing), right: libraryCoverGridGap(this.layout.gridSpacing) })
       .height(220)
       .width('100%')
       .enableScrollInteraction(false)
@@ -53,7 +53,7 @@ export struct LibraryGridWidthSettings {
       })
       .gesture(PinchGesture({ fingers: 2 })
         .onActionStart((): void => {
-          this.adjustment.beginPinch(this.previewWidth, this.layout.density, this.layout.gridColumnWidth)
+          this.adjustment.beginPinch(this.previewWidth, this.layout.gridSpacing, this.layout.gridColumnWidth)
         })
         .onActionUpdate((event: GestureEvent): void => { this.adjustment.updatePinch(event.scale, this.getUIContext()) })
         .onActionEnd((): void => { this.adjustment.endPinch(this.getUIContext()) })

@@ -1562,7 +1562,7 @@
     },
     {
       "name": "settings_row_list_density_title",
-      "value": "リストの表示密度"
+      "value": "リストのサイズ"
     },
     {
       "name": "settings_column_width",
@@ -1582,7 +1582,15 @@
     },
     {
       "name": "settings_row_list_density_detail",
-      "value": "リストのコンパクトさ"
+      "value": "ライブラリのリスト項目のサイズ"
+    },
+    {
+      "name": "settings_row_grid_spacing_title",
+      "value": "グリッドの間隔"
+    },
+    {
+      "name": "settings_row_grid_spacing_detail",
+      "value": "ライブラリとソースの表紙グリッドの間隔"
     },
     {
       "name": "library_list_density_compact",

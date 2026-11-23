@@ -63,7 +63,7 @@ export struct SourceMangaGrid {
     if (this.singleColumn) return '1fr'
     const preferredWidth = this.useSharedColumnWidth ? this.coverLayout.gridColumnWidth : 0
     const width = this.gridAdjustment?.width(preferredWidth) ?? preferredWidth
-    return `repeat(${libraryCoverGridColumnCount(this.viewportWidth(), this.coverLayout.density, width)}, 1fr)`
+    return `repeat(${libraryCoverGridColumnCount(this.viewportWidth(), this.coverLayout.gridSpacing, width)}, 1fr)`
   }
 
   @Builder
@@ -88,14 +88,14 @@ export struct SourceMangaGrid {
       }
     }
     .columnsTemplate(this.columnsTemplate())
-    .columnsGap(libraryCoverGridGap(this.coverLayout.density))
+    .columnsGap(libraryCoverGridGap(this.coverLayout.gridSpacing))
     .rowsGap(0)
     .enableScrollInteraction(this.pullScrollEnabled)
     .backToTop(true)
     .scrollBar(BarState.Off)
     .width('100%')
     .height('100%')
-    .padding({ left: libraryCoverGridGap(this.coverLayout.density), right: libraryCoverGridGap(this.coverLayout.density) })
+    .padding({ left: libraryCoverGridGap(this.coverLayout.gridSpacing), right: libraryCoverGridGap(this.coverLayout.gridSpacing) })
     .attributeModifier(new SourceGridClipModifier(this.withPullRefresh))
     .edgeEffect(!this.withPullRefresh || this.pullRefreshController.nativeSpringEnabled ? EdgeEffect.Spring : EdgeEffect.None, {
       alwaysEnabled: true,
@@ -103,7 +103,7 @@ export struct SourceMangaGrid {
     .gesture(PinchGesture({ fingers: 2 })
       .onActionStart((): void => {
         if (!this.singleColumn) {
-          this.gridAdjustment?.beginPinch(this.viewportWidth(), this.coverLayout.density, this.coverLayout.gridColumnWidth)
+          this.gridAdjustment?.beginPinch(this.viewportWidth(), this.coverLayout.gridSpacing, this.coverLayout.gridColumnWidth)
         }
       })
       .onActionUpdate((event: GestureEvent): void => { this.gridAdjustment?.updatePinch(event.scale, this.getUIContext()) })

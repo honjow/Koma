@@ -1562,7 +1562,7 @@
     },
     {
       "name": "settings_row_list_density_title",
-      "value": "목록 밀도"
+      "value": "목록 크기"
     },
     {
       "name": "settings_column_width",
@@ -1582,7 +1582,15 @@
     },
     {
       "name": "settings_row_list_density_detail",
-      "value": "목록의 표시 밀도"
+      "value": "서재 목록 항목 크기"
+    },
+    {
+      "name": "settings_row_grid_spacing_title",
+      "value": "그리드 간격"
+    },
+    {
+      "name": "settings_row_grid_spacing_detail",
+      "value": "서재 및 소스 표지 그리드의 간격"
     },
     {
       "name": "library_list_density_compact",

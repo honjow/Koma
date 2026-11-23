@@ -11,7 +11,7 @@ export class LibraryCoverGridAdjustment {
   @Trace private draftWidth: number = 0
   private revision: number = 0
   private viewport: number = 0
-  private density: string = 'standard'
+  private gridSpacing: string = 'standard'
   private startWidth: number = 0
   private startColumns: number = 0
   private crossedColumn: boolean = false
@@ -27,11 +27,11 @@ export class LibraryCoverGridAdjustment {
     this.draftWidth = width
   }
 
-  beginPinch(viewport: number, density: string, committedWidth: number): void {
+  beginPinch(viewport: number, gridSpacing: string, committedWidth: number): void {
     this.viewport = viewport
-    this.density = density
-    this.startWidth = libraryCoverGridMinimumWidth(viewport, density, this.width(committedWidth))
-    this.startColumns = libraryCoverGridColumnCount(viewport, density, this.startWidth)
+    this.gridSpacing = gridSpacing
+    this.startWidth = libraryCoverGridMinimumWidth(viewport, this.width(committedWidth))
+    this.startColumns = libraryCoverGridColumnCount(viewport, gridSpacing, this.startWidth)
     this.crossedColumn = false
     this.changed = false
     this.pinching = viewport > 0
@@ -39,11 +39,11 @@ export class LibraryCoverGridAdjustment {
 
   updatePinch(scale: number, ui: UIContext): void {
     if (!this.pinching || this.crossedColumn || !Number.isFinite(scale) || scale <= 0) return
-    const width = libraryCoverGridPinchWidth(this.viewport, this.density, this.startWidth, this.startColumns, scale)
+    const width = libraryCoverGridPinchWidth(this.viewport, this.gridSpacing, this.startWidth, this.startColumns, scale)
     if (!this.changed && width === this.startWidth) return
     this.changed = true
     this.preview(width)
-    const columns = libraryCoverGridColumnCount(this.viewport, this.density, width)
+    const columns = libraryCoverGridColumnCount(this.viewport, this.gridSpacing, width)
     this.crossedColumn = columns !== this.startColumns
     if (this.crossedColumn) {
       try {

@@ -242,6 +242,7 @@ async function verifyRoundTrip() {
     ...ports, './SourceIndexMetadata': ports['../sourceRuntime/SourceIndexMetadata'],
   })
   ports['./MigratedPreferenceRecords'] = evaluate(read('model/MigratedPreferenceRecords.ets'), ports)
+  ports['./LibraryGridPreferences'] = evaluate(read('model/LibraryGridPreferences.ets'), ports)
   const backup = evaluate(read(applicationSettingsModule) + '\nexport { PORTABLE_FIELDS }', ports)
   const count = checkInventory(backup.PORTABLE_FIELDS)
   const valuesForStore = {}
@@ -254,6 +255,7 @@ async function verifyRoundTrip() {
     'download.notifications.enabled': true,
     'download.notifications.sound': 'vibrate',
     'library.gridColumnWidth': 146,
+    'library.gridSpacing': 'comfortable',
     'migration.selectedSources': JSON.stringify(['source-b', 'source-a']),
     'migration.matchOptions': JSON.stringify({ deepSearch: true, prioritizeChapters: false }),
     'source_index.repositories.v1': JSON.stringify([

@@ -49,6 +49,7 @@ import {
   LibraryFilterPreferenceChanges,
   LibraryFilterStore,
   LibraryListDensity,
+  LibraryGridSpacing,
   LibraryViewMode,
 } from '../model/LibraryFilterStore'
 import {
@@ -328,6 +329,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'library-update', titleKey: 'settings_row_library_update_title', detailKey: 'settings_row_library_update_detail' },
         { key: 'library-view-mode', titleKey: 'settings_row_library_view_mode_title', detailKey: 'settings_row_library_view_mode_detail' },
         { key: 'list-density', titleKey: 'settings_row_list_density_title', detailKey: 'settings_row_list_density_detail' },
+        { key: 'grid-spacing', titleKey: 'settings_row_grid_spacing_title', detailKey: 'settings_row_grid_spacing_detail' },
         { key: 'grid-column-width', titleKey: 'settings_column_width', detailKey: 'settings_column_width_hint' },
         { key: 'library-badges', titleKey: 'settings_row_library_badges_title', detailKey: 'settings_row_library_badges_detail' },
         { key: 'library-continue-reading-card', titleKey: 'settings_row_library_continue_reading_card_title',
@@ -647,6 +649,7 @@ export struct SettingsPage {
   private libraryFilterLoadEpoch: number = 0
   @Local private libraryViewMode: LibraryViewMode = 'grid'
   @Local private libraryListDensity: LibraryListDensity = 'standard'
+  @Local private libraryGridSpacing: LibraryGridSpacing = 'standard'
   @Local private showLibraryBadges: boolean = true
   @Local private showLibraryContinueReadingCard: boolean = true
   @Local private trackerAutoSyncEnabled: boolean = DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled
@@ -860,6 +863,9 @@ export struct SettingsPage {
     if (row.key === 'list-density') {
       return this.libraryListDensityLabel(this.libraryListDensity)
     }
+    if (row.key === 'grid-spacing') {
+      return this.libraryListDensityLabel(this.libraryGridSpacing)
+    }
     if (row.key === 'local-library-refresh') {
       if (this.localLibraryRefreshBusy) {
         return this.t('common_checking')
@@ -900,6 +906,7 @@ export struct SettingsPage {
           rows: this.rowsByKeys([
             'library-view-mode',
             'list-density',
+            'grid-spacing',
             'grid-column-width',
             'library-badges',
             'library-continue-reading-card',
@@ -2081,6 +2088,11 @@ export struct SettingsPage {
     this.saveLibraryFilterChanges({ listDensity }, s('library_category_display_save_failed'))
   }
 
+  private saveLibraryGridSpacing(gridSpacing: LibraryGridSpacing): void {
+    this.libraryGridSpacing = gridSpacing
+    this.saveLibraryFilterChanges({ gridSpacing }, s('library_category_display_save_failed'))
+  }
+
   private saveLibraryBadgesEnabled(enabled: boolean): void {
     this.showLibraryBadges = enabled
     this.saveLibraryFilterChanges({ showBadges: enabled }, s('settings_library_badges_save_failed'))
@@ -2343,6 +2355,7 @@ export struct SettingsPage {
       row.key === 'cache-limit' ||
       row.key === 'library-view-mode' ||
       row.key === 'list-density' ||
+      row.key === 'grid-spacing' ||
       row.key === 'library-update-interval' ||
       row.key === 'tracker-update-strategy'
   }
@@ -2583,9 +2596,9 @@ export struct SettingsPage {
         this.SelectionMenuItem(select, s('theme_dark'), this.themeMode === 'dark', () => { this.saveThemeMode('dark') })
       } else if (row.key === 'language') {
         this.SelectionMenuItem(select, s('language_system'), this.language.mode === LanguageSettings.MODE_SYSTEM, () => { this.saveLanguageMode(LanguageSettings.MODE_SYSTEM) })
-        this.SelectionMenuItem(select, s('language_zh_cn'), this.language.mode === LanguageSettings.MODE_ZH_CN, () => { this.saveLanguageMode(LanguageSettings.MODE_ZH_CN) })
+        this.SelectionMenuItem(select, LanguageSettings.label(LanguageSettings.MODE_ZH_CN), this.language.mode === LanguageSettings.MODE_ZH_CN, () => { this.saveLanguageMode(LanguageSettings.MODE_ZH_CN) })
         this.SelectionMenuItem(select, LanguageSettings.label(LanguageSettings.MODE_ZH_HANT), this.language.mode === LanguageSettings.MODE_ZH_HANT, () => { this.saveLanguageMode(LanguageSettings.MODE_ZH_HANT) })
-        this.SelectionMenuItem(select, s('language_en_us'), this.language.mode === LanguageSettings.MODE_EN_US, () => { this.saveLanguageMode(LanguageSettings.MODE_EN_US) })
+        this.SelectionMenuItem(select, LanguageSettings.label(LanguageSettings.MODE_EN_US), this.language.mode === LanguageSettings.MODE_EN_US, () => { this.saveLanguageMode(LanguageSettings.MODE_EN_US) })
         this.SelectionMenuItem(select, LanguageSettings.label(LanguageSettings.MODE_JA_JP), this.language.mode === LanguageSettings.MODE_JA_JP, () => { this.saveLanguageMode(LanguageSettings.MODE_JA_JP) })
         this.SelectionMenuItem(select, LanguageSettings.label(LanguageSettings.MODE_KO_KR), this.language.mode === LanguageSettings.MODE_KO_KR, () => { this.saveLanguageMode(LanguageSettings.MODE_KO_KR) })
       } else if (row.key === 'reader-background') {
@@ -2647,6 +2660,10 @@ export struct SettingsPage {
         this.SelectionMenuItem(select, s('library_list_density_compact'), this.libraryListDensity === 'compact', () => { this.saveLibraryListDensity('compact') })
         this.SelectionMenuItem(select, s('common_standard'), this.libraryListDensity === 'standard', () => { this.saveLibraryListDensity('standard') })
         this.SelectionMenuItem(select, s('library_list_density_comfortable'), this.libraryListDensity === 'comfortable', () => { this.saveLibraryListDensity('comfortable') })
+      } else if (row.key === 'grid-spacing') {
+        this.SelectionMenuItem(select, s('library_list_density_compact'), this.libraryGridSpacing === 'compact', () => { this.saveLibraryGridSpacing('compact') })
+        this.SelectionMenuItem(select, s('common_standard'), this.libraryGridSpacing === 'standard', () => { this.saveLibraryGridSpacing('standard') })
+        this.SelectionMenuItem(select, s('library_list_density_comfortable'), this.libraryGridSpacing === 'comfortable', () => { this.saveLibraryGridSpacing('comfortable') })
       } else if (row.key === 'library-update-interval') {
         this.SelectionMenuItem(select, s('library_update_interval_12h'), this.libraryUpdatePreferences.intervalHours === 12, () => { this.saveLibraryUpdateInterval(12) })
         this.SelectionMenuItem(select, s('library_update_interval_24h'), this.libraryUpdatePreferences.intervalHours === 24, () => { this.saveLibraryUpdateInterval(24) })
@@ -3156,6 +3173,7 @@ export struct SettingsPage {
   private applyLibraryFilterPreferences(preferences: LibraryFilterPreferences): void {
     this.libraryViewMode = preferences.viewMode
     this.libraryListDensity = preferences.listDensity
+    this.libraryGridSpacing = preferences.gridSpacing
     this.showLibraryBadges = preferences.showBadges
     this.showLibraryContinueReadingCard = preferences.showContinueReadingCard
   }

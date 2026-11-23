@@ -61,6 +61,7 @@ import {
   LibraryFilterPreferences,
   LibraryFilterStore,
   LibraryFilterPreferenceChanges,
+  LibraryGridSpacing,
   LibraryListDensity,
   LibraryMetadataStatusFilter,
   libraryRuntimeIdFromSourceFilter,
@@ -388,6 +389,7 @@ export struct LibraryPage {
   private defaultSort: LibraryDefaultSortPreference = { sortBy: 'lastRead', sortDirection: 'desc', sortConfigured: false }
   @Local private viewMode: LibraryViewMode = 'grid'
   @Local private listDensity: LibraryListDensity = 'standard'
+  @Local private gridSpacing: LibraryGridSpacing = 'standard'
   @Local private showLibraryBadges: boolean = true
   @Local private showContinueReadingCard: boolean = true
   @Local private filterSource: LibrarySourceFilter = 'all'
@@ -1358,7 +1360,7 @@ export struct LibraryPage {
     const measured = this.libraryViewportWidth() > 0
       ? this.libraryViewportWidth()
       : gridFallbackContainerWidth()
-    return libraryCoverGridColumnCount(measured, this.listDensity,
+    return libraryCoverGridColumnCount(measured, this.gridSpacing,
       this.gridAdjustment.width(this.coverLayout.gridColumnWidth))
   }
 
@@ -1370,7 +1372,7 @@ export struct LibraryPage {
   }
 
   private libraryGridColumnGap(): number {
-    return libraryCoverGridGap(this.listDensity)
+    return libraryCoverGridGap(this.gridSpacing)
   }
 
   private libraryHorizontalInset(): number {
@@ -1378,10 +1380,10 @@ export struct LibraryPage {
   }
 
   private libraryGridRowGap(): number {
-    if (this.listDensity === 'compact') {
+    if (this.gridSpacing === 'compact') {
       return ThemeConstants.SPACE_LG
     }
-    if (this.listDensity === 'comfortable') {
+    if (this.gridSpacing === 'comfortable') {
       return ThemeConstants.SPACE_XXL
     }
     return ThemeConstants.SPACE_LG
@@ -2475,7 +2477,7 @@ export struct LibraryPage {
     })
     .gesture(PinchGesture({ fingers: 2 })
       .onActionStart((): void => {
-        this.gridAdjustment.beginPinch(this.libraryViewportWidth(), this.listDensity, this.coverLayout.gridColumnWidth)
+        this.gridAdjustment.beginPinch(this.libraryViewportWidth(), this.gridSpacing, this.coverLayout.gridColumnWidth)
       })
       .onActionUpdate((event: GestureEvent): void => { this.gridAdjustment.updatePinch(event.scale, this.getUIContext()) })
       .onActionEnd((): void => { this.gridAdjustment.endPinch(this.getUIContext()) })
@@ -2584,11 +2586,36 @@ export struct LibraryPage {
   }
 
   @Builder
+  private LibraryListText(row: RepeatItem<ComicCoverInfo>) {
+    Column() {
+      Text(row.item.title)
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .maxLines(2)
+        .wordBreak(WordBreak.BREAK_WORD)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .width('100%')
+      Text(this.listRowSubtitle(row.item))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .width('100%')
+    }
+    .width('100%')
+    .constraintSize({ minHeight: this.libraryListCoverHeight() })
+    .justifyContent(FlexAlign.SpaceBetween)
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
   private LibraryListRow(row: RepeatItem<ComicCoverInfo>) {
     Row({ space: ThemeConstants.SPACE_SM }) {
       ConciseListRow({
         title: row.item.title,
         subtitle: this.listRowSubtitle(row.item),
+        textBuilderParam: () => { this.LibraryListText(row) },
         showChevron: false,
         prefixActsAsLeading: true,
         isEnabled: !this.selectionMode || this.canSelectComic(row.item.id),
@@ -2638,7 +2665,8 @@ export struct LibraryPage {
       }
     }
     .width('100%')
-    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+    // The native row owns its content insets and press surface. Extra outer
+    // padding would leave unpressed bands above and below this separate card.
     .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
     .backgroundColor(this.isComicSelected(row.item.id) ? ThemeConstants.SOFT_TINT : ThemeConstants.CARD)
     .alignItems(VerticalAlign.Center)
@@ -2657,6 +2685,7 @@ export struct LibraryPage {
     this.defaultSort = preferencesValue
     this.viewMode = preferencesValue.viewMode
     this.listDensity = preferencesValue.listDensity
+    this.gridSpacing = preferencesValue.gridSpacing
     this.showLibraryBadges = preferencesValue.showBadges
     this.showContinueReadingCard = preferencesValue.showContinueReadingCard
     this.filterSource = preferencesValue.source

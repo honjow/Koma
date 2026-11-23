@@ -433,7 +433,7 @@ export struct SourceSearchPage {
       rows.push({ key: kind, kind, bottomPadding: ThemeConstants.SPACE_MD })
     } else {
       const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
-      const columns = libraryCoverGridColumnCount(width, this.coverLayout.density, this.coverLayout.gridColumnWidth)
+      const columns = libraryCoverGridColumnCount(width, this.coverLayout.gridSpacing, this.coverLayout.gridColumnWidth)
       const lastRowStart = Math.floor((visible.length - 1) / columns) * columns
       visible.forEach((item: SourceLibraryItem, index: number) => {
         rows.push({ key: `manga:${item.manga.sourceId}:${item.manga.id}`, kind: 'manga', manga: item.manga,

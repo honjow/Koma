@@ -1,5 +1,7 @@
 import { SourceBrowsePreferencesStore } from './SourceBrowsePreferencesStore'
 import { AppearancePreferencesStore } from './AppearancePreferencesStore'
+import { LibraryFilterStore } from './LibraryFilterStore'
+import { legacyLibraryGridPreferences } from './LibraryGridPreferences'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
@@ -44,7 +46,8 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
     'appearance.accentColor', 'appearance.accentColorFavorites', 'appearance.autoHideBottomBar', 'navigation.backGuardEnabled',
   ],
   'koma_library_filter_preferences': [
-    'library.sort', 'library.sortDirection', 'library.sortConfigured', 'library.viewMode', 'library.listDensity', 'library.showBadges',
+    'library.sort', 'library.sortDirection', 'library.sortConfigured', 'library.viewMode', 'library.listDensity',
+    'library.gridSpacing', 'library.showBadges',
     'library.showContinueReadingCard',
     'library.filter.source', 'library.filter.readState', 'library.filter.category',
     'library.filter.availability', 'library.filter.metadataStatus', 'library.gridColumnWidth',
@@ -76,6 +79,8 @@ function checkPortableValue(name: string, key: string, value: ApplicationSetting
     decodePreferenceRecordMap(value)
   } else if (name === 'koma_library_filter_preferences' && key === 'library.gridColumnWidth') {
     if (typeof value !== 'number' || value < 0) throw new Error('backup_application_settings_invalid')
+  } else if (name === 'koma_library_filter_preferences' && key === 'library.gridSpacing') {
+    if (value !== 'compact' && value !== 'standard' && value !== 'comfortable') throw new Error('backup_application_settings_invalid')
   } else if (name === 'koma_download_notifications_v1') {
     if (key === 'download.notifications.enabled' && typeof value !== 'boolean') throw new Error('backup_application_settings_invalid')
     if (key === 'download.notifications.sound' && (typeof value !== 'string' ||
@@ -185,6 +190,14 @@ export async function exportApplicationSettings(context: common.UIAbilityContext
         const item = migrated === undefined ? all[key] : await migrated.readBackupValue(context)
         if (item !== undefined) values[key] = item
       }
+      if (name === 'koma_library_filter_preferences' && values['library.gridSpacing'] === undefined) {
+        // Export can precede startup migration. Preserve the old visual choice
+        // in the portable copy without mutating the exporting device.
+        const grid = legacyLibraryGridPreferences(values['library.listDensity'] as string,
+          values['library.gridColumnWidth'] as number)
+        values['library.gridSpacing'] = grid.gridSpacing
+        if (grid.gridColumnWidth > 0) values['library.gridColumnWidth'] = grid.gridColumnWidth
+      }
     }
     // Copy before later Preferences.put calls can mutate a cached object.
     snapshots.push({ name, values: JSON.parse(JSON.stringify(values)) as Record<string, ApplicationSettingValue>,
@@ -218,15 +231,37 @@ export async function importApplicationSettings(
       continue
     }
     const store = await preferences.getPreferences(context, snapshot.name)
+    const values: Record<string, ApplicationSettingValue> = {}
+    for (const key of Object.keys(snapshot.values)) values[key] = snapshot.values[key]
+    let clearedKeys = snapshot.clearedKeys ?? []
+    if (snapshot.name === 'koma_library_filter_preferences') {
+      if (clearedKeys.includes('library.gridSpacing')) {
+        // Explicitly resetting the new choice means standard, not "legacy".
+        values['library.gridSpacing'] = 'standard'
+        clearedKeys = clearedKeys.filter((key: string): boolean => key !== 'library.gridSpacing')
+      } else if (values['library.gridSpacing'] === undefined &&
+        (values['library.listDensity'] !== undefined || clearedKeys.includes('library.listDensity'))) {
+        // Old backups carry the combined list/grid choice. A missing width
+        // preserves a local explicit width; an explicit old reset may be seeded.
+        const width = values['library.gridColumnWidth'] ?? (clearedKeys.includes('library.gridColumnWidth') ? 0 :
+          await store.get('library.gridColumnWidth', 0))
+        const grid = legacyLibraryGridPreferences(values['library.listDensity'] as string, width as number)
+        values['library.gridSpacing'] = grid.gridSpacing
+        if (grid.gridColumnWidth > 0) {
+          values['library.gridColumnWidth'] = grid.gridColumnWidth
+          clearedKeys = clearedKeys.filter((key: string): boolean => key !== 'library.gridColumnWidth')
+        }
+      }
+    }
     // A missing v1 field cannot distinguish an old writer from an intentional
     // reset. Preserve it; only v2's explicit clearedKeys authorize deletion.
-    const keys = Object.keys(snapshot.values)
+    const keys = Object.keys(values)
     for (const key of keys) {
       const migrated = migratedBackupPreference(snapshot.name, key)
-      if (migrated === undefined) await store.put(key, snapshot.values[key])
-      else await migrated.restoreBackupValue(context, snapshot.values[key])
+      if (migrated === undefined) await store.put(key, values[key])
+      else await migrated.restoreBackupValue(context, values[key])
     }
-    for (const key of snapshot.clearedKeys ?? []) {
+    for (const key of clearedKeys) {
       const migrated = migratedBackupPreference(snapshot.name, key)
       if (migrated === undefined) await store.delete(key)
       else await migrated.restoreBackupValue(context, undefined)
@@ -256,6 +291,7 @@ export async function reloadApplicationSettingsRuntime(context: common.UIAbility
   await LanguageSettings.restore(context)
   await new AppearancePreferencesStore(context).load()
   await new SourceBrowsePreferencesStore(context).load()
+  await new LibraryFilterStore(context).load()
   invalidateLibraryAutomationPolicyCache()
   await restoreReaderRemoteImageCache(context)
 }

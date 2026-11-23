@@ -1,9 +1,10 @@
 import { AppStorageV2 } from '@kit.ArkUI'
+import { LibraryGridSpacing } from '../model/LibraryGridPreferences'
 
 /** A projection of committed LibraryFilterStore preferences, not another store. */
 @ObservedV2
 export class LibraryCoverLayoutState {
-  @Trace density: string = 'standard'
+  @Trace gridSpacing: LibraryGridSpacing = 'standard'
   @Trace gridColumnWidth: number = 0
 }
 

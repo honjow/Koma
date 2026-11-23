@@ -615,7 +615,7 @@ export struct SourceBrowsePage {
 
   private sourceGridColumnCount(): number {
     const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
-    return libraryCoverGridColumnCount(width, this.coverLayout.density,
+    return libraryCoverGridColumnCount(width, this.coverLayout.gridSpacing,
       this.gridAdjustment.width(this.coverLayout.gridColumnWidth))
   }
 

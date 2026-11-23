@@ -1,6 +1,8 @@
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { connectLibraryCoverLayout } from '../state/LibraryCoverLayoutState'
 import { clampLibraryGridColumnWidth } from '../utils/LibraryCoverLayout'
+import { LibraryGridPreferences, LibraryGridSpacing, legacyLibraryGridPreferences,
+  normalizedLibraryGridSpacing } from './LibraryGridPreferences'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import {
@@ -12,6 +14,8 @@ import {
   LibraryCategoryFilter,
   LibraryStore,
 } from './LibraryStore'
+
+export { LibraryGridSpacing } from './LibraryGridPreferences'
 
 export type LibraryServerSourceFilter = string
 export type LibraryRuntimeSourceFilter = string
@@ -33,6 +37,7 @@ export interface LibraryDefaultSortPreference extends LibrarySortSelection {
 export interface LibraryFilterPreferences extends LibraryDefaultSortPreference {
   viewMode: LibraryViewMode
   listDensity: LibraryListDensity
+  gridSpacing: LibraryGridSpacing
   showBadges: boolean
   showContinueReadingCard: boolean
   source: LibrarySourceFilter
@@ -47,6 +52,7 @@ export interface LibraryFilterPreferenceChanges {
   sortDirection?: LibrarySortDirection
   viewMode?: LibraryViewMode
   listDensity?: LibraryListDensity
+  gridSpacing?: LibraryGridSpacing
   gridColumnWidth?: number
   showBadges?: boolean
   showContinueReadingCard?: boolean
@@ -75,6 +81,7 @@ const LIBRARY_SORT_DIRECTION_KEY: string = 'library.sortDirection'
 const LIBRARY_SORT_CONFIGURED_KEY: string = 'library.sortConfigured'
 const LIBRARY_VIEW_MODE_KEY: string = 'library.viewMode'
 const LIBRARY_LIST_DENSITY_KEY: string = 'library.listDensity'
+const LIBRARY_GRID_SPACING_KEY: string = 'library.gridSpacing'
 const LIBRARY_GRID_COLUMN_WIDTH_KEY: string = 'library.gridColumnWidth'
 const LIBRARY_SHOW_BADGES_KEY: string = 'library.showBadges'
 const LIBRARY_SHOW_CONTINUE_READING_CARD_KEY: string = 'library.showContinueReadingCard'
@@ -90,6 +97,7 @@ const DEFAULT_LIBRARY_FILTER_PREFERENCES: LibraryFilterPreferences = {
   sortConfigured: false,
   viewMode: 'grid',
   listDensity: 'standard',
+  gridSpacing: 'standard',
   showBadges: true,
   showContinueReadingCard: true,
   source: 'all',
@@ -241,6 +249,12 @@ export class LibraryFilterStore {
   load(): Promise<LibraryFilterPreferences> {
     return this.ordered(async (): Promise<LibraryFilterPreferences> => {
       const store = await this.preferences()
+      const migration = this.gridMigrationWrites(store)
+      // Restore reload may read its already durable rollback snapshot while
+      // ordinary writes are blocked. Project the legacy shape until next load.
+      if (migration.length > 0 && !BackupRestoreActivity.isRestoring()) {
+        await BackupRestoreActivity.runWrite(() => this.commitWrites(store, migration))
+      }
       return this.readSnapshot(store)
     })
   }
@@ -265,15 +279,19 @@ export class LibraryFilterStore {
     const availability = store.getSync(LIBRARY_FILTER_AVAILABILITY_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.availability) as string
     const metadataStatus = store.getSync(LIBRARY_FILTER_METADATA_STATUS_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.metadataStatus) as string
     const density = normalizeListDensity(listDensity)
+    // A synchronous first frame can project the old appearance without writing
+    // an unflushed cache. Startup load()/the first update persist the same seed.
+    const grid = this.gridSnapshot(store)
     const layout = connectLibraryCoverLayout()
-    layout.density = density
-    layout.gridColumnWidth = normalizeGridColumnWidth(store.getSync(LIBRARY_GRID_COLUMN_WIDTH_KEY, 0) as number)
+    layout.gridSpacing = grid.gridSpacing
+    layout.gridColumnWidth = grid.gridColumnWidth
     return {
       sortBy,
       sortDirection,
       sortConfigured: store.getSync(LIBRARY_SORT_CONFIGURED_KEY, false) === true,
       viewMode: normalizeViewMode(viewMode),
       listDensity: density,
+      gridSpacing: grid.gridSpacing,
       showBadges: normalizeShowBadges(showBadges),
       showContinueReadingCard: store.getSync(LIBRARY_SHOW_CONTINUE_READING_CARD_KEY,
         DEFAULT_LIBRARY_FILTER_PREFERENCES.showContinueReadingCard) !== false,
@@ -295,6 +313,7 @@ export class LibraryFilterStore {
     if (changes.sortDirection !== undefined) writes.push({ key: LIBRARY_SORT_DIRECTION_KEY, value: changes.sortDirection })
     if (changes.viewMode !== undefined) writes.push({ key: LIBRARY_VIEW_MODE_KEY, value: normalizeViewMode(changes.viewMode) })
     if (changes.listDensity !== undefined) writes.push({ key: LIBRARY_LIST_DENSITY_KEY, value: normalizeListDensity(changes.listDensity) })
+    if (changes.gridSpacing !== undefined) writes.push({ key: LIBRARY_GRID_SPACING_KEY, value: normalizedLibraryGridSpacing(changes.gridSpacing) })
     if (changes.gridColumnWidth !== undefined) writes.push({ key: LIBRARY_GRID_COLUMN_WIDTH_KEY, value: normalizeGridColumnWidth(changes.gridColumnWidth) })
     if (changes.showBadges !== undefined) writes.push({ key: LIBRARY_SHOW_BADGES_KEY, value: normalizeShowBadges(changes.showBadges) })
     if (changes.showContinueReadingCard !== undefined) {
@@ -307,26 +326,51 @@ export class LibraryFilterStore {
     if (changes.metadataStatus !== undefined) writes.push({ key: LIBRARY_FILTER_METADATA_STATUS_KEY, value: normalizeMetadataStatus(changes.metadataStatus) })
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<LibraryFilterPreferences> => {
       const store = await this.preferences()
-      const previous: LibraryFilterPreviousValue[] = writes.map((write: LibraryFilterWrite): LibraryFilterPreviousValue => {
-        return { key: write.key, value: store.getSync(write.key, ''), existed: store.hasSync(write.key) }
-      })
-      try {
-        for (const write of writes) await store.put(write.key, write.value)
-        await store.flush()
-      } catch (error) {
-        try {
-          for (const saved of previous) {
-            if (saved.existed) store.putSync(saved.key, saved.value)
-            else store.deleteSync(saved.key)
-          }
-          await store.flush()
-        } catch (_rollbackError) {
-          throw new Error('library_filter_rollback_failed')
-        }
-        throw error as Error
-      }
+      // Seed from the persisted OLD list value even when update precedes load.
+      // Caller intent wins after migration; unrelated preferences stay untouched.
+      await this.commitWrites(store, this.gridMigrationWrites(store).concat(writes))
       return this.readSnapshot(store)
     }))
+  }
+
+  private gridSnapshot(store: preferences.Preferences): LibraryGridPreferences {
+    const width = normalizeGridColumnWidth(store.getSync(LIBRARY_GRID_COLUMN_WIDTH_KEY, 0) as number)
+    if (store.hasSync(LIBRARY_GRID_SPACING_KEY)) {
+      return { gridSpacing: normalizedLibraryGridSpacing(store.getSync(LIBRARY_GRID_SPACING_KEY, 'standard') as string),
+        gridColumnWidth: width }
+    }
+    return legacyLibraryGridPreferences(store.getSync(LIBRARY_LIST_DENSITY_KEY, 'standard') as string, width)
+  }
+
+  private gridMigrationWrites(store: preferences.Preferences): LibraryFilterWrite[] {
+    if (store.hasSync(LIBRARY_GRID_SPACING_KEY)) return []
+    const grid = this.gridSnapshot(store)
+    const writes: LibraryFilterWrite[] = [{ key: LIBRARY_GRID_SPACING_KEY, value: grid.gridSpacing }]
+    if (grid.gridColumnWidth > 0 && normalizeGridColumnWidth(store.getSync(LIBRARY_GRID_COLUMN_WIDTH_KEY, 0) as number) === 0) {
+      writes.push({ key: LIBRARY_GRID_COLUMN_WIDTH_KEY, value: grid.gridColumnWidth })
+    }
+    return writes
+  }
+
+  private async commitWrites(store: preferences.Preferences, writes: LibraryFilterWrite[]): Promise<void> {
+    const previous: LibraryFilterPreviousValue[] = writes.map((write: LibraryFilterWrite): LibraryFilterPreviousValue => {
+      return { key: write.key, value: store.getSync(write.key, ''), existed: store.hasSync(write.key) }
+    })
+    try {
+      for (const write of writes) await store.put(write.key, write.value)
+      await store.flush()
+    } catch (error) {
+      try {
+        for (const saved of previous) {
+          if (saved.existed) store.putSync(saved.key, saved.value)
+          else store.deleteSync(saved.key)
+        }
+        await store.flush()
+      } catch (_rollbackError) {
+        throw new Error('library_filter_rollback_failed')
+      }
+      throw error as Error
+    }
   }
 
   private async preferences(): Promise<preferences.Preferences> {

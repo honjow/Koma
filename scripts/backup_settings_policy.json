@@ -156,8 +156,8 @@
       "writeBackupPreferenceValues: key"
     ],
     "model/LibraryFilterStore.ets": [
-      "update: write.key",
-      "update: saved.key"
+      "commitWrites: write.key",
+      "commitWrites: saved.key"
     ],
     "model/MigratedPreferenceRecords.ets": [
       "migrate: this.key"
@@ -223,6 +223,9 @@
     ]
   },
   "legacyMigrationInputs": {
+    "model/ApplicationSettingsBackup.ets": [
+      "library.gridColumnWidth"
+    ],
     "sourceRuntime/SourceSubscriptionStorage.ets": [
       "source_index.url",
       "source_index.repositories.v1"
