@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T15:12:05+08:00",
+  "updatedAt": "2026-11-23T16:15:08+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3520,7 +3520,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
-      "updatedAt": "2026-11-23T15:12:05+08:00",
+      "updatedAt": "2026-11-23T16:15:08+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -3713,7 +3713,7 @@
         "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
         "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
-        "巴卡漫画（bakamh）｜237新宿主配R5已显示真实封面，9个图片Web请求200；详情仍403，完整目录、正文和下载待验证。宿主空正文编码及源侧挑战后错误回退已修并本地提交。继续按上游完整文档请求和既有原生UA策略逐项对照，不新增站点专接口。App/源均未发布，App不推发。",
+        "巴卡漫画（bakamh）｜237列表、真实封面和正文就绪后自动收起授权页已验；详情及数字入口仍403，目录、正文、跨章和下载未通过。完整Accept与原生UA已分别对照，继续核浏览器请求类型和真实隐藏上下文。所有源/App修改已本地保护；临时诊断采集后须移除并用正常包复验，App不推发，源未发布。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
         "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
@@ -30448,6 +30448,36 @@
       "evidence": [
         ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r5-progress.json",
         ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r5-firstPOST-manualComplete-review.json"
+      ]
+    },
+    {
+      "id": "bakamh-r6-r7-document-rejection-and-session-readiness-20261123",
+      "at": "2026-11-23T15:38:30+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "investigation",
+      "title": "文档头与原生UA单变量均未消除详情403，继续取同响应诊断",
+      "detail": "R6源08612f3恢复固定上游BrowserHeaders Document Accept，237 15:24:31同作WebGET403/forbidden；R7源ed3933e仅现有精确systemWebAgentOrigins，实际engine_context customUaEqualsNative=true/verificationAndroid=false，真人CF后automatic=true，15:34:34同作WebGET仍403。两者均保持图片数据通道与身份，不把原生UA当已解决条件。下一候选只记录同一响应status/MIME分类/长度及阻断标记布尔，不导正文或凭据，不加请求或新Host API。另4a2d94ed复用原webSessionReadySelector的仅授权完成分支，仅读布尔、不stage HTML，保登录排除及原文档/探测路径；父已审源码并构建236539dff51c，真实自动完成待配源selector验证。App和源都未推发。",
+      "evidence": [
+        ".hvigor/outputs/source-candidates-20261120/bakamh/web-http-20261123/document-accept-r6/candidate-ready.json",
+        ".hvigor/outputs/source-candidates-20261120/bakamh/web-http-20261123/system-agent-r7/candidate-ready.json",
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r6-current-diagnostics.log",
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r7-current-diagnostics.log",
+        ".hvigor/outputs/web-http-download-order-20261123/web-session-ready-hap-receipt.json"
+      ]
+    },
+    {
+      "id": "bakamh-r8-r9-plain403-autogrant-and-numeric-fallback-20261123",
+      "at": "2026-11-23T16:15:08+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "investigation",
+      "title": "自动授权就绪已验，详情普通403及上游数字回退继续定位",
+      "detail": "R8配236539dff51c宿主，15:52:41 unchanged_clearance后automatic=true，无手动完成，源公开selector仅授权、不交接HTML。15:54:42同个canonical响应BKDOC8为403/html/208 UTF8字节，已扫描完整且CF/managed/WP/denied已知标记未命中；这不足以断言背后没有WAF。父核固定上游getDetailsResponse发现普通403会走数字入口，原源却提前结束，R9 c1af201已恢复该行为并保持真实challenge/auth/rate/cancel终止。237 16:00:57 canonical Web403、数字入口legacy miss后Native403，仍未验目录/阅读/下载。R10 8b99458仅将explicit Web文档Accept改为实际Fetch/XHR类型*/*，保Native文档头；配37b26b46临时只读隐藏上下文HAPf56e600e9dd7取UA匹配/视口/公共正文及CF布尔，不改变布局、ready、权限或导航。所有临时App/源诊断必须采后移除，最终正常包再验，不推发未通过候选。",
+      "evidence": [
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r8-09-canonical-GET-with-BKDOC8-Hilog/koma-source-runtime.hilog",
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r9-current-diagnostics.log",
+        ".hvigor/outputs/source-candidates-20261120/bakamh/web-http-20261123/numeric-resolver-r9/candidate-ready.json",
+        ".hvigor/outputs/source-candidates-20261120/bakamh/web-http-20261123/web-fetch-accept-r10/candidate-ready.json",
+        ".hvigor/outputs/web-http-download-order-20261123/web-context-diagnostic-hap-receipt.json"
       ]
     }
   ],
