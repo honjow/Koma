@@ -1,5 +1,5 @@
 import { mergeSourceIndexCatalog } from '../sourceRuntime/SourceIndexCatalog'
-import { SourceIndexMetadataCacheRecord } from '../sourceRuntime/SourceIndexMetadata'
+import { SourceIndexMetadataCacheRecord, resolveIndexDocumentUrl } from '../sourceRuntime/SourceIndexMetadata'
 import { common } from '@kit.AbilityKit'
 import { InstalledSourcePackage, isSourcePackageMinAppVersionSatisfied, listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceIndexEntry, SourceIndexRepository, SourceIndexService, SourceIndexFetchResult } from '../sourceRuntime/SourceIndexService'
@@ -283,6 +283,28 @@ export class SourcePackageManagerCache {
       this.statusText = this.checkSummaryText
     }
     this.revision += 1
+  }
+
+  recordInstallSelection(entry: SourceIndexEntry, selected: SourceIndexEntry, indexUrl: string): boolean {
+    if (entry.id !== selected.id || this.removedSavedIndexes.has(indexUrl) ||
+      !this.sourceIndexRepositories.some((item: SourceIndexRepository): boolean =>
+        !item.disabled && resolveIndexDocumentUrl(item.url) === indexUrl)) return false
+    // Publish the recovered offer, not the old button closure. A concurrently
+    // replaced catalog row keeps its newer selection instead of being restored.
+    const matches = (item: SourceIndexEntry): boolean => item.id === selected.id &&
+      resolveIndexDocumentUrl(item.repositoryUrl ?? this.displayedIndexUrl) === indexUrl &&
+      item.version === selected.version && item.pkg === selected.pkg && item.sha256 === selected.sha256
+    const previous = this.indexEntries.find((item: SourceIndexEntry): boolean => item.id === selected.id)
+    if (previous !== undefined && !matches(previous)) return false
+    this.indexEntries = this.indexEntries.map((item: SourceIndexEntry): SourceIndexEntry => matches(item) ? entry : item)
+    this.packageUpdateStatuses = this.packageUpdateStatuses.map((status: SourcePackageUpdateStatus): SourcePackageUpdateStatus =>
+      status.remoteEntry !== undefined && matches(status.remoteEntry) ?
+        { sourceId: status.sourceId, status: status.status, remoteEntry: entry, remoteIndexUrl: indexUrl,
+          remoteVersion: entry.version, localVersion: status.localVersion, reasonCode: status.reasonCode,
+          requiredAppVersion: status.requiredAppVersion } : status)
+    this.retireCheck()
+    this.revision += 1
+    return true
   }
 
   capture(expectedRevision: number, retireCheck: boolean, packages: InstalledSourcePackage[], url: string, repositories: SourceIndexRepository[], entries: SourceIndexEntry[],

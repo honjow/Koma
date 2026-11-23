@@ -16,7 +16,8 @@ function homepageGuard(){
  return exports.normalizeSourceHomepage
 }
 function harness(store=new Map(), installedOrigin, cacheFiles=new Map(), rdb=createRdbPort()){
- let requests=[],requestedUrls=[],installs=[],flushes=0,failFlush=false,failRead=false,gate
+ let requests=[],requestedUrls=[],installs=[],flushes=0,failFlush=false,failRead=false,gate,installResult,installedVersion
+ let minAppAllowed=()=>true
  const pref={async has(k){return store.has(k)},async delete(k){store.delete(k)},async get(k,d){return store.has(k)?store.get(k):d},async put(k,v){store.set(k,v)},async flush(){}}
  const exports={}
  const serviceSource=fs.readFileSync(sourcePath,'utf8')
@@ -46,11 +47,11 @@ function harness(store=new Map(), installedOrigin, cacheFiles=new Map(), rdb=cre
   normalizeSourceHomepage:homepageGuard(),
   normalizeSourceLocalizedNames:v=>v, isValidSourcePackageMinAppVersion:v=>v==='' || /^\d+\.\d+\.\d+$/.test(v),
   SOURCE_REPO_PACKAGE_ICON_FILES:['icon.png','icon.jpg','icon.webp'],
-  getInstalledSourcePackage:()=>installedOrigin === undefined ? undefined : {catalogOrigin:installedOrigin},
-  isSourcePackageMinAppVersionSatisfied:()=>true,
+  getInstalledSourcePackage:()=>installedOrigin === undefined ? undefined : {catalogOrigin:installedOrigin,version:installedVersion},
+  isSourcePackageMinAppVersionSatisfied:value=>minAppAllowed(value),
   computeSourcePackageSha256:bytes=>require('node:crypto').createHash('sha256').update(bytes).digest('hex'),
   installFromBytes:async(_context,bytes,_name,id,origin,isCurrent,preserveSessionOnUpdate)=>{
-   assert.equal(isCurrent(),true);installs.push({bytes,id,origin,preserveSessionOnUpdate});return {ok:true,id}
+   assert.equal(isCurrent(),true);installs.push({bytes,id,origin,preserveSessionOnUpdate});return installResult??{ok:true,id}
   },
   http:{RequestMethod:{GET:'GET'},HttpDataType:{STRING:'STRING',ARRAY_BUFFER:'ARRAY_BUFFER'},createHttp(){
    const events=new Map()
@@ -72,7 +73,7 @@ function harness(store=new Map(), installedOrigin, cacheFiles=new Map(), rdb=cre
  }
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,globals)
  const make=(dir='data')=>new exports.SourceIndexService({filesDir:dir,cacheDir:'cache'})
- return {make,store,cacheFiles,rdb,requests,requestedUrls,installs,pref,restore:repositories=>exports.saveSourceSubscriptionPreferences({filesDir:'data'},{repositories},false,true),setReadFail:v=>failRead=v,activity:exports.BackupRestoreActivity,setFail:v=>failFlush=v,setGate:v=>gate=v,get flushes(){return flushes}}
+ return {make,store,cacheFiles,rdb,requests,requestedUrls,installs,pref,restore:repositories=>exports.saveSourceSubscriptionPreferences({filesDir:'data'},{repositories},false,true),setReadFail:v=>failRead=v,activity:exports.BackupRestoreActivity,setFail:v=>failFlush=v,setGate:v=>gate=v,setInstallResult:v=>installResult=v,setMinAppAllowed:v=>minAppAllowed=v,setInstalledVersion:v=>installedVersion=v,get flushes(){return flushes}}
 }
 async function fetched(h,s,url,items){const r=s.fetchIndex(url);h.requests.shift()({responseCode:200,result:JSON.stringify(items)});const result=await r;await tick();return result}
 
@@ -180,8 +181,12 @@ test('an unavailable book source package retries its verified enabled mirror',as
  const mismatch=service.installPackage(mirror,forged,true)
  await tick()
  h.requests.shift()({responseCode:200,result:bytes.buffer})
+ await tick()
+ // #346 permits one trusted-index revalidation. An unchanged wrong pin still
+ // rejects the bytes; it is never repaired from the downloaded digest.
+ h.requests.shift()({responseCode:200,result:JSON.stringify([forged])})
  assert.equal((await mismatch).reasonCode,'checksum_mismatch')
- assert.equal(h.requestedUrls.length,requestCountBeforeMismatch+1)
+ assert.equal(h.requestedUrls.length,requestCountBeforeMismatch+2)
  await service.setSubscriptionDisabled(original,true)
  const mirrorOnly=service.installPackage(mirror,offer,true)
  await tick()
@@ -193,6 +198,87 @@ test('an unavailable book source package retries its verified enabled mirror',as
  assert.equal((await service.installPackage(original,offer,true)).reasonCode,'subscription_unavailable')
  assert.equal(h.requestedUrls.length,requestCount)
 })
+test('old latest same-version ZIP offers try pinned mirrors then refresh the selected index once',async()=>{
+ // #346 real identities: 90漫画网 and 肉漫屋 kept version/pkg while the public
+ // archive SHA changed. Bytes here are the existing HTTP fixture's stand-ins;
+ // actual public archive/digest evidence remains separate from this unit test.
+ for(const [id,pkg] of [['com.jiulingmanhua.koma','jiulingmanhua-0.1.0.koma'],['com.roumanwu.koma','roumanwu-0.1.0.koma']]){
+  const url='https://github.com/honjow/koma-sources/releases/latest/download/index.json'
+  const mirror='https://fixture-mirror.test/github.com/honjow/koma-sources/releases/latest/download/index.json'
+  const h=harness(new Map(),url),service=h.make(),oldBytes=Uint8Array.of(1,2,3),freshBytes=Uint8Array.of(4,5,6)
+  const digest=bytes=>require('node:crypto').createHash('sha256').update(bytes).digest('hex')
+  const old=item(id,{version:'0.1.0',pkg,sha256:digest(oldBytes)})
+  const fresh={...old,sha256:digest(freshBytes)}
+  for(const endpoint of [url,mirror]){await service.saveRepository(endpoint,'');await fetched(h,service,endpoint,[old])}
+  const before=h.requestedUrls.length,running=service.installPackage(url,old,true)
+  const shared=service.installPackage(url,old,true)
+  await tick();h.requests.shift()({responseCode:200,result:freshBytes.buffer})
+  await tick();h.requests.shift()({responseCode:200,result:freshBytes.buffer})
+  await tick();assert.equal(h.requestedUrls.at(-1),url)
+  h.requests.shift()({responseCode:200,result:JSON.stringify([fresh])})
+  await tick();h.requests.shift()({responseCode:200,result:freshBytes.buffer})
+  const result=await running;assert.equal(result.ok,true);assert.equal((await shared).ok,true)
+  assert.equal(result.actualEntry.sha256,fresh.sha256);assert.equal(result.actualEntry.version,old.version)
+  assert.equal(result.actualEntry.repositoryUrl,url);assert.equal(result.actualIndexUrl,url)
+  assert.deepEqual(h.requestedUrls.slice(before),[url.replace('index.json',pkg),mirror.replace('index.json',pkg),url,url.replace('index.json',pkg)])
+  assert.equal(h.installs.length,1);assert.deepEqual(Array.from(h.installs[0].bytes),Array.from(freshBytes))
+  assert.equal(h.installs[0].preserveSessionOnUpdate,true)
+ }
+})
+
+test('revalidation cannot repair a wrong pin, downgrade, bypass minApp or retry an importer rejection',async()=>{
+ for(const scenario of ['unchanged','wrong-fresh-bytes','downgrade','installed-newer','invalid-version','empty-sha','metadata-failed','minApp','inner-checksum','http-refresh']){
+  const url='https://'+scenario.toLowerCase()+'.test/releases/latest/download/index.json'
+  const h=harness(new Map(),url),service=h.make(),oldBytes=Uint8Array.of(1,2,3),freshBytes=Uint8Array.of(4,5,6)
+  const digest=bytes=>require('node:crypto').createHash('sha256').update(bytes).digest('hex')
+  const old=item('guard',{version:'0.1.1',sha256:digest(oldBytes)})
+  let fresh={...old,sha256:digest(freshBytes)}
+  if(scenario==='unchanged')fresh=old
+  if(scenario==='downgrade')fresh.version='0.1.0'
+  if(scenario==='installed-newer')h.setInstalledVersion('0.1.2')
+  if(scenario==='invalid-version')fresh.version='0.1.2junk'
+  if(scenario==='empty-sha')fresh.sha256=''
+  if(scenario==='minApp'){fresh.minAppVersion='99.0.0';h.setMinAppAllowed(v=>v!=='99.0.0')}
+  if(scenario==='inner-checksum')h.setInstallResult({ok:false,reasonCode:'checksum_mismatch'})
+  await service.saveRepository(url,'')
+  const running=service.installPackage(url,old,true)
+  await tick();h.requests.shift()({responseCode:scenario==='http-refresh'?404:200,
+   result:scenario==='inner-checksum'?oldBytes.buffer:freshBytes.buffer})
+  if(scenario!=='inner-checksum'){
+   await tick();assert.equal(h.requestedUrls.at(-1),url)
+   h.requests.shift()({responseCode:scenario==='metadata-failed'?503:200,result:JSON.stringify([fresh])})
+  }
+  if(scenario==='wrong-fresh-bytes'||scenario==='http-refresh'){
+   await tick();h.requests.shift()({responseCode:200,result:oldBytes.buffer})
+  }
+  const result=await running
+  assert.equal(result.reasonCode,scenario==='minApp'?'app_version_unsupported':'checksum_mismatch',scenario)
+  assert.equal(h.installs.length,scenario==='inner-checksum'?1:0,scenario)
+  assert.equal(h.requestedUrls.length,scenario==='inner-checksum'?1:
+   scenario==='wrong-fresh-bytes'||scenario==='http-refresh'?3:2,scenario)
+  assert.equal(h.requests.length,0,scenario)
+ }
+})
+
+test('retiring the selected subscription during recovery cannot download or install its fresh offer',async()=>{
+ for(const retire of ['disable','remove','restore']){
+  const url='https://retire-'+retire+'.test/releases/latest/download/index.json'
+  const h=harness(new Map(),url),service=h.make(),bytes=Uint8Array.of(4,5,6)
+  const old=item('guard',{version:'0.1.0',sha256:'a'.repeat(64)})
+  const fresh={...old,sha256:require('node:crypto').createHash('sha256').update(bytes).digest('hex')}
+  await service.saveRepository(url,'')
+  const running=service.installPackage(url,old,true)
+  await tick();h.requests.shift()({responseCode:200,result:bytes.buffer})
+  await tick();assert.equal(h.requestedUrls.at(-1),url)
+  if(retire==='disable')await service.setSubscriptionDisabled(url,true)
+  if(retire==='remove')await service.removeSavedRepository(url)
+  if(retire==='restore')service.invalidateForBackupRestore()
+  h.requests.shift()({responseCode:200,result:JSON.stringify([fresh])})
+  assert.equal((await running).reasonCode,'subscription_unavailable',retire)
+  assert.equal(h.installs.length,0);assert.equal(h.requestedUrls.length,2)
+ }
+})
+
 test('updates use the selected enabled subscription without requiring the old address cache',async()=>{
  const old='https://old.test/index.json',next='https://new.test/index.json'
  const h=harness(new Map(),old),service=h.make()

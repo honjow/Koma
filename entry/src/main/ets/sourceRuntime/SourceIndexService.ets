@@ -62,6 +62,8 @@ export interface SourceIndexInstallResult {
   reasonCode?: string
   requiredAppVersion?: string
   install?: SourcePackageInstallResult
+  actualEntry?: SourceIndexEntry
+  actualIndexUrl?: string
 }
 
 @ObservedV2
@@ -668,6 +670,10 @@ export class SourceIndexService {
       // update from the user's selected, enabled subscription.
       const preserveSessionOnUpdate = requireSaved && getInstalledSourcePackage(entry.id) !== undefined
       const routeKey = this.metadataRequestKey(identity)
+      const selectionKey = this.metadataRequestKey(document)
+      const selectionEpoch = this.subscriptionEpoch(selectionKey)
+      const selectionCurrent = (): boolean => selectionEpoch === this.subscriptionEpoch(selectionKey) &&
+        !BackupRestoreActivity.isRestoring()
       const saved = await this.loadSavedRepositories()
       const primary = saved.find((item: SourceIndexRepository): boolean => resolveIndexDocumentUrl(item.url) === document)
       const routes: SourceIndexMetadataCacheRecord[] = []
@@ -688,6 +694,7 @@ export class SourceIndexService {
       if (recent !== undefined) routes.sort((a: SourceIndexMetadataCacheRecord, b: SourceIndexMetadataCacheRecord): number =>
         Number(b.url === recent) - Number(a.url === recent))
       let result: SourceIndexInstallResult = { ok: false, reasonCode: 'subscription_unavailable' }
+      let refreshAllowed = false
       for (const route of routes) {
         const key = this.metadataRequestKey(route.url)
         const epoch = this.subscriptionEpoch(key)
@@ -698,12 +705,80 @@ export class SourceIndexService {
           if (live === undefined || live.disabled || !current()) continue
         }
         result = await this.downloadAndInstall(route.url, route.entries[0], current, preserveSessionOnUpdate)
-        if (result.ok) lastSourceDownload.set(routeKey, route.url)
+        if (result.ok) {
+          lastSourceDownload.set(routeKey, route.url)
+          return result
+        }
+        if (result.install !== undefined) return result
+        // Both layers use checksum_mismatch. An importer result means archive
+        // validation/installation already began: never recover an inner WASM or
+        // image-processor rejection by fetching a different package.
+        const downloadFailure = result.install === undefined &&
+          (result.reasonCode === 'checksum_mismatch' || result.reasonCode === 'http_error')
+        if (downloadFailure) refreshAllowed = true
         if (result.reasonCode !== 'http_error' && result.reasonCode !== 'network_error' &&
-          result.reasonCode !== 'subscription_unavailable') break
+          result.reasonCode !== 'subscription_unavailable' && !downloadFailure) return result
+      }
+      if (refreshAllowed && selectionCurrent()) {
+        result = await this.recoverChangedPackage(document, entry, result, selectionCurrent, preserveSessionOnUpdate)
+        if (result.ok) lastSourceDownload.set(routeKey, document)
       }
       return result
     })
+  }
+
+  private recoveryVersionAtLeast(candidate: string, baseline: string): boolean {
+    // Recovery must not turn parseInt's partial/locale comparisons into consent
+    // to install an invalid or older version. Keep ordinary legacy installs as-is.
+    const numeric = /^(0|[1-9][0-9]{0,8})(\.(0|[1-9][0-9]{0,8})){0,3}$/
+    if (!numeric.test(candidate) || !numeric.test(baseline)) return false
+    const left = candidate.split('.')
+    const right = baseline.split('.')
+    for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+      const order = Number(left[index] ?? '0') - Number(right[index] ?? '0')
+      if (order !== 0) return order > 0
+    }
+    return true
+  }
+
+  private async recoverChangedPackage(indexUrl: string, selected: SourceIndexEntry, original: SourceIndexInstallResult,
+    isCurrent: () => boolean, preserveSessionOnUpdate: boolean): Promise<SourceIndexInstallResult> {
+    // #346, user counterexample (2026-11-23): an old latest index pins the old ZIP,
+    // while the same filename/version (90漫画/肉漫 among 91 entries) now serves
+    // a repacked ZIP. Try verified same-digest mirrors first, then refresh only
+    // the selected enabled subscription once. Never trust downloaded bytes to
+    // replace the expected digest, or recursively enter the same-source queue.
+    const enabled = async (): Promise<boolean> => {
+      if (!isCurrent()) return false
+      const saved = await this.loadSavedRepositories()
+      return isCurrent() && saved.some((item: SourceIndexRepository): boolean =>
+        resolveIndexDocumentUrl(item.url) === indexUrl && !item.disabled)
+    }
+    let refreshed: SourceIndexFetchResult
+    try {
+      if (!await enabled()) return original
+      refreshed = await this.fetchIndex(indexUrl)
+      if (!await enabled()) return { ok: false, reasonCode: 'subscription_unavailable' }
+    } catch (_error) { return original }
+    if (!refreshed.ok) return original
+    const matches = refreshed.entries.filter((item: SourceIndexEntry): boolean => item.id === selected.id)
+    if (matches.length !== 1) return original
+    const fresh = matches[0]
+    const installedVersion = getInstalledSourcePackage(selected.id)?.version
+    if (!/^[0-9a-f]{64}$/.test(fresh.sha256) || !this.recoveryVersionAtLeast(fresh.version, selected.version) ||
+      (installedVersion !== undefined && !this.recoveryVersionAtLeast(fresh.version, installedVersion)) ||
+      !isValidHttpUrl(safeResolvePkgUrl(indexUrl, fresh.pkg)) ||
+      (fresh.version === selected.version && fresh.pkg === selected.pkg && fresh.sha256 === selected.sha256)) return original
+    const actualEntry = entryWithCachedIcon(fresh, fresh.iconUri ?? '')
+    actualEntry.repositoryUrl = indexUrl
+    if (!isSourcePackageMinAppVersionSatisfied(fresh.minAppVersion)) {
+      return { ok: false, reasonCode: 'app_version_unsupported', requiredAppVersion: fresh.minAppVersion,
+        actualEntry, actualIndexUrl: indexUrl }
+    }
+    DiagnosticLogger.info('source_index', 'install_metadata_recovery', '[SourceIndex] step=install_metadata_recovery')
+    const result = await this.downloadAndInstall(indexUrl, actualEntry, isCurrent, preserveSessionOnUpdate)
+    return { ok: result.ok, reasonCode: result.reasonCode, requiredAppVersion: result.requiredAppVersion,
+      install: result.install, actualEntry, actualIndexUrl: indexUrl }
   }
 
   private async downloadAndInstall(indexUrl: string, entry: SourceIndexEntry,

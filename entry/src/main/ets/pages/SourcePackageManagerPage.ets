@@ -64,6 +64,7 @@ import {
   SourcePackageInstallTasks,
   appSourcePackageInstallTasks,
 } from '../sourceRuntime/SourceIndexService'
+import { resolveIndexDocumentUrl } from '../sourceRuntime/SourceIndexMetadata'
 import {
   installedSourceTrustSummary,
   SourcePackageTrustSummary,
@@ -1144,6 +1145,17 @@ export struct SourcePackageManagerPage {
     }
   }
 
+  private adoptRecoveredInstall(result: SourceIndexInstallResult, selected: SourceIndexEntry): boolean {
+    const entry = result.actualEntry
+    const indexUrl = result.actualIndexUrl
+    if (entry === undefined || indexUrl === undefined ||
+      !this.managerCache.recordInstallSelection(entry, selected, indexUrl)) return false
+    this.indexEntries = this.indexEntries.map((item: SourceIndexEntry): SourceIndexEntry =>
+      item.id === selected.id && resolveIndexDocumentUrl(item.repositoryUrl ?? this.displayedIndexUrl) === indexUrl &&
+      item.version === selected.version && item.pkg === selected.pkg && item.sha256 === selected.sha256 ? entry : item)
+    return true
+  }
+
   private setSavedIndexFailure(indexUrl: string, reason?: string): void {
     if (this.sourceIndexFailures[indexUrl] === reason) return
     const next: Record<string, string> = {}
@@ -1209,10 +1221,11 @@ export struct SourcePackageManagerPage {
     if (this.packageInstallPending(source.id) || this.packageInstallAdmissionBlocked()) {
       return undefined
     }
-    const entry = candidate?.entry ?? this.updateEntry(source.id)
-    if (entry === undefined) {
+    const selectedEntry = candidate?.entry ?? this.updateEntry(source.id)
+    if (selectedEntry === undefined) {
       return undefined
     }
+    let entry: SourceIndexEntry = selectedEntry
     let url = candidate?.indexUrl ?? this.updateIndexUrl(source.id)
     if (url.length === 0) {
       url = await this.currentIndexUrlOrPrompt(notify)
@@ -1223,6 +1236,10 @@ export struct SourcePackageManagerPage {
     console.info('[SourcePackageUpdate] step=install_requested id=' + source.id)
     try {
       const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry, true)
+      if (result.actualEntry !== undefined && this.adoptRecoveredInstall(result, entry)) {
+        entry = result.actualEntry
+        url = result.actualIndexUrl ?? url
+      }
       if (result.ok) {
         const refreshed = this.refreshCommittedPackage(source.id, (installed: InstalledSourcePackage): void => this.setUpdateStatus({
           sourceId: source.id,
@@ -1560,6 +1577,9 @@ export struct SourcePackageManagerPage {
         entry,
         true,
       )
+      if (result.actualEntry !== undefined && this.adoptRecoveredInstall(result, entry)) {
+        entry = result.actualEntry
+      }
       if (result.ok) {
         const refreshed = this.refreshCommittedPackage(entry.id) && result.install?.refreshFailed !== true
         this.indexStatusText = refreshed ? (replaceExisting ? tf('source_pkg_update_done', this.indexDisplayName(entry)) :
@@ -1614,7 +1634,7 @@ export struct SourcePackageManagerPage {
       this.managerCache.rememberSavedIndex(url)
       if (this.sourceIndexUrl.trim() === url) this.sourceIndexUrlEdited = false
       for (let index = 0; index < entries.length; index += 1) {
-        const entry = entries[index]
+        let entry = entries[index]
         const existing = this.installedPackage(entry.id)
         if (existing !== undefined && !replaceExisting) {
           skippedCount += 1
@@ -1628,6 +1648,9 @@ export struct SourcePackageManagerPage {
           ? tf('source_pkg_batch_update_progress', index + 1, entries.length)
           : tf('source_pkg_batch_install_progress', index + 1, entries.length)
         const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry, true)
+        if (result.actualEntry !== undefined && this.adoptRecoveredInstall(result, entry)) {
+          entry = result.actualEntry
+        }
         if (result.ok) {
           successCount += 1
           const refreshed = this.refreshCommittedPackage(entry.id, (installed: InstalledSourcePackage): void => {
@@ -1653,7 +1676,7 @@ export struct SourcePackageManagerPage {
               sourceId: entry.id,
               status: 'failed',
               remoteEntry: entry,
-              remoteIndexUrl: url,
+              remoteIndexUrl: entry.repositoryUrl ?? url,
               remoteVersion: entry.version,
               localVersion: existing?.version ?? '',
               reasonCode: result.reasonCode,
@@ -1723,15 +1746,20 @@ export struct SourcePackageManagerPage {
     try {
       for (let index = 0; index < statuses.length; index += 1) {
         const status = statuses[index]
-        const entry = status.remoteEntry
-        const url = status.remoteIndexUrl ?? ''
+        const selectedEntry = status.remoteEntry
+        let url = status.remoteIndexUrl ?? ''
         const source = this.installedPackage(status.sourceId)
-        if (entry === undefined || url.length === 0 || source === undefined || !this.updateAvailableFor(source, entry)) {
+        if (selectedEntry === undefined || url.length === 0 || source === undefined || !this.updateAvailableFor(source, selectedEntry)) {
           skippedCount += 1
           continue
         }
+        let entry: SourceIndexEntry = selectedEntry
         this.statusText = tf('source_pkg_batch_update_progress', index + 1, statuses.length)
         const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry, true)
+        if (result.actualEntry !== undefined && this.adoptRecoveredInstall(result, entry)) {
+          entry = result.actualEntry
+          url = result.actualIndexUrl ?? url
+        }
         if (result.ok) {
           successCount += 1
           // As in a single update, publish only this committed package here.
