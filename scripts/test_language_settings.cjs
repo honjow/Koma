@@ -207,38 +207,70 @@ test('browse labels publish only the latest locale while retaining content, sele
   const file = path.join(__dirname, '../entry/src/main/ets/viewmodel/BrowseViewModel.ets')
   const tree = ts.createSourceFile('browse.ts', fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
   const owner = tree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'BrowseViewModel')
-  const methods = ['refreshSourceLanguage', 'publishFilterSchema', 'cancelFilterDataLoad'].map(name =>
+  const methods = ['refreshSourceLanguage', 'filterDisplayTexts', 'listingDisplayText',
+    'fetchSourceFilterData', 'cancelFilterDataLoad'].map(name =>
     owner.members.find(node => node.name?.text === name).getText(tree)).join('\n')
+  const models = sourceModules({}, { '../i18n/AppStrings': { AppStrings: { get: key => key } } })('model/SourceModels.ets')
   let revision = 'Hant:1'
   const exports = {}, entry = {}, source = { sourceId: 'source' }
-  new Function('exports', 'sourceRuntimeLocaleRevision', 'appSourceSettingsStore', ts.transpileModule(`export class Model {${methods}}`, {
+  new Function('exports', 'sourceRuntimeLocaleRevision', 'appSourceSettingsStore', 'parseSourceFilterSchemaJson',
+    'safeSourceBrowseErrorText', ts.transpileModule(`export class Model {${methods}}`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText)(exports, () => revision, { revisionForSource: () => 0 })
-  const choices = { genre: 'all' }, content = [{ id: 'retained', title: '原站作品' }]
+  }).outputText)(exports, () => revision, { revisionForSource: () => 0 }, models.parseSourceFilterSchemaJson, error => error.message)
+  const choices = { genre: 'action' }, content = [{ id: 'retained', title: '原站作品' }]
   let releaseOld
   const network = []
   const model = Object.assign(new exports.Model(), { selectedSource: source, registry: { lookup: () => ({ entry }) },
     metadataLocaleRevision: '', metadataLanguagePending: '', filterDataRevision: 0,
+    listings: [{ id: 'all', name: '全部', kind: 'latest', supportsFilters: false },
+      { id: 'network-only', name: '動態欄目', kind: 'popular' }],
+    filters: [], supportsFilterFetching: true, filterDataReady: false, useSearchForFilters: true,
     browseWebChallenge: null, searchWebChallenge: null, browseAuthentication: null, searchAuthentication: null,
     browseFilterValues: choices, searchFilterValues: choices, selectedListingId: 'all',
     browseSections: [{ listing: { id: 'all', name: '全部' }, manga: content, page: 3, hasNextPage: true }],
     loadSourceListings: async (_source, online) => {
       network.push(online)
       if (revision === 'Hant:1') return new Promise(resolve => { releaseOld = resolve })
-      return [{ id: 'all', name: 'All' }]
+      return [{ id: 'all', name: 'All', kind: 'popular', supportsFilters: true }]
     },
     loadSourceFilters: async (_source, online) => {
       network.push(online)
-      return { filters: [{ id: 'genre', name: 'Genre', options: ['All'], optionIds: ['all'] }] }
+      // A real local-only initial response may contain only the base option;
+      // it must not erase options loaded through fetchFilterData.
+      return { filters: [{ id: 'header', type: 'header', name: 'Filters' },
+        { id: 'genre', type: 'select', name: 'Genre', options: ['All'], optionIds: ['all'], value: 'changed' }] }
+    },
+    runSourceOperationResponse: async (_id, _op, args) => {
+      assert.equal(args.fetchFilterData, true)
+      return { data: { filters: [{ id: 'header', type: 'header', name: '篩選' },
+        { id: 'genre', type: 'select', name: '題材', description: '保留原說明', scope: 'browse', value: 'all',
+          options: [{ id: 'all', label: '全部' }, { id: 'action', label: '動作' }, { id: 'drama', label: '劇情' }] }] } }
     },
   })
+  await model.fetchSourceFilterData()
+  assert.equal(model.filterDataReady, true)
+  assert.deepEqual(model.filters[1].optionIds, ['all', 'action', 'drama'])
+  const filterDataRevision = model.filterDataRevision
   const old = model.refreshSourceLanguage()
   revision = 'en:2'
   await model.refreshSourceLanguage()
   releaseOld([{ id: 'all', name: '全部' }]); await old
   assert.equal(model.listings[0].name, 'All')
+  assert.equal(model.listings[0].kind, 'latest')
+  assert.equal(model.listings[0].supportsFilters, false)
+  assert.equal(model.listings[1].id, 'network-only')
   assert.equal(model.browseSections[0].listing.name, 'All')
-  assert.equal(model.filters[0].name, 'Genre')
+  assert.equal(model.filters[0].name, 'Filters')
+  assert.equal(model.filters[1].name, 'Genre')
+  assert.deepEqual(model.filters[1].options, ['All', '動作', '劇情'])
+  assert.deepEqual(model.filters[1].optionIds, ['all', 'action', 'drama'])
+  assert.equal(model.filters[1].value, 'all')
+  assert.equal(model.filters[1].scope, 'browse')
+  assert.equal(model.filters[1].description, '保留原說明')
+  assert.equal(model.filterDataReady, true)
+  assert.equal(model.filterDataRevision, filterDataRevision)
+  assert.equal(model.supportsFilterFetching, true)
+  assert.equal(model.useSearchForFilters, true)
   assert.equal(model.browseFilterValues, choices)
   assert.equal(model.searchFilterValues, choices)
   assert.equal(model.browseSections[0].manga, content)

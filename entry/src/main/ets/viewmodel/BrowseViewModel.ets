@@ -1560,6 +1560,33 @@ export class BrowseViewModel {
     this.metadataLocaleRevision = localeRevision
   }
 
+  /** Local translations may be partial: retain the complete network schema and its option values. */
+  private filterDisplayTexts(translated: SourceFilter[]): SourceFilter[] {
+    return this.filters.map((filter: SourceFilter): SourceFilter => {
+      const text = translated.find((item: SourceFilter): boolean => item.id === filter.id && item.type === filter.type)
+      if (text === undefined) return filter
+      return {
+        id: filter.id, type: filter.type, name: text.name, description: text.description ?? filter.description,
+        scope: filter.scope, value: filter.value, minValue: filter.minValue, maxValue: filter.maxValue, step: filter.step,
+        optionIds: filter.optionIds,
+        // Legacy string options double as request values. Only explicit stable
+        // IDs permit replacing a label; never match translated options by index.
+        options: filter.options?.map((label: string, index: number): string => {
+          const id = filter.optionIds?.[index]
+          if (id === undefined || id.length === 0) return label
+          const translatedIndex = text.optionIds?.indexOf(id) ?? -1
+          return translatedIndex < 0 ? label : text.options?.[translatedIndex] ?? label
+        }),
+      }
+    })
+  }
+
+  private listingDisplayText(current: SourceListingDescriptor, translated: SourceListingDescriptor[]): SourceListingDescriptor {
+    const text = translated.find((item: SourceListingDescriptor): boolean => item.id === current.id)
+    return text === undefined ? current :
+      { id: current.id, name: text.name, kind: current.kind, supportsFilters: current.supportsFilters }
+  }
+
   /** Re-read local UI metadata only; never replay content POSTs or retire an authorization. */
   async refreshSourceLanguage(): Promise<void> {
     const source = this.selectedSource
@@ -1578,10 +1605,14 @@ export class BrowseViewModel {
       if (this.selectedSource !== source || this.registry.lookup(source.sourceId).entry !== entry ||
         appSourceSettingsStore.revisionForSource(source.sourceId) !== settingsRevision ||
         localeRevision !== sourceRuntimeLocaleRevision()) return
-      this.listings = listings
-      this.publishFilterSchema(schema, localeRevision)
+      this.listings = this.listings.map((item: SourceListingDescriptor): SourceListingDescriptor =>
+        this.listingDisplayText(item, listings))
+      this.filters = this.filterDisplayTexts(schema.filters)
+      // This is a display overlay, not a new schema or deferred-data load.
+      // Keep filterDataReady/loading, capabilities, defaults and order intact.
+      this.metadataLocaleRevision = localeRevision
       this.browseSections = this.browseSections.map((section: BrowseSourceSectionState): BrowseSourceSectionState =>
-        ({ listing: listings.find((item: SourceListingDescriptor): boolean => item.id === section.listing.id) ?? section.listing,
+        ({ listing: this.listingDisplayText(section.listing, listings),
           manga: section.manga, hasNextPage: section.hasNextPage, page: section.page }))
     } catch (_error) { /* Optional labels keep existing content, drafts and filter values on failure. */ }
     finally { if (this.metadataLanguagePending === pendingKey) this.metadataLanguagePending = '' }

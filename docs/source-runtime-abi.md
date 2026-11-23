@@ -194,7 +194,7 @@ JSON POST 使用 HTTP 信封的 `body` 字段传入已经序列化的正文字�
 
 静态离线展示可在 manifest/index 使用可选 `presentation: { version: 1, defaultLocale, texts }`。`texts` 按文本角色收集 locale→字符串，目前消费 `name`、`description`、`author`、`authentication.usernameLabel`、`authentication.passwordLabel`；旧 `localizedNames` 继续兼容。Importer、注册表、备份恢复及包分享保留资源，只在显示时解析，不改规范 name/description 或认证 descriptor。解析顺序是请求 locale 精确项→地区/显式脚本及语言→源 `defaultLocale` 同规则候选→旧 literal；zh-HK/TW/MO 推导 Hant，zh-CN/SG 推导 Hans，显式脚本优先，不取对象第一项。locale 最长63字符，每角色最多16个原始 locale 项；名称/作者/认证标签沿128字符限制，描述沿已有包/字段总预算。坏的可选译文按字段回退，不拒绝整个旧源；不增加 ZIP 成员或执行动作。
 
-语言切换只推进本机 UI 代次。重新打开按当前语言取设置、栏目与筛选；安全的本地 schema 刷新禁用网络，活动设置按原字段/选项 ID 合并显示文案，保留草稿和控件语义。旧语言迟到回包不得覆盖新代次。需网络的动态摘要沿原刷新时机更新，失败保留已有内容，不承诺缓存纯字符串能离线重译。语言代次不进入包注册、BrowserGrant、页表、原图、阅读或下载身份。无前台启动的后台维护仅在内存语言尚未恢复时复用原 `LanguageSettings` 加载一次，不在逐页请求中读取偏好。
+语言切换只推进本机 UI 代次。重新打开按当前语言取设置、栏目与筛选；安全的本地 schema 刷新禁用网络，按原字段/选项 ID 仅合并显示文案，保留草稿、控件语义、完整动态选项、栏目顺序及已加载状态，不把基础/空 schema 当作新的完整数据覆盖。旧语言迟到回包不得覆盖新代次。需网络的动态摘要沿原刷新时机更新，失败保留已有内容，不承诺缓存纯字符串能离线重译。语言代次不进入包注册、BrowserGrant、页表、原图、阅读或下载身份。无前台启动的后台维护仅在内存语言尚未恢复时复用原 `LanguageSettings` 加载一次，不在逐页请求中读取偏好。
 
 `source_image_response_errors_v1` 允许正文的 `get_image_request` 在 `data.responseErrors`
 声明实际原图 GET 的状态含义。例如 `{"402":"image_quota_exhausted","429":"rate_limited"}`。
