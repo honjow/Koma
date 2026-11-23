@@ -20,6 +20,7 @@ import {
   sourceFiltersForQuery,
 } from '../model/SourceModels'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from '../model/SourceTextNormalizer'
+import { normalizeSourceMangaListInfo } from '../model/SourceMangaListInfo'
 import { appSourceBrowseDestinationPreferences } from '../model/SourceBrowseDestinationPreferences'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { safeDiagnosticCode, safeSearchDiagnostic } from '../model/SearchStateMapper'
@@ -266,6 +267,7 @@ function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): Source
     id: optionalString(item['id']) ?? title,
     sourceId,
     title: normalizeSourceDisplayText(title) ?? title,
+    subtitle: firstDisplayText([item['subtitle']]),
     author: firstDisplayText([item['author'], item['authors']]),
     artist: firstDisplayText([item['artist'], item['artists']]),
     description: firstDisplayText([item['description'], item['summary'], item['synopsis']]),
@@ -273,7 +275,8 @@ function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): Source
     coverHeaders: sourceStaticCoverHeaders(itemRecord(item['cover']), coverUrl),
     status: normalizeStatus(item['status']),
     contentRating: normalizeSourceDisplayText(optionalString(item['content_rating']) ?? optionalString(item['contentRating'])),
-    tags: normalizeStringArray(item['tags']),
+    tags: normalizeStringArray(item['tags'] ?? item['sourceTags']),
+    listInfo: normalizeSourceMangaListInfo(item['listInfo'] as Object | undefined),
     url: optionalString(item['url']),
   }
 }
