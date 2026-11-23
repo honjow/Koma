@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-24T02:24:31+08:00",
+  "updatedAt": "2026-11-24T02:34:52+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3558,7 +3558,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "13个候选仍待交付；巴卡漫画0.1.2已发布",
-      "updatedAt": "2026-11-24T01:33:02+08:00",
+      "updatedAt": "2026-11-24T02:34:52+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -13403,6 +13403,19 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "keiyoushi-wnacg-madara-behavior-gaps-20261124",
+      "at": "2026-11-24T02:34:52+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "checkpoint",
+      "title": "上游周检：WNACG 入口及巴卡搜索筛选待同步",
+      "detail": "固定 Keiyoushi 当前 HEAD 582615a352e38380378cb3f3c3001b0fa7897fe9，按源 README 的参考提交抽查六源及 Madara 父类。WNACG 的 2137e82 在 WNACG.kt、Dto.kt 和 build.gradle.kts 改从 wnacglink.com 的 __INITIAL_CONFIG__.sites 发现备用域名，增加 cloudwn.shop／wnmanga.shop；链接识别与限速按实际镜像集合，普通文档 UA 改用派生 Chrome。Koma sources/wnacg/src/lib.rs:26–28、src/session.rs:199 仍为旧默认域、GitHub 文本列表和固定 Firefox121，需同步，否则可能缺失当前入口和新镜像识别；这不是把桌面 UA 配给 CF 验证页。Madara 的 8f5540b 在 Madara.kt 为非空关键词增加别名查询、按 URL 合并去重，并把题材全匹配参数 operation 改为 operator；Koma 巴卡 src/lib.rs:421–451 仍单次标题查询，src/filters.rs:176 仍写 operation，可能漏别名结果或使全部题材条件被忽略。MadaraBase.kt 同次增加简介 Markdown 和同标题别名去重，Koma 当前仍为纯文本与独立 alternateTitles，后续同步应保留其宿主展示合同。包子 Baozi.kt 与 README 固定基线完全相同；巴卡子类本身也未变，需同步点在父类。MYCOMIC 仅见显式 Fetch.DOCUMENT 和回调类型迁移，未见站点 URL、选择器或页表逻辑新变化。无限动漫的新卡片／真实封面解析已存在于当前 0.1.14；漫画柜本地 manga_doc 已带尾斜杠，不重复登记为待修。本次仅完成本机源码对照，未做实站请求或真机复测、未改源或发布，不登记为已修复。",
+      "evidence": [
+        ".hvigor/outputs/keiyoushi-upstream-check-20261124/report.json",
+        "https://github.com/keiyoushi/extensions-source/commit/2137e8222cfc5163e5296a9e78ae7f480fecf78d",
+        "https://github.com/keiyoushi/extensions-source/commit/8f5540b56ffa38160e3daa63568cfb7b888d612e"
+      ]
+    },
     {
       "id": "business-scoped-io-final-20261123",
       "at": "2026-11-23T22:24:25+08:00",
