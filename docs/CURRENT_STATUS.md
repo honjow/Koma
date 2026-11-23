@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T17:14:41+08:00",
+  "updatedAt": "2026-11-23T17:57:41+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3521,7 +3521,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
-      "updatedAt": "2026-11-23T17:04:14+08:00",
+      "updatedAt": "2026-11-23T17:57:41+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -3714,7 +3714,7 @@
         "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
         "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
-        "巴卡漫画（bakamh）｜237列表、封面及自动完成网页验证已验；详情和数字入口仍403，目录、原生阅读、跨章和下载未通过。已定位验证后重复准备同一隐藏网页会取消首个请求，修复已本地提交并构建待237复测；同源授权网页已显示目标作品和章节，继续核实际错误提示及请求差异。临时诊断采后移除并用正常包复验，App不推发，源未发布。",
+        "巴卡：237 R13已确认重复隐藏网页加载取消首POST修复，验证后首次POST与封面直接200；原生HTML403正文是Cloudflare blocked，canonical WebHTTP403的正文则为208字节502 Bad Gateway页，不能把标题当HTTP502。详情、目录、阅读和下载仍未通过。已核上游保留provider路径而本地小写化的差异，R15修正并继续真机验证；不因旧WebView可见内容宣告同请求身份通过。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
         "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
@@ -12993,22 +12993,31 @@
     {
       "id": "SOURCE_UI_TEXT_LOCALIZATION",
       "number": 353,
-      "title": "书源设置、描述等界面文本的多语言能力设计",
-      "kind": "done",
+      "title": "书源设置、描述等界面文本的多语言支持",
+      "kind": "active",
       "priority": "用户本轮新增要求",
-      "owner": "Root",
-      "status": "接口设计已完成并本地提交，尚未实现",
-      "updatedAt": "2026-11-23T17:14:41+08:00",
+      "owner": "Root集成与237；Aristotle负责App；Boole负责源SDK及打包",
+      "status": "SDK、包资料与Komiic试点已接入，App显示和缓存处理中",
+      "updatedAt": "2026-11-23T17:57:41+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求重新检查此前讨论的书源多语言支持，先设计App提供的通用能力，并明确覆盖设置项、书源描述等位置；原消息精确时刻未核实。",
-      "result": "已核对现有源码并完成设计：一次通用语言环境快照，源内同一文案目录生成设置/说明/选项/筛选/栏目等字符串，打包生成名称与描述的离线显示资料。源可指定默认回退语言；缺环境、缺翻译先用该语言再退原始文字。设计还覆盖安装前后、索引、分享备份、语言变化缓存及旧源兼容；保留设置值、筛选、登录和内容身份。本项仅完成用户要求的设计阶段，App与SDK生产能力尚未实现，不可据此发布依赖源。",
-      "remainingActions": [],
+      "result": "已按用户授权实施：源SDK加入无全局状态的Catalog/text/format与默认语言回退，标准typed请求已补上下文访问；打包从同一文案库生成manifest/index静态显示资料。App已本地提交语言环境入队快照和静态资料保存解析，动态设置/筛选缓存与消费者继续接入。Komiic三语言文案原型通过标准构建及15次真实WASM调用，设置ID、选项值、默认值和顺序不变；最终源版本准备0.1.25。尚未完成新HAP和237多语言普通入口验收；App仍1.6.1/27仅本地，不替代巴卡继续定位。",
+      "remainingActions": [
+        "App接通全部调用的语言环境、静态资料round-trip及所有现有显示消费者，补必要缓存语言代次，保设置和授权身份。",
+        "源SDK和打包实现Catalog/text/format与默认回退，旧源仍返回原字符串，不增加归档附件。",
+        "现有源接入文案库，核设置项、说明/选项及静态描述；按可选增强与旧宿主兼容。",
+        "在237普通入口验证语言、回退、设置和筛选值保持、离线名称描述与安装/分享备份边界；完成后按授权本地提交，不自动发布App。"
+      ],
       "evidence": [
         "docs/source-runtime-abi-design.md",
         "entry/src/main/ets/sourceRuntime/SourceLocalizedNames.ets",
-        "/Users/honjow/git/koma-sources/docs/WRITING_A_SOURCE.md"
-      ]
+        "/Users/honjow/git/koma-sources/docs/WRITING_A_SOURCE.md",
+        ".hvigor/outputs/source-localization-20261123/komiic-initial/actual-wasm-results.json",
+        "entry/src/main/ets/sourceRuntime/SourceLocale.ets",
+        "entry/src/main/ets/sourceRuntime/SourcePresentation.ets"
+      ],
+      "progressPhase": "needs_work"
     }
   ],
   "source": {
@@ -13063,6 +13072,28 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "bakamh-r13-r14-actual-error-and-localization-implementation-20261123",
+      "at": "2026-11-23T17:57:41+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "investigation",
+      "title": "首POST修复已实测，详情403已取得实际正文",
+      "detail": "237同df492宿主，R13验证后首次POST直接Web200且仅一次主frame准备，9封面GET200。Native详情403的4547字节实际为Cloudflare Attention Required / Sorry, you have been blocked；R14显式WebHTTP canonical详情HTTP403的208字节正文title为502 Bad Gateway。两者与普通managed挑战不同，具体拒绝原因继续定位，R15只修已证上游provider路径大小写保真差异，不提前认定为本例403根因。所有候选未推发；多语言在独立#353继续实施。",
+      "evidence": [
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r14-10-once-canonical-Web-BodyRef-error/decoded-anonymous-error-text.txt"
+      ]
+    },
+    {
+      "id": "source-ui-text-localization-implementation-approved-20261123",
+      "at": "2026-11-23T17:21:29+08:00",
+      "itemId": "SOURCE_UI_TEXT_LOCALIZATION",
+      "kind": "implementation",
+      "title": "用户明确同意一并开发多语言，设计项继续进入实施",
+      "detail": "按原已评审方案实施，Hindsight倡议kp-ee867feda5904a969a0b427790a1d895已登记一次；Aristotle为App owner，Boole在独立源仓实现SDK/打包，Root集成并接入现有源试点，Darwin仍唯一237 owner。巴卡R14取证并行继续，不因新增任务丢弃；暂不声明source_localization_v1已可用，不推发App。",
+      "evidence": [
+        "docs/source-runtime-abi-design.md"
+      ]
+    },
     {
       "id": "download-hot-path-20261123",
       "at": "2026-11-23T17:03:00+08:00",
