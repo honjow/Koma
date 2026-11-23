@@ -9251,7 +9251,7 @@
       "priority": "P2（后续处理）",
       "kind": "active",
       "progressPhase": "needs_work",
-      "status": "原设置核查漏掉包子17镜像，正在补齐；其余已确认缺项沿逐源账本推进",
+      "status": "包子镜像与设置已补齐并实测，正在核对公开包；其余已确认缺项按原账本保留",
       "owner": "本会话补齐包子源；Aristotle独占237验证；原缺项账本与Noy账号边界保留",
       "dependencies": [],
       "relatedItems": [
@@ -9261,11 +9261,10 @@
         "ZEROBYW_CHAPTERS_TRUNCATED",
         "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "DB第117章的正文对白已恢复，实际阅读、四页下载、离线重开及CBZ已核；正式书源0.1.2已公开。Noy已安装登录入口，但用户没有账号，登录后内容和镜像未验。 Noy 登录入口已交付。登录后正文和镜像兼容需要有效账号，目前没有。 本轮用户指出包子缺镜像，已核实原85源矩阵早已记录17个上游镜像，后续缺项摘要和交付只覆盖横幅及章节身份选项，镜像遗漏。现有App通用设置和主页声明已足够，源候选新增镜像及网页/App路由、最近更新；保留WWW默认、原默认地区/状态和既有章节身份。已编译，原四完整目录、195/182图及标题身份完整回放不变；新增镜像普通路径尚待237验证。",
-      "remaining": "完成包子新增镜像的普通浏览、封面、详情、章节、阅读及网页入口验收，再按既有授权发布。其余已确认缺项继续原账本；Noy登录后内容仍待有效账号。",
+      "result": "DB第117章的正文对白已恢复，实际阅读、四页下载、离线重开及CBZ已核；正式书源0.1.2已公开。Noy已安装登录入口，但用户没有账号，登录后内容和镜像未验。 Noy 登录入口已交付。登录后正文和镜像兼容需要有效账号，目前没有。 本轮用户指出包子缺镜像，已核实原85源矩阵早已记录17个上游镜像，后续缺项摘要和交付只覆盖横幅及章节身份选项，镜像遗漏。现有App通用设置和主页声明已足够，源候选新增镜像及网页/App路由、最近更新；保留WWW默认、原默认地区/状态和既有章节身份。已编译，原四完整目录、195/182图及标题身份完整回放不变；新增镜像普通路径尚待237验证。 包子0.1.28最终候选已在237核17镜像设置与保存、CN实际主页URL、标题开头筛选及最近更新，AppCN/AppGB旧稳定ID完整194条主线关系和明确下一话清晰正文通过；正常返回后绍宋起读实图通过，原设置及位置恢复。精确源提交已推送，公开包仍待本次CI完成核对。",
+      "remaining": "核对包子公开索引与实际包、保留旧会话呈现失败边界；其余已确认设置缺项继续原账本。Noy登录后内容仍待有效账号。",
       "remainingActions": [
-        "包子候选核对17镜像值及保存，网页/App代表路由、完整目录、实图和章节关系；保留旧默认、设置和身份。",
-        "验证通过直接发布包子修复，核对公开实际包。",
+        "包子0.1.28已验且已推送，等待CI公开后核对实际包与已验候选；不重复已接受设备路径。",
         "正式索引快照 117 包均核实版本和校验值，92 包有固定上游；两轮共确认 35 个包有缺项，按上游模块合并为 30 个。3Hentai 的最新列表原已存在，基线缺少的详情相关图集由 0.1.9 补齐。",
         "先实施已有实证的具名差异，未发布候选按 #023 登记。站点故障、同等入口和用户明确延后项按账本分别保留。",
         "Noy 登录入口已交付。登录后正文和镜像兼容需要有效账号，目前没有。",
@@ -9280,7 +9279,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "包子镜像与设置补齐中",
+      "stage": "包子镜像验证完成，发布处理中",
       "evidence": [
         ".hvigor/outputs/two-source-browse-20261120/publication/xcomichant016/receipt.json",
         ".hvigor/outputs/two-source-browse-20261120/upstream-parity/independent-count/source-gap-impl/xcomic-hant-parity/result-0.1.16.md",
@@ -9369,7 +9368,8 @@
         "本轮source_terra只读结论：koma-sources/sources/dbmultiverse-zh/src/lib.rs:413–422、449–473、493–500及README:3–5；fe2190b已含guard。固定参考full-949的DbMultiverse.kt:132、139–175、183起含取图与气泡合成。无代码/设备/站点请求修改。",
         ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/host-compatibility.json",
         ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/host-173-baozi-original-row.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/candidate-build-and-retained.json"
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/candidate-build-and-retained.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/parent-native-acceptance.json"
       ],
       "evidencePoints": [
         "/private/tmp/koma-filter-scope-header-build.log",
@@ -9584,7 +9584,7 @@
         "本轮完整交付绑定见 source-settings-repair/dbmultiverse-ch117-20261101/host-delivery-binding.json；Host CI运行中，原源码和设备范围不外推。",
         "Host5cfcb808e132cc812d556e033ffafbbd8168a948精确CI41282246019 completed/success，Release构建/Inspect/Upload成功，标签发布skipped；host-ci-final.json及host-delivery-binding.json保存。DB已交付，Noy无账号边界不冒通过。"
       ],
-      "updatedAt": "2026-11-23T07:59:04+08:00"
+      "updatedAt": "2026-11-23T09:28:27+08:00"
     },
     {
       "id": "MANAGER_REFRESH_BACKGROUND",
@@ -12649,14 +12649,14 @@
         "CHAPTER_SORT_MENU"
       ],
       "result": "冻结正式索引119源已逐源读码并尝试真实请求。合并既有最终报告并按源ID与真实请求作品ID去重，取得490份非空完整目录、56332章，覆盖105源，其中91源至少5份。其中TIPO五份首次来自候选回放；该版现已公开且237普通路径已验。原件来源、独立联网与普通UI分开，不混计或将复测重复加数。瓜子、漫画狗、菇菇、崩坏3、战双、快看、XCOMIC简繁、TIBIU、腾讯、雀魂、泰拉记事社、Komiic、DM5、MangaBZ、漫画柜及MangaBall共17源修复已公开。后14个最终包已核索引与实际WASM版本，代表目录整份响应与候选同原件一致；七源另以保留原件核30部完整目录及页表、拒绝和设置分支。漫画1234 0.1.15维护版ef6dbb11已公开，公开WASM代表711章整份响应与已验候选相等，保留原数组方向和已有排序选项。此次源修复不新增App能力。 MangaDex英文0.1.29、简繁0.1.16及NamiComi简繁0.1.9已由fcf7d22公开，CI45059665307成功；25份真实完整目录653章含175条两页目录完成候选验证。最终公开五包索引、清单及实际WASM版本一致，代表187章整份响应与精确候选在同原件下相等。 Zero0.1.12（bcbd88f、CI45060983479）及东立0.1.13（9e4d6e9、CI45062292943）已公开。Zero现站5部97章、两章348页表保持，最终公开代表17章与候选同原件整份响应相等；旧站EOF未恢复。东立8部37章及真实SP11页验证，无号章恢复邻章并保留相邻明确缺话/权限断点；最终公开目录与精确候选分别联网Data一致、SP11页成功，不称同原件回放。 哔咔用户新登录后，237取得五部普通UI完整目录计数8/2/70/3/2，首作实图及菜单双向邻章通过；临时无痕恢复false，新认证保留。未导出原始完整ID和权限元数据，未混入前述原件数量。 漫画人237五部普通UI目录与无号番外代表实图、明确双向邻章已验；不等同导出全部原始ID。优酷公共桥接修复本地cb84a4e7，最终016候选与d89源在237普通起读为序章1/8、章1/7，明确下一章第1话1/13、章2/7，再返回序章8/8；三终态实图已亲审。 智慧财产局0.1.4已由9dabb80公开，CI45073610143成功；237普通16篇及分页终点、五个独立单章、代表实际原图与禁跨作品通过。正式119源身份集合保持，索引及实际WASM版本正确，七项完整响应与已验候选在同官方原件相等。最低App仍0.1.1，无新宿主依赖。NamiComi简中按正式0.1.9正常热门、最新、可读查询与真实API meta均total2终态，没有可新增三部的真实ID，不称全站永久有限。 包子0.1.27与东立0.1.14已由49d83b4正式发布，CI45082204438成功。包子原五作目录194/210/581/704/605、两部195/182页实际首/50/51/末图及邻章通过；包含SDK与正方形图标的最终834e包另在237补验194章、第一话195页实图及明确下一章152页实图，原设置与当前用户位置保持。正式包七项完整响应与最终候选同原件相等。东立实际新SDK八部37行及SP11页，16锁定行明确排除，21可读行/旧feature保持；正式包九项完整响应与候选同原件相等。公开两WASM二进制与本机不同，不冒字节相同或全站等价。SDK只沿既有协商补明确ManualOnly:false，无新增App接口。哔哩237五部完整目录203/163/194/26/23、明确反向及无号附录Vol37→Vol38实际图通过；Tapas原五部948章与免费代表实际图/邻章通过，额外另一作3章分列，未混入原始WASM统计。 創漫0.1.4已正式发布，当前App可用，无新增宿主能力；实际封面和同P1实体200/实图已验。最终公开包119ID保持，实际版本/最低1.4.0及3份完整响应和HTTP轨迹与验收候选相等；公开二进制不同于本机，不冒二进制一致。禁漫、紳士漫畫、Xiutaku各五部普通目录及代表阅读/明确邻章补验完成，临时无痕恢复；Xiutaku第二页组像素未独立亲审，UI计数不混入原始WASM统计。 用户已明确锚定1.6.1且暂不发App；版本及优酷最低要求均已本地提交，实际源候选清单已核。MYCOMIC目标完整原站数组已补取，网站本身含20→1→19，原反向位置因而为1→20；保存的8条Native邻域与原件身份和位置相同，未将其报成正常1→2，也未擅自按标题重排。",
-      "remaining": "继续优酷另外四部移动目录；用户已确认最低1.6.1，App只步进及本地提交、暂不发布，源候选等宿主公开后交付。Noy需有效原站会话。其余原20源补普通代表，漫画柜第五部补一次Native，Copy补正常关键词。包子新增镜像/筛选缺项沿原#173验证与发布。",
+      "remaining": "继续优酷另外四部移动目录；用户已确认最低1.6.1，App只步进及本地提交、暂不发布，源候选等宿主公开后交付。Noy需有效原站会话。其余原20源补普通代表，漫画柜第五部补一次Native，Copy补正常关键词。包子镜像已验并已推，沿#173核公开包。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
         "237继续漫画屋、肉漫屋、Simply代表目录和实图/适用邻章；CManhua、HentaiFox、热辣普通入口与网页错误层核清。",
         "漫画柜追加7580一次Native目录；Copy以正常题名而非URL完成独立搜索对照。",
         "继续优酷其余四部移动目录；最低已确认1.6.1，App按用户要求暂不发布；源等正式宿主后交付。",
         "Noy有效登录后验证v4真实目录、正文与历史业务ID；保留候选，不冒通过。",
-        "包子17镜像/latest/filter候选沿#173验证及发布；原.27章节验收保留。",
+        "包子0.1.28镜像已验并已推，沿#173核公开包；原.27章节验收保留。",
         "完整设备范围结束后独立恢复和释租，读回最终状态，保留新包、用户新认证和较新位置。"
       ],
       "boundaries": [
@@ -12739,7 +12739,7 @@
         ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/mycomic54348-provider-order-live.json",
         ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/mycomic-provider-order-readonly.json"
       ],
-      "updatedAt": "2026-11-23T08:57:00+08:00"
+      "updatedAt": "2026-11-23T09:28:27+08:00"
     },
     {
       "id": "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY",
@@ -12764,6 +12764,42 @@
         ".hvigor/outputs/reader-resume-previous-chapter/build.log",
         ".hvigor/outputs/reader-resume-previous-chapter/Koma-1.6.0-verified-catalog-resume.hap",
         ".hvigor/outputs/reader-resume-previous-chapter/201-resume-seam-comparison.json"
+      ]
+    },
+    {
+      "id": "SOURCE_INSTALL_STALE_INDEX_CHECKSUM",
+      "number": 346,
+      "title": "书源安装拿过期摘要校验新包，刷新前安装失败",
+      "priority": "P1",
+      "kind": "active",
+      "progressPhase": "needs_work",
+      "status": "已确认同版本包摘要变化与过期索引恢复缺口，正在修复并核两源安装",
+      "owner": "主代理：发布产物及工作单；Boole：安装恢复；Aristotle：237普通安装与原队列",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "本会话用户反馈更新失败、书源校验和不匹配、必须先下拉刷新才能安装，并补充90漫画网及肉漫屋无法安装；原始精确消息时间未提供。",
+      "updatedAt": "2026-11-23T09:28:27+08:00",
+      "relatedItems": [
+        "SOURCE_INDEX_CACHE_REVALIDATE",
+        "SUBSCRIPTION_MIRROR_FALLBACK",
+        "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT"
+      ],
+      "result": "冻结与当前公开索引119项对比，91项版本及包名相同但摘要已变，其中包含90漫画网、肉漫屋。当前119项均与GitHub资产摘要一致；两源实际包外层摘要正确，肉漫包内WASM摘要正确。代码安装直接沿用页面entry，下载摘要不符即停止，缺少一次刷新恢复；不将远端正常当用户路径通过。",
+      "remaining": "完成一次有界刷新重试与等字节镜像恢复，保留摘要/来源/最低版本/退役守卫；核237实际安装结果并提交。发布端包重复重打的影响继续查明。",
+      "remainingActions": [
+        "完成并验证普通安装无需用户手动刷新；内部WASM/图片处理校验失败不能被当成过期目录自动放行。",
+        "核90漫画网与肉漫屋实际普通安装终态，不删除原安装或清缓存造成功。",
+        "App修复并入本地1.6.1，按用户要求暂不发布；原119书源工作继续。"
+      ],
+      "boundaries": [
+        "不关闭摘要校验、不按实际下载字节倒写索引、不降版本、不擅换订阅或清数据。",
+        "不将HTTP200、远端摘要正确、同版本已安装行冒普通新安装成功。"
+      ],
+      "evidencePoints": [
+        ".hvigor/outputs/published-source-order-audit-20261123/checksum-investigation/pinned-comparison.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/checksum-investigation/latest-comparison.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/checksum-investigation/target-package-inspection.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/roumanwu-result.json"
       ]
     }
   ],
@@ -29934,6 +29970,18 @@
       "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "title": "用户确认宿主与优酷最低1.6.1；MYCOMIC原站章序来源核清",
       "detail": "用户原回复“锚定1.6.1，App暂不发布”。AppScope版本1.6.1/code27本地adcfed68，源独立仓仅优酷build登记行1.6.1及README本地6caf543，源实际0.1.8候选manifest最低1.6.1已读回；均未因本决定推送App或提前发布源。原最终016HAP+d89源的代表阅读证据保留，不冒新重编包已安装或公开1.6.1已验收。MYCOMIC后台IAB直接取54348完整原x-data10702字符、262unique；页面和数组本身20→1→19，.32组内反向形成1→20。8条已有Native邻域ID/title/group/order全对应，未保存其它254条完整规范化结果则不冒全量Native相等。未改源排序、原失败文件或490份统计。"
+    },
+    {
+      "at": "2026-11-23T09:28:27+08:00",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "title": "包子镜像具名验收完成并发起精确发布",
+      "detail": "候选5的AppCN/AppGB旧ID完整194条关系、明确next及清晰正文，正常Back后绍宋实际阅读已亲审；17设置/CN实际URL/筛选/latest保持各自证据。包c5dcc16已正常推送，CI45094535838仍在执行，未冒正式包已核。App只本地1.6.1/code27；旧长会话停详情的原因未证，不称宿主缺陷已修。"
+    },
+    {
+      "at": "2026-11-23T09:28:27+08:00",
+      "itemId": "SOURCE_INSTALL_STALE_INDEX_CHECKSUM",
+      "title": "登记用户安装校验失败与真实同版本包差异",
+      "detail": "用户指出必须先下拉刷新，以及90漫画网/肉漫屋无法安装。旧与新正式119索引中91项同版本/pkg不同sha；两源真实新包及当前索引一致。安装恢复正在实现，237核普通路径；不因插入问题停止原119源核验，也不发布App。"
     }
   ],
   "reportAgeAudit": {
