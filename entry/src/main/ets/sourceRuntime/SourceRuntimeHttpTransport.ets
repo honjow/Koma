@@ -881,7 +881,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     trace.finish('rejected', 'reason=invalid_response_url_request')
     return transportError('invalid_request', false)
   }
-  const webHttp = envelope.webFetch !== undefined || method !== 'GET'
+  const webHttp = envelope.webFetch !== undefined
   if (envelope.webFetch !== undefined && (envelope.webFetch === null || typeof envelope.webFetch !== 'object' || envelope.webFetch.version !== 1 ||
     (envelope.responseKind !== undefined && !['bodyText', 'bodyBytes', 'bodyRef'].includes(envelope.responseKind)) ||
     sourceSession || webToken || nativeSession || guestSearch ||

@@ -469,7 +469,7 @@ test('production HTTP transport never duplicates an attempted Web mutation or fa
         return { attempted: true, error: terminal === 'timeout' ? 'timeout' : 'source_request_cancelled' }
       }
     }
-    const result = await f.http([], JSON.stringify(f.identity()), { method: 'POST', body: 'form=one' }, { bridge: web.bridge })
+    const result = await f.http([], JSON.stringify(f.identity()), { method: 'POST', body: 'form=one', webFetch: { version: 1 } }, { bridge: web.bridge })
     assert.equal(sent.length, 1)
     assert.equal(sent[0].body, 'form=one')
     assert.equal(result.calls.length, 0, 'no native send after Web fetch has been attempted')
@@ -486,13 +486,13 @@ test('production HTTP transport never duplicates an attempted Web mutation or fa
     if (authorized) f.grant()
     let prepared = 0
     const bridge = { availableFor: () => false, prepare: async () => { prepared++; return false } }
-    const result = await f.http([response(200)], JSON.stringify(f.identity()), { method: 'POST', body: 'native=one' }, { bridge })
+    const result = await f.http([response(200)], JSON.stringify(f.identity()), { method: 'POST', body: 'native=one', webFetch: { version: 1 } }, { bridge })
     assert.equal(prepared, authorized ? 1 : 0)
     assert.equal(result.calls.length, 1, 'known before-send unavailability preserves ordinary native path')
   }
   const multibyte = '中'.repeat(400000)
   assert.equal(new TextEncoder().encode(multibyte).byteLength, 1200000)
-  for (const [explicit, authorized] of [[true, false], [true, true], [false, true]]) {
+  for (const [explicit, authorized] of [[true, false], [true, true]]) {
     const f = fixture(); f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } }))
     if (authorized) f.grant()
     let prepared = 0
@@ -507,7 +507,7 @@ test('production HTTP transport never duplicates an attempted Web mutation or fa
   for (const [selectedWeb, body] of [[false, multibyte], [true, '中'.repeat(349525) + 'x']]) {
     const f = fixture(); f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: selectedWeb } }))
     if (selectedWeb) f.grant()
-    const result = await f.http([response(200)], JSON.stringify(f.identity()), { method: 'POST', body }, {
+    const result = await f.http([response(200)], JSON.stringify(f.identity()), { method: 'POST', body, ...(selectedWeb ? { webFetch: { version: 1 } } : {}) }, {
       bridge: { availableFor: () => false, prepare: async () => false },
     })
     assert.equal(result.result.status, 200)
@@ -526,6 +526,15 @@ test('production HTTP transport never duplicates an attempted Web mutation or fa
     assert.equal(sends, 1, 'an empty GET/HEAD must reach Web fetch under actual ArkTS encoder semantics')
     assert.equal(result.calls.length, 0)
   }
+  const ordinary = fixture(); ordinary.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } })); ordinary.grant()
+  let webCalls = 0
+  const nativePost = await ordinary.http([response(200)], JSON.stringify(ordinary.identity()),
+    { method: 'POST', body: multibyte }, { bridge: { availableFor: () => true,
+      request: async () => { webCalls++; throw Error('ordinary POST must remain native') } } })
+  assert.equal(nativePost.result.status, 200)
+  assert.equal(nativePost.calls.length, 1)
+  assert.equal(nativePost.calls[0].options.extraData, multibyte)
+  assert.equal(webCalls, 0, 'a grant and opt-in alone do not select Web HTTP')
   const scoped = fixture(); scoped.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } })); scoped.grant()
   // WebHTTP v1 is still unreleased: its completed data contract now permits
   // byte/ref combinations. Keep rejection coverage for genuinely invalid data.
@@ -685,6 +694,22 @@ test('Web BodyRef transport returns real errors and closes partial bodies withou
     }
     assert.deepEqual(Object.keys(web.window.__komaFetchJobs), [])
   }
+  const native = fixture(); native.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } })); native.grant()
+  let streams = 0
+  const privateHost = Object.create(native.privateHost); privateHost.callIsActive = () => true
+  const result = await native.http([], JSON.stringify({ ...native.identity(), privateCallId: 'native-call' }),
+    { method: 'GET', responseKind: 'bodyRef' }, {
+      privateHost, bodyHost: { available: () => true },
+      bridge: { availableFor: () => true, request: async () => assert.fail('plain Native BodyRef must not select Web'),
+        fetch: async () => assert.fail('Native BodyRef must not enter legacy text bridge') },
+      bodyStream: async (_request, target, _options, scope, current) => {
+        streams++; assert.equal(target, 'https://site.invalid/a'); assert.equal(scope.callId, 'native-call'); assert.equal(current(), true)
+        return { status: 206, headers: {}, bodyRef: { id: 'native-body', length: 3 } }
+      },
+    })
+  assert.equal(streams, 1)
+  assert.equal(result.result.status, 206)
+  assert.equal(result.result.bodyRef.id, 'native-body')
 })
 
 test('Web transport composes inline/ref uploads with inline byte responses and rejects oversized refs before send', async () => {
@@ -857,7 +882,7 @@ test('legacy GET and Web POST share the declared rate window and unused reservat
     request: async (_source, request) => { shared.sends.push([request.method, shared.now()]); return { attempted: true, status: 200, body: 'modern' } } }
   for (const method of ['GET', 'POST', 'GET']) {
     const result = await shared.f.http([], JSON.stringify(shared.f.identity()),
-      { method, ...(method === 'POST' ? { body: 'form=one' } : {}) },
+      { method, ...(method === 'POST' ? { body: 'form=one', webFetch: { version: 1 } } : {}) },
       { bridge: ready, policy: shared.policy, clock: shared.clock, setTimeout: shared.timer })
     assert.equal(result.calls.length, 0)
     assert.equal(result.result.bodyText, method === 'GET' ? 'legacy' : 'modern')
@@ -873,7 +898,7 @@ test('legacy GET and Web POST share the declared rate window and unused reservat
       fetch: async () => { fetches++; throw Error('must not fetch after readiness changes') },
       request: async () => { fetches++; throw Error('must not POST after readiness changes') } }
     const result = await s.f.http([response(200)], JSON.stringify(s.f.identity()),
-      { method, ...(method === 'POST' ? { body: 'form=one' } : {}) },
+      { method, ...(method === 'POST' ? { body: 'form=one', webFetch: { version: 1 } } : {}) },
       { bridge, policy: s.policy, clock: s.clock, setTimeout: s.timer })
     assert.equal(fetches, 0)
     assert.equal(result.calls.length, 1)
@@ -1245,7 +1270,7 @@ function fixture(sdkApiVersion = 23) {
     const trace = { info: (_event, detail) => diagnostics.push(detail), warn: (_event, detail) => diagnostics.push(detail), fail: () => {}, finish: (_state, detail) => diagnostics.push(detail) }
     const transport = moduleFrom('SourceRuntimeHttpTransport', name => {
       if (name === './SourceBodyHost') return { SourceBodyHost: network.bodyHost ?? {} }
-      if (name === './SourceHttpBodyStream') return { requestSourceBodyStream: () => { throw Error('unexpected body stream in legacy fixture') } }
+      if (name === './SourceHttpBodyStream') return { requestSourceBodyStream: network.bodyStream ?? (() => { throw Error('unexpected body stream in legacy fixture') }) }
       if (name === '@kit.ArkTS') return { url: { URL }, util: { TextEncoder: class {
         // Match @ohos.util.d.ts: empty input returns undefined on ArkTS.
         encodeInto(value) { return value.length === 0 ? undefined : new TextEncoder().encode(value) }
