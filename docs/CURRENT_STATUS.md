@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-24T04:24:19+08:00",
+  "updatedAt": "2026-11-24T07:29:55+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -588,10 +588,10 @@
       "reportedDate": "2026-11-19",
       "reportedAtSource": "本会话用户提出查看原站评论，确认作品和章节入口及半模态，原始时刻未核实。",
       "registeredAt": "2026-11-19T01:29:27+08:00",
-      "updatedAt": "2026-11-19T03:22:52+08:00",
-      "status": "18 个新增源已在 197 验证",
-      "result": "新增 9 个章节评论源、7 个作品评论源，另有阴阳师漫画屋和 MangaBall 支持两类评论。197 逐源验证评论入口和关闭返回，真实站点请求验证了有评论、空列表与续页。",
-      "remaining": "本批源包尚未发布。快看显示网页热门评论，嗶哩漫畫显示访客可见书评。",
+      "updatedAt": "2026-11-24T07:29:55+08:00",
+      "status": "禁漫／哔咔评论已通过237验证，候选待发布",
+      "result": "本轮新增禁漫天堂和哔咔的作品只读评论、原站分页和回复。237已验证禁漫连续三页及关闭重开，哔咔真实账号分流2下的首屏、回复及续接主评论；修正哔咔实站页码字符串解析。此前18个新增源的既有验证记录保留。",
+      "remaining": "哔咔0.1.8最低要求含公共网络初始化修复的App1.6.1，宿主按用户要求暂不发布，两源候选均未公开。此前批次的未发布范围继续保留；快看为网页热门评论，嗶哩漫畫为访客可见书评。",
       "evidence": [
         ".hvigor/outputs/source-comments-323/live-source-report.json",
         ".hvigor/outputs/source-comments-323/197-result.json",
@@ -600,7 +600,12 @@
         ".hvigor/outputs/source-comments-extension/wasm-live-publishers.json",
         ".hvigor/outputs/source-comments-extension/candidates.json",
         ".hvigor/outputs/source-comments-extension/catalog-inventory.json",
-        ".hvigor/outputs/source-comments-extension/197-result.json"
+        ".hvigor/outputs/source-comments-extension/197-result.json",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/comments-replay-results.json",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/73-pica-comments-schema-ready/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/100-pica-next-root-comments/app.log",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/108-jm-reopen-comments/app.log",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/112-cleanup-and-restore-power/run-metadata.json"
       ]
     },
     {
@@ -13432,6 +13437,21 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-comments-jm-pica-20261124",
+      "at": "2026-11-24T07:29:55+08:00",
+      "itemId": "SOURCE_READ_ONLY_COMMENTS",
+      "kind": "checkpoint",
+      "title": "禁漫与哔咔只读评论通过237验收，已本地提交",
+      "detail": "源仓dfcab10接入两源作品评论及回复，92df676修复237真实响应中的哔咔comments.page数字字符串解析，4e6e34c记录源验收。JM0.1.11沿原forum加密请求，最终包从普通搜索及详情读取12／10／11行，关闭立即重开仍读首屏。初始旧API主机曾在响应头前2300999失败，普通重试沿已有失效／发现流程恢复；不假空成功。哔咔0.1.8经系统密码保险箱恢复原账号，原分流2未改；两个作品首屏分别6条无续页、20条有续页，继续实际读到2条回复、后续20条主评论与另一条回复，回复对象可见。失败候选HTTP200但解析拒绝page字符串的原件保留，最终包同路通过。最终WASM离线回放覆盖签名、解密、去重分页、空回复续接及错误分类，受控HTTP不冒充实站。App b261438c已构建并覆盖安装237，把get_comments纳入已有源声明且network=true的公共初始化范围；不新增站点专用服务或扩大凭据／origin。App仍1.6.1/code27且暂不发布，哔咔候选最低App1.6.1，JM维持1.4.3。两源和App均为本地提交，未推送发布。已返回书架，未进入阅读器或改写进度；退出时迷你栏显示天降之物第7页，和开始时迷宫干不同，不强行回写原进度，也不把差异推定为同步原因。本轮两份.koma与UI临时文件已删除并核实，10000ms及SLEEP读回，237租约已独立释放；保留新HAP、最终源包及已恢复的账号。此前18个源的记录与发布范围不由本次两源验收关闭。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/comments-replay-results.json",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/73-pica-comments-schema-ready/hilog.txt",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/100-pica-next-root-comments/app.log",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/108-jm-reopen-comments/app.log",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/112-cleanup-and-restore-power/run-metadata.json"
+      ]
+    },
     {
       "id": "keiyoushi-source-sync-20261124",
       "at": "2026-11-24T04:16:56+08:00",
