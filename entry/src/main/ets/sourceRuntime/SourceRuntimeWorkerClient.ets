@@ -118,8 +118,10 @@ async function runSourceWorker(requestJson: string, wasmBytes: Uint8Array,
     try {
       const request = JSON.parse(requestJson) as Record<string, Object>
       const hints = request['hostHints'] as Record<string, Object> | undefined
+      // Comments are user-initiated network reads too. They need the same declared
+      // public channel preparation; this does not grant credentials or new origins.
       publicInitializationAllowed = hints?.['network'] === true && ['search', 'get_manga', 'get_chapters', 'get_pages',
-        'get_manga_list', 'get_home', 'get_listings', 'get_filters', 'get_image_request', 'authenticate'].includes(request['operation'] as string)
+        'get_manga_list', 'get_home', 'get_listings', 'get_filters', 'get_image_request', 'get_comments', 'authenticate'].includes(request['operation'] as string)
     } catch (_error) {}
   }
   const call = SourcePrivateSessionHost.beginCall(httpContextJson, publicInitializationAllowed)
