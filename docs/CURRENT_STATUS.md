@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T14:51:16+08:00",
+  "updatedAt": "2026-11-23T15:12:05+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3520,7 +3520,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
-      "updatedAt": "2026-11-23T14:51:16+08:00",
+      "updatedAt": "2026-11-23T15:12:05+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -3713,7 +3713,7 @@
         "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
         "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
-        "巴卡漫画（bakamh）｜237已验证普通浏览CF后自动关闭、原POST及重复搜索200；封面和详情仍403，尚未完成。通用Web HTTP已接通原有字节/BodyRef及GET验证续接，本地1.6.1新包配源R4已交237普通路径复测；继续核封面、详情、目录、正文和下载。源/App修改已本地保护，未发布，App不推发。",
+        "巴卡漫画（bakamh）｜237新宿主配R5已显示真实封面，9个图片Web请求200；详情仍403，完整目录、正文和下载待验证。宿主空正文编码及源侧挑战后错误回退已修并本地提交。继续按上游完整文档请求和既有原生UA策略逐项对照，不新增站点专接口。App/源均未发布，App不推发。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
         "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
@@ -30422,6 +30422,32 @@
         ".hvigor/outputs/web-http-download-order-20261123/webdata-budget-hap-receipt.json",
         ".hvigor/outputs/published-source-order-audit-20261123/web-http-capability/data-channel-handoff.md",
         ".hvigor/outputs/published-source-order-audit-20261123/web-http-capability/utf8-admission-freeze.json"
+      ]
+    },
+    {
+      "id": "bakamh-web-empty-body-runtime-fix-20261123",
+      "at": "2026-11-23T15:04:57+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "investigation",
+      "title": "237定位并修正新Web通道空正文编码异常",
+      "detail": "9497473b宿主+R4普通导入后，列表POST200，但图片及canonical空GET在request_target后直接network_error。官方SDK @ohos.util.d.ts:487-496明确encodeInto空字符串返回undefined；b146e6eb新增字节预算未区分空正文，属性读取在发送前抛异常。07820d93仅让空正文跳过编码，保Web1MiB及Native原预算，夹具按官方语义纠正。另独立源仓633c8437修canonical challenge终止，实际WASM从2GET变1GET、旧成功响应保持。新f2a610eac0eb HAP配R5pkg182f1bf9已交237复测；这不是站点网络故障结论，实际图片/目录/阅读/下载仍未通过。原首次POST取消原因单列未证，不拿重复ready事件推断CF导航。App本地不推发，源未发布。",
+      "evidence": [
+        ".hvigor/outputs/published-source-order-audit-20261123/web-http-capability/empty-body-admission-freeze.json",
+        ".hvigor/outputs/web-http-download-order-20261123/webdata-emptyfix-hap-receipt.json",
+        ".hvigor/outputs/source-candidates-20261120/bakamh/web-http-20261123/canonical-challenge-r5/candidate-ready.json",
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r4-current-diagnostics.log"
+      ]
+    },
+    {
+      "id": "bakamh-r5-real-covers-detail403-20261123",
+      "at": "2026-11-23T15:12:05+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "investigation",
+      "title": "237真实封面已恢复，详情403单独继续定位",
+      "detail": "f2a610eac0eb宿主配R5pkg182f1bf9/WASMb2accb00，经普通导入及已加载真实首页后的手动完成，列表POST和9个图片GET均WebHTTP200，父亲审真实封面。此轮没有source_request_cancelled；不能把手动完成写为自动关闭。15:07:14同作canonical get_manga仍Web403/forbidden，未见challenge信号，不再重复同一失败。源owner先核固定上游完整文档headers，再选择单变量验证，尚未修改UA/metadata，未采用DOM回放。完整目录、正文、跨章与实际下载仍未验。",
+      "evidence": [
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r5-progress.json",
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r5-firstPOST-manualComplete-review.json"
       ]
     }
   ],
