@@ -13128,9 +13128,9 @@
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求将包子默认镜像改为tw.webmata.com，经问题回复确认实际指tw.webmota.com；随后补充部分镜像切换后CF难以通过，精确消息时刻未核实。",
-      "status": "台湾默认入口已发布；其它镜像CF按用户要求下次复现再查",
-      "updatedAt": "2026-11-23T21:53:06+08:00",
-      "result": "包子0.1.31已正式发布，默认入口为tw.webmota.com；原来保存的显式选择保留。237已核默认值4、原生台湾列表、普通网页与手动连接均落到台湾站；WWW2和AppCN15保存值、列表、详情及目录成功，AppCN第2话实际正文可见。公开索引仍保留原119个源，包与校验和已回读，最低App版本不变。App中验证入口与所选镜像不一致的接线修复已本地提交到1.6.1，未推送发布。本次未遇到用户描述的镜像CF反复失败，正在确认具体镜像，不将未复现写成全部已修。验收另发现WWW第1话P2模糊，已独立登记继续调查；默认入口更新没有修改页表、图片或增强实现。 用户随后明确表示忘记具体镜像、下次再说，未复现镜像的调查暂缓；不影响巴卡及独立模糊页处理。",
+      "status": "台湾默认与App reader已发布；未知镜像CF按用户要求待下次复现",
+      "updatedAt": "2026-11-23T23:30:37+08:00",
+      "result": "包子0.1.32已正式发布，默认tw.webmota.com、17个原镜像值和已有显式选择保持，最低App1.4.1。237普通导入后，《劍尊歸來》第1話首/中/末195页及正常下一章、第2話正文通过；原设置、无痕false和阅读位置已读回恢复。正式119个源ID保持，优酷0.1.7完整pin及巴卡不可公开安装状态保持；正式包校验和、manifest、图标和4项关键执行输入已核。P2为正常漫画渐变，旧故障结论撤回，本次App reader对齐不能称P2修复。App验证入口接线修复仍仅本地1.6.1，暂不推送发布。用户忘记的其它镜像CF失败按明确要求留待下次复现。",
       "remainingActions": [
         "用户暂时不记得失败镜像，明确下次再说；待再次出现并明确入口时复核CF及原请求恢复。",
         "App验证入口修复已本地提交1.6.1，按原约定暂不推送发布；不把本次未复现写成全部挑战已修。"
@@ -13145,7 +13145,10 @@
         ".hvigor/outputs/baozimh-default-mirror-20261123/app-candidate-ready.json",
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
         ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-7a9e34b/public-readback.json",
-        "https://github.com/honjow/koma-sources/releases/tag/sources-7a9e34b7695fb21886208fe5560b3e073ce1ac31"
+        "https://github.com/honjow/koma-sources/releases/tag/sources-7a9e34b7695fb21886208fe5560b3e073ce1ac31",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32clean-scoped-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-6a5363b/publication-verification.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-6a5363b24fb635dd2bc1cf0200b99744ee75748c"
       ]
     },
     {
@@ -13160,8 +13163,8 @@
       "reportedDate": "2026-11-23",
       "reportedAtSource": "本轮237包子0.1.31镜像验收中观察；不是用户原始反馈，不用登记时间冒充提出时刻。",
       "status": "正常漫画内容，撤销错误故障结论",
-      "updatedAt": "2026-11-23T23:06:40+08:00",
-      "result": "该P2为正常渐变内容，错误故障结论已撤销。逐项审计发现两组源代码调整：App阅读入口与固定上游一致，保留并按普通阅读验证；未提交CDN主机改写缺少对应404回退，已定点撤回，没有扩展App能力。生产源码中的P2不可读断言及误导注释已移除，错误工作单和源README已更正。原始工具写入、Git和16个核心文件核对未发现本支线改动App运行时或测试预期，未回滚其它会话WIP。台湾默认镜像已发布成果保持；清洁0.1.32候选已本地保存，普通阅读验证继续，不能称P2故障修复。",
+      "updatedAt": "2026-11-23T23:30:37+08:00",
+      "result": "该P2为正常渐变内容，错误故障结论已撤销。逐项审计发现两组源运行时调整：统一App reader有固定上游真实调用依据，清洁0.1.32已在237两章普通阅读通过并正式发布；缺少对应404回退的CDN主机改写已定点撤回，没有为本误报扩展App。P2不可读断言和误导注释、源README及工作单结论已更正。原始写入、Git和16个核心文件核对未发现本支线改动App生产运行时或测试预期，保留其它会话WIP。完整操作时间线和账户共享费用边界已记录，不把共享扣减冒充本项净费用。",
       "remainingActions": [],
       "evidence": [
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
@@ -13175,7 +13178,10 @@
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-62-active-221759-log-readback/diagnostics.log",
         ".hvigor/outputs/baozi-p2-misdiagnosis-audit-20261123/audit.md",
         ".hvigor/outputs/baozimh-default-mirror-20261123/app-reader-032/final-no-r2/own-change-audit.json",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/p2-app-change-audit/report.md"
+        ".hvigor/outputs/baozimh-default-mirror-20261123/p2-app-change-audit/report.md",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32clean-scoped-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-6a5363b/publication-verification.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-6a5363b24fb635dd2bc1cf0200b99744ee75748c"
       ]
     }
   ],
@@ -31097,6 +31103,19 @@
       "detail": "237原104话P1的BKP1V1显示HTTPS t1.bakamh.de:443，无query；公开Ref仍是bakamh.com/manga/.../c-104/。正文首跳403，仍未通过正文/跨章/下载。长路径保守hash不能当完整URL；继续精确请求对照，不转发主站凭据，不新增站点专用接口。包子误报已关闭，不再作为巴卡验收前提。",
       "evidence": [
         ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/p1diag-11-original104-P1-once/koma-source-runtime.hilog"
+      ]
+    },
+    {
+      "id": "baozi032-ordinary-reading-and-formal-publication-20261123",
+      "at": "2026-11-23T23:30:37+08:00",
+      "itemId": "BAOZI_DEFAULT_MIRROR_AND_VERIFICATION_CONTEXT",
+      "kind": "release",
+      "title": "包子0.1.32两章普通阅读验收及正式发布",
+      "detail": "包子0.1.32已正式发布，默认tw.webmota.com、17个原镜像值和已有显式选择保持，最低App1.4.1。237普通导入后，《劍尊歸來》第1話首/中/末195页及正常下一章、第2話正文通过；原设置、无痕false和阅读位置已读回恢复。正式119个源ID保持，优酷0.1.7完整pin及巴卡不可公开安装状态保持；正式包校验和、manifest、图标和4项关键执行输入已核。P2为正常漫画渐变，旧故障结论撤回，本次App reader对齐不能称P2修复。App验证入口接线修复仍仅本地1.6.1，暂不推送发布。用户忘记的其它镜像CF失败按明确要求留待下次复现。",
+      "evidence": [
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32clean-scoped-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-6a5363b/publication-verification.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-6a5363b24fb635dd2bc1cf0200b99744ee75748c"
       ]
     }
   ],
