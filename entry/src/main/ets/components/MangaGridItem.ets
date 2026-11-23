@@ -226,7 +226,8 @@ export struct MangaGridItem {
           .layoutWeight(1)
       }
       .width('100%')
-      .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+      // HDS already supplies 8vp above/below the cover; the custom prefix
+      // supplies the same 8vp at the left. Do not add a second vertical inset.
       .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
       .backgroundColor(ThemeConstants.CARD)
     } else {
