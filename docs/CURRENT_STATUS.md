@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T21:47:30+08:00",
+  "updatedAt": "2026-11-23T21:53:06+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -13121,19 +13121,19 @@
       "id": "BAOZI_DEFAULT_MIRROR_AND_VERIFICATION_CONTEXT",
       "number": 357,
       "title": "包子默认改台湾Webmota，核对镜像切换后的网页验证",
-      "kind": "active",
-      "progressPhase": "needs_work",
+      "kind": "parked",
+      "progressPhase": "verification",
       "priority": "用户当前新增要求",
       "owner": "Root集成；Boole源配置；Aristotle宿主链只读核对；Darwin独占237",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求将包子默认镜像改为tw.webmata.com，经问题回复确认实际指tw.webmota.com；随后补充部分镜像切换后CF难以通过，精确消息时刻未核实。",
-      "status": "默认台湾入口已发布；其它镜像CF现象待具体入口复核",
-      "updatedAt": "2026-11-23T21:47:30+08:00",
-      "result": "包子0.1.31已正式发布，默认入口为tw.webmota.com；原来保存的显式选择保留。237已核默认值4、原生台湾列表、普通网页与手动连接均落到台湾站；WWW2和AppCN15保存值、列表、详情及目录成功，AppCN第2话实际正文可见。公开索引仍保留原119个源，包与校验和已回读，最低App版本不变。App中验证入口与所选镜像不一致的接线修复已本地提交到1.6.1，未推送发布。本次未遇到用户描述的镜像CF反复失败，正在确认具体镜像，不将未复现写成全部已修。验收另发现WWW第1话P2模糊，已独立登记继续调查；默认入口更新没有修改页表、图片或增强实现。",
+      "status": "台湾默认入口已发布；其它镜像CF按用户要求下次复现再查",
+      "updatedAt": "2026-11-23T21:53:06+08:00",
+      "result": "包子0.1.31已正式发布，默认入口为tw.webmota.com；原来保存的显式选择保留。237已核默认值4、原生台湾列表、普通网页与手动连接均落到台湾站；WWW2和AppCN15保存值、列表、详情及目录成功，AppCN第2话实际正文可见。公开索引仍保留原119个源，包与校验和已回读，最低App版本不变。App中验证入口与所选镜像不一致的接线修复已本地提交到1.6.1，未推送发布。本次未遇到用户描述的镜像CF反复失败，正在确认具体镜像，不将未复现写成全部已修。验收另发现WWW第1话P2模糊，已独立登记继续调查；默认入口更新没有修改页表、图片或增强实现。 用户随后明确表示忘记具体镜像、下次再说，未复现镜像的调查暂缓；不影响巴卡及独立模糊页处理。",
       "remainingActions": [
-        "根据用户补充的具体失败镜像复核CF与原请求恢复；当前三个镜像样本不能外推全部挑战条件。",
-        "App验证入口修复保留在本地1.6.1，按原约定暂不推送发布；模糊页转独立事项继续处理。"
+        "用户暂时不记得失败镜像，明确下次再说；待再次出现并明确入口时复核CF及原请求恢复。",
+        "App验证入口修复已本地提交1.6.1，按原约定暂不推送发布；不把本次未复现写成全部挑战已修。"
       ],
       "evidence": [
         ".hvigor/outputs/baozimh-default-mirror-20261123/domain-check.json",
@@ -31020,6 +31020,17 @@
         ".hvigor/outputs/source-candidates-20261120/bakamh/web-http-20261123/native-image-headers-readonly-20261123/report.md",
         ".hvigor/outputs/source-candidates-20261120/bakamh/web-http-20261123/image-referrer-policy-20261123/withdrawal.json",
         "https://github.com/honjow/koma-sources/commit/7a9e34b7695fb21886208fe5560b3e073ce1ac31"
+      ]
+    },
+    {
+      "id": "baozimh-unidentified-cf-user-deferred-20261123",
+      "at": "2026-11-23T21:53:06+08:00",
+      "itemId": "BAOZI_DEFAULT_MIRROR_AND_VERIFICATION_CONTEXT",
+      "kind": "user_decision",
+      "title": "用户暂缓未明确镜像的CF复核，已发布默认入口保留",
+      "detail": "用户对具体镜像回复“忘了，下次再说”。仅暂缓这一未复现现象，不扩为暂停巴卡或模糊页。包子0.1.31默认TW已正式发布，公开与候选WASM指定输入的完整响应和请求记录一致。",
+      "evidence": [
+        ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-7a9e34b/execution-parity/summary.md"
       ]
     }
   ],
