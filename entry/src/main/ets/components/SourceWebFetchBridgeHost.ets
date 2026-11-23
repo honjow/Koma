@@ -179,8 +179,16 @@ export struct SourceWebFetchBridgeHost {
           this.attached = true
           this.loadRequestedPage()
         })
-        .onPageBegin(() => {
+        .onPageBegin((event: OnPageBeginEvent) => {
           this.diagnosticNavigation += 1
+          // TEMP R11: address relations only; retain the original lifecycle.
+          try {
+            const currentUrl = this.controller.getUrl()
+            DiagnosticLogger.info('source_web_fetch', 'host_begin',
+              'current=' + (event.url === currentUrl) + ' loaded=' + (event.url === this.loadedUrl) +
+              ' curOrg=' + (sourceWebOrigin(event.url) === sourceWebOrigin(currentUrl)) +
+              ' loadOrg=' + (sourceWebOrigin(event.url) === sourceWebOrigin(this.loadedUrl)))
+          } catch (_error) { /* Keep markLoading even when diagnostic reads fail. */ }
           sourceWebFetchBridge.markLoading(this.loadingSourceId)
         })
         // A committed same-origin document is enough to execute fetch. Waiting

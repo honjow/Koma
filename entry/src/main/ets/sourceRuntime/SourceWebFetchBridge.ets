@@ -243,6 +243,16 @@ export class SourceWebFetchBridge {
     const revision = this.contextRevision
     const current = (): boolean => operationCurrent() && revision === this.contextRevision && this.controller === controller &&
       this.availableFor(sourceId, request.url, userAgent, authorizationRevision)
+    // TEMP R11 cancellation observation; remove with the R10 Host diagnostics.
+    const observed = (result: SourceWebHttpResult): SourceWebHttpResult => {
+      try {
+        if (result.error === 'source_request_cancelled') DiagnosticLogger.info('source_web_fetch', 'cancel_state',
+          'op=' + operationCurrent() + ' rev=' + (revision === this.contextRevision) +
+          ' ctl=' + (this.controller === controller) +
+          ' avail=' + this.availableFor(sourceId, request.url, userAgent, authorizationRevision) + ' ready=' + this.ready)
+      } catch (_error) { /* Observation cannot affect the original result. */ }
+      return result
+    }
     this.sequence += 1
     const id = 'koma-' + this.sequence
     const timeoutMs = Math.max(1, request.timeoutMs ?? WEB_FETCH_TIMEOUT_MS)
@@ -250,7 +260,7 @@ export class SourceWebFetchBridge {
     const call: ActiveWebFetch = { controller, id, deadline }
     this.active.set(id, call)
     try {
-      if (!legacy) return await this.performData(controller, id, request, headers, referrer, timeoutMs, deadline, current)
+      if (!legacy) return observed(await this.performData(controller, id, request, headers, referrer, timeoutMs, deadline, current))
       // The closure's live flag is cleared BEFORE abort/delete. Even a fetch
       // implementation that resolves after abort cannot resurrect its mailbox.
       // New HTTP requests reject redirects, including same-origin redirects:
@@ -282,16 +292,16 @@ export class SourceWebFetchBridge {
         "} else { text = await r.text(); if (new TextEncoder().encode(text).byteLength > 4194304) { done({error:'response_too_large'}); return; } } ") +
         "done({status:r.status, headers, body:text}); } catch(e) { done({error:'network_error'}); } })(); return 'started'; })()"
       const started = this.decode(await this.runScript(controller, script, deadline, current))
-      if (!current()) return { attempted: true, error: 'source_request_cancelled' }
+      if (!current()) return observed({ attempted: true, error: 'source_request_cancelled' })
       if (started === 'unavailable') return { attempted: false }
       if (started !== 'started') return { attempted: true, error: 'network_error' }
       while (Date.now() < deadline) {
         await this.delay(WEB_FETCH_POLL_MS)
-        if (!current()) return { attempted: true, error: 'source_request_cancelled' }
+        if (!current()) return observed({ attempted: true, error: 'source_request_cancelled' })
         const raw = this.decode(await this.runScript(controller,
           "(() => { const value = (window.__komaFetch && window.__komaFetch[" + JSON.stringify(id) +
           "]) || ''; if (value) delete window.__komaFetch[" + JSON.stringify(id) + "]; return value; })()", deadline, current))
-        if (!current()) return { attempted: true, error: 'source_request_cancelled' }
+        if (!current()) return observed({ attempted: true, error: 'source_request_cancelled' })
         if (raw.length === 0) continue
         const parsed = JSON.parse(raw) as Record<string, Object>
         const status = typeof parsed['status'] === 'number' ? parsed['status'] as number : -1
@@ -308,7 +318,7 @@ export class SourceWebFetchBridge {
       const reason = error instanceof Error && ['timeout', 'source_request_cancelled', 'body_limit_exceeded',
         'body_write_failed', 'body_unavailable'].includes(error.message)
         ? error.message : 'network_error'
-      return { attempted: true, error: reason }
+      return observed({ attempted: true, error: reason })
     } finally {
       await this.retire(call)
     }
