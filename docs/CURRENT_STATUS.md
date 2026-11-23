@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T21:53:06+08:00",
+  "updatedAt": "2026-11-23T22:13:51+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -13152,24 +13152,28 @@
       "id": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
       "number": 360,
       "title": "包子WWW《劍尊歸來》第1話P2只显示模糊图",
-      "kind": "active",
-      "progressPhase": "needs_work",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
       "priority": "本轮源验收新增观察",
       "owner": "Root定位与集成；Aristotle图像链只读核对；Darwin独占237",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "本轮237包子0.1.31镜像验收中观察；不是用户原始反馈，不用登记时间冒充提出时刻。",
-      "status": "原图与增强切换都呈模糊，继续对照实际文件像素",
-      "updatedAt": "2026-11-23T21:47:30+08:00",
-      "result": "237的WWW第1話取得195张页表，P2截图只显示模糊画面；文件准备完成及Core displayed不能代替正文可见。后续记录显示该页采用system增强，切回原图和恢复增强仍呈模糊，尚未取得两张实际文件及其绑定身份，不能归因网络、缓存、增强或显示生命周期。AppCN第2话152张页表及漫画实显是另一个通过样本。源0.1.31仅调整默认入口、主页与canonical校验，未修改页表和图片处理。原增强开关、无痕、源设置及阅读位置已恢复，继续用现有精准索引定位本页文件。",
+      "status": "已定位网页下载墙占位图，0.1.32候选在237复验",
+      "updatedAt": "2026-11-23T22:13:51+08:00",
+      "result": "根因已从实际文件和固定上游调用链核实：设备P2原文件与公开占位图逐字节相同；上游已统一使用App阅读页，因普通网页返回下载墙和占位图片。本源却继续优先旧AMP路径，把其页表当成正文。0.1.32已在源侧改为所有镜像直接使用既有App reader，保留台湾默认、17个镜像值、原章节及页身份；删除失效AMP优先分支，未修改App显示或增强。候选已构建并本地提交，正在237回到原作品第1話P2并抽查中末页及另一章节。旧195页原件作为失败反例保留，不改原件或测试期望替新实现放行。",
       "remainingActions": [
-        "按当前P2的源、页身份和增强记录定位未增强输入及增强输出，核对两文件实际像素和绑定URI；只读取必要图片缓存索引和匹配条目。",
-        "若文件本身清晰，再核本slot/request的解码、几何及呈现回执；若文件已模糊，追查其来源或处理过程。不能以猜测或清缓存替代定位。"
+        "完成237默认台湾站下原劍尊歸來第1話P2、同章中末图及其它章节实际正文回归，核旧ID与续读位置保持。",
+        "真实通过后提交推送发布0.1.32，公开索引、整包和必要WASM行为回读；本处不需要App更新。"
       ],
       "evidence": [
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/P2-original-enhancement-comparison.json",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-28-WWW2-image-settled-readonly/screen.png"
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-28-WWW2-image-settled-readonly/screen.png",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/P2-exact-device-files-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/p2-public-reference/metadata.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/upstream/Baozi.kt",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/app-reader-032/candidate-ready.json"
       ]
     }
   ],
@@ -31031,6 +31035,20 @@
       "detail": "用户对具体镜像回复“忘了，下次再说”。仅暂缓这一未复现现象，不扩为暂停巴卡或模糊页。包子0.1.31默认TW已正式发布，公开与候选WASM指定输入的完整响应和请求记录一致。",
       "evidence": [
         ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-7a9e34b/execution-parity/summary.md"
+      ]
+    },
+    {
+      "id": "baozi-placeholder-root-cause-and-032-20261123",
+      "at": "2026-11-23T22:13:51+08:00",
+      "itemId": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
+      "kind": "implementation",
+      "title": "实际原图和上游证明下载墙占位，源侧统一App reader",
+      "detail": "根因已从实际文件和固定上游调用链核实：设备P2原文件与公开占位图逐字节相同；上游已统一使用App阅读页，因普通网页返回下载墙和占位图片。本源却继续优先旧AMP路径，把其页表当成正文。0.1.32已在源侧改为所有镜像直接使用既有App reader，保留台湾默认、17个镜像值、原章节及页身份；删除失效AMP优先分支，未修改App显示或增强。候选已构建并本地提交，正在237回到原作品第1話P2并抽查中末页及另一章节。旧195页原件作为失败反例保留，不改原件或测试期望替新实现放行。",
+      "evidence": [
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/P2-exact-device-files-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/p2-public-reference/metadata.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/upstream/Baozi.kt",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/app-reader-032/candidate-ready.json"
       ]
     }
   ],
