@@ -62,6 +62,9 @@ test('the shelf publishes the selected sort and direction in the same refresh', 
  const progress = new Map(books.map((comic, index) => [comic.id, {
   comicId: comic.id, chapterId: comic.chapters[0].id, updatedAt: [10, 30, 20][index],
  }]))
+ reader.restoreReadingState({
+  progress: Array.from(progress.values()), sourceHistory: [], remoteHistory: [], chapterStates: [], readingSessions: [],
+ })
  const updates = new Map([['a', 20], ['b', 10], ['c', 30]])
  let frame = 0
  const Shelf = shelfSubject(['setSortBy', 'refreshDisplayedSnapshotFromStore', 'applyCategorySort', 'prepareShelfReadingFacts',
@@ -88,7 +91,7 @@ test('the shelf publishes the selected sort and direction in the same refresh', 
   active: true, rootNavigation: { visible: true },
   libraryStore: library, libraryRevision: 1, readerSessionStore: reader, readerProgressRevision: 1,
   privacy: { visibleCategoryId: '' }, privateCategoryIds: new Set(),
-  shelfReadingProgress: progress, filterCategory: 'all', filterReadState: 'all', filterAvailability: 'all', displayedRevision: 0,
+  filterCategory: 'all', filterReadState: 'all', filterAvailability: 'all', displayedRevision: 0,
   defaultSort: { sortBy: 'lastRead', sortDirection: 'desc', sortConfigured: true },
   validCategoryFilter() { return this.filterCategory },
   selectedSmartCategory: () => undefined,
@@ -111,9 +114,8 @@ test('the shelf publishes the selected sort and direction in the same refresh', 
  shelf.filterCategory = category.id
  shelf.refreshDisplayedSnapshotFromStore()
  assert.deepEqual(ids(), ['a', 'b'])
- const publishedProgress = new Map(progress)
- publishedProgress.set('a', { ...progress.get('a'), updatedAt: 40 })
- shelf.shelfReadingProgress = publishedProgress
+ reader.saveProgress(progress.get('a'))
+ shelf.readerProgressRevision += 1
  shelf.syncDisplayedSnapshotFromProps()
  assert.deepEqual(ids(), ['b', 'a'])
 })
@@ -226,13 +228,12 @@ test('returning to the shelf picks up new download facts with unchanged book and
  const Shelf = shelfSubject(['syncDisplayedSnapshotFromProps', 'usesLiveShelfFiltersOrSort', 'selectedSmartCategory'])
  const shelf = new Shelf(), library = new InMemoryLibraryStore(), reader = new InMemoryReaderSessionStore()
  const comic = book('offline'), downloaded = new Set()
- const readingProgress = new Map()
  library.replaceSmartCategories([group([rule('downloaded')])])
  Object.assign(shelf, {
   active: false, rootNavigation: { visible: true }, filterAvailability: 'all', filterCategory: 'smart:1', sortBy: 'title',
   displayedLibraryRevision: 3, libraryRevision: 3, displayedProgressRevision: 5, readerProgressRevision: 5,
   displayedLibraryStore: library, libraryStore: library, displayedSessionStore: reader, readerSessionStore: reader,
-  displayedReadingProgress: readingProgress, shelfReadingProgress: readingProgress, visibleIds: [],
+  visibleIds: [],
   refreshDisplayedSnapshotFromStore() {
    const matches = smart.comicMatchesSmartCategory(comic, this.selectedSmartCategory(), { reader, downloaded, tracked: new Set() })
    this.visibleIds = matches ? [comic.id] : []

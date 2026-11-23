@@ -46,6 +46,61 @@ function fixture(preferences = new Map(), runtimeImports = new Map(), rdb = crea
 
 const plain = value => JSON.parse(JSON.stringify(value))
 
+test('cold reading reads scoped positions and saves before loading history without dropping old records', async () => {
+  const env = fixture(new Map(), new Map([
+    ['../sourceRuntime/SourceRuntimeAppRegistry', {}],
+    ['../i18n/AppStrings', { AppStrings: {} }],
+    ['./SourceRequiredImageDecode', {}],
+    ['./ChapterListPreferencesStore', {}],
+    ['../diagnostics/DiagnosticLogger', { DiagnosticLogger: { warn() {} } }],
+  ]))
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { ReaderRdbStorage } = env.load('ReaderRdbStorage')
+    const { PersistentReaderSessionStore } = env.load('ReaderSessionStore')
+    const store = await openUserDataDatabase({ filesDir: '/cold-reading' })
+    const queries = []
+    const reader = new ReaderRdbStorage({
+      ...store, querySqlSync: (sql, args) => {
+        queries.push(sql)
+        return store.querySqlSync(sql, args)
+      },
+    })
+    const position = (comicId, updatedAt) => ({ comicId, chapterId: 'c1',
+      pageIndex: 4, totalPages: 10, progressRatio: 0.5, completed: false, updatedAt })
+    const savedSession = { comicId: 'keep', chapterId: 'c1', startedAt: 1, endedAt: 2, pagesRead: 1 }
+    const action = { id: 'prior', space: 'space', source: 'source', work: 'keep',
+      chapterId: 'c1', edits: [{ key: 'bookmark', kind: 'set', value: 'true', observed: [] }] }
+    const initial = { progress: [position('keep', 2), position('tie', 2),
+      ...Array.from({ length: 33 }, (_, i) => position('hidden-' + i, 10 + i))],
+      chapters: [], sourceHistory: [], readingSessions: [savedSession], syncActions: [action] }
+    await reader.migrate(initial)
+    queries.length = 0
+    const session = new PersistentReaderSessionStore({
+      load: () => { assert.fail('RDB must not fall back to the legacy snapshot') },
+      activityDatabase: () => reader,
+      supportsPageTurnWrites: () => true,
+      saveSnapshot: (snapshot, turns) => reader.save(snapshot, turns),
+    })
+    assert.deepEqual(queries, [])
+    assert.deepEqual([...session.shelfPositions(['keep', 'absent']).values()], [reader.readPositions(['keep'])[0]])
+    assert.deepEqual(session.latestMatchingProgress(row => !row.comicId.startsWith('hidden-'))
+      .map(row => row.comicId).sort(), ['keep', 'tie'])
+    assert.ok(queries.every(sql => !sql.includes('reader_sessions') && !sql.includes('reader_source_history')))
+    session.saveProgress({ ...position('keep', 5), pageIndex: 7 })
+    const pending = { ...savedSession, startedAt: 3, endedAt: 4 }
+    session.addReadingSession(pending)
+    assert.deepEqual(session.listReadingSessions(), [savedSession, pending])
+    assert.equal(session.flush(), true)
+    assert.equal(reader.readPositions(['keep'])[0].pageIndex, 7)
+    assert.equal(reader.readPositions().length, 35)
+    assert.deepEqual(reader.readReadingSessions(), [savedSession, pending])
+    assert.deepEqual(session.pendingDeviceSyncActions(), [action])
+  } finally {
+    env.close()
+  }
+})
+
 test('the first category migration keeps memberships when reads see only committed aliases', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-category-upgrade-'))
   const rdb = createRdbPort(path.join(directory, 'Koma.db'))

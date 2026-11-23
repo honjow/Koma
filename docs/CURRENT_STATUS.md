@@ -201,11 +201,12 @@
       "reportedDate": "2026-11-21",
       "reportedAtSource": "本会话用户要求先重做本地数据库和迁移，检查通过后再处理华为云同步。",
       "registeredAt": "2026-11-21T23:05:00+08:00",
-      "updatedAt": "2026-11-23T03:59:09+08:00",
+      "updatedAt": "2026-11-23T12:05:00+08:00",
       "status": "本地重做和具名设备验证完成，结构待核对",
       "result": "普通阅读 WebDAV 按作品与章节键读取、落盘和回执。历史、书架按阅读记录变动更新。201 同一话 212 页真实条漫做两次快速下读和回翻，搜索历史查询移到后台后，8 次快甩中的最大帧间隔从 41.96ms 降至 19.77ms。旧章冲突缩到相关页位后，201 自动发出第 2 话第 89 页，103 原包收到并显示相同正文，第 4 话仍分别保留第 28 页和第 58 页。103 回翻至第 88 页后，201 接收时同步映射变动曾误触发整库恢复。发布改为以书库实际落盘为准后，复测四轮同步没有重建历史，主线程最长事件回调由 697.77ms 降至 70.30ms。197 与 103 的旧库样本在本机重放与再次启动校验通过。197 大书架逐项通过单章已读、书签、单删历史、收藏增删和分类编辑。手动更新尝试全部 1064 本，9 本无新章，1053 本 Mihon 记录尚未匹配书源，另有 2 本检查失败。历史首次续读接回原第 10 页，关联提交后主页组件重绘在两次不同作品采样中从约 60.1 毫秒降至约 0.7 毫秒。",
       "remaining": "实际表、键、索引和旧数据去向已在对话列出，待用户核对本地结构。华为云同步单独安排。",
       "evidence": [
+        ".hvigor/outputs/startup-reading-scope-20261123/summary.json",
         ".hvigor/outputs/local-data-governance/scoped-edits-197-20261123/summary.json",
         "docs/plans/active/local-data-governance.md",
         ".hvigor/outputs/local-data-governance/local-database-schema.md",
@@ -29930,6 +29931,18 @@
       "detail": "首次目录原来在进入后台合并前完整读取并序列化书架和阅读数据，合并后又重写两份数据。现按原作品和在线作品在一个事务中合并保存，普通详情字段变化也按作品保存。新增阅读时长与页位增量同事务。真机核对目录、历史首次续读、同章同页退出、冷启动及无关数据读回。已读和书签、单条历史删除、收藏增删及分类定义仍有整库保存路径。",
       "evidence": [
         ".hvigor/outputs/mihon-large-mapping-audit/rdb-first-catalog-20261123/summary.json"
+      ]
+    },
+    {
+      "id": "startup-reading-scope-20261123",
+      "at": "2026-11-23T12:05:00+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "verified",
+      "title": "197 首帧按分类读进度，书源首次需要时创建 WebView",
+      "detail": "197 大书架保持同一日漫分类，从桌面到首帧两次由 1.693、1.629 秒降到 1.387、1.352 秒。42 条首屏应用文字和排序一致；覆盖安装前与冷启动后、继续阅读前，42 张书架及阅读表逐行一致。国漫分类显示原作品及角标，从历史打开原章第 10/32 页并显示正文。两次首帧前均未创建 WebView，MYCOMIC 打开实际列表后，普通搜索经桥接 HTTP 200 并显示结果。阅读域和 WebDAV 回执的本机回归通过。",
+      "evidence": [
+        ".hvigor/outputs/startup-reading-scope-20261123/summary.json",
+        ".hvigor/outputs/startup-reading-scope-20261123/tests.log"
       ]
     },
     {

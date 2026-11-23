@@ -125,7 +125,6 @@ interface LibraryCategoryProjection {
   libraryRevision: number
   readerSessionStore: ReaderSessionStore
   readerProgressRevision: number
-  readingProgress: Map<ComicId, ReadingProgress>
   all: Comic[]
   categories: Map<string, Comic[]>
 }
@@ -359,7 +358,6 @@ export struct LibraryPage {
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param readerProgressRevision: number = 0
   @Param readingPresentationChange?: ReadingPresentationChange = undefined
-  @Param shelfReadingProgress: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
   @Param continueReadingCard: ContinueReadingCardViewModel = { title: '', detail: '', progress: 0, color: '', comicId: '' }
   @Param scopedContinueReadingCard: ContinueReadingCardViewModel | undefined = undefined
   @Param active: boolean = true
@@ -376,7 +374,7 @@ export struct LibraryPage {
   private displayedLibraryStore?: LibraryStore
   private displayedLibraryRevision: number = -1
   private displayedProgressRevision: number = -1
-  private displayedReadingProgress?: Map<ComicId, ReadingProgress>
+  private displayedReadingProgress = new Map<ComicId, ReadingProgress>()
   private displayedSessionStore?: ReaderSessionStore
   @Local private projectionState: LibraryProjectionState = LibraryProjectionState.READY
   @Local private selectionMode: boolean = false
@@ -531,15 +529,14 @@ export struct LibraryPage {
 
   // Mihon links publish shelf and progress together. Project that committed
   // state once when the shelf is visible, including when returning to it.
-  @Monitor('libraryStore', 'libraryRevision', 'readerSessionStore', 'readerProgressRevision', 'shelfReadingProgress',
+  @Monitor('libraryStore', 'libraryRevision', 'readerSessionStore', 'readerProgressRevision',
     'active', 'rootNavigation.visible')
   private syncDisplayedSnapshotFromProps(): void {
     if (!this.active || !this.rootNavigation.visible) return
     const sameShelf = this.displayedLibraryStore === this.libraryStore && this.displayedLibraryRevision === this.libraryRevision &&
       this.displayedSessionStore === this.readerSessionStore
     if (sameShelf && !this.usesLiveShelfFiltersOrSort()) {
-      if (this.displayedProgressRevision === this.readerProgressRevision &&
-        this.displayedReadingProgress === this.shelfReadingProgress) return
+      if (this.displayedProgressRevision === this.readerProgressRevision) return
       if (this.applyWorkReadingChange()) return
     }
     this.refreshDisplayedSnapshotFromStore()
@@ -556,9 +553,10 @@ export struct LibraryPage {
     const id = change.comicIds[0]
     const summary = this.libraryStore.getComicSummary(id)
     if (summary !== undefined) this.prepareShelfReadingFacts([summary])
-    const positions = this.shelfReadingProgress
-    const updatedAt = positions.get(id)?.updatedAt
-    if (this.sortBy === 'lastRead' && this.displayedReadingProgress?.get(id)?.updatedAt !== updatedAt) {
+    const positions = this.displayedReadingProgress
+    const progress = this.readerSessionStore.getProgress(id)
+    const updatedAt = progress?.updatedAt
+    if (this.sortBy === 'lastRead' && positions.get(id)?.updatedAt !== updatedAt) {
       const index = this.displayedComics.findIndex((comic: Comic): boolean => comic.id === id)
       if (index >= 0) {
         const work = this.displayedComics[index]
@@ -583,7 +581,8 @@ export struct LibraryPage {
       }
     }
     this.displayedProgressRevision = this.readerProgressRevision
-    this.displayedReadingProgress = positions
+    if (progress === undefined) positions.delete(id)
+    else positions.set(id, progress)
     return true
   }
 
@@ -632,7 +631,10 @@ export struct LibraryPage {
     this.applyCategorySort(strategy)
     const scoped = this.libraryStore.listShelfSummaries(category)
     this.prepareShelfReadingFacts(scoped)
-    const nextComics = this.orderedCategoryComics(category)
+    // Normal categories only need their members' positions. The full view and
+    // smart categories deliberately use all work summaries.
+    const positions = this.readerSessionStore.shelfPositions(scoped.map((comic: Comic): ComicId => comic.id))
+    const nextComics = this.orderedCategoryComics(category, positions)
     const privateIds = this.privateCategoryIds
     const visibleScope = this.privacy.visibleCategoryId === category ? category : ''
     const visibleComics = privateIds.size === 0 ? nextComics :
@@ -650,7 +652,7 @@ export struct LibraryPage {
     this.displayedLibraryStore = this.libraryStore
     this.displayedLibraryRevision = this.libraryRevision
     this.displayedProgressRevision = this.readerProgressRevision
-    this.displayedReadingProgress = this.shelfReadingProgress
+    this.displayedReadingProgress = positions
     this.displayedSessionStore = this.readerSessionStore
     this.displayedRevision += 1
     this.removeMissingSelectedComics()
@@ -666,8 +668,8 @@ export struct LibraryPage {
     }
   }
 
-  private orderedShelfComics(category: LibraryCategoryFilter): Comic[] {
-    const items = this.libraryStore.listLibraryItems(this.shelfReadingProgress, this.currentListOptions(category))
+  private orderedShelfComics(category: LibraryCategoryFilter, positions: Map<ComicId, ReadingProgress>): Comic[] {
+    const items = this.libraryStore.listLibraryItems(positions, this.currentListOptions(category))
     const comics: Comic[] = []
     items.forEach((item: LibraryItem) => {
       const comic = this.libraryStore.getComicSummary(item.comicId)
@@ -676,24 +678,22 @@ export struct LibraryPage {
     return comics
   }
 
-  private orderedCategoryComics(category: LibraryCategoryFilter): Comic[] {
+  private orderedCategoryComics(category: LibraryCategoryFilter, positions: Map<ComicId, ReadingProgress>): Comic[] {
     // Live source names and chapter-update times need to be read on each refresh.
     if (this.sortBy === 'source' || this.sortBy === 'lastUpdate' || this.sortBy === 'unreadCount' ||
-      this.sortBy === 'latestChapter') return this.orderedShelfComics(category)
+      this.sortBy === 'latestChapter') return this.orderedShelfComics(category, positions)
 
     const cached = this.shelfCategoryProjection
-    const readingProgress = this.shelfReadingProgress
     // Categories with the same sort take a subsequence of one ordered shelf.
     // Menu actions publish synchronously, before ArkUI would refresh a @Computed cache.
     if (cached !== undefined && cached.sortBy === this.sortBy && cached.sortDirection === this.sortDirection &&
       cached.libraryStore === this.libraryStore && cached.libraryRevision === this.libraryRevision &&
-      cached.readerSessionStore === this.readerSessionStore && cached.readerProgressRevision === this.readerProgressRevision &&
-      cached.readingProgress === readingProgress) {
+      cached.readerSessionStore === this.readerSessionStore && cached.readerProgressRevision === this.readerProgressRevision) {
       return category === 'all' ? cached.all : cached.categories.get(category) ?? []
     }
 
-    if (category !== 'all') return this.orderedShelfComics(category)
-    const all = this.orderedShelfComics('all')
+    if (category !== 'all') return this.orderedShelfComics(category, positions)
+    const all = this.orderedShelfComics('all', positions)
     const categories = new Map<string, Comic[]>()
     all.forEach((comic: Comic): void => {
       normalizeCategoryIds(comic.categoryIds).forEach((id: string): void => {
@@ -709,7 +709,6 @@ export struct LibraryPage {
       libraryRevision: this.libraryRevision,
       readerSessionStore: this.readerSessionStore,
       readerProgressRevision: this.readerProgressRevision,
-      readingProgress,
       all,
       categories,
     }

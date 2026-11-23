@@ -782,17 +782,6 @@ struct Index {
   }
 
   @Computed
-  private get shelfReadingProgress(): Map<ComicId, ReadingProgress> {
-    void this.libraryRevision
-    void this.readerProgressRevision
-    const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
-    for (const position of this.readerSessionStore.listProgress()) {
-      progressByComicId.set(position.comicId, position)
-    }
-    return progressByComicId
-  }
-
-  @Computed
   private get continueReadingCard(): ContinueReadingCardViewModel {
     return this.latestVisibleContinueReadingCard('')
   }
@@ -810,18 +799,17 @@ struct Index {
     void this.languageState.effectiveLocale
     const candidates: Comic[] = []
     const positions = new Map<ComicId, ReadingProgress>()
-    const ordered = Array.from(this.shelfReadingProgress.values()).sort((a: ReadingProgress, b: ReadingProgress): number =>
-      b.updatedAt - a.updatedAt)
-    let latest: number | undefined
-    for (const progress of ordered) {
-      if (latest !== undefined && progress.updatedAt < latest) break
+    const latest = this.readerSessionStore.latestMatchingProgress((progress: ReadingProgress): boolean => {
       const comic = this.libraryStore.getComicSummary(progress.comicId)
-      if (comic === undefined || !showLibraryComic(comic, this.privateCategoryIds, scope)) continue
+      if (comic === undefined || !showLibraryComic(comic, this.privateCategoryIds, scope)) return false
       const saved = this.libraryStore.shelfProgress(comic, progress)
-      if (saved === undefined) continue
-      latest = saved.updatedAt
+      if (saved === undefined) return false
       positions.set(comic.id, saved)
-      candidates.push(comic)
+      return true
+    })
+    for (const progress of latest) {
+      const comic = this.libraryStore.getComicSummary(progress.comicId)
+      if (comic !== undefined) candidates.push(comic)
     }
     // Only equal last-read times need the existing shelf title tie-breaker.
     candidates.sort((left: Comic, right: Comic): number =>
@@ -4696,7 +4684,6 @@ struct Index {
                 readerSessionStore: this.readerSessionStore,
                 readerProgressRevision: this.readerProgressRevision,
                 readingPresentationChange: this.readingPresentationChange,
-                shelfReadingProgress: this.shelfReadingProgress,
                 continueReadingCard: this.continueReadingCard,
                 scopedContinueReadingCard: this.scopedContinueReadingCard,
                 presentationByComicId: this.presentationByComicId,

@@ -7,7 +7,7 @@ import type { ReadingSessionRecord } from './ReadingStatistics'
 import type { SyncReadingActionCapture, SyncReadingCapture } from '../deviceSync/DeviceSyncSignals'
 import { syncReadingIdentity } from '../deviceSync/DeviceSyncData'
 import { collectLocalRows } from './LocalDataRows'
-import { appendReaderSessions, orderedReaderSessions, readerChapterStates, readerPositions, readerRemoteHistory, readerRemotePaths,
+import { appendReaderSessions, orderedReaderSessions, readerChapterStates, readerPositions, readerRemoteHistory, readerRemotePaths, readRecentReaderPositions,
   readerSessions, readerSourceHistory, readRemoteHistory, remoteHistoryRows, remotePathRows } from './ReaderDataRows'
 import { ReaderOutboxRows, readActionOutbox, readPositionOutbox } from './ReaderOutboxRows'
 import { hasUserDataMigration } from './UserDataDatabase'
@@ -15,6 +15,11 @@ import { writeUserRecords } from './UserKeyedRecords'
 
 const OLD_READER_MIGRATION = 'reading-from-json-v1'
 const READER_MIGRATION = 'reader-relational-v1'
+
+interface ReaderSyncOutbox {
+  syncPositions?: SyncReadingCapture[]
+  syncActions?: SyncReadingActionCapture[]
+}
 
 function sameSourceWork(comicId: string, source: string, work: string, chapterId?: string): boolean {
   if (!syncReadingIdentity(source, work, chapterId)) return false
@@ -147,22 +152,59 @@ export class ReaderRdbStorage {
   }
 
   readForSync(includeChapters: boolean = true): ReaderSessionDocumentSnapshot {
-    const syncPositions = readPositionOutbox(this.store)
-    const syncActions = readActionOutbox(this.store)
+    const outbox = this.readOutbox()
     return {
-      progress: readerPositions.read(this.store),
-      sourceHistory: readerSourceHistory.read(this.store),
+      progress: this.readPositions(),
+      sourceHistory: this.readSourceHistory(),
       chapters: includeChapters ? readerChapterStates.read(this.store) : [],
-      syncPositions: syncPositions.length === 0 ? undefined : syncPositions,
-      syncActions: syncActions.length === 0 ? undefined : syncActions,
+      syncPositions: outbox.syncPositions,
+      syncActions: outbox.syncActions,
     }
   }
 
   read(includeChapters: boolean = true): ReaderSessionDocumentSnapshot {
     const reading = this.readForSync(includeChapters)
-    reading.remoteHistory = readRemoteHistory(this.store)
-    reading.readingSessions = readerSessions.read(this.store).map(record => record.session)
+    reading.remoteHistory = this.readRemoteHistory()
+    reading.readingSessions = this.readReadingSessions()
     return reading
+  }
+
+  readPositions(comicIds?: string[]): ReadingProgress[] {
+    if (comicIds === undefined) return readerPositions.read(this.store)
+    const progress: ReadingProgress[] = []
+    for (let index = 0; index < comicIds.length; index += 200) {
+      const ids = comicIds.slice(index, index + 200)
+      progress.push(...readerPositions.read(this.store, 'comic_id IN (' + ids.map((): string => '?').join(', ') + ')', ids))
+    }
+    return progress
+  }
+
+  readRecentPositions(limit: number, offset: number): ReadingProgress[] {
+    return readRecentReaderPositions(this.store, limit, offset)
+  }
+
+  readSourceHistory(comicId?: string): SourceReadHistoryEntry[] {
+    return comicId === undefined ? readerSourceHistory.read(this.store) :
+      readerSourceHistory.read(this.store, 'comic_id = ?', [comicId])
+  }
+
+  readRemoteHistory(): RemoteReadHistoryEntry[] {
+    return readRemoteHistory(this.store)
+  }
+
+  readReadingSessions(comicId?: string): ReadingSessionRecord[] {
+    const rows = comicId === undefined ? readerSessions.read(this.store) :
+      readerSessions.read(this.store, 'comic_id = ?', [comicId])
+    return rows.map(record => record.session)
+  }
+
+  readOutbox(): ReaderSyncOutbox {
+    const syncPositions = readPositionOutbox(this.store)
+    const syncActions = readActionOutbox(this.store)
+    return {
+      syncPositions: syncPositions.length === 0 ? undefined : syncPositions,
+      syncActions: syncActions.length === 0 ? undefined : syncActions,
+    }
   }
 
   readChapters(comicId?: string, chapterId?: string): ChapterReadingState[] {

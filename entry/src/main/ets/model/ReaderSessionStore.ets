@@ -753,6 +753,7 @@ export abstract class ReaderSessionStore {
   private readonly readingSessionsByComic = new Map<ComicId, Set<ReadingSessionRecord>>()
 
   listReadingSessions(): ReadingSessionRecord[] {
+    this.prepareReadingSessions()
     return Array.from(this.readingSessions).map((record: ReadingSessionRecord): ReadingSessionRecord => ({
       comicId: record.comicId, chapterId: record.chapterId, startedAt: record.startedAt,
       endedAt: record.endedAt, pagesRead: record.pagesRead,
@@ -798,6 +799,8 @@ export abstract class ReaderSessionStore {
   }
   protected readingSessionAdded(_record: ReadingSessionRecord): void { this.chapterStatesChanged() }
 
+  protected prepareReadingSessions(): void {}
+
   private indexReadingSession(row: ReadingSessionRecord): void {
     let work = this.readingSessionsByComic.get(row.comicId)
     if (work === undefined) {
@@ -838,6 +841,29 @@ export abstract class ReaderSessionStore {
   abstract saveProgress(progress: ReadingProgress, sourceChapterTitle?: string): void
   abstract removeProgress(comicId: ComicId): void
   abstract listProgress(): ReadingProgress[]
+
+  shelfPositions(comicIds: ComicId[]): Map<ComicId, ReadingProgress> {
+    const result = new Map<ComicId, ReadingProgress>()
+    for (const id of comicIds) {
+      const position = this.getProgress(id)
+      if (position !== undefined) result.set(id, position)
+    }
+    return result
+  }
+
+  latestMatchingProgress(matches: (progress: ReadingProgress) => boolean): ReadingProgress[] {
+    return this.matchNewestProgress(this.listProgress(), matches)
+  }
+
+  protected matchNewestProgress(rows: ReadingProgress[], matches: (progress: ReadingProgress) => boolean): ReadingProgress[] {
+    rows.sort((a: ReadingProgress, b: ReadingProgress): number => b.updatedAt - a.updatedAt)
+    const latest: ReadingProgress[] = []
+    for (const row of rows) {
+      if (latest.length > 0 && row.updatedAt < latest[0].updatedAt) break
+      if (matches(row)) latest.push(row)
+    }
+    return latest
+  }
   /** Metadata for a source item that has been read without being shelved. */
   abstract getSourceHistory(comicId: ComicId): SourceReadHistoryEntry | undefined
   // Source history owns the work identity and display metadata. The latest
@@ -938,11 +964,13 @@ export abstract class ReaderSessionStore {
   }
 
   getRemoteHistory(comicId: ComicId): RemoteReadHistoryEntry | undefined {
+    this.prepareRemoteHistory()
     const entry = this.remoteHistoryByComicId.get(comicId)
     return entry === undefined ? undefined : copyRemoteReadHistoryEntry(entry)
   }
 
   saveRemoteHistory(entry: RemoteReadHistoryEntry): void {
+    this.prepareRemoteHistory()
     const copied = copyRemoteReadHistoryEntry(entry)
     if (copied === undefined) return
     this.remoteHistoryByComicId.set(copied.comicId, copied)
@@ -950,10 +978,12 @@ export abstract class ReaderSessionStore {
   }
 
   removeRemoteHistory(comicId: ComicId): void {
+    this.prepareRemoteHistory()
     if (this.remoteHistoryByComicId.delete(comicId)) this.remoteHistoryChanged(true)
   }
 
   listRemoteHistory(): RemoteReadHistoryEntry[] {
+    this.prepareRemoteHistory()
     const entries: RemoteReadHistoryEntry[] = []
     this.remoteHistoryByComicId.forEach((entry: RemoteReadHistoryEntry): void => {
       const copied = copyRemoteReadHistoryEntry(entry)
@@ -963,6 +993,8 @@ export abstract class ReaderSessionStore {
   }
 
   protected remoteHistoryChanged(_immediate: boolean): void {}
+
+  protected prepareRemoteHistory(): void {}
 
   getComicProgress(comic: Comic): ReadingProgress | undefined {
     return currentComicReadingProgress(comic, this.getProgress(comic.id))
@@ -1247,6 +1279,14 @@ export class InMemoryReaderSessionStore extends ReaderSessionStore {
 export class PersistentReaderSessionStore extends ReaderSessionStore {
   private readonly adapter: ReaderSessionPersistenceAdapter
   private readonly progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
+  private readonly queriedPositions = new Set<ComicId>()
+  private readonly queriedSourceHistory = new Set<ComicId>()
+  private deferredReadingDatabase?: ReaderRdbStorage
+  private positionsComplete: boolean = true
+  private sourceHistoryComplete: boolean = true
+  private remoteHistoryComplete: boolean = true
+  private readingSessionsComplete: boolean = true
+  private syncOutboxComplete: boolean = true
   private readonly sourceHistoryByComicId: Map<ComicId, SourceReadHistoryEntry> = new Map<ComicId, SourceReadHistoryEntry>()
   private readonly pendingPageTurns: Map<string, ChapterReadingState> = new Map<string, ChapterReadingState>()
   private readonly pendingSourceHistory: Set<ComicId> = new Set<ComicId>()
@@ -1333,6 +1373,10 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   /** Capture portable positions before ArkData starts overwriting the shared
    * table. Chapter rows of unrelated, device-only works stay on demand. */
   prepareCloudChapterStates(): void {
+    // The native transfer updates the shared rows in place. Take the local
+    // comparison snapshot before that happens, including unread cached positions.
+    this.prepareAllPositions()
+    this.prepareSourceHistory()
     const database = this.deferredChapterDatabase
     if (database === undefined || this.cloudChaptersReady) return
     this.loadChapterRows(database.readSharedChapters())
@@ -1348,10 +1392,12 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   pendingDeviceSyncPositions(): SyncReadingCapture[] {
+    this.prepareSyncOutbox()
     return this.syncPositions.slice()
   }
 
   pendingDeviceSyncActions(): SyncReadingActionCapture[] {
+    this.prepareSyncOutbox()
     return this.syncActions.slice()
   }
 
@@ -1384,6 +1430,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.applyCommittedReadingRows(scope.map((work: ReaderSyncWorkScope): string => work.comicId), snapshot)
     this.syncPositions = snapshot.syncPositions ?? []
     this.syncActions = snapshot.syncActions ?? []
+    this.syncOutboxComplete = true
   }
 
   applyCloudReading(storage: ReaderRdbStorage, scope: ReaderSyncWorkScope[]): void {
@@ -1427,6 +1474,8 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
 
   private applyCommittedReadingRows(comicIds: string[], snapshot: ReaderSessionDocumentSnapshot): void {
     for (const id of comicIds) {
+      this.queriedPositions.add(id)
+      this.queriedSourceHistory.add(id)
       this.progressByComicId.delete(id)
       this.sourceHistoryByComicId.delete(id)
     }
@@ -1438,6 +1487,8 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   restoreReadingState(snapshot: ReaderSessionReadingSnapshot): void {
+    this.prepareSyncOutbox()
+    this.resetReadingCoverage()
     this.deferredChapterDatabase = undefined
     this.loadedChapterWorks.clear()
     this.missingChapters.clear()
@@ -1465,12 +1516,14 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
 
   private restoreSnapshot(replace: boolean = false, prepared?: ReaderSessionDocumentSnapshot): void {
     const database = prepared === undefined ? this.adapter.activityDatabase?.() : undefined
-    const snapshot = prepared ?? database?.read(false) ?? this.adapter.loadSnapshot?.()
-    const progressRows = snapshot === undefined ? this.adapter.load() : snapshot.progress
+    // RDB is already authoritative. Bind it here and read each domain at its
+    // consumer, so opening the shelf never restores the whole reader snapshot.
+    const snapshot = prepared ?? (database === undefined ? this.adapter.loadSnapshot?.() : undefined)
+    const progressRows = snapshot?.progress ?? (database === undefined ? this.adapter.load() : [])
     const sourceHistory = snapshot !== undefined ? snapshot.sourceHistory :
-      (this.adapter.loadSourceHistory === undefined ? [] : this.adapter.loadSourceHistory())
+      (database === undefined ? this.adapter.loadSourceHistory?.() ?? [] : [])
     const remoteHistory = snapshot !== undefined ? snapshot.remoteHistory ?? [] :
-      (this.adapter.loadRemoteHistory === undefined ? [] : this.adapter.loadRemoteHistory())
+      (database === undefined ? this.adapter.loadRemoteHistory?.() ?? [] : [])
     // Finish loading before retiring the old snapshot or its pending write.
     if (replace) {
       this.shelfFacts.clear()
@@ -1491,14 +1544,15 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       this.cloudChaptersReady = false
       this.replaceReadingSessions([])
     }
+    this.resetReadingCoverage(database)
     this.deferredChapterDatabase = database
+    this.syncPositions = snapshot?.syncPositions ?? []
+    this.syncActions = snapshot?.syncActions ?? []
     progressRows.forEach((progress: ReadingProgress): void => {
       this.progressByComicId.set(progress.comicId, progress)
       if (snapshot === undefined) this.recordChapterProgress(progress)
     })
     if (snapshot !== undefined) {
-      this.syncPositions = snapshot.syncPositions ?? []
-      this.syncActions = snapshot.syncActions ?? []
       this.replaceReadingSessions(snapshot.readingSessions ?? [])
       snapshot.chapters.forEach((state: ChapterReadingState): void => {
         this.chapterStates.set(chapterStateKey(state.comicId, state.chapterId), state)
@@ -1516,8 +1570,116 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     })
   }
 
+  private resetReadingCoverage(database?: ReaderRdbStorage): void {
+    this.deferredReadingDatabase = database
+    this.queriedPositions.clear()
+    this.queriedSourceHistory.clear()
+    this.positionsComplete = database === undefined
+    this.sourceHistoryComplete = database === undefined
+    this.remoteHistoryComplete = database === undefined
+    this.readingSessionsComplete = database === undefined
+    this.syncOutboxComplete = database === undefined
+  }
+
+  private preparePositions(comicIds: ComicId[]): void {
+    const database = this.deferredReadingDatabase
+    if (database === undefined || this.positionsComplete) return
+    const missing = comicIds.filter((id: ComicId): boolean => !this.queriedPositions.has(id) && !this.progressByComicId.has(id))
+    if (missing.length === 0) return
+    for (const row of database.readPositions(missing)) this.progressByComicId.set(row.comicId, row)
+    for (const id of missing) this.queriedPositions.add(id)
+  }
+
+  private prepareAllPositions(): void {
+    const database = this.deferredReadingDatabase
+    if (database === undefined || this.positionsComplete) return
+    const ordered = new Map<ComicId, ReadingProgress>()
+    for (const row of database.readPositions()) {
+      const cached = this.progressByComicId.get(row.comicId)
+      if (cached !== undefined) ordered.set(row.comicId, cached)
+      else if (!this.queriedPositions.has(row.comicId)) ordered.set(row.comicId, row)
+    }
+    this.progressByComicId.forEach((row: ReadingProgress, id: ComicId): void => { ordered.set(id, row) })
+    this.progressByComicId.clear()
+    ordered.forEach((row: ReadingProgress, id: ComicId): void => { this.progressByComicId.set(id, row) })
+    this.queriedPositions.clear()
+    this.positionsComplete = true
+  }
+
+  private prepareSourceHistory(): void {
+    const database = this.deferredReadingDatabase
+    if (database === undefined || this.sourceHistoryComplete) return
+    for (const entry of database.readSourceHistory()) {
+      if (this.queriedSourceHistory.has(entry.comicId)) continue
+      const copied = copySourceReadHistoryEntry(entry)
+      if (copied !== undefined) this.sourceHistoryByComicId.set(copied.comicId, copied)
+    }
+    this.queriedSourceHistory.clear()
+    this.sourceHistoryComplete = true
+  }
+
+  protected prepareRemoteHistory(): void {
+    const database = this.deferredReadingDatabase
+    if (database === undefined || this.remoteHistoryComplete) return
+    for (const entry of database.readRemoteHistory()) {
+      const copied = copyRemoteReadHistoryEntry(entry)
+      if (copied !== undefined) this.remoteHistoryByComicId.set(copied.comicId, copied)
+    }
+    this.remoteHistoryComplete = true
+  }
+
+  protected prepareReadingSessions(): void {
+    const database = this.deferredReadingDatabase
+    if (database === undefined || this.readingSessionsComplete) return
+    this.replaceReadingSessions(database.readReadingSessions().concat(this.pendingReadingSessions))
+    this.readingSessionsComplete = true
+  }
+
+  protected hasReadingSessions(comicId: ComicId): boolean {
+    const database = this.deferredReadingDatabase
+    return super.hasReadingSessions(comicId) || (database !== undefined && !this.readingSessionsComplete &&
+      database.readReadingSessions(comicId).length > 0)
+  }
+
+  private prepareSyncOutbox(): void {
+    const database = this.deferredReadingDatabase
+    if (database === undefined || this.syncOutboxComplete) return
+    const outbox = database.readOutbox()
+    this.syncPositions = outbox.syncPositions ?? []
+    this.syncActions = outbox.syncActions ?? []
+    this.syncOutboxComplete = true
+  }
+
   getProgress(comicId: ComicId): ReadingProgress | undefined {
+    if (!this.positionsComplete && !this.queriedPositions.has(comicId) && !this.progressByComicId.has(comicId)) {
+      this.preparePositions([comicId])
+    }
     return this.progressByComicId.get(comicId)
+  }
+
+  shelfPositions(comicIds: ComicId[]): Map<ComicId, ReadingProgress> {
+    this.preparePositions(comicIds)
+    return super.shelfPositions(comicIds)
+  }
+
+  latestMatchingProgress(matches: (progress: ReadingProgress) => boolean): ReadingProgress[] {
+    const database = this.deferredReadingDatabase
+    if (database === undefined || this.positionsComplete) return super.latestMatchingProgress(matches)
+    const latest = this.matchNewestProgress(Array.from(this.progressByComicId.values()), matches)
+    const pageSize = 32
+    for (let offset = 0; ; offset += pageSize) {
+      const batch = database.readRecentPositions(pageSize, offset)
+      for (const row of batch) {
+        if (latest.length > 0 && row.updatedAt < latest[0].updatedAt) return latest
+        if (this.queriedPositions.has(row.comicId) || this.progressByComicId.has(row.comicId)) continue
+        const position = this.getProgress(row.comicId)
+        if (position === undefined || (latest.length > 0 && position.updatedAt < latest[0].updatedAt) ||
+          !matches(position)) continue
+        if (latest.length > 0 && position.updatedAt > latest[0].updatedAt) latest.length = 0
+        latest.push(position)
+      }
+      if (batch.length < pageSize) return latest
+    }
   }
 
   protected saveTransferredProgress(progress: ReadingProgress): void {
@@ -1564,6 +1726,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   removeProgress(comicId: ComicId): void {
+    this.queriedPositions.add(comicId)
     this.progressByComicId.delete(comicId)
     // Destructive progress changes must be visible to a new store immediately;
     // queued page turns can remain coalesced.
@@ -1645,16 +1808,18 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
 
   private removeDatabaseHistory(database: ReaderRdbStorage, ids: Set<ComicId>, clear: boolean): boolean {
     if (BackupRestoreActivity.hasPendingRecovery() || !this.flush()) return false
-    const affected = Array.from(ids).filter((id: ComicId): boolean => this.progressByComicId.has(id) ||
-      this.sourceHistoryByComicId.has(id) || this.remoteHistoryByComicId.has(id) || this.hasReadingSessions(id))
-    if (affected.length === 0) return true
+    let affected: ComicId[]
     const chapters: ChapterReadingState[] = []
     const actions = Array.from(ids).map((comicId: ComicId): SyncReadingSignal => ({
       comicId, chapterId: '', kind: clear ? 'clear-history' : 'remove-history',
     }))
     try {
+      this.preparePositions(Array.from(ids))
+      affected = Array.from(ids).filter((id: ComicId): boolean => this.progressByComicId.has(id) ||
+        this.getSourceHistory(id) !== undefined || this.getRemoteHistory(id) !== undefined || this.hasReadingSessions(id))
+      if (affected.length === 0) return true
       for (const id of affected) {
-        const source = this.sourceHistoryByComicId.get(id)
+        const source = this.getSourceHistory(id)
         if (source === undefined) continue
         // Keep each chapter's independent position and portable identity after deleting its recent item.
         for (const previous of database.readWorkForSync(id).chapters) {
@@ -1671,6 +1836,8 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       return false
     }
     for (const id of affected) {
+      this.queriedPositions.add(id)
+      this.queriedSourceHistory.add(id)
       this.progressByComicId.delete(id)
       this.sourceHistoryByComicId.delete(id)
       this.remoteHistoryByComicId.delete(id)
@@ -1695,7 +1862,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       const key = chapterStateKey(action.comicId, action.chapterId)
       const state = this.storedChapterState(action.comicId, action.chapterId)
       chapters.set(key, state === undefined ? undefined : JSON.parse(JSON.stringify(state)) as ChapterReadingState)
-      const position = this.progressByComicId.get(action.comicId)
+      const position = this.getProgress(action.comicId)
       if (position?.chapterId === action.chapterId) recent.set(action.comicId, copyReadingProgress(position))
     }
     try {
@@ -1711,7 +1878,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
         if (position !== undefined) reading.progress.push(position)
       }
       for (const id of new Set(actions.map((action: SyncReadingSignal): ComicId => action.comicId))) {
-        const source = this.sourceHistoryByComicId.get(id)
+        const source = this.getSourceHistory(id)
         if (source !== undefined) reading.sourceHistory.push(source)
       }
       this.saveDatabaseActivity(database, reading, actions)
@@ -1735,6 +1902,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
 
   private saveDatabaseActivity(database: ReaderRdbStorage, reading: ReaderSessionDocumentSnapshot,
     actions: SyncReadingSignal[], removedHistory?: ComicId[]): void {
+    this.prepareSyncOutbox()
     const pending = this.syncActions.concat(stageDeviceSyncReadingActions(actions))
     const positions = this.syncPositions.filter((row: SyncReadingCapture): boolean => !deviceSyncReadingAcknowledged(row))
     const retained = pending.filter((row: SyncReadingActionCapture): boolean =>
@@ -1768,6 +1936,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   listProgress(): ReadingProgress[] {
+    this.prepareAllPositions()
     const out: ReadingProgress[] = []
     this.progressByComicId.forEach((progress: ReadingProgress) => {
       out.push(progress)
@@ -1776,6 +1945,15 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   getSourceHistory(comicId: ComicId): SourceReadHistoryEntry | undefined {
+    const database = this.deferredReadingDatabase
+    if (database !== undefined && !this.sourceHistoryComplete && !this.queriedSourceHistory.has(comicId) &&
+      !this.sourceHistoryByComicId.has(comicId)) {
+      for (const row of database.readSourceHistory(comicId)) {
+        const copied = copySourceReadHistoryEntry(row)
+        if (copied !== undefined) this.sourceHistoryByComicId.set(comicId, copied)
+      }
+      this.queriedSourceHistory.add(comicId)
+    }
     const entry = this.sourceHistoryByComicId.get(comicId)
     return entry === undefined ? undefined : copySourceReadHistoryEntry(entry)
   }
@@ -1785,6 +1963,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     if (copied === undefined) {
       return
     }
+    this.queriedSourceHistory.add(copied.comicId)
     this.sourceHistoryByComicId.set(copied.comicId, copied)
     const scoped = this.adapter.supportsPageTurnWrites?.() === true
     if (scoped) this.pendingSourceHistory.add(copied.comicId)
@@ -1792,12 +1971,14 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   removeSourceHistory(comicId: ComicId): void {
+    this.queriedSourceHistory.add(comicId)
     this.sourceHistoryByComicId.delete(comicId)
     this.schedulePersist()
     this.flush()
   }
 
   listSourceHistory(): SourceReadHistoryEntry[] {
+    this.prepareSourceHistory()
     const out: SourceReadHistoryEntry[] = []
     this.sourceHistoryByComicId.forEach((entry: SourceReadHistoryEntry): void => {
       const copied = copySourceReadHistoryEntry(entry)
@@ -1937,10 +2118,8 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
 
   private buildPersistPlan(pageTurns?: ChapterReadingState[]): ReaderSessionPersistPlan | undefined {
     if (this.adapter.saveSnapshot === undefined) return undefined
-    const rows: ReadingProgress[] = []
-    if (pageTurns === undefined) {
-      this.progressByComicId.forEach((progress: ReadingProgress) => { rows.push(progress) })
-    }
+    this.prepareSyncOutbox()
+    const rows: ReadingProgress[] = pageTurns === undefined ? this.listProgress() : []
     const chapters = pageTurns ?? this.listChapterStates()
     const history: SourceReadHistoryEntry[] = pageTurns === undefined ? this.listSourceHistory() : []
     if (pageTurns !== undefined) {

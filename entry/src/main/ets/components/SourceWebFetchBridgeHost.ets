@@ -82,21 +82,25 @@ export struct SourceWebFetchBridgeHost {
   }
 
   build() {
-    Web({ src: '', controller: this.controller })
-      .width(1)
-      .height(1)
-      .opacity(0)
-      .position({ x: 0, y: 0 })
-      .javaScriptAccess(true)
-      .domStorageAccess(true)
-      .onControllerAttached(() => {
-        this.attached = true
-        this.loadRequestedPage()
-      })
-      .onPageBegin(() => { sourceWebFetchBridge.markLoading(this.loadingSourceId) })
-      // A committed same-origin document is enough to execute fetch. Waiting
-      // for third-party ads/images to end can exceed the bridge's own timeout.
-      .onPageVisible((event: OnPageVisibleEvent) => { this.documentVisible(event.url) })
-      .onPageEnd((event: OnPageEndEvent) => { this.documentVisible(event.url) })
+    // The first request mounts ArkWeb. Keep it mounted thereafter so moving
+    // between browse, history and the reader preserves the granted session.
+    if (this.request.length > 0) {
+      Web({ src: '', controller: this.controller })
+        .width(1)
+        .height(1)
+        .opacity(0)
+        .position({ x: 0, y: 0 })
+        .javaScriptAccess(true)
+        .domStorageAccess(true)
+        .onControllerAttached(() => {
+          this.attached = true
+          this.loadRequestedPage()
+        })
+        .onPageBegin(() => { sourceWebFetchBridge.markLoading(this.loadingSourceId) })
+        // A committed same-origin document is enough to execute fetch. Waiting
+        // for third-party ads/images to end can exceed the bridge's own timeout.
+        .onPageVisible((event: OnPageVisibleEvent) => { this.documentVisible(event.url) })
+        .onPageEnd((event: OnPageEndEvent) => { this.documentVisible(event.url) })
+    }
   }
 }

@@ -130,6 +130,13 @@ function positionRows(table: string, order: string): LocalDataRows<ReadingProgre
     (row: relationalStore.ResultSet): ReadingProgress => positionFromRow(row, 2, row.getString(0), row.getString(1)))
 }
 
+export function readRecentReaderPositions(store: relationalStore.RdbStore, limit: number, offset: number): ReadingProgress[] {
+  return collectLocalRows(store.querySqlSync(
+    'SELECT comic_id, chapter_id, ' + POSITION_FIELDS.join(', ') + ' FROM reader_current_positions_all ' +
+    'ORDER BY saved_at DESC, storage_order, comic_id LIMIT ? OFFSET ?', [limit, offset]),
+    (row: relationalStore.ResultSet): ReadingProgress => positionFromRow(row, 2, row.getString(0), row.getString(1)))
+}
+
 function chapterRows(table: string, order: string): LocalDataRows<ChapterReadingState> {
   return new LocalDataRows<ChapterReadingState>(table, ['comic_id', 'chapter_id'],
   ['is_read', 'bookmarked', 'updated_at', 'source_id', 'source_work_id', 'has_position', 'position_comic_id_override',
