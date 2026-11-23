@@ -46,6 +46,8 @@ interface SourceHttpResponseMetadata {
   headers?: boolean
 }
 
+interface SourceWebHttpOptions { version: number }
+
 interface SourceHttpRequestEnvelope {
   type?: string
   version?: number
@@ -59,6 +61,7 @@ interface SourceHttpRequestEnvelope {
   nativeSession?: boolean
   includeResponseUrl?: boolean
   responseMetadata?: SourceHttpResponseMetadata
+  webFetch?: SourceWebHttpOptions
   responseKind?: string
   requestBytes?: string
   requestBodyRef?: string
@@ -880,10 +883,82 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     trace.finish('rejected', 'reason=invalid_response_url_request')
     return transportError('invalid_request', false)
   }
+  const webHttp = envelope.webFetch !== undefined || method !== 'GET'
+  if (envelope.webFetch !== undefined && (envelope.webFetch === null || typeof envelope.webFetch !== 'object' || envelope.webFetch.version !== 1 ||
+    binaryRequest || binaryResponse || (envelope.responseKind !== undefined && envelope.responseKind !== 'bodyText') ||
+    sourceSession || webToken || nativeSession || guestSearch ||
+    includeResponseUrl || envelope.dnsOverride !== undefined || identity?.credentialGrantId !== undefined ||
+    !['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method) ||
+    (['GET', 'HEAD'].includes(method) && body.length > 0))) return transportError('invalid_request', false)
+  const webHttpContext = webHttp && installedEntry?.websitePolicy?.webFetchBridge === true &&
+    !binaryRequest && !binaryResponse && (envelope.responseKind === undefined || envelope.responseKind === 'bodyText') &&
+    !sourceSession && !webToken && !nativeSession && !guestSearch &&
+    !includeResponseUrl && envelope.dnsOverride === undefined && identity?.credentialGrantId === undefined &&
+    probe === undefined && identity !== undefined && ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
+    ? appSourceWebSessionStore.requestContext(identity, url) : undefined
+  const requestAdmission: SourceRequestAdmission = {}
+  if (webHttpContext !== undefined && identity !== undefined) {
+    if (['GET', 'HEAD'].includes(method) && body.length > 0) return transportError('invalid_request', false)
+    const webIdentity = identity
+    const granted = (): boolean => {
+      const context = appSourceWebSessionStore.requestContext(webIdentity, url)
+      return current() && context !== undefined && context.userAgent === webHttpContext.userAgent &&
+        context.authorizationRevision === webHttpContext.authorizationRevision
+    }
+    // Limit before any Web request, just like the native lane. Preparing the
+    // origin document must not navigate a POST endpoint with an invented GET.
+    let webAttempted = false
+    try {
+      await waitForSourceRequestSlot(installedEntry?.requestLimits, url, granted, envelope.headers, requestAdmission)
+      if (!current()) return transportError('source_request_cancelled', false)
+      const webStarted = Date.now()
+      if (granted() && !sourceWebFetchBridge.availableFor(identity.sourceId, url,
+        webHttpContext.userAgent, webHttpContext.authorizationRevision)) {
+        await sourceWebFetchBridge.prepare(identity.sourceId, sourceWebOrigin(url) + '/',
+          webHttpContext.userAgent, webHttpContext.authorizationRevision, granted, sourceTimeout(envelope.timeoutMs))
+      }
+      if (!current()) return transportError('source_request_cancelled', false)
+      if (granted() && sourceWebFetchBridge.availableFor(identity.sourceId, url,
+        webHttpContext.userAgent, webHttpContext.authorizationRevision)) {
+        const remaining = sourceTimeout(envelope.timeoutMs) - (Date.now() - webStarted)
+        if (remaining <= 0) return transportError('timeout', false)
+        webAttempted = true
+        const result = await sourceWebFetchBridge.request(identity.sourceId,
+          { url, method, headers: sourceHeaders(envelope.headers), body, timeoutMs: remaining },
+          webHttpContext.userAgent, webHttpContext.authorizationRevision, granted)
+        webAttempted = result.attempted
+        // Once submitted, HTTP errors, empty/HEAD responses and ambiguous JS or
+        // transport failures are terminal. Never retry/replay a mutation natively.
+        trace.info('web_http', 'attempted=' + result.attempted + ' state=' +
+          (result.error !== undefined ? 'failed' : result.attempted ? 'response' : 'unavailable'))
+        if (result.attempted || result.error !== undefined) {
+          const error = !granted() ? 'source_request_cancelled' : result.error
+          if (error !== undefined || result.status === undefined) {
+            const failure = new SourceHttpErrorEnvelope(error ?? 'network_error', false)
+            failure.networkPerformed = result.attempted
+            trace.finish('failed', 'reason=' + (error ?? 'network_error'))
+            return JSON.stringify(failure)
+          }
+          const response = new SourceHttpSuccessEnvelope(result.status, result.body ?? '')
+          response.headers = result.headers ?? {}
+          const mitigation = response.headers['cf-mitigated']
+          if (mitigation?.length === 1 && mitigation[0].trim() === 'challenge') response.accessSignal = 'challenge_required'
+          trace.finish('completed', 'state=web_http status=' + result.status)
+          return JSON.stringify(response)
+        }
+      }
+    } catch (_error) {
+      const failure = new SourceHttpErrorEnvelope(granted() ? 'network_error' : 'source_request_cancelled', false)
+      failure.networkPerformed = webAttempted
+      trace.finish('failed', 'reason=' + failure.error.code)
+      return JSON.stringify(failure)
+    }
+    // Only known before-send unavailability may use the ordinary native path.
+  }
   // A source that opted into the WebView bridge may read through its granted
   // session when the native transport is rejected. Misses fall through to the
   // existing network path; the bridge never widens permissions by itself.
-  const bridgeContext = installedEntry?.websitePolicy?.webFetchBridge === true && !binaryResponse && !sourceSession &&
+  const bridgeContext = !webHttp && installedEntry?.websitePolicy?.webFetchBridge === true && !binaryResponse && !sourceSession &&
     !webToken && !includeResponseUrl && !guestSearch && !nativeSession &&
     probe === undefined && method === 'GET' && body.length === 0 && identity !== undefined
     ? appSourceWebSessionStore.requestContext(identity, url) : undefined
@@ -1048,7 +1123,6 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       throw new SourceRcpTransportFailure('invalid_request')
     }
     let currentUrl = url
-    const requestAdmission: SourceRequestAdmission = {}
     let currentMethod = method
     let currentBody = body
     let currentBytes = requestBytes

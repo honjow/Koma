@@ -291,9 +291,11 @@ test('bridge agent comes from the current exact-origin grant without reading coo
   assert.equal(f.store.requestContext(f.identity(), address), undefined)
 })
 
-function fetchBridgeFixture() {
+function fetchBridgeFixture(fetchRequest) {
   const f = fixture(), window = {}, calls = []
-  const context = vm.createContext({ window, fetch: async () => ({ status: 200, text: async () => '<main>public document</main>' }) })
+  const context = vm.createContext({ window, URL, location: { origin: 'https://site.invalid' },
+    AbortController, TextEncoder, TextDecoder, setTimeout, clearTimeout,
+    fetch: fetchRequest ?? (async () => ({ status: 200, text: async () => '<main>public document</main>' })) })
   const controller = { runJavaScript: async script => {
     calls.push(script)
     return JSON.stringify(vm.runInContext(script, context))
@@ -303,7 +305,7 @@ function fetchBridgeFixture() {
     if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { info() {} } }
     if (name === '@kit.ArkWeb') return {}
     throw Error('unexpected bridge import ' + name)
-  }, { setTimeout, AppStorage: { setOrCreate() {} } })
+  }, { setTimeout, setInterval, clearInterval, AppStorage: { setOrCreate() {} } })
   const bridge = new SourceWebFetchBridge()
   bridge.delay = async () => {}
   return { bridge, controller, calls, window }
@@ -347,6 +349,142 @@ test('bridge context replacement retires an in-flight read', async () => {
   bridge.markReady('source.two', 'https://other.invalid/a', agent, 1)
   assert.equal(await replaced, undefined)
   assert.equal(bridge.availableFor('source.one', address, agent, 2), false)
+})
+
+test('generic Web HTTP executes method, text body and ordinary headers with real empty/error responses', async () => {
+  const features = moduleFrom('SourceHostFeatures', () => ({})).sourceHostFeatures()
+  assert.ok(features.includes('source_web_http_v1') && features.includes('source_web_fetch_bridge_v1'))
+  const sent = []
+  const f = fetchBridgeFixture(async (url, options) => {
+    const nativeRequest = new Request(url, options)
+    assert.equal(nativeRequest.referrer, 'https://site.invalid/')
+    assert.equal(await nativeRequest.text(), options.body ?? '')
+    sent.push({ url, options })
+    return new Response(null, { status: options.method === 'HEAD' ? 204 : 403,
+      headers: { 'X-Public': 'visible', 'Set-Cookie': 'not-exported' } })
+  })
+  const address = 'https://site.invalid/form', agent = 'VerifiedUA'
+  f.bridge.attach(f.controller, 'source.one', address, agent, 1)
+  f.bridge.markReady('source.one', address, agent, 1)
+  for (const method of ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']) {
+    const body = ['GET', 'HEAD'].includes(method) ? '' : 'form=中文&literal="</script>'
+    const result = await f.bridge.request('source.one', { url: address, method, body,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest',
+        Referer: 'https://site.invalid/',
+        Cookie: 'private', 'User-Agent': 'wrong', Origin: 'https://evil.invalid', Host: 'evil.invalid' } }, agent, 1, () => true)
+    assert.equal(result.attempted, true)
+    assert.equal(result.status, method === 'HEAD' ? 204 : 403)
+    assert.equal(result.body, '')
+    assert.deepEqual(JSON.parse(JSON.stringify(result.headers)), { 'x-public': ['visible'] })
+    const actual = sent.at(-1).options
+    assert.equal(actual.method, method)
+    assert.equal(actual.body, body || undefined)
+    assert.deepEqual(JSON.parse(JSON.stringify(actual.headers)), {
+      'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' })
+    assert.equal(actual.credentials, 'include')
+    assert.equal(actual.mode, 'same-origin')
+    assert.equal(actual.redirect, 'error')
+    assert.equal(actual.referrer, 'https://site.invalid/')
+    assert.equal(actual.referrerPolicy, 'same-origin')
+  }
+  assert.equal(sent.length, 6)
+  const wrongReferrer = await f.bridge.request('source.one', { url: address, method: 'POST', body: 'same=body',
+    headers: { Referer: 'https://other.invalid/' } }, agent, 1, () => true)
+  assert.equal(wrongReferrer.error, 'invalid_request')
+  assert.equal(wrongReferrer.attempted, false)
+  assert.equal((await f.bridge.request('source.one', { url: 'https://other.invalid/form', method: 'POST',
+    headers: {}, body: 'same=body' }, agent, 1, () => true)).attempted, false)
+  assert.equal(sent.length, 6)
+  assert.deepEqual(Object.keys(f.window.__komaFetch), [])
+  assert.deepEqual(Object.keys(f.window.__komaFetchJobs), [])
+})
+
+test('Web abort removes the job before late success; timeout, cancellation and replacement cannot republish', async () => {
+  for (const reason of ['cancel', 'replace', 'timeout', 'script-timeout']) {
+    let resolve, signal, live = true, sends = 0
+    const f = fetchBridgeFixture(async (_url, options) => {
+      sends++; signal = options.signal
+      return new Promise(done => { resolve = done }) // deliberately ignores abort
+    })
+    const address = 'https://site.invalid/form', agent = 'VerifiedUA'
+    f.bridge.attach(f.controller, 'source.one', address, agent, 1)
+    f.bridge.markReady('source.one', address, agent, 1)
+    if (reason === 'script-timeout') {
+      const execute = f.controller.runJavaScript
+      let first = true
+      f.controller.runJavaScript = async script => {
+        const value = await execute(script)
+        if (!first) return value
+        first = false
+        return new Promise(() => {}) // submitted JS executed; its callback is lost
+      }
+    }
+    f.bridge.delay = async () => {
+      if (reason === 'cancel') live = false
+      else if (reason === 'replace') f.bridge.attach(f.controller, 'source.one', address, agent, 2)
+      else await new Promise(done => setTimeout(done, 3))
+    }
+    const result = await f.bridge.request('source.one', { url: address, method: 'POST', headers: {}, body: 'one=send',
+      timeoutMs: reason.endsWith('timeout') ? 1 : 1000 }, agent, 1, () => live)
+    assert.equal(result.attempted, true)
+    assert.equal(result.error, reason.endsWith('timeout') ? 'timeout' : 'source_request_cancelled')
+    assert.equal(signal.aborted, true)
+    resolve(new Response('late-private-response', { status: 200 }))
+    await new Promise(done => setImmediate(done))
+    assert.equal(sends, 1)
+    assert.deepEqual(Object.keys(f.window.__komaFetch), [])
+    assert.deepEqual(Object.keys(f.window.__komaFetchJobs), [])
+  }
+})
+
+test('production HTTP transport never duplicates an attempted Web mutation or falls back on its empty/error result', async () => {
+  for (const terminal of ['empty', 'http-error', 'network-error', 'timeout', 'cancelled']) {
+    const f = fixture(), sent = []
+    f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } }))
+    f.grant()
+    const web = fetchBridgeFixture(async (_url, options) => {
+      sent.push(options)
+      if (terminal === 'network-error') throw Error('actual fetch rejection')
+      return new Response(null, { status: terminal === 'empty' ? 204 : 403 })
+    })
+    web.bridge.attach(web.controller, 'source.one', 'https://site.invalid/', 'ActualWebViewUA',
+      f.store.requestContext(f.identity(), 'https://site.invalid/').authorizationRevision)
+    web.bridge.markReady('source.one', 'https://site.invalid/', 'ActualWebViewUA',
+      f.store.requestContext(f.identity(), 'https://site.invalid/').authorizationRevision)
+    if (terminal === 'timeout' || terminal === 'cancelled') {
+      web.bridge.request = async () => {
+        sent.push({ body: 'form=one' })
+        return { attempted: true, error: terminal === 'timeout' ? 'timeout' : 'source_request_cancelled' }
+      }
+    }
+    const result = await f.http([], JSON.stringify(f.identity()), { method: 'POST', body: 'form=one' }, { bridge: web.bridge })
+    assert.equal(sent.length, 1)
+    assert.equal(sent[0].body, 'form=one')
+    assert.equal(result.calls.length, 0, 'no native send after Web fetch has been attempted')
+    if (['network-error', 'timeout', 'cancelled'].includes(terminal)) {
+      assert.equal(result.result.error.code, terminal === 'cancelled' ? 'source_request_cancelled' : terminal.replace('-', '_'))
+      assert.equal(result.result.error.retryable, false)
+    } else {
+      assert.equal(result.result.status, terminal === 'empty' ? 204 : 403)
+      assert.equal(result.result.bodyText, '')
+    }
+  }
+  for (const authorized of [false, true]) {
+    const f = fixture(); f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } }))
+    if (authorized) f.grant()
+    let prepared = 0
+    const bridge = { availableFor: () => false, prepare: async () => { prepared++; return false } }
+    const result = await f.http([response(200)], JSON.stringify(f.identity()), { method: 'POST', body: 'native=one' }, { bridge })
+    assert.equal(prepared, authorized ? 1 : 0)
+    assert.equal(result.calls.length, 1, 'known before-send unavailability preserves ordinary native path')
+  }
+  const scoped = fixture(); scoped.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } })); scoped.grant()
+  for (const invalid of [{ method: 'HEAD', body: 'not-allowed' }, { method: 'POST', requestBytes: 'AA==' },
+    { method: 'POST', responseKind: 'bodyBytes' }, { method: 'POST', session: 'source' }]) {
+    const result = await scoped.http([], JSON.stringify(scoped.identity()), { ...invalid, webFetch: { version: 1 } })
+    assert.equal(result.result.error.code, 'invalid_request')
+    assert.equal(result.calls.length, 0)
+  }
 })
 
 test('declared document readiness completes before subresources but retires on navigation', async () => {

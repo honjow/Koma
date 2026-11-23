@@ -19,6 +19,8 @@ export struct SourceWebFetchBridgeHost {
   private loadingSourceId: string = ''
   private loadedUrl: string = ''
   private handledRequest: string = ''
+  private loadedPackageIdentity: string = ''
+  private loadedAuthorizationRevision: number = 0
 
   onRequestChanged(): void {
     this.loadRequestedPage()
@@ -50,6 +52,10 @@ export struct SourceWebFetchBridgeHost {
     const authorizationRevision = context.authorizationRevision
     if (this.loadedUrl === url && sourceWebFetchBridge.availableFor(sourceId, url, userAgent, authorizationRevision)) return
     this.loadingSourceId = sourceId
+    const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+    if (entry === undefined) return
+    this.loadedPackageIdentity = sourceWebPackageIdentity(entry)
+    this.loadedAuthorizationRevision = authorizationRevision
     sourceWebFetchBridge.attach(this.controller, sourceId, url, userAgent, authorizationRevision)
     this.loadedUrl = url
     try {
@@ -73,7 +79,13 @@ export struct SourceWebFetchBridgeHost {
       if (documentUrl !== this.controller.getUrl()) return
       const agent = this.controller.getCustomUserAgent()
       const context = this.requestContext(this.loadingSourceId, this.loadedUrl)
-      if (context === undefined) return
+      const entry = appSourceRuntimeRegistry.lookup(this.loadingSourceId).entry
+      if (context === undefined || entry === undefined ||
+        sourceWebPackageIdentity(entry) !== this.loadedPackageIdentity ||
+        context.authorizationRevision !== this.loadedAuthorizationRevision) {
+        sourceWebFetchBridge.detach(this.loadingSourceId)
+        return
+      }
       sourceWebFetchBridge.markReady(this.loadingSourceId, documentUrl, agent, context.authorizationRevision)
       DiagnosticLogger.info('source_web_fetch', 'host_document',
         'sameOrigin=' + (sourceWebOrigin(documentUrl) === sourceWebOrigin(this.loadedUrl)) +
