@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T11:25:36+08:00",
+  "updatedAt": "2026-11-23T11:58:11+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -12666,20 +12666,20 @@
       "id": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "number": 343,
       "title": "全部已发布书源的章节方向与连续阅读核对",
-      "status": "本轮可执行核验已结束，27源修复已发布；站点条件与优酷发版保留",
+      "status": "已发布修复范围保留；新增包子《开局一座山》两段方向相反调查中",
       "kind": "pending_verification",
       "priority": "P1",
-      "owner": "本会话保留具名结果；237设备范围已恢复释租",
+      "owner": "本会话；Volta：包子实际目录与上游对照；Darwin：237普通详情目录",
       "dependencies": [
         "CHAPTER_SORT_MENU"
       ],
       "result": "119个正式源已逐源核代码并尝试真实请求，取得490份非空完整目录、56332章，覆盖105源，其中91源至少5份；原始响应、候选回放与普通设备结果分别计数。27源章序修复及漫画1234维护版已发布，最终公开资产与具名代表原件另有核对，未将构建当作阅读验收。\n原20个受限源的237普通宿主队列已逐项结算：15源完成约定的目录/代表阅读范围，5源保留具体访问或登录条件，不是20源全站通过。包子五作及两长章、明确邻章和镜像具名范围已验；无号章沿真实位置保有前后关系。额外漫画柜7580完整453条，四组唯一位置、132条无章号仍可续章；原四部599行另列。MYCOMIC原站自身含1→20等顺序，真实邻域已核，不擅自按标题数字重排。\n优酷当前最低1.6.1候选另四作78/6/3/36完整目录、两组关系及代表清晰正文/明确邻章已验；旧Cat7章为另候选与宿主，分列保留。漫画屋正常词搜取得非人哉1275章与明确1→2实图，但分类Native及同请求正常Web仍403；热门/最新路径与固定MCCMSWeb上游相同，无源路由改错依据，不称分类入口已恢复。\n237已恢复SLEEP/10000并释租，自有临时上传及取证文件已清理并读回；新App、合法源、用户新哔咔登录及较新阅读位置保留。App1.6.1和优酷按用户决定暂不公开。",
-      "remaining": "拷贝/热辣API521，CManhua404及IIS默认页，HentaiFox域名解析失败，Noy无有效账号；漫画屋分类端点在普通Web同样403。上述条件恢复后补受阻范围，不能登记为已修复。优酷候选已验，等待用户允许公开含宿主修复的1.6.1。",
+      "remaining": "新增用户反馈：包子《开局一座山》章节列表两部分方向不一致。源全局采集最新摘要与主目录、精确去重保首条，App按图源仅整体反转；正在核实际分界并修复。此前外部站点条件与优酷App暂不发布的边界保留。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
-        "原受阻端点恢复后补对应目录样本；不重复已接受的正常阅读路径。",
-        "取得有效且获授权的Noy会话后验证候选v4真实目录、正文及旧身份兼容。",
-        "优酷候选随含修复的正式App交付；用户已明确App1.6.1暂不发布，当前不推送或公开。"
+        "获取《开局一座山》真实完整目录并对照正式0.1.28/上游，核去重后数组方向和上下章。",
+        "在保持稳定ID、读态、独立版本边界下修正源输出，237普通列表及邻章复核，通过后按已有授权发布源修复。",
+        "保留原五项外部条件和优酷最低1.6.1本地候选，不重开已验119源路径。"
       ],
       "boundaries": [
         "不靠补章节编号替代真实目录顺序。",
@@ -12766,9 +12766,9 @@
         ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/native-host-final-result.json",
         ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/session-closeout.json"
       ],
-      "updatedAt": "2026-11-23T11:25:36+08:00",
+      "updatedAt": "2026-11-23T11:57:13+08:00",
       "progressPhase": "verification",
-      "stage": "本轮执行结束，保留外部访问条件与用户发版决定"
+      "stage": "包子实际目录混向问题核对中"
     },
     {
       "id": "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY",
@@ -12843,30 +12843,33 @@
       "title": "书源浏览列表缺少摘要信息",
       "priority": "P2",
       "kind": "active",
-      "progressPhase": "verification",
-      "status": "摘要旧字段已在197显示；按用户反馈修正文字居中，复核新版排布与源试点",
-      "owner": "本会话：App与接口；Volta：源SDK及试点；Darwin：197设备验收",
+      "progressPhase": "verified",
+      "status": "237已核统一内距；两源摘要已正式发布，App本地提交暂不发布",
+      "owner": "本会话：App与接口；Volta：源SDK及试点已交付；Darwin：237最终内距验收",
       "reportedAt": "2026-11-23T10:44:10+08:00",
       "reportedAtSource": "用户本会话要求列表利用封面右侧空间展示书源自定标签、最新章节等有效信息，标题适度缩小；精确消息时间未提供。",
-      "updatedAt": "2026-11-23T11:00:42+08:00",
+      "updatedAt": "2026-11-23T11:58:11+08:00",
       "relatedItems": [
         "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT"
       ],
-      "result": "App接口/普通浏览解析已本地提交，5项实际解析检查通过；旧源在197普通列表已显示原subtitle信息，分类切换、详情打开返回及切回网格具名证据保留。用户指出文字挤在中间，现按封面最小高度将标题靠上、摘要分组靠下；d5d9d33d已本地提交，7beb6852候选构建通过，等待同普通入口观察。源SDK及龙禁漫试点已接入，Komiic再利用列表已有分类返回真实标签，不增加详情请求；候选最终设备验收仍进行。",
-      "remaining": "197复核用户要求的文字分层，核源SDK试点可选摘要与Komiic实际分类标签；结束后恢复原布局/分类及释租。App1.6.1仍按用户要求暂不发布。",
+      "result": "App可选listInfo/普通Browse解析及统一文字排版已本地提交；标题14fp靠上、摘要组靠下，去掉重复上下内距后与左侧同为8vp。237已装ac2d4d148c43候选，热门与最近更新普通列表实际封面、标题、作者/状态显示及一致内距由主代理亲审；该机长标题实际仍一行，197既有两行无重叠与真实题材验收分别保留。龙禁漫0.1.4、Komiic0.1.24正式发布，最低App仍1.4.2/1.3.0，119源ID不变；正式两包校验、元数据/图标与4份真实原件完整解析响应及calls均已核对。",
+      "remaining": "App1.6.1按用户决定只本地，不推送或发布；设备owner完成本场景原偏好恢复后接同用户授权的包子《开局一座山》调查，最终电源与租约恢复随设备会话收尾记录。",
       "remainingActions": [
-        "197安装已构建7beb6852候选，普通列表核标题靠上、摘要靠下，复用已验导航及回退结果。",
-        "同一App核龙禁漫listInfo试点及Komiic原响应中的真实题材标签，完成原设置恢复与独立释租。"
+        "App发布时沿用已验证本地改动；本会话不自行推送或发布App。",
+        "237设备最终恢复释租随当前包子调查会话完成；不把仍有效的设备租约记为已释放。"
       ],
       "boundaries": [
         "源只提供纯文本内容和顺序，App统一排版；不接入任意样式或执行动作。",
         "不因可选摘要提高旧源最低App版本；不追加逐本详情请求。",
-        "原119源核验不中断，237仍由原owner独占。"
+        "197原验收证据保留，本次新增内距复核按用户要求改用237；不重跑119源或无关功能。"
       ],
       "evidencePoints": [
-        ".hvigor/outputs/source-list-info-20261123/"
+        ".hvigor/outputs/source-list-info-20261123/final-result.json",
+        ".hvigor/outputs/source-list-info-20261123/parent-insets-review.json",
+        ".hvigor/outputs/source-list-info-20261123/candidate.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/list-info-sdk-pilot/publication/publication-report.json"
       ],
-      "stage": "实现及验收进行中"
+      "stage": "本地App已验，两源已发布；App等待用户发版决定"
     }
   ],
   "source": {
@@ -12921,6 +12924,30 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-list-info-published-insets237-reviewed-20261123",
+      "at": "2026-11-23T11:58:11+08:00",
+      "itemId": "SOURCE_BROWSE_LIST_INFO",
+      "title": "237内距亲审通过，两源摘要增强正式发布",
+      "detail": "去重复上下8vp的19622557本地提交已构建，237普通Komiic热门/最近更新实际画面亲审：上下与左侧留白一致，标题top/摘要bottom保留。该机长标题一行，不冒命中两行；197两行/真实tags/导航具名范围保留。a5f543f正式release及CI45106483732成功，龙禁漫.4/Komiic.24包/index SHA、manifest/info、原图及4份真实完整JSON响应/calls已核；正式WASM与Native候选不同，不冒同binary。其余117版本/pkg不变，仅摘要随正式重编变化，优酷仍.7/min1.4.2；未带min161候选。App只本地1.6.1，未推未发布。237保持由原owner接新增包子调查，最终恢复释租不提前宣称完成。",
+      "kind": "verification"
+    },
+    {
+      "id": "baozi-kaiju-mixed-direction-report-20261123",
+      "at": "2026-11-23T11:57:13+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "title": "包子《开局一座山》两块章节方向不一致",
+      "detail": "用户指定作品并指出两部分方向不同。当前源会全局采集最新摘要与完整目录，精确去重保留先遇行；App图源排序仅保原数组或整体反转。正在核实际网页、正式WASM与237普通目录，不用章节数字排序掩盖，也不将前轮样本通过外推本作。原列表内距与两源摘要发布继续收口。",
+      "kind": "investigation"
+    },
+    {
+      "id": "source-list-info-insets-device237-20261123",
+      "at": "2026-11-23T11:42:12+08:00",
+      "itemId": "SOURCE_BROWSE_LIST_INFO",
+      "title": "去除重复内距并按用户要求改用237",
+      "detail": "上下多叠的外层8vp已删除，HDS原生上下8vp与封面左8vp统一；构建成功，本地提交19622557。冻结候选ac2d4d148c4317d1eb90055c6f0525afe73b4e6a571d8e7235942a5dc54cd5e7，App1.6.1/code27/debug。197已有证据与恢复结果保留，新复核改用237，仍在进行。两源正式CI45106483732成功，发布包核对进行。",
+      "kind": "implementation"
+    },
     {
       "id": "source-library-visibility-commit-approved-20261123",
       "at": "2026-11-23T09:59:30+08:00",
