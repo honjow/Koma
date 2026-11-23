@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "name": "jinmantiantang-image-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/jinmantiantang-image-20261111/",
+  "runId": "cleanup-117",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "Koma-1.4.2-code15 + jinmantiantang installed source",
+    "page": "清理本轮临时文件",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "删除导出用的临时文件并读回，不安装、不点击、不清数据。"
+  },
+  "preflight": [
+    {
+      "name": "wake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "wakeup"
+      ],
+      "pauseAfterMs": 400
+    },
+    {
+      "name": "rm-temp",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-ch1-ls.txt",
+        "/data/local/tmp/koma-jm-before.png",
+        "/data/local/tmp/koma-jm-before.json",
+        "/data/local/tmp/koma-jm-after.png",
+        "/data/local/tmp/koma-jm-after.json"
+      ]
+    },
+    {
+      "name": "check-temp",
+      "hdcArgs": [
+        "shell",
+        "ls",
+        "-l",
+        "/data/local/tmp/koma-ch1-ls.txt",
+        "/data/local/tmp/koma-jm-before.png",
+        "/data/local/tmp/koma-jm-after.png"
+      ]
+    }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "restore-timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-equipment-category-save-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "equipment-category-save",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate: guarded ReaderPage area-change writes",
+    "page": "add selected 装备我最强 to 性能测试",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Toggle 性能测试 only, then save. Existing 日漫 membership remains."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "toggle-performance-category", "uiInput": ["click", "200", "1660"], "pauseAfterMs": 700 },
+      { "name": "save-categories", "uiInput": ["click", "981", "1194"], "pauseAfterMs": 2500 }
+    ]
+  },
+  "postflight": [
+    { "name": "saved-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-equipment-category-saved.png"] },
+    { "name": "saved-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-equipment-category-saved.png", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-category-save/screen.png"] },
+    { "name": "saved-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-equipment-category-saved.json", "-a"] },
+    { "name": "saved-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-equipment-category-saved.json", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-category-save/layout.json"] }
+  ]
+}

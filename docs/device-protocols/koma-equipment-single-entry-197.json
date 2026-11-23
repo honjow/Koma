@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-equipment-single-entry-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "equipment-single-entry",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate: guarded ReaderPage area-change writes",
+    "page": "cold launch into the single-work 性能测试 category and open 装备我最强",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "The only grid item is 装备我最强, measured at [39,1027][407,1816]. Do not use the global Continue card."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "neutral-unlock", "uiInput": ["swipe", "630", "2180", "630", "900", "1000"], "pauseAfterMs": 800 },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "launch", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility"], "pauseAfterMs": 6000 },
+    { "name": "shelf-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-single-shelf.png"] },
+    { "name": "shelf-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-single-shelf.png", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-single-entry/shelf.png"] },
+    { "name": "shelf-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-single-shelf.json", "-a"] },
+    { "name": "shelf-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-single-shelf.json", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-single-entry/shelf.json"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "open-only-work", "uiInput": ["click", "223", "1421"], "pauseAfterMs": 5000 },
+      { "name": "open-continue", "uiInput": ["click", "630", "940"], "pauseAfterMs": 7000 }
+    ]
+  },
+  "postflight": [
+    { "name": "reader-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-single-reader.png"] },
+    { "name": "reader-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-single-reader.png", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-single-entry/reader.png"] },
+    { "name": "reader-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-single-reader.json", "-a"] },
+    { "name": "reader-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-single-reader.json", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-single-entry/reader.json"] }
+  ]
+}

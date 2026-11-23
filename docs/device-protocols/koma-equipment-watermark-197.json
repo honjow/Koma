@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-equipment-watermark-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/equipment-watermark-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "v5-final-restore",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "installed app, version to be read",
+    "page": "启用临时插件并无痕打开装备我最强",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "User authorized incognito viewing of 装备我最强 chapter 15."
+  },
+  "preflight": [
+    {
+      "name": "wake-and-unlock",
+      "screenUnlock": {
+        "swipe": [
+          "630",
+          "2180",
+          "630",
+          "900",
+          "1000"
+        ],
+        "timeoutMs": 86400000
+      }
+    },
+    {
+      "name": "power-readback",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ],
+  "measurement": {
+    "actions": [
+      {
+        "name": "back-plugins",
+        "uiInput": [
+          "click",
+          "110",
+          "210"
+        ],
+        "pauseAfterMs": 500
+      },
+      {
+        "name": "back-reading",
+        "uiInput": [
+          "click",
+          "110",
+          "210"
+        ],
+        "pauseAfterMs": 500
+      },
+      {
+        "name": "back-settings",
+        "uiInput": [
+          "click",
+          "110",
+          "210"
+        ],
+        "pauseAfterMs": 800
+      }
+    ]
+  },
+  "postflight": [
+    {
+      "name": "screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/koma-watermark-197.png"
+      ]
+    },
+    {
+      "name": "screen-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-watermark-197.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/equipment-watermark-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/v5-final-restore/screen.png"
+      ]
+    },
+    {
+      "name": "layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-watermark-197.json"
+      ]
+    },
+    {
+      "name": "layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-watermark-197.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/equipment-watermark-20261119/device197__ALN-AL80/not-applicable/portrait-1260x2720/v5-final-restore/layout.json"
+      ]
+    },
+    {
+      "name": "restore-timeout",
+      "restoreScreenTimeout": true
+    },
+    {
+      "name": "restore-original-timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    },
+    {
+      "name": "restore-original-sleep",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ]
+    },
+    {
+      "name": "final-power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    },
+    {
+      "name": "final-window",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "WindowManagerService",
+        "-a",
+        "-a"
+      ]
+    }
+  ]
+}

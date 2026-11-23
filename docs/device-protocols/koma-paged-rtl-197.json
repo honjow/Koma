@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-paged-rtl-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "paged-rtl",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "paged candidate: wide-page indexing only for split pager",
+    "page": "switch reader to right-to-left paged mode",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Temporary mode change; restore continuous scrolling after validation."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "select-rtl", "uiInput": ["click", "863", "2038"], "pauseAfterMs": 3000 }
+    ]
+  },
+  "postflight": [
+    { "name": "rtl-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-paged-rtl.png"] },
+    { "name": "rtl-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-paged-rtl.png", "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-rtl/screen.png"] },
+    { "name": "rtl-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-paged-rtl.json", "-a"] },
+    { "name": "rtl-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-paged-rtl.json", "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-rtl/layout.json"] }
+  ]
+}

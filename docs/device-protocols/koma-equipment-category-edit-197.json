@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-equipment-category-edit-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "equipment-category-edit",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate: guarded ReaderPage area-change writes",
+    "page": "open category editor for the single selected 装备我最强",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Do not remove the existing 日漫 membership; add 性能测试 only."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "open-category-editor", "uiInput": ["click", "980", "204"], "pauseAfterMs": 1500 }
+    ]
+  },
+  "postflight": [
+    { "name": "editor-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-equipment-category-editor.png"] },
+    { "name": "editor-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-equipment-category-editor.png", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-category-edit/screen.png"] },
+    { "name": "editor-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-equipment-category-editor.json", "-a"] },
+    { "name": "editor-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-equipment-category-editor.json", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-category-edit/layout.json"] }
+  ]
+}

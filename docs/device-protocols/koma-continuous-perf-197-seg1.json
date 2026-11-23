@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-continuous-perf-197-seg1",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "continuous-seg1",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "final local release candidate; async reader progress persistence",
+    "page": "continuous reader sustained fast scroll",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Same 62-chapter work, sequential segments, no package change between segments. Keep 86400000 override until the final restore manifest."
+  },
+  "preflight": [
+    {
+      "name": "wake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "wakeup"
+      ]
+    },
+    {
+      "name": "neutral-unlock",
+      "uiInput": [
+        "swipe",
+        "630",
+        "2180",
+        "630",
+        "900",
+        "1000"
+      ],
+      "pauseAfterMs": 800
+    },
+    {
+      "name": "keep-awake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "86400000"
+      ]
+    },
+    {
+      "name": "power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    },
+    {
+      "name": "force-stop",
+      "hdcArgs": [
+        "shell",
+        "aa",
+        "force-stop",
+        "com.honjow.koma"
+      ]
+    },
+    {
+      "name": "launch",
+      "hdcArgs": [
+        "shell",
+        "aa",
+        "start",
+        "-b",
+        "com.honjow.koma",
+        "-a",
+        "EntryAbility"
+      ],
+      "pauseAfterMs": 6000
+    },
+    {
+      "name": "shelf-screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/koma-continuous-1-shelf.png"
+      ]
+    },
+    {
+      "name": "shelf-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-continuous-1-shelf.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-seg1/shelf.png"
+      ]
+    }
+  ],
+  "measurement": {
+    "trace": {
+      "bufferKb": 32768,
+      "categories": [
+        "ace",
+        "animation",
+        "app",
+        "ark",
+        "freq",
+        "graphic",
+        "sched",
+        "window"
+      ],
+      "remotePath": "/data/local/tmp/koma-continuous-seg1.htrace",
+      "localFile": "trace.htrace"
+    },
+    "hilog": {
+      "hdcArgs": [
+        "shell",
+        "hilog",
+        "-x"
+      ],
+      "localFile": "hilog.txt"
+    },
+    "actions": [
+      {
+        "name": "open-continue",
+        "uiInput": [
+          "click",
+          "624",
+          "531"
+        ],
+        "pauseAfterMs": 6000
+      },
+      {
+        "name": "fast-1",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "8000"
+        ],
+        "pauseAfterMs": 500
+      },
+      {
+        "name": "fast-2",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "8000"
+        ],
+        "pauseAfterMs": 500
+      },
+      {
+        "name": "fast-3",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "8000"
+        ],
+        "pauseAfterMs": 500
+      },
+      {
+        "name": "fast-4",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "8000"
+        ],
+        "pauseAfterMs": 500
+      },
+      {
+        "name": "fast-5",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "8000"
+        ],
+        "pauseAfterMs": 500
+      },
+      {
+        "name": "fast-6",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "8000"
+        ],
+        "pauseAfterMs": 500
+      },
+      {
+        "name": "fast-7",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "8000"
+        ],
+        "pauseAfterMs": 500
+      },
+      {
+        "name": "fast-8",
+        "uiInput": [
+          "swipe",
+          "630",
+          "2200",
+          "630",
+          "500",
+          "8000"
+        ],
+        "pauseAfterMs": 500
+      }
+    ]
+  },
+  "postflight": [
+    {
+      "name": "reader-screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/koma-continuous-1-after.png"
+      ]
+    },
+    {
+      "name": "reader-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-continuous-1-after.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-seg1/after.png"
+      ]
+    },
+    {
+      "name": "reader-layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-continuous-1-after.json",
+        "-a"
+      ]
+    },
+    {
+      "name": "reader-layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-continuous-1-after.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-seg1/after.json"
+      ]
+    },
+    {
+      "name": "final-power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

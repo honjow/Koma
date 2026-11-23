@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-longjm-237-restore",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/restore",
+  "runId": "restore-007",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "aborted local import cleanup",
+    "page": "remove longjm temp package and tmp artifacts, restore timeout, sleep",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Keep installed LongJM 0.1.2 and App 1.4.2; delete only temporary import package and protocol tmp files."
+  },
+  "preflight": [
+    {
+      "name": "rm-download",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/storage/media/100/local/files/Docs/Download/longjm-0.1.2.koma"
+      ]
+    },
+    {
+      "name": "rm-tmp",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-237-p2-final.png",
+        "/data/local/tmp/koma-237-p2-final.json",
+        "/data/local/tmp/koma-237-p2-anchor.json",
+        "/data/local/tmp/koma-237-nav.json",
+        "/data/local/tmp/koma-237-state.png",
+        "/data/local/tmp/koma-237-state.json"
+      ]
+    },
+    {
+      "name": "verify-download",
+      "hdcArgs": [
+        "shell",
+        "ls",
+        "-l",
+        "/storage/media/100/local/files/Docs/Download/longjm-0.1.2.koma"
+      ]
+    },
+    {
+      "name": "verify-tmp",
+      "hdcArgs": [
+        "shell",
+        "ls",
+        "/data/local/tmp/koma-237-p2-final.png",
+        "/data/local/tmp/koma-237-p2-final.json",
+        "/data/local/tmp/koma-237-p2-anchor.json",
+        "/data/local/tmp/koma-237-nav.json",
+        "/data/local/tmp/koma-237-state.png",
+        "/data/local/tmp/koma-237-state.json"
+      ]
+    },
+    {
+      "name": "restore-timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    },
+    {
+      "name": "power-awake",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    },
+    {
+      "name": "sleep",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ],
+      "pauseAfterMs": 2000
+    },
+    {
+      "name": "power-final",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": []
+}

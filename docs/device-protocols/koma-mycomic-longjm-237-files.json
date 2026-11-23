@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-longjm-237-files",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/files",
+  "runId": "push-001",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "MYCOMIC 0.1.30 and LongJM 0.1.0 candidate packages",
+    "page": "push source packages to device download directory",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Only package files are added to the user download directory."
+  },
+  "preflight": [
+    { "name": "list-user-files", "hdcArgs": ["shell", "ls", "/storage/media/100/local/files"] },
+    { "name": "list-download", "hdcArgs": ["shell", "ls", "/storage/media/100/local/files/Download"] },
+    { "name": "send-mycomic", "hdcArgs": ["file", "send", "/tmp/koma-mycomic-130/sources/mycomic/mycomic-0.1.30.koma", "/storage/media/100/local/files/Download/mycomic-0.1.30.koma"], "timeoutSeconds": 60 },
+    { "name": "send-longjm", "hdcArgs": ["file", "send", "/tmp/koma-longjm-001/sources/longjm/longjm-0.1.0.koma", "/storage/media/100/local/files/Download/longjm-0.1.0.koma"], "timeoutSeconds": 60 },
+    { "name": "readback", "hdcArgs": ["shell", "ls", "-l", "/storage/media/100/local/files/Download"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "name": "acgn-source-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/acgn-source-20261112",
+  "runId": "acgn-cleanup-readback-031",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "ACGN 0.1.0 标准候选",
+    "page": "读回本次临时文件状态及电源",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "用户授权237书源验证"
+  },
+  "preflight": [],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "check-upload",
+      "hdcArgs": [
+        "shell",
+        "find",
+        "/storage/media/100/local/files/Docs/Download",
+        "-maxdepth",
+        "1",
+        "-name",
+        "koma-acgn-20261112.koma"
+      ]
+    },
+    {
+      "name": "check-temp",
+      "hdcArgs": [
+        "shell",
+        "find",
+        "/data/local/tmp",
+        "-maxdepth",
+        "1",
+        "-name",
+        "koma-acgn-*"
+      ]
+    },
+    {
+      "name": "power-readback",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

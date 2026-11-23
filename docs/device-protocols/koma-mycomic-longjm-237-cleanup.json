@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-longjm-237-cleanup",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/cleanup",
+  "runId": "remove-files-001",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "cleanup after aborted local import",
+    "page": "close picker and remove temporary packages",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Only files created by this run are removed."
+  },
+  "preflight": [
+    { "name": "close-picker", "hdcArgs": ["shell", "uitest", "uiInput", "click", "1120", "224"], "pauseAfterMs": 800 },
+    { "name": "remove-docs", "hdcArgs": ["shell", "rm", "-f", "/storage/media/100/local/files/Docs/mycomic-0.1.30.koma", "/storage/media/100/local/files/Docs/longjm-0.1.0.koma", "/storage/media/100/local/files/Docs/mycomic-0.1.30.zip", "/storage/media/100/local/files/Docs/longjm-0.1.0.zip"] },
+    { "name": "remove-tmp", "hdcArgs": ["shell", "rm", "-f", "/data/local/tmp/koma-237-pre.png", "/data/local/tmp/koma-237-pre.json", "/data/local/tmp/koma-237-unlock.png", "/data/local/tmp/koma-237-unlock.json", "/data/local/tmp/koma-237-install.png", "/data/local/tmp/koma-237-install.json", "/data/local/tmp/koma-237-browse.png", "/data/local/tmp/koma-237-browse.json", "/data/local/tmp/koma-237-picker.png", "/data/local/tmp/koma-237-picker.json", "/data/local/tmp/koma-237-picker-docs.png", "/data/local/tmp/koma-237-picker-docs.json", "/data/local/tmp/koma-237-picker-zip.png", "/data/local/tmp/koma-237-picker-zip.json", "/data/local/tmp/koma-237-picker-recent.png", "/data/local/tmp/koma-237-picker-recent.json", "/data/local/tmp/koma-237-phone.png", "/data/local/tmp/koma-237-phone.json", "/data/local/tmp/koma-237-import-mycomic.png", "/data/local/tmp/koma-237-import-mycomic.json"] },
+    { "name": "capture-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-237-cleanup.png"] },
+    { "name": "capture-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-237-cleanup.json", "-a"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "receive-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-237-cleanup.png", "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/cleanup/remove-files-001/screen.png"] },
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

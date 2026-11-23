@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-cf-237-precheck",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110",
+  "runId": "mycomic-format-pre-183",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "host format probe + MYCOMIC 0.1.29",
+    "page": "read current foreground before importing 0.1.19",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "No UI input. Read power, layout and screen only."
+  },
+  "preflight": [
+    {
+      "name": "wake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "wakeup"
+      ]
+    }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    },
+    {
+      "name": "layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-mycomic-237-pre.json"
+      ]
+    },
+    {
+      "name": "layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-mycomic-237-pre.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-format-pre-183/layout.json"
+      ]
+    },
+    {
+      "name": "layout-clean",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-mycomic-237-pre.json"
+      ]
+    },
+    {
+      "name": "screen",
+      "hdcArgs": [
+        "shell",
+        "snapshot_display",
+        "-f",
+        "/data/local/tmp/koma-mycomic-237-pre.jpeg"
+      ]
+    },
+    {
+      "name": "screen-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-mycomic-237-pre.jpeg",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-format-pre-183/screen.png"
+      ]
+    },
+    {
+      "name": "screen-clean",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-mycomic-237-pre.jpeg"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-paged-open-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "paged-open-chrome",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "paged candidate: wide-page indexing only for split pager",
+    "page": "open 装备我最强 from the single-work category and show reader chrome",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Existing app data preserved; reader mode will be changed temporarily for left-right paging validation."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "neutral-unlock", "uiInput": ["swipe", "630", "2180", "630", "900", "1000"], "pauseAfterMs": 800 },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] },
+    { "name": "install", "hdcArgs": ["install", "-r", "/Users/honjow/git/Koma/entry/build/default/outputs/default/entry-default-signed.hap"], "timeoutSeconds": 120 },
+    { "name": "launch", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility"], "pauseAfterMs": 6000 },
+    { "name": "shelf-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-paged-shelf.png"] },
+    { "name": "shelf-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-paged-shelf.png", "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-open-chrome/shelf.png"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "open-only-work", "uiInput": ["click", "223", "1421"], "pauseAfterMs": 5000 },
+      { "name": "open-continue", "uiInput": ["click", "630", "940"], "pauseAfterMs": 7000 },
+      { "name": "show-chrome", "uiInput": ["click", "630", "1500"], "pauseAfterMs": 1500 }
+    ]
+  },
+  "postflight": [
+    { "name": "chrome-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-paged-chrome.png"] },
+    { "name": "chrome-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-paged-chrome.png", "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-open-chrome/chrome.png"] },
+    { "name": "chrome-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-paged-chrome.json", "-a"] },
+    { "name": "chrome-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-paged-chrome.json", "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-open-chrome/chrome.json"] }
+  ]
+}

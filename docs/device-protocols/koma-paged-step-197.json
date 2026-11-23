@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-paged-step-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "paged-step",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "paged candidate: wide-page indexing only for split pager",
+    "page": "hide chrome and verify the RTL page-turn direction",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Temporary RTL paged test; restore continuous scrolling afterward."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "hide-chrome", "uiInput": ["click", "630", "1500"], "pauseAfterMs": 1500 },
+      { "name": "swipe-left", "uiInput": ["swipe", "1000", "1360", "250", "1360", "800"], "pauseAfterMs": 1500 }
+    ]
+  },
+  "postflight": [
+    { "name": "step-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-paged-step.png"] },
+    { "name": "step-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-paged-step.png", "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-step/screen.png"] },
+    { "name": "step-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-paged-step.json", "-a"] },
+    { "name": "step-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-paged-step.json", "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-step/layout.json"] }
+  ]
+}

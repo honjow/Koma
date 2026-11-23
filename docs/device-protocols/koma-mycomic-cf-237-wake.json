@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-cf-237-wake",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110",
+  "runId": "mycomic-final-wake-204",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "host first-open format probe + MYCOMIC 0.1.29",
+    "page": "wake and unlock 237 before the automatic challenge completion run",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Neutral-region swipe below the notification area; timeout written after unlock."
+  },
+  "preflight": [
+    {
+      "name": "wake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "wakeup"
+      ]
+    },
+    {
+      "name": "neutral-unlock",
+      "uiInput": [
+        "swipe",
+        "660",
+        "2080",
+        "660",
+        "800",
+        "1000"
+      ],
+      "pauseAfterMs": 900
+    },
+    {
+      "name": "keep-awake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "86400000"
+      ]
+    }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

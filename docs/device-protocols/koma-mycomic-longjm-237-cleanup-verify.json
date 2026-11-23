@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-longjm-237-cleanup-verify",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/cleanup-verify",
+  "runId": "verify-001",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "cleanup after aborted local import",
+    "page": "close picker and prove temporary packages are gone",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "The file-transfer service can read the user directory even when shell ls is denied."
+  },
+  "preflight": [
+    { "name": "dismiss-keyboard", "hdcArgs": ["shell", "uitest", "uiInput", "keyEvent", "Back"], "pauseAfterMs": 300 },
+    { "name": "dismiss-picker", "hdcArgs": ["shell", "uitest", "uiInput", "keyEvent", "Back"], "pauseAfterMs": 600 },
+    { "name": "remove-docs-verbose", "hdcArgs": ["shell", "rm", "-v", "-f", "/storage/media/100/local/files/Docs/mycomic-0.1.30.koma", "/storage/media/100/local/files/Docs/longjm-0.1.0.koma", "/storage/media/100/local/files/Docs/mycomic-0.1.30.zip", "/storage/media/100/local/files/Docs/longjm-0.1.0.zip"] },
+    { "name": "check-mycomic-koma", "hdcArgs": ["file", "recv", "/storage/media/100/local/files/Docs/mycomic-0.1.30.koma", "/tmp/koma-clean-check-mycomic.koma"] },
+    { "name": "check-longjm-koma", "hdcArgs": ["file", "recv", "/storage/media/100/local/files/Docs/longjm-0.1.0.koma", "/tmp/koma-clean-check-longjm.koma"] },
+    { "name": "remove-tmp-cleanup", "hdcArgs": ["shell", "rm", "-f", "/data/local/tmp/koma-237-cleanup.png", "/data/local/tmp/koma-237-cleanup.json"] },
+    { "name": "capture-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-237-cleanup-verify.png"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "receive-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-237-cleanup-verify.png", "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/cleanup-verify/verify-001/screen.png"] },
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

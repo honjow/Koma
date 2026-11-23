@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-cover-check",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110",
+  "runId": "mycomic-cover-check-133",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "host auto-close candidate + MYCOMIC 0.1.19",
+    "page": "read registry and foreground after import",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Read-only check."
+  },
+  "preflight": [],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "registry",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "-b",
+        "com.honjow.koma",
+        "./data/storage/el2/base/haps/entry/files/source-runtime/source-runtime-registry.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-cover-check-133/registry.json"
+      ]
+    },
+    {
+      "name": "layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-cover-check.json"
+      ]
+    },
+    {
+      "name": "layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-cover-check.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-cover-check-133/layout.json"
+      ]
+    },
+    {
+      "name": "layout-clean",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-cover-check.json"
+      ]
+    },
+    {
+      "name": "screen",
+      "hdcArgs": [
+        "shell",
+        "snapshot_display",
+        "-f",
+        "/data/local/tmp/koma-cover-check.jpeg"
+      ]
+    },
+    {
+      "name": "screen-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-cover-check.jpeg",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-cover-check-133/screen.png"
+      ]
+    },
+    {
+      "name": "screen-clean",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-cover-check.jpeg"
+      ]
+    }
+  ]
+}

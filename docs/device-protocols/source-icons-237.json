@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "name": "source-icons-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-icons-20261112",
+  "runId": "club-imagegen-cleanup-049",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "hentaiclub 0.1.6 approved imagegen icon",
+    "page": "清理本轮候选并恢复电源状态",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "用户认可生图方向并授权237验证"
+  },
+  "preflight": [
+    {
+      "name": "remove-test-package",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/storage/media/100/local/files/Docs/Download/koma-club-imagegen-016.koma"
+      ]
+    },
+    {
+      "name": "remove-test-captures",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-source-icons-screen.png",
+        "/data/local/tmp/koma-source-icons-layout.json"
+      ]
+    },
+    {
+      "name": "restore-timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    },
+    {
+      "name": "read-restored-timeout",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    },
+    {
+      "name": "restore-sleep",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ],
+      "pauseAfterMs": 1500
+    }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "read-final-power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

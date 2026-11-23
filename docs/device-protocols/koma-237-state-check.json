@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-237-state-check",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/koma-p2-debug-20261111/state-check",
+  "runId": "check-002",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "user fresh build on 237",
+    "page": "foreground and ANR check",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "No input beyond wake/unlock; read current foreground from layout text, not from any earlier image."
+  },
+  "preflight": [
+    {
+      "name": "wake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "wakeup"
+      ]
+    },
+    {
+      "name": "unlock",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "uiInput",
+        "swipe",
+        "660",
+        "1600",
+        "660",
+        "600",
+        "2000"
+      ],
+      "pauseAfterMs": 800
+    },
+    {
+      "name": "timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "86400000"
+      ]
+    },
+    {
+      "name": "capture-screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/koma-237-state.png"
+      ]
+    },
+    {
+      "name": "capture-layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-237-state.json",
+        "-a"
+      ]
+    },
+    {
+      "name": "window",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "WindowManagerService",
+        "-a",
+        "-a"
+      ]
+    },
+    {
+      "name": "abilities",
+      "hdcArgs": [
+        "shell",
+        "aa",
+        "dump",
+        "-a"
+      ]
+    }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "recv-screen",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-237-state.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/koma-p2-debug-20261111/state-check/check-002/screen.png"
+      ]
+    },
+    {
+      "name": "recv-layout",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-237-state.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/koma-p2-debug-20261111/state-check/check-002/layout.json"
+      ]
+    },
+    {
+      "name": "power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

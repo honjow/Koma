@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-longjm-237-unlock",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/state",
+  "runId": "unlock-002",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "local 1.4.2 build with MYCOMIC 0.1.30 and LongJM 0.1.0",
+    "page": "unlock and establish continuous display",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Neutral-region unlock, then long timeout for install and UI replay."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "unlock", "hdcArgs": ["shell", "uitest", "uiInput", "swipe", "660", "1600", "660", "600", "2000"], "pauseAfterMs": 1000 },
+    { "name": "timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "capture-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-237-unlock.png"] },
+    { "name": "capture-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-237-unlock.json", "-a"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "receive-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-237-unlock.png", "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/state/unlock-002/screen.png"] },
+    { "name": "receive-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-237-unlock.json", "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/state/unlock-002/layout.json"] },
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] },
+    { "name": "window", "hdcArgs": ["shell", "hidumper", "-s", "WindowManagerService", "-a", "-a"] }
+  ]
+}

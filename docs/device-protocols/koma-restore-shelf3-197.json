@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-restore-shelf3-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "restore-shelf3",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "restore app home state",
+    "page": "restart app and inspect shelf tabs",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Inspect shelf and history entry after reader test."
+  },
+  "preflight": [
+    {
+      "name": "wake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "wakeup"
+      ]
+    },
+    {
+      "name": "keep-awake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "86400000"
+      ]
+    },
+    {
+      "name": "force-stop",
+      "hdcArgs": [
+        "shell",
+        "aa",
+        "force-stop",
+        "com.honjow.koma"
+      ]
+    },
+    {
+      "name": "launch",
+      "hdcArgs": [
+        "shell",
+        "aa",
+        "start",
+        "-b",
+        "com.honjow.koma",
+        "-a",
+        "EntryAbility"
+      ],
+      "pauseAfterMs": 6000
+    }
+  ],
+  "measurement": {
+    "trace": {
+      "bufferKb": 16384,
+      "categories": [
+        "ace"
+      ],
+      "remotePath": "/data/local/tmp/koma-restore-shelf3.htrace",
+      "localFile": "trace.htrace"
+    },
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "shelf-screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/koma-restore-shelf3.png"
+      ]
+    },
+    {
+      "name": "shelf-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-restore-shelf3.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-shelf3/screen.png"
+      ]
+    },
+    {
+      "name": "shelf-layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-restore-shelf3.json",
+        "-a"
+      ]
+    },
+    {
+      "name": "shelf-layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-restore-shelf3.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-shelf3/layout.json"
+      ]
+    }
+  ]
+}

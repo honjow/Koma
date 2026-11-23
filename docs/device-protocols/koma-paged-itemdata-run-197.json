@@ -1,0 +1,329 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-paged-nopersist-diag-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "paged-nopersist-diag",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "paged diagnostic: no progress callback on swipe, cache 0",
+    "page": "install diagnostic, switch to RTL paged, hide chrome, run ten turns",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Temporary mode; physical rightward swipe advances in RTL."
+  },
+  "preflight": [
+    {
+      "name": "wake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "wakeup"
+      ]
+    },
+    {
+      "name": "force-stop",
+      "hdcArgs": [
+        "shell",
+        "aa",
+        "force-stop",
+        "com.honjow.koma"
+      ]
+    },
+    {
+      "name": "neutral-unlock",
+      "uiInput": [
+        "swipe",
+        "630",
+        "2180",
+        "630",
+        "900",
+        "1000"
+      ],
+      "pauseAfterMs": 800
+    },
+    {
+      "name": "keep-awake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "86400000"
+      ]
+    },
+    {
+      "name": "install",
+      "hdcArgs": [
+        "install",
+        "-r",
+        "/Users/honjow/git/Koma/entry/build/default/outputs/default/entry-default-signed.hap"
+      ],
+      "timeoutSeconds": 120
+    },
+    {
+      "name": "launch",
+      "hdcArgs": [
+        "shell",
+        "aa",
+        "start",
+        "-b",
+        "com.honjow.koma",
+        "-a",
+        "EntryAbility"
+      ],
+      "pauseAfterMs": 6000
+    },
+    {
+      "name": "open-only-work",
+      "uiInput": [
+        "click",
+        "223",
+        "1421"
+      ],
+      "pauseAfterMs": 5000
+    },
+    {
+      "name": "open-continue",
+      "uiInput": [
+        "click",
+        "630",
+        "940"
+      ],
+      "pauseAfterMs": 7000
+    },
+    {
+      "name": "show-chrome",
+      "uiInput": [
+        "click",
+        "630",
+        "1500"
+      ],
+      "pauseAfterMs": 1200
+    },
+    {
+      "name": "open-more",
+      "uiInput": [
+        "click",
+        "1093",
+        "2450"
+      ],
+      "pauseAfterMs": 1200
+    },
+    {
+      "name": "select-rtl",
+      "uiInput": [
+        "click",
+        "863",
+        "2038"
+      ],
+      "pauseAfterMs": 3000
+    },
+    {
+      "name": "hide-chrome",
+      "uiInput": [
+        "click",
+        "630",
+        "1500"
+      ],
+      "pauseAfterMs": 1500
+    }
+  ],
+  "measurement": {
+    "trace": {
+      "bufferKb": 32768,
+      "categories": [
+        "ace",
+        "animation",
+        "app",
+        "ark",
+        "freq",
+        "graphic",
+        "sched",
+        "window"
+      ],
+      "remotePath": "/data/local/tmp/koma-paged-localindex.htrace",
+      "localFile": "trace.htrace"
+    },
+    "hilog": {
+      "hdcArgs": [
+        "shell",
+        "hilog",
+        "-x"
+      ],
+      "localFile": "hilog.txt"
+    },
+    "actions": [
+      {
+        "name": "turn-1",
+        "uiInput": [
+          "swipe",
+          "250",
+          "1360",
+          "1000",
+          "1360",
+          "800"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "turn-2",
+        "uiInput": [
+          "swipe",
+          "250",
+          "1360",
+          "1000",
+          "1360",
+          "800"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "turn-3",
+        "uiInput": [
+          "swipe",
+          "250",
+          "1360",
+          "1000",
+          "1360",
+          "800"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "turn-4",
+        "uiInput": [
+          "swipe",
+          "250",
+          "1360",
+          "1000",
+          "1360",
+          "800"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "turn-5",
+        "uiInput": [
+          "swipe",
+          "250",
+          "1360",
+          "1000",
+          "1360",
+          "800"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "turn-6",
+        "uiInput": [
+          "swipe",
+          "250",
+          "1360",
+          "1000",
+          "1360",
+          "800"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "turn-7",
+        "uiInput": [
+          "swipe",
+          "250",
+          "1360",
+          "1000",
+          "1360",
+          "800"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "turn-8",
+        "uiInput": [
+          "swipe",
+          "250",
+          "1360",
+          "1000",
+          "1360",
+          "800"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "turn-9",
+        "uiInput": [
+          "swipe",
+          "250",
+          "1360",
+          "1000",
+          "1360",
+          "800"
+        ],
+        "pauseAfterMs": 800
+      },
+      {
+        "name": "turn-10",
+        "uiInput": [
+          "swipe",
+          "250",
+          "1360",
+          "1000",
+          "1360",
+          "800"
+        ],
+        "pauseAfterMs": 800
+      }
+    ]
+  },
+  "postflight": [
+    {
+      "name": "turns-screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/koma-paged-localindex-run.png"
+      ]
+    },
+    {
+      "name": "turns-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-paged-localindex-run.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-nopersist-diag/screen.png"
+      ]
+    },
+    {
+      "name": "turns-layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-paged-localindex-run.json",
+        "-a"
+      ]
+    },
+    {
+      "name": "turns-layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-paged-localindex-run.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/paged-nopersist-diag/layout.json"
+      ]
+    }
+  ]
+}

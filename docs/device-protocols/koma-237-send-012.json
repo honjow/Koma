@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-237-send-012",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/koma-p2-debug-20261111/send-012",
+  "runId": "send-001",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "LongJM 0.1.2 candidate",
+    "page": "send source package to Download",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Single explicit send and readback."
+  },
+  "preflight": [
+    { "name": "send", "hdcArgs": ["file", "send", "/tmp/koma-longjm-005/sources/longjm/longjm-0.1.2.koma", "/storage/media/100/local/files/Docs/Download/longjm-0.1.2.koma"], "timeoutSeconds": 60 },
+    { "name": "readback", "hdcArgs": ["file", "recv", "/storage/media/100/local/files/Docs/Download/longjm-0.1.2.koma", "/tmp/longjm-0.1.2-check.koma"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

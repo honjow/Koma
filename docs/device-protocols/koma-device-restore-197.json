@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-device-restore-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/detail-history-cache-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "restore-20261111T0505",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "persistent detail cache candidate",
+    "page": "restore original 10000ms override and SLEEP after verification",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Keep the installed candidate and user data; restore the original short override and sleep state."
+  },
+  "preflight": [
+    { "name": "restore-timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "10000"] },
+    { "name": "sleep", "hdcArgs": ["shell", "power-shell", "suspend"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "final-power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] },
+    { "name": "final-window", "hdcArgs": ["shell", "hidumper", "-s", "WindowManagerService", "-a", "-a"] }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-detail-missing-source-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/missing-source-recovery-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "enable-komiic-final-20261111T0503",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "reverted missing-source UI; HAP sha256 b9e37a844a30e7b7218ba2f88888ebb4cea6e42e14e56e2558c9f5aea6a7d358",
+    "page": "enable Komiic using the live measured HdsListItem bounds",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "The source is installed but disabled through the normal source manager control. Restore it after the checks."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "power-readback", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "enable-komiic", "uiInput": ["click", "630", "2037"], "pauseAfterMs": 1500 }
+    ]
+  },
+  "postflight": [
+    { "name": "detail-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-disabled-source-detail.png"] },
+    { "name": "enabled-screen-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-disabled-source-detail.png", "/Users/honjow/git/Koma/.hvigor/outputs/missing-source-recovery-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/enable-komiic-final-20261111T0503/enabled.png"] },
+    { "name": "detail-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-disabled-source-detail.json"] },
+    { "name": "enabled-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-disabled-source-detail.json", "/Users/honjow/git/Koma/.hvigor/outputs/missing-source-recovery-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/enable-komiic-final-20261111T0503/enabled.json"] }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-readme-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/readme-refresh-20261112",
+  "runId": "readme-cleanup-017",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "设备已安装 Koma 1.4.3 code16",
+    "page": "清理本次截图临时文件并恢复电源",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "用户指定237更新README截图"
+  },
+  "preflight": [],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "remove-screen",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-readme-screen.png"
+      ]
+    },
+    {
+      "name": "remove-layout",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-readme-layout.json"
+      ]
+    },
+    {
+      "name": "check-removed",
+      "hdcArgs": [
+        "shell",
+        "find",
+        "/data/local/tmp",
+        "-maxdepth",
+        "1",
+        "-name",
+        "koma-readme-*"
+      ]
+    },
+    {
+      "name": "restore-timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    },
+    {
+      "name": "restore-sleep",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ],
+      "pauseAfterMs": 1000
+    },
+    {
+      "name": "read-power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

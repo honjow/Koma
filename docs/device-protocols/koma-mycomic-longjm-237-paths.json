@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-longjm-237-paths",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/paths",
+  "runId": "probe-001",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "local 1.4.2 build",
+    "page": "probe user-visible storage paths",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Read-only path probe for local source import."
+  },
+  "preflight": [
+    { "name": "users", "hdcArgs": ["shell", "ls", "/storage/Users/currentUser"] },
+    { "name": "users-download", "hdcArgs": ["shell", "ls", "/storage/Users/currentUser/Download"] },
+    { "name": "users-documents", "hdcArgs": ["shell", "ls", "/storage/Users/currentUser/Documents"] },
+    { "name": "sdcard", "hdcArgs": ["shell", "ls", "/sdcard"] },
+    { "name": "sdcard-download", "hdcArgs": ["shell", "ls", "/sdcard/Download"] },
+    { "name": "emulated", "hdcArgs": ["shell", "ls", "/storage/emulated/0/Download"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

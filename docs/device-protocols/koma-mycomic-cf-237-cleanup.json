@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-cf-237-cleanup",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110",
+  "runId": "mycomic-size-cleanup-203",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "restore device after format probe",
+    "page": "remove test packages, restore 10000ms timeout and suspend",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Installed MYCOMIC 0.1.17 and the host candidate stay for review; only temp imports and timeout are restored."
+  },
+  "preflight": [],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "restore-timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    },
+    {
+      "name": "suspend",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ]
+    },
+    {
+      "name": "power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

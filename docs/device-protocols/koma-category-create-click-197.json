@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-category-create-click-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "category-create-click",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate: guarded ReaderPage area-change writes",
+    "page": "tap the measured create button center",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Layout measured the enabled create button at [657,1401][1131,1531]."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "create-category", "uiInput": ["click", "894", "1466"], "pauseAfterMs": 2500 }
+    ]
+  },
+  "postflight": [
+    { "name": "created-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-category-click.png"] },
+    { "name": "created-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-category-click.png", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/category-create-click/screen.png"] },
+    { "name": "created-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-category-click.json", "-a"] },
+    { "name": "created-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-category-click.json", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/category-create-click/layout.json"] }
+  ]
+}

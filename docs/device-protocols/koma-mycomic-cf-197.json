@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-cf-197",
+  "target": "29Q0223919000743",
+  "authorizedTarget": "29Q0223919000743",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/mycomic-cf-20261110",
+  "runId": "mycomic-restore-cleanup-068",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "official MYCOMIC 0.1.7 restored; cleanup only",
+    "page": "remove restore package and restore original power state on 197",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "No UI actions. Registry already confirmed 0.1.7."
+  },
+  "preflight": [ { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] } ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "remove-restore-package", "hdcArgs": ["shell", "rm", "-f", "/storage/media/100/local/files/Docs/Download/mycomic-0.1.7-official-restore.koma"] },
+    { "name": "restore-timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "10000"] },
+    { "name": "power-before-suspend", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] },
+    { "name": "suspend", "hdcArgs": ["shell", "power-shell", "suspend"] },
+    { "name": "power-final", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

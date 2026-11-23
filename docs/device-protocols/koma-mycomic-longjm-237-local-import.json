@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-longjm-237-local-import",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/local-import-files",
+  "runId": "prepare-zip-001",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "local 1.4.2 build with candidate source packages",
+    "page": "prepare local import files",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Place only the two candidate packages in the user download directory for FilePicker import."
+  },
+  "preflight": [
+    { "name": "send-mycomic-zip", "hdcArgs": ["file", "send", "/tmp/koma-mycomic-130/sources/mycomic/mycomic-0.1.30.koma", "/storage/media/100/local/files/Docs/mycomic-0.1.30.zip"], "timeoutSeconds": 60 },
+    { "name": "send-longjm-zip", "hdcArgs": ["file", "send", "/tmp/koma-longjm-001/sources/longjm/longjm-0.1.0.koma", "/storage/media/100/local/files/Docs/longjm-0.1.0.zip"], "timeoutSeconds": 60 }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

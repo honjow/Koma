@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-longjm-237-install",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/install",
+  "runId": "app-142-005",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "entry-default-signed.hap version 1.4.2 code 15",
+    "page": "install candidate and launch",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Replace install preserving existing app data; launch Browse."
+  },
+  "preflight": [
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "install", "hdcArgs": ["install", "-r", "/Users/honjow/git/Koma/entry/build/default/outputs/default/entry-default-signed.hap"], "timeoutSeconds": 180 },
+    { "name": "bundle-version", "hdcArgs": ["shell", "bm", "dump", "-n", "com.honjow.koma"] },
+    { "name": "launch", "hdcArgs": ["shell", "aa", "start", "-a", "EntryAbility", "-b", "com.honjow.koma"], "pauseAfterMs": 2500 },
+    { "name": "capture-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-237-install.png"] },
+    { "name": "capture-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-237-install.json", "-a"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "receive-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-237-install.png", "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/install/app-142-005/screen.png"] },
+    { "name": "receive-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-237-install.json", "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/install/app-142-005/layout.json"] },
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] },
+    { "name": "window", "hdcArgs": ["shell", "hidumper", "-s", "WindowManagerService", "-a", "-a"] }
+  ]
+}

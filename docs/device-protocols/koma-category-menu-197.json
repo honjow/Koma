@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-category-menu-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "category-menu",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate: guarded ReaderPage area-change writes",
+    "page": "open shelf category menu to create an isolated test category",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "The test category will contain only 装备我最强."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "neutral-unlock", "uiInput": ["swipe", "630", "2180", "630", "900", "1000"], "pauseAfterMs": 800 },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "launch", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility"], "pauseAfterMs": 6000 }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "open-category-menu", "uiInput": ["click", "110", "883"], "pauseAfterMs": 1500 }
+    ]
+  },
+  "postflight": [
+    { "name": "menu-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-category-menu.png"] },
+    { "name": "menu-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-category-menu.png", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/category-menu/screen.png"] },
+    { "name": "menu-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-category-menu.json", "-a"] },
+    { "name": "menu-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-category-menu.json", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/category-menu/layout.json"] }
+  ]
+}

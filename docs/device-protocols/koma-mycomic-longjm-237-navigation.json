@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-longjm-237-navigation",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/navigation",
+  "runId": "import-menu-001",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "local 1.4.2 build with MYCOMIC 0.1.30 and LongJM 0.1.0",
+    "page": "navigate to source manager",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Open Browse tab before source import."
+  },
+  "preflight": [
+    { "name": "open-browse", "hdcArgs": ["shell", "uitest", "uiInput", "click", "564", "2006"], "pauseAfterMs": 1000 },
+    { "name": "open-manager", "hdcArgs": ["shell", "uitest", "uiInput", "click", "1127", "201"], "pauseAfterMs": 1200 },
+    { "name": "open-overflow", "hdcArgs": ["shell", "uitest", "uiInput", "click", "1216", "201"], "pauseAfterMs": 1000 },
+    { "name": "capture-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-237-browse.png"] },
+    { "name": "capture-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-237-browse.json", "-a"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "receive-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-237-browse.png", "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/navigation/import-menu-001/screen.png"] },
+    { "name": "receive-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-237-browse.json", "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/navigation/import-menu-001/layout.json"] },
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

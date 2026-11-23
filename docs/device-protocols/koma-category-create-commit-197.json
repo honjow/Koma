@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-category-create-commit-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "category-create-commit",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate: guarded ReaderPage area-change writes",
+    "page": "create the 性能测试 shelf category",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Create exactly one new category; existing categories remain unchanged."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "name-category", "uiInput": ["inputText", "640", "1295", "性能测试"], "pauseAfterMs": 800 },
+      { "name": "create-category", "uiInput": ["click", "850", "1594"], "pauseAfterMs": 2500 }
+    ]
+  },
+  "postflight": [
+    { "name": "created-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-category-created.png"] },
+    { "name": "created-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-category-created.png", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/category-create-commit/screen.png"] },
+    { "name": "created-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-category-created.json", "-a"] },
+    { "name": "created-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-category-created.json", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/category-create-commit/layout.json"] }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-equipment-select-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "equipment-select",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate: guarded ReaderPage area-change writes",
+    "page": "select 装备我最强 by its measured current cover bounds",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Measured title text [853,1594][1221,1653]; clickable cover [853,1027][1221,1725]."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "long-press-equipment", "uiInput": ["longClick", "1037", "1376"], "pauseAfterMs": 2000 }
+    ]
+  },
+  "postflight": [
+    { "name": "selection-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-equipment-selection.png"] },
+    { "name": "selection-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-equipment-selection.png", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-select/screen.png"] },
+    { "name": "selection-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-equipment-selection.json", "-a"] },
+    { "name": "selection-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-equipment-selection.json", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-select/layout.json"] }
+  ]
+}

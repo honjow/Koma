@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-restore-history-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "restore-inputcheck",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "restore recent history",
+    "page": "open equipment detail from history",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Shelf is open at 10:51."
+  },
+  "preflight": [
+    {
+      "name": "wake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "wakeup"
+      ]
+    },
+    {
+      "name": "keep-awake",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "86400000"
+      ]
+    },
+    {
+      "name": "scroll-history",
+      "uiInput": [
+        "swipe",
+        "630",
+        "1900",
+        "630",
+        "1300",
+        "600"
+      ],
+      "pauseAfterMs": 1200
+    },
+    {
+      "name": "open-shelf",
+      "uiInput": [
+        "click",
+        "260",
+        "2596"
+      ],
+      "pauseAfterMs": 1500
+    }
+  ],
+  "measurement": {
+    "trace": {
+      "bufferKb": 16384,
+      "categories": [
+        "ace"
+      ],
+      "remotePath": "/data/local/tmp/koma-restore-history.htrace",
+      "localFile": "trace.htrace"
+    },
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "history-screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "/data/local/tmp/koma-restore-inputcheck.png",
+        "-p",
+        "/data/local/tmp/koma-restore-history.png"
+      ]
+    },
+    {
+      "name": "history-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-restore-history.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/paged-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-inputcheck/screen.png"
+      ]
+    }
+  ]
+}

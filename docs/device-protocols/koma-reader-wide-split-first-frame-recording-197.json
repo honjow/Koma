@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-reader-wide-split-first-frame-recording-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/reader-wide-split-first-frame-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/first-page-transition-20261111T0210",
+  "recordingFileName": "koma_reader_wide_split_first_page_20261111_0210.mp4",
+  "timeoutMs": 86400000,
+  "warmupMs": 1000,
+  "idleRecordMs": 0,
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "actions": [
+    { "name": "open-yanmu-page-1", "uiInput": ["click", "600", "520"], "pauseAfterMs": 8000 }
+  ],
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "dirty reader-kit candidate; HAP sha256 0cc34359a04eae962f2562e423d791a3ecfc1bf0a535ed53bd57fb601fbc6f50",
+    "page": "ordinary shelf continue card for 艳母 volume 1 page 1; record first wide-page topology",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "The click target is inside the visible continue card. Expected: loading feedback remains until the wide page is split; no full-width page flash."
+  }
+}

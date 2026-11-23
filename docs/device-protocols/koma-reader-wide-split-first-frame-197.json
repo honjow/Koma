@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-reader-wide-split-first-frame-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/reader-wide-split-first-frame-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "restore-2-20261111T0226",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "dirty reader-kit candidate; HAP sha256 0cc34359a04eae962f2562e423d791a3ecfc1bf0a535ed53bd57fb601fbc6f50",
+    "page": "close the temporary reader settings sheet and restore the device power state",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "The current 197 development build remains installed. Only temporary UI, timeout override and screen state are restored."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "10000"] },
+    { "name": "power-readback", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    { "name": "suspend", "hdcArgs": ["shell", "power-shell", "suspend"], "pauseAfterMs": 500 },
+    { "name": "restored-power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

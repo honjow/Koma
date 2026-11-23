@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-bilimanga-shelf-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/bilimanga-shelf-237-20261111/repro",
+  "runId": "cleanup-005",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "installed 1.4.2 with bilimanga source",
+    "page": "哔哩漫画加入书架后继续阅读报错复现",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "用户要求先在237复现，修复后在237验证。"
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"], "pauseAfterMs": 600 },
+    { "name": "power-before", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] },
+    { "name": "restore-timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "10000"] },
+    { "name": "power-after", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] },
+    { "name": "suspend", "hdcArgs": ["shell", "power-shell", "suspend"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": []
+}

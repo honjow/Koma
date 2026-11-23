@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-cf-237-nav",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110",
+  "runId": "mycomic-webfetch-reset-171",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "host diagnostic candidate + MYCOMIC 0.1.17",
+    "page": "close the mh160 challenge and return to the main tab page",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Browse tab 564,2006; source management 1127,201; search 924,201; input 666,381; row 660,667."
+  },
+  "preflight": [],
+  "measurement": {
+    "actions": [
+      {
+        "name": "close-sheet",
+        "uiInput": [
+          "click",
+          "1148",
+          "201"
+        ],
+        "pauseAfterMs": 1200,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "back-1",
+        "uiInput": [
+          "keyEvent",
+          "2"
+        ],
+        "pauseAfterMs": 1200,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "back-2",
+        "uiInput": [
+          "keyEvent",
+          "2"
+        ],
+        "pauseAfterMs": 1200,
+        "timeoutSeconds": 30
+      }
+    ]
+  },
+  "postflight": [
+    {
+      "name": "layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-mycomic-237-nav.json"
+      ]
+    },
+    {
+      "name": "layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-mycomic-237-nav.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-webfetch-reset-171/layout.json"
+      ]
+    },
+    {
+      "name": "layout-clean",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-mycomic-237-nav.json"
+      ]
+    },
+    {
+      "name": "screen",
+      "hdcArgs": [
+        "shell",
+        "snapshot_display",
+        "-f",
+        "/data/local/tmp/koma-mycomic-237-nav.jpeg"
+      ]
+    },
+    {
+      "name": "screen-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-mycomic-237-nav.jpeg",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-webfetch-reset-171/screen.png"
+      ]
+    },
+    {
+      "name": "screen-clean",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-mycomic-237-nav.jpeg"
+      ]
+    }
+  ]
+}

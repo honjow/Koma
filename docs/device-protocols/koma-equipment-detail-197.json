@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-equipment-detail-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "equipment-detail",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "final local release candidate",
+    "page": "normal mode shelf to 装备我最强 detail",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Incognito remains off for this work so normal reading-sync events participate."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "back-to-shelf", "uiInput": ["click", "252", "2530"], "pauseAfterMs": 2500 },
+      { "name": "open-equipment", "uiInput": ["click", "1030", "1850"], "pauseAfterMs": 5000 }
+    ]
+  },
+  "postflight": [
+    { "name": "detail-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-equipment-detail.png"] },
+    { "name": "detail-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-equipment-detail.png", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-detail/screen.png"] },
+    { "name": "detail-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-equipment-detail.json", "-a"] },
+    { "name": "detail-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-equipment-detail.json", "/Users/honjow/git/Koma/.hvigor/outputs/continuous-perf-20261110/device197__ALN-AL80/not-applicable/portrait-1260x2720/equipment-detail/layout.json"] },
+    { "name": "final-power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

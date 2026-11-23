@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-history-layout-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/detail-history-cache-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720",
+  "runId": "final-cold-history-detail-20261111T0353",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "persistent detail cache final candidate; HAP sha256 fc453474763c6fce7232f6b93e0525ed64b50c14dd8379d5c515190652c02e96",
+    "page": "cold start and reopen the same history-only source work from its cover using the persisted detail snapshot",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "The local snapshot was written by the preceding run. This run verifies that a new process does not repeat get_manga or get_chapters."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "power-readback", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] },
+    { "name": "install-replace-only", "hdcArgs": ["install", "-r", "/Users/honjow/git/Koma/entry/build/default/outputs/default/entry-default-signed.hap"], "timeoutSeconds": 120 },
+    { "name": "launch", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility"], "pauseAfterMs": 6000 },
+    { "name": "open-history", "uiInput": ["click", "790", "2596"], "pauseAfterMs": 1800 }
+  ],
+  "measurement": {
+    "hilog": { "hdcArgs": ["shell", "hilog"], "localFile": "hilog-cold.txt" },
+    "actions": [
+      { "name": "open-history-only-cover-cold", "uiInput": ["click", "182", "1161"], "pauseAfterMs": 5000 }
+    ]
+  },
+  "postflight": [
+    { "name": "cold-detail-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-history-detail-cold.png"] },
+    { "name": "cold-detail-screen-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-history-detail-cold.png", "/Users/honjow/git/Koma/.hvigor/outputs/detail-history-cache-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-cold-history-detail-20261111T0353/detail.png"] },
+    { "name": "cold-detail-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-history-detail-cold.json"] },
+    { "name": "cold-detail-layout-recv", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-history-detail-cold.json", "/Users/honjow/git/Koma/.hvigor/outputs/detail-history-cache-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-cold-history-detail-20261111T0353/detail.json"] },
+    { "name": "cold-cache-recv", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-detail-snapshots.v1.json", "/Users/honjow/git/Koma/.hvigor/outputs/detail-history-cache-20261111/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-cold-history-detail-20261111T0353/source-detail-snapshots.v1.json"] }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-237-p2-debug",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/koma-p2-debug-20261111",
+  "runId": "p2-fallback-003",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "user fresh build on 237; source under test",
+    "page": "reopen page2 on freshly installed 1.4.2 with fallback",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Expect img 404 then host_fallback to thumb 200 and painted page."
+  },
+  "preflight": [
+    {
+      "name": "anchor-layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-237-p2-anchor.json",
+        "-a"
+      ]
+    }
+  ],
+  "measurement": {
+    "hilog": {
+      "hdcArgs": [
+        "shell",
+        "hilog"
+      ],
+      "localFile": "hilog.txt"
+    },
+    "actions": [
+      {
+        "name": "continue-reading",
+        "uiInput": [
+          "click",
+          "660",
+          "534"
+        ],
+        "pauseAfterMs": 14000
+      }
+    ]
+  },
+  "postflight": [
+    {
+      "name": "final-screen",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/koma-237-p2-final.png"
+      ]
+    },
+    {
+      "name": "final-layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-237-p2-final.json",
+        "-a"
+      ]
+    },
+    {
+      "name": "recv-final-screen",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-237-p2-final.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/koma-p2-debug-20261111/p2-fallback-003/screen.png"
+      ]
+    },
+    {
+      "name": "recv-final-layout",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-237-p2-final.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/koma-p2-debug-20261111/p2-fallback-003/layout.json"
+      ]
+    },
+    {
+      "name": "power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

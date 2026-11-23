@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-cf-237-import",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110",
+  "runId": "mycomic-format-import-181",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "host first-open format probe + MYCOMIC 0.1.29",
+    "page": "import MYCOMIC 0.1.26 from Download",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Complete button [1122,1832][1207,1881] center 1164,1856."
+  },
+  "preflight": [],
+  "measurement": {
+    "actions": [
+      {
+        "name": "open-browse",
+        "uiInput": [
+          "click",
+          "564",
+          "2006"
+        ],
+        "pauseAfterMs": 2200,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "open-source-management",
+        "uiInput": [
+          "click",
+          "1127",
+          "201"
+        ],
+        "pauseAfterMs": 2500,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "open-manager-more",
+        "uiInput": [
+          "click",
+          "1212",
+          "201"
+        ],
+        "pauseAfterMs": 1500,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "open-local-import",
+        "uiInput": [
+          "click",
+          "936",
+          "369"
+        ],
+        "pauseAfterMs": 3000,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "open-download",
+        "uiInput": [
+          "click",
+          "660",
+          "1817"
+        ],
+        "pauseAfterMs": 2600,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "select-package",
+        "uiInput": [
+          "click",
+          "660",
+          "871"
+        ],
+        "pauseAfterMs": 1000,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "confirm-import",
+        "uiInput": [
+          "click",
+          "1164",
+          "1856"
+        ],
+        "pauseAfterMs": 4500,
+        "timeoutSeconds": 60
+      }
+    ]
+  },
+  "postflight": [
+    {
+      "name": "registry",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "-b",
+        "com.honjow.koma",
+        "./data/storage/el2/base/haps/entry/files/source-runtime/source-runtime-registry.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-format-import-181/registry.json"
+      ]
+    },
+    {
+      "name": "layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-mycomic-import.json"
+      ]
+    },
+    {
+      "name": "layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-mycomic-import.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-format-import-181/layout.json"
+      ]
+    },
+    {
+      "name": "layout-clean",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-mycomic-import.json"
+      ]
+    },
+    {
+      "name": "screen",
+      "hdcArgs": [
+        "shell",
+        "snapshot_display",
+        "-f",
+        "/data/local/tmp/koma-mycomic-import.jpeg"
+      ]
+    },
+    {
+      "name": "screen-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-mycomic-import.jpeg",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-format-import-181/screen.png"
+      ]
+    },
+    {
+      "name": "screen-clean",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-mycomic-import.jpeg"
+      ]
+    }
+  ]
+}

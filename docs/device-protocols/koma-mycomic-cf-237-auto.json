@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-cf-237-auto",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110",
+  "runId": "mycomic-header-read-207",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "host format probe diagnostics + MYCOMIC 0.1.29",
+    "page": "open MYCOMIC detail and first chapter, verify automatic webtoon selection",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "No complete tap: only the Browse row is clicked. Search 924,201; input 666,381; row 660,667; source browse 660,1220."
+  },
+  "preflight": [],
+  "measurement": {
+    "hilog": {
+      "hdcArgs": [
+        "shell",
+        "hilog"
+      ],
+      "localFile": "hilog.txt"
+    },
+    "actions": [
+      {
+        "name": "open-browse",
+        "uiInput": [
+          "click",
+          "564",
+          "2006"
+        ],
+        "pauseAfterMs": 2200,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "open-source-management",
+        "uiInput": [
+          "click",
+          "1127",
+          "201"
+        ],
+        "pauseAfterMs": 2500,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "open-management-search",
+        "uiInput": [
+          "click",
+          "924",
+          "201"
+        ],
+        "pauseAfterMs": 1600,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "type-mycomic",
+        "uiInput": [
+          "inputText",
+          "666",
+          "381",
+          "MYCOMIC"
+        ],
+        "pauseAfterMs": 1600,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "close-keyboard",
+        "uiInput": [
+          "keyEvent",
+          "2"
+        ],
+        "pauseAfterMs": 1000,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "open-mycomic",
+        "uiInput": [
+          "click",
+          "660",
+          "667"
+        ],
+        "pauseAfterMs": 3500,
+        "timeoutSeconds": 30
+      },
+      {
+        "name": "open-source-browse",
+        "uiInput": [
+          "click",
+          "660",
+          "1220"
+        ],
+        "pauseAfterMs": 22000,
+        "timeoutSeconds": 60
+      },
+      {
+        "name": "open-detail",
+        "uiInput": [
+          "click",
+          "260",
+          "900"
+        ],
+        "pauseAfterMs": 9000,
+        "timeoutSeconds": 40
+      },
+      {
+        "name": "start-reading",
+        "uiInput": [
+          "click",
+          "700",
+          "873"
+        ],
+        "pauseAfterMs": 20000,
+        "timeoutSeconds": 50
+      }
+    ]
+  },
+  "postflight": [
+    {
+      "name": "registry",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "-b",
+        "com.honjow.koma",
+        "./data/storage/el2/base/haps/entry/files/source-runtime/source-runtime-registry.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-header-read-207/registry.json"
+      ]
+    },
+    {
+      "name": "layout",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-mycomic-auto.json"
+      ]
+    },
+    {
+      "name": "layout-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-mycomic-auto.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-header-read-207/layout.json"
+      ]
+    },
+    {
+      "name": "layout-clean",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-mycomic-auto.json"
+      ]
+    },
+    {
+      "name": "screen",
+      "hdcArgs": [
+        "shell",
+        "snapshot_display",
+        "-f",
+        "/data/local/tmp/koma-mycomic-auto.jpeg"
+      ]
+    },
+    {
+      "name": "screen-recv",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-mycomic-auto.jpeg",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/baseline/portrait-1320x2120/mycomic-cf-237-20261110/mycomic-header-read-207/screen.png"
+      ]
+    },
+    {
+      "name": "screen-clean",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-mycomic-auto.jpeg"
+      ]
+    },
+    {
+      "name": "power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

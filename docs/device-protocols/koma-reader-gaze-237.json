@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-reader-gaze-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-gaze-pr1",
+  "runId": "retest-permission-original-025",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "PR #1 touch + quick menu + footer; candidate a9605ef90032; reader-kit a591ef7",
+    "page": "恢复 Koma 相机为可再次申请的原状态；已核该调试包唯一用户授权项为相机，读回其它系统权限不变",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "用户明确选 237，保留签名开发包，恢复本轮临时配置、测试数据和超时后释放租约。"
+  },
+  "preflight": [
+    {
+      "name": "restore-camera-prompt-state",
+      "hdcArgs": [
+        "shell",
+        "atm",
+        "perm",
+        "--reset",
+        "-i",
+        "537095595"
+      ]
+    },
+    {
+      "name": "readback-koma-token",
+      "hdcArgs": [
+        "shell",
+        "atm",
+        "dump",
+        "--token-info",
+        "-i",
+        "537095595"
+      ]
+    }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": []
+}

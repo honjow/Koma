@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "name": "tapas-source-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/tapas-source-20261112",
+  "runId": "tapas-cleanup-028",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "Tapas 0.1.0 candidate",
+    "page": "关闭未登录页面并清理本次临时文件，恢复原电源状态",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "用户授权237书源验证"
+  },
+  "preflight": [
+    {
+      "name": "close-login-sheet",
+      "uiInput": [
+        "click",
+        "1212",
+        "250"
+      ],
+      "pauseAfterMs": 700
+    },
+    {
+      "name": "close-evidence",
+      "hdcArgs": [
+        "shell",
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/koma-tapas-final.json"
+      ]
+    },
+    {
+      "name": "receive-evidence",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/koma-tapas-final.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/tapas-source-20261112/tapas-cleanup-028/final-layout.json"
+      ]
+    }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "remove-0",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/storage/media/100/local/files/Docs/Download/koma-tapas-system-ua.koma"
+      ]
+    },
+    {
+      "name": "remove-1",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-tapas-screen.png"
+      ]
+    },
+    {
+      "name": "remove-2",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-tapas-layout.json"
+      ]
+    },
+    {
+      "name": "remove-3",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-tapas-final.json"
+      ]
+    },
+    {
+      "name": "remove-4",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-tapas-menu.json"
+      ]
+    },
+    {
+      "name": "remove-5",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-tapas-picker.json"
+      ]
+    },
+    {
+      "name": "remove-6",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "-f",
+        "/data/local/tmp/koma-tapas-download.json"
+      ]
+    },
+    {
+      "name": "restore-timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    },
+    {
+      "name": "suspend",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ],
+      "pauseAfterMs": 700
+    },
+    {
+      "name": "power-readback",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    }
+  ]
+}

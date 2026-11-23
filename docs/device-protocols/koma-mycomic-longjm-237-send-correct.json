@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-mycomic-longjm-237-send-correct",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/not-applicable/portrait-1320x2120/mycomic-longjm-237-20261111/send-correct",
+  "runId": "send-002",
+  "display": { "widthPx": 1320, "heightPx": 2120 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "MYCOMIC 0.1.30 and LongJM 0.1.0 candidates",
+    "page": "send packages to Docs/Download",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Correct user Download path from the existing 237 import record."
+  },
+  "preflight": [
+    { "name": "send-mycomic", "hdcArgs": ["file", "send", "/tmp/koma-mycomic-130/sources/mycomic/longjm-0.1.2.koma", "/storage/media/100/local/files/Docs/Download/longjm-0.1.2.koma"], "timeoutSeconds": 60 },
+    { "name": "send-longjm", "hdcArgs": ["file", "send", "/tmp/koma-longjm-001/sources/longjm/longjm-0.1.0.koma", "/storage/media/100/local/files/Docs/Download/longjm-0.1.0.koma"], "timeoutSeconds": 60 },
+    { "name": "check-mycomic", "hdcArgs": ["file", "recv", "/storage/media/100/local/files/Docs/Download/longjm-0.1.2.koma", "/tmp/koma-send-check-mycomic.koma"] },
+    { "name": "check-longjm", "hdcArgs": ["file", "recv", "/storage/media/100/local/files/Docs/Download/longjm-0.1.0.koma", "/tmp/koma-send-check-longjm.koma"] }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "power", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}
