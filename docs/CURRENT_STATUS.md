@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T19:32:56+08:00",
+  "updatedAt": "2026-11-23T20:08:21+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3521,7 +3521,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
-      "updatedAt": "2026-11-23T19:32:56+08:00",
+      "updatedAt": "2026-11-23T20:08:21+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -3714,7 +3714,7 @@
         "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
         "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
-        "巴卡：237首POST与封面已修；R15大小写未命中，CORS单次对照仍为Web403/Native403，生产App已精确移除失败试验及临时观察。现按上游真实document.location用途，改用既有Native文本GET读取并校验responseUrl、更新作品canonical路径，复用现有HTTP profile，不新增Host接口；候选正在构建与实际WASM对照。完整详情、目录、阅读、跨章和自有下载仍须237通过，distribution:false保留，不把清理或构建当修复。",
+        "巴卡：237现有Native文本/真实responseUrl/mobile131配置已实际返回200，详情和当前105/105目录显示，POST与封面成功。正文仍走旧WebHTTP返回403，没有排入下载；正在把阅读文档按上游实际document.location用同一既有Native文本能力接通，保留原章节/页ID、图像及POST路径，不加Host专口。生产源码已在原仓本地保存并随不可用候选归档；完整正文、跨章、自有下载继续由237验证，distribution:false等待完整验收和正式App1.6.1。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
         "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
@@ -12998,11 +12998,11 @@
       "priority": "用户本轮新增要求",
       "owner": "Root集成与237；Aristotle负责App；Boole负责源SDK及打包",
       "status": "通用多语言已实现，237普通路径验证通过",
-      "updatedAt": "2026-11-23T19:32:56+08:00",
+      "updatedAt": "2026-11-23T20:08:21+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求重新检查此前讨论的书源多语言支持，先设计App提供的通用能力，并明确覆盖设置项、书源描述等位置；原消息精确时刻未核实。",
-      "result": "App语言环境、源SDK文案目录及静态简介/作者/认证标签投影均已实现并本地提交。237普通导入Komiic0.1.25，简体、繁体、英文及日语回退源默认繁体均通过；栏目、筛选、真实动态选项及选中值、原all/komiic.cc设置保持。新简介完整可见，旧MYCOMIC未接Catalog设置正常；普通单源分享包保留静态多语言资料。正常去临时诊断HAP覆盖安装成功，补核英文简介和设置通过，原System语言与原前台已恢复。Root已亲审实际新简介和正常包设置图。App1.6.1/27按用户要求只本地提交，未推送或发布；书源简介批量交付归#355，巴卡归#023。",
+      "result": "App语言环境、源SDK文案目录及静态简介/作者/认证标签投影均已实现并本地提交。237普通导入Komiic0.1.25，简体、繁体、英文及日语回退源默认繁体均通过；栏目、筛选、真实动态选项及选中值、原all/komiic.cc设置保持。新简介完整可见，旧MYCOMIC未接Catalog设置正常；普通单源分享包保留静态多语言资料。正常去临时诊断HAP覆盖安装成功，补核英文简介和设置通过，原System语言与原前台已恢复。Root已亲审实际新简介和正常包设置图。App1.6.1/27按用户要求只本地提交，未推送或发布；书源简介批量交付归#355，巴卡归#023。 用户要求赶在当前版本窗口补齐必要App支持；本轮调用链复核未发现新增Host接口缺口。已将根/entry包元数据由1.6.0补齐到1.6.1，code仍27，更新用户日志，发布检查通过。全量构建及编译闭包已核，新全量包正在237补核；不把旧包实测冒作新包验收，App仍未推发。",
       "remainingActions": [],
       "evidence": [
         "docs/source-runtime-abi-design.md",
@@ -13016,9 +13016,12 @@
         ".hvigor/outputs/source-localization/app-freeze.json",
         ".hvigor/outputs/source-localization-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/ordinary-localization/final-result.md",
         ".hvigor/outputs/source-localization-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/ordinary-localization/clean-hap-device-result.json",
-        ".hvigor/outputs/source-localization-20261123/app-clean-hap-receipt.json"
+        ".hvigor/outputs/source-localization-20261123/app-clean-hap-receipt.json",
+        ".hvigor/outputs/source-localization-20261123/app-version-window-audit.json",
+        ".hvigor/outputs/source-localization-20261123/app-window-full-hap-receipt.json",
+        ".hvigor/outputs/source-localization-20261123/app-window-closure-review.md"
       ],
-      "progressPhase": "done"
+      "progressPhase": "completed"
     },
     {
       "id": "SOURCE_DESCRIPTION_QUALITY",
@@ -13030,13 +13033,12 @@
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话反馈“目前的书源简介太敷衍了”，原消息精确时刻未核实。",
-      "updatedAt": "2026-11-23T19:32:56+08:00",
-      "status": "87项简介已补齐并分批提交，正在执行最终WASM核对",
-      "result": "全部119个公开源已逐项审计，保留32个已有有效介绍，改进其余87个（含Komiic）。正文及简体、繁体、英文资料已在源原仓按批本地提交；源目录README的87条备注同步，保持原名称排序与24像素图标。根据实际官网介绍、原站分类及源内权限核事实，清理HTML/API、上游SAFE、使用情况未知等内部措辞；保留登录、付费、额度与收录范围。Komiic新简介和多语言在237已通过。正在逐个执行最终WASM source_info、生产打包投影与旧公开元数据对照；不把文案审稿当源网络全验。尚未推送或发布。",
+      "updatedAt": "2026-11-23T20:08:21+08:00",
+      "status": "87项简介已完成导出核对，正式分发进行中",
+      "result": "87源标准locked编译、最终WASM info及三语生产投影全部通过；逐字段对照原公开包，身份与语言等不变，优酷既有未发正文能力另列。恢复了本轮打包误收窄的旧索引字段，真实Komiic打包回读确认原authentication/websitePolicy与新presentation共存，整包与237候选相同。修改已从源独立原仓正确身份推送，既有CI正在完整构建并发布，尚未宣称公开回读完成。优酷依赖未发App1.6.1，发布层经固定官方包验证保留完整0.1.7旧入口，其余86个简介更新独立交付。",
       "remainingActions": [
-        "逐个执行87源最终WASM info及生产多语言投影，核对真实描述、版本、身份和能力，处理实际发现的导出或构建问题。",
-        "核对正式发布输入和既有候选隔离：App正式版本仍为1.6.0，不能把需要未发1.6.1的候选混入公开索引，也不删除旧稳定入口。",
-        "按已有授权交付验证后的书源更新，回读公开索引和包校验；App保持本地。"
+        "跟进既有CI至正式发布，回读完整公开索引、包及校验和；核旧优酷入口和其它源数量保持。",
+        "依赖未正式发布App的优酷新候选保持不可用声明；正式App1.6.1发布后再复核解除稳定包保留。"
       ],
       "evidence": [
         ".hvigor/outputs/source-descriptions-20261123/published-index-receipt.json",
@@ -13046,7 +13048,11 @@
         ".hvigor/outputs/source-descriptions-20261123/internal/ready-batches.json",
         ".hvigor/outputs/source-descriptions-20261123/empty-boilerplate/ready-batches.json",
         ".hvigor/outputs/source-descriptions-20261123/parent-integrated.json",
-        ".hvigor/outputs/source-descriptions-20261123/actual-info/progress.json"
+        ".hvigor/outputs/source-descriptions-20261123/actual-info/progress.json",
+        ".hvigor/outputs/source-descriptions-20261123/actual-info/summary.md",
+        ".hvigor/outputs/source-descriptions-20261123/actual-info/old-new-comparison.json",
+        ".hvigor/outputs/source-descriptions-20261123/index-metadata-restored/verification.json",
+        ".hvigor/outputs/source-descriptions-20261123/release-pin-validation/verification.json"
       ],
       "progressPhase": "verification"
     },
@@ -13106,6 +13112,31 @@
         "胶囊外缘轻阴影仅使用空底板的系统OUTER_DEFAULT_XS。不会给文字叠加阴影或第二套数字。",
         "按用户要求保留未读章节数倒序。预设颜色就近匹配是用户提出的效果不佳时备选；当前改进获肯定，未切换此方案。",
         "保留原动图显示路径；本轮未覆盖动图取色实机样本。本次仅提交代码，未发布。"
+      ]
+    },
+    {
+      "id": "BAOZI_DEFAULT_MIRROR_AND_VERIFICATION_CONTEXT",
+      "number": 357,
+      "title": "包子默认改台湾Webmota，核对镜像切换后的网页验证",
+      "kind": "active",
+      "progressPhase": "needs_work",
+      "priority": "用户当前新增要求",
+      "owner": "Root集成；Boole源配置；Aristotle宿主链只读核对；Darwin独占237",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "用户本会话要求将包子默认镜像改为tw.webmata.com，经问题回复确认实际指tw.webmota.com；随后补充部分镜像切换后CF难以通过，精确消息时刻未核实。",
+      "status": "已确认目标域名，调整默认并核对验证链",
+      "updatedAt": "2026-11-23T20:08:21+08:00",
+      "result": "现有17镜像中tw.webmota.com为稳定value4，普通公开网页已实际200。将默认及无效设置回退从WWW/value2改为value4，已保存的显式选择不迁移。同步默认主页及WWW/value2的显式主页映射，并将官方WWW canonical地址允许与默认站点分离，防止改默认影响其它镜像目录。部分镜像CF不过尚未确定原因，先核所选域、验证因果URL、UA及会话原点，不把网络或站点作为猜测结论。",
+      "remainingActions": [
+        "完成包子0.1.31源配置、真实WASM默认/显式17镜像和身份对照；不改已验章序、AMP/AppCN阅读和CDN处理。",
+        "237普通入口验证默认站、切换镜像后的主页/验证页/原请求与列表、详情及正文，定位实测未通过的具体链路。",
+        "验证通过后按已有授权发布书源；原Baka、简介和App版本窗口任务继续。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/baozimh-default-mirror-20261123/domain-check.json",
+        "/Users/honjow/git/koma-sources/sources/baozimh/src/mirror.rs",
+        "/Users/honjow/git/koma-sources/sources/baozimh/metadata.json"
       ]
     }
   ],
@@ -30836,6 +30867,46 @@
         ".hvigor/outputs/source-descriptions-20261123/empty-boilerplate/ready-batches.json",
         ".hvigor/outputs/source-descriptions-20261123/parent-integrated.json",
         ".hvigor/outputs/source-descriptions-20261123/actual-info/progress.json"
+      ]
+    },
+    {
+      "id": "source-window-metadata-and-release-in-progress-20261123",
+      "at": "2026-11-23T20:08:21+08:00",
+      "itemId": "SOURCE_UI_TEXT_LOCALIZATION",
+      "kind": "implementation",
+      "title": "补齐1.6.1包元数据与必要能力文档",
+      "detail": "本轮真实调用链未发现额外Host缺口，根与entry版本已统一1.6.1/code27，发布检查与全量构建通过；新候选普通路径补核继续，App不推发。",
+      "evidence": [
+        ".hvigor/outputs/source-localization-20261123/app-version-window-audit.json",
+        ".hvigor/outputs/source-localization-20261123/app-window-full-hap-receipt.json",
+        ".hvigor/outputs/source-localization-20261123/app-window-closure-review.md"
+      ]
+    },
+    {
+      "id": "source-descriptions-actual87-and-push-20261123",
+      "at": "2026-11-23T20:08:21+08:00",
+      "itemId": "SOURCE_DESCRIPTION_QUALITY",
+      "kind": "delivery",
+      "title": "87简介导出通过并推送，优酷保留完整旧包",
+      "detail": "87源标准locked编译、最终WASM info及三语生产投影全部通过；逐字段对照原公开包，身份与语言等不变，优酷既有未发正文能力另列。恢复了本轮打包误收窄的旧索引字段，真实Komiic打包回读确认原authentication/websitePolicy与新presentation共存，整包与237候选相同。修改已从源独立原仓正确身份推送，既有CI正在完整构建并发布，尚未宣称公开回读完成。优酷依赖未发App1.6.1，发布层经固定官方包验证保留完整0.1.7旧入口，其余86个简介更新独立交付。",
+      "evidence": [
+        ".hvigor/outputs/source-descriptions-20261123/actual-info/summary.md",
+        ".hvigor/outputs/source-descriptions-20261123/actual-info/old-new-comparison.json",
+        ".hvigor/outputs/source-descriptions-20261123/index-metadata-restored/verification.json",
+        ".hvigor/outputs/source-descriptions-20261123/release-pin-validation/verification.json"
+      ]
+    },
+    {
+      "id": "baozimh-default-webmota-user-confirmed-20261123",
+      "at": "2026-11-23T20:08:21+08:00",
+      "itemId": "BAOZI_DEFAULT_MIRROR_AND_VERIFICATION_CONTEXT",
+      "kind": "implementation",
+      "title": "用户确认TW Webmota默认入口，开始联查镜像验证",
+      "detail": "现有17镜像中tw.webmota.com为稳定value4，普通公开网页已实际200。将默认及无效设置回退从WWW/value2改为value4，已保存的显式选择不迁移。同步默认主页及WWW/value2的显式主页映射，并将官方WWW canonical地址允许与默认站点分离，防止改默认影响其它镜像目录。部分镜像CF不过尚未确定原因，先核所选域、验证因果URL、UA及会话原点，不把网络或站点作为猜测结论。",
+      "evidence": [
+        ".hvigor/outputs/baozimh-default-mirror-20261123/domain-check.json",
+        "/Users/honjow/git/koma-sources/sources/baozimh/src/mirror.rs",
+        "/Users/honjow/git/koma-sources/sources/baozimh/metadata.json"
       ]
     }
   ],
