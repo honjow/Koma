@@ -7,7 +7,16 @@ import { sourceRejectedRequestRequiresDocumentReadiness, sourceRejectedRequestUr
 /** Prepare an origin-checked session without deciding how the host presents it. */
 export function prepareSourceWebSession(sourceId: string, title: string, requestHandle?: string): MangaWebRouteParam | undefined {
   try {
-    const exactRequestUrl = requestHandle === undefined ? selectedSourceHomepage(sourceId) : sourceRejectedRequestUrl(sourceId, requestHandle)
+    const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+    // Mirror sources use the same effective homepage for a manual connection
+    // and ordinary Web navigation. Missing/invalid preferences must not borrow
+    // an older mirror's rejection or the first declared origin. Automatic
+    // verification remains bound to its exact operation, even with no unique GET.
+    // Registry already normalized the installed homepage at import/reload.
+    const mirrorDefault = entry?.websitePolicy?.homepageChoices === undefined
+      ? undefined : entry.packageHomepage
+    const exactRequestUrl = requestHandle === undefined
+      ? (selectedSourceHomepage(sourceId) ?? mirrorDefault) : sourceRejectedRequestUrl(sourceId, requestHandle)
     const url = appSourceWebSessionStore.launchUrl(appSourceRuntimeRegistry, sourceId, exactRequestUrl)
     // Verification sheets and full WebView routes must use the same localized
     // source identity as Browse, Search and the source manager.

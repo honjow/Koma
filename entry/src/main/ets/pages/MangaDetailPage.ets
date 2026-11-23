@@ -491,7 +491,8 @@ export struct MangaDetailPage {
     const receipt = this.detailWebChallenge
     if (receipt === null || receipt.sourceId !== this.params.sourceId?.trim() ||
       !this.detailWebChallengeGate.claim(receipt.id, this.chrome.visible)) return
-    const params = prepareSourceWebSession(receipt.sourceId, sourceDisplayName(receipt.sourceId, this.sourceDetailRegistryEntry?.manifestName ?? ''))
+    const params = prepareSourceWebSession(receipt.sourceId,
+      sourceDisplayName(receipt.sourceId, this.sourceDetailRegistryEntry?.manifestName ?? ''), receipt.requestHandle)
     if (params === undefined) {
       this.detailWebChallengeGate.cancel(receipt.id)
       this.detailWebChallenge = null
@@ -1311,12 +1312,12 @@ export struct MangaDetailPage {
       // never enter the persisted snapshot or an unrelated chapter recovery.
       let chapterContext: Record<string, Object> | undefined = undefined
       let excludedChapterIds: string[] = []
+      const detailGuardId = this.detailChallengeHandle ?? newSourceRuntimeOperationGuardId()
+      this.detailChallengeHandle = detailGuardId
       if (retryStage === 'chapters' && retainedDetail !== undefined) {
         detail = retainedDetail
         chapters = retainedChapters
       } else {
-        const detailGuardId = this.detailChallengeHandle ?? newSourceRuntimeOperationGuardId()
-        this.detailChallengeHandle = detailGuardId
         const loaded = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId, detailGuardId,
           (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId))
         if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
@@ -1355,9 +1356,14 @@ export struct MangaDetailPage {
       const stored = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
       const expectedChapters = Math.max(detail.chapterCount ?? 0, waitingForChapters ? retainedDetail?.chapterCount ?? 0 : 0,
         stored?.chapterCount ?? 0, stored?.sourceMetadata?.sharedChapterIds?.length ?? 0)
+      // A successful detail read ends its rejected-GET scope. Only a retry of
+      // the chapter operation keeps the staged response for that exact GET.
+      if (retryStage !== 'chapters' || retainedDetail === undefined) clearSourceRejectedRequest(sourceId, detailGuardId)
+      const releaseChapterGuard = registerSourceRuntimeOperationGuard(detailGuardId,
+        (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId))
       try {
         const chapterResult = await resolveSourceChapterList(lookup.entry, mangaId, detail.url,
-          (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId), chapterContext)
+          (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId), chapterContext, detailGuardId)
         if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
           return
         }
@@ -1389,6 +1395,8 @@ export struct MangaDetailPage {
           chapters = libraryComic.chapters.map((chapter: Chapter): MangaChapterItem =>
             mangaChapterItemFromComicChapter(chapter, libraryComic.sourceKind))
         }
+      } finally {
+        releaseChapterGuard()
       }
       if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
         return

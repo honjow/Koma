@@ -1616,12 +1616,12 @@ test('verification navigation uses the installed source name for the current lan
   const f = fixture()
   const names = moduleFrom('SourceLocalizedNames', () => ({}))
   f.changeEntry(entry => ({ ...entry, manifestName: 'DM5', localizedNames: { 'zh-Hans': '动漫屋', 'zh-Hant': '動漫屋' } }))
-  let locale = 'zh-CN'
+  let locale = 'zh-CN', selectedHomepage, causalUrl = ''
   const navigation = moduleFrom('SourceWebSessionNavigation', name => {
     if (name === '../common/RouterHelper') return { RouterHelper: {} }
-    if (name === './SourceHomepageSelection') return { selectedSourceHomepage: () => undefined }
+    if (name === './SourceHomepageSelection') return { selectedSourceHomepage: () => selectedHomepage }
     if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: f.store }
-    if (name === './SourceRuntimeHttpTransport') return { sourceRejectedRequestUrl: () => '' }
+    if (name === './SourceRuntimeHttpTransport') return { sourceRejectedRequestUrl: () => causalUrl, sourceRejectedRequestRequiresDocumentReadiness: () => false }
     if (name === './SourceRuntimeAppRegistry') return {
       appSourceRuntimeRegistry: f.registry,
       sourceDisplayName: (id, fallback) => {
@@ -1639,6 +1639,24 @@ test('verification navigation uses the installed source name for the current lan
     assert.equal(route.sourceSession.sourceId, 'source.one')
     f.store.cancel('source.one', route.sourceSession.sessionId)
   }
+  const cn = 'https://cn.mirror.invalid', tw = 'https://tw.mirror.invalid', www = 'https://www.mirror.invalid'
+  f.changeEntry(entry => ({ ...entry, packageHomepage: tw + '/',
+    webSessionOrigins: [cn, tw, www], websitePolicy: { homepageChoices: {
+      setting: 'preferred_mirror', options: [{ value: '0', url: cn + '/' }, { value: '2', url: www + '/' }],
+    } } }))
+  f.store.observeRejectedRequest({ ...f.identity(), webSessionOrigins: [cn, tw, www] }, cn + '/old-rejection')
+  const check = (handle, expected) => {
+    const route = navigation.prepareSourceWebSession('source.one', 'DM5', handle)
+    assert.equal(route.url, expected)
+    f.store.cancel('source.one', route.sourceSession.sessionId)
+  }
+  check(undefined, tw + '/') // No saved/valid mirror: use package default, not first/old origin.
+  selectedHomepage = www + '/'
+  check(undefined, www + '/') // A valid saved choice remains authoritative for manual connections.
+  causalUrl = cn + '/chapter/original'
+  check('original-operation', causalUrl) // Automatic validation follows its original GET, not the preference.
+  causalUrl = ''
+  check('ambiguous-operation', cn + '/') // Keep the existing no-unique-GET policy; never borrow old rejection.
   f.changeEntry(entry => ({ ...entry, enabled: false }))
   assert.equal(navigation.prepareSourceWebSession('source.one', 'DM5'), undefined)
 })
