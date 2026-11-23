@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T11:58:11+08:00",
+  "updatedAt": "2026-11-23T13:13:26+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3713,7 +3713,7 @@
         "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
         "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
-        "巴卡漫画（bakamh）｜200 同一设备的已验证 WebView 可打开官网首页、排行和连载目录。Koma 带网页验证 Cookie 与 WebView UA 请求首页 GET、归档 GET 及 Mihon 的目录 POST，三条均返回带拒绝页标志的 HTTP 403，未收到挑战脚本。失败发生在原生网络访问，普通 GET 同样受影响。站方安全规则的具体命中条件需要站方日志，候选未发布。",
+        "巴卡漫画（bakamh）｜通用WebHTTP6e1e5db4及旧GET限速d005eaf7已App本地提交；候选0.1.1/min1.6.1已独立原仓e51132a/4b75ec7保护。237通过标准网页验证后普通POST列表与重复搜索健身已成功；详情GET及封面仍403，已取得bridge miss与原生HTTP日志，自动挑战信号在源协议被归forbidden的问题正查。继续修具体GET/图片及挑战传递，未冒作阅读或发布通过。App不推不发。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
         "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
@@ -12690,7 +12690,7 @@
       "id": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "number": 343,
       "title": "全部已发布书源的章节方向与连续阅读核对",
-      "status": "已发布修复范围保留；新增包子《开局一座山》两段方向相反调查中",
+      "status": "包子0.1.29已正式发布，实际包及237目录均已核对；原外部条件保留",
       "kind": "pending_verification",
       "priority": "P1",
       "owner": "本会话；Volta：包子实际目录与上游对照；Darwin：237普通详情目录",
@@ -12698,12 +12698,12 @@
         "CHAPTER_SORT_MENU"
       ],
       "result": "119个正式源已逐源核代码并尝试真实请求，取得490份非空完整目录、56332章，覆盖105源，其中91源至少5份；原始响应、候选回放与普通设备结果分别计数。27源章序修复及漫画1234维护版已发布，最终公开资产与具名代表原件另有核对，未将构建当作阅读验收。\n原20个受限源的237普通宿主队列已逐项结算：15源完成约定的目录/代表阅读范围，5源保留具体访问或登录条件，不是20源全站通过。包子五作及两长章、明确邻章和镜像具名范围已验；无号章沿真实位置保有前后关系。额外漫画柜7580完整453条，四组唯一位置、132条无章号仍可续章；原四部599行另列。MYCOMIC原站自身含1→20等顺序，真实邻域已核，不擅自按标题数字重排。\n优酷当前最低1.6.1候选另四作78/6/3/36完整目录、两组关系及代表清晰正文/明确邻章已验；旧Cat7章为另候选与宿主，分列保留。漫画屋正常词搜取得非人哉1275章与明确1→2实图，但分类Native及同请求正常Web仍403；热门/最新路径与固定MCCMSWeb上游相同，无源路由改错依据，不称分类入口已恢复。\n237已恢复SLEEP/10000并释租，自有临时上传及取证文件已清理并读回；新App、合法源、用户新哔咔登录及较新阅读位置保留。App1.6.1和优酷按用户决定暂不公开。",
-      "remaining": "新增用户反馈：包子《开局一座山》章节列表两部分方向不一致。源全局采集最新摘要与主目录、精确去重保首条，App按图源仅整体反转；正在核实际分界并修复。此前外部站点条件与优酷App暂不发布的边界保留。",
+      "remaining": "本次开局一座山1244章混向已修并公开；原490份/56332章冻结快照不改，本作新增原件单列。其余已发布修复具名范围保持，继续保留原外部访问/账号条件与优酷最低1.6.1本地候选的发版决定。237设备按当前Baka/下载验证授权继续hold，最后电源/释租由当前owner独立执行。",
       "reportedAt": "2026-11-23T00:12:04+08:00",
       "remainingActions": [
-        "获取《开局一座山》真实完整目录并对照正式0.1.28/上游，核去重后数组方向和上下章。",
-        "在保持稳定ID、读态、独立版本边界下修正源输出，237普通列表及邻章复核，通过后按已有授权发布源修复。",
-        "保留原五项外部条件和优酷最低1.6.1本地候选，不重开已验119源路径。"
+        "原已确认的站点访问/账号条件发生变化时再复核，不重跑已接受路径。",
+        "优酷最低App1.6.1候选保持本地，不与包子发布混入。",
+        "237当前Baka与下载验收完成后独立恢复电源并释租；包子验收及源发布已完成。"
       ],
       "boundaries": [
         "不靠补章节编号替代真实目录顺序。",
@@ -12788,11 +12788,13 @@
         ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/manhuadui-min161-four-work-result.json",
         ".hvigor/outputs/published-source-order-audit-20261123/youku-investigation/minimum-app161/parent-four-work-review.json",
         ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/native-host-final-result.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/session-closeout.json"
+        ".hvigor/outputs/published-source-order-audit-20261123/native-host-validation/session-closeout.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-order-followup/kaijuyizuoshan-fix-20261123/publication/formal-assets/verification.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/source-array-direction-followup.json"
       ],
-      "updatedAt": "2026-11-23T11:57:13+08:00",
+      "updatedAt": "2026-11-23T12:42:08+08:00",
       "progressPhase": "verification",
-      "stage": "包子实际目录混向问题核对中"
+      "stage": "包子新混向修复已交付；原外部条件保留"
     },
     {
       "id": "READER_RESUME_PREVIOUS_CONTINUOUS_BOUNDARY",
@@ -12894,6 +12896,99 @@
         ".hvigor/outputs/published-source-order-audit-20261123/list-info-sdk-pilot/publication/publication-report.json"
       ],
       "stage": "本地App已验，两源已发布；App等待用户发版决定"
+    },
+    {
+      "id": "DOWNLOAD_CHAPTER_READING_ORDER",
+      "number": 349,
+      "title": "下载入队未沿正向章节顺序",
+      "priority": "P1",
+      "kind": "active",
+      "progressPhase": "verification",
+      "reportedAt": "2026-11-23T12:21:22+08:00",
+      "reportedAtSource": "用户本会话反馈添加下载任务仍乱序或优先后面的章节，要求从前到后；精确消息时间未提供。",
+      "relatedItems": [
+        "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+        "CHAPTER_SORT_MENU"
+      ],
+      "updatedAt": "2026-11-23T13:07:45+08:00",
+      "status": "公共入队已修并本地提交，237候选验收中",
+      "owner": "Aristotle：公共入队模型；本会话：整合/构建/237验证",
+      "result": "本地43df9d96统一详情/更新及书架批量/自动下载的新增批次，固定图源正向；无号与独立版本保留。6组生产方法运行及既有章节投影通过，合并HAP2cd已给237；不把模型或构建通过当真机验收。",
+      "remaining": "237普通少量新增任务的持久顺序与执行先后仍在验，保留已有任务、优先级和暂停状态。",
+      "remainingActions": [
+        "237从原普通入口选择少量章节，核新增批次实际顺序；只清理本轮自有测试任务。"
+      ],
+      "boundaries": [
+        "只规范新入队批次，不整体重排用户既有队列或中断当前下载。",
+        "下载固定使用已确认的图源正向位置；详情的显示方向、按名称/上传日期等排序不改变下载顺序。Mihon Downloader.queueChapters亦按sourceOrder从起点入队；Koma使用readingOrder递增，不机械照抄其索引方向。",
+        "不按标题临时解析章节号，不丢无编号/手动/独立版本，缺少已确认位置时稳定保留原序。",
+        "App仍本地1.6.1，不自行推送或发布。"
+      ],
+      "evidencePoints": [],
+      "stage": "普通队列验证中"
+    },
+    {
+      "id": "LIBRARY_LIST_CARD_LAYOUT",
+      "number": 350,
+      "title": "书架列表按下反馈留边与信息布局",
+      "kind": "active",
+      "priority": "P2",
+      "reportedAt": "2026-11-23T12:52:11+08:00",
+      "reportedAtSource": "用户本会话指出书架列表按下反馈上下留空，明确去掉外层边距；并指出标题过大单行、只显示话数，空间浪费。",
+      "relatedItems": [
+        "SOURCE_BROWSE_LIST_INFO"
+      ],
+      "updatedAt": "2026-11-23T13:13:26+08:00",
+      "status": "局部布局已本地提交并构建，237实际按下反馈待补验",
+      "progressPhase": "verification",
+      "owner": "本会话：LibraryPage及卡片投影；Darwin：237统一验收",
+      "result": "已核原生HDS行自带内容内距，外Row额外上下8vp使按下区上下留带。按用户明确要求去掉该层；标题沿已采用书源样式14fp最多两行、靠上，原话数/分类组靠下。",
+      "remaining": "异步询问下方采用作者/书源/话数或作者/最近阅读位置/话数；只等待该产品取舍，其余已授权实现与Baka/下载继续。",
+      "remainingActions": [
+        "收到补充信息取舍后仅从已载摘要增加投影，避免热路径读取完整章表。",
+        "统一构建新HAP，237观察整卡按下/正常打开/长按原交互及两行标题、缺省信息。"
+      ],
+      "boundaries": [
+        "只改用户指出的书架列表；网格、封面尺寸、密度、选择/更多菜单、点击和长按语义保持。",
+        "本次去的是外层上下边距，沿HDS内部既有排版，不额外添加左右留白。",
+        "不增加或改变硬件触觉设置；App本地1.6.1不推不发。"
+      ],
+      "evidencePoints": [
+        ".hvigor/outputs/web-http-download-order-20261123/"
+      ],
+      "stage": "书架列表局部修正中"
+    },
+    {
+      "id": "LIBRARY_LIST_GRID_DENSITY_DECOUPLE",
+      "number": 351,
+      "title": "列表大小与网格间距耦合",
+      "priority": "P1",
+      "kind": "active",
+      "reportedAt": "2026-11-23T13:00:31+08:00",
+      "reportedAtSource": "用户本会话指出列表密度同时改变网格间距及列表高度，明确要求独立控制。",
+      "relatedItems": [
+        "LIBRARY_LIST_CARD_LAYOUT"
+      ],
+      "updatedAt": "2026-11-23T13:13:26+08:00",
+      "status": "拆分已本地提交并构建，237普通路径待补验",
+      "owner": "Aristotle：偏好迁移/设置/网格公共消费；本会话：LibraryPage整合",
+      "progressPhase": "verification",
+      "result": "设置已拆为列表大小及网格间距；LibraryPage与共享源网格使用gridSpacing，列表尺寸保留原listDensity。旧设置在首次load或直接update前迁移，保原96/140vp目标宽及已有手动列宽；旧备份兼容一起处理。",
+      "remaining": "新签名候选ead42fd26fdf（1.6.1/code27）交237，待双向独立控制、冷启动及原值恢复。",
+      "remainingActions": [
+        "先从旧持久值迁移独立字段，再处理新列表写入，覆盖直接write而未先load。",
+        "父整合LibraryPage使用独立gridSpacing；保网格列宽/双指缩放合同。",
+        "新HAP在237与列表整卡反馈一起核实际效果，恢复原设置。"
+      ],
+      "boundaries": [
+        "用户已明确要求拆分控制，沿原设置菜单/样式，不新增外观设计。",
+        "原书源列表固定卡片尺寸不因此改变；书源与书架网格继续共享已采用的列宽规则。",
+        "备份/恢复读取旧配置保外观；本地App1.6.1不推不发。"
+      ],
+      "stage": "237候选验证中",
+      "evidencePoints": [
+        ".hvigor/outputs/web-http-download-order-20261123/"
+      ]
     }
   ],
   "source": {
@@ -12948,6 +13043,60 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-list-grid-independent-implemented-20261123",
+      "at": "2026-11-23T13:13:26+08:00",
+      "itemId": "LIBRARY_LIST_GRID_DENSITY_DECOUPLE",
+      "kind": "progress",
+      "title": "列表大小与网格间距拆分已本地保护",
+      "detail": "9a9999bc包含独立偏好、旧值一次迁移、旧新备份兼容及全部网格消费者；列表原三档尺寸不改。实际生产方法覆盖直接保存未先load、失败回滚及备份读回；新1.6.1/code27签名HAPead42fd26fdf构建成功交237，普通路径验收另记，不提前关闭。"
+    },
+    {
+      "id": "library-list-card-implemented-20261123",
+      "at": "2026-11-23T13:13:26+08:00",
+      "itemId": "LIBRARY_LIST_CARD_LAYOUT",
+      "kind": "progress",
+      "title": "书架列表去外层留带并缩小标题",
+      "detail": "9a9999bc保原HDS内容内距及按下表面、原封面/菜单/长按；标题14fp最多两行靠上，原话数分类靠下。更多元信息产品取舍仍待用户，不以沉默授权；237候选验收另记。"
+    },
+    {
+      "id": "baozi029-mixed-direction-published-final-20261123",
+      "at": "2026-11-23T12:42:08+08:00",
+      "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
+      "title": "包子0.1.29已发布并核对实际正式制品",
+      "detail": "公开045be2e精确4文件，CI45112163720成功。正式包48415dbd/WASM2d34cd11与已验候选4491368e/ea97c405不同，实际包/index SHA、manifest/info0.1.29/min1.4.1及原方形图标已核；14份完整解析响应同保留真实原件/派生边界最终候选相等。119ID保持，只有包子version/pkg/sha变化，其余118项完整对象不变。237原断点1203→1202→1201→1200实际连续、1244唯一ID与原设置恢复已亲审。另对保留原件202个有明确位置的组检查数组单向性，仅发现2份包子旧混向样本，均属本修正已回放范围；无明确位置的样本不算通过。原490快照与Native范围不混加。包子不依赖App新改动，可直接更新。",
+      "kind": "release",
+      "evidence": [
+        ".hvigor/outputs/published-source-order-audit-20261123/baozi-order-followup/kaijuyizuoshan-fix-20261123/publication/formal-assets/verification.json"
+      ]
+    },
+    {
+      "id": "bakamh-generic-web-http-authorized-20261123",
+      "at": "2026-11-23T12:25:40+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "title": "用户授权补齐通用Web请求链路，Baka作为真实验证场景",
+      "detail": "用户明确“那有能力缺失的就添加啊”。复用原Request/Response模型扩WebView传输，不设Baka专用接口：方法、允许头、文本正文、真实status/可见头/正文，原点/源包/会话UA/授权修订及取消有效性保持。非GET发出后不因timeout/空响应/错误重放或fallback重复POST；旧GET路径保持。Boole独占公共Web传输，Volta独占Baka源，父统一1.6.1构建，Darwin先完成包子.29再同机验证Baka与下载。App暂不推发，源按完整验证后既有授权发布。",
+      "kind": "decision"
+    },
+    {
+      "id": "bakamh-release-status-and-current-web-transport-gap-20261123",
+      "at": "2026-11-23T12:22:11+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "title": "核实Baka未发布状态与当前Web传输缺口",
+      "detail": "用户询问Baka是否做过、卡在哪。实时GitHub latest仍a5f，已下载正式index无本源，独立原仓sources/bakamh为未提交0.1.0。末次站点设备记录Nov20，不外推今日。当前普通POST已实现，WebFetchBridge准入及执行仅GET/no body；拦截器仍落native HTTP，交互续接无Web POST执行入口，因此单补源声明不能桥接该POST。今日原生及其它等价路径尚未实测，不据旧403直接判定必须App升级；原“需要站方日志”的表述不再作为执行前置。未新增App能力、未发布源，也未中断包子及下载入队修复。",
+      "kind": "investigation",
+      "evidence": [
+        "/Users/honjow/git/koma-sources/sources/bakamh/README.md",
+        "entry/src/main/ets/sourceRuntime/SourceRuntimeHttpTransport.ets:886",
+        "entry/src/main/ets/sourceRuntime/SourceWebFetchBridge.ets:102"
+      ]
+    },
+    {
+      "at": "2026-11-23T11:35:01+08:00",
+      "itemId": "SOURCE_BROWSE_LIST_INFO",
+      "title": "按用户指出的内距不协调去掉重复上下留白",
+      "detail": "实际卡片上下留白约为左侧两倍；保留HDS原生上下8vp及前缀左8vp，移除外Row重复上下8vp。字体、文字上下分层、封面尺寸与摘要接口不变；重建后仅复核这一视觉差异。"
+    },
     {
       "id": "language-picker-autonyms-commit-approved-20261123",
       "at": "2026-11-23T13:12:55+08:00",
