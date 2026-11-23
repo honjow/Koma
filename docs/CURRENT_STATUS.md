@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T22:30:12+08:00",
+  "updatedAt": "2026-11-23T22:45:40+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -13151,22 +13151,18 @@
     {
       "id": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
       "number": 360,
-      "title": "包子WWW《劍尊歸來》第1話P2只显示模糊图",
-      "kind": "active",
-      "progressPhase": "needs_work",
+      "title": "包子正常渐变漫画页被误判为加载故障（误报撤销）",
+      "kind": "done",
+      "progressPhase": "completed",
       "priority": "本轮源验收新增观察",
       "owner": "Root定位与集成；Aristotle图像链只读核对；Darwin独占237",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "本轮237包子0.1.31镜像验收中观察；不是用户原始反馈，不用登记时间冒充提出时刻。",
-      "status": "App入口候选仍复现模糊页，继续补齐上游图片域名处理",
-      "updatedAt": "2026-11-23T22:30:12+08:00",
-      "result": "已核实原模糊文件是站点返回的占位图片；源侧已改用上游App阅读入口。237导入0.1.32后，新取页请求实际执行并返回成功，但原第2张仍是模糊图，候选尚未通过，未发布。当前日志显示实际图片地址使用baozicdn.com，上游在图片请求前会改用baozimh.com，而本源遗漏了这一步，正在补齐并复验。没有此作品的原下载任务，未清缓存或改App渲染。此前因读取了轮换前日志而判断没有新取页请求，已按当前日志撤回；不能把这个误判归因于宿主页表失效。",
-      "remainingActions": [
-        "补齐固定上游的实际图片域名处理，保持旧章节/页ID、目录方向、镜像选择、台湾默认及横幅处理。",
-        "在237验证原第1話P2与同章首中末正文，并抽查另一章节；新候选通过后推送发布书源。",
-        "正式包回读索引和制品，保留旧下载及原阅读位置；App继续仅保留本地1.6.1，不推发。"
-      ],
+      "status": "正常漫画内容，撤销错误故障结论",
+      "updatedAt": "2026-11-23T22:45:40+08:00",
+      "result": "该P2是正常渐变背景，主代理未经同页原站和相邻页对照就认定异常，后将上游一般注释套成这张图的根因。下载、解码、显示和内容一致均已成功，不能拿画面是否有清晰人物作为验收。错误判定从21:20:10持续至22:32:40明确撤回；原占位图、下载墙反例及修复失败结论全部撤销。0.1.32本地候选及未提交CDN增量保持冻结、未推发，不将上游对齐差异冒充本页故障修复；已正式发布的台湾默认镜像保持。时间、操作、用量及费用边界见审计原件。",
+      "remainingActions": [],
       "evidence": [
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/P2-original-enhancement-comparison.json",
@@ -13176,7 +13172,8 @@
         ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/upstream/Baozi.kt",
         ".hvigor/outputs/baozimh-default-mirror-20261123/app-reader-032/candidate-ready.json",
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-real-P2-counterexample.json",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-62-active-221759-log-readback/diagnostics.log"
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-62-active-221759-log-readback/diagnostics.log",
+        ".hvigor/outputs/baozi-p2-misdiagnosis-audit-20261123/audit.md"
       ]
     }
   ],
@@ -31064,6 +31061,17 @@
       "evidence": [
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-real-P2-counterexample.json",
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-62-active-221759-log-readback/diagnostics.log"
+      ]
+    },
+    {
+      "id": "baozi-p2-normal-content-misdiagnosis-retracted-20261123",
+      "at": "2026-11-23T22:45:40+08:00",
+      "itemId": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
+      "kind": "correction",
+      "title": "正常渐变内容误判撤回，停止错误故障排查",
+      "detail": "该P2是正常渐变背景，主代理未经同页原站和相邻页对照就认定异常，后将上游一般注释套成这张图的根因。下载、解码、显示和内容一致均已成功，不能拿画面是否有清晰人物作为验收。错误判定从21:20:10持续至22:32:40明确撤回；原占位图、下载墙反例及修复失败结论全部撤销。0.1.32本地候选及未提交CDN增量保持冻结、未推发，不将上游对齐差异冒充本页故障修复；已正式发布的台湾默认镜像保持。时间、操作、用量及费用边界见审计原件。",
+      "evidence": [
+        ".hvigor/outputs/baozi-p2-misdiagnosis-audit-20261123/audit.md"
       ]
     }
   ],
