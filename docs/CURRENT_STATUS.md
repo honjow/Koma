@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T19:12:58+08:00",
+  "updatedAt": "2026-11-23T19:32:56+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3521,7 +3521,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
-      "updatedAt": "2026-11-23T18:59:39+08:00",
+      "updatedAt": "2026-11-23T19:32:56+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -3714,7 +3714,7 @@
         "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
         "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
-        "巴卡：237首POST与封面已修；R15大小写差异未命中本例，详情仍失败。当前保留immutable R15给237做显式Fetch cors模式单次对照，尚无通过结论。生产源码dab4142已精确清除BKDOC8/BKERR403/BKPATH15临时诊断，实际WASM对照保原请求、ID、61章与错误回退；distribution:false阻止未验且依赖未发布1.6.1的源进入公开索引。完整详情、目录、阅读和下载继续，不以清理或构建当修复。",
+        "巴卡：237首POST与封面已修；R15大小写未命中，CORS单次对照仍为Web403/Native403，生产App已精确移除失败试验及临时观察。现按上游真实document.location用途，改用既有Native文本GET读取并校验responseUrl、更新作品canonical路径，复用现有HTTP profile，不新增Host接口；候选正在构建与实际WASM对照。完整详情、目录、阅读、跨章和自有下载仍须237通过，distribution:false保留，不把清理或构建当修复。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
         "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
@@ -12994,19 +12994,16 @@
       "id": "SOURCE_UI_TEXT_LOCALIZATION",
       "number": 353,
       "title": "书源设置、描述等界面文本的多语言支持",
-      "kind": "active",
+      "kind": "done",
       "priority": "用户本轮新增要求",
       "owner": "Root集成与237；Aristotle负责App；Boole负责源SDK及打包",
-      "status": "237已核简繁英与日语默认回退，最终新简介和恢复继续",
-      "updatedAt": "2026-11-23T18:59:39+08:00",
+      "status": "通用多语言已实现，237普通路径验证通过",
+      "updatedAt": "2026-11-23T19:32:56+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求重新检查此前讨论的书源多语言支持，先设计App提供的通用能力，并明确覆盖设置项、书源描述等位置；原消息精确时刻未核实。",
-      "result": "通用语言环境、源SDK及静态资料已实现并本地提交。237普通导入Komiic0.1.25，已实际观察简体、繁体、英文设置与选项，并在日语App下回退源指定繁体，原all及komiic.cc保留；英语真实分类选项及选中值保持。Root已亲审053/072/091实际截图。此前原型简介过泛，按用户新反馈在#355重写，最终271324包尚待新简介回读及设备收尾；App1.6.1/27未推发。",
-      "remainingActions": [
-        "完成Komiic新简介271324候选普通导入回读、源分享资料边界及未接Catalog旧源兼容，恢复原App语言和原设置。",
-        "对最终生产HAP去除本轮临时诊断并核对；保留App1.6.1/27本地，不自动推送发布。"
-      ],
+      "result": "App语言环境、源SDK文案目录及静态简介/作者/认证标签投影均已实现并本地提交。237普通导入Komiic0.1.25，简体、繁体、英文及日语回退源默认繁体均通过；栏目、筛选、真实动态选项及选中值、原all/komiic.cc设置保持。新简介完整可见，旧MYCOMIC未接Catalog设置正常；普通单源分享包保留静态多语言资料。正常去临时诊断HAP覆盖安装成功，补核英文简介和设置通过，原System语言与原前台已恢复。Root已亲审实际新简介和正常包设置图。App1.6.1/27按用户要求只本地提交，未推送或发布；书源简介批量交付归#355，巴卡归#023。",
+      "remainingActions": [],
       "evidence": [
         "docs/source-runtime-abi-design.md",
         "entry/src/main/ets/sourceRuntime/SourceLocalizedNames.ets",
@@ -13016,35 +13013,42 @@
         "entry/src/main/ets/sourceRuntime/SourcePresentation.ets",
         ".hvigor/outputs/source-localization-20261123/komiic-final/actual-wasm-results.json",
         ".hvigor/outputs/source-localization-20261123/app-localization-hap-receipt.json",
-        ".hvigor/outputs/source-localization/app-freeze.json"
+        ".hvigor/outputs/source-localization/app-freeze.json",
+        ".hvigor/outputs/source-localization-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/ordinary-localization/final-result.md",
+        ".hvigor/outputs/source-localization-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/ordinary-localization/clean-hap-device-result.json",
+        ".hvigor/outputs/source-localization-20261123/app-clean-hap-receipt.json"
       ],
-      "progressPhase": "verification"
+      "progressPhase": "done"
     },
     {
       "id": "SOURCE_DESCRIPTION_QUALITY",
       "number": 355,
       "title": "书源简介补充站点信息，清理空白及技术套话",
-      "kind": "active",
+      "kind": "pending_verification",
       "priority": "用户新增反馈",
       "owner": "Root改进与集成；Aristotle核公开源资料",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话反馈“目前的书源简介太敷衍了”，原消息精确时刻未核实。",
-      "updatedAt": "2026-11-23T18:59:39+08:00",
-      "status": "119源逐项审计完成，Komiic已重写，其余86项分批整改",
-      "result": "真实公开119源逐项语义审计：11空白、41仅品牌或基础功能套话、35主要为技术/内部审计词，32已有应保留的站点或收录信息。Root已重写Komiic三语及旧App固定简介并构建271324候选；Aristotle负责其余10空白和41套话，Boole负责35技术内部文案，按原仓事实核对并分批修改，父统一锁文件、真实WASM info及交付。已在现有制作规范写明用户简介要求；另用真实App名称解析反例修正打包器f08f1cb，避免只加简介翻译改变旧名称回退。未声明86项已全部完成或发布。",
+      "updatedAt": "2026-11-23T19:32:56+08:00",
+      "status": "87项简介已补齐并分批提交，正在执行最终WASM核对",
+      "result": "全部119个公开源已逐项审计，保留32个已有有效介绍，改进其余87个（含Komiic）。正文及简体、繁体、英文资料已在源原仓按批本地提交；源目录README的87条备注同步，保持原名称排序与24像素图标。根据实际官网介绍、原站分类及源内权限核事实，清理HTML/API、上游SAFE、使用情况未知等内部措辞；保留登录、付费、额度与收录范围。Komiic新简介和多语言在237已通过。正在逐个执行最终WASM source_info、生产打包投影与旧公开元数据对照；不把文案审稿当源网络全验。尚未推送或发布。",
       "remainingActions": [
-        "按当前公开范围逐项核源现有README、上游与官网资料，列明空白、套话和已有有效简介；不将本地单源dist误作完整发布索引。",
-        "改进有事实依据的薄弱简介，保留登录、付费、额度和真实收录范围限制，按原源版本与多语言规则打包核对。",
-        "237回读Komiic新简介可见与回退；其它纯文案更新按真实变更验证后交付，不替代原多语言与巴卡任务。"
+        "逐个执行87源最终WASM info及生产多语言投影，核对真实描述、版本、身份和能力，处理实际发现的导出或构建问题。",
+        "核对正式发布输入和既有候选隔离：App正式版本仍为1.6.0，不能把需要未发1.6.1的候选混入公开索引，也不删除旧稳定入口。",
+        "按已有授权交付验证后的书源更新，回读公开索引和包校验；App保持本地。"
       ],
       "evidence": [
         ".hvigor/outputs/source-descriptions-20261123/published-index-receipt.json",
         ".hvigor/outputs/source-localization-20261123/komiic-description/candidate-ready.json",
         ".hvigor/outputs/source-descriptions-20261123/description-quality-audit.json",
-        ".hvigor/outputs/source-descriptions-20261123/legacy-name-projection-check.json"
+        ".hvigor/outputs/source-descriptions-20261123/legacy-name-projection-check.json",
+        ".hvigor/outputs/source-descriptions-20261123/internal/ready-batches.json",
+        ".hvigor/outputs/source-descriptions-20261123/empty-boilerplate/ready-batches.json",
+        ".hvigor/outputs/source-descriptions-20261123/parent-integrated.json",
+        ".hvigor/outputs/source-descriptions-20261123/actual-info/progress.json"
       ],
-      "progressPhase": "needs_work"
+      "progressPhase": "verification"
     },
     {
       "id": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
@@ -30806,6 +30810,33 @@
       "kind": "delivery",
       "title": "按用户要求提交书架角标封面取色与模糊胶囊",
       "detail": "提交范围为角标取色、过白色块过滤、原生单层白字、半透明模糊底板、系统轻外阴影，以及相应关键逻辑测试、移植许可证和本项文档。沿用197网格、多屏未读倒序、列表与正常速度滚动的已核结果。本次不包含其他阅读器WIP，不推送或发布。"
+    },
+    {
+      "id": "source-localization-clean-hap-237-complete-20261123",
+      "at": "2026-11-23T19:32:56+08:00",
+      "itemId": "SOURCE_UI_TEXT_LOCALIZATION",
+      "kind": "verification",
+      "title": "多语言普通路径与正常生产候选补核通过",
+      "detail": "App语言环境、源SDK文案目录及静态简介/作者/认证标签投影均已实现并本地提交。237普通导入Komiic0.1.25，简体、繁体、英文及日语回退源默认繁体均通过；栏目、筛选、真实动态选项及选中值、原all/komiic.cc设置保持。新简介完整可见，旧MYCOMIC未接Catalog设置正常；普通单源分享包保留静态多语言资料。正常去临时诊断HAP覆盖安装成功，补核英文简介和设置通过，原System语言与原前台已恢复。Root已亲审实际新简介和正常包设置图。App1.6.1/27按用户要求只本地提交，未推送或发布；书源简介批量交付归#355，巴卡归#023。",
+      "evidence": [
+        ".hvigor/outputs/source-localization-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/ordinary-localization/final-result.md",
+        ".hvigor/outputs/source-localization-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/ordinary-localization/clean-hap-device-result.json",
+        ".hvigor/outputs/source-localization-20261123/app-clean-hap-receipt.json"
+      ]
+    },
+    {
+      "id": "source-descriptions-87-copy-committed-20261123",
+      "at": "2026-11-23T19:32:56+08:00",
+      "itemId": "SOURCE_DESCRIPTION_QUALITY",
+      "kind": "implementation",
+      "title": "87项简介及三语资料分批提交，最终导出执行中",
+      "detail": "全部119个公开源已逐项审计，保留32个已有有效介绍，改进其余87个（含Komiic）。正文及简体、繁体、英文资料已在源原仓按批本地提交；源目录README的87条备注同步，保持原名称排序与24像素图标。根据实际官网介绍、原站分类及源内权限核事实，清理HTML/API、上游SAFE、使用情况未知等内部措辞；保留登录、付费、额度与收录范围。Komiic新简介和多语言在237已通过。正在逐个执行最终WASM source_info、生产打包投影与旧公开元数据对照；不把文案审稿当源网络全验。尚未推送或发布。",
+      "evidence": [
+        ".hvigor/outputs/source-descriptions-20261123/internal/ready-batches.json",
+        ".hvigor/outputs/source-descriptions-20261123/empty-boilerplate/ready-batches.json",
+        ".hvigor/outputs/source-descriptions-20261123/parent-integrated.json",
+        ".hvigor/outputs/source-descriptions-20261123/actual-info/progress.json"
+      ]
     }
   ],
   "reportAgeAudit": {
