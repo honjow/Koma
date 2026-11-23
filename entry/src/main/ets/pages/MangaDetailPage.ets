@@ -28,7 +28,7 @@ import { clearSourceRejectedRequest, selectSourceRejectedRequest } from '../sour
 import { newSourceRuntimeOperationGuardId, registerSourceRuntimeOperationGuard } from '../sourceRuntime/SourceRuntimeOperationGuard'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
-import { firstReaderChapter } from '../model/ReaderChapterSequence'
+import { firstReaderChapter, ReaderChapterOpenIntent } from '../model/ReaderChapterSequence'
 import { normalizeSearchText } from '../model/CrossSearchText'
 import { SourceRuntimeError } from '../model/SourceRuntimeError'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
@@ -438,8 +438,10 @@ export struct MangaDetailPage {
   @Param sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
   @Param chrome: MangaDetailRouteChromeState = new MangaDetailRouteChromeState()
   @Event onBack: () => void = () => {}
-  @Event onOpenReader: (mangaId: string, chapterId?: string) => void = (_mangaId: string, _chapterId?: string) => {}
-  @Event onOpenSourceReader: (request: SourceReaderSessionRequest) => void = (_request: SourceReaderSessionRequest) => {}
+  @Event onOpenReader: (mangaId: string, chapterId: string, intent: ReaderChapterOpenIntent) => void =
+    (_mangaId: string, _chapterId: string, _intent: ReaderChapterOpenIntent) => {}
+  @Event onOpenSourceReader: (request: SourceReaderSessionRequest, intent: ReaderChapterOpenIntent) => void =
+    (_request: SourceReaderSessionRequest, _intent: ReaderChapterOpenIntent) => {}
   @Event onMihonCatalogReady: (snapshot: SourceMangaDetailSnapshot, settingsFingerprint: string,
     isCurrent: () => boolean) => Promise<boolean> = async () => false
   @Event onOpenImportRequested: () => void = () => {}
@@ -2301,24 +2303,28 @@ export struct MangaDetailPage {
       this.showToast(s('manga_detail_no_readable_chapters'))
       return
     }
-    const transientRequest = this.sourceReaderSessionRequest(chapterId)
-    if (!this.isInLibrary && transientRequest !== undefined) {
-      this.onOpenSourceReader(transientRequest)
-      return
-    }
-    this.onOpenReader(this.currentComicId(), chapterId)
+    this.openDetailChapter(chapterId, this.progressChapterId() === chapterId)
   }
 
   private async handleOpenChapter(chapterId: string): Promise<void> {
     if (chapterId.trim().length === 0) {
       return
     }
-    const transientRequest = this.sourceReaderSessionRequest(chapterId)
-    if (!this.isInLibrary && transientRequest !== undefined) {
-      this.onOpenSourceReader(transientRequest)
+    this.openDetailChapter(chapterId, false)
+  }
+
+  private openDetailChapter(chapterId: string, useWorkResumePoint: boolean): void {
+    const comicId = this.currentComicId()
+    // A direct choice to reread keeps read status and bookmarks, but opens
+    // on page one. The work's continue action still honors its saved page.
+    const intent: ReaderChapterOpenIntent = !useWorkResumePoint && this.readerSessionStore.isChapterRead(comicId, chapterId)
+      ? 'start' : 'resume'
+    const transientRequest = this.isInLibrary ? undefined : this.sourceReaderSessionRequest(chapterId)
+    if (transientRequest !== undefined) {
+      this.onOpenSourceReader(transientRequest, intent)
       return
     }
-    this.onOpenReader(this.currentComicId(), chapterId)
+    this.onOpenReader(comicId, chapterId, intent)
   }
 
   private sourceReaderSessionRequest(chapterId: string): SourceReaderSessionRequest | undefined {

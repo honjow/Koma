@@ -719,23 +719,25 @@ test('declared source chronology picks earliest unread without sorting tied or u
 test('ordinary first-read owners keep explicit chapter and resume before earliest-unread policy',()=>{
  const {firstReaderChapter}=chapterSequence()
  const globals={firstReaderChapter,sourceChapterOrderFor:()=> 'newest_first',
+  Computed:()=>{},chapterReadingSortFor:()=>undefined,chapterReadingChaptersFor:(_id,rows)=>rows,
+  filterChapterMetadata:chapterSequence().filterChapterMetadata,
   ChapterBatchDownloadMode:{NOT_DOWNLOADED:'not_downloaded',FAILED_ONLY:'failed_only'}}
  const comic={id:'work',sourceRuntimeId:'declared',chapters:[
   {id:'down',title:'第1话下',chapterNumber:1},{id:'up',title:'第1话上',chapterNumber:1}]}
  let progress,read=new Set()
  const store={getProgress:()=>progress,getComicProgress:()=>progress,isChapterRead:(_work,id)=>read.has(id)}
- const Index=subject('../pages/Index.ets','Index',['readerChapterIdForOpen'],globals)
+ const Index=subject('../pages/Index.ets','Index',['readerChapterIdForOpen','readerChapterIdForComic'],globals)
  const index=new Index();index.readerSessionStore=store
  assert.equal(index.readerChapterIdForOpen(comic),'up')
  assert.equal(index.readerChapterIdForOpen(comic,'down'),'down')
  progress={chapterId:'down'};assert.equal(index.readerChapterIdForOpen(comic),'down')
  progress=undefined;read.add('up');assert.equal(index.readerChapterIdForOpen(comic),'down')
- const Library=subject('../pages/LibraryPage.ets','LibraryPage',['readerChapterIdForComic'],globals)
- const library=new Library();library.readerSessionStore=store
- assert.equal(library.readerChapterIdForComic(comic),'down')
+ assert.equal(index.readerChapterIdForComic(comic),'down')
  const Detail=subject('../pages/MangaDetailPage.ets','MangaDetailPage',
-  ['downloadUnreadChapterIds','batchDownloadChapterIds','firstUnreadChapterId','primaryReadChapterId'],globals)
- const detail=new Detail();Object.assign(detail,{readerSessionStore:store,manga:{sourceId:'declared'},chapters:comic.chapters,currentComicId:()=>comic.id,progressChapterId:()=>undefined})
+  ['downloadUnreadChapterIds','batchDownloadChapterIds','readingChaptersValue','firstUnreadChapterValue','firstUnreadChapterId',
+   'primaryReadChapterValue','primaryReadChapterId'],globals)
+ const detail=new Detail();Object.assign(detail,{readerSessionStore:store,manga:{sourceId:'declared'},chapters:comic.chapters,
+  chapterPresentation:{},currentComicId:()=>comic.id,progressChapterId:()=>undefined})
  assert.equal(detail.primaryReadChapterId(),'down');read.clear();assert.equal(detail.primaryReadChapterId(),'up')
  assert.deepEqual([...detail.downloadUnreadChapterIds(5)],['up','down'])
  detail.chapters=[comic.chapters[0],{...comic.chapters[1],isDownloaded:true}]
@@ -998,4 +1000,56 @@ test('saved edition filters constrain source and shelf reading without changing 
   await store.save('work', { ...store.load('work'), groupFilter: '', languageFilter: '' })
   verify(createReaderSessionConfigFromComic(comic), ['s1', 'v1', 's2', 'v2'])
   assert.equal(JSON.stringify(comic), original)
+})
+
+
+test('detail chapter selection rereads completed chapters while continue keeps a valid saved page', async () => {
+  const { firstReaderChapter } = chapterSequence()
+  const { readingProgressPageIndex } = loadHostModel('ComicModels')
+  const Store = subject('../model/ReaderSessionStore.ets', 'ReaderSessionStore',
+    ['openPageIndex', 'restorePageIndex'], { readingProgressPageIndex })
+  const Detail = subject('../pages/MangaDetailPage.ets', 'MangaDetailPage',
+    ['currentReadingProgress', 'readingChaptersValue', 'progressChapterValue', 'progressChapterId', 'firstUnreadChapterValue', 'firstUnreadChapterId',
+      'primaryReadChapterValue', 'primaryReadChapterId', 'hasReadableChapters', 'handleStartReading',
+      'handleOpenChapter', 'openDetailChapter'], {
+      Computed: () => {}, firstReaderChapter, sourceChapterOrderFor: () => 'newest_first',
+      chapterReadingSortFor: () => undefined,
+      filterChapterMetadata: chapterSequence().filterChapterMetadata,
+    })
+  const detail = new Detail()
+  const store = new Store()
+  const catalogs = ['4', '3', '2', '1'].map(id => ({ id, title: `第 ${id} 章` }))
+  const positions = new Map(catalogs.map(chapter => [chapter.id, { chapterId: chapter.id, pageIndex: 9, totalPages: 10 }]))
+  const read = new Set(positions.keys())
+  let recent = positions.get('4')
+  store.getProgress = () => recent
+  store.getChapterProgress = (_comic, chapter) => positions.get(chapter)
+  store.isChapterRead = (_comic, chapter) => read.has(chapter)
+  const opened = []
+  const open = (route, chapterId, intent) => opened.push([route, chapterId,
+    store.openPageIndex({ comicId: 'work', chapterId, totalPages: 10 }, intent)])
+  Object.assign(detail, {
+    currentComicId: () => 'work', chapters: catalogs, manga: { sourceId: 'declared' }, chapterPresentation: {},
+    readerSessionStore: store, isInLibrary: true,
+    sourceReaderSessionRequest: chapterId => ({ chapterId }),
+    onOpenReader: (_comicId, chapterId, intent) => open('library', chapterId, intent),
+    onOpenSourceReader: (request, intent) => open('source', request.chapterId, intent),
+  })
+  await detail.handleOpenChapter('2')
+  assert.equal(detail.hasReadableChapters(), true)
+  await detail.handleStartReading()
+  detail.isInLibrary = false
+  await detail.handleOpenChapter('3')
+
+  recent = { chapterId: 'removed-from-catalog' }
+  assert.equal(detail.hasReadableChapters(), true)
+  await detail.handleStartReading()
+  read.delete('2')
+  positions.get('2').pageIndex = 4
+  await detail.handleOpenChapter('2')
+  assert.deepEqual(opened, [
+    ['library', '2', 0], ['library', '4', 9], ['source', '3', 0], ['source', '1', 0], ['source', '2', 4],
+  ])
+  detail.chapters = []
+  assert.equal(detail.hasReadableChapters(), false)
 })

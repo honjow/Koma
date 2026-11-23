@@ -1743,7 +1743,6 @@ struct Index {
     }
     if (comicSnapshot !== undefined) this.activeReaderComicSnapshot = comicSnapshot
     else if (this.activeReaderComicSnapshot?.id !== comicId) this.activeReaderComicSnapshot = undefined
-    this.readerOpenIntent = intent
     let comic = this.readerComicForOpen(comicId)
     let targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
     if (chapterId === undefined && comic !== undefined && comic.sourceRuntimeId !== undefined &&
@@ -1814,6 +1813,7 @@ struct Index {
         return
       }
     }
+    this.readerOpenIntent = intent
     this.activeSourceReaderRequest = undefined
     const readerDetailVisible = this.isReaderDetailRouteVisible()
     const shouldPresentReader = !this.readerOpen || this.readerClosing
@@ -3878,14 +3878,14 @@ struct Index {
             onBack: () => {
               this.popMangaDetail(param as MangaDetailRouteParam)
             },
-            onOpenReader: (mangaId: string, chapterId?: string) => {
-              void this.openReader(mangaId, chapterId)
+            onOpenReader: (mangaId: string, chapterId: string, intent: ReaderChapterOpenIntent) => {
+              void this.openReader(mangaId, chapterId, intent)
             },
-            onOpenSourceReader: (request: SourceReaderSessionRequest) => {
+            onOpenSourceReader: (request: SourceReaderSessionRequest, intent: ReaderChapterOpenIntent) => {
               const importedId = (param as MangaDetailRouteParam).mihonImportId
               const imported = importedId === undefined ? undefined : this.libraryStore.getMihonImportWork(importedId)
               if (imported !== undefined && !imported.targetComicId) void this.openMihonImportedWork(imported.id)
-              else void this.openSourceReader(request)
+              else void this.openSourceReader(request, intent)
             },
             onMihonCatalogReady: async (snapshot: SourceMangaDetailSnapshot, fingerprint: string,
               isCurrent: () => boolean): Promise<boolean> => {

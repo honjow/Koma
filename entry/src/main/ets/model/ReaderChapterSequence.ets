@@ -219,9 +219,9 @@ function readingOrder(chapter: ReaderChapterDescriptor): number | undefined {
 }
 
 /**
- * One-shot chapter open intent for the natural chapter-edge crossing
- * (RDR-004-B). `resume` keeps the saved position; `start`/`end` are only
- * produced by a boundary crossing and are never persisted.
+ * One-shot chapter open intent. `resume` keeps the saved position, `start`
+ * enters a chapter from its first page (including explicit rereads), and
+ * `end` lands on the final page when crossing backwards. Never persisted.
  */
 export type ReaderChapterOpenIntent = 'resume' | 'start' | 'end'
 
