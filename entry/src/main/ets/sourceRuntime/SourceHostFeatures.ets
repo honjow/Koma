@@ -1,6 +1,7 @@
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { SOURCE_FRESH_HTTP_MIN_SDK } from './SourceWebsitePolicy'
 import { SOURCE_IMAGE_PROCESSOR_FEATURE } from './SourceRequiredImageDecodeDeclaration'
+import { normalizeSourceEnvironment, SOURCE_LOCALIZATION_FEATURE } from './SourceLocale'
 
 interface SourceBodyLimits { chunkBytes: number; maxBytes: number; callBytes: number; callObjects: number }
 interface SourceHttpLimits { inlineBytes: number; requestBytes: number }
@@ -33,6 +34,8 @@ export function sourceRequestWithHostFeatures(requestJson: string, challengeCaus
       // Request-scoped preferences can affect metadata as well as pages. All
       // consumers must see the same support; an old Host keeps its old output.
       const features = sourceHostFeatures()
+      // Pure validation only: the caller captured this before entering TaskPool.
+      if (normalizeSourceEnvironment(request['environment']) !== undefined) features.push(SOURCE_LOCALIZATION_FEATURE)
       if (bodyAvailable) features.push('source_body_v1', 'source_http_body_v1', 'source_image_body_v1')
       features.push('source_public_cover_user_agent_v1')
       features.push('source_public_cover_client_headers_v1')

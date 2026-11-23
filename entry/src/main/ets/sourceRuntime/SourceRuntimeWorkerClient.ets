@@ -3,6 +3,7 @@ import { SourcePrivateSessionHost } from './SourcePrivateSessionHost'
 import { SourceBodyHost } from './SourceBodyHost'
 import { executeSourceRuntimeRequest, runBrowseSourceOperationTask, runLocalCoverOperationTask } from './SourceRuntimeWorker'
 import { sourceRuntimeExecutionHasDnsBootstrap, sourceRuntimeExecutionSourceId } from './SourceRuntimeExecutionIdentity'
+import { sourceRequestWithEnvironment } from './SourceRuntimeEnvironment'
 
 export enum SourceWorkerPriority {
   FOREGROUND = 'foreground',
@@ -98,6 +99,7 @@ function startWaitingSourceOperations(): void {
 
 function enqueueSourceWorker(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string,
   browse: boolean, priority: SourceWorkerPriority, isActive?: () => boolean): Promise<string> {
+  requestJson = sourceRequestWithEnvironment(requestJson)
   const scopeCurrent = SourcePrivateSessionHost.callAdmission(httpContextJson)
   const current = (): boolean => scopeCurrent() && (isActive === undefined || isActive())
   return new Promise<string>((resolve, reject) => {
@@ -155,6 +157,7 @@ export function executeSourceRequestInWorker(requestJson: string, wasmBytes: Uin
 // session or opens HTTP. If it needs either, queue the original request once.
 export function executeSourceCoverRequestInWorker(requestJson: string, wasmBytes: Uint8Array,
   httpContextJson: string): Promise<string> {
+  requestJson = sourceRequestWithEnvironment(requestJson)
   const sourceId = sourceRuntimeExecutionSourceId(httpContextJson)
   if (sourceId.length === 0) return enqueueSourceWorker(requestJson, wasmBytes, httpContextJson, false,
     SourceWorkerPriority.BACKGROUND)

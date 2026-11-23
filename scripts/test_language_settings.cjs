@@ -5,6 +5,63 @@ const path = require('node:path')
 const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
   '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 
+function sourceModules(state = { effectiveLocale: 'zh-HK' }, extra = {}) {
+  const root = path.join(__dirname, '../entry/src/main/ets')
+  const cache = new Map()
+  const platform = {
+    '../state/LanguageState': { connectLanguageState: () => state },
+    '@kit.BasicServicesKit': { deviceInfo: { sdkApiVersion: 0 } },
+    './SourceWebsitePolicy': { SOURCE_FRESH_HTTP_MIN_SDK: 26 },
+    './SourceRequiredImageDecodeDeclaration': { SOURCE_IMAGE_PROCESSOR_FEATURE: 'source_required_image_decode_wasm_v1' },
+    ...extra,
+  }
+  return function load(file) {
+    if (cache.has(file)) return cache.get(file)
+    const exports = {}
+    cache.set(file, exports)
+    const compiled = ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), {
+      compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS },
+    }).outputText
+    new Function('exports', 'require', compiled)(exports, name => {
+      if (platform[name]) return platform[name]
+      if (name.startsWith('.')) return load(path.posix.normalize(path.posix.join(path.posix.dirname(file), name)) + '.ets')
+      throw Error('Unexpected source import: ' + name)
+    })
+    return exports
+  }
+}
+
+test('source calls capture one UI language before admission and feature negotiation keeps canonical arguments', () => {
+  const state = { effectiveLocale: 'zh-HK' }
+  const load = sourceModules(state)
+  const environment = load('sourceRuntime/SourceRuntimeEnvironment.ets')
+  const host = load('sourceRuntime/SourceHostFeatures.ets')
+  for (const operation of ['search', 'get_manga', 'get_chapters', 'get_pages', 'get_settings', 'get_filters',
+    'get_listings', 'get_home', 'get_image_request', 'get_comments', 'get_authentication', 'authenticate', 'logout']) {
+    const original = { type: 'request', operation, args: { id: 'same', filters: { language: 'ja' } },
+      settings: { mirror: 'default' }, hostHints: { network: operation !== 'get_settings' } }
+    const captured = environment.sourceRequestWithEnvironment(JSON.stringify(original))
+    const actual = JSON.parse(host.sourceRequestWithHostFeatures(captured))
+    assert.equal(actual.environment.uiLocale, 'zh-HK')
+    assert.deepEqual(actual.environment.localeFallbacks, ['zh-HK', 'zh-Hant-HK', 'zh-Hant', 'zh'])
+    assert(actual.hostFeatures.includes('source_localization_v1'))
+    assert.deepEqual(actual.args, original.args)
+    assert.deepEqual(actual.settings, original.settings)
+    assert.deepEqual(actual.hostHints, original.hostHints)
+  }
+  const captured = environment.sourceRequestWithEnvironment(JSON.stringify({ type: 'request', operation: 'get_filters' }))
+  state.effectiveLocale = 'en-US'
+  assert.equal(environment.sourceRequestWithEnvironment(captured), captured)
+  assert.equal(JSON.parse(environment.sourceRequestWithEnvironment(JSON.stringify({ type: 'request',
+    operation: 'get_filters' }))).environment.uiLocale, 'en-US')
+  const unknown = { type: 'request', operation: 'get_filters', environment: { version: 2 } }
+  const unknownJson = environment.sourceRequestWithEnvironment(JSON.stringify(unknown))
+  assert(!JSON.parse(host.sourceRequestWithHostFeatures(unknownJson)).hostFeatures.includes('source_localization_v1'))
+  assert.equal(environment.sourceRequestWithEnvironment('invalid'), 'invalid')
+  assert(!JSON.parse(environment.sourceRequestWithEnvironment(JSON.stringify({ type: 'request',
+    operation: 'source_info' }))).environment)
+})
+
 test('language preferences survive switches and roll back a failed change', async () => {
   const state = { mode: 'system', effectiveLocale: '' }
   const data = new Map()

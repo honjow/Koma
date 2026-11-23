@@ -1,4 +1,5 @@
 import { sourceRequestWithHostFeatures } from './SourceHostFeatures'
+import { sourceRequestWithEnvironment } from './SourceRuntimeEnvironment'
 import { configureSourceRequestPolicy } from './SourceRequestPolicy'
 import { sourceHttpIdentityJson } from './SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -535,6 +536,7 @@ function registeredSourceResponse(
 export function runRegisteredSourceRequestById(
   registry: SourceRuntimeRegistry, sourceId: string, requestJson: string,
 ): SourceRuntimeServiceRunRequestByIdSummary {
+  requestJson = sourceRequestWithEnvironment(requestJson)
   const trace = DiagnosticLogger.begin('source', 'request', 'source=' + sourceId)
   const admission = admitRegisteredSourceRequest(registry, sourceId, requestJson)
   if (admission.failure !== undefined) { trace.finish('rejected', 'reason=' + admission.failure.reasonCode); return admission.failure }
