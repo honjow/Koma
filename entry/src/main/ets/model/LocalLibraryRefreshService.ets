@@ -218,7 +218,9 @@ export class LocalLibraryRefreshService {
 
   checkLocalLibraryRefresh(): LocalLibraryRefreshSummary {
     const checkedAt = Date.now()
-    const localComics = this.libraryStore.listComics().filter((comic: Comic): boolean => isLocalRefreshCandidate(comic))
+    const localComics = this.libraryStore.listComicSummariesByKind([ComicSourceKind.LOCAL_ARCHIVE, ComicSourceKind.LOCAL_FOLDER])
+      .filter((comic: Comic): boolean => isLocalRefreshCandidate(comic))
+      .map((comic: Comic): Comic => this.libraryStore.getComic(comic.id) as Comic)
     const results = localComics.map((comic: Comic): LocalLibraryRefreshComicResult => this.checkLocalComic(comic))
     const summary = summarizeLocalRefreshResults(checkedAt, results)
     console.info(

@@ -27,7 +27,7 @@ import { openLocalFolderArchive, removeLocalFolderArchive } from '../import/Loca
 import { ComicArchiveBookmark } from '../import/ComicArchiveBookmarkParser'
 import { comicArchiveExtractionRoot, readComicArchiveBookmarks } from '../import/ComicArchiveBookmarks'
 import { parsePdfPageUri, readPdfBookmarks } from '../import/PdfPageService'
-import { AppFilesLibraryStorePersistenceAdapter, hydrateLibraryStoreFromJson } from '../model/LibraryPersistence'
+import { AppFilesLibraryStorePersistenceAdapter, LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { ReaderSessionConfig, cloneReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { OfflineDownloadStore } from '../model/OfflineDownloadStore'
 import { RemoteImageDownloadProgress, RemoteImageFileRequest } from '../model/RemoteImageCacheStore'
@@ -204,8 +204,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     // snapshot can scan every RDB page row on the UI thread before first paint.
     // Keep it only for the standalone Lab that has no app catalog host.
     if (catalogHost === null) {
-      const payload = new AppFilesLibraryStorePersistenceAdapter(filesDir).load()
-      if (payload !== undefined) hydrateLibraryStoreFromJson(this.library, payload)
+      new LibraryStorePersistenceService(this.library, new AppFilesLibraryStorePersistenceAdapter(filesDir)).restoreForLaunch('all')
     }
     configureReaderOfflineDownloads(this.offlineStorageBase, this.runtimeKey)
     if (cacheDir.length > 0) configureReaderRemoteImageCache(cacheDir)

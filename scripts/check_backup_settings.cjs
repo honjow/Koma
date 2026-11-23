@@ -540,6 +540,10 @@ async function verifyBackupDocument(ports, applicationSettings, stores, setResto
     './AutomationStateEpoch': { beginAutomationRestore() {}, finishAutomationRestore() {}, resetGeneratedAutomationWork() {} },
     '@kit.CoreFileKit': { fileIo: { accessSync: () => false } },
     './LibraryPersistence': libraryPersistence,
+    './BusinessBackupExport': { exportLibraryBackup: directory => {
+      const document = libraryPersistence.readLibraryBackupDocument(directory)
+      return document === undefined ? undefined : JSON.stringify(document)
+    }, exportReaderBackup: () => undefined },
     './ReaderSessionStore': {
       READER_PROGRESS_PERSISTENCE_FILE_NAME: 'reader.json', appReaderSessionStore: () => ({ flush: () => true, reload() {} }),
       normalizeReaderSessionBackupPayload: value => value,

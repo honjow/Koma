@@ -13,7 +13,7 @@ function sameSourceUris(left: string[], right: string[]): boolean {
 export function findPreviousLocalImport(libraryStore: LibraryStore, fresh: Comic): Comic | undefined {
   const origin = fresh.localImportOrigin
   if (origin === undefined) throw new Error('Local import origin missing')
-  const matches = libraryStore.listComics().filter((comic: Comic): boolean => {
+  const matches = libraryStore.listComicSummariesByKind([fresh.sourceKind]).filter((comic: Comic): boolean => {
     if (comic.sourceKind !== fresh.sourceKind) return false
     if (comic.localImportOrigin !== undefined) {
       return comic.localImportOrigin.kind === origin.kind && sameSourceUris(comic.localImportOrigin.sourceUris, origin.sourceUris)
@@ -24,7 +24,7 @@ export function findPreviousLocalImport(libraryStore: LibraryStore, fresh: Comic
     return false
   })
   if (matches.length > 1) throw new Error('Ambiguous local import origin')
-  return matches[0]
+  return matches[0] === undefined ? undefined : libraryStore.getComic(matches[0].id)
 }
 
 function localPagePath(page: Page): string {

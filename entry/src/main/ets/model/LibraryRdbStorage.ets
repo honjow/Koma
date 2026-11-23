@@ -356,6 +356,11 @@ export class LibraryRdbStorage {
     return this.readDocument(true, true)
   }
 
+  workIds(): string[] {
+    return collectLocalRows(this.store.querySqlSync('SELECT comic_id FROM shelf_works_all'),
+      (row: relationalStore.ResultSet): string => row.getString(0))
+  }
+
   launchShelfCategory(savedCategory: string): string {
     if (savedCategory === 'all') return 'all'
     const category = shelfCategories.read(this.store, 'category_id = ?', [savedCategory])[0]?.entry
@@ -479,6 +484,41 @@ export class LibraryRdbStorage {
     const transaction = await this.store.createTransaction({ transactionType: relationalStore.TransactionType.IMMEDIATE })
     try {
       for (const record of records) await stageMihonCatalogLink(transaction, record)
+      await transaction.commit()
+      this.writeRevision += 1
+    } catch (error) {
+      await transaction.rollback()
+      throw error as Error
+    }
+  }
+
+  /** An additive backup import commits its affected works, original facts and
+   * reading links together. Unrelated catalogs are never exported or rewritten. */
+  async commitMihonImport(records: MihonImportRecord[], works: PersistedComic[], removed: string[],
+    categories: PersistedLibraryCategory[], stageReading: (transaction: relationalStore.Transaction) => Promise<void>): Promise<void> {
+    const transaction = await this.store.createTransaction({ transactionType: relationalStore.TransactionType.IMMEDIATE })
+    try {
+      for (const id of removed) await new ShelfWorkRows([]).replaceWork(transaction, id)
+      for (const work of works) {
+        const rows = await transaction.querySql('SELECT COALESCE((SELECT list_order FROM shelf_work_details WHERE comic_id = ?), ' +
+          '(SELECT COALESCE(MAX(list_order), -1) + 1 FROM shelf_work_details))', [work.id])
+        let order = 0
+        try { if (rows.goToNextRow()) order = rows.getLong(0) } finally { rows.close() }
+        await new ShelfWorkRows([work], order).replaceWork(transaction, work.id)
+      }
+      for (const record of records) {
+        const rows = await transaction.querySql('SELECT COALESCE((SELECT list_order FROM shelf_mihon_imports WHERE import_id = ?), ' +
+          '(SELECT COALESCE(MAX(list_order), -1) + 1 FROM shelf_mihon_imports))', [record.id])
+        let order = 0
+        try { if (rows.goToNextRow()) order = rows.getLong(0) } finally { rows.close() }
+        await new ShelfMihonImports([record], order).replaceImport(transaction, record.id)
+      }
+      await shelfCategories.importRows(transaction, orderShelfRows(categories))
+      await transaction.execute('INSERT INTO shelf_collections ' +
+        '(id, has_categories, has_display_strategies, has_smart_categories, has_mihon_imports, has_sync_moves) ' +
+        'VALUES (1, ?, 0, 0, 1, 0) ON CONFLICT(id) DO UPDATE SET ' +
+        'has_categories = MAX(has_categories, excluded.has_categories), has_mihon_imports = 1', [categories.length > 0 ? 1 : 0])
+      await stageReading(transaction)
       await transaction.commit()
       this.writeRevision += 1
     } catch (error) {
@@ -623,6 +663,32 @@ export class LibraryRdbStorage {
     writeUserRecords(this.store, (): void => {
       for (const comic of comics) {
         new ShelfWorkRows([comic], this.existingWorkOrder(comic.id)).replace(this.store, comic.id)
+      }
+    })
+    this.writeRevision += 1
+  }
+
+  /** Folder imports can add and refresh works in one atomic batch. Existing
+   * order and all unrelated rows remain owned by their original records. */
+  saveImportedWorks(comics: PersistedComic[]): void {
+    writeUserRecords(this.store, (): void => {
+      const nextOrder = this.store.querySqlSync('SELECT COALESCE(MAX(list_order), -1) + 1 FROM shelf_work_details')
+      let order = 0
+      try {
+        if (nextOrder.goToNextRow()) order = nextOrder.getLong(0)
+      } finally {
+        nextOrder.close()
+      }
+      for (const comic of comics) {
+        const saved = this.store.querySqlSync('SELECT list_order FROM shelf_work_details WHERE comic_id = ?', [comic.id])
+        let workOrder: number
+        try {
+          if (saved.goToNextRow()) workOrder = saved.getLong(0)
+          else { workOrder = order; order += 1 }
+        } finally {
+          saved.close()
+        }
+        new ShelfWorkRows([comic], workOrder).replace(this.store, comic.id)
       }
     })
     this.writeRevision += 1

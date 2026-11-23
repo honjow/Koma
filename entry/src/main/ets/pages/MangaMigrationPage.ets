@@ -240,7 +240,7 @@ export struct MangaMigrationPage {
   private mihonShelfMatches(comic: Comic): Comic[] {
     const record = this.libraryStore.getMihonImportWork(comic.id)
     if (record === undefined) return []
-    return suggestedMihonShelfWorks(record.work, this.libraryStore.listComics(false)).filter((candidate: Comic): boolean =>
+    return suggestedMihonShelfWorks(record.work, this.libraryStore.listComicSummaries(false)).filter((candidate: Comic): boolean =>
       sourceRuntimeEntryEnabled(this.registry.lookup(candidate.sourceRuntimeId ?? '').entry))
   }
 
@@ -263,8 +263,10 @@ export struct MangaMigrationPage {
   private cachedMihonTarget(manga: SourceManga | undefined): Comic | undefined {
     if (!this.fromMihon || manga === undefined ||
       !sourceRuntimeEntryEnabled(this.registry.lookup(manga.sourceId).entry)) return undefined
-    return this.libraryStore.listComics(false).find((comic: Comic): boolean =>
-      comic.sourceRuntimeId === manga.sourceId && comic.remoteResourceId === manga.id && comic.chapters.length > 0)
+    const candidate = this.libraryStore.listComicSummaries(false).find((comic: Comic): boolean =>
+      comic.sourceRuntimeId === manga.sourceId && comic.remoteResourceId === manga.id &&
+      this.libraryStore.listComicChapterIds(comic.id).length > 0)
+    return candidate === undefined ? undefined : this.libraryStore.getComic(candidate.id)
   }
 
   private failureText(error: Object): string {

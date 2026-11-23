@@ -41,7 +41,8 @@ export struct ReadingStatisticsPage {
       if (entry.status === OfflineDownloadStatus.DOWNLOADED) downloaded.add(JSON.stringify([entry.comicId, entry.chapterId]))
     })
     if (this.sessionStore !== undefined) this.libraryStatistics = summarizeReadingLibrary(
-      this.libraryStore?.listComics() ?? [], this.sessionStore, downloaded)
+      this.libraryStore?.listComicSummaries() ?? [], this.sessionStore, downloaded,
+      (comicId: string): string[] => this.libraryStore?.listComicChapterIds(comicId) ?? [])
     this.refreshPeriod()
   }
 

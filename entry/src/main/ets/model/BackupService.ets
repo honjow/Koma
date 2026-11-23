@@ -1,3 +1,6 @@
+import { exportLibraryBackup, exportReaderBackup } from './BusinessBackupExport'
+import { liveLibraryWorkIds, liveLocalFolderRoots } from './LibraryPersistence'
+import { liveReadingProgressIds } from './ReaderSessionStore'
 import { signalDeviceSyncRestoreFinish, signalDeviceSyncRestoreStart } from '../deviceSync/DeviceSyncSignals'
 import { ImageRuleStore } from './ImageRuleStore'
 import { ImageRuleConfiguration, BannerFilterMode, validateImageRuleConfiguration } from './ImageBannerRules'
@@ -37,14 +40,12 @@ import {
   LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION,
   assertValidLibraryStoreJson,
   libraryStoreBackupPayload,
-  readLiveLibrarySnapshot,
   writeLiveLibrarySnapshot,
 } from './LibraryPersistence'
 import {
   READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
   appReaderSessionStore,
   normalizeReaderSessionBackupPayload,
-  readLiveReaderSnapshot,
   writeLiveReaderSnapshot,
 } from './ReaderSessionStore'
 import {
@@ -1024,10 +1025,7 @@ export class BackupService {
   }
 
   private async releaseOwnedBackupDirectory(uri: string, ownedModes: number): Promise<void> {
-    const library = new InMemoryLibraryStore()
-    const saved = readLiveLibrarySnapshot(this.context.filesDir)
-    if (saved !== undefined) hydrateLibraryStoreFromJson(library, saved)
-    await releaseAutomaticBackupDirectory(uri, ownedModes, localLibraryFolderRootUrisFromComics(library.listComics()))
+    await releaseAutomaticBackupDirectory(uri, ownedModes, liveLocalFolderRoots(this.context.filesDir))
   }
 
   private async persistAutomaticPreferences(preferencesValue: BackupAutomaticPreferences): Promise<void> {
@@ -1324,7 +1322,7 @@ export class BackupService {
       }
       const sourceSettingObservations = await appSourceSettingObservationStore.exportAll()
       const libraryStore = backgroundTemplate ? emptyLibraryStorePayload() :
-        libraryStoreBackupPayload(readLiveLibrarySnapshot(this.context.filesDir) ?? emptyLibraryStorePayload())
+        libraryStoreBackupPayload(exportLibraryBackup(this.context.filesDir) ?? emptyLibraryStorePayload())
       const document: KomaBackupDocument = {
         schemaVersion,
         exportedAt: Date.now(),
@@ -1335,7 +1333,7 @@ export class BackupService {
         libraryStore,
         customCovers: backgroundTemplate ? undefined : await exportComicCovers(this.context, libraryStore),
         enhancedCovers: backgroundTemplate ? undefined : await exportComicCovers(this.context, libraryStore, true),
-        readingProgress: normalizeReaderSessionBackupPayload(readLiveReaderSnapshot(this.context.filesDir) ?? emptyReaderProgressPayload()),
+        readingProgress: normalizeReaderSessionBackupPayload(exportReaderBackup(this.context.filesDir) ?? emptyReaderProgressPayload()),
         remoteServers: await this.exportRemoteServers(),
         sourcePackages: backgroundTemplate ? undefined : exportInstalledSourcePackages(),
         sourceSettings: appSourceSettingsStore.exportAll(),
@@ -1534,19 +1532,14 @@ export class BackupService {
     assertValidLibraryStoreJson(document.libraryStore)
     const libraryStore = asJsonObject(JSON.parse(document.libraryStore) as Object, 'library')
     const readingProgress = asJsonObject(JSON.parse(document.readingProgress) as Object, 'progress')
-    let currentLibraryStore: Record<string, Object>
-    let currentReadingProgress: Record<string, Object>
+    let currentComicIds: Set<string>
+    let currentProgressComicIds: Set<string>
     try {
-      const currentLibraryPayload = readLiveLibrarySnapshot(this.context.filesDir) ?? emptyLibraryStorePayload()
-      assertValidLibraryStoreJson(currentLibraryPayload)
-      currentLibraryStore = asJsonObject(JSON.parse(currentLibraryPayload) as Object, 'current library')
-      const currentProgressPayload = readLiveReaderSnapshot(this.context.filesDir) ?? emptyReaderProgressPayload()
-      currentReadingProgress = asJsonObject(JSON.parse(currentProgressPayload) as Object, 'current progress')
+      currentComicIds = new Set<string>(liveLibraryWorkIds(this.context.filesDir))
+      currentProgressComicIds = new Set<string>(liveReadingProgressIds(this.context.filesDir))
     } catch (_error) { throw new Error('backup_current_data_read_failed') }
     const backupComicIds = stringFieldSet(libraryStore, 'comics', 'id')
     const backupProgressComicIds = stringFieldSet(readingProgress, 'progress', 'comicId')
-    const currentComicIds = stringFieldSet(currentLibraryStore, 'comics', 'id')
-    const currentProgressComicIds = stringFieldSet(currentReadingProgress, 'progress', 'comicId')
     return {
       schemaVersion: document.schemaVersion,
       exportedAt: normalizeBackupExportedAt(document.exportedAt),
@@ -1558,8 +1551,8 @@ export class BackupService {
       kdfId: '',
       libraryItemCount: arrayFieldCount(libraryStore, 'comics'),
       progressCount: arrayFieldCount(readingProgress, 'progress'),
-      currentLibraryItemCount: arrayFieldCount(currentLibraryStore, 'comics'),
-      currentProgressCount: arrayFieldCount(currentReadingProgress, 'progress'),
+      currentLibraryItemCount: currentComicIds.size,
+      currentProgressCount: currentProgressComicIds.size,
       libraryAddCount: missingInRightCount(backupComicIds, currentComicIds),
       libraryConflictCount: overlapCount(backupComicIds, currentComicIds),
       progressAddCount: missingInRightCount(backupProgressComicIds, currentProgressComicIds),

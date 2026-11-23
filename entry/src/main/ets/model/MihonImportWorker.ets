@@ -1,14 +1,13 @@
-import { writeAppTextFile } from './AppFileTextPersistence'
+import { common } from '@kit.AbilityKit'
+import { openUserDataSnapshotDatabase } from './UserDataDatabase'
+import { LibraryRdbStorage } from './LibraryRdbStorage'
+import { ReaderRdbStorage } from './ReaderRdbStorage'
 import { taskpool } from '@kit.ArkTS'
-import { fileIo as fs } from '@kit.CoreFileKit'
 import { Comic } from './ComicModels'
-import { InMemoryLibraryStore, LibraryContents, libraryContents } from './LibraryStore'
-import { AppFilesLibraryStorePersistenceAdapter, LibraryStorePersistenceService, LIBRARY_STORE_PERSISTENCE_FILE_NAME,
-  serializeLibraryStore } from './LibraryPersistence'
-import { AppFilesReaderSessionPersistenceAdapter, ChapterReadingState,
-  ReaderSessionDocumentSnapshot, READER_PROGRESS_PERSISTENCE_FILE_NAME,
-  serializeReaderSessionForDevice } from './ReaderSessionStore'
-import { MihonImportLabels, MihonImportSummary, importMihonWorks, linkMihonWork, mihonDeclaredWork,
+import { InMemoryLibraryStore, LibraryContents } from './LibraryStore'
+import { ReadOnlyLibraryStorePersistenceAdapter, LibraryStorePersistenceService } from './LibraryPersistence'
+import { ChapterReadingState, ReaderSessionDocumentSnapshot } from './ReaderSessionStore'
+import { MihonImportLabels, MihonImportSummary, importMihonWorks, mihonImportKey, linkMihonWork, mihonDeclaredWork,
   mihonSourceMatcher, ResolvedMihonImport, summarizeMihonImport, withMihonTrackerCandidates } from './MihonImportPlanning'
 import { MihonImportRecord, readMihonBackup } from './MihonBackupReader'
 import { MihonSourceIdentity } from '../sourceRuntime/MihonSourceIdentity'
@@ -108,19 +107,21 @@ export function finishMihonAutomationRestoreTask(filesDir: string): void {
 }
 
 /** Only the prepared documents and their display data cross back to ArkUI.
- * The UI owner still controls the checkpoint and publishes both files together. */
+ * The UI owner commits affected RDB rows atomically before publishing them. */
 @Concurrent
-export async function prepareMihonTransactionTask(filesDir: string, stagedDir: string,
+export async function prepareMihonTransactionTask(context: common.UIAbilityContext,
   request: MihonTransactionRequest): Promise<MihonPreparedTransaction> {
   const library = new InMemoryLibraryStore()
-  // The first checkpoint file is the shelf, captured by its current storage owner.
-  new LibraryStorePersistenceService(library, new AppFilesLibraryStorePersistenceAdapter(stagedDir, '0')).restore()
-  const readingBefore = stagedDir + '/1'
-  const reader = new AppFilesReaderSessionPersistenceAdapter(filesDir).loadSnapshot(
-    fs.accessSync(readingBefore) ? fs.readTextSync(readingBefore) : null)
+  const database = await openUserDataSnapshotDatabase(context)
+  try {
+  const shelf = new LibraryRdbStorage(database)
+  const adapter = new ReadOnlyLibraryStorePersistenceAdapter(shelf)
+  new LibraryStorePersistenceService(library, adapter).restoreForLaunch('all')
+  const changedImports = new Set<string>(request.sourceMatches?.map((match: MihonSourceMatch): string => match.id) ?? [])
   let entries: ResolvedMihonImport[] = []
   if (request.bytes !== undefined) {
     const backup = await readMihonBackup(request.bytes)
+    for (const work of backup.works) changedImports.add(mihonImportKey(work))
     entries = importMihonWorks(backup, library, request.identities, request.labels)
     const matchSource = mihonSourceMatcher(request.sources, request.identities)
     for (const item of entries) {
@@ -134,16 +135,15 @@ export async function prepareMihonTransactionTask(filesDir: string, stagedDir: s
     }
   } else {
     if (request.sourceMatches !== undefined) {
-      const matches = new Map<string, MihonSourceMatch>()
-      request.sourceMatches.forEach((item: MihonSourceMatch): void => { matches.set(item.id, item) })
-      library.replaceMihonImports(library.listMihonImports().map((record: MihonImportRecord): MihonImportRecord => {
-        const match = matches.get(record.id)
-        if (match === undefined || record.targetComicId) return record
-        return applyMihonSourceMatch(record, match)
-      }))
+      const changed: MihonImportRecord[] = []
+      for (const match of request.sourceMatches) {
+        const record = library.readMihonImport(match.id)
+        if (record !== undefined && !record.targetComicId) changed.push(applyMihonSourceMatch(record, match))
+      }
+      library.updateMihonImports(changed)
     }
     for (const link of request.links ?? []) {
-      const record = library.listMihonImports().find((row: MihonImportRecord): boolean => row.id === link.id)
+      const record = library.readMihonImport(link.id)
       if (record === undefined) throw new Error('mihon_import_missing_work')
       if (link.verifiedEdition === true && record.targetComicId) continue
       const target = typeof link.target === 'string' ? library.getComic(link.target) : link.target
@@ -152,7 +152,7 @@ export async function prepareMihonTransactionTask(filesDir: string, stagedDir: s
     }
     if (request.catalogLinkJson !== undefined) {
       const catalog = JSON.parse(request.catalogLinkJson) as MihonCatalogLink
-      const record = library.listMihonImports().find((row: MihonImportRecord): boolean => row.id === catalog.id)
+      const record = library.readMihonImport(catalog.id)
       if (record === undefined) throw new Error('mihon_import_missing_work')
       if (!record.targetComicId) {
         entries.push(linkCatalog(library, record, catalog, request.labels))
@@ -162,39 +162,34 @@ export async function prepareMihonTransactionTask(filesDir: string, stagedDir: s
   for (const item of entries) {
     verifyMihonEdition(item, request.identities.get(item.target.sourceRuntimeId ?? ''))
   }
-  const unmatchedChapters = mergeReading(reader, entries, request.labels)
-  writeAppTextFile(stagedDir + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME, serializeLibraryStore(library))
-  writeAppTextFile(stagedDir + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME, serializeReaderSessionForDevice(reader))
-  // TaskPool serializes each message. Send the large collections in batches
-  // so a single cross-thread result cannot exhaust its message buffer.
-  const contents = libraryContents(library)
-  let linkedComicIds: string[] | undefined
-  let removedComicIds: string[] | undefined
-  if (request.bytes === undefined) {
-    // The two complete files above are committed atomically. Only publish
-    // the affected records into the live stores for a link or rule update.
-    const targetIds = new Set<string>()
-    const originalIds = new Set<string>()
-    const changedImports = new Set<string>(request.sourceMatches?.map((match: MihonSourceMatch): string => match.id) ?? [])
-    for (const item of entries) {
-      targetIds.add(item.target.id)
-      originalIds.add(item.record.id)
-      changedImports.add(item.record.id)
-    }
-    removedComicIds = Array.from(originalIds).filter((id: string): boolean => !targetIds.has(id))
-    const readingIds = new Set<string>(Array.from(targetIds).concat(removedComicIds))
-    linkedComicIds = Array.from(readingIds)
-    contents.comics = contents.comics.filter((comic: Comic): boolean => targetIds.has(comic.id))
-    contents.mihonImports = contents.mihonImports.filter((record: MihonImportRecord): boolean => changedImports.has(record.id))
-    reader.progress = reader.progress.filter((progress): boolean => readingIds.has(progress.comicId))
-    reader.sourceHistory = reader.sourceHistory.filter((history): boolean => readingIds.has(history.comicId))
-    reader.chapters = reader.chapters.filter((chapter: ChapterReadingState): boolean => readingIds.has(chapter.comicId))
-    // Incremental publication never consumes the full statistics or remote histories.
-    reader.readingSessions = undefined
-    reader.remoteHistory = undefined
-    reader.syncPositions = undefined
-    reader.syncActions = undefined
+  const targetIds = new Set<string>()
+  const originalIds = new Set<string>()
+  for (const item of entries) {
+    targetIds.add(item.target.id)
+    originalIds.add(item.record.id)
+    changedImports.add(item.record.id)
   }
+  const removedComicIds = Array.from(originalIds).filter((id: string): boolean => !targetIds.has(id))
+  const linkedComicIds = Array.from(new Set(Array.from(targetIds).concat(removedComicIds)))
+  const reader = new ReaderRdbStorage(database).readCatalogLinkReading(linkedComicIds)
+  const unmatchedChapters = mergeReading(reader, entries, request.labels)
+  const comics: Comic[] = []
+  for (const id of targetIds) {
+    const comic = library.getComic(id)
+    if (comic !== undefined) comics.push(comic)
+  }
+  const imports: MihonImportRecord[] = []
+  for (const id of changedImports) {
+    const record = library.readMihonImport(id)
+    if (record !== undefined) imports.push(record)
+  }
+  const contents: LibraryContents = { comics, mihonImports: imports,
+    customCategories: library.listCustomCategories(), smartCategories: library.listSmartCategories(),
+    displayStrategies: library.listCategoryDisplayStrategies(), shelfMoves: library.listSyncShelfMoves() }
+  reader.readingSessions = undefined
+  reader.remoteHistory = undefined
+  reader.syncPositions = undefined
+  reader.syncActions = undefined
   for (let offset = 0; offset < contents.comics.length; offset += 16) {
     taskpool.Task.sendData('comics', contents.comics.slice(offset, offset + 16))
   }
@@ -211,4 +206,5 @@ export async function prepareMihonTransactionTask(filesDir: string, stagedDir: s
   return { library: contents, reader, unmatchedChapters,
     trackerMappings: withMihonTrackerCandidates(request.trackerMappings, entries),
     targetComicId: entries.length === 1 ? entries[0].target.id : undefined, linkedComicIds, removedComicIds }
+  } finally { await database.close() }
 }

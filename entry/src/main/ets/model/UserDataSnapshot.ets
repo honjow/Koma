@@ -1,10 +1,10 @@
+import { shelfRowsRevision } from '../deviceSync/DeviceSyncShelfApply'
 import { common } from '@kit.AbilityKit'
 import { openUserDataSnapshotDatabase } from './UserDataDatabase'
 import { LibraryRdbStorage } from './LibraryRdbStorage'
 import type { LibraryReadingMetadata } from './LibraryRdbStorage'
-import type { PersistedComic } from './LibraryPersistence'
+import type { PersistedComic, PersistedLibraryStoreDocument } from './LibraryPersistence'
 import { ReaderRdbStorage } from './ReaderRdbStorage'
-import { serializeReaderSessionForDevice } from './ReaderSessionStore'
 import type { ReaderSessionDocumentSnapshot } from './ReaderSessionStore'
 
 export interface ReadingSyncDatabaseInput {
@@ -12,6 +12,7 @@ export interface ReadingSyncDatabaseInput {
   reading: ReaderSessionDocumentSnapshot
 }
 
+@Concurrent
 export async function readReadingSyncDatabaseInput(context: common.UIAbilityContext): Promise<ReadingSyncDatabaseInput> {
   const store = await openUserDataSnapshotDatabase(context)
   try {
@@ -21,19 +22,18 @@ export async function readReadingSyncDatabaseInput(context: common.UIAbilityCont
   }
 }
 
-/** Full compatibility snapshots are background work, including row materialization and encoding. */
+export interface ShelfSyncDatabaseInput {
+  library?: PersistedLibraryStoreDocument
+  revision: string
+}
+
 @Concurrent
-export async function readUserDataSnapshot(context: common.UIAbilityContext,
-  domain: 'library' | 'reading' | 'shelf-sync'): Promise<string | undefined> {
+export async function readShelfSyncDatabaseInput(context: common.UIAbilityContext): Promise<ShelfSyncDatabaseInput> {
   const store = await openUserDataSnapshotDatabase(context)
   try {
-    if (domain === 'reading') return serializeReaderSessionForDevice(new ReaderRdbStorage(store).read())
-    const library = new LibraryRdbStorage(store)
-    const document = domain === 'shelf-sync' ? library.readShelfSync() : library.read()
-    return document === undefined ? undefined : JSON.stringify(document)
-  } finally {
-    await store.close()
-  }
+    const library = new LibraryRdbStorage(store).readShelfSync()
+    return { library, revision: shelfRowsRevision(library) }
+  } finally { await store.close() }
 }
 
 /** Deletion recovery needs the exact content of the deleted works. */

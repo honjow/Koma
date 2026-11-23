@@ -486,9 +486,29 @@ test('a v4 receipt advances only its writer while retaining old and other writer
     [one, other, after].sort())
 })
 
-function readingDevice(fixture, id, installed, withShelf = false, afterReaderStage = async () => {}, database) {
+async function readingDevice(fixture, id, installed, withShelf = false, afterReaderStage = async () => {}, database) {
   const filesDir = '/' + id
   const files = new Map()
+  const rdb = require('./user_data_rdb_fixture.cjs').createRdbPort()
+  test.after(() => rdb.close())
+  const rdbModules = new Map()
+  function dbLoad(name) {
+    if (rdbModules.has(name)) return rdbModules.get(name)
+    const exports = {}; rdbModules.set(name, exports)
+    const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets', name + '.ets'), 'utf8')
+    const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS } }).outputText
+    new Function('require', 'exports', js)(key => {
+      if (key === '@kit.ArkData') return { relationalStore: rdb.relationalStore }
+      if (key.startsWith('@kit.')) return {}
+      if (key === '../deviceSync/DeviceSyncData') return data
+      if (key.startsWith('.')) return dbLoad(path.posix.normalize(path.posix.join(path.posix.dirname(name), key)))
+      throw Error('Unexpected database import ' + key)
+    }, exports)
+    return exports
+  }
+  const databaseApi = dbLoad('model/UserDataDatabase')
+  const readerDatabase = dbLoad('model/ReaderRdbStorage')
+  const shelfDatabase = dbLoad('model/LibraryRdbStorage')
   const fileIo = { OpenMode: { WRITE_ONLY: 1, CREATE: 2, TRUNC: 4 },
     openSync: fd => (files.set(fd, ''), { fd }), writeSync: (fd, body) => files.set(fd, body),
     fsyncSync: noop, closeSync: noop, renameSync: (from, to) => {
@@ -518,38 +538,40 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     './AppFileTextPersistence': { writeAppTextFile },
     './BackupRestoreActivity': backup, '../deviceSync/DeviceSyncSignals': signals, './ComicModels': comics,
     './SourceTextOverlay': {}, './SourceRequiredImageDecode': {}, './SourceTextPageDescriptor': {},
-    '../sourceRuntime/SourceRuntimeAppRegistry': registry, '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn: noop } },
+    '../sourceRuntime/SourceRuntimeAppRegistry': registry, '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn: noop, info: noop, exception: noop } },
     './ReaderChapterSequence': {}, '../i18n/AppStrings': {}, './RemoteReaderSession': {}, './ChapterReadStateStore': {},
     './ChapterListPreferencesStore': { chapterReadingSortFor: () => undefined },
-    './ReaderRdbStorage': {}, './UserDataDatabase': {},
+    './ReaderRdbStorage': readerDatabase, './UserDataDatabase': databaseApi,
   })
-  files.set(filesDir + '/' + sessions.READER_PROGRESS_PERSISTENCE_FILE_NAME, sessions.serializeReaderSessionForDevice({
+  files.set(filesDir + '/' + sessions.READER_PROGRESS_PERSISTENCE_FILE_NAME, JSON.stringify({ schemaVersion: 4,
     progress: [], sourceHistory: [], chapters: [],
   }))
   const strings = { AppStrings: { get: key => key } }
   const sourceComic = compile('../model/SourceLibraryComic', { './ComicModels': comics, '../i18n/AppStrings': strings })
-  const smart = withShelf ? compile('../model/LibrarySmartCategory', { './ComicModels': comics, '../i18n/AppStrings': strings }) : undefined
-  const stores = withShelf ? compile('../model/LibraryStore', { './ComicModels': comics, './ReaderSessionStore': sessions,
-    './LibrarySmartCategory': smart, '../i18n/AppStrings': strings, '@kit.ArkTS': { util: { generateRandomUUID: randomUUID } } }) : undefined
-  const persistence = withShelf ? compile('../model/LibraryPersistence', {
+  const smart = compile('../model/LibrarySmartCategory', { './ComicModels': comics, '../i18n/AppStrings': strings })
+  const stores = compile('../model/LibraryStore', { './ComicModels': comics, './ReaderSessionStore': sessions,
+    './LibrarySmartCategory': smart, '../i18n/AppStrings': strings, '@kit.ArkTS': { util: { generateRandomUUID: randomUUID } } })
+  const persistence = compile('../model/LibraryPersistence', {
     './ComicModels': comics, './LibraryStore': stores, './LibrarySmartCategory': smart, '@kit.CoreFileKit': nativeFs,
     './AppFileTextPersistence': { writeAppTextFile }, '../deviceSync/DeviceSyncSignals': signals,
     '../deviceSync/DeviceSyncData': data, '../deviceSync/DeviceSyncFacts': facts,
     './BackupRestoreActivity': backup, '../i18n/AppStrings': strings, './SourceTextOverlay': {},
     './SourceRequiredImageDecode': {}, './SourceChapterMetadata': {}, './SourceLibraryComic': sourceComic,
     './SourceTextPageDescriptor': {},
-    '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { debug: noop, exception: noop } },
+    '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { debug: noop, info: noop, exception: noop } },
     './LocalLibraryMetadataService': {}, './LocalLibraryFolderContract': {},
-    './LocalLibraryRescanService': {}, './LibraryRdbStorage': {}, './UserDataDatabase': {},
-  }) : { LIBRARY_STORE_PERSISTENCE_FILE_NAME: 'library.json', LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION: 1,
-    usesLibraryDatabase: () => false,
-    liveShelfCategoryAliases: () => undefined,
-    readLiveLibrarySnapshot: directory => files.get(directory + '/library.json'),
-    writeLiveLibrarySnapshot: (directory, value) => {
-      if (value !== undefined) writeAppTextFile(directory + '/library.json', value)
-      else files.delete(directory + '/library.json')
-    },
+    './LocalLibraryRescanService': {}, './LibraryRdbStorage': shelfDatabase, './UserDataDatabase': databaseApi,
+  })
+  const stageSnapshot = sessions.AppFilesReaderSessionPersistenceAdapter.prototype.saveSnapshotAsync
+  sessions.AppFilesReaderSessionPersistenceAdapter.prototype.saveSnapshotAsync = async function (...args) {
+    const token = await stageSnapshot.apply(this, args)
+    await afterReaderStage()
+    return token
   }
+  const context = { filesDir }
+  await persistence.prepareLiveLibraryStorage(context, true)
+  await sessions.prepareLiveReaderStorage(context, true)
+  const backupExport = compile('../model/BusinessBackupExport', { './LibraryPersistence': persistence, './ReaderSessionStore': sessions })
   const shelfApply = compile('DeviceSyncShelfApply', {
     '@kit.PerformanceAnalysisKit': { hiTraceMeter: { traceByValue() {} } },
     '../model/LibraryPersistence': persistence, '../model/ComicModels': comics, '../model/SourceLibraryComic': sourceComic,
@@ -569,15 +591,27 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     },
     '../model/AppFileTextPersistence': { writeAppTextFile }, '../model/BackupRestoreActivity': backup,
     '../model/LibraryPersistence': database === undefined ? persistence : { ...persistence,
-      usesLibraryDatabase: () => true, readLiveLibrarySnapshot: forbiddenSnapshot, liveReadingMetadata: () => database.works,
+      usesLibraryDatabase: () => true, readLibraryBackupDocument: forbiddenSnapshot, liveReadingMetadata: () => database.works,
       liveLibraryWriteRevision: database.shelfRevision, writeLiveLibrarySyncEdits: database.writeShelfEdits,
     },
-    '../model/UserDataSnapshot': { readUserDataSnapshot: database?.readShelfSnapshot ?? forbiddenSnapshot,
-      readShelfWorksForRecovery: database?.readShelfWorksForRecovery ?? forbiddenSnapshot,
-      readReadingSyncDatabaseInput: async () => structuredClone({ works: database.works, reading: database.reading }),
+    '../model/UserDataSnapshot': { readShelfSyncDatabaseInput: async () => {
+        if (database?.readShelfSnapshot) {
+          const raw = await database.readShelfSnapshot(context, 'shelf-sync')
+          const library = raw === undefined ? undefined : JSON.parse(raw)
+          return { library, revision: shelfApply.shelfRowsRevision(library) }
+        }
+        const library = persistence.readLiveShelfSync(filesDir)
+        return { library, revision: shelfApply.shelfRowsRevision(library) }
+      },
+      readShelfWorksForRecovery: database?.readShelfWorksForRecovery ?? (async (_context, ids) => {
+        const storage = new shelfDatabase.LibraryRdbStorage(await databaseApi.openUserDataDatabase(context))
+        return ids.map(id => storage.readWork(id))
+      }),
+      readReadingSyncDatabaseInput: async () => database?.works ? structuredClone({ works: database.works, reading: database.reading })
+        : { works: persistence.liveReadingMetadata(filesDir), reading: new readerDatabase.ReaderRdbStorage(await databaseApi.openUserDataDatabase(context)).readForSync() },
     },
     '../model/ReaderSessionStore': database?.readEdits === undefined ? sessions : { ...sessions,
-      usesReaderDatabase: () => true, readLiveReaderSnapshot: forbiddenSnapshot,
+      usesReaderDatabase: () => true, readReaderBackupDocument: forbiddenSnapshot,
       readLiveReadingEdits: database.readEdits, writeLiveReadingEdits: database.writeEdits,
     },
     '../model/ReaderPreferencesStore': {}, '../model/ComicModels': comics,
@@ -587,7 +621,6 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     './DeviceSyncShelfApply': shelfApply, './DeviceSyncReadingSnapshot': readingSnapshot, './DeviceSyncPlanner': planner,
     './DeviceSyncStorage': { DATABASE_READING_REVISION_PREFIX: 'reading-rdb:' },
   })
-  const context = { filesDir }
   let owner
   const replica = fixture.replica(id, [], store => { owner = new KomaDeviceSyncOwners(context, store); return owner })
   const runtime = runtimeFixture({ './DeviceSyncSignals': signals, '../model/ReaderSessionStore': sessions,
@@ -607,7 +640,7 @@ function readingDevice(fixture, id, installed, withShelf = false, afterReaderSta
     signals.connectDeviceSyncOwnerEdits(actions => runtime.recordLibrary(actions), noop, noop,
       () => replica.engine.groupScope('shelf') ? replica.engine.active()?.space : undefined)
   }
-  return { ...replica, runtime, reader, coldReader, coldShelf, persistence, owner, files, filesDir,
+  return { ...replica, runtime, reader, coldReader, coldShelf, persistence, backupExport, backupExportReader: () => sessions.readReaderBackupDocument(filesDir), owner, files, filesDir, rdb,
     onWrite: handler => { beforeWrite = handler } }
 }
 
@@ -631,7 +664,7 @@ test('automatic RDB reading projects and receives exact pages without a full she
     },
     writeEdits: (_directory, _scope, next) => { persisted = structuredClone(next) },
   }
-  const { owner, reader } = readingDevice(engineFixture(), A, new Map(), false, async () => {}, database)
+  const { owner, reader } = await readingDevice(engineFixture(), A, new Map(), false, async () => {}, database)
   const snapshot = await owner.snapshot('reading', false, undefined, undefined, false)
   const recent = JSON.parse(snapshot.values.find(row => row.key === facts[1].key).value)
   assert.equal(recent.chapter, '66')
@@ -650,7 +683,7 @@ test('automatic RDB reading projects and receives exact pages without a full she
 
 test('background page turns retain chapter order and cannot replace a newer durable edit', async () => {
   let stage = async () => {}
-  const device = readingDevice(engineFixture(), A, new Map(), false, () => stage())
+  const device = await readingDevice(engineFixture(), A, new Map(), false, () => stage())
   const { reader, coldReader } = device
   const comicId = 'book'
   function turn(chapterId, pageIndex) {
@@ -694,8 +727,8 @@ function shelfComic(source, work, categoryIds = [], url = 'https://works.example
 test('automatic first merge persists a shared chapter directory and unread count with no source installed', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.WriterWebDav)
-  const a = readingDevice(fixture, A, new Map(), true)
-  const b = readingDevice(fixture, B, new Map(), true)
+  const a = await readingDevice(fixture, A, new Map(), true)
+  const b = await readingDevice(fixture, B, new Map(), true)
   const source = 'org.example.login', work = 'account-book:series'
   const comic = shelfComic(source, work)
   comic.coverUri = comic.customCoverUri = 'file:///local/custom-cover.png'
@@ -915,15 +948,15 @@ test('the writer can retry a healthy group publication without revalidating an u
 test('source shelf and category survive an interrupted move; retry publishes both, and a new favorite stays uncategorized', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.WriterWebDav)
-  const a = readingDevice(fixture, A, new Map(), true)
-  const b = readingDevice(fixture, B, new Map(), true)
-  const c = readingDevice(fixture, C, new Map(), true)
+  const a = await readingDevice(fixture, A, new Map(), true)
+  const b = await readingDevice(fixture, B, new Map(), true)
+  const c = await readingDevice(fixture, C, new Map(), true)
   const connect = async device => {
     await device.engine.testConnection(transport.draft)
     await device.engine.confirm((await device.engine.prepare(transport.draft, ['shelf'])).token, [])
   }
   const local = a.coldShelf()
-  const category = local.shelf.createCustomCategory('Reading')
+  const category = a.persistence.createCustomCategoryAndPersistLibraryStore(local.shelf, local.service, 'Reading')
   const original = shelfComic('com.example.public', 'old', [category.id])
   const target = shelfComic('org.example.login', 'new', [category.id], 'https://works.example.test/title/12?session_id=private')
   a.persistence.upsertComicAndPersistLibraryStore(local.shelf, local.service, original)
@@ -936,7 +969,7 @@ test('source shelf and category survive an interrupted move; retry publishes bot
   a.persistence.upsertComicAndPersistLibraryStore(local.shelf, local.service, target)
   a.persistence.removeComicRecordAndPersistLibraryStore(local.shelf, local.service, original.id, target)
   assert.equal(a.coldShelf().shelf.listSyncShelfMoves()[0].target.toSource, target.sourceRuntimeId)
-  const backup = a.persistence.libraryStoreBackupPayload(a.persistence.serializeLibraryStore(a.coldShelf().shelf))
+  const backup = a.persistence.libraryStoreBackupPayload(a.backupExport.serializeLibraryStoreForBackup(a.coldShelf().shelf))
   assert.equal(JSON.parse(backup).syncShelfMoves, undefined)
   await a.runtime.libraryEdits
   transport.faults.push('before-accept')
@@ -968,8 +1001,8 @@ test('source shelf and category survive an interrupted move; retry publishes bot
 test('shelf sync merges restored manual categories and repairs old automatic numbering without losing memberships', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.WriterWebDav)
-  const a = readingDevice(fixture, A, new Map(), true)
-  const b = readingDevice(fixture, B, new Map(), true)
+  const a = await readingDevice(fixture, A, new Map(), true)
+  const b = await readingDevice(fixture, B, new Map(), true)
   const source = 'com.example.public'
   async function connect(device) {
     await device.engine.testConnection(transport.draft)
@@ -989,11 +1022,11 @@ test('shelf sync merges restored manual categories and repairs old automatic num
   const category = { ...original.shelf.createCustomCategory('Reading'), id: 'custom_100_1' }
   original.shelf.replaceCustomCategories([category])
   const numberedByUser = original.shelf.createCustomCategory('Reading (2)')
-  original.service.persist()
-  const backup = a.persistence.libraryStoreBackupPayload(a.persistence.serializeLibraryStore(original.shelf))
+  a.persistence.writeLiveLibrarySnapshot(a.filesDir, a.backupExport.serializeLibraryStoreForBackup(original.shelf))
+  const backup = a.persistence.libraryStoreBackupPayload(a.backupExport.serializeLibraryStoreForBackup(original.shelf))
   const restored = b.coldShelf()
   b.persistence.hydrateLibraryStoreFromJson(restored.shelf, backup)
-  restored.service.persist()
+  b.persistence.writeLiveLibrarySnapshot(b.filesDir, backup)
   const local = add(b, 'local', category.id)
   const remote = add(a, 'remote', category.id)
   const separate = add(b, 'separate', numberedByUser.id)
@@ -1022,7 +1055,7 @@ test('shelf sync merges restored manual categories and repairs old automatic num
 
   // A clean client joining this already-populated WebDAV has no backup or
   // local projection. It must still see one category and both writers' books.
-  const remoteOnly = readingDevice(fixture, C, new Map(), true)
+  const remoteOnly = await readingDevice(fixture, C, new Map(), true)
   await connect(remoteOnly)
   const fromServer = remoteOnly.coldShelf().shelf
   const serverCategory = fromServer.listCustomCategories().find(item => item.name === 'Reading')
@@ -1033,7 +1066,7 @@ test('shelf sync merges restored manual categories and repairs old automatic num
   // server already has every member, so a receive-only diff cannot fix it.
   const libraryFile = b.filesDir + '/' + b.persistence.LIBRARY_STORE_PERSISTENCE_FILE_NAME
   const projectionFile = b.filesDir + '/device-sync-projection.v1.json'
-  const library = JSON.parse(b.files.get(libraryFile))
+  const library = b.persistence.readLibraryBackupDocument(b.filesDir)
   const projection = JSON.parse(b.files.get(projectionFile))
   const alias = projection.categories.find(row => row.mergedInto === category.id)
   const primary = projection.categories.find(row => row.local === category.id)
@@ -1041,7 +1074,7 @@ test('shelf sync merges restored manual categories and repairs old automatic num
   const oldName = 'Reading (3)'
   const old = library.customCategories.find(item => item.id === category.id)
   // A cloud download can restore the old row before the WebDAV alias changes.
-  b.files.set(libraryFile, JSON.stringify({ ...library,
+  b.persistence.writeLiveLibrarySnapshot(b.filesDir, JSON.stringify({ ...library,
     customCategories: library.customCategories.concat({ ...old, id: alias.local, sortOrder: old.sortOrder + 1 }) }))
   const snapshot = await b.owner.snapshot('shelf', true)
   const order = snapshot.values.find(row => row.key === data.syncKey(['order']))
@@ -1058,7 +1091,7 @@ test('shelf sync merges restored manual categories and repairs old automatic num
   delete alias.mergedInto
   delete alias.members
   delete primary.members
-  b.files.set(libraryFile, JSON.stringify(library))
+  b.persistence.writeLiveLibrarySnapshot(b.filesDir, JSON.stringify(library))
   b.files.set(projectionFile, JSON.stringify(projection))
   await b.engine.syncNow()
   assert.deepEqual(assertShelf(b).getComic(shared).categoryIds, [category.id])
@@ -1098,7 +1131,7 @@ test('an already-published legacy backup alias is repaired in WebDAV and keeps b
     edit(facts.emptySyncFact(key), dot(replica, i + 1), 'set', value)), 1, undefined, data.syncBucketKey)
   for (const object of seeded.objects) await writer.storeObject(object, noop)
   await writer.publish(manifest(writer.spaceId(), [seeded.ref]), '', noop, noop, [seeded.ref.id])
-  const receiver = readingDevice(engineFixture(transport.WriterWebDav), C, new Map(), true)
+  const receiver = await readingDevice(engineFixture(transport.WriterWebDav), C, new Map(), true)
   receiver.engine.setSelection(['shelf'])
   await receiver.engine.saveConfiguration(transport.draft)
   receiver.engine.setEnabled(true)
@@ -1123,20 +1156,20 @@ test('an already-published legacy backup alias is repaired in WebDAV and keeps b
 
 test('an unsendable legacy reading capture is settled once without changing saved reading progress', async () => {
   const transport = transportFixture()
-  const device = readingDevice(engineFixture(transport.WriterWebDav), A, new Map(), true)
+  const device = await readingDevice(engineFixture(transport.WriterWebDav), A, new Map(), true)
   await device.engine.testConnection(transport.draft)
   await device.engine.confirm((await device.engine.prepare(transport.draft, ['reading'])).token, [])
   device.runtime.refresh()
   const source = 'com.example.public', work = 'legacy-book', chapterId = 'chapter'
   const comicId = source + ':' + work
   const file = device.filesDir + '/reader-sessions.v1.json'
-  const reader = JSON.parse(device.files.get(file))
+  const reader = { schemaVersion: 4, ...device.backupExportReader() }
   const progress = { comicId, chapterId, pageIndex: 1, totalPages: 2, updatedAt: 10, progressRatio: 1, completed: false }
   const capture = { id: 'old-invalid-capture', space: device.engine.active().space, source, work, comicId, chapterId,
     page: 9, total: 2, date: 10, complete: false, observedActions: [], positionSeen: [], recentSeen: [], recentCleared: [], readSeen: [] }
   reader.progress = [progress]
   reader.syncPositions = [capture]
-  device.files.set(file, JSON.stringify(reader))
+  device.reader.adapter.activityDatabase().save(reader)
   device.reader.reload()
   await device.runtime.syncManually()
   assert.equal(device.owner.readingAcknowledged(capture), true)
@@ -1151,8 +1184,8 @@ test('an unsendable legacy reading capture is settled once without changing save
 test('automatic and focused sync take clearly newer cloud resume positions without overriding a newer local branch', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.SharedWebDav)
-  const a = readingDevice(fixture, A, new Map(), true)
-  const b = readingDevice(fixture, B, new Map(), true)
+  const a = await readingDevice(fixture, A, new Map(), true)
+  const b = await readingDevice(fixture, B, new Map(), true)
   const source = 'com.example.public', chapter = 'chapter'
   for (const device of [a, b]) {
     await device.engine.testConnection(transport.draft)
@@ -1202,8 +1235,8 @@ test('automatic and focused sync take clearly newer cloud resume positions witho
 test('keeping local restores the saved chapter while an obsolete choice leaves a newer save intact', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.SharedWebDav)
-  const local = readingDevice(fixture, A, new Map(), true)
-  const remote = readingDevice(fixture, B, new Map(), true)
+  const local = await readingDevice(fixture, A, new Map(), true)
+  const remote = await readingDevice(fixture, B, new Map(), true)
   const source = 'com.example.reader', work = 'choice', comicId = source + ':' + work
   const save = (device, chapterId, pageIndex, updatedAt) => {
     device.reader.saveProgress({ comicId, chapterId, pageIndex, totalPages: 30, updatedAt,
@@ -1270,11 +1303,10 @@ test('keeping local restores the saved chapter while an obsolete choice leaves a
 test('the next manual sync completes an interrupted local rollback and preserves a later Reader save', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.WriterWebDav)
-  const a = readingDevice(fixture, A, new Map(), true)
-  const b = readingDevice(fixture, B, new Map(), true)
+  const a = await readingDevice(fixture, A, new Map(), true)
+  const b = await readingDevice(fixture, B, new Map(), true)
   const original = b.coldShelf()
-  const kept = original.shelf.createCustomCategory('Local')
-  original.service.persist()
+  const kept = b.persistence.createCustomCategoryAndPersistLibraryStore(original.shelf, original.service, 'Local')
   for (const device of [a, b]) {
     await device.engine.testConnection(transport.draft)
     await device.engine.confirm((await device.engine.prepare(transport.draft, ['shelf'])).token, [])
@@ -1290,15 +1322,18 @@ test('the next manual sync completes an interrupted local rollback and preserves
   let projectionFailed = false
   let failedRollbacks = 0
   let storageRecovered = false
+  b.rdb.beforeCommit(() => {
+    if (projectionFailed && !storageRecovered) {
+      failedRollbacks++
+      throw new Error('volume still unavailable during rollback')
+    }
+  })
   b.onWrite(file => {
     if (!projectionFailed && file.endsWith('/device-sync-projection.v1.json')) {
       projectionFailed = true
       throw new Error('volume became unavailable')
     }
-    if (projectionFailed && !storageRecovered && file.endsWith('/library-store.v1.json')) {
-      failedRollbacks++
-      throw new Error('volume still unavailable during rollback')
-    }
+
   })
   b.runtime.refresh()
   await assert.rejects(b.runtime.syncManually(), /sync_local_rollback_pending/)
@@ -1327,13 +1362,12 @@ test('the next manual sync completes an interrupted local rollback and preserves
 test('shelf sync round-trips smart rule changes using the same category ID', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.SharedWebDav)
-  const a = readingDevice(fixture, A, new Map(), true)
-  const b = readingDevice(fixture, B, new Map(), true)
+  const a = await readingDevice(fixture, A, new Map(), true)
+  const b = await readingDevice(fixture, B, new Map(), true)
   const first = a.coldShelf()
   const second = b.coldShelf()
-  const manual = first.shelf.createCustomCategory('Favorites')
-  second.shelf.createCustomCategory('Weekend')
-  second.service.persist()
+  const manual = a.persistence.createCustomCategoryAndPersistLibraryStore(first.shelf, first.service, 'Favorites')
+  b.persistence.createCustomCategoryAndPersistLibraryStore(second.shelf, second.service, 'Weekend')
   const group = { id: 'smart:1700000000000', name: 'Weekend', sortOrder: 2, createdAt: 1700000000000,
     updatedAt: 1700000000000, filters: [
       { method: 'category', value: manual.id, exclude: false },
@@ -1387,13 +1421,13 @@ test('shelf sync round-trips smart rule changes using the same category ID', asy
 test('shelf sync transfers category privacy and membership together, including a reverse change', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.SharedWebDav)
-  const a = readingDevice(fixture, A, new Map(), true)
-  const b = readingDevice(fixture, B, new Map(), true)
+  const a = await readingDevice(fixture, A, new Map(), true)
+  const b = await readingDevice(fixture, B, new Map(), true)
   const first = a.coldShelf()
   const source = 'com.example.public'
-  const manual = first.shelf.createCustomCategory('Private shelf')
+  const manual = a.persistence.createCustomCategoryAndPersistLibraryStore(first.shelf, first.service, 'Private shelf')
   const work = shelfComic(source, 'private-work', [manual.id])
-  first.shelf.addComic(work)
+  a.persistence.upsertComicAndPersistLibraryStore(first.shelf, first.service, work)
   a.persistence.setCustomCategoryPrivacyAndPersistLibraryStore(first.shelf, first.service, manual.id, true)
   for (const device of [a, b]) {
     await device.engine.testConnection(transport.draft)
@@ -1414,10 +1448,10 @@ test('shelf sync transfers category privacy and membership together, including a
 })
 
 test('a remote deletion blocked by local notes commits its receipt without reloading the shelf', async () => {
-  const device = readingDevice(engineFixture(), A, new Map(), true)
+  const device = await readingDevice(engineFixture(), A, new Map(), true)
   const source = 'com.example.public'
   const { shelf, service } = device.coldShelf()
-  const category = shelf.createCustomCategory('Reading')
+  const category = device.persistence.createCustomCategoryAndPersistLibraryStore(shelf, service, 'Reading')
   const book = { ...shelfComic(source, 'kept-work', [category.id]), personalNotes: 'My notes' }
   device.persistence.upsertComicAndPersistLibraryStore(shelf, service, book)
   const notifications = []
@@ -1445,8 +1479,8 @@ test('WebDAV keeps a smart category until the cloud deletes its definition, even
       raw = JSON.stringify(snapshot)
     },
   }
-  const first = readingDevice(fixture, A, new Map(), true, undefined, database)
-  const second = readingDevice(fixture, B, new Map(), true)
+  const first = await readingDevice(fixture, A, new Map(), true, undefined, database)
+  const second = await readingDevice(fixture, B, new Map(), true)
   for (const device of [first, second]) {
     await device.engine.testConnection(transport.draft)
     await device.engine.confirm((await device.engine.prepare(transport.draft, ['shelf'])).token, [])
@@ -1480,22 +1514,23 @@ test('RDB shelf receipt rolls back scoped rows and rejects an intervening local 
       revision++
     },
   }
-  const device = readingDevice(engineFixture(), A, new Map(), true, undefined, database)
+  const device = await readingDevice(engineFixture(), A, new Map(), true, undefined, database)
   const source = 'com.example.public'
   const changedWork = shelfComic(source, 'changed')
   const { shelf } = device.coldShelf()
   shelf.createCustomCategory('A category')
   shelf.addComic(changedWork)
   shelf.addComic(shelfComic(source, 'untouched'))
-  raw = device.persistence.serializeLibraryStore(shelf)
+  raw = device.backupExport.serializeLibraryStoreForBackup(shelf)
   const notifications = []
   device.owner.publishWith((groups, _reading, edits) => notifications.push({ groups, edits }))
   const coverUri = 'https://works.example.test/cover.png'
   const earlierRevision = wire.syncDigest(raw)
   const earlier = await device.owner.snapshot('shelf', false, undefined, undefined, false, earlierRevision)
-  assert.equal(earlier.revision, earlierRevision)
+  // A token from the retired whole-file codec is rebased to the row revision.
+  assert.notEqual(earlier.revision, earlierRevision)
   const current = await device.owner.snapshot('shelf', false)
-  assert.deepEqual(readDomains, ['library', 'shelf-sync'])
+  assert.ok(readDomains.length > 0 && readDomains.every(domain => domain === 'shelf-sync'))
   assert.deepEqual(current.values, earlier.values)
   const commit = prepare => device.owner.commit([{ group: 'shelf',
     changes: [{ key: data.syncKey(['cover', source, 'changed']), value: JSON.stringify(coverUri) }] }],
@@ -1524,11 +1559,11 @@ test('a received RDB deletion captures the full catalog of only the deleted work
     readShelfWorksForRecovery: async (_context, ids) => { scopes.push(ids); return [deleted] },
     writeShelfEdits: (_directory, edits, image) => saved.push({ ids: edits.comicIds, works: image.works }),
   }
-  const device = readingDevice(engineFixture(), A, new Map(), true, undefined, database)
+  const device = await readingDevice(engineFixture(), A, new Map(), true, undefined, database)
   const { shelf } = device.coldShelf()
   shelf.addComic(work)
   shelf.addComic(shelfComic('com.example.public', 'untouched'))
-  raw = device.persistence.serializeLibraryStore(shelf)
+  raw = device.backupExport.serializeLibraryStoreForBackup(shelf)
   await assert.rejects(device.owner.commit([{ group: 'shelf', changes: [
     { key: data.syncKey(['book', 'com.example.public', 'removed']), value: '' },
   ] }], [], async () => ({ check: noop, dispose: async () => {},
@@ -1540,8 +1575,8 @@ test('a received RDB deletion captures the full catalog of only the deleted work
 test('a move keeps the original if the destination was independently removed, including a receiver with local notes', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.WriterWebDav)
-  const a = readingDevice(fixture, A, new Map(), true)
-  const b = readingDevice(fixture, B, new Map(), true)
+  const a = await readingDevice(fixture, A, new Map(), true)
+  const b = await readingDevice(fixture, B, new Map(), true)
   const original = shelfComic('com.example.public', 'old')
   const target = shelfComic('org.example.login', 'new')
   const left = a.coldShelf()
@@ -1567,8 +1602,8 @@ test('a move keeps the original if the destination was independently removed, in
 test('shelf receipts cannot update an unrelated row with the same storage ID', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.WriterWebDav)
-  const a = readingDevice(fixture, A, new Map(), true)
-  const b = readingDevice(fixture, B, new Map(), true)
+  const a = await readingDevice(fixture, A, new Map(), true)
+  const b = await readingDevice(fixture, B, new Map(), true)
   const original = shelfComic('org.example.source', 'same')
   const left = a.coldShelf()
   a.persistence.upsertComicAndPersistLibraryStore(left.shelf, left.service, original)
@@ -1590,8 +1625,8 @@ test('shelf receipts cannot update an unrelated row with the same storage ID', a
 test('batch shelf removal persists selected source favorites and syncs their removals', async () => {
   const transport = transportFixture()
   const fixture = engineFixture(transport.WriterWebDav)
-  const a = readingDevice(fixture, A, new Map(), true)
-  const b = readingDevice(fixture, B, new Map(), true)
+  const a = await readingDevice(fixture, A, new Map(), true)
+  const b = await readingDevice(fixture, B, new Map(), true)
   const left = a.coldShelf()
   const books = ['first', 'second', 'retained'].map(work => shelfComic('org.example.source', work))
   for (const book of books) a.persistence.upsertComicAndPersistLibraryStore(left.shelf, left.service, book)
@@ -1601,7 +1636,7 @@ test('batch shelf removal persists selected source favorites and syncs their rem
   }
   const ids = books.slice(0, 2).map(book => book.id)
   assert.throws(() => a.persistence.removeComicsAndPersistLibraryStore(left.shelf,
-    { persist: () => { throw Error('disk full') } }, ids), /disk full/)
+    { databaseForEdits: () => ({ saveLocalEdits() { throw Error('disk full') } }) }, ids), /disk full/)
   assert.ok(ids.every(id => left.shelf.getComic(id)))
   assert.deepEqual(Array.from(a.persistence.removeComicsAndPersistLibraryStore(left.shelf, left.service, ids)), ids)
   await a.runtime.libraryEdits
@@ -1620,7 +1655,7 @@ test('a writer keeps its original shelf shards while publishing new source books
   const oldShard = dataset('shelf', oldKey, A, JSON.stringify({ title: 'xkcd', sourceName: 'xkcd 中文', sourceVersion: '0.1.7' }))
   for (const object of oldShard.objects) await writer.storeObject(object, noop)
   await writer.publish(manifest(writer.spaceId(), [oldShard.ref]), '', noop, noop, ['shelf'])
-  const device = readingDevice(engineFixture(f.WriterWebDav), A, new Map(), true)
+  const device = await readingDevice(engineFixture(f.WriterWebDav), A, new Map(), true)
   const connect = async row => {
     await row.engine.testConnection(f.draft)
     await row.engine.confirm((await row.engine.prepare(f.draft, ['shelf'])).token, [])
@@ -1635,7 +1670,7 @@ test('a writer keeps its original shelf shards while publishing new source books
   const receipt = await new f.WriterWebDav(f.draft, [], undefined, A).readManifest(noop)
   assert.deepEqual(receipt.own.datasets.find(item => item.id === 'shelf'), oldShard.ref)
   assert.ok(receipt.own.datasets.some(item => item.id === data.SYNC_SHELF_CATALOG_DATASET))
-  const other = readingDevice(engineFixture(f.WriterWebDav), B, new Map(), true)
+  const other = await readingDevice(engineFixture(f.WriterWebDav), B, new Map(), true)
   await connect(other)
   assert.deepEqual(other.coldShelf().shelf.listComics().map(book => book.id).sort(), [old.id, added.id].sort())
 })
@@ -1647,8 +1682,8 @@ test('saved history and live page turns from other sources reach a fresh reader 
   const loginId = 'org.example.login-required'
   const enabled = { enabled: true, version: '7.0.1', name: 'Login source' }
   const installedOnB = new Map()
-  const a = readingDevice(fixture, A, new Map([[loginId, enabled]]))
-  const b = readingDevice(fixture, B, installedOnB)
+  const a = await readingDevice(fixture, A, new Map([[loginId, enabled]]))
+  const b = await readingDevice(fixture, B, installedOnB)
   const work = 'webtoon:1860'
   const chapter = 'chapter:webtoons:zh-Hant:/zh-hant/title/viewer?title_no=1860&episode_no=15'
   const previousChapter = chapter.replace('episode_no=15', 'episode_no=14')
@@ -1744,8 +1779,8 @@ test('opaque chapter identities and ordinary titles are preserved across devices
   const work = 'work?key=series-123'
   const chapter = 'chapter?key=chapter-456'
   const comicId = sourceId + ':' + work
-  const a = readingDevice(fixture, A, new Map([[sourceId, { enabled: true, name: 'Example' }]]))
-  const b = readingDevice(fixture, B, new Map())
+  const a = await readingDevice(fixture, A, new Map([[sourceId, { enabled: true, name: 'Example' }]]))
+  const b = await readingDevice(fixture, B, new Map())
   a.reader.saveProgress({ comicId, chapterId: chapter, pageIndex: 4, totalPages: 11,
     updatedAt: 200, progressRatio: 5 / 11, completed: false })
   a.reader.saveSourceHistory({ comicId, sourceId, mangaId: work, chapterId: chapter,

@@ -107,8 +107,7 @@ export async function commitMangaMigration(
       prepared.settingsRevision !== appSourceSettingsStore.revisionForSource(prepared.entry.sourceId)) {
       throw new Error('migration_source_changed')
     }
-    const existing = library.listComics().find((comic: Comic): boolean =>
-      comic.sourceRuntimeId === prepared.manga.sourceId && comic.remoteResourceId === prepared.manga.id)
+    const existing = library.findBySourceManga(prepared.manga.sourceId, prepared.manga.id)
     const target = JSON.parse(JSON.stringify(prepared.comic)) as Comic
     const storageBase = await ensureKomaContentStorageBase(context)
     if (existing !== undefined) {

@@ -1,13 +1,15 @@
-const { DatabaseSync } = require('node:sqlite')
+const { DatabaseSync, backup } = require('node:sqlite')
+const fs = require('node:fs'), os = require('node:os'), path = require('node:path')
 
 function createRdbPort(databasePath = ':memory:') {
   const databases = new Map()
   const ports = new Map()
+  const restoredDirectories = []
   let beforeCommit
   let commits = 0
   function forDirectory(filesDir, storagePath = databasePath) {
     if (ports.has(filesDir)) return ports.get(filesDir)
-    const db = new DatabaseSync(storagePath)
+    let db = new DatabaseSync(storagePath)
     databases.set(filesDir, db)
     const store = {
       get version() { return db.prepare('PRAGMA user_version').get().user_version },
@@ -15,6 +17,16 @@ function createRdbPort(databasePath = ':memory:') {
       executeSync: (sql, args = []) => db.prepare(sql).run(...args),
       execute: async (sql, args) => store.executeSync(sql, args),
       async close() {},
+      backup: destination => backup(db, destination),
+      async restore(source) {
+        const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-rdb-restore-'))
+        restoredDirectories.push(directory)
+        const destination = path.join(directory, 'Koma.db')
+        fs.copyFileSync(source, destination)
+        db.close()
+        db = new DatabaseSync(destination)
+        databases.set(filesDir, db)
+      },
       querySqlSync(sql, args = []) {
         const statement = db.prepare(sql)
         statement.setReturnArrays(true)
@@ -76,7 +88,10 @@ function createRdbPort(databasePath = ':memory:') {
       }
     },
     get commits() { return commits },
-    close() { for (const database of databases.values()) database.close() },
+    close() {
+      for (const database of databases.values()) database.close()
+      for (const directory of restoredDirectories) fs.rmSync(directory, { recursive: true, force: true })
+    },
   }
 }
 

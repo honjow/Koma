@@ -34,7 +34,7 @@ function fixture() {
     chapters: [{ id: 'owned-chapter', pages: [{ id: 'owned-page', uri: 'file://owned-cache' }], index: 0 }],
     chapterCount: 458, pageCount: 18, categoryIds: ['owned-category'], localMetadata: { custom: 'keep' } }
   const store = { values: { [original.id]: clone(original) }, getComic(id) { return this.values[id] }, addComic(row) { this.values[row.id] = row },
-    upsertComic(row) { this.values[row.id] = row }, listComics() { return Object.values(this.values) } }
+    upsertComic(row) { this.values[row.id] = row }, listComics() { return Object.values(this.values) }, listComicSummaries() { return Object.values(this.values) } }
   let saves = 0
   return { original, store, service: { persist() { saves++ }, persistExistingWorks() { saves++ } }, saves: () => saves }
 }

@@ -272,19 +272,18 @@ export function importMihonWorks(backup: MihonBackup, library: LibraryStore,
   const names = new Map<string, string>()
   for (const source of backup.sources) names.set(source.id, source.name)
   const records = new Map<string, MihonImportRecord>()
-  for (const record of library.listMihonImports()) records.set(record.id, record)
-  const candidates = library.listComics(false)
+  const candidates = library.listComicSummaries(false)
   const results: ResolvedMihonImport[] = []
   for (const work of backup.works) {
     const key = mihonImportKey(work)
-    const previous = records.get(key)
+    const previous = records.get(key) ?? library.readMihonImport(key)
     // Koma-assigned editions are stable across repeat imports.
     const sourceName = names.get(work.sourceId) || previous?.sourceName || ''
     const linked = previous?.targetComicId ? library.getComic(previous.targetComicId) : undefined
     const match = previous?.targetComicId
       ? linked === undefined ? undefined : matchImportedShelfWork(work, sourceName, [linked], identities)
       : matchImportedShelfWork(work, sourceName, candidates, identities)
-    const existing = linked ?? match?.comic
+    const existing = linked ?? (match === undefined ? undefined : library.getComic(match.comic.id))
     const original = previous === undefined ? work : mergeOriginalWork(previous.work, work)
     const record: MihonImportRecord = {
       id: key, sourceName, work: original,
@@ -310,15 +309,16 @@ export function importMihonWorks(backup: MihonBackup, library: LibraryStore,
     if (existing !== undefined && originalShelf !== undefined) library.removeComic(key)
     results.push({ record, target, sameEdition: match !== undefined, identity: match?.identity })
   }
-  library.replaceMihonImports(Array.from(records.values()))
+  library.updateMihonImports(Array.from(records.values()))
   return results
 }
 
 export function linkMihonWork(library: LibraryStore, from: MihonImportRecord, target: Comic,
   verifiedEdition: boolean = false, identity?: MihonSourceIdentity, labels?: MihonImportLabels): ResolvedMihonImport {
   const shelf = library.getComic(from.id)
-  const previous = library.listComics(false).find((comic: Comic): boolean =>
+  const match = library.listComicSummaries(false).find((comic: Comic): boolean =>
     comic.sourceRuntimeId === target.sourceRuntimeId && comic.remoteResourceId === target.remoteResourceId)
+  const previous = match === undefined ? undefined : library.getComic(match.id)
   const current = previous === undefined ? target : JSON.parse(JSON.stringify(previous)) as Comic
   // Include chapters found during the match while keeping the local copy of
   // every cached chapter, its reading plan and existing shelf metadata.
@@ -340,8 +340,7 @@ export function linkMihonWork(library: LibraryStore, from: MihonImportRecord, ta
   const record: MihonImportRecord = { id: from.id, work: from.work, categoryIds: from.categoryIds,
     sourceName: from.sourceName, matchedSourceId: from.matchedSourceId,
     targetComicId: resolved.id, linkedWork: mihonLinkedWork(resolved) }
-  library.replaceMihonImports(library.listMihonImports().map((row: MihonImportRecord): MihonImportRecord =>
-    row.id === record.id ? record : row))
+  library.updateMihonImports([record])
   return { record, target: resolved, identity, sameEdition: verifiedEdition ||
     matchingMihonShelfWork(record.work, record.sourceName, [target]) !== undefined }
 }

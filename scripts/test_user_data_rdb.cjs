@@ -46,6 +46,33 @@ function fixture(preferences = new Map(), runtimeImports = new Map(), rdb = crea
 
 const plain = value => JSON.parse(JSON.stringify(value))
 
+test('native recovery image restores business rows without a library JSON snapshot', async () => {
+  const env = fixture()
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-native-checkpoint-'))
+  try {
+    const api = env.load('UserDataDatabase')
+    const context = { filesDir: directory }
+    const database = await api.openUserDataDatabase(context)
+    database.executeSync('CREATE TABLE checkpoint_probe (id TEXT PRIMARY KEY, value TEXT)')
+    database.executeSync('INSERT INTO checkpoint_probe VALUES (?, ?)', ['keep', 'before'])
+    const image = path.join(directory, 'business.rdb')
+    await api.backupUserDataDatabase(context, image)
+    database.executeSync('UPDATE checkpoint_probe SET value = ?', ['changed'])
+    database.executeSync('INSERT INTO checkpoint_probe VALUES (?, ?)', ['temporary', 'remove'])
+    await api.restoreUserDataDatabase(context, image)
+    const rows = database.querySqlSync('SELECT id, value FROM checkpoint_probe')
+    try {
+      assert.equal(rows.goToNextRow(), true)
+      assert.equal(rows.getString(0), 'keep')
+      assert.equal(rows.getString(1), 'before')
+      assert.equal(rows.goToNextRow(), false)
+    } finally { rows.close() }
+  } finally {
+    env.close()
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test('cold reading reads scoped positions and saves before loading history without dropping old records', async () => {
   const env = fixture(new Map(), new Map([
     ['../sourceRuntime/SourceRuntimeAppRegistry', {}],
@@ -889,6 +916,42 @@ test('first Mihon catalog commits the shelf link and reading position together',
   } finally {
     env.close()
   }
+})
+
+test('a scoped Mihon batch rolls back together and retains unrelated catalogs, imports and reading', async () => {
+  const env = fixture()
+  try {
+    const { openUserDataDatabase } = env.load('UserDataDatabase')
+    const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
+    const { ReaderRdbStorage } = env.load('ReaderRdbStorage')
+    const store = await openUserDataDatabase({ filesDir: '/mihon-batch' })
+    const shelf = new LibraryRdbStorage(store), reader = new ReaderRdbStorage(store)
+    const book = id => ({ id, title: id, chapters: [{ id: id + '-chapter', title: id, index: 0,
+      pages: [{ id: id + '-page', index: 0, sourcePath: '/owned/' + id }] }] })
+    const record = id => ({ id, sourceName: 'Original source', categoryIds: [], work: { sourceId: 'source', url: '/' + id,
+      title: id, genres: [], categoryIds: [], tracking: [], chapters: [], history: [] } })
+    const original = book('changed'), untouched = book('untouched')
+    await shelf.migrate({ schemaVersion: 1, comics: [original, untouched], mihonImports: [record('retained')] })
+    const position = id => ({ comicId: id, chapterId: id + '-chapter', pageIndex: 3, totalPages: 10,
+      progressRatio: 0.4, completed: false, updatedAt: 10 })
+    await reader.migrate({ progress: [position('changed'), position('untouched')], chapters: [], sourceHistory: [] })
+    const beforeShelf = plain(shelf.read()), beforeReader = plain(reader.read())
+    const changed = { ...original, title: 'Imported title' }, added = book('added')
+    const nextReading = { progress: [{ ...position('changed'), pageIndex: 7 }], chapters: [], sourceHistory: [] }
+    const commit = () => shelf.commitMihonImport([record('new-import')], [changed, added], [], [],
+      transaction => reader.stageCatalogLink(transaction, ['changed'], nextReading))
+    env.failNextCommit()
+    await assert.rejects(commit(), /interrupted write/)
+    assert.deepEqual(plain(shelf.read()), beforeShelf)
+    assert.deepEqual(plain(reader.read()), beforeReader)
+    await commit()
+    assert.deepEqual(shelf.read().comics.map(row => row.id), ['changed', 'untouched', 'added'])
+    assert.equal(shelf.readWork('changed').title, 'Imported title')
+    assert.deepEqual(plain(shelf.readWork('untouched')), beforeShelf.comics.find(row => row.id === 'untouched'))
+    assert.deepEqual(shelf.readMihonImportWorks().map(row => row.id), ['retained', 'new-import'])
+    assert.equal(reader.readPositions(['changed'])[0].pageIndex, 7)
+    assert.equal(reader.readPositions(['untouched'])[0].pageIndex, 3)
+  } finally { env.close() }
 })
 
 test('reading moves from the previously committed database once, even with stale files still available', async () => {

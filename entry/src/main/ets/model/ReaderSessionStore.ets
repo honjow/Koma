@@ -331,6 +331,12 @@ export function readLiveReadingEdits(filesDir: string, scope: ReaderSyncWorkScop
   return storage.readSyncEdits(scope)
 }
 
+export function liveReadingProgressIds(filesDir: string): string[] {
+  const storage = liveReaderStorage.get(filesDir)
+  if (storage === undefined) throw new Error('reader_database_unavailable')
+  return storage.progressIds()
+}
+
 export function readLiveMihonReading(filesDir: string, comicIds: string[]): ReaderSessionDocumentSnapshot {
   const storage = liveReaderStorage.get(filesDir)
   if (storage === undefined) throw new Error('reader_database_unavailable')
@@ -356,11 +362,11 @@ export function publishLiveCloudReading(filesDir: string, scope: ReaderSyncWorkS
   appReaderSessionStore(filesDir).applyCloudReading(storage, scope)
 }
 
-export function readLiveReaderSnapshot(filesDir: string): string | undefined {
+export function readReaderBackupDocument(filesDir: string): ReaderSessionDocumentSnapshot | undefined {
   const storage = liveReaderStorage.get(filesDir)
-  if (storage !== undefined) return serializeReaderSessionForDevice(storage.read())
+  if (storage !== undefined) return storage.read()
   const path = normalizeReaderSessionFilePath(filesDir)
-  return fs.accessSync(path) ? fs.readTextSync(path, { encoding: 'utf-8' }) : undefined
+  return fs.accessSync(path) ? new AppFilesReaderSessionPersistenceAdapter(filesDir).loadSnapshot(fs.readTextSync(path)) : undefined
 }
 
 export function writeLiveReaderSnapshot(filesDir: string, payload?: string): void {
@@ -384,7 +390,7 @@ export const READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 4
 const READER_PROGRESS_LEGACY_SCHEMA_VERSION = 1
 export const READER_PROGRESS_PERSIST_DEBOUNCE_MS: number = 3000
 
-interface ReaderSessionDocument {
+export interface ReaderSessionDocument {
   schemaVersion: number
   progress: ReadingProgress[]
   sourceHistory?: SourceReadHistoryEntry[]
@@ -474,15 +480,6 @@ export function normalizeReaderSessionBackupPayload(payload: string): string {
 
 /** Local outbox belongs to the same atomic commit as the corresponding page turn.
  * Backup export and replacement use the normalizer above, which omits it. */
-export function serializeReaderSessionForDevice(snapshot: ReaderSessionDocumentSnapshot): string {
-  const document: ReaderSessionDocument = {
-    schemaVersion: READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
-    progress: snapshot.progress, sourceHistory: snapshot.sourceHistory, remoteHistory: snapshot.remoteHistory,
-    chapters: snapshot.chapters, readingSessions: snapshot.readingSessions, syncPositions: snapshot.syncPositions,
-    syncActions: snapshot.syncActions,
-  }
-  return JSON.stringify(document)
-}
 
 function normalizeReaderSessionFilePath(filesDir: string): string {
   let dir = filesDir.trim()
@@ -491,63 +488,6 @@ function normalizeReaderSessionFilePath(filesDir: string): string {
   }
   return dir.length === 0 ? READER_PROGRESS_PERSISTENCE_FILE_NAME : `${dir}/${READER_PROGRESS_PERSISTENCE_FILE_NAME}`
 }
-
-@Concurrent
-function writeReaderSessionSnapshotTask(filePath: string, documentText: string,
-  token: number, pageTurns?: ChapterReadingState[]): string {
-  let payload = documentText
-  if (pageTurns !== undefined) {
-    const document = JSON.parse(documentText) as ReaderSessionDocument
-    let previous: ReaderSessionDocument
-    try {
-      previous = JSON.parse(fs.readTextSync(filePath, { encoding: 'utf-8' })) as ReaderSessionDocument
-    } catch (_error) {
-      return ''
-    }
-    if (previous?.schemaVersion !== document.schemaVersion || !Array.isArray(previous.progress) ||
-      !Array.isArray(previous.chapters)) return ''
-
-    const progress = new Map<ComicId, ReadingProgress>()
-    const chapters = new Map<string, ChapterReadingState>()
-    const chapterKey = (row: ChapterReadingState): string => `${row.comicId.length}:${row.comicId}${row.chapterId}`
-    previous.progress.forEach((row: ReadingProgress): void => { progress.set(row.comicId, row) })
-    previous.chapters.forEach((row: ChapterReadingState): void => { chapters.set(chapterKey(row), row) })
-    pageTurns.forEach((row: ChapterReadingState): void => {
-      if (row.position === undefined) return
-      progress.set(row.comicId, row.position)
-      chapters.set(chapterKey(row), row)
-    })
-    previous.progress = Array.from(progress.values())
-    previous.chapters = Array.from(chapters.values())
-    previous.syncPositions = document.syncPositions
-    previous.syncActions = document.syncActions
-    payload = JSON.stringify(previous)
-  }
-  const tempPath = `${filePath}.tmp-${token}`
-  let file: fs.File | undefined = undefined
-  try {
-    file = fs.openSync(tempPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
-    fs.fsyncSync(file.fd)
-    fs.closeSync(file)
-    file = undefined
-    if (fs.readTextSync(tempPath, { encoding: 'utf-8' }) !== payload) {
-      throw new Error('reader_progress_incomplete_write')
-    }
-    return tempPath
-  } catch (error) {
-    try {
-      if (file !== undefined) fs.closeSync(file)
-    } catch (_error) {
-    }
-    try {
-      if (fs.accessSync(tempPath)) fs.unlinkSync(tempPath)
-    } catch (_error) {
-    }
-    throw error as Error
-  }
-}
-
 
 export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPersistenceAdapter {
   private readonly filePath: string
@@ -614,22 +554,7 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
       this.stagedDatabaseWrite = { key, snapshot, pageTurns }
       return key
     }
-    if (this.hasSnapshotBase && pageTurns !== undefined) {
-      const delta: ReaderSessionDocument = { schemaVersion: READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
-        progress: [], syncPositions: snapshot.syncPositions, syncActions: snapshot.syncActions }
-      const staged = await taskpool.execute(writeReaderSessionSnapshotTask, this.filePath,
-        JSON.stringify(delta), token, pageTurns) as string
-      if (staged.length > 0) return staged
-    }
-    const document: ReaderSessionDocument = {
-      schemaVersion: READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
-      progress: snapshot.progress, sourceHistory: snapshot.sourceHistory, remoteHistory: snapshot.remoteHistory,
-      chapters: snapshot.chapters, readingSessions: snapshot.readingSessions, syncPositions: snapshot.syncPositions,
-      syncActions: snapshot.syncActions,
-    }
-    // The full fallback can contain all older history. Pass flat text rather
-    // than making Taskpool copy its object graph on the reading thread.
-    return taskpool.execute(writeReaderSessionSnapshotTask, this.filePath, JSON.stringify(document), token) as Promise<string>
+    throw new Error('reader_database_unavailable')
   }
 
   commitSnapshotAsync(token: string): void {
@@ -673,7 +598,7 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
   private loadDocument(persistedText?: string | null): ReaderSessionDocumentSnapshot {
     this.hasSnapshotBase = false
     const database = liveReaderStorage.get(this.filesDir)
-    if (persistedText === undefined && database !== undefined) return database.read()
+    if (persistedText === undefined && database !== undefined) throw new Error('reader_scoped_read_required')
     let document: ReaderSessionDocument
     try {
       const text = persistedText === undefined ?
@@ -726,8 +651,8 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
       throw new Error('sync_local_busy')
     }
     const database = liveReaderStorage.get(this.filesDir)
-    if (database === undefined) writeAppTextFile(this.filePath, serializeReaderSessionForDevice(snapshot))
-    else database.save(snapshot, pageTurns)
+    if (database === undefined) throw new Error('reader_database_unavailable')
+    database.save(snapshot, pageTurns)
     this.migrationPending = false
     this.hasSnapshotBase = true
   }
@@ -913,7 +838,7 @@ export abstract class ReaderSessionStore {
       this.chapterStates.set(key, { comicId, chapterId, position: old?.position,
         sourceIdentity: identity ?? old?.sourceIdentity,
         isRead: old?.isRead === true, bookmarked, updatedAt: old?.updatedAt ?? Date.now() })
-      this.chapterStatesChanged()
+      this.chapterStatesChanged([this.chapterStates.get(key) as ChapterReadingState])
     }, [{ comicId, chapterId, kind: bookmarked ? 'bookmark' : 'unbookmark', identity }])
     return committed
   }
@@ -939,14 +864,15 @@ export abstract class ReaderSessionStore {
       if (plan.progress !== undefined && this.getProgress(plan.progress.comicId) === undefined) {
         this.saveTransferredProgress(plan.progress)
       }
-    })
+    }, [], Array.from(new Set(plan.states.map((state: MangaMigrationReadState): string => state.comicId)
+      .concat(plan.progress === undefined ? [] : [plan.progress.comicId]))))
   }
 
   protected saveTransferredProgress(progress: ReadingProgress): void {
     this.saveProgress(progress)
   }
 
-  protected commitUserMutation(mutation: () => void, _actions: SyncReadingSignal[] = []): boolean {
+  protected commitUserMutation(mutation: () => void, _actions: SyncReadingSignal[] = [], _comicIds?: ComicId[]): boolean {
     mutation()
     return this.flush()
   }
@@ -1028,7 +954,7 @@ export abstract class ReaderSessionStore {
         }
       })
       this.chapterStatesChanged()
-    })
+    }, [], [comicId])
   }
 
   isChapterRead(comicId: ComicId, chapterId: ChapterId): boolean {
@@ -1154,7 +1080,9 @@ export abstract class ReaderSessionStore {
       this.chapterStates.set(key, state)
       changed += 1
     })
-    if (changed > 0) this.chapterStatesChanged()
+    if (changed > 0) this.chapterStatesChanged(mutations.map((mutation: ChapterReadMutation): ChapterReadingState =>
+      this.chapterStates.get(chapterStateKey(mutation.comicId, mutation.chapterId)) as ChapterReadingState)
+      .filter((state: ChapterReadingState): boolean => state !== undefined))
     return changed
   }
 
@@ -1172,7 +1100,7 @@ export abstract class ReaderSessionStore {
     return state
   }
 
-  protected chapterStatesChanged(): void {}
+  protected chapterStatesChanged(_chapters?: ChapterReadingState[]): void {}
 
   /**
    * RDR-004-B: resolve a one-shot chapter open intent into the initial page.
@@ -1725,8 +1653,12 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.schedulePersist(history === undefined || this.adapter.supportsPageTurnWrites?.() === true)
   }
 
-  protected chapterStatesChanged(): void {
-    this.schedulePersist()
+  protected chapterStatesChanged(chapters?: ChapterReadingState[]): void {
+    const scoped = chapters !== undefined && this.adapter.supportsPageTurnWrites?.() === true
+    if (scoped) {
+      for (const state of chapters) this.pendingPageTurns.set(chapterStateKey(state.comicId, state.chapterId), state)
+    }
+    this.schedulePersist(scoped)
   }
 
   protected readingSessionAdded(record: ReadingSessionRecord): void {
@@ -1744,6 +1676,15 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   removeProgress(comicId: ComicId): void {
+    const database = this.adapter.activityDatabase?.()
+    if (database !== undefined) {
+      if (BackupRestoreActivity.hasPendingRecovery() || !this.flush()) throw new Error('sync_local_busy')
+      database.removeCurrentPosition(comicId)
+      this.queriedPositions.add(comicId)
+      this.progressByComicId.delete(comicId)
+      signalDeviceSyncChange('reading')
+      return
+    }
     this.queriedPositions.add(comicId)
     this.progressByComicId.delete(comicId)
     // Destructive progress changes must be visible to a new store immediately;
@@ -1782,8 +1723,9 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     return committed
   }
 
-  protected commitUserMutation(mutation: () => void, actions: SyncReadingSignal[] = []): boolean {
+  protected commitUserMutation(mutation: () => void, actions: SyncReadingSignal[] = [], comicIds?: ComicId[]): boolean {
     const database = this.adapter.activityDatabase?.()
+    if (database !== undefined && comicIds !== undefined) return this.commitWorkMutation(database, mutation, comicIds)
     if (database !== undefined && actions.length > 0 &&
       actions.every((action: SyncReadingSignal): boolean => action.chapterId.length > 0)) {
       return this.commitChapterActions(database, mutation, actions)
@@ -1792,7 +1734,17 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       sourceHistory: this.listSourceHistory(), remoteHistory: this.listRemoteHistory(), chapters: this.listChapterStates(),
       readingSessions: this.listReadingSessions() }
     // Read-state changes also mutate recent/position objects, so retain a detached snapshot.
-    const previous = JSON.parse(JSON.stringify(current)) as ReaderSessionDocumentSnapshot
+    const previous: ReaderSessionDocumentSnapshot = {
+      progress: current.progress.map(copyReadingProgress),
+      sourceHistory: current.sourceHistory.map((entry: SourceReadHistoryEntry): SourceReadHistoryEntry =>
+        copySourceReadHistoryEntry(entry) as SourceReadHistoryEntry),
+      remoteHistory: current.remoteHistory?.map((entry: RemoteReadHistoryEntry): RemoteReadHistoryEntry =>
+        copyRemoteReadHistoryEntry(entry) as RemoteReadHistoryEntry),
+      chapters: current.chapters.map((row: ChapterReadingState): ChapterReadingState =>
+        JSON.parse(JSON.stringify(row)) as ChapterReadingState),
+      readingSessions: current.readingSessions?.map((row: ReadingSessionRecord): ReadingSessionRecord => ({
+        comicId: row.comicId, chapterId: row.chapterId, startedAt: row.startedAt, endedAt: row.endedAt, pagesRead: row.pagesRead })),
+    }
     const pendingBefore = this.persistPending
     const fullSnapshotBefore = this.needsFullSnapshot
     const actionsBefore = this.syncActions
@@ -1865,6 +1817,71 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.deviceSyncRevision += 1
     signalDeviceSyncChange('reading')
     return true
+  }
+
+  /** Single-work compatibility changes must not fall back to a complete reader snapshot. */
+  private commitWorkMutation(database: ReaderRdbStorage, mutation: () => void, comicIds: ComicId[]): boolean {
+    if (BackupRestoreActivity.hasPendingRecovery() || !this.flush()) return false
+    const ids = new Set<ComicId>(comicIds)
+    for (const id of ids) {
+      this.prepareWorkChapterStates(id)
+      this.getProgress(id)
+      this.getSourceHistory(id)
+    }
+    const before: ReaderSessionDocumentSnapshot = { progress: [], chapters: [], sourceHistory: [] }
+    for (const id of ids) {
+      const position = this.progressByComicId.get(id)
+      const history = this.sourceHistoryByComicId.get(id)
+      if (position !== undefined) before.progress.push(copyReadingProgress(position))
+      if (history !== undefined) before.sourceHistory.push(copySourceReadHistoryEntry(history) as SourceReadHistoryEntry)
+    }
+    for (const chapter of this.chapterStates.values()) {
+      if (ids.has(chapter.comicId)) before.chapters.push(JSON.parse(JSON.stringify(chapter)) as ChapterReadingState)
+    }
+    try {
+      mutation()
+      if (!this.persistPending) return true
+      const chapters = Array.from(this.chapterStates.values()).filter((row: ChapterReadingState): boolean => ids.has(row.comicId))
+      const plan = this.buildPersistPlan(chapters)
+      if (plan === undefined) throw new Error('reader_scoped_persistence_unavailable')
+      database.save(plan.snapshot, chapters)
+      this.acceptPersistPlan(plan)
+      signalDeviceSyncChange('reading')
+      return true
+    } catch (_error) {
+      this.chapterStates.forEach((state: ChapterReadingState, key: string): void => {
+        if (ids.has(state.comicId)) this.chapterStates.delete(key)
+      })
+      this.applyCommittedReadingRows(Array.from(ids), before)
+      return false
+    } finally {
+      if (this.persistTimerId >= 0) clearTimeout(this.persistTimerId)
+      this.persistTimerId = -1
+      this.persistPending = false
+      this.needsFullSnapshot = false
+      this.pendingPageTurns.clear()
+      this.pendingSourceHistory.clear()
+    }
+  }
+
+  saveRemoteHistory(entry: RemoteReadHistoryEntry): void {
+    const database = this.adapter.activityDatabase?.()
+    if (database === undefined) { super.saveRemoteHistory(entry); return }
+    if (BackupRestoreActivity.hasPendingRecovery()) throw new Error('sync_local_busy')
+    const copied = copyRemoteReadHistoryEntry(entry)
+    if (copied === undefined) return
+    database.saveRemoteHistoryEntry(copied.comicId, copied)
+    this.remoteHistoryByComicId.set(copied.comicId, copied)
+    signalDeviceSyncChange('reading')
+  }
+
+  removeRemoteHistory(comicId: ComicId): void {
+    const database = this.adapter.activityDatabase?.()
+    if (database === undefined) { super.removeRemoteHistory(comicId); return }
+    if (BackupRestoreActivity.hasPendingRecovery()) throw new Error('sync_local_busy')
+    database.saveRemoteHistoryEntry(comicId)
+    this.remoteHistoryByComicId.delete(comicId)
+    signalDeviceSyncChange('reading')
   }
 
   private commitChapterActions(database: ReaderRdbStorage, mutation: () => void, actions: SyncReadingSignal[]): boolean {
@@ -1989,10 +2006,13 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   removeSourceHistory(comicId: ComicId): void {
+    const database = this.adapter.activityDatabase?.()
+    if (BackupRestoreActivity.hasPendingRecovery()) throw new Error('sync_local_busy')
+    if (database !== undefined) database.removeSourceHistoryEntry(comicId)
     this.queriedSourceHistory.add(comicId)
     this.sourceHistoryByComicId.delete(comicId)
-    this.schedulePersist()
-    this.flush()
+    if (database === undefined) { this.schedulePersist(); this.flush() }
+    else signalDeviceSyncChange('reading')
   }
 
   listSourceHistory(): SourceReadHistoryEntry[] {
@@ -2092,7 +2112,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
         return
       }
       // The regular page-turn path gives the worker only the changed rows.
-      // History edits, imports and restores still own their full snapshot.
+      // User edits and imports commit through their scoped RDB owners.
       const staged = await this.adapter.saveSnapshotAsync(plan.snapshot, barrier, pageTurns)
       if (barrier !== this.persistBarrier) {
         this.adapter.discardSnapshotAsync(staged)

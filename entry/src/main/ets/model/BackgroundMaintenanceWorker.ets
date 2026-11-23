@@ -1,11 +1,12 @@
+import { exportLibraryBackup, exportReaderBackup } from './BusinessBackupExport'
 import { common, appManager } from '@kit.AbilityKit'
 import { exportComicCovers } from './ComicPersonalization'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { Comic } from './ComicModels'
 import { InMemoryLibraryStore } from './LibraryStore'
-import { hydrateLibraryStoreFromJson, prepareLiveLibraryStorage, readLiveLibrarySnapshot } from './LibraryPersistence'
-import { appReaderSessionStore, prepareLiveReaderStorage, readLiveReaderSnapshot } from './ReaderSessionStore'
+import { AppFilesLibraryStorePersistenceAdapter, LibraryStorePersistenceService, prepareLiveLibraryStorage } from './LibraryPersistence'
+import { appReaderSessionStore, prepareLiveReaderStorage } from './ReaderSessionStore'
 import { offlineDownloadQueuePath, prepareOfflineQueueDatabase, readOfflineQueueDatabaseSnapshot, readableOfflineDownloadQueuePath,
   usesOfflineQueueDatabase } from './OfflineDownloadQueueStore'
 import { KOMA_BUNDLE_NAME } from '../common/Constants'
@@ -76,9 +77,9 @@ export async function executeBackgroundMaintenance(context: common.Context, work
     const document = JSON.parse(await fs.readText(snapshot)) as Record<string, Object>
     // Settings/credentials are captured by their UI owner. Refresh domains that may keep changing
     // after background entry (in-flight updates/downloads) from their atomic persisted documents.
-    const librarySnapshot = readLiveLibrarySnapshot(context.filesDir)
+    const librarySnapshot = exportLibraryBackup(context.filesDir)
     if (librarySnapshot !== undefined) document['libraryStore'] = librarySnapshot
-    const readingSnapshot = readLiveReaderSnapshot(context.filesDir)
+    const readingSnapshot = exportReaderBackup(context.filesDir)
     if (readingSnapshot !== undefined) document['readingProgress'] = readingSnapshot
     if (document['downloadQueue'] !== undefined) {
       const relativeQueue = offlineDownloadQueuePath(contentBase, context.filesDir).substring(context.filesDir.length + 1)
@@ -138,10 +139,8 @@ export async function executeBackgroundMaintenance(context: common.Context, work
   }
   if (workId !== LIBRARY_BACKGROUND_WORK_ID || !config.updates.autoCheckEnabled || config.updates.foregroundOnly ||
     !automaticUpdateConditionsSatisfied(config.policy) || stopped()) return
-  const librarySnapshot = readLiveLibrarySnapshot(context.filesDir)
-  if (librarySnapshot === undefined) return
   const library = new InMemoryLibraryStore()
-  hydrateLibraryStoreFromJson(library, librarySnapshot)
+  new LibraryStorePersistenceService(library, new AppFilesLibraryStorePersistenceAdapter(context.filesDir)).restoreForLaunch('all')
   const reader = appReaderSessionStore(context.filesDir)
   const service = new LibraryUpdateService(library, registry, undefined, new SnapshotRemoteServerStore(context, config.servers),
     (comic: Comic): Set<string> | undefined => protectedSourceChapterIds(comic, contentBase, reader,
@@ -152,13 +151,14 @@ export async function executeBackgroundMaintenance(context: common.Context, work
   const savedCursor: BackgroundUpdateCursor | undefined = await fs.access(cursorPath)
     ? JSON.parse(await fs.readText(cursorPath)) as BackgroundUpdateCursor : undefined
   const cursor: BackgroundUpdateCursor = savedCursor?.generation === epoch.generation ? savedCursor :
-    { generation: epoch.generation, remaining: library.listComics().map((comic: Comic): string => comic.id), results: [], startedAt: Date.now() }
+    { generation: epoch.generation, remaining: library.listComicSummaries().map((comic: Comic): string => comic.id), results: [], startedAt: Date.now() }
   const directory = `${context.filesDir}/${JOURNAL_DIR}`
   if (!await fs.access(directory)) await fs.mkdir(directory)
   const deadline = Date.now() + 105000
   while (cursor.remaining.length > 0 && !stopped() && Date.now() < deadline) {
     const id = cursor.remaining[0]
-    const comic = library.getComic(id)
+    const summary = library.getComicSummary(id)
+    const comic = summary !== undefined && shouldAutomaticallyUpdateComic(summary, reader, config.policy) ? library.getComic(id) : summary
     if (comic !== undefined) {
       const before = JSON.parse(JSON.stringify(comic)) as Comic
       const result = await service.checkComic(comic)

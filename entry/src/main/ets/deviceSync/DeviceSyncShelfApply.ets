@@ -1,16 +1,16 @@
 import { hiTraceMeter } from '@kit.PerformanceAnalysisKit'
-import { LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION, PersistedComic, PersistedLibraryCategory, PersistedLibraryStoreDocument,
-  assertValidLibraryStoreJson, readLibraryStoreDocument } from '../model/LibraryPersistence'
+import { LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION, PersistedComic, PersistedLibraryCategory, PersistedCategoryDisplayStrategy, PersistedLibraryStoreDocument,
+  assertValidLibraryStoreJson, readLibraryStoreDocument, validateLibraryStoreDocument } from '../model/LibraryPersistence'
 import { ComicSourceKind, ReadingDirection, libraryCategoryNameKey, normalizeLibraryCategoryName, normalizeSortKey } from '../model/ComicModels'
 import { sourceLibraryComicId } from '../model/SourceLibraryComic'
 import type { LibrarySmartCategory, LibrarySmartFilter } from '../model/LibrarySmartCategory'
-import type { LibraryShelfSyncEdits, LibraryShelfSyncImage } from '../model/LibraryRdbStorage'
+import type { LibraryShelfSyncDocument, LibraryShelfSyncEdits, LibraryShelfSyncImage } from '../model/LibraryRdbStorage'
 import { isSyncReplica } from './DeviceSyncFacts'
 import { smartCategoryStorageId, syncCoverAddress, SyncChapterCatalog, SyncSmartCategory, SyncWorkLabel, syncKey, syncKeyParts,
   syncNumberedCategoryName, syncSharedCategoryId, syncShelfIdentity, syncShelfMove } from './DeviceSyncData'
 import type { SyncLocalShelfMove } from './DeviceSyncSignals'
 import type { SyncLocalValue } from './DeviceSyncStorage'
-import { syncDigest } from './DeviceSyncWire'
+import { syncDigest, syncRowsDigest } from './DeviceSyncWire'
 
 export const FAVORITE = 'favorite'
 export const READ_LATER = 'read_later'
@@ -617,11 +617,21 @@ function shelfSyncEdits(before: PersistedLibraryStoreDocument | undefined,
   return { comicIds, unchangedCatalogs, before: previous, after: next }
 }
 
-// Keep the owned shelf document in one TaskPool task through decode, merge and
-// validation. The caller still checks the admitted files and publishes the journal.
-export function prepareSyncShelfDocument(raw: string | null, changes: SyncLocalValue[], projectionText: string,
-  acceptedRemoval: string, replica: string, relational: boolean = false): PreparedSyncShelf {
-  const library = raw === null ? emptySyncLibrary() : readLibraryStoreDocument(raw)
+export function shelfRowsRevision(library: PersistedLibraryStoreDocument | undefined): string {
+  if (library === undefined) return syncDigest('absent')
+  return syncDigest([`${library.schemaVersion}`, syncRowsDigest(library.comics),
+    `${library.customCategories !== undefined}:${library.categoryDisplayStrategies !== undefined}:` +
+      `${library.smartCategories !== undefined}:${library.syncShelfMoves !== undefined}`,
+    syncRowsDigest(library.customCategories ?? []), syncRowsDigest(library.categoryDisplayStrategies ?? []),
+    syncRowsDigest(library.smartCategories ?? []), syncRowsDigest(library.syncShelfMoves ?? []),
+    syncRowsDigest((library as LibraryShelfSyncDocument).incompleteSmartCategoryIds ?? [])].join(':'))
+}
+
+/** Both copies are bounded by individual business records, never a whole-library string. */
+export function prepareSyncShelfRows(source: PersistedLibraryStoreDocument | undefined, changes: SyncLocalValue[],
+  projectionText: string, acceptedRemoval: string, replica: string): PreparedSyncShelf {
+  const before = source === undefined ? undefined : copyShelfRows(source)
+  const library = source === undefined ? emptySyncLibrary() : copyShelfRows(source)
   const projection = JSON.parse(projectionText) as SyncProjection
   const admittedIds = new Set<string>((library.customCategories ?? []).map(category => category.id))
   expandCategoryAliases(library, projection, replica)
@@ -629,14 +639,29 @@ export function prepareSyncShelfDocument(raw: string | null, changes: SyncLocalV
   applySmartCategories(changes, library, projection, replica)
   mergeCategoryAliases(library, projection, replica, admittedIds)
   applyChapterCatalogs(changes, library)
-  const libraryText = JSON.stringify(library)
-  assertValidLibraryStoreJson(libraryText)
-  hiTraceMeter.traceByValue('KomaDeviceSyncShelfPreparedChars', libraryText.length)
-  // Resolving aliases or recording a declined remote edit can change the sync
-  // projection without changing the shelf. Keep the unchanged catalog in the worker.
-  const nextProjection = JSON.stringify(projection)
-  if (libraryText === raw) return { projectionText: nextProjection }
-  if (!relational) return { libraryText, projectionText: nextProjection }
-  const before = raw === null ? undefined : JSON.parse(raw) as PersistedLibraryStoreDocument
-  return { shelfEdits: shelfSyncEdits(before, library), projectionText: nextProjection }
+  validateLibraryStoreDocument(library)
+  const edits = shelfSyncEdits(before, library)
+  const next = edits.after
+  const changed = edits.comicIds.length > 0 || edits.before.present !== next.present || next.order !== undefined ||
+    next.categories !== undefined || next.displayStrategies !== undefined || next.smartCategories !== undefined || next.moves !== undefined
+  return { shelfEdits: changed ? edits : undefined, projectionText: JSON.stringify(projection) }
+}
+
+function copyShelfRows(source: PersistedLibraryStoreDocument): PersistedLibraryStoreDocument {
+  return { schemaVersion: source.schemaVersion,
+    comics: source.comics.map((row: PersistedComic): PersistedComic => JSON.parse(JSON.stringify(row)) as PersistedComic),
+    customCategories: source.customCategories?.map((row: PersistedLibraryCategory): PersistedLibraryCategory =>
+      JSON.parse(JSON.stringify(row)) as PersistedLibraryCategory),
+    categoryDisplayStrategies: source.categoryDisplayStrategies?.map((row: PersistedCategoryDisplayStrategy): PersistedCategoryDisplayStrategy =>
+      JSON.parse(JSON.stringify(row)) as PersistedCategoryDisplayStrategy),
+    smartCategories: source.smartCategories?.map(row => JSON.parse(JSON.stringify(row)) as LibrarySmartCategory),
+    syncShelfMoves: source.syncShelfMoves?.map(row => JSON.parse(JSON.stringify(row)) as SyncLocalShelfMove) }
+}
+
+/** Decode retained legacy inputs, then use the same relational edit contract.
+ * There is deliberately no full-file output or serialization fallback. */
+export function prepareSyncShelfDocument(raw: string | null, changes: SyncLocalValue[], projectionText: string,
+  acceptedRemoval: string, replica: string, _relational: boolean = true): PreparedSyncShelf {
+  return prepareSyncShelfRows(raw === null ? undefined : readLibraryStoreDocument(raw), changes,
+    projectionText, acceptedRemoval, replica)
 }

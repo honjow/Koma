@@ -1,19 +1,15 @@
 import { common } from '@kit.AbilityKit'
 import type { relationalStore } from '@kit.ArkData'
 import { taskpool } from '@kit.ArkTS'
-import { fileIo as fs } from '@kit.CoreFileKit'
 import { hiTraceMeter } from '@kit.PerformanceAnalysisKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { signalDeviceSyncChange, signalDeviceSyncRestoreStart, signalDeviceSyncRestoreFinish } from '../deviceSync/DeviceSyncSignals'
 import { beginAutomationRestore } from './AutomationStateEpoch'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { BackupRestoreCheckpoint } from './BackupRestoreCheckpoint'
-import { commitLiveMihonCatalog, LIBRARY_STORE_PERSISTENCE_FILE_NAME, saveLiveMihonSourceMatches, usesLibraryDatabase,
-  writeLiveLibrarySnapshot } from './LibraryPersistence'
-import { LibraryStore, replaceLibraryContents } from './LibraryStore'
-import { appReaderSessionStore, ChapterReadingState, readLiveMihonReading, READER_PROGRESS_PERSISTENCE_FILE_NAME,
-  stageLiveMihonReading,
-  usesReaderDatabase, writeLiveReaderSnapshot } from './ReaderSessionStore'
+import { commitLiveMihonCatalog, commitLiveMihonImport, saveLiveMihonSourceMatches, usesLibraryDatabase } from './LibraryPersistence'
+import { LibraryStore } from './LibraryStore'
+import { appReaderSessionStore, ChapterReadingState, readLiveMihonReading, stageLiveMihonReading, usesReaderDatabase } from './ReaderSessionStore'
 import { MihonImportRecord, MihonImportWork } from './MihonBackupReader'
 import { Comic } from './ComicModels'
 import { MihonImportLabels, MihonImportSummary, matchingMihonShelfWork, mihonDeclaredWork, mihonMatchText,
@@ -377,7 +373,7 @@ export class MihonImportService {
   }
 
   private async prepareTransaction(staged: string, request: MihonTransactionRequest): Promise<MihonPreparedTransaction> {
-    const task = new taskpool.Task(prepareMihonTransactionTask, this.context.filesDir, staged, request)
+    const task = new taskpool.Task(prepareMihonTransactionTask, this.context, request)
     if (request.bytes !== undefined) task.setCloneList([request.bytes])
     const comics: Comic[] = []
     const imports: MihonImportRecord[] = []
@@ -442,33 +438,19 @@ export class MihonImportService {
       checkpoint = await BackupRestoreCheckpoint.prepare(context, true)
       const staged = checkpoint.stagedFilesDirectory()
       const prepared = await this.prepareTransaction(staged, request)
-      const preparedLibrary = staged + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME
-      if (usesLibraryDatabase(context.filesDir)) {
-        writeLiveLibrarySnapshot(context.filesDir, await fs.readText(preparedLibrary))
-      } else {
-        await fs.rename(preparedLibrary, context.filesDir + '/' + LIBRARY_STORE_PERSISTENCE_FILE_NAME)
-      }
-      const preparedReader = staged + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME
-      if (usesReaderDatabase(context.filesDir)) {
-        writeLiveReaderSnapshot(context.filesDir, await fs.readText(preparedReader))
-      } else {
-        await fs.rename(preparedReader, context.filesDir + '/' + READER_PROGRESS_PERSISTENCE_FILE_NAME)
-      }
-      if (prepared.trackerMappings.length > beforeMappings.length) {
-        await tracker.saveComicMappingsForBackupRestore(prepared.trackerMappings)
-      }
+      await commitLiveMihonImport(context.filesDir, prepared.library.mihonImports, prepared.library.comics,
+        prepared.removedComicIds ?? [], prepared.library.customCategories,
+        async (transaction: relationalStore.Transaction): Promise<void> => {
+          await stageLiveMihonReading(context.filesDir, transaction, prepared.linkedComicIds ?? [], prepared.reader)
+          await tracker.stageMihonCandidates(transaction, prepared.trackerMappings)
+        })
       await checkpoint.commitAsync()
       committed = true
-      const linked = prepared.linkedComicIds
-      if (linked === undefined) {
-        reader.applyCommittedSnapshot(prepared.reader)
-        replaceLibraryContents(this.library, prepared.library)
-      } else {
-        reader.applyCommittedMihonLinks(linked, prepared.reader)
-        for (const id of prepared.removedComicIds ?? []) this.library.removeComic(id)
-        for (const comic of prepared.library.comics) this.library.upsertComic(comic)
-        this.library.updateMihonImports(prepared.library.mihonImports)
-      }
+      reader.applyCommittedMihonLinks(prepared.linkedComicIds ?? [], prepared.reader)
+      this.library.replaceCustomCategories(prepared.library.customCategories)
+      for (const id of prepared.removedComicIds ?? []) this.library.removeComic(id)
+      for (const comic of prepared.library.comics) this.library.upsertComic(comic)
+      this.library.updateMihonImports(prepared.library.mihonImports)
       if (prepared.trackerMappings.length > beforeMappings.length) tracker.invalidateMappingSnapshot()
       return { unmatchedChapters: prepared.unmatchedChapters, targetComicId: prepared.targetComicId }
     } catch (error) {

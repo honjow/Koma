@@ -534,13 +534,14 @@ export class LibraryUpdateService {
   async checkLibraryUpdates(): Promise<LibraryUpdateSummary> {
     return BackupRestoreActivity.runWrite(async (): Promise<LibraryUpdateSummary> => {
       const checkedAt = Date.now()
-      const comics = this.libraryStore.listComics()
+      const comics = this.libraryStore.listComicSummaries()
       const results: LibraryUpdateComicResult[] = []
       const modified: Comic[] = []
       const updated = new Map<string, LibraryUpdateComicResult>()
       console.info(`[LibraryUpdate] step=start total=${comics.length}`)
       for (const comic of comics) {
-        const before = this.libraryStore.getComic(comic.id) ?? comic
+        const before = this.includeComic !== undefined && !this.includeComic(comic) ? comic :
+          this.libraryStore.getComic(comic.id) ?? comic
         const result = await this.checkComic(before)
         if (result.status === 'updated' || result.metadataChanged === true) {
           modified.push(before)

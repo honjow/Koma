@@ -2121,7 +2121,7 @@ export struct MangaDetailPage {
     const title = normalizeSearchText(this.manga?.title ?? '')
     const comicId = this.currentComicId()
     const privateIds = privateLibraryCategoryIds(this.libraryStore?.listCustomCategories() ?? [])
-    const matches = title.length === 0 ? [] : (this.libraryStore?.listComics(false) ?? [])
+    const matches = title.length === 0 ? [] : (this.libraryStore?.listComicSummaries(false) ?? [])
       .filter((comic: Comic): boolean => comic.id !== comicId && showLibraryComic(comic, privateIds) &&
         normalizeSearchText(comic.title) === title)
     if (matches.length > 0) {
@@ -2149,10 +2149,10 @@ export struct MangaDetailPage {
     const source = comic.sourceRuntimeId === undefined ? s('tab_library') :
       sourceDisplayName(comic.sourceRuntimeId, comic.sourceMetadata?.sourceName ?? '')
     const progress = this.readerSessionStore.getProgress(comic.id)
-    const chapter = comic.chapters.find((item: Chapter): boolean => item.id === progress?.chapterId)
+    const chapterTitle = progress === undefined ? undefined : this.libraryStore?.readComicChapterTitle(comic.id, progress.chapterId)
     const count = this.formatString('favorite_match_chapters', [comic.chapterCount])
     return progress === undefined ? `${source} · ${count}` :
-      `${source} · ${count}\n${chapter?.title ?? ''} ${this.formatString('favorite_match_page', [progress.pageIndex + 1])}`.trim()
+      `${source} · ${count}\n${chapterTitle ?? ''} ${this.formatString('favorite_match_page', [progress.pageIndex + 1])}`.trim()
   }
 
   private finishFavoriteMatch(): void {

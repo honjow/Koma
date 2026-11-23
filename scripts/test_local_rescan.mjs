@@ -29,11 +29,9 @@ assert.match(serviceSource, /NO_DELETE_LIBRARY_ROWS_OR_USER_FILES/, 'rescan cont
 assert.match(serviceSource, /removedCount:\s*missingCount/, 'removed-from-scan must be represented as missing, not destructive deletion')
 assert.doesNotMatch(serviceSource, /unlink|rmdir|removeComputed|deleteFile|deleteComic|removeComic|upsertComic|LibraryStore|fileIo|fs\./, 'rescan service must not delete files or mutate library persistence')
 assert.match(contractSource, /LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'BEST_EFFORT_DOCUMENT_PICKER'/, 'D42 picker persistence must advertise the best-effort document picker path')
-assert.match(
-  libraryPersistenceSource,
-  /mergeLocalLibraryRescanComic\(previous: Comic \| undefined, fresh: Comic\)[\s\S]*createdAt: previous\.createdAt[\s\S]*const categoryIds = normalizeCategoryIds\(previous\.categoryIds\)[\s\S]*if \(categoryIds\.length > 0\) \{[\s\S]*merged\.categoryIds = categoryIds[\s\S]*libraryStore\.upsertComic\(mergeLocalLibraryRescanComic\(libraryStore\.getComic\(comic\.id\), comic\)\)/,
-  'rescan persistence must preserve existing shelf category membership and createdAt while refreshing scanned local folder metadata',
-)
+// The SQLite-backed folder import/rescan case in test_library_smart_categories.cjs
+// executes preservation of createdAt and category membership, including failed
+// commit/retry. A particular nesting of upsert/merge does not prove that contract.
 assert.match(
   libraryPersistenceSource,
   /shouldPreservePreviousLocalMetadata[\s\S]*merged\.title = previous\.title[\s\S]*merged\.sortTitle = previous\.sortTitle[\s\S]*merged\.localMetadata = previous\.localMetadata/,

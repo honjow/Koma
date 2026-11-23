@@ -4,17 +4,17 @@ import { taskpool, util } from '@kit.ArkTS'
 import { hiTraceMeter } from '@kit.PerformanceAnalysisKit'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
-import { readUserDataSnapshot, readReadingSyncDatabaseInput, readShelfWorksForRecovery } from '../model/UserDataSnapshot'
+import { readReadingSyncDatabaseInput, readShelfSyncDatabaseInput, ReadingSyncDatabaseInput, ShelfSyncDatabaseInput, readShelfWorksForRecovery } from '../model/UserDataSnapshot'
 import {
   LIBRARY_STORE_PERSISTENCE_FILE_NAME, PersistedComic, PersistedLibraryCategory, PersistedLibraryStoreDocument,
-  PersistedChapter, liveLibraryWriteRevision, liveReadingMetadata, readLibraryStoreDocument, readLiveLibrarySnapshot,
+  PersistedChapter, liveLibraryWriteRevision, liveReadingMetadata, readLibraryStoreDocument,
   liveShelfCategoryAliases, readLiveShelfSync, readLiveShelfSyncWork, usesLibraryDatabase,
   writeLiveLibrarySnapshot, writeLiveLibrarySyncEdits,
 } from '../model/LibraryPersistence'
 import type { LibraryShelfSyncDocument, LibraryShelfSyncEdits } from '../model/LibraryRdbStorage'
 import {
   AppFilesReaderSessionPersistenceAdapter, ChapterReadingState, ReaderSessionDocumentSnapshot,
-  READER_PROGRESS_PERSISTENCE_FILE_NAME, appReaderSessionStore, serializeReaderSessionForDevice, readLiveReaderSnapshot,
+  READER_PROGRESS_PERSISTENCE_FILE_NAME, appReaderSessionStore,
   readLiveReadingEdits, readLiveReadingWork, usesReaderDatabase, writeLiveReaderSnapshot, writeLiveReadingEdits,
 } from '../model/ReaderSessionStore'
 import type { ReaderSyncWorkScope } from '../model/ReaderRdbStorage'
@@ -45,14 +45,14 @@ import { syncDigest } from './DeviceSyncWire'
 import { packInputRows } from './DeviceSyncPlanner'
 import {
   appendReadingChapter, appendReadingProgress, buildSyncReadingSnapshot, recentFromLocal, readingLibrarySnapshot,
-  databaseReadingRevision, databaseReadingShelfRevision,
+  databaseReadingRevision, databaseReadingShelfRevision, readingRowsRevision,
   projectDatabaseReading, rememberReadingMetadata,
   rememberLibraryIdentity, rememberChapterIdentity, rememberHistoryIdentity, rememberFactIdentity,
   SyncLocalReadingWork, SyncProjectedReadingSnapshot, validDate,
 } from './DeviceSyncReadingSnapshot'
 import { FAVORITE, READ_LATER, categoryAliases, categoryMembershipAliases,
   emptySyncLibrary, matchesShelfWork, originalCategoryName, PreparedSyncShelf,
-  prepareSyncShelfDocument, sharedCategoryRecord, shelfSourceCover, shelfWork, smartCategoryKey,
+  prepareSyncShelfDocument, prepareSyncShelfRows, sharedCategoryRecord, shelfSourceCover, shelfWork, smartCategoryKey,
   SyncKeptShelfDetails, SyncLocalCategory, SyncProjection, SyncResumeProof, SyncSourceIdentity, toLocalCategory,
   toSharedCategory } from './DeviceSyncShelfApply'
 
@@ -160,8 +160,9 @@ function prepareSyncShelf(raw: string | null, changes: SyncLocalValue[], project
 }
 
 @Concurrent
-function serializeSyncReading(reading: ReaderSessionDocumentSnapshot): string {
-  return serializeReaderSessionForDevice(reading)
+function prepareDatabaseSyncShelf(library: PersistedLibraryStoreDocument | undefined, changes: SyncLocalValue[], projectionText: string,
+  acceptedRemoval: string, replica: string): PreparedSyncShelf {
+  return prepareSyncShelfRows(library, changes, projectionText, acceptedRemoval, replica)
 }
 
 @Concurrent
@@ -280,7 +281,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const labels: Record<string, string> = {}
     if (keys.length === 0) return labels
     const library = snapshot ?? this.library()
-    const history = sourceHistory ?? this.reading().sourceHistory
+    const history = sourceHistory ?? appReaderSessionStore(this.context.filesDir).listSourceHistory()
     for (const key of keys) {
       const parts = syncKeyParts(key)
       if (parts.length < 3) continue
@@ -290,6 +291,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       const title = comic?.title ?? entry?.title
       if (title === undefined) continue
       const chapter = parts.length > 3 ? comic?.chapters.find((item: PersistedChapter): boolean => item.id === parts[3])?.title ??
+        (comic === undefined || !usesLibraryDatabase(this.context.filesDir) ? undefined :
+          liveReadingMetadata(this.context.filesDir, comic.id, parts[3])[0]?.chapterTitle) ??
         (entry?.chapterId === parts[3] ? entry.chapterTitle : undefined) ?? parts[3] : ''
       labels[key] = title + (chapter ? ' · ' + chapter : '')
     }
@@ -301,21 +304,19 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   }
 
   private readOwnerFile(name: string): string | undefined {
-    if (name === LIBRARY_STORE_PERSISTENCE_FILE_NAME) return readLiveLibrarySnapshot(this.context.filesDir)
-    if (name === READER_PROGRESS_PERSISTENCE_FILE_NAME) return readLiveReaderSnapshot(this.context.filesDir)
+    if (name === LIBRARY_STORE_PERSISTENCE_FILE_NAME && usesLibraryDatabase(this.context.filesDir)) throw new Error('shelf_file_snapshot_disabled')
+    if (name === READER_PROGRESS_PERSISTENCE_FILE_NAME && usesReaderDatabase(this.context.filesDir)) throw new Error('reading_file_snapshot_disabled')
     return readFile(this.path(name))
   }
 
   private usesShelfRows(): boolean {
-    return this.journalName === SYNC_JOURNAL && usesLibraryDatabase(this.context.filesDir)
+    return usesLibraryDatabase(this.context.filesDir)
   }
 
   private async readOwnerSnapshot(name: string, shelfRows: boolean = false): Promise<string | undefined> {
-    if (name === LIBRARY_STORE_PERSISTENCE_FILE_NAME && usesLibraryDatabase(this.context.filesDir)) {
-      return await taskpool.execute(readUserDataSnapshot, this.context, shelfRows ? 'shelf-sync' : 'library') as string | undefined
-    }
-    if (name === READER_PROGRESS_PERSISTENCE_FILE_NAME && usesReaderDatabase(this.context.filesDir)) {
-      return await taskpool.execute(readUserDataSnapshot, this.context, 'reading') as string | undefined
+    if ((name === LIBRARY_STORE_PERSISTENCE_FILE_NAME && usesLibraryDatabase(this.context.filesDir)) ||
+      (name === READER_PROGRESS_PERSISTENCE_FILE_NAME && usesReaderDatabase(this.context.filesDir))) {
+      throw new Error('sync_file_snapshot_disabled')
     }
     return readSnapshotFile(this.path(name))
   }
@@ -359,7 +360,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   }
 
   private library(shelfRows: boolean = false): PersistedLibraryStoreDocument {
-    if (shelfRows && this.usesShelfRows()) return readLiveShelfSync(this.context.filesDir) ?? emptySyncLibrary()
+    if (usesLibraryDatabase(this.context.filesDir)) return readLiveShelfSync(this.context.filesDir) ?? emptySyncLibrary()
     const raw = this.readOwnerFile(LIBRARY_STORE_PERSISTENCE_FILE_NAME)
     if (raw === undefined) {
       return emptySyncLibrary()
@@ -367,12 +368,14 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return readLibraryStoreDocument(raw)
   }
 
-  private async libraryForSnapshot(raw: string | undefined, includeCatalogs: boolean): Promise<SyncParsedLibrary> {
-    if (this.snapshotLibrary !== undefined && this.snapshotLibraryRaw === raw &&
+  private async libraryForSnapshot(raw: string | undefined, includeCatalogs: boolean, input?: ShelfSyncDatabaseInput): Promise<SyncParsedLibrary> {
+    const key = input?.revision ?? raw
+    if (this.snapshotLibrary !== undefined && this.snapshotLibraryRaw === key &&
       (!includeCatalogs || this.snapshotLibrary.catalogs !== undefined)) return this.snapshotLibrary
-    const library = this.snapshotLibraryRaw === raw && this.snapshotLibrary !== undefined
+    const library = this.snapshotLibraryRaw === key && this.snapshotLibrary !== undefined
       ? this.snapshotLibrary.library
-      : (raw === undefined ? emptySyncLibrary() : await taskpool.execute(parseSyncLibrary, raw) as PersistedLibraryStoreDocument)
+      : (input !== undefined ? input.library ?? emptySyncLibrary() :
+        raw === undefined ? emptySyncLibrary() : await taskpool.execute(parseSyncLibrary, raw) as PersistedLibraryStoreDocument)
     const document: SyncParsedLibrary = { library }
     if (includeCatalogs) {
       const catalogs: Record<string, SyncLocalValue[]> = {}
@@ -385,7 +388,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       }
       document.catalogs = catalogs
     }
-    this.snapshotLibraryRaw = raw
+    this.snapshotLibraryRaw = key
     this.snapshotLibrary = document
     return document
   }
@@ -481,11 +484,12 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       // path, including its comparison to the archived reading identities.
     }
     const side = await readSnapshotFile(this.path(this.projectionName))
-    const shelfRows = group === 'shelf' && this.usesShelfRows() &&
-      (expectedRevision === undefined || expectedRevision.startsWith(SHELF_ROW_REVISION_PREFIX))
-    const rawLibrary = await this.readOwnerSnapshot(LIBRARY_STORE_PERSISTENCE_FILE_NAME, shelfRows)
+    const shelfRows = group === 'shelf' && this.usesShelfRows()
+    const shelfInput = usesLibraryDatabase(this.context.filesDir)
+      ? await taskpool.execute(readShelfSyncDatabaseInput, this.context) as ShelfSyncDatabaseInput : undefined
+    const rawLibrary = shelfInput === undefined ? await this.readOwnerSnapshot(LIBRARY_STORE_PERSISTENCE_FILE_NAME) : undefined
     const projection = this.projection(side ?? null)
-    const parsed = await this.libraryForSnapshot(rawLibrary, group === 'shelf')
+    const parsed = await this.libraryForSnapshot(rawLibrary, group === 'shelf', shelfInput)
     const library = parsed.library
     guard?.()
     const work = new SyncWorkSlice()
@@ -600,13 +604,15 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         if (value.length > 8192) protectedKeys.push(key)
         else values.push({ key, value })
       })
-      const revision = await taskpool.execute(hashSyncSnapshot, [rawLibrary ?? '', side ?? '']) as string
+      const revision = await taskpool.execute(hashSyncSnapshot, [shelfInput?.revision ?? rawLibrary ?? '', side ?? '']) as string
       return { values, labels, protectedKeys, revision: shelfRows ? SHELF_ROW_REVISION_PREFIX + revision : revision, skipped }
     }
     if (verify && !BackupRestoreActivity.deviceSyncIsCommitting() &&
       !appReaderSessionStore(this.context.filesDir).flush()) throw new Error('sync_local_busy')
-    const rawReading = await this.readOwnerSnapshot(READER_PROGRESS_PERSISTENCE_FILE_NAME)
-    const reading = await taskpool.execute(parseReadingSnapshot, this.context.filesDir, rawReading ?? null) as ReaderSessionDocumentSnapshot
+    const readingInput = usesReaderDatabase(this.context.filesDir)
+      ? await taskpool.execute(readReadingSyncDatabaseInput, this.context) as ReadingSyncDatabaseInput : undefined
+    const rawReading = readingInput === undefined ? await this.readOwnerSnapshot(READER_PROGRESS_PERSISTENCE_FILE_NAME) : undefined
+    const reading = readingInput?.reading ?? await taskpool.execute(parseReadingSnapshot, this.context.filesDir, rawReading ?? null) as ReaderSessionDocumentSnapshot
     guard?.()
     const knownFacts = group === 'reading' ? this.readingFacts() : []
     const identities = new Map<string, SyncLocalReadingWork>()
@@ -651,7 +657,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       if (preferences.pageTurnAnimation === defaults.pageTurnAnimation) defaultKeys.push(syncKey(['global', 'animation']))
       if (preferences.showPageNumber === defaults.showPageNumber) defaultKeys.push(syncKey(['global', 'page-number']))
       if (preferences.imageFitMode === defaults.imageFitMode) defaultKeys.push(syncKey(['global', 'image-fit']))
-      const revision = await taskpool.execute(hashSyncSnapshot, [JSON.stringify(preferences), rawLibrary ?? '', rawReading ?? '']) as string
+      const revision = await taskpool.execute(hashSyncSnapshot, [JSON.stringify(preferences), shelfInput?.revision ?? rawLibrary ?? '',
+        readingInput === undefined ? rawReading ?? '' : readingRowsRevision(reading)]) as string
       return { values, revision, skipped, labels,
         defaultKeys,
         unsetKeys: preferences.unsetFields?.map((name: string): string => syncKey(['global', name])),
@@ -675,8 +682,9 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       const knownLabels = this.readingLabels(knownFacts.map((item: SyncFact): string => item.key), library, reading.sourceHistory)
       for (const key of Object.keys(knownLabels)) if (labels[key] === undefined) labels[key] = knownLabels[key]
     }
-    const revision = await taskpool.execute(hashReadingSyncSnapshot, this.context.filesDir, rawLibrary ?? null, rawReading ?? null,
-      side ?? '', JSON.stringify(archive ?? null)) as string
+    const revision = readingInput !== undefined ? databaseReadingRevision(readingInput.works, reading,
+      side ?? '', JSON.stringify(archive ?? null)) : await taskpool.execute(hashReadingSyncSnapshot,
+      this.context.filesDir, rawLibrary ?? null, rawReading ?? null, side ?? '', JSON.stringify(archive ?? null)) as string
     return { values, labels, revision,
       skipped: readingOutsideScope, readingOutsideScope,
       readingHistoryKeys: reading.sourceHistory.map((entry: SourceReadHistoryEntry): string =>
@@ -718,8 +726,9 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       prepared = await taskpool.execute(projectDatabaseReadingSnapshot, this.context, this.projectionName,
         archiveText, factChunks) as SyncProjectedReadingSnapshot
     } else {
-      const shelf = usesLibraryDatabase(dir) ? await this.readOwnerSnapshot(LIBRARY_STORE_PERSISTENCE_FILE_NAME) ?? null : undefined
-      const reading = usesReaderDatabase(dir) ? await this.readOwnerSnapshot(READER_PROGRESS_PERSISTENCE_FILE_NAME) ?? null : undefined
+      if (usesLibraryDatabase(dir) || usesReaderDatabase(dir)) throw new Error('sync_databases_unavailable')
+      const shelf: string | undefined = undefined
+      const reading: string | undefined = undefined
       prepared = await taskpool.execute(projectReadingSnapshot, dir, this.projectionName,
         archiveText, factChunks, shelf, reading) as SyncProjectedReadingSnapshot
     }
@@ -804,8 +813,10 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
 
   async removed(group: SyncGroup, keys: string[]): Promise<string[]> {
     if (group !== 'shelf') return []
-    const rawLibrary = await this.readOwnerSnapshot(LIBRARY_STORE_PERSISTENCE_FILE_NAME, this.usesShelfRows())
-    const library = (await this.libraryForSnapshot(rawLibrary, false)).library
+    const input = usesLibraryDatabase(this.context.filesDir)
+      ? await taskpool.execute(readShelfSyncDatabaseInput, this.context) as ShelfSyncDatabaseInput : undefined
+    const rawLibrary = input === undefined ? await this.readOwnerSnapshot(LIBRARY_STORE_PERSISTENCE_FILE_NAME) : undefined
+    const library = (await this.libraryForSnapshot(rawLibrary, false, input)).library
     const projection = this.projection(await readSnapshotFile(this.path(this.projectionName)) ?? null)
     const comics = new Map<string, PersistedComic>()
     for (const comic of library.comics) if (!comics.has(comic.id)) comics.set(comic.id, comic)
@@ -1060,21 +1071,22 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       const shelfRevision = needsShelf && this.usesShelfRows() ? liveLibraryWriteRevision(this.context.filesDir) : undefined
       // An intent saved before the row-based fingerprint can still finish with
       // its original full-snapshot revision.
-      const shelfRows = shelfRevision !== undefined && (expectedShelf === undefined || expectedShelf.startsWith(SHELF_ROW_REVISION_PREFIX))
+      const shelfRows = shelfRevision !== undefined
       const useReadingRows = usesReaderDatabase(this.context.filesDir)
       const needsReading = (readingRevision !== undefined && !databaseReading) || (!useReadingRows &&
         groups.some((row: SyncApplyGroup): boolean => row.group === 'reading' && row.changes.length > 0))
-      const admitted = [needsShelf, needsReading, true]
+      const shelfInput = needsShelf && usesLibraryDatabase(this.context.filesDir)
+        ? await taskpool.execute(readShelfSyncDatabaseInput, this.context) as ShelfSyncDatabaseInput : undefined
+      const admitted = [needsShelf && shelfInput === undefined, needsReading, true]
       const admittedFiles = await Promise.all(fileNames.map((name: string, index: number): Promise<string | undefined> =>
-        admitted[index] ? this.readOwnerSnapshot(name, shelfRows) : Promise.resolve(undefined)))
-      const legacyReadingLibrary = shelfRows && readingRevision !== undefined && !databaseReading
-        ? await this.readOwnerSnapshot(LIBRARY_STORE_PERSISTENCE_FILE_NAME) : admittedFiles[0]
+        admitted[index] ? this.readOwnerSnapshot(name) : Promise.resolve(undefined)))
+      const legacyReadingLibrary = admittedFiles[0]
       for (const target of expected) {
         // These revisions describe the exact persisted inputs. Rebuilding the
         // rows under the commit lock would revalidate an entire library.
         let current: string
         if (target.group === 'shelf') {
-          const hash = await taskpool.execute(hashSyncSnapshot, [admittedFiles[0] ?? '', admittedFiles[2] ?? '']) as string
+          const hash = await taskpool.execute(hashSyncSnapshot, [shelfInput?.revision ?? admittedFiles[0] ?? '', admittedFiles[2] ?? '']) as string
           current = shelfRows ? SHELF_ROW_REVISION_PREFIX + hash : hash
         } else if (target.group === 'reading') {
           const archive = JSON.stringify(this.readingRestoreArchive() ?? null)
@@ -1101,14 +1113,16 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       for (const group of groups) {
         // An older client may already have applied both category IDs. Its
         // first complete shelf sync can repair them even with no incoming diff.
-        const repairCategories = group.group === 'shelf' && admittedFiles[0] !== undefined &&
+        const repairCategories = group.group === 'shelf' && (shelfInput?.library !== undefined || admittedFiles[0] !== undefined) &&
           projection.categories.some((row: SyncLocalCategory): boolean => !row.local.startsWith('smart:') &&
             row.mergedInto === undefined && row.originalName !== undefined && row.originalName !== row.displayedName)
         if (group.changes.length === 0 && !repairCategories) continue
         if (group.group === 'shelf') {
           const raw = admittedFiles[0]
-          const prepared = await taskpool.execute(prepareSyncShelf, raw ?? null, group.changes,
-            JSON.stringify(projection), acceptedRemoval, this.storage.load().replica, shelfRevision !== undefined) as PreparedSyncShelf
+          const prepared = shelfInput !== undefined ? await taskpool.execute(prepareDatabaseSyncShelf,
+            shelfInput.library, group.changes, JSON.stringify(projection), acceptedRemoval, this.storage.load().replica) as PreparedSyncShelf :
+            await taskpool.execute(prepareSyncShelf, raw ?? null, group.changes, JSON.stringify(projection),
+              acceptedRemoval, this.storage.load().replica, false) as PreparedSyncShelf
           projection = this.projection(prepared.projectionText)
           shelfEdits = prepared.shelfEdits
           if (shelfRows && shelfEdits !== undefined) {
@@ -1126,11 +1140,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
           if (useReadingRows) {
             readingEdits = this.prepareReadingEdits(group.changes, projection)
           } else {
-            const reading = await taskpool.execute(parseReadingSnapshot, this.context.filesDir, admittedFiles[1] ?? null) as ReaderSessionDocumentSnapshot
-            this.applyReading(group.changes, reading, projection)
-            this.pruneReadingOutbox(reading)
-            const json = await taskpool.execute(serializeSyncReading, reading) as string
-            this.addImage(files, READER_PROGRESS_PERSISTENCE_FILE_NAME, admittedFiles[1], json)
+            throw new Error('reader_database_unavailable')
           }
         } else if (group.group === 'reader-settings') {
           previousPreferences = await new ReaderPreferencesStore(this.context).captureDeviceSyncPreferences()

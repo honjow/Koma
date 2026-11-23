@@ -46,9 +46,10 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
   const activation = deferred()
   const calls = []
   const events = []
-  const library = { listComics: () => [{ id: 'restored-fixture' }] }
+  const library = { listComics: () => [{ id: 'restored-fixture' }], listComicSummaries: () => [{ id: 'restored-fixture' }],
+    listComicSummariesByKind: () => [{ id: 'restored-fixture' }] }
   const registry = { count: () => 0 }
-  const persistence = { restore: () => {
+  const persistence = { restoreForLaunch: () => {
     events.push('restore')
     if (restoreFails) throw new Error('restore failed')
   } }
@@ -58,6 +59,8 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
     ...isolation,
     appDeviceSync: { attachPublisher() {} },
     bindRemoteProgressLibrary() {},
+    ComicSourceKind: { LOCAL_FOLDER: "local_folder", KOMGA_REMOTE: "komga_remote", KAVITA_REMOTE: "kavita_remote" },
+    komaContentStorageBase: context => context.filesDir,
     applyBackgroundLibraryResults: async () => {},
     appSourceWebSessionStore: { configure() {} },
     appSourcePackageManagerCache: { prepare: async () => {}, revalidateInBackground() {} },
@@ -91,6 +94,7 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
     catalogFilters = { prepare: async () => {} };
     appForegroundState; libraryStore; sourceRegistry; libraryPersistenceService;
     ensureLibraryPersistenceService() { return this.libraryPersistenceService }
+    savedShelfCategory() { return "all" } afterStartupFrame(action) { action() }
     retryPublicContentStorage() {} retryMihonAfterSourceChange() {}
     isReaderRouteVisible() { return false } publishDeferredReaderBackgroundPresentation() {}
     handleReaderLabLaunch() {} openExternalReaderSession() {} reloadReaderSessionStore() {}

@@ -122,7 +122,6 @@ export interface LibraryStore {
   replaceCategoryDisplayStrategies(strategies: LibraryCategoryDisplayStrategy[]): void
   setCategoryDisplayStrategy(strategy: LibraryCategoryDisplayStrategy): LibraryCategoryDisplayStrategy
   clear(): void
-  dumpJson(): string
   restoreJson(payload: string): void
 }
 
@@ -160,6 +159,7 @@ interface RestoredMihonImports {
 
 export class InMemoryLibraryStore implements LibraryStore {
   private mihonImports: MihonImportRecord[] = []
+  private changedMihonImports: Map<string, MihonImportRecord> = new Map<string, MihonImportRecord>()
   private restoredMihonImports?: RestoredMihonImports
   private smartCategories: LibrarySmartCategory[] = []
   private syncShelfMoves: SyncLocalShelfMove[] = []
@@ -176,16 +176,20 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   readMihonImport(id: string): MihonImportRecord | undefined {
-    return this.restoredMihonImports === undefined ? this.mihonImports.find(row => row.id === id) :
-      this.restoredMihonImports.readOriginals(id)[0]
+    return this.changedMihonImports.get(id) ?? (this.restoredMihonImports === undefined ? this.mihonImports.find(row => row.id === id) :
+      this.restoredMihonImports.readOriginals(id)[0])
   }
 
   listMihonImports(): MihonImportRecord[] {
-    return this.restoredMihonImports?.readOriginals() ?? this.mihonImports.slice()
+    const records = new Map<string, MihonImportRecord>((this.restoredMihonImports?.readOriginals() ?? this.mihonImports)
+      .map((record: MihonImportRecord): [string, MihonImportRecord] => [record.id, record]))
+    this.changedMihonImports.forEach((record: MihonImportRecord, id: string): void => { records.set(id, record) })
+    return Array.from(records.values())
   }
 
   restoreMihonImportWorks(readWorks: () => MihonImportWork[], readOriginals: (id?: string) => MihonImportRecord[]): void {
     this.mihonImports = []
+    this.changedMihonImports.clear()
     this.restoredMihonImports = { readWorks, readOriginals }
   }
 
@@ -196,19 +200,27 @@ export class InMemoryLibraryStore implements LibraryStore {
 
   replaceMihonImports(records: MihonImportRecord[]): void {
     this.restoredMihonImports = undefined
+    this.changedMihonImports.clear()
     this.mihonImports = records.slice()
   }
 
   updateMihonImports(records: MihonImportRecord[]): void {
     if (records.length === 0) return
     if (this.restoredMihonImports !== undefined) {
-      this.updateMihonSourceMatches(records)
+      const restored = this.restoredMihonImports
+      const works = new Map<string, MihonImportWork>(this.restoredImportWorks(restored)
+        .map((record: MihonImportWork): [string, MihonImportWork] => [record.id, record]))
+      for (const record of records) {
+        this.changedMihonImports.set(record.id, record)
+        works.set(record.id, record)
+      }
+      restored.works = Array.from(works.values())
       return
     }
-    const updates = new Map<string, MihonImportRecord>(records.map((record): [string, MihonImportRecord] =>
+    const updates = new Map<string, MihonImportRecord>(this.mihonImports.map((record): [string, MihonImportRecord] =>
       [record.id, record]))
-    this.mihonImports = this.mihonImports.map((record: MihonImportRecord): MihonImportRecord =>
-      updates.get(record.id) ?? record)
+    for (const record of records) updates.set(record.id, record)
+    this.mihonImports = Array.from(updates.values())
   }
 
   updateMihonSourceMatches(records: MihonImportWork[]): void {
@@ -715,16 +727,6 @@ export class InMemoryLibraryStore implements LibraryStore {
     this.comics.clear()
     this.customCategories.clear()
     this.categoryDisplayStrategies.clear()
-  }
-
-  dumpJson(): string {
-    return JSON.stringify({
-      mihonImports: this.listMihonImports(),
-      smartCategories: this.listSmartCategories(),
-      comics: this.listComics(),
-      customCategories: this.listCustomCategories(),
-      categoryDisplayStrategies: this.listCategoryDisplayStrategies(),
-    })
   }
 
   restoreJson(payload: string): void {

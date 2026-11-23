@@ -413,6 +413,22 @@ export class ReaderRdbStorage {
   }
 
   /** Chapter actions and history removal commit with the same outbox as page turns. */
+  saveRemoteHistoryEntry(comicId: string, entry?: RemoteReadHistoryEntry): void {
+    writeUserRecords(this.store, (): void => {
+      if (entry === undefined) readerRemoteHistory.remove(this.store, [comicId])
+      else readerRemoteHistory.put(this.store, remoteHistoryRows([entry])[0])
+      readerRemotePaths.replace(this.store, remotePathRows(entry === undefined ? [] : [entry]), 'comic_id', comicId)
+    })
+  }
+
+  removeSourceHistoryEntry(comicId: string): void {
+    writeUserRecords(this.store, (): void => { readerSourceHistory.remove(this.store, [comicId]) })
+  }
+
+  removeCurrentPosition(comicId: string): void {
+    writeUserRecords(this.store, (): void => { readerPositions.remove(this.store, [comicId]) })
+  }
+
   saveActivityEdits(reading: ReaderSessionDocumentSnapshot, removedHistory: string[] = []): void {
     writeUserRecords(this.store, (): void => {
       const scope = new ReadingScope(reading)
@@ -443,7 +459,6 @@ export class ReaderRdbStorage {
       } else {
         // The chapter position, current position and outbox advance together.
         for (const chapter of pageTurns) {
-          if (chapter.position === undefined) continue
           this.putChapter(chapter, scope)
         }
         for (const position of snapshot.progress) {
@@ -472,5 +487,9 @@ export class ReaderRdbStorage {
 
   private putChapter(chapter: ChapterReadingState, scope: ReadingScope): void {
     readerChapterStates.put(this.store, chapter, this.sharesChapter(chapter, scope))
+  }
+  progressIds(): string[] {
+    return collectLocalRows(this.store.querySqlSync('SELECT comic_id FROM reader_current_positions_all'),
+      (row: relationalStore.ResultSet): string => row.getString(0))
   }
 }

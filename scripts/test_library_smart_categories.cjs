@@ -30,7 +30,7 @@ function load(file){
 }
 const clone=v=>JSON.parse(JSON.stringify(v)),smart=load('model/LibrarySmartCategory'),models=load('model/ComicModels')
 const {InMemoryLibraryStore}=load('model/LibraryStore'),{InMemoryReaderSessionStore}=load('model/ReaderSessionStore')
-const persistence=load('model/LibraryPersistence'),{TrackerPreferencesStore}=load('model/TrackerModels')
+const backupExport=load('model/BusinessBackupExport'),persistence=load('model/LibraryPersistence'),{TrackerPreferencesStore}=load('model/TrackerModels')
 const { privateLibraryCategoryIds, showLibraryComic } = load('model/LibraryPrivacyVisibility')
 function book(id,source=id){return {id,title:id,sortTitle:id,sourceKind:models.ComicSourceKind.PRIVATE_LIBRARY,sourceRuntimeId:source,
  sourcePath:'https://owned.invalid/'+id,preferredDirection:'right_to_left',chapterCount:2,pageCount:2,createdAt:1,updatedAt:1,lastImportedAt:1,
@@ -128,13 +128,13 @@ test('privacy survives a rename and backup restore without removing any membersh
  const comic = book('both')
  comic.categoryIds = [publicCategory.id, firstPrivate.id]
  store.addComic(comic)
- const disk = { persist() {} }
+ const disk = { databaseForEdits: () => ({ saveLocalEdits() {} }) }
  const setPrivacy = persistence.setCustomCategoryPrivacyAndPersistLibraryStore
  setPrivacy(store, disk, firstPrivate.id, true)
  setPrivacy(store, disk, secondPrivate.id, true)
  store.renameCustomCategory(firstPrivate.id, 'Renamed')
  const restored = new InMemoryLibraryStore()
- persistence.hydrateLibraryStoreFromJson(restored, persistence.serializeLibraryStore(store))
+ persistence.hydrateLibraryStoreFromJson(restored, backupExport.serializeLibraryStoreForBackup(store))
  const restoredComic = restored.getComic(comic.id)
  const ids = privateLibraryCategoryIds(restored.listCustomCategories())
  assert.equal(showLibraryComic(restoredComic, ids), false)
@@ -142,10 +142,93 @@ test('privacy survives a rename and backup restore without removing any membersh
  assert.equal(showLibraryComic(restoredComic, ids, secondPrivate.id), false)
  assert.equal(showLibraryComic(restoredComic, ids, firstPrivate.id), true)
  assert.deepEqual(clone(restoredComic.categoryIds), comic.categoryIds)
- assert.throws(() => setPrivacy(restored, { persist() { throw Error('disk full') } }, firstPrivate.id, false), /disk full/)
+ assert.throws(() => setPrivacy(restored, { databaseForEdits: () => ({ saveLocalEdits() { throw Error('disk full') } }) }, firstPrivate.id, false), /disk full/)
  assert.equal(restored.listCustomCategories().find(category => category.id === firstPrivate.id).isPrivate, true)
  assert.equal(setPrivacy(restored, disk, firstPrivate.id, false), true)
  assert.equal(showLibraryComic(restoredComic, privateLibraryCategoryIds(restored.listCustomCategories())), true)
+})
+
+test('folder import and rescan leave unrelated deferred catalogs and committed rows untouched', async t => {
+ const folder = load('model/LocalLibraryFolderContract')
+ const { openUserDataDatabase } = load('model/UserDataDatabase')
+ const { LibraryRdbStorage } = load('model/LibraryRdbStorage')
+ const owner = new InMemoryLibraryStore()
+ const category = owner.createCustomCategory('Keep membership')
+ const prior = book('prior')
+ prior.categoryIds = [category.id]
+ owner.addComic(prior)
+ const entries = [{ relativePath: 'Series/chapter 1/001.jpg', kind: 'file' },
+  { relativePath: 'Second/chapter 1/001.jpg', kind: 'file' }]
+ const scan = folder.scanLocalLibraryFolderEntries(entries, 'Picked')
+ const otherRoot = 'file://docs/other'
+ const otherScan = folder.bindLocalLibraryFolderScanIdentity(scan, otherRoot, [])
+ const other = folder.buildComicsFromLocalLibraryFolderScan(otherScan, otherRoot, 10)[0]
+ owner.addComic(other)
+ const db = await openUserDataDatabase({ filesDir: '/folder-import-scope' })
+ const storage = new LibraryRdbStorage(db)
+ await storage.migrate(backupExport.createLibraryStoreBackupDocument(owner))
+ const before = clone(storage.read())
+ const writes = []
+ const port = { ...db, executeSync(sql, args) { writes.push({ sql, args }); return db.executeSync(sql, args) } }
+ const liveStorage = new LibraryRdbStorage(port)
+ const live = new InMemoryLibraryStore()
+ const service = new persistence.LibraryStorePersistenceService(live, {
+  databaseForEdits: () => liveStorage,
+  loadForRestore: () => liveStorage.read(),
+  saveDocument: document => liveStorage.save(document),
+  saveMemberships: edits => { liveStorage.saveMemberships(edits); return true },
+ })
+ service.restoreForLaunch(category.id)
+ const originalRead = live.getComic.bind(live)
+ const catalogReads = []
+ live.getComic = id => {
+  if (live.getComicSummary(id)?.chapterCatalogDeferred) catalogReads.push(id)
+  return originalRead(id)
+ }
+ const rootUri = 'file://docs/picked'
+ const signals = []
+ const sync = load('deviceSync/DeviceSyncSignals')
+ sync.connectDeviceSyncSignals(group => signals.push(group))
+ t.after(() => sync.connectDeviceSyncSignals(() => {}))
+ rdb.failNextCommit('folder import failed')
+ assert.throws(() => persistence.upsertLocalLibraryFolderScanAndPersistLibraryStore(live, service, scan, rootUri, 20),
+  /folder import failed/)
+ assert.deepEqual(clone(storage.read()), before)
+ assert.deepEqual(signals, [])
+ assert.deepEqual(clone(live.listComicSummaries().map(work => work.id)).sort(), [prior.id, other.id].sort())
+ writes.length = 0
+ assert.equal(persistence.upsertLocalLibraryFolderScanAndPersistLibraryStore(live, service, scan, rootUri, 20), 2)
+ assert.deepEqual(signals, ['shelf'])
+ assert.deepEqual(catalogReads, [])
+ const imported = folder.buildKnownLocalLibraryFolderSeriesFromComics(live.listComicSummaries(), rootUri)
+ assert.equal(imported.length, 2)
+ const importedId = imported.find(series => series.relativePath === 'Series').id
+ assert.notEqual(importedId, other.id)
+ const unrelatedIds = new Set([prior.id, other.id])
+ assert.equal(writes.some(({ args = [] }) => args.some(value => unrelatedIds.has(value))), false)
+ const afterImport = clone(storage.read())
+ assert.deepEqual(afterImport.comics.filter(work => unrelatedIds.has(work.id)), before.comics)
+ assert.deepEqual(afterImport.customCategories, before.customCategories)
+ persistence.editComicCategoriesAndPersistLibraryStore(live, service, [importedId], [category.id], [])
+ const fresh = folder.scanLocalLibraryFolderEntries(entries.concat({ relativePath: 'Series/chapter 1/002.jpg', kind: 'file' }), 'Picked')
+ const oldComic = live.getComic(importedId)
+ const beforeRescan = clone(storage.read())
+ signals.length = 0
+ rdb.failNextCommit('folder commit failed')
+ assert.throws(() => persistence.upsertLocalLibraryFolderRescanAndPersistLibraryStore(
+  live, service, imported, fresh, rootUri, [], 30), /folder commit failed/)
+ assert.deepEqual(clone(storage.read()), beforeRescan)
+ assert.strictEqual(live.getComic(importedId), oldComic)
+ assert.deepEqual(signals, [])
+ const result = persistence.upsertLocalLibraryFolderRescanAndPersistLibraryStore(
+  live, service, imported, fresh, rootUri, [], 30)
+ assert.equal(result.upsertedCount, 1)
+ assert.deepEqual(signals, ['shelf'])
+ assert.equal(live.getComic(importedId).chapters[0].pages.length, 2)
+ assert.equal(live.getComic(importedId).createdAt, 20)
+ assert.deepEqual(clone(live.getComic(importedId).categoryIds), [category.id])
+ assert.deepEqual(catalogReads, [])
+ assert.deepEqual(clone(storage.read()).comics.filter(work => unrelatedIds.has(work.id)), before.comics)
 })
 
 test('a privacy session spends its grace in the background and expires immediately on screen lock', async () => {
@@ -285,28 +368,28 @@ test('rules and work rating survive library/backup serialization; failed persist
  const rated=load('model/SourceLibraryComic').comicFromSourceManga(detail,[],'rated-work')
  assert.equal(rated.sourceMetadata.contentRating,'suggestive');library.addComic(rated)
  const manual=library.createCustomCategory('Manual',1);const selected=group([rule('category',manual.id)])
- let disk;persistence.replaceSmartCategoriesAndPersistLibraryStore(library,{persist(){disk=persistence.serializeLibraryStore(library)}},[selected])
+ let disk;persistence.replaceSmartCategoriesAndPersistLibraryStore(library,{databaseForEdits:()=>({saveLocalEdits(){disk=backupExport.serializeLibraryStoreForBackup(library)}})},[selected])
  assert.equal(library.listCustomCategories().length,1,'Smart categories are absent from assignment/automation choices')
  const restored=new InMemoryLibraryStore();persistence.hydrateLibraryStoreFromJson(restored,disk)
  assert.deepEqual(clone(restored.listSmartCategories()),[selected]);assert.equal(restored.getComic('a').sourceMetadata.contentRating,'safe')
- assert.throws(()=>persistence.replaceSmartCategoriesAndPersistLibraryStore(library,{persist(){throw Error('disk full')}},[]),/disk full/)
+ assert.throws(()=>persistence.replaceSmartCategoriesAndPersistLibraryStore(library,{databaseForEdits:()=>({saveLocalEdits(){throw Error('disk full')}})},[]),/disk full/)
  assert.deepEqual(clone(library.listSmartCategories()),[selected])
  assert.throws(()=>library.renameCustomCategory(manual.id,'Smart'),/duplicate/)
 })
 test('a used preset becomes an editable category while a fresh shelf stays empty of manual categories', () => {
  const library = new InMemoryLibraryStore()
- const empty = persistence.serializeLibraryStore(library)
+ const empty = backupExport.serializeLibraryStoreForBackup(library)
  assert.equal(persistence.readLibraryStoreDocument(empty).customCategories, undefined)
  const existing = book('existing')
  existing.categoryIds = ['favorite']
  library.addComic(existing)
- persistence.hydrateLibraryStoreFromJson(library, persistence.serializeLibraryStore(library))
+ persistence.hydrateLibraryStoreFromJson(library, backupExport.serializeLibraryStoreForBackup(library))
  assert.deepEqual(clone(library.listCustomCategories().map(category => category.id)), ['favorite'])
  library.renameCustomCategory('favorite', 'Keep')
- persistence.hydrateLibraryStoreFromJson(library, persistence.serializeLibraryStore(library))
+ persistence.hydrateLibraryStoreFromJson(library, backupExport.serializeLibraryStoreForBackup(library))
  assert.equal(library.listCustomCategories()[0].name, 'Keep')
  assert.equal(library.deleteCustomCategory('favorite'), true)
- persistence.hydrateLibraryStoreFromJson(library, persistence.serializeLibraryStore(library))
+ persistence.hydrateLibraryStoreFromJson(library, backupExport.serializeLibraryStoreForBackup(library))
  assert.equal(library.listCustomCategories().length, 0)
  assert.equal(library.listLibraryItems(undefined, { filterCategoryId: 'all' }).length, 1)
 })
@@ -328,7 +411,7 @@ test('an incoming same-name category uses one ID without losing books, privacy o
  owner.addComic(late)
  const db = await openUserDataDatabase({ filesDir: '/saved-category-names' })
  const storage = new LibraryRdbStorage(db)
- await storage.migrate(persistence.createLibraryStorePersistenceDocument(owner))
+ await storage.migrate(backupExport.createLibraryStoreBackupDocument(owner))
  db.executeSync('UPDATE shelf_categories SET name = ? WHERE category_id = ?', [first.name, second.id])
  db.executeSync('UPDATE shelf_smart_categories SET name = ? WHERE category_id = ?', [first.name, filter.id])
 
@@ -378,7 +461,7 @@ test('cold shelf reads the saved category and can edit or open a work without re
  } }
  const storage = new LibraryRdbStorage(port)
  const reading = new ReaderRdbStorage(port)
- await storage.migrate(persistence.createLibraryStorePersistenceDocument(owner))
+ await storage.migrate(backupExport.createLibraryStoreBackupDocument(owner))
  const savedPosition = { comicId: left.id, chapterId: left.chapters[1].id, pageIndex: 0, totalPages: 1,
   progressRatio: 1, completed: true, updatedAt: 12 }
  await reading.migrate({ progress: [savedPosition], sourceHistory: [], chapters: [{
@@ -423,13 +506,13 @@ test('batch editing preserves untouched mixed memberships, saves once and rolls 
  let saves = 0
  const edit = persistence.editComicCategoriesAndPersistLibraryStore
  const selected = ['first', 'second']
- const disk = new persistence.LibraryStorePersistenceService(library, { load() {}, save() { saves++ } })
+ const disk = new persistence.LibraryStorePersistenceService(library, { load() {}, saveMemberships() { saves++; return true } })
  assert.equal(edit(library, disk, selected, [b.id], []), 2)
  assert.deepEqual(clone(library.getComic('first').categoryIds), [a.id, b.id])
  assert.deepEqual(clone(library.getComic('second').categoryIds), [b.id])
  assert.equal(edit(library, disk, selected, [b.id], []), 0)
  assert.equal(saves, 1)
- const fullDisk = new persistence.LibraryStorePersistenceService(library, { load() {}, save() { throw Error('disk full') } })
+ const fullDisk = new persistence.LibraryStorePersistenceService(library, { load() {}, saveMemberships() { throw Error('disk full') } })
  assert.throws(() => edit(library, fullDisk, selected, [], [a.id, b.id]), /disk full/)
  assert.deepEqual(clone(library.getComic('first').categoryIds), [a.id, b.id])
  assert.equal(edit(library, disk, selected, [], [a.id, b.id]), 2)
@@ -446,14 +529,14 @@ test('a new favorite saves initial memberships and emits them with the shelf add
  const signals = load('deviceSync/DeviceSyncSignals')
  signals.connectDeviceSyncOwnerEdits(actions => batches.push(clone(actions)), () => {}, () => {}, () => undefined)
  try {
-  assert.throws(() => persistence.upsertComicAndPersistLibraryStore(library, { persist() { throw Error('disk full') } }, comic), /disk full/)
+  assert.throws(() => persistence.upsertComicAndPersistLibraryStore(library, { databaseForEdits: () => ({ saveLocalEdits() { throw Error('disk full') } }) }, comic), /disk full/)
   assert.equal(library.getComic(comic.id), undefined)
   assert.equal(batches.length, 0)
   let saves = 0
-  persistence.upsertComicAndPersistLibraryStore(library, { persist() {
+  persistence.upsertComicAndPersistLibraryStore(library, { databaseForEdits: () => ({ saveLocalEdits(image) {
    saves++
-   assert.deepEqual(clone(library.getComic(comic.id).categoryIds), [category.id])
-  } }, comic)
+   assert.deepEqual(clone(image.works[0].categoryIds), [category.id])
+  } }) }, comic)
   assert.equal(saves, 1)
   assert.deepEqual(batches, [[
    { kind: 'add-book', source: 'favorite', work: 'work' },

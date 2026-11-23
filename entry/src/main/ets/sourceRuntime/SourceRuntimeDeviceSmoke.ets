@@ -1,3 +1,4 @@
+import { removeComicAndPersistLibraryStore } from '../model/LibraryPersistence'
 import { common, Want } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { resourceManager } from '@kit.LocalizationKit'
@@ -1173,8 +1174,7 @@ function cleanupSourceIndexVisibleLibraryReaderSmoke(filesDir: string, comicId: 
     )
     persistence.restore()
     if (libraryStore.getComic(comicId) !== undefined) {
-      libraryStore.removeComic(comicId)
-      persistence.persist()
+      removeComicAndPersistLibraryStore(libraryStore, persistence, comicId)
     }
     new PersistentReaderSessionStore(
       new AppFilesReaderSessionPersistenceAdapter(filesDir),

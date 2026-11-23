@@ -204,6 +204,19 @@ export function openUserDataSnapshotDatabase(context: common.Context): Promise<r
   })
 }
 
+/** Recovery checkpoints use ArkData's native database image, never a JSON copy
+ * of the shelf/reading domains. Keep the live connection and upgrade restored
+ * schemas before releasing the restore lock. */
+export async function backupUserDataDatabase(context: common.Context, path: string): Promise<void> {
+  await (await openUserDataDatabase(context)).backup(path)
+}
+
+export async function restoreUserDataDatabase(context: common.Context, path: string): Promise<void> {
+  const store = await openUserDataDatabase(context)
+  await store.restore(path)
+  await upgradeUserDataDatabase(context, store)
+}
+
 const LEGACY_DATA_TABLES: string[] = [
   'CREATE TABLE library_document (id INTEGER PRIMARY KEY, list_mask INTEGER)',
   'CREATE TABLE library_works (id TEXT PRIMARY KEY, list_order INTEGER, payload TEXT, has_categories INTEGER)',
@@ -708,6 +721,10 @@ async function initializeUserDataDatabase(context: common.Context): Promise<rela
   const store = await relationalStore.getRdbStore(context, {
     name: DATABASE_NAME, securityLevel: relationalStore.SecurityLevel.S3, allowRebuild: false,
   })
+  return upgradeUserDataDatabase(context, store)
+}
+
+async function upgradeUserDataDatabase(context: common.Context, store: relationalStore.RdbStore): Promise<relationalStore.RdbStore> {
   if (store.version > DATABASE_VERSION) throw new Error('user_data_newer_schema')
   if (store.version === DATABASE_VERSION) return store
   if (store.version >= 6) {

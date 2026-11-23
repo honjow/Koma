@@ -12,7 +12,6 @@ export interface ReadingProgressStore {
   updatePage(comicId: ComicId, chapterId: string, pageIndex: number, pageId?: string, totalPages?: number): ReadingProgress
   remove(comicId: ComicId): void
   clear(): void
-  dumpJson(): string
   restoreJson(payload: string): void
 }
 
@@ -62,10 +61,6 @@ export class InMemoryReadingProgressStore implements ReadingProgressStore {
 
   clear(): void {
     this.items.clear()
-  }
-
-  dumpJson(): string {
-    return JSON.stringify(this.list())
   }
 
   restoreJson(payload: string): void {

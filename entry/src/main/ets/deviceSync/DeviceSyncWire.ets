@@ -67,6 +67,19 @@ export function syncDigest(text: string): string {
   return syncDigestBytes(syncUtf8(text))
 }
 
+/** Fingerprints consume one owned record at a time. Never construct a JSON
+ * document containing the whole shelf/history merely to hash it. */
+export function syncRowsDigest<T>(rows: T[]): string {
+  const digest = cryptoFramework.createMd('SHA256')
+  digest.updateSync({ data: syncUtf8(`${rows.length}:`) })
+  for (const row of rows) {
+    const text = JSON.stringify(row)
+    digest.updateSync({ data: syncUtf8(`${text.length}:`) })
+    digest.updateSync({ data: syncUtf8(text) })
+  }
+  return Array.from(digest.digestSync().data).map((byte: number): string => byte.toString(16).padStart(2, '0')).join('')
+}
+
 export function syncDigestBytes(bytes: Uint8Array): string {
   const digest = cryptoFramework.createMd('SHA256')
   digest.updateSync({ data: bytes })

@@ -12,7 +12,7 @@ import {
 import { emptySyncLibrary, shelfSourceCover, SyncSourceIdentity } from './DeviceSyncShelfApply'
 import { SyncReadingActionCapture, SyncReadingCapture } from './DeviceSyncSignals'
 import { DATABASE_READING_REVISION_PREFIX, SyncLocalValue } from './DeviceSyncStorage'
-import { syncDigest } from './DeviceSyncWire'
+import { syncDigest, syncRowsDigest } from './DeviceSyncWire'
 
 export interface SyncLocalReadingWork extends SyncSourceIdentity {
   comic?: PersistedComic
@@ -141,8 +141,7 @@ export function readingLibrarySnapshot(library: PersistedLibraryStoreDocument,
       index: 0, sourcePath: '', sortKey: '', pages: [], pageCount: 0, createdAt: 0, updatedAt: 0 })),
     chapterCount: 0, pageCount: 0, createdAt: 0, updatedAt: 0, lastImportedAt: 0,
   }))
-  const document: PersistedLibraryStoreDocument = { schemaVersion: library.schemaVersion, comics, customCategories: [] }
-  return JSON.stringify(document)
+  return syncRowsDigest(comics)
 }
 
 export interface SyncProjectedReadingSnapshot {
@@ -166,13 +165,20 @@ export function buildSyncReadingSnapshot(directory: string, rawLibrary: string |
     syncDigest([readingLibrarySnapshot(library, reading), rawReading ?? '', side, archive].join('')))
 }
 
+export function readingRowsRevision(reading: ReaderSessionDocumentSnapshot): string {
+  return syncDigest([syncRowsDigest(reading.progress), syncRowsDigest(reading.sourceHistory),
+    syncRowsDigest(reading.remoteHistory ?? []), syncRowsDigest(reading.chapters),
+    syncRowsDigest(reading.readingSessions ?? []), syncRowsDigest(reading.syncPositions ?? []),
+    syncRowsDigest(reading.syncActions ?? [])].join(':'))
+}
+
 export function databaseReadingRevision(works: LibraryReadingMetadata[], reading: ReaderSessionDocumentSnapshot,
   side: string, archive: string): string {
-  return databaseReadingShelfRevision(works) + syncDigest(JSON.stringify(reading) + side + archive)
+  return databaseReadingShelfRevision(works) + syncDigest(readingRowsRevision(reading) + side + archive)
 }
 
 export function databaseReadingShelfRevision(works: LibraryReadingMetadata[]): string {
-  return DATABASE_READING_REVISION_PREFIX + syncDigest(JSON.stringify(works)) + ':'
+  return DATABASE_READING_REVISION_PREFIX + syncRowsDigest(works) + ':'
 }
 
 export function projectDatabaseReading(works: LibraryReadingMetadata[], reading: ReaderSessionDocumentSnapshot,

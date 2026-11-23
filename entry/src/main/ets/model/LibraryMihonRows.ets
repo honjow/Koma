@@ -215,9 +215,9 @@ export class ShelfMihonImports {
   private readonly text: MihonTextItem[] = []
   private readonly headers: MihonLinkedHeader[] = []
 
-  constructor(records: MihonImportRecord[]) {
+  constructor(records: MihonImportRecord[], existingOrder?: number) {
     records.forEach((record: MihonImportRecord, order: number): void => {
-      this.roots.push(mihonImportRow(record, order))
+      this.roots.push(mihonImportRow(record, existingOrder ?? order))
       appendRows(record.id, record.work.chapters, this.chapters)
       appendRows(record.id, record.work.history, this.history)
       appendRows(record.id, record.work.tracking, this.tracking)
@@ -242,6 +242,15 @@ export class ShelfMihonImports {
     await importTracking.importRows(transaction, this.tracking)
     await importText.importRows(transaction, this.text)
     await importHeaders.importRows(transaction, this.headers)
+  }
+
+  async replaceImport(transaction: relationalStore.Transaction, id: string): Promise<void> {
+    await importedWorks.importRows(transaction, this.roots)
+    await importChapters.replaceWorkRows(transaction, this.chapters, id, 'import_id')
+    await importHistory.replaceWorkRows(transaction, this.history, id, 'import_id')
+    await importTracking.replaceWorkRows(transaction, this.tracking, id, 'import_id')
+    await importText.replaceWorkRows(transaction, this.text, id, 'import_id')
+    await importHeaders.replaceWorkRows(transaction, this.headers, id, 'import_id')
   }
 
   replace(store: relationalStore.RdbStore): void {

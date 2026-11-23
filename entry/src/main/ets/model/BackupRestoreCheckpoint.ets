@@ -1,11 +1,12 @@
+import { backupUserDataDatabase, restoreUserDataDatabase } from './UserDataDatabase'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { taskpool } from '@kit.ArkTS'
 import { writeAppTextFile } from './AppFileTextPersistence'
-import { AppFilesLibraryStorePersistenceAdapter, LIBRARY_STORE_PERSISTENCE_FILE_NAME, readLiveLibrarySnapshot,
+import { AppFilesLibraryStorePersistenceAdapter, LIBRARY_STORE_PERSISTENCE_FILE_NAME,
   usesLibraryDatabase, writeLiveLibrarySnapshot } from './LibraryPersistence'
-import { READER_PROGRESS_PERSISTENCE_FILE_NAME, readLiveReaderSnapshot, usesReaderDatabase, writeLiveReaderSnapshot } from './ReaderSessionStore'
+import { READER_PROGRESS_PERSISTENCE_FILE_NAME, usesReaderDatabase, writeLiveReaderSnapshot } from './ReaderSessionStore'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { APPLICATION_SETTINGS_BACKUP_STORES } from './ApplicationSettingsBackup'
 import { overlayMigratedCheckpointPreferences, recoverMigratedCheckpointPreferences } from './MigratedPreferenceRecords'
@@ -21,6 +22,8 @@ import { PUBLIC_CONTENT_QUEUE_PRIVATE_PATH, SANDBOX_CONTENT_QUEUE_PATH, readOffl
 const CHECKPOINT_FILE: string = 'backup-restore-checkpoint.v1.json'
 const CHECKPOINT_FILES: string = 'backup-restore-checkpoint-files'
 const FILE_CHECKPOINT_VERSION: number = 7
+const DATABASE_CHECKPOINT_VERSION: number = 8
+const DATABASE_IMAGE: string = 'business.rdb'
 const RESTORE_FILES_V2: string[] = [
   'library-store.v1.json',
   'reader-sessions.v1.json',
@@ -83,6 +86,7 @@ interface RestoreCheckpointDocument {
   phase: string
   files: RestoreFileImage[]
   preferences: RestorePreferenceImage[]
+  databaseBytes?: number
 }
 
 function checkedPreferenceValues(value: Object): Record<string, RestorePreferenceValue> {
@@ -125,12 +129,16 @@ async function copyCheckpointFile(source: string, destination: string, byteSize:
 
 function checkedDocument(payload: string): RestoreCheckpointDocument {
   const document = JSON.parse(payload) as RestoreCheckpointDocument
-  if (document === null || ![1, 2, 3, 4, 5, 6, FILE_CHECKPOINT_VERSION].includes(document.schemaVersion) ||
+  if (document === null || ![1, 2, 3, 4, 5, 6, FILE_CHECKPOINT_VERSION, DATABASE_CHECKPOINT_VERSION].includes(document.schemaVersion) ||
     (document.phase !== 'prepared' && document.phase !== 'committed') ||
     !Array.isArray(document.files) || !Array.isArray(document.preferences)) {
     throw new Error('backup_checkpoint_invalid_document')
   }
-  const usesFileCopies = document.schemaVersion === FILE_CHECKPOINT_VERSION
+  if (document.schemaVersion === DATABASE_CHECKPOINT_VERSION &&
+    (!Number.isSafeInteger(document.databaseBytes) || (document.databaseBytes ?? 0) <= 0)) {
+    throw new Error('backup_checkpoint_incomplete_database')
+  }
+  const usesFileCopies = document.schemaVersion >= FILE_CHECKPOINT_VERSION
   const expectedFiles = document.schemaVersion >= 6 ? RESTORE_FILES : document.schemaVersion >= 4 ? RESTORE_FILES_V4 :
     document.schemaVersion === 3 ? RESTORE_FILES_V3 : RESTORE_FILES_V2
   if (document.files.length !== expectedFiles.length) throw new Error('backup_checkpoint_invalid_document')
@@ -185,28 +193,8 @@ export class BackupRestoreCheckpoint {
     const copies = checkpointFilesPath(filesDir)
     if (fs.accessSync(copies)) fs.rmdirSync(copies)
     fs.mkdirSync(copies)
-    // Keep previous documents on disk. Encoding the live library and history
-    // inside another JSON string can exhaust the app heap before the first write.
-    const files: RestoreFileImage[] = []
-    for (let index = 0; index < RESTORE_FILES.length; index += 1) {
-      const path = RESTORE_FILES[index]
-      if (isDatabaseImage(filesDir, path)) {
-        const body = path === LIBRARY_STORE_PERSISTENCE_FILE_NAME ? readLiveLibrarySnapshot(filesDir)
-          : path === READER_PROGRESS_PERSISTENCE_FILE_NAME ? readLiveReaderSnapshot(filesDir)
-            : path === IMAGE_RULE_LEGACY_PATH ? readImageRuleDatabaseCheckpoint(filesDir)
-              : usesOfflineQueueDatabase(filesDir, path) ? readOfflineQueueDatabaseSnapshot(filesDir, path)
-              : readSourceConfigurationSnapshot(filesDir, path)
-        const copy = `${copies}/${index}`
-        if (body !== undefined) writeAppTextFile(copy, body)
-        files.push({ path, exists: body !== undefined, byteSize: body === undefined ? 0 : fs.statSync(copy).size })
-        continue
-      }
-      const absolutePath = `${filesDir}/${path}`
-      const exists = fs.accessSync(absolutePath)
-      const byteSize = exists ? fs.statSync(absolutePath).size : 0
-      if (exists) await copyCheckpointFile(absolutePath, `${copies}/${index}`, byteSize)
-      files.push({ path, exists, byteSize })
-    }
+    // Preference owners may complete a legacy schema migration while being
+    // read. Finish those migrations before capturing the native image.
     const images: RestorePreferenceImage[] = []
     for (let index = 0; index < RESTORE_PREFERENCES.length; index += 1) {
       const name = RESTORE_PREFERENCES[index]
@@ -215,9 +203,27 @@ export class BackupRestoreCheckpoint {
       const values = JSON.parse(JSON.stringify(checkedPreferenceValues(await store.getAll()))) as Record<string, RestorePreferenceValue>
       images.push({ name, values: await overlayMigratedCheckpointPreferences(context, name, values) })
     }
+    // All RDB domains share the native image. Legacy files are copied only
+    // when they are still authoritative; no live domain is JSON-encoded.
+    await backupUserDataDatabase(context, `${copies}/${DATABASE_IMAGE}`)
+    const databaseBytes = fs.statSync(`${copies}/${DATABASE_IMAGE}`).size
+    if (databaseBytes <= 0) throw new Error('backup_checkpoint_incomplete_database')
+    const files: RestoreFileImage[] = []
+    for (let index = 0; index < RESTORE_FILES.length; index += 1) {
+      const path = RESTORE_FILES[index]
+      if (isDatabaseImage(filesDir, path)) {
+        files.push({ path, exists: false, byteSize: 0 })
+        continue
+      }
+      const absolutePath = `${filesDir}/${path}`
+      const exists = fs.accessSync(absolutePath)
+      const byteSize = exists ? fs.statSync(absolutePath).size : 0
+      if (exists) await copyCheckpointFile(absolutePath, `${copies}/${index}`, byteSize)
+      files.push({ path, exists, byteSize })
+    }
     // Publish the marker only once every rollback input is complete.
-    const document: RestoreCheckpointDocument = { schemaVersion: FILE_CHECKPOINT_VERSION,
-      phase: 'prepared', files, preferences: images }
+    const document: RestoreCheckpointDocument = { schemaVersion: DATABASE_CHECKPOINT_VERSION,
+      phase: 'prepared', files, preferences: images, databaseBytes }
     const payload = JSON.stringify(document)
     if (backgroundMarker) await taskpool.execute(publishRestoreCheckpoint, `${filesDir}/${CHECKPOINT_FILE}`, payload)
     else adapter.save(payload)
@@ -252,7 +258,7 @@ export class BackupRestoreCheckpoint {
   async rollback(): Promise<void> {
     const filesDir = this.context.filesDir
     const copies = checkpointFilesPath(filesDir)
-    const usesFileCopies = this.document.schemaVersion === FILE_CHECKPOINT_VERSION
+    const usesFileCopies = this.document.schemaVersion >= FILE_CHECKPOINT_VERSION
     if (usesFileCopies) {
       // Check every backup before replacing any live document.
       for (let index = 0; index < this.document.files.length; index += 1) {
@@ -262,8 +268,14 @@ export class BackupRestoreCheckpoint {
         }
       }
     }
+    if (this.document.schemaVersion === DATABASE_CHECKPOINT_VERSION) {
+      const path = `${copies}/${DATABASE_IMAGE}`
+      if (fs.statSync(path).size !== this.document.databaseBytes) throw new Error('backup_checkpoint_incomplete_database')
+      await restoreUserDataDatabase(this.context, path)
+    }
     for (let index = 0; index < this.document.files.length; index += 1) {
       const image = this.document.files[index]
+      if (this.document.schemaVersion === DATABASE_CHECKPOINT_VERSION && isDatabaseImage(filesDir, image.path)) continue
       const path = `${filesDir}/${image.path}`
       if (isDatabaseImage(filesDir, image.path)) {
         const payload = image.exists

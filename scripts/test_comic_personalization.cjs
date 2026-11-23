@@ -46,7 +46,7 @@ function load(file) {
   const exports = {}; modules.set(file, exports)
   const source = fs.readFileSync(path.join(root, file + '.ets'), 'utf8').replace(/@Concurrent\s*/g, '')
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
-  vm.runInNewContext(js, { exports, console, Map, Set, Date, Uint8Array, ArrayBuffer, setTimeout, clearTimeout,
+  vm.runInNewContext(js, { exports, console, Map, Set, Date, Uint8Array, ArrayBuffer, setTimeout, clearTimeout, Trace: () => {}, ObservedV2: () => {},
     require(name) {
       if (ports[name]) return ports[name]
       if (name.startsWith('@kit.')) return {}
@@ -56,7 +56,7 @@ function load(file) {
 }
 async function main() {
   const model = load('model/ComicModels'), { InMemoryLibraryStore } = load('model/LibraryStore')
-  const persistence = load('model/LibraryPersistence'), personal = load('model/ComicPersonalization')
+  const backupExport = load('model/BusinessBackupExport'), persistence = load('model/LibraryPersistence'), personal = load('model/ComicPersonalization')
   const dir = fs.mkdtempSync('/private/tmp/koma-personal-data-')
   try {
     const coverDir = path.join(dir, 'comic-custom-covers'); fs.mkdirSync(coverDir)
@@ -82,7 +82,7 @@ async function main() {
       coverUri: 'https://owned.invalid/original.jpg' }
     library.upsertComic(book)
     let disk
-    const store = { persistExistingWorks() { disk = persistence.serializeLibraryStore(library) } }
+    const store = { persistExistingWorks() { disk = backupExport.serializeLibraryStoreForBackup(library) } }
     personal.saveComicPersonalization(library, store,
       book, 'An independent note', fileUri.getUriFromPath(coverPath))
     const saved = library.getComic(book.id)

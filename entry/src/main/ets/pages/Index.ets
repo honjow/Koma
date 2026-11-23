@@ -188,6 +188,7 @@ import {
   editComicCategoriesAndPersistLibraryStore,
   isRemovableLocalComic,
   isRemovableShelfComic,
+  localLibraryFolderComicsForRoot,
   removeComicAndPersistLibraryStore,
   removeComicsAndPersistLibraryStore,
   retainLibrarySourceNameAndPersist,
@@ -3101,7 +3102,7 @@ struct Index {
     let metadataChangedCount = 0
     let rejectedEntryCount = 0
     if (persistenceService === undefined) {
-      const boundScan = bindLocalLibraryFolderScanIdentity(scanResult, rootUri, this.libraryStore.listComics())
+      const boundScan = bindLocalLibraryFolderScanIdentity(scanResult, rootUri, localLibraryFolderComicsForRoot(this.libraryStore, rootUri))
       const comics = buildComicsFromLocalLibraryFolderScan(boundScan, rootUri)
       comics.forEach((comic: Comic) => {
         this.libraryStore.upsertComic(comic)
@@ -3110,7 +3111,7 @@ struct Index {
       rejectedEntryCount = scanResult.rejectedEntries.length
     } else {
       try {
-        const previousKnownSeries = buildKnownLocalLibraryFolderSeriesFromComics(this.libraryStore.listComics(), rootUri)
+        const previousKnownSeries = buildKnownLocalLibraryFolderSeriesFromComics(localLibraryFolderComicsForRoot(this.libraryStore, rootUri), rootUri)
         if (previousKnownSeries.length === 0) {
           importedCount = upsertLocalLibraryFolderScanAndPersistLibraryStore(
             this.libraryStore,
@@ -3198,7 +3199,7 @@ struct Index {
   private async rescanLocalLibraryFolders(comicId?: string): Promise<LocalLibraryFolderRescanActionResult> {
     let targetComics: Comic[] = []
     if (comicId === undefined) {
-      targetComics = this.libraryStore.listComics()
+      targetComics = this.libraryStore.listComicSummariesByKind([ComicSourceKind.LOCAL_FOLDER])
     } else {
       const targetComic = this.libraryStore.getComic(comicId)
       if (targetComic !== undefined) {
@@ -3226,7 +3227,7 @@ struct Index {
         continue
       }
       const previousKnownSeries = buildKnownLocalLibraryFolderSeriesFromComics(
-        this.libraryStore.listComics(),
+        localLibraryFolderComicsForRoot(this.libraryStore, rootUri),
         rootUri,
       )
       if (previousKnownSeries.length === 0) {

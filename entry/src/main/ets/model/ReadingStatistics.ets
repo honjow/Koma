@@ -1,4 +1,4 @@
-import type { Comic } from './ComicModels'
+import type { Chapter, Comic } from './ComicModels'
 import type { ReaderSessionStore } from './ReaderSessionStore'
 
 /** Aidoku's per-chapter reading session: foreground time and unique pages in that session.
@@ -76,17 +76,17 @@ export function summarizeReadingSessions(records: ReadingSessionRecord[], period
 }
 
 export function summarizeReadingLibrary(comics: Comic[], store: ReaderSessionStore,
-  downloaded: Set<string>): ReadingLibraryStatistics {
+  downloaded: Set<string>, readChapterIds?: (comicId: string) => string[]): ReadingLibraryStatistics {
   const result: ReadingLibraryStatistics = { books: comics.length, startedBooks: 0, completedBooks: 0,
     chapters: 0, readChapters: 0, downloadedChapters: 0 }
   for (const comic of comics) {
     let read = 0
     const chapterIds = new Set<string>()
-    for (const chapter of comic.chapters) {
-      if (chapterIds.has(chapter.id)) continue
-      chapterIds.add(chapter.id)
-      if (store.isChapterRead(comic.id, chapter.id)) read++
-      if (downloaded.has(JSON.stringify([comic.id, chapter.id]))) result.downloadedChapters++
+    for (const chapterId of readChapterIds?.(comic.id) ?? comic.chapters.map((chapter: Chapter): string => chapter.id)) {
+      if (chapterIds.has(chapterId)) continue
+      chapterIds.add(chapterId)
+      if (store.isChapterRead(comic.id, chapterId)) read++
+      if (downloaded.has(JSON.stringify([comic.id, chapterId]))) result.downloadedChapters++
     }
     result.chapters += chapterIds.size
     result.readChapters += read
