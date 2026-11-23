@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.honjow.koma",
     "vendor": "koma",
-    "versionCode": 26,
-    "versionName": "1.6.0",
+    "versionCode": 27,
+    "versionName": "1.6.1",
     "icon": "$media:app_icon_layered",
     "alternateIcons": [
       { "name": "lake", "icon": "$media:app_icon_lake_layered" },
