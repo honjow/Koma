@@ -3521,7 +3521,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
-      "updatedAt": "2026-11-23T23:06:40+08:00",
+      "updatedAt": "2026-11-24T00:38:48+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -3707,14 +3707,17 @@
         ".hvigor/outputs/two-source-browse-20261120/jiulingmanhua-investigation/device-201-result.md",
         ".hvigor/outputs/two-source-browse-20261120/jiulingmanhua-investigation/timeout60/device-result.md",
         ".hvigor/outputs/two-source-browse-20261120/jiulingmanhua-investigation/timeout60/desktop-oracle/RESULT.md",
-        "https://github.com/honjow/koma-sources/releases/tag/sources-21d34dbcc1c53a0233ebff205c4f61fda6b33442"
+        "https://github.com/honjow/koma-sources/releases/tag/sources-21d34dbcc1c53a0233ebff205c4f61fda6b33442",
+        ".hvigor/outputs/bakamh-client-parity-20261124/app-candidate-ready.json",
+        ".hvigor/outputs/bakamh-client-parity-20261124/frozen/freeze.json",
+        ".hvigor/outputs/bakamh-client-parity-20261124/final-acceptance-protocol.md"
       ],
       "remainingActions": [
         "香香腐宅（boylove）｜已修复官网标签选择器。197 在主站和备用域名均加载动态标签、使用「香香汉化」得到作品。官网另有个别标签返回业务 500。此前已验 43/43 下载、冷启动离线、真实乱序图、游客打开 VIP 章时的锁定提示。真实 VIP 登录与授权后阅读待验，未发布。",
         "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
         "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
-        "巴卡：237新1.6.1候选已验证CF通过后自动收起，原热门POST恢复，详情与105章目录可见；阅读文档改用既有Native文本后，两次实际返回200，当前章取得73张页表。仍有正文首图问题：图片请求走另一条Native二进制链返回403，封面WebHTTP成功不能替代正文验收。实际首图公开诊断已确认图片域为t1.bakamh.de、正文Ref仍为bakamh.com，首跳403；继续对照上游跨站请求头和传输，不将主站Cookie复制到图片域；未盲目复制其它域的会话，未排入失败图片下载。源候选已本地提交，完整阅读、跨章和自有下载仍继续237验证；依赖未正式发布App1.6.1，保持distribution:false。",
+        "巴卡：完整静态对照已核上游普通OkHttp、默认Android UA、IMAGE BrowserHeaders、CookieJar与全client限速；源0.1.2已一次补齐SDK共享普通图片请求策略、匿名CDN SourceCookies和2/s限速，保完整Referer与原页/章身份，未新增重试或诊断。App1.6.1仅修现有CookieJar跨域跳转过度删除公开头的问题，原授权/验证过滤不变；已本地提交a70247f0并构建HAP，未推送发布。源e4b2f2a及锁05c51bf已本地提交，完整候选ad0f6b3d已冻结交237普通阅读、跨章和一章完整下载/离线验收；旧c0fb与同图textprofile均403，不写成已修。源最低App1.6.1，当前distribution:false及其余候选进度保持。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
         "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
@@ -31116,6 +31119,19 @@
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32clean-scoped-result.json",
         ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-6a5363b/publication-verification.json",
         "https://github.com/honjow/koma-sources/releases/tag/sources-6a5363b24fb635dd2bc1cf0200b99744ee75748c"
+      ]
+    },
+    {
+      "id": "baka-complete-client-contract-ready-20261124",
+      "at": "2026-11-24T00:38:48+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "verification",
+      "title": "巴卡按完整上游合同补齐公共依赖，整套候选进入237验收",
+      "detail": "巴卡：完整静态对照已核上游普通OkHttp、默认Android UA、IMAGE BrowserHeaders、CookieJar与全client限速；源0.1.2已一次补齐SDK共享普通图片请求策略、匿名CDN SourceCookies和2/s限速，保完整Referer与原页/章身份，未新增重试或诊断。App1.6.1仅修现有CookieJar跨域跳转过度删除公开头的问题，原授权/验证过滤不变；已本地提交a70247f0并构建HAP，未推送发布。源e4b2f2a及锁05c51bf已本地提交，完整候选ad0f6b3d已冻结交237普通阅读、跨章和一章完整下载/离线验收；旧c0fb与同图textprofile均403，不写成已修。源最低App1.6.1，当前distribution:false及其余候选进度保持。",
+      "evidence": [
+        ".hvigor/outputs/bakamh-client-parity-20261124/app-candidate-ready.json",
+        ".hvigor/outputs/bakamh-client-parity-20261124/frozen/freeze.json",
+        ".hvigor/outputs/bakamh-client-parity-20261124/final-acceptance-protocol.md"
       ]
     }
   ],
