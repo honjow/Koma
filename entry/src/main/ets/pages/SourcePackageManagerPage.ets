@@ -2122,7 +2122,9 @@ export struct SourcePackageManagerPage {
   }
 
   private hasSourcePackageMetadata(source: InstalledSourcePackage): boolean {
-    return this.packagePresentationText(source, 'description', source.description).length > 0 || source.author.length > 0 ||
+    // Optional presentation can supply text even when the canonical field is empty.
+    return this.packagePresentationText(source, 'description', source.description).length > 0 ||
+      this.packagePresentationText(source, 'author', source.author).length > 0 ||
       source.contentRating.length > 0 || source.minAppVersion.length > 0
   }
 
@@ -2433,11 +2435,11 @@ export struct SourcePackageManagerPage {
               subtitleMaxLines: 3,
               showChevron: false,
             })
-            if (params.source.author.length > 0 || params.source.contentRating.length > 0 || params.source.minAppVersion.length > 0) {
+            if (this.packagePresentationText(params.source, 'author', params.source.author).length > 0 || params.source.contentRating.length > 0 || params.source.minAppVersion.length > 0) {
               ListDivider()
             }
           }
-          if (params.source.author.length > 0) {
+          if (this.packagePresentationText(params.source, 'author', params.source.author).length > 0) {
             ConciseListRow({
               title: t('source_pkg_author'),
               subtitle: this.packagePresentationText(params.source, 'author', params.source.author),
