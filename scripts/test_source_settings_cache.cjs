@@ -40,6 +40,7 @@ function fixture() {
     } }
     if (name === './SourceRuntimeService') return { runRegisteredSourceRequestById: run,
       runRegisteredSourceRequestByIdAsync: async (...args) => run(...args) }
+    if (name === './SourceRuntimeEnvironment') return { sourceRuntimeLocaleRevision: () => 'fixture-locale' }
     return {}
   })
   const store = new exports.SourceSettingsStore(); store.configure({ filesDir: '/app' })
@@ -100,8 +101,9 @@ test('the source settings form disables saving when either UUID field is invalid
     .replace('export struct SourceSettingsSheetContent', 'export class SourceSettingsSheetContent')
   const tree = ts.createSourceFile('settings-form', input, ts.ScriptTarget.Latest, true)
   const owner = tree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'SourceSettingsSheetContent')
-  const methods = ['settingValidationError', 'hasInvalidSettings', 'saveSettings'].map(name =>
+  const methods = ['displayDescriptors', 'settingValidationError', 'hasInvalidSettings', 'saveSettings'].map(name =>
     owner.members.find(node => node.name?.text === name).getText(tree)).join('\n')
+    .replace(/@Computed\s*/g, '')
   const js = ts.transpileModule(`export class Form { ${methods} }`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText
@@ -117,7 +119,7 @@ test('the source settings form disables saving when either UUID field is invalid
     id, kind: 'string', label: id, default: '', validation: { kind: 'uuid_list', message: 'invalid' },
   })) } })
   const form = new exports.Form()
-  Object.assign(form, { settingsSourceId: 'A', settingDescriptors: descriptors,
+  Object.assign(form, { settingsSourceId: 'A', settingDescriptors: descriptors, localizedDescriptors: [],
     settingDraft: { groups: 'bad', uploaders: '' }, getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }),
     onSaved: value => events.push(value), onClose: () => events.push('closed') })
   const before = f.disk.get(f.file)

@@ -82,11 +82,13 @@ export class LanguageSettings {
       }
       throw error as Error
     }
+    const localeChanged = state.effectiveLocale !== locale
     state.mode = normalized
     state.effectiveLocale = locale
+    if (localeChanged) state.revision = (state.revision ?? 0) + 1
   }
 
-  static restore(context: common.UIAbilityContext): Promise<void> {
+  static restore(context: common.Context): Promise<void> {
     return mutateLanguage(async (): Promise<void> => {
       let mode = LanguageSettings.MODE_SYSTEM
       try {

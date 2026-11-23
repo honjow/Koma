@@ -21,6 +21,12 @@ export function sourceRuntimeLocale(): string {
   return sourceEnvironmentForLocale(connectLanguageState().effectiveLocale)?.uiLocale ?? ''
 }
 
+/** UI publication identity, deliberately excluded from session and settings identity. */
+export function sourceRuntimeLocaleRevision(): string {
+  const state = connectLanguageState()
+  return JSON.stringify([sourceRuntimeLocale(), state.revision ?? 0])
+}
+
 export function sourceRequestLocale(requestJson: string): string {
   try {
     const request = JSON.parse(requestJson) as Record<string, Object>

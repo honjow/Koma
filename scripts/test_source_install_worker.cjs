@@ -153,6 +153,7 @@ test('validated bytes use the existing worker executor, copied bytes and no HTTP
     throw Error('unexpected worker identity dependency ' + name)
   })
   const worker = evaluate('sourceRuntime/SourceRuntimeWorkerClient.ets', name => {
+    if (name === './SourceRuntimeEnvironment') return { sourceRequestWithEnvironment: value => value }
     if (name === '@kit.ArkTS') return { taskpool: { execute: (...args) => { call=args;return pending.promise } } }
     if (name === './SourceRuntimeExecutionIdentity') return executionIdentity
     if (name === './SourceRuntimeWorker') return { executeSourceRuntimeRequest: executor }

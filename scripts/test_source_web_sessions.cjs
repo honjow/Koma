@@ -1924,7 +1924,11 @@ function declarations(relative, names, owner) {
 
 function sourceWorkerFixture(execute, workers = {}, privateHost) {
   const identity = moduleFrom('SourceRuntimeExecutionIdentity', () => ({}))
+  const locale = moduleFrom('SourceLocale', () => ({}))
+  const environment = moduleFrom('SourceRuntimeEnvironment', name => name === './SourceLocale' ? locale :
+    { connectLanguageState: () => ({ effectiveLocale: '' }) })
   const client = moduleFrom('SourceRuntimeWorkerClient', name => {
+    if (name === './SourceRuntimeEnvironment') return environment
     if (name === './SourceBodyHost') return { SourceBodyHost: { available: () => false, handoff: response => response, finishCall: () => {} } }
     if (name === '@kit.ArkTS') return { taskpool: { execute } }
     if (name === './SourceRuntimeExecutionIdentity') return identity

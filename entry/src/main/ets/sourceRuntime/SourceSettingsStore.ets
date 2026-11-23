@@ -7,6 +7,7 @@ import { runRegisteredSourceRequestById, runRegisteredSourceRequestByIdAsync } f
 import { SourceRuntimeRegistry } from './SourceRuntimeRegistry'
 import { appSourceSettingObservationStore } from './SourceSettingObservationStore'
 import { SourceSettingObservations } from './SourceSettingObservations'
+import { sourceRuntimeLocaleRevision } from './SourceRuntimeEnvironment'
 import { SettingsFieldValue, SettingsFieldValues, SettingsFieldOption, SettingsFieldValidation,
   SettingsFieldDescriptor } from '../model/SettingsFormFields'
 
@@ -29,6 +30,32 @@ export function sourceSettingIsVisible(descriptor: SourceSettingDescriptor, draf
 export interface SourceSettingsDescriptorResult {
   ready: boolean
   descriptors: SourceSettingDescriptor[]
+  localeRevision?: string
+}
+
+export function sourceSettingsDescriptorsCurrent(result: SourceSettingsDescriptorResult): boolean {
+  return result.localeRevision === undefined || result.localeRevision === sourceRuntimeLocaleRevision()
+}
+
+/** A language refresh may replace text, never current control semantics or saved/draft values. */
+export function sourceSettingDisplayDescriptors(current: SourceSettingDescriptor[],
+  translated: SourceSettingDescriptor[]): SourceSettingDescriptor[] {
+  return current.map((descriptor: SourceSettingDescriptor): SourceSettingDescriptor => {
+    const text = translated.find((item: SourceSettingDescriptor): boolean => item.id === descriptor.id)
+    if (text === undefined) return descriptor
+    return {
+      id: descriptor.id, kind: descriptor.kind, label: text.label, description: text.description,
+      validation: descriptor.validation === undefined ? undefined : {
+        kind: descriptor.validation.kind,
+        message: text.validation?.kind === descriptor.validation.kind ? text.validation.message : descriptor.validation.message,
+      },
+      defaultValue: descriptor.defaultValue, minValue: descriptor.minValue, maxValue: descriptor.maxValue,
+      step: descriptor.step, children: descriptor.children, loginRefKey: descriptor.loginRefKey,
+      supported: descriptor.supported, sensitive: descriptor.sensitive, visibleWhen: descriptor.visibleWhen,
+      options: descriptor.options?.map((option: SourceSettingOption): SourceSettingOption =>
+        ({ id: option.id, label: text.options?.find((item: SourceSettingOption): boolean => item.id === option.id)?.label ?? option.label })),
+    }
+  })
 }
 
 interface SourceSettingsDocument {
@@ -644,6 +671,12 @@ export function fetchSourceSettingDescriptors(registry: SourceRuntimeRegistry, s
 }
 
 export async function loadSourceSettingsDescriptorsAsync(registry: SourceRuntimeRegistry, sourceId: string): Promise<SourceSettingsDescriptorResult> {
+  const localeRevision = sourceRuntimeLocaleRevision()
+  const result = await loadSourceSettingsDescriptorsForLocale(registry, sourceId)
+  return { ready: result.ready, descriptors: result.descriptors, localeRevision }
+}
+
+async function loadSourceSettingsDescriptorsForLocale(registry: SourceRuntimeRegistry, sourceId: string): Promise<SourceSettingsDescriptorResult> {
   const source = registry.lookup(sourceId).entry
   if (source === undefined) return { ready: false, descriptors: [] }
   // A source which declares no settings is not a failed settings operation.

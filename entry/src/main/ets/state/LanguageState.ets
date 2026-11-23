@@ -4,6 +4,7 @@ import { AppStorageV2 } from '@kit.ArkUI'
 export class LanguageState {
   @Trace mode: string = 'system'
   @Trace effectiveLocale: string = ''
+  @Trace revision: number = 0
 }
 
 // AppStorageV2 keys accept letters, digits and underscores. This key is only

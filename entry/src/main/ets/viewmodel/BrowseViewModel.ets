@@ -41,6 +41,8 @@ import {
   SourceRuntimeRegistryInstalledSourceSummary,
 } from '../sourceRuntime/SourceRuntimeRegistry'
 
+import { sourceRuntimeLocale, sourceRuntimeLocaleRevision } from '../sourceRuntime/SourceRuntimeEnvironment'
+
 export type BrowseSourceSection = 'popular' | 'latest'
 
 interface SourceSearchResultsIdentity {
@@ -436,6 +438,8 @@ function safeSourceBrowseErrorText(error: Error, fallbackKey: string): string {
 
 @ObservedV2
 export class BrowseViewModel {
+  private metadataLocaleRevision: string = ''
+  private metadataLanguagePending: string = ''
   @Trace sources: SourceRuntimeRegistryInstalledSourceSummary[] = []
   @Trace popularManga: SourceManga[] = []
   @Trace latestManga: SourceManga[] = []
@@ -706,6 +710,7 @@ export class BrowseViewModel {
   }
 
   setSelectedSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
+    this.metadataLocaleRevision = ''
     this.cancelFilterDataLoad()
     this.supportsFilterFetching = false
     this.useSearchForFilters = false
@@ -768,7 +773,7 @@ export class BrowseViewModel {
     const identity = sourceWebPackageIdentity(entry)
     const webSessions = (entry.webSessionOrigins ?? []).map((origin: string): string =>
       appSourceWebSessionStore.status(source.sourceId, origin).sessionId)
-    const context = JSON.stringify([appSourceSettingsStore.revisionForSource(source.sourceId),
+    const context = JSON.stringify([sourceRuntimeLocale(), appSourceSettingsStore.revisionForSource(source.sourceId),
       SourcePrivateSessionHost.authenticationRevision(source.sourceId, entry.sessionStorageIdentity ?? identity), webSessions])
     // Keep only route-local first results. Settings and account changes cannot
     // display an earlier mirror's cards or another account's recommendations.
@@ -842,6 +847,7 @@ export class BrowseViewModel {
     automaticRecovery: boolean = false,
     operationGuardId?: string,
   ): Promise<void> {
+    const localeRevision = sourceRuntimeLocaleRevision()
     const sourceMatchesCurrent = this.isCurrentBrowseSource(source)
     const sameSourceRefresh = intent === BrowseLoadIntent.REFRESH && this.isSameBrowseSource(source)
     const previousListingId = sameSourceRefresh ? this.selectedListingId :
@@ -937,13 +943,14 @@ export class BrowseViewModel {
         cacheKey === this.browseDestinationCacheKey(source, listing, browseFilterValues, filters)) {
         this.rememberBrowseDestination(cacheKey, listingResult !== undefined ? { listingResult } : { homeSections })
       }
-      this.listings = listings
+      if (localeRevision === sourceRuntimeLocaleRevision()) this.listings = listings
       this.homeAvailable = homeAvailable
-      this.publishFilterSchema(filterSchema)
+      this.publishFilterSchema(filterSchema, localeRevision)
       this.browseFilterValues = browseFilterValues
       this.homeSections = listing === undefined ? homeSections : []
       if (listing !== undefined && listingResult !== undefined) {
-        this.applyBrowseListing(listing, listingResult, 1)
+        this.applyBrowseListing(this.listings.find((item: SourceListingDescriptor): boolean => item.id === listing!.id) ?? listing,
+          listingResult, 1)
       } else {
         this.clearBrowseListing()
       }
@@ -959,6 +966,7 @@ export class BrowseViewModel {
     } finally {
       if (requestId === this.browseRequestId) {
         this.loadingBrowse = false
+        if (localeRevision !== sourceRuntimeLocaleRevision()) void this.refreshSourceLanguage()
       }
     }
   }
@@ -1024,6 +1032,7 @@ export class BrowseViewModel {
     } finally {
       if (requestId === this.browseRequestId) {
         this.loadingBrowse = false
+        void this.refreshSourceLanguage()
       }
     }
   }
@@ -1123,6 +1132,7 @@ export class BrowseViewModel {
   }
 
   async ensureSearchFilters(source: SourceRuntimeRegistryInstalledSourceSummary, persistFilters: boolean = true): Promise<void> {
+    const localeRevision = sourceRuntimeLocaleRevision()
     this.persistSearchFilters = persistFilters
     this.prepareSearchSource(source)
     if (this.filters.length > 0) {
@@ -1130,6 +1140,7 @@ export class BrowseViewModel {
         this.searchFilterValues = this.initialSearchFilterValues()
         this.restoreSavedSearchFilterValues(source.sourceId)
       }
+      void this.refreshSourceLanguage()
       return
     }
     const selected = this.selectedSource
@@ -1141,8 +1152,9 @@ export class BrowseViewModel {
     if (this.selectedSource !== selected || this.searchRequestId !== requestId ||
       this.registry.lookup(source.sourceId).entry !== entry ||
       appSourceSettingsStore.revisionForSource(source.sourceId) !== settingsRevision ||
-      this.searchFilterValues !== values || this.persistSearchFilters !== persistFilters) return
-    this.publishFilterSchema(schema)
+      this.searchFilterValues !== values || this.persistSearchFilters !== persistFilters ||
+      localeRevision !== sourceRuntimeLocaleRevision()) return
+    this.publishFilterSchema(schema, localeRevision)
     // An empty schema is still a completed initialization. Central search
     // preparation must preserve current temporary/legacy values on re-entry.
     if (Object.keys(this.searchFilterValues).length === 0) {
@@ -1154,6 +1166,7 @@ export class BrowseViewModel {
   private prepareSearchSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
     const sourceChanged = this.selectedSource === undefined || this.selectedSource.sourceId !== source.sourceId
     if (sourceChanged) {
+      this.metadataLocaleRevision = ''
       this.clearSearch(source)
       this.filters = []
       this.useSearchForFilters = false
@@ -1271,6 +1284,7 @@ export class BrowseViewModel {
     } finally {
       if (requestId === this.browseRequestId) {
         this.loadingBrowse = false
+        void this.refreshSourceLanguage()
       }
     }
   }
@@ -1370,6 +1384,7 @@ export class BrowseViewModel {
     } finally {
       if (requestId === this.searchRequestId) {
         this.loadingSearch = false
+        void this.refreshSourceLanguage()
       }
     }
     if (continueEmptyPage && requestId === this.searchRequestId &&
@@ -1473,6 +1488,7 @@ export class BrowseViewModel {
     } finally {
       if (requestId === this.searchRequestId) {
         this.loadingSearch = false
+        void this.refreshSourceLanguage()
       }
     }
   }
@@ -1534,12 +1550,41 @@ export class BrowseViewModel {
     return this.runSourceOperation(source.sourceId, 'get_manga_list', args, page, isActive, operationGuardId)
   }
 
-  private publishFilterSchema(schema: SourceFilterSchema): void {
+  private publishFilterSchema(schema: SourceFilterSchema, localeRevision: string = sourceRuntimeLocaleRevision()): void {
+    if (localeRevision !== sourceRuntimeLocaleRevision()) return
     this.cancelFilterDataLoad()
     this.filters = schema.filters
     this.useSearchForFilters = schema.useSearchForFilters === true
     this.supportsFilterFetching = schema.supportsFilterFetching
     this.filterDataReady = false
+    this.metadataLocaleRevision = localeRevision
+  }
+
+  /** Re-read local UI metadata only; never replay content POSTs or retire an authorization. */
+  async refreshSourceLanguage(): Promise<void> {
+    const source = this.selectedSource
+    const localeRevision = sourceRuntimeLocaleRevision()
+    const pendingKey = JSON.stringify([source?.sourceId ?? '', localeRevision])
+    if (source === undefined || this.metadataLocaleRevision === localeRevision ||
+      this.metadataLanguagePending === pendingKey || this.loadingBrowse || this.loadingSearch ||
+      this.browseWebChallenge !== null || this.searchWebChallenge !== null ||
+      this.browseAuthentication !== null || this.searchAuthentication !== null) return
+    const entry = this.registry.lookup(source.sourceId).entry
+    const settingsRevision = appSourceSettingsStore.revisionForSource(source.sourceId)
+    this.metadataLanguagePending = pendingKey
+    try {
+      const listings = await this.loadSourceListings(source, false)
+      const schema = await this.loadSourceFilters(source, false)
+      if (this.selectedSource !== source || this.registry.lookup(source.sourceId).entry !== entry ||
+        appSourceSettingsStore.revisionForSource(source.sourceId) !== settingsRevision ||
+        localeRevision !== sourceRuntimeLocaleRevision()) return
+      this.listings = listings
+      this.publishFilterSchema(schema, localeRevision)
+      this.browseSections = this.browseSections.map((section: BrowseSourceSectionState): BrowseSourceSectionState =>
+        ({ listing: listings.find((item: SourceListingDescriptor): boolean => item.id === section.listing.id) ?? section.listing,
+          manga: section.manga, hasNextPage: section.hasNextPage, page: section.page }))
+    } catch (_error) { /* Optional labels keep existing content, drafts and filter values on failure. */ }
+    finally { if (this.metadataLanguagePending === pendingKey) this.metadataLanguagePending = '' }
   }
 
   cancelFilterDataLoad(): void {
@@ -1551,6 +1596,7 @@ export class BrowseViewModel {
   // Optional network metadata belongs to opening the filter panel; its failure
   // must not erase catalogue/search results or the user's saved selections.
   async fetchSourceFilterData(): Promise<string> {
+    const localeRevision = sourceRuntimeLocaleRevision()
     if (!this.supportsFilterFetching || this.filterDataReady || this.loadingFilterData) return ''
     const source = this.selectedSource
     if (source === undefined) return ''
@@ -1564,7 +1610,7 @@ export class BrowseViewModel {
     try {
       const args: SourceFilterDataArgs = { fetchFilterData: true }
       const response = await this.runSourceOperationResponse(source.sourceId, 'get_filters', args, 1, current)
-      if (!current()) return ''
+      if (!current() || localeRevision !== sourceRuntimeLocaleRevision()) return ''
       const schema = parseSourceFilterSchemaJson(JSON.stringify(response.data ?? {}))
       this.filters = schema.filters
       this.filterDataReady = true
@@ -1576,13 +1622,13 @@ export class BrowseViewModel {
     }
   }
 
-  private async loadSourceFilters(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceFilterSchema> {
+  private async loadSourceFilters(source: SourceRuntimeRegistryInstalledSourceSummary, network: boolean = true): Promise<SourceFilterSchema> {
     if (!this.sourceSupportsOperation(source, 'filters')) {
       return { filters: [], supportsFilterFetching: false }
     }
     try {
       const args: SourceListingsArgs = {}
-      const response = await this.runSourceOperationResponse(source.sourceId, 'get_filters', args, 1)
+      const response = await this.runSourceOperationResponse(source.sourceId, 'get_filters', args, 1, undefined, undefined, network)
       return parseSourceFilterSchemaJson(JSON.stringify(response.data ?? {}))
     } catch (error) {
       if (source.capabilities.indexOf('filters') >= 0) {
@@ -1592,7 +1638,7 @@ export class BrowseViewModel {
     }
   }
 
-  private async loadSourceListings(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceListingDescriptor[]> {
+  private async loadSourceListings(source: SourceRuntimeRegistryInstalledSourceSummary, network: boolean = true): Promise<SourceListingDescriptor[]> {
     if (!this.sourceSupportsOperation(source, 'mangaList')) {
       return []
     }
@@ -1601,7 +1647,7 @@ export class BrowseViewModel {
     }
     try {
       const args: SourceListingsArgs = {}
-      const response = await this.runSourceOperationResponse(source.sourceId, 'get_listings', args, 1)
+      const response = await this.runSourceOperationResponse(source.sourceId, 'get_listings', args, 1, undefined, undefined, network)
       const listings = parseSourceListingsFromResponse(response)
       return listings.length > 0 || source.capabilities.indexOf('listings') >= 0 ? listings : this.defaultListings()
     } catch (error) {
@@ -1878,12 +1924,13 @@ export class BrowseViewModel {
     page: number,
     isActive?: () => boolean,
     operationGuardId?: string,
+    network: boolean = true,
   ): Promise<SourceRuntimeCallResponse> {
     const lookup = this.registry.lookup(sourceId)
     if (!lookup.ok || lookup.entry === undefined) {
       throw new Error(AppStrings.get('browse_error_source_unavailable'))
     }
-    const requestJson = this.buildRequestJson(sourceId, operation, args, page)
+    const requestJson = this.buildRequestJson(sourceId, operation, args, page, false, undefined, network)
     const ownGuard = isActive !== undefined && operationGuardId === undefined
     const guardId = isActive === undefined ? undefined : operationGuardId ?? newSourceRuntimeOperationGuardId()
     const releaseGuard = guardId === undefined || isActive === undefined ? undefined :
@@ -1919,9 +1966,10 @@ export class BrowseViewModel {
     page: number,
     supportsInteractionResume: boolean = false,
     resume?: SourceInteractionResume,
+    network: boolean = true,
   ): string {
     const settings = appSourceSettingsStore.loadForSource(sourceId)
-    const hostHints: SourceOperationHostHints = { network: true }
+    const hostHints: SourceOperationHostHints = { network }
     if (supportsInteractionResume) {
       hostHints.interactionResumeSupported = true
       if (resume !== undefined) hostHints.interactionResume = resume

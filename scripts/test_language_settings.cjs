@@ -144,6 +144,116 @@ test('source calls capture one UI language before admission and feature negotiat
     operation: 'source_info' }))).environment)
 })
 
+test('language schema refresh preserves control values and rejects old locale publications', async () => {
+  const root = path.join(__dirname, '../entry/src/main/ets')
+  let revision = 'Hant:1'
+  const tree = ts.createSourceFile('settings.ts', fs.readFileSync(path.join(root, 'sourceRuntime/SourceSettingsStore.ets'), 'utf8'),
+    ts.ScriptTarget.Latest, true)
+  const names = ['sourceSettingDisplayDescriptors', 'sourceSettingsDescriptorsCurrent']
+  const code = tree.statements.filter(node => names.includes(node.name?.text)).map(node => node.getText(tree)).join('\n')
+  const api = {}
+  new Function('exports', 'sourceRuntimeLocaleRevision', ts.transpileModule(code, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText)(api, () => revision)
+  const original = [{ id: 'mirror', kind: 'select', label: '鏡像', defaultValue: 'com',
+    options: [{ id: 'com', label: '原站' }], supported: true, sensitive: false,
+    validation: { kind: 'non_blank', message: '不可空白' } }]
+  const translated = [{ ...original[0], label: 'Mirror', defaultValue: 'cc', kind: 'text',
+    options: [{ id: 'cc', label: 'Other' }, { id: 'com', label: 'Original' }],
+    validation: { kind: 'non_blank', message: 'Required' } }]
+  const result = api.sourceSettingDisplayDescriptors(original, translated)
+  assert.equal(result[0].label, 'Mirror')
+  assert.deepEqual(result[0].options, [{ id: 'com', label: 'Original' }])
+  assert.equal(result[0].kind, 'select')
+  assert.equal(result[0].defaultValue, 'com')
+  assert.equal(result[0].validation.message, 'Required')
+  const stale = { ready: true, descriptors: original, localeRevision: revision }
+  revision = 'en:2'
+  assert.equal(api.sourceSettingsDescriptorsCurrent(stale), false)
+  revision = 'Hant:3'
+  assert.equal(api.sourceSettingsDescriptorsCurrent(stale), false)
+  assert.equal(api.sourceSettingsDescriptorsCurrent({ ...stale, localeRevision: revision }), true)
+
+  const input = fs.readFileSync(path.join(root, 'components/SourceSettingsSheetContent.ets'), 'utf8')
+    .replace('export struct SourceSettingsSheetContent', 'export class SourceSettingsSheetContent')
+  const formTree = ts.createSourceFile('form.ts', input, ts.ScriptTarget.Latest, true)
+  const owner = formTree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'SourceSettingsSheetContent')
+  const methods = ['displayDescriptors', 'refreshLanguageDescriptors'].map(name =>
+    owner.members.find(node => node.name?.text === name).getText(formTree)).join('\n').replace(/@Computed\s*/g, '')
+  const exports = {}, entry = {}, pending = []
+  new Function('exports', 'appSourceRuntimeRegistry', 'appSourceSettingsStore', 'loadSourceSettingsDescriptorsAsync',
+    'sourceSettingsDescriptorsCurrent', 'sourceSettingDisplayDescriptors', ts.transpileModule(`export class Form {${methods}}`, {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+    }).outputText)(exports, { lookup: () => ({ entry }) }, { revisionForSource: () => 0 },
+    () => { const localeRevision = revision; return new Promise(resolve => pending.push(data =>
+      resolve({ ready: true, descriptors: data, localeRevision }))) },
+    api.sourceSettingsDescriptorsCurrent, api.sourceSettingDisplayDescriptors)
+  const draft = { mirror: 'com' }
+  const form = Object.assign(new exports.Form(), { mounted: true, active: true, settingsSourceId: 'source',
+    textRefreshRevision: 0, settingDescriptors: original, localizedDescriptors: [], settingDraft: draft,
+    regexErrors: { mirror: '不可空白' } })
+  const old = form.refreshLanguageDescriptors()
+  revision = 'en:4'
+  const fresh = form.refreshLanguageDescriptors()
+  pending[1](translated); await fresh
+  pending[0](original); await old
+  assert.equal(form.displayDescriptors[0].label, 'Mirror')
+  assert.equal(form.regexErrors.mirror, 'Required')
+  assert.equal(form.settingDraft, draft)
+  assert.deepEqual(form.settingDraft, { mirror: 'com' })
+})
+
+test('browse labels publish only the latest locale while retaining content, selected IDs and filter values', async () => {
+  const file = path.join(__dirname, '../entry/src/main/ets/viewmodel/BrowseViewModel.ets')
+  const tree = ts.createSourceFile('browse.ts', fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
+  const owner = tree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'BrowseViewModel')
+  const methods = ['refreshSourceLanguage', 'publishFilterSchema', 'cancelFilterDataLoad'].map(name =>
+    owner.members.find(node => node.name?.text === name).getText(tree)).join('\n')
+  let revision = 'Hant:1'
+  const exports = {}, entry = {}, source = { sourceId: 'source' }
+  new Function('exports', 'sourceRuntimeLocaleRevision', 'appSourceSettingsStore', ts.transpileModule(`export class Model {${methods}}`, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText)(exports, () => revision, { revisionForSource: () => 0 })
+  const choices = { genre: 'all' }, content = [{ id: 'retained', title: '原站作品' }]
+  let releaseOld
+  const network = []
+  const model = Object.assign(new exports.Model(), { selectedSource: source, registry: { lookup: () => ({ entry }) },
+    metadataLocaleRevision: '', metadataLanguagePending: '', filterDataRevision: 0,
+    browseWebChallenge: null, searchWebChallenge: null, browseAuthentication: null, searchAuthentication: null,
+    browseFilterValues: choices, searchFilterValues: choices, selectedListingId: 'all',
+    browseSections: [{ listing: { id: 'all', name: '全部' }, manga: content, page: 3, hasNextPage: true }],
+    loadSourceListings: async (_source, online) => {
+      network.push(online)
+      if (revision === 'Hant:1') return new Promise(resolve => { releaseOld = resolve })
+      return [{ id: 'all', name: 'All' }]
+    },
+    loadSourceFilters: async (_source, online) => {
+      network.push(online)
+      return { filters: [{ id: 'genre', name: 'Genre', options: ['All'], optionIds: ['all'] }] }
+    },
+  })
+  const old = model.refreshSourceLanguage()
+  revision = 'en:2'
+  await model.refreshSourceLanguage()
+  releaseOld([{ id: 'all', name: '全部' }]); await old
+  assert.equal(model.listings[0].name, 'All')
+  assert.equal(model.browseSections[0].listing.name, 'All')
+  assert.equal(model.filters[0].name, 'Genre')
+  assert.equal(model.browseFilterValues, choices)
+  assert.equal(model.searchFilterValues, choices)
+  assert.equal(model.browseSections[0].manga, content)
+  assert.equal(model.browseSections[0].page, 3)
+  assert.equal(model.selectedListingId, 'all')
+  assert(network.every(value => value === false))
+  // An in-progress verification is never cancelled/replayed for UI text.
+  revision = 'zh-Hans:3'
+  model.browseWebChallenge = { id: 'active' }
+  const before = network.length
+  await model.refreshSourceLanguage()
+  assert.equal(network.length, before)
+  assert.equal(model.browseWebChallenge.id, 'active')
+})
+
 test('language preferences survive switches and roll back a failed change', async () => {
   const state = { mode: 'system', effectiveLocale: '' }
   const data = new Map()
@@ -188,11 +298,13 @@ test('language preferences survive switches and roll back a failed change', asyn
   const { LanguageSettings } = exports
 
   for (const mode of ['zh-Hans', 'zh-Hant', 'en-US', 'ja-JP', 'ko-KR']) {
+    const revision = state.revision ?? 0
     await LanguageSettings.setMode({}, mode)
     assert.equal(data.get('app.language'), mode)
     assert.equal(state.mode, mode)
     assert.equal(state.effectiveLocale, mode)
     assert.equal(platformMode, mode)
+    assert.equal(state.revision, revision + 1)
   }
 
   failLocale = true

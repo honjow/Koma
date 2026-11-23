@@ -16,6 +16,7 @@ const tri = load('model/SourceTriStateFilters.ets')
 const models = load('model/SourceModels.ets', { '../i18n/AppStrings': { AppStrings: { get: key => key } } })
 const preference = load('sourceRuntime/SourceFilterPreferencesStore.ets', {
   '../model/SourceTriStateFilters': tri,
+  './SourcePreferencePersistence': { SourcePreferencePersistence: class {} },
 })
 const source = fs.readFileSync(path.join(root, 'viewmodel/BrowseViewModel.ets'), 'utf8')
 const ast = ts.createSourceFile('model.ts', source, ts.ScriptTarget.Latest, true)
@@ -26,8 +27,8 @@ const js = ts.transpileModule(`export class Model { ${body} }`, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText
 const exportsObject = {}
-new Function('exports', 'appSourceSettingsStore', 'parseSourceFilterSchemaJson', 'safeSourceBrowseErrorText', js)(
-  exportsObject, { revisionForSource: () => 1 }, models.parseSourceFilterSchemaJson, error => error.message)
+new Function('exports', 'appSourceSettingsStore', 'parseSourceFilterSchemaJson', 'safeSourceBrowseErrorText', 'sourceRuntimeLocaleRevision', js)(
+  exportsObject, { revisionForSource: () => 1 }, models.parseSourceFilterSchemaJson, error => error.message, () => 'fixture-locale')
 function fixture() {
   const source = { sourceId: 'source', capabilities: ['filters'] }
   const entry = {}

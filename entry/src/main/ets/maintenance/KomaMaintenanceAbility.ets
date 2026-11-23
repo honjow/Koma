@@ -1,6 +1,8 @@
 import { WorkSchedulerExtensionAbility, workScheduler } from '@kit.BackgroundTasksKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { AppStrings } from '../i18n/AppStrings'
+import { LanguageSettings } from '../i18n/LanguageSettings'
+import { connectLanguageState } from '../state/LanguageState'
 import { executeBackgroundMaintenance } from '../model/BackgroundMaintenanceWorker'
 import { bootstrapSourceRuntimeAppRegistry, appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { prepareSourceConfigurationDatabases } from '../sourceRuntime/SourceConfigurationDatabases'
@@ -17,7 +19,10 @@ export default class KomaMaintenanceAbility extends WorkSchedulerExtensionAbilit
     const context = this.context
     AppStrings.init(context)
     configureSourceRuntimeHttpTransport()
-    void prepareSourceConfigurationDatabases(context, false).then((): Promise<void> => {
+    void prepareSourceConfigurationDatabases(context, false).then(async (): Promise<void> => {
+      // A headless process has no EntryAbility restore. Reuse the preference
+      // owner once before source work; page/image calls only read this snapshot.
+      if (connectLanguageState().effectiveLocale.length === 0) await LanguageSettings.restore(context)
       bootstrapSourceRuntimeAppRegistry(context)
       appSourceWebSessionStore.configure(context, appSourceRuntimeRegistry)
       return executeBackgroundMaintenance(context, work.workId, appSourceRuntimeRegistry,

@@ -13,6 +13,10 @@ import { KomaActionButton } from './ui/KomaActionButton'
 import { SettingsFieldRow } from './ui/SettingsFieldRow'
 import { NativeSourceRuntime } from '../sourceRuntime/NativeSourceRuntime'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { loadSourceSettingsDescriptorsAsync, sourceSettingsDescriptorsCurrent,
+  sourceSettingDisplayDescriptors } from '../sourceRuntime/SourceSettingsStore'
 
 function t(name: string): string { return AppStrings.get(name) }
 function tf(name: string, ...args: Array<string | number>): string { return AppStrings.format(name, ...args) }
@@ -41,6 +45,8 @@ export struct SourceSettingsSheetContent {
   @Event onClose: () => void = () => {}
   @Event onAuthenticationChanged: () => void = () => {}
   @Local private settingDraft: SourceSettingsRecord = {}
+  @Local private languageState: LanguageState = connectLanguageState()
+  @Local private localizedDescriptors: SourceSettingDescriptor[] = []
   @Local private authentication: SourceAuthenticationRequest | null = null
   @Local private regexErrors: Record<string, string> = {}
   @Local private regexCheckPending: boolean = false
@@ -52,17 +58,56 @@ export struct SourceSettingsSheetContent {
   private regexValidatedSourceId: string = ''
   private regexValidatedStoreRevision: string = ''
   private mounted: boolean = false
+  private textRefreshRevision: number = 0
+
+  @Computed
+  private get displayDescriptors(): SourceSettingDescriptor[] {
+    return this.localizedDescriptors.length > 0 ? this.localizedDescriptors : this.settingDescriptors
+  }
+
+  @Monitor('languageState.revision')
+  private languageChanged(): void { void this.refreshLanguageDescriptors() }
+
+  private async refreshLanguageDescriptors(): Promise<void> {
+    if (!this.mounted || !this.active) return
+    const sourceId = this.settingsSourceId
+    const refresh = ++this.textRefreshRevision
+    const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+    const settingsRevision = appSourceSettingsStore.revisionForSource(sourceId)
+    try {
+      const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, sourceId)
+      if (!this.mounted || !this.active || refresh !== this.textRefreshRevision || sourceId !== this.settingsSourceId ||
+        appSourceRuntimeRegistry.lookup(sourceId).entry !== entry ||
+        appSourceSettingsStore.revisionForSource(sourceId) !== settingsRevision ||
+        !result.ready || !sourceSettingsDescriptorsCurrent(result)) return
+      this.localizedDescriptors = sourceSettingDisplayDescriptors(this.displayDescriptors, result.descriptors)
+      // Validation results remain valid; only their display message changes.
+      const errors: Record<string, string> = {}
+      Object.keys(this.regexErrors).forEach((id: string): void => {
+        errors[id] = this.displayDescriptors.find((item: SourceSettingDescriptor): boolean => item.id === id)
+          ?.validation?.message ?? this.regexErrors[id]
+      })
+      this.regexErrors = errors
+    } catch (_error) { /* Retain the active form and its draft on optional text refresh failure. */ }
+  }
+
+  @Monitor('settingDescriptors')
+  private resetDisplayDescriptors(): void {
+    this.textRefreshRevision += 1
+    this.localizedDescriptors = []
+  }
 
   aboutToAppear(): void {
     this.mounted = true
     this.settingDraft = this.initialDraft
-    const descriptor = this.settingDescriptors.find((item: SourceSettingDescriptor): boolean =>
+    const descriptor = this.displayDescriptors.find((item: SourceSettingDescriptor): boolean =>
       item.supported && !item.sensitive && item.validation?.kind === 'java_regex')
     if (descriptor !== undefined) this.queueRegexCheck(descriptor, this.settingStringValue(descriptor))
   }
 
   aboutToDisappear(): void {
     this.mounted = false
+    this.textRefreshRevision += 1
     // Do not save a stale draft when native validation finishes after dismissal.
     this.regexCheckToken += 1
     this.regexCheckValue = ''
@@ -95,7 +140,7 @@ export struct SourceSettingsSheetContent {
       this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: t('source_pkg_reason_runtime_response_not_ok') }))
       return
     }
-    appSourceSettingsStore.saveForSource(this.settingsSourceId, this.settingDraft, this.settingDescriptors)
+    appSourceSettingsStore.saveForSource(this.settingsSourceId, this.settingDraft, this.displayDescriptors)
     this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: t('source_pkg_settings_saved') }))
     this.onSaved(false)
     this.onClose()
@@ -144,7 +189,7 @@ export struct SourceSettingsSheetContent {
     })
     nextDraft[id] = value
     this.settingDraft = nextDraft
-    const descriptor = this.settingDescriptors.find((item: SourceSettingDescriptor): boolean => item.id === id)
+    const descriptor = this.displayDescriptors.find((item: SourceSettingDescriptor): boolean => item.id === id)
     if (descriptor?.validation?.kind === 'java_regex' && typeof value === 'string') {
       this.queueRegexCheck(descriptor, value)
     }
@@ -181,7 +226,10 @@ export struct SourceSettingsSheetContent {
           this.regexCheckFailed = !result.ok
           this.regexValidatedSourceId = sourceId
           this.regexValidatedStoreRevision = storeRevision
-          if (result.ok && !result.data.valid) this.setRegexError(descriptor.id, descriptor.validation?.message ?? '')
+          if (result.ok && !result.data.valid) {
+            const current = this.displayDescriptors.find((item: SourceSettingDescriptor): boolean => item.id === descriptor.id)
+            this.setRegexError(descriptor.id, current?.validation?.message ?? '')
+          }
         } catch (_error) {
           if (token !== this.regexCheckToken) continue
           if (sourceId !== this.settingsSourceId || storeRevision !== appSourceSettingsStore.revisionForSource(sourceId)) {
@@ -220,14 +268,14 @@ export struct SourceSettingsSheetContent {
   }
 
   private hasInvalidSettings(): boolean {
-    return this.settingDescriptors.some((descriptor: SourceSettingDescriptor): boolean =>
+    return this.displayDescriptors.some((descriptor: SourceSettingDescriptor): boolean =>
       descriptor.supported && !descriptor.sensitive && this.settingValidationError(descriptor) !== undefined)
   }
 
   @Computed
   private get visibleDescriptors(): SourceSettingDescriptor[] {
     // Only the presentation changes. Keep hidden preferences in the draft and on disk.
-    return this.settingDescriptors.filter((descriptor: SourceSettingDescriptor): boolean =>
+    return this.displayDescriptors.filter((descriptor: SourceSettingDescriptor): boolean =>
       sourceSettingIsVisible(descriptor, this.settingDraft))
   }
 
@@ -251,7 +299,7 @@ export struct SourceSettingsSheetContent {
             action: () => { this.openAuthentication() } })
         }
       }
-      if (this.visibleDescriptors.length === 0 && (!this.authenticationAvailable || this.settingDescriptors.length > 0)) {
+      if (this.visibleDescriptors.length === 0 && (!this.authenticationAvailable || this.displayDescriptors.length > 0)) {
         Text(t('source_pkg_no_settings'))
           .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_META)
@@ -269,7 +317,7 @@ export struct SourceSettingsSheetContent {
         }
       }
 
-      if (!this.authenticationAvailable || this.settingDescriptors.length > 0) {
+      if (!this.authenticationAvailable || this.displayDescriptors.length > 0) {
       Column({ space: ThemeConstants.SPACE_MD }) {
         KomaActionButton({
           label: t('source_pkg_save_settings'),

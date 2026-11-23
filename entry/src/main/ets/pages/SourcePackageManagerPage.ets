@@ -1,3 +1,4 @@
+import { sourceSettingsDescriptorsCurrent } from '../sourceRuntime/SourceSettingsStore'
 import { SourceCatalogFiltersContent } from '../components/SourceCatalogFiltersContent'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
@@ -229,7 +230,7 @@ export struct SourcePackageManagerPage {
     let schemaReady = false
     try {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
-      if (!this.settingsRouteActive) return
+      if (!this.settingsRouteActive || !sourceSettingsDescriptorsCurrent(result)) return
       if (!result.ready) throw new Error('source_settings_unavailable')
       if (result.descriptors.length === 0 && !sourceHasAuthentication(source.id)) return
       schemaReady = true
@@ -394,7 +395,7 @@ export struct SourcePackageManagerPage {
     const loaded: Record<string, SourceSettingDescriptor[]> = {}
     for (const source of packages) {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
-      if (revision !== this.settingsReloadRevision) return
+      if (revision !== this.settingsReloadRevision || !sourceSettingsDescriptorsCurrent(result)) return
       if (result.ready) loaded[source.id] = result.descriptors
     }
     const snapshot: Record<string, SourceSettingDescriptor[]> = {}
@@ -464,7 +465,7 @@ export struct SourcePackageManagerPage {
   private async reloadInstalledPackageSettings(source: InstalledSourcePackage, revision: number, sourceRevision: number): Promise<void> {
     const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
     if (revision !== this.settingsReloadRevision || sourceRevision !== this.settingsSourceReloads[source.id] ||
-      !this.packages.includes(source) || !result.ready) return
+      !this.packages.includes(source) || !result.ready || !sourceSettingsDescriptorsCurrent(result)) return
     this.publishSourceSettings(source.id, result.descriptors)
   }
 
@@ -643,7 +644,7 @@ export struct SourcePackageManagerPage {
     let schemaReady = false
     try {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
-      if (!this.sourceSheetShown || this.sourceSheetSourceId !== source.id) return
+      if (!this.sourceSheetShown || this.sourceSheetSourceId !== source.id || !sourceSettingsDescriptorsCurrent(result)) return
       if (!result.ready) throw new Error('source_settings_unavailable')
       if (result.descriptors.length === 0 && !sourceHasAuthentication(source.id)) {
         const snapshot: Record<string, SourceSettingDescriptor[]> = {}

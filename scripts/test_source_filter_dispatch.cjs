@@ -99,6 +99,7 @@ test('filter-only search uses search scope through first-page retry and cursor c
     filters: [{ id: 'genre', scope: 'search', type: 'select' }, { id: 'feed', scope: 'browse', type: 'select' }],
     filterRequestKey: filter => filter.id, clearWebChallenge: () => {}, webChallengeGuard: () => () => true,
     publishWebChallenge: () => {}, prepareSearchSource: () => {}, ensureSearchFilters: async () => {},
+    refreshSourceLanguage: async () => {},
     isCurrentBrowseSource: () => true, searchResultFingerprint: () => 'current', pageCursor: (_page, cursor) => cursor,
     runSourceOperation: async (_id, operation, args) => {
       calls.push([operation, args.query, args.page.cursor, args.filters])

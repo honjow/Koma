@@ -9,7 +9,8 @@ function load(relative, imports = {}, globals = {}) {
   const js = ts.transpileModule(fs.readFileSync(path.join(root, relative), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText
-  new Function('exports', 'require', ...Object.keys(globals), js)(exports, name => imports[name] ?? {}, ...Object.values(globals))
+  new Function('exports', 'require', ...Object.keys(globals), js)(exports, name =>
+    imports[name] ?? (name === './SourceLocale' ? load('sourceRuntime/SourceLocale.ets') : {}), ...Object.values(globals))
   return exports
 }
 function functions(relative, names, globals) {

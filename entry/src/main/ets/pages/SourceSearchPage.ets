@@ -172,6 +172,11 @@ export struct SourceSearchPage {
     this.retrySearch()
   }
 
+  @Monitor('languageState.revision', 'chrome.visible')
+  private refreshSourceLanguage(): void {
+    if (this.chrome.visible) void this.viewModel.refreshSourceLanguage()
+  }
+
   @Local private authentication: SourceAuthenticationRequest | null = null
   private handledAuthenticationRequestSeq: number = 0
   private authenticationFingerprint(): string {

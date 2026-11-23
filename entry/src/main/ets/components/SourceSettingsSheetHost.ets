@@ -4,6 +4,7 @@ import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegis
 import { sourceHasAuthentication } from '../sourceRuntime/SourceAuthenticationService'
 import { SourceSettingDescriptor, SourceSettingsRecord, appSourceSettingsStore,
   loadSourceSettingsDescriptorsAsync } from '../sourceRuntime/SourceSettingsStore'
+import { sourceSettingsDescriptorsCurrent } from '../sourceRuntime/SourceSettingsStore'
 import { SourceSettingsSheetContent, sourceSettingsDraft } from './SourceSettingsSheetContent'
 
 /** Route-owned presenter: no navigation or index/catalogue loading. */
@@ -45,7 +46,7 @@ export struct SourceSettingsSheetHost {
     const sourceId = this.sourceId
     try {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, sourceId)
-      if (!this.mounted || sourceId !== this.sourceId) return
+      if (!this.mounted || sourceId !== this.sourceId || !sourceSettingsDescriptorsCurrent(result)) return
       this.onAvailabilityChanged(result.ready && (result.descriptors.length > 0 || sourceHasAuthentication(sourceId)))
     } catch (_error) {
       if (this.mounted && sourceId === this.sourceId) this.onAvailabilityChanged(false)
@@ -80,7 +81,8 @@ export struct SourceSettingsSheetHost {
     let schemaReady = false
     try {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, sourceId)
-      if (!this.mounted || !this.active || epoch !== this.epoch || sourceId !== this.sourceId) return
+      if (!this.mounted || !this.active || epoch !== this.epoch || sourceId !== this.sourceId ||
+        !sourceSettingsDescriptorsCurrent(result)) return
       if (!result.ready) throw new Error('source_settings_unavailable')
       const descriptors = result.descriptors
       this.authenticationAvailable = sourceHasAuthentication(sourceId)

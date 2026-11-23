@@ -18,7 +18,7 @@ function subject(file, owner, methods, globals) {
   const exports = {}
   vm.runInNewContext(ts.transpileModule(`export class Subject {${body}}`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText, { exports, console, ...globals })
+  }).outputText, { exports, console, sourceSettingsDescriptorsCurrent: () => true, ...globals })
   return Object.assign(new exports.Subject(), {catalogFilters:{rating:'all'},chrome:{search:{query:''}},localImport:{busy:false},packages:[],indexEntries:[],managerCache:{retireCheck(){},rememberSavedIndex(){},recordInstalledPackage(){}}})
 }
 function productionModule(file, bindings = {}, names) {
@@ -36,7 +36,10 @@ function productionModule(file, bindings = {}, names) {
 const presentation = productionModule('model/SourceCatalogPresentation.ets')
 const { SourceCatalogPageChrome } = productionModule('state/SourceCatalogPageChrome.ets',
   { ...productionModule('state/SearchRouteChromeState.ets'), Scroller: class {} })
-const metadataBindings = productionModule('sourceRuntime/SourceLocalizedNames.ets')
+const localeBindings = productionModule('sourceRuntime/SourceLocale.ets')
+const staticPresentationBindings = productionModule('sourceRuntime/SourcePresentation.ets', localeBindings)
+const metadataBindings = productionModule('sourceRuntime/SourceLocalizedNames.ets', staticPresentationBindings)
+Object.assign(metadataBindings, staticPresentationBindings)
 Object.assign(metadataBindings, productionModule('sourceRuntime/SourcePackageMetadata.ets', {}, ['normalizeSourceHomepage']))
 const {entryWithCachedIcon,subscriptionIdentity} = productionModule('sourceRuntime/SourceIndexMetadata.ets', metadataBindings,
   ['entryWithCachedIcon','subscriptionIdentity','resolveIndexDocumentUrl','parseSourceIndexHttpUrl','normalizeSourceIndexPath'])
@@ -482,15 +485,17 @@ test('only queued identities are pending and each action reports its actual runn
 function settingsCapability(response, capabilities = ['settings'], onRequest = () => {}) {
   const source = fs.readFileSync(path.join(root,'sourceRuntime/SourceSettingsStore.ets'),'utf8')
   const tree = ts.createSourceFile('settings.ets',source,ts.ScriptTarget.Latest,true)
-  const fn = tree.statements.find(n=>ts.isFunctionDeclaration(n) && n.name.text==='loadSourceSettingsDescriptorsAsync')
+  const functions = tree.statements.filter(n=>ts.isFunctionDeclaration(n) &&
+    ['loadSourceSettingsDescriptorsAsync','loadSourceSettingsDescriptorsForLocale'].includes(n.name.text))
   // The real registry preserves the admitted object until a package changes.
   const entry = { capabilities }
   const output={}
-  vm.runInNewContext(ts.transpileModule(fn.getText(tree),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{
+  vm.runInNewContext(ts.transpileModule(functions.map(fn=>fn.getText(tree)).join('\n'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{
     exports:output, runRegisteredSourceRequestByIdAsync:async()=>{onRequest();return {response}},
     normalizeSourceSettingDescriptors:r=>r.data?.settings ?? r.data?.items ?? [], Date, JSON, Array,
     appSourceSettingObservationStore: { loadForSource: async () => ({}) },
     appSourceSettingsStore: { descriptorValuesForSource: () => ({}) },
+    sourceRuntimeLocaleRevision: () => 'fixture-locale',
   })
   return output.loadSourceSettingsDescriptorsAsync({lookup:()=>({entry})},'source')
 }

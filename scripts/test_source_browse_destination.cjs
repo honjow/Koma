@@ -20,11 +20,12 @@ const listings = [{ id: 'popular', kind: 'popular' }, { id: 'latest', kind: 'lat
 function fixture(saved = new Map(), home = true) {
   const calls = [], exported = {}
   const preferences = { load: id => saved.get(id), save: (id, value) => saved.set(id, value), clear: id => saved.delete(id) }
-  new Function('exports', 'appSourceBrowseDestinationPreferences', code)(exported, preferences)
+  new Function('exports', 'appSourceBrowseDestinationPreferences', 'sourceRuntimeLocaleRevision', code)(exported, preferences, () => 'fixture-locale')
   const vm = new exported.Model()
   Object.assign(vm, {
     browseRequestId: 0, selectedListingId: '', homeSections: [], browseSections: [], browseDestinationCache: new Map(),
     listings, filters: [], browseFilterValues: {}, loadingBrowse: false,
+    refreshSourceLanguage: async () => {},
     isCurrentBrowseSource: item => vm.selectedSource?.sourceId === item.sourceId,
     isSameBrowseSource: item => vm.selectedSource?.sourceId === item.sourceId,
     setSelectedSource: item => { vm.selectedSource = item; vm.clearBrowseListing(); vm.homeSections = []; vm.browseRequestId++ },

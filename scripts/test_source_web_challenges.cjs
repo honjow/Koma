@@ -41,17 +41,18 @@ function fixture() {
   new Function('exports', 'SourceRuntimeError', 'SourceAuthenticationRequest', 'appSourceSettingsStore', 'safeSearchDiagnostic',
     'safeSourceBrowseErrorText', 'BrowseLoadIntent', 'BrowseContentState', 'appendUniqueSourceManga',
     'sourceFiltersForQuery', 'appSourceFilterPreferencesStore', 'sourceWebPackageIdentity', 'appSourceWebSessionStore',
-    'SourcePrivateSessionHost', 'BROWSE_DESTINATION_CACHE_LIMIT', compile(source))(
+    'SourcePrivateSessionHost', 'BROWSE_DESTINATION_CACHE_LIMIT', 'sourceRuntimeLocale', 'sourceRuntimeLocaleRevision', compile(source))(
     exports, SourceRuntimeError, SourceAuthenticationRequest, { revisionForSource: () => revision }, error => ({ userText: error.userText }),
     error => error.userText, intents, { CONTENT: 'content', LOADING: 'loading', ERROR: 'error', EMPTY: 'empty', UNRESOLVED: 'unresolved' }, (a,b) => a.concat(b),
     sourceFiltersForQuery, {
       loadForSource: (id, kind) => { preferenceReads.push([id, kind]); return kind === 'search' ? savedSearchFilters : {} },
       saveForSource: (...args) => preferenceWrites.push(args),
     }, () => 'test-package', { status: () => ({ sessionId: '' }) },
-    { authenticationRevision: () => String(sessionRevision) }, 12)
+    { authenticationRevision: () => String(sessionRevision) }, 12, () => 'fixture-locale', () => 'fixture-locale')
   const model = new exports.Model(), calls = [], replies = []
   const sourceSummary = { sourceId: 'test', version: '1', wasmByteCount: 12, webSessionOrigins: ['https://test.invalid'], capabilities: ['home'] }
   Object.assign(model, { selectedSource: sourceSummary, registry: { lookup: () => ({ ok: true, entry }) },
+    refreshSourceLanguage: async () => {},
     browseWebChallenge: null, searchWebChallenge: null,
     browseWebChallengeGate: new SourceWebChallengeGate(), searchWebChallengeGate: new SourceWebChallengeGate(),
     browseAuthenticationGate: new SourceWebChallengeGate(), searchAuthenticationGate: new SourceWebChallengeGate(),
@@ -668,13 +669,14 @@ test('declared web login uses its source UA for the actual page and completion',
 function authenticationPresenterFixture() {
   const ast = ts.createSourceFile('auth.ts', read('components/SourceAuthenticationSheetHost').replace(/\bstruct /g, 'class '), ts.ScriptTarget.Latest, true)
   const owner = ast.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SourceAuthenticationSheetHost')
-  const methods = ['aboutToAppear', 'aboutToDisappear', 'requestChanged', 'current', 'open', 'openWeb', 'status',
+  const methods = ['aboutToAppear', 'aboutToDisappear', 'requestChanged', 'current', 'open', 'refreshDisplayLabels', 'openWeb', 'status',
     'authenticate', 'credentialInputId', 'credentialInputRect', 'credentialViewData', 'requestCredentialFill',
     'offerCredentialSave', 'logout', 'finish', 'close', 'finishDismissal']
   const source = `export class Presenter { ${methods.map(name => owner.members.find(n => n.name?.text === name).getText(ast).replace(/@Monitor\([^\n]*\)\s*/g, '')).join('\n')} }`
   const replies = [], operations = [], exports = {}; let canceled = 0, completed = 0, cachedStatus, saveRequest, fillRequest
   let saveCredential = (_context, _request, callback) => callback.onSuccess()
   class Service {
+    entry = { sourceId: 'source' }
     descriptor = { kind: 'credentials', loginUrl: 'https://api.invalid/auth', credentialStorage: 'private' }
     title = 'Source'; alive = true
     loginUrl = this.descriptor.loginUrl
@@ -685,12 +687,12 @@ function authenticationPresenterFixture() {
     async run(op) { operations.push(op); const reply = replies.shift(); return await (reply ?? false) }
   }
   new Function('exports', 'SourceAuthenticationService', 'AppStrings', 'sourceAuthenticationOrigin', 'SourceRuntimeError',
-    'komaToastOptions', 'autoFillManager', 'deviceInfo', 'KOMA_BUNDLE_NAME', compile(source))(
+    'komaToastOptions', 'autoFillManager', 'deviceInfo', 'KOMA_BUNDLE_NAME', 'sourceDisplayName', 'sourceAuthenticationDisplayLabel', compile(source))(
     exports, Service, { get: key => key }, value => new URL(value).origin, SourceRuntimeError, value => value,
     { AutoFillType: { USER_NAME: 2, PASSWORD: 1 }, AutoFillTriggerType: { AUTO_REQUEST: 0 },
       requestAutoSave: (...args) => saveCredential(...args),
       requestAutoFill: (_context, request, callback) => { fillRequest = { request, callback } } },
-    { apiAvailable: version => version === '26.0.0' }, 'com.honjow.koma')
+    { apiAvailable: version => version === '26.0.0' }, 'com.honjow.koma', (_id, literal) => literal, (_id, _role, literal) => literal)
   const host = new exports.Presenter()
   const request = () => new SourceAuthenticationRequest('source', () => true, async () => { completed++ }, () => { canceled++ })
   Object.assign(host, { request: request(), active: true, mounted: false, shown: false, closing: false, opening: false, checking: false,
