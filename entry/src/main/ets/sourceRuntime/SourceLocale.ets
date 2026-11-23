@@ -57,6 +57,8 @@ export function normalizeSourceEnvironment(value: Object | undefined): SourceEnv
   const environment = sourceEnvironmentForLocale(record['uiLocale'] as string)
   if (environment === undefined) return undefined
   const candidates = record['localeFallbacks'] as Object[]
+  // The wire list is the complete canonical chain: do not deduplicate away
+  // extra/duplicate input before validation. SDK and Host share this contract.
   if (candidates.length !== environment.localeFallbacks.length ||
     candidates.some((candidate: Object, index: number): boolean =>
       normalizeSourceLocale(candidate) !== environment.localeFallbacks[index])) return undefined

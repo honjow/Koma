@@ -190,7 +190,7 @@ JSON POST 使用 HTTP 信封的 `body` 字段传入已经序列化的正文字�
 }
 ```
 
-只有有效的 v1 环境才协商 `source_localization_v1`。此能力只提供 UI 语言，不改变作品内容语言、HTTP `Accept-Language`、Cookie、UA 或权限。源 SDK 按环境选择文案，继续返回现有 plain strings；设置 key/default/value、筛选 ID/option value、作品/章节 ID 及顺序不能随翻译改变。未接入 Catalog 的旧源保持原文；接入者没有可用 Host 环境时仍取作者明确的 `defaultLocale`，最后退该字段 literal。
+只有有效的 v1 环境才协商 `source_localization_v1`。`localeFallbacks` 先核原始项数最多16，规范化后必须逐项等于 `uiLocale` 生成的完整候选链，拒绝额外项、重复项及换序，不先去重后放行。此能力只提供 UI 语言，不改变作品内容语言、HTTP `Accept-Language`、Cookie、UA 或权限。源 SDK 按环境选择文案，继续返回现有 plain strings；设置 key/default/value、筛选 ID/option value、作品/章节 ID 及顺序不能随翻译改变。未接入 Catalog 的旧源保持原文；接入者没有可用 Host 环境时仍取作者明确的 `defaultLocale`，最后退该字段 literal。
 
 静态离线展示可在 manifest/index 使用可选 `presentation: { version: 1, defaultLocale, texts }`。`texts` 按文本角色收集 locale→字符串，目前消费 `name`、`description`、`author`、`authentication.usernameLabel`、`authentication.passwordLabel`；旧 `localizedNames` 继续兼容。Importer、注册表、备份恢复及包分享保留资源，只在显示时解析，不改规范 name/description 或认证 descriptor。解析顺序是请求 locale 精确项→地区/显式脚本及语言→源 `defaultLocale` 同规则候选→旧 literal；zh-HK/TW/MO 推导 Hant，zh-CN/SG 推导 Hans，显式脚本优先，不取对象第一项。locale 最长63字符，每角色最多16个原始 locale 项；名称/作者/认证标签沿128字符限制，描述沿已有包/字段总预算。坏的可选译文按字段回退，不拒绝整个旧源；不增加 ZIP 成员或执行动作。
 
