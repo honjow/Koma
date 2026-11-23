@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T17:57:41+08:00",
+  "updatedAt": "2026-11-23T18:14:12+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3521,7 +3521,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
-      "updatedAt": "2026-11-23T17:57:41+08:00",
+      "updatedAt": "2026-11-23T18:12:43+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -3714,7 +3714,7 @@
         "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
         "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
-        "巴卡：237 R13已确认重复隐藏网页加载取消首POST修复，验证后首次POST与封面直接200；原生HTML403正文是Cloudflare blocked，canonical WebHTTP403的正文则为208字节502 Bad Gateway页，不能把标题当HTTP502。详情、目录、阅读和下载仍未通过。已核上游保留provider路径而本地小写化的差异，R15修正并继续真机验证；不因旧WebView可见内容宣告同请求身份通过。",
+        "巴卡：237已确认首POST与封面通道修复；Native详情403实际为Cloudflare blocked，canonical WebHTTP403正文为208字节502 Bad Gateway页。R15 provider路径大小写保真虽对齐上游，但本例为lower且无转换，仍失败，不能归因此差异。继续显式Fetch模式与现成Native文档通道对照；目录、阅读和下载未通过，不推发该候选。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
         "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
@@ -12997,17 +12997,15 @@
       "kind": "active",
       "priority": "用户本轮新增要求",
       "owner": "Root集成与237；Aristotle负责App；Boole负责源SDK及打包",
-      "status": "SDK、包资料与Komiic试点已接入，App显示和缓存处理中",
-      "updatedAt": "2026-11-23T17:57:41+08:00",
+      "status": "App和源SDK已本地提交，最终Komiic包与HAP构建通过，237验证进行中",
+      "updatedAt": "2026-11-23T18:12:43+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求重新检查此前讨论的书源多语言支持，先设计App提供的通用能力，并明确覆盖设置项、书源描述等位置；原消息精确时刻未核实。",
-      "result": "已按用户授权实施：源SDK加入无全局状态的Catalog/text/format与默认语言回退，标准typed请求已补上下文访问；打包从同一文案库生成manifest/index静态显示资料。App已本地提交语言环境入队快照和静态资料保存解析，动态设置/筛选缓存与消费者继续接入。Komiic三语言文案原型通过标准构建及15次真实WASM调用，设置ID、选项值、默认值和顺序不变；最终源版本准备0.1.25。尚未完成新HAP和237多语言普通入口验收；App仍1.6.1/27仅本地，不替代巴卡继续定位。",
+      "result": "已实现通用language environment、SDK Catalog/text/format和默认回退，同一资源库贯通manifest/index/Registry/分享资料及设置、筛选、栏目文案。App按显示ID刷新文本并保动态选项、未保存设置和原授权/内容身份；作者原字段为空时的译文显示条件也已修正。Komiic最终0.1.25通过标准构建及15次真实WASM语言/回退调用，ID、选项值、默认值与顺序保持，header新增固定显示ID避免随文字变身份。配套App1.6.1/27 HAP ece2004a1cd4已真实编译，237正按普通入口验证；作者显示补修将纳入下一候选。尚未真机验收完成、未推发App；巴卡仍独立继续定位。",
       "remainingActions": [
-        "App接通全部调用的语言环境、静态资料round-trip及所有现有显示消费者，补必要缓存语言代次，保设置和授权身份。",
-        "源SDK和打包实现Catalog/text/format与默认回退，旧源仍返回原字符串，不增加归档附件。",
-        "现有源接入文案库，核设置项、说明/选项及静态描述；按可选增强与旧宿主兼容。",
-        "在237普通入口验证语言、回退、设置和筛选值保持、离线名称描述与安装/分享备份边界；完成后按授权本地提交，不自动发布App。"
+        "在237完成简体、繁体、英文与日语回退的设置/栏目/筛选/源描述/认证标签普通入口验收，核动态选项、保存值与旧源兼容并恢复原配置。",
+        "将作者显示补修纳入最终HAP并核对，更新验收和提交状态；App保持1.6.1/27本地，不自动推送发布。"
       ],
       "evidence": [
         "docs/source-runtime-abi-design.md",
@@ -13015,7 +13013,10 @@
         "/Users/honjow/git/koma-sources/docs/WRITING_A_SOURCE.md",
         ".hvigor/outputs/source-localization-20261123/komiic-initial/actual-wasm-results.json",
         "entry/src/main/ets/sourceRuntime/SourceLocale.ets",
-        "entry/src/main/ets/sourceRuntime/SourcePresentation.ets"
+        "entry/src/main/ets/sourceRuntime/SourcePresentation.ets",
+        ".hvigor/outputs/source-localization-20261123/komiic-final/actual-wasm-results.json",
+        ".hvigor/outputs/source-localization-20261123/app-localization-hap-receipt.json",
+        ".hvigor/outputs/source-localization/app-freeze.json"
       ],
       "progressPhase": "needs_work"
     }
@@ -13072,6 +13073,18 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-ui-text-localization-final-wasm-and-hap-20261123",
+      "at": "2026-11-23T18:14:12+08:00",
+      "itemId": "SOURCE_UI_TEXT_LOCALIZATION",
+      "kind": "verification",
+      "title": "多语言最终试点包与配套HAP已构建，237普通入口验收中",
+      "detail": "SDK44da17a对齐严格环境候选链并支持作者静态投影；Komiic0.1.25包d60a999b/WASM8cb4eb11，通过15次真实WASM设置、栏目、筛选调用，简繁英及ja/旧宿主默认回退保持控制值与顺序。App ece2004a1cd4真实build成功且输入hash稳定；作者空canonical显示补修0d72e4a0已本地提交并包含在后续ffff3adcb881候选。Darwin在237普通安装/导入/语言切换路径验收中，不将构建及CLI当真机通过，未推发App。",
+      "evidence": [
+        ".hvigor/outputs/source-localization-20261123/komiic-final/actual-wasm-results.json",
+        ".hvigor/outputs/source-localization-20261123/app-localization-hap-receipt.json"
+      ]
+    },
     {
       "id": "bakamh-r13-r14-actual-error-and-localization-implementation-20261123",
       "at": "2026-11-23T17:57:41+08:00",
