@@ -1,6 +1,6 @@
-export type SourceCatalogRating = 'all' | 'safe' | 'suggestive' | 'adult' | 'unknown'
-
 import type { SourcePresentation } from '../sourceRuntime/SourcePresentation'
+
+export type SourceCatalogRating = 'all' | 'safe' | 'suggestive' | 'adult' | 'unknown'
 
 export interface SourceCatalogFilters {
   // Undefined means all languages, including languages installed in the future.

@@ -138,11 +138,11 @@ BodyRef 是宿主私有暂存文件的随机引用，不是路径、WASM 指针�
 
 当前 HTTP 引用模式在接收回调中分块落盘，避免完整正文及 Base64 信封同时驻留；同步 WASM import 结束后才允许源读引用。这不是 WASM 在下载尚未结束时并行读取。普通图片下载原有进度及提前尺寸回调保留；未来若需要源内实时消费，须单独定义异步任务和生产者/消费者背压，不能用这个实现冒充。
 
-### 环境域：书源用户文案本地化（提案，尚未实现）
+### 环境域：书源用户文案本地化（实施中，尚未真机验收）
 
-本节是 2026-11-23 对原仓调用链的设计核对，不是新能力已经实装、验收或发布的声明。它覆盖源提供的用户文案，包括设置和源描述；不修改现有控件、样式或站点行为，也不替代巴卡正在进行的网络与阅读验收。`SOURCE_MULTILINGUAL_CATEGORY` 的 `all` 分类命名已有独立结论，与本节无关。
+本节保留 2026-11-23 对原仓调用链的设计核对。用户随后同意实施，App、SDK 和 Komiic 试点正在接入；当前真实合同与兼容规则以 [ABI](source-runtime-abi.md) 为准，构建与真实 WASM 执行不代表真机验收或正式发布。它覆盖源提供的用户文案，包括设置和源描述；不修改现有控件、样式或站点行为，也不替代巴卡正在进行的网络与阅读验收。`SOURCE_MULTILINGUAL_CATEGORY` 的 `all` 分类命名已有独立结论，与本节无关。
 
-源仓 `docs/WRITING_A_SOURCE.md` 的 listInfo 段目前写“显示标签和源文本由源按请求既有locale负责，不另造本地化机制”。实际 builder 没有提供这个 locale：Browse、Settings、详情、章节、页表、认证和评论请求只有各自参数、设置与 hostHints；公共 `sourceRequestWithHostFeatures` 加入的是 feature 和资源限额。SDK 的 `runtime::Context` 也只有 feature、limit 和取消查询。该句的“既有”是失实承诺，不能据此宣告能力存在；实施后应在唯一 ABI 和源规范中改成真实字段、兼容规则及消费方式。本次只写设计，不修改这两份规范。
+设计时，源仓 `docs/WRITING_A_SOURCE.md` 的 listInfo 段曾写“显示标签和源文本由源按请求既有locale负责，不另造本地化机制”。当时实际 builder 没有提供这个 locale：Browse、Settings、详情、章节、页表、认证和评论请求只有各自参数、设置与 hostHints；公共 `sourceRequestWithHostFeatures` 加入的是 feature 和资源限额。SDK 的 `runtime::Context` 当时也只有 feature、limit 和取消查询。该句的“既有”已单独更正；下面的现状表记录设计基线，不作为实施后的能力清单。新实现的真实字段、兼容规则及消费方式同步到唯一 ABI 和源制作规范。
 
 #### 已核现状与完整文案范围
 
