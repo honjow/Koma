@@ -134,7 +134,9 @@ export struct MangaGridItem {
 
   @Builder
   private ListText() {
-    Column({ space: 2 }) {
+    // Fill the cover's vertical span: title at the top, metadata below.
+    // A minimum (rather than a fixed height) still accommodates scaled text.
+    Column({ space: ThemeConstants.SPACE_XS }) {
       Text(this.manga.title)
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
@@ -143,16 +145,24 @@ export struct MangaGridItem {
         .wordBreak(WordBreak.BREAK_WORD)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .width('100%')
-      ForEach(sourceMangaListInfo(this.manga), (info: SourceMangaListInfo) => {
-        Text(sourceMangaListInfoText(info))
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .width('100%')
-      })
+      if (sourceMangaListInfo(this.manga).length > 0) {
+        Column({ space: 2 }) {
+          ForEach(sourceMangaListInfo(this.manga), (info: SourceMangaListInfo) => {
+            Text(sourceMangaListInfoText(info))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .width('100%')
+          })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+      }
     }
     .width('100%')
+    .constraintSize({ minHeight: SOURCE_LIST_COVER_HEIGHT })
+    .justifyContent(FlexAlign.SpaceBetween)
     .alignItems(HorizontalAlign.Start)
   }
 
