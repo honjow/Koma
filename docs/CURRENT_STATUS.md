@@ -2036,14 +2036,18 @@
       "reportedDate": "2026-11-11",
       "reportedAtSource": "用户指出书源未安装时，历史续读有明确提示和查找书源入口，但详情页只有通用失败文案和重试，用户不知道发生了什么；随后要求有可读缓存时只在书源名后显示实心红色警告，无缓存时再在失败区提供查找书源。",
       "registeredAt": "2026-11-11T04:20:00+08:00",
-      "updatedAt": "2026-11-11T06:06:00+08:00",
-      "closedAt": "2026-11-11T06:06:00+08:00",
-      "status": "197 实机验证通过",
-      "result": "详情页在书源不可用且没有可读缓存时，失败区显示「书源「X」在本机不可用」，原唯一按钮槽由重试改为查找书源，点击进入现有书源管理的恢复路由；有可读缓存时保留详情内容，不显示失败文案和按钮，只在书源名胶囊内文字后显示实心红色警告图标。书源名优先取详情已显示名称，其次书架记录和路由保存名称。197 停用动漫屋后从历史封面进入《开始成为世界最强的魔女》，缓存详情正常显示，书源名后出现红色实心警告；下拉强制请求确认错误态只有一条文案和一个按钮。",
-      "remaining": "只在 197 竖屏验证；103 平板未连机。动漫屋当前仍为停用状态，等待用户自行启用。警告图标只在详情存在书源名时显示。",
+      "updatedAt": "2026-11-24T02:57:37+08:00",
+      "closedAt": "2026-11-24T02:57:37+08:00",
+      "status": "103 已验证同步作品缺源提示和目标书源安装入口",
+      "result": "197 原样本验证了已有缓存仍显示红色警告。103 的《迷宫干 [UC]》同步了作品资料及第 5 页进度，本机缺巴卡漫画和可读目录。对照包的开始阅读不可用，红色警告打开巴卡漫画的书架搜索。修复包详情恢复明确提示及唯一查找入口，点击红色警告和开始阅读均出现缺源弹窗，确认后进入巴卡漫画的订阅条目，安装按钮可用。返回后原作品及进度仍在。",
+      "remaining": "本次验证覆盖 103 单栏详情、双入口及安装按钮可用状态。巴卡漫画未实际安装，修复尚未正式发布。",
       "evidence": [
         ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/missing-source-detail/navigate-20261111T060441837800/screen.png",
-        ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/missing-source-detail/restore-20261111T060603222156/run-metadata.json"
+        ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/missing-source-detail/restore-20261111T060603222156/run-metadata.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/missing-synced-source/03-warning-source-tap/layout.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/missing-synced-source/09-fixed-warning-source-manager/layout.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/missing-synced-source/11-fixed-read-prompt/layout.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/missing-synced-source/12-fixed-read-source-manager/layout.json"
       ],
       "progressPhase": "completed"
     },
@@ -31644,6 +31648,18 @@
       "detail": "106份已有设备协议单独提交c0825e52作为历史记录，不冒当前验收。已补交存储5305ac49、重读fafc56cf与跨章候选35af6d83；候选性能待验边界保留。剩余Lexbor只是发版时保留的原检出差异，2附件与1工具路径未混入产品。执行规则补充跨轮完整核对和及时提交约束。",
       "evidence": [
         ".hvigor/outputs/workspace-audit-20261124/ownership.json"
+      ]
+    },
+    {
+      "id": "manga-detail-missing-source-synced-103-20261124",
+      "at": "2026-11-24T02:57:37+08:00",
+      "itemId": "MANGA_DETAIL_MISSING_SOURCE_HINT",
+      "kind": "verification",
+      "title": "103 恢复同步缺源作品的提示和安装入口",
+      "detail": "11 月 2 日 9e5e2ba9 为书源胶囊加入书架搜索。11 月 11 日 06:12 的 c865aa44 新增红色警告但沿用原点击动作，并加入缺源提示归属判断。当天 06:23 的 532f3da9 把单栏章节失败区的参数设为 false，随 v1.4.2 发布。旧验证覆盖有缓存的警告，漏了已有作品摘要但无章节的单栏详情。103 已同签验证缺源弹窗与巴卡漫画安装入口。",
+      "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/missing-synced-source/07-fixed-synced-detail/screen.png",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/missing-synced-source/12-fixed-read-source-manager/screen.png"
       ]
     },
     {

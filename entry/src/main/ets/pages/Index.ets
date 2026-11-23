@@ -1893,17 +1893,7 @@ struct Index {
     const sourceIncognito = this.incognito.isSourceEnabled(nextRequest.sourceId)
     if (appDeviceSync.openReading(nextRequest, !sourceIncognito) === 'missing') {
       const name = nextRequest.sourceName || nextRequest.sourceId
-      this.getUIContext().showAlertDialog({
-        title: AppStrings.get('device_sync_missing_source').replace('%s', name),
-        message: AppStrings.get('device_sync_saved_location'),
-        systemMaterial: komaDialogMaterial(),
-        primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => {} },
-        secondaryButton: { value: AppStrings.get('device_sync_find_source'), action: (): void => {
-          const recovery: SourcePackageManagerRouteParam = { settingsSourceId: '', recoverySourceId: nextRequest.sourceId,
-            recoverySourceName: name, chrome: new SourceCatalogPageChrome() }
-          this.appPathStack.pushPath({ name: RouteName.SOURCE_PACKAGE_MANAGER, param: recovery })
-        } },
-      })
+      RouterHelper.promptMissingSourceRecovery(this.getUIContext(), nextRequest.sourceId, name, true)
       return
     }
     this.readerOpenIntent = intent

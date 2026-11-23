@@ -19,9 +19,8 @@ import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { KomaModalScaffold, komaModalSheetOptions } from '../components/KomaModalScaffold'
 import { LibraryCategoryChoice, LibraryCategoryPicker, libraryCategoryPickerSheetOptions } from '../components/LibraryCategoryPicker'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
-import { MangaWebRouteParam, SourcePackageManagerRouteParam } from '../common/RouterHelper'
+import { MangaWebRouteParam } from '../common/RouterHelper'
 import { RouteName } from '../common/Constants'
-import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGate'
 import { clearSourceRejectedRequest, selectSourceRejectedRequest } from '../sourceRuntime/SourceRuntimeHttpTransport'
@@ -857,13 +856,14 @@ export struct MangaDetailPage {
     const sourceId = this.params.sourceId?.trim() ?? ''
     if (sourceId.length === 0) return
     const name = this.missingSourceName.length > 0 ? this.missingSourceName : sourceId
-    const recovery: SourcePackageManagerRouteParam = {
-      settingsSourceId: '',
-      recoverySourceId: sourceId,
-      recoverySourceName: name,
-      chrome: new SourceCatalogPageChrome(),
-    }
-    RouterHelper.getAppPathStack()?.pushPath({ name: RouteName.SOURCE_PACKAGE_MANAGER, param: recovery })
+    RouterHelper.openMissingSourceRecovery(sourceId, name)
+  }
+
+  private promptMissingSourceRecovery(): void {
+    const sourceId = this.params.sourceId?.trim() ?? ''
+    if (sourceId.length === 0 || this.missingSourceName.length === 0) return
+    RouterHelper.promptMissingSourceRecovery(this.getUIContext(), sourceId, this.missingSourceName,
+      this.currentReadingProgress() !== undefined)
   }
 
   private canPullRefreshDetail(): boolean {
@@ -2300,6 +2300,12 @@ export struct MangaDetailPage {
   private async handleStartReading(): Promise<void> {
     const chapterId = this.primaryReadChapterId()
     if (chapterId === undefined) {
+      // A synced work can have a saved location without a local catalogue.
+      // Keep the existing recovery route reachable before a chapter can open.
+      if (this.missingSourceName.length > 0) {
+        this.promptMissingSourceRecovery()
+        return
+      }
       this.showToast(s('manga_detail_no_readable_chapters'))
       return
     }
@@ -3181,7 +3187,7 @@ export struct MangaDetailPage {
           fullWidth: true,
           compact: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          isEnabled: this.hasReadableChapters() && !this.isDetailPending(),
+          isEnabled: this.hasReadableChapters() || this.missingSourceName.length > 0,
           action: () => {
             this.handleStartReading()
           },
@@ -4063,6 +4069,10 @@ export struct MangaDetailPage {
           if (title.length > 0) RouterHelper.openSearch({ query: title, sourceFilter: 'source' })
         },
         onSourceClick: (): void => {
+          if (this.missingSourceName.length > 0) {
+            this.promptMissingSourceRecovery()
+            return
+          }
           const sourceId = this.manga?.sourceId
           const name = this.manga?.sourceName
           if (sourceId && name) RouterHelper.openSearch({ librarySource: { key: `source:${sourceId}`, name } })
@@ -4168,7 +4178,9 @@ export struct MangaDetailPage {
     } else if ((this.usesDetailPanes || this.sourceDetailDataResolved) &&
       !this.isDetailPending() && this.feedbackText.length > 0) {
       ListItem() {
-        this.DetailFailureFeedback(this.usesDetailPanes)
+        // A synopsis restored from sync can render without any usable chapters.
+        // In that case this is the failure row in both single and dual panes.
+        this.DetailFailureFeedback(true)
       }
     }
   }

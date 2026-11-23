@@ -15,6 +15,9 @@ import { CrossSearchSection, CrossSearchSourceFilter } from '../model/CrossSearc
 import { appSourceCatalogFilters } from '../state/SourceCatalogFilterState'
 import { connectIncognitoState } from '../state/IncognitoState'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { UIContext } from '@kit.ArkUI'
+import { AppStrings } from '../i18n/AppStrings'
+import { komaDialogMaterial } from '../theme/KomaPopupOptions'
 
 export interface MangaDetailRouteParam {
   /** 本次卡片导航的运行时身份；不属于作品信息或持久化数据。 */
@@ -294,6 +297,25 @@ export class RouterHelper {
     }
     RouterHelper.ensureSearchRouteChrome(param)
     stack.pushPath({ name: RouteName.SEARCH, param: param })
+  }
+
+  static openMissingSourceRecovery(sourceId: string, name: string): void {
+    const recovery: SourcePackageManagerRouteParam = {
+      settingsSourceId: '', recoverySourceId: sourceId, recoverySourceName: name, chrome: new SourceCatalogPageChrome(),
+    }
+    RouterHelper.appPathStack?.pushPath({ name: RouteName.SOURCE_PACKAGE_MANAGER, param: recovery })
+  }
+
+  static promptMissingSourceRecovery(context: UIContext, sourceId: string, name: string, hasSavedLocation: boolean): void {
+    context.showAlertDialog({
+      title: AppStrings.get('device_sync_missing_source').replace('%s', name),
+      message: hasSavedLocation ? AppStrings.get('device_sync_saved_location') : '',
+      systemMaterial: komaDialogMaterial(),
+      primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => {} },
+      secondaryButton: { value: AppStrings.get('device_sync_find_source'), action: (): void => {
+        RouterHelper.openMissingSourceRecovery(sourceId, name)
+      } },
+    })
   }
 
   static pop(): void {
