@@ -64,6 +64,16 @@ export interface ReaderSyncWorkScope {
   chapterIds: string[]
 }
 
+export interface ShelfChapterFacts {
+  comicId: string
+  storedRows: number
+  chapterCount: number
+  readCount: number
+  reading: boolean
+  started: boolean
+  latestDate?: number
+}
+
 async function legacyRows<T>(transaction: relationalStore.Transaction, sql: string, args?: string[]): Promise<T[]> {
   return collectLocalRows(await transaction.querySql(sql, args),
     (row: relationalStore.ResultSet): T => JSON.parse(row.getString(0)) as T)
@@ -136,23 +146,77 @@ export class ReaderRdbStorage {
     }
   }
 
-  readForSync(): ReaderSessionDocumentSnapshot {
+  readForSync(includeChapters: boolean = true): ReaderSessionDocumentSnapshot {
     const syncPositions = readPositionOutbox(this.store)
     const syncActions = readActionOutbox(this.store)
     return {
       progress: readerPositions.read(this.store),
       sourceHistory: readerSourceHistory.read(this.store),
-      chapters: readerChapterStates.read(this.store),
+      chapters: includeChapters ? readerChapterStates.read(this.store) : [],
       syncPositions: syncPositions.length === 0 ? undefined : syncPositions,
       syncActions: syncActions.length === 0 ? undefined : syncActions,
     }
   }
 
-  read(): ReaderSessionDocumentSnapshot {
-    const reading = this.readForSync()
+  read(includeChapters: boolean = true): ReaderSessionDocumentSnapshot {
+    const reading = this.readForSync(includeChapters)
     reading.remoteHistory = readRemoteHistory(this.store)
     reading.readingSessions = readerSessions.read(this.store).map(record => record.session)
     return reading
+  }
+
+  readChapters(comicId?: string, chapterId?: string): ChapterReadingState[] {
+    if (comicId === undefined) return readerChapterStates.read(this.store)
+    if (chapterId === undefined) return readerChapterStates.read(this.store, 'comic_id = ?', [comicId])
+    return readerChapterStates.read(this.store, 'comic_id = ? AND chapter_id = ?', [comicId, chapterId])
+  }
+
+  readSharedChapters(): ChapterReadingState[] {
+    return readerChapterStates.readShared(this.store)
+  }
+
+  /** Return one display record per work in the selected shelf. The database
+   * joins chapter keys to their reading state without decoding either catalog. */
+  readShelfChapterFacts(comicIds: string[]): ShelfChapterFacts[] {
+    const facts: ShelfChapterFacts[] = []
+    for (let index = 0; index < comicIds.length; index += 200) {
+      const ids = comicIds.slice(index, index + 200)
+      const wanted = ids.map((): string => '(?)').join(', ')
+      const rows = this.store.querySqlSync(
+        'WITH wanted(comic_id) AS (VALUES ' + wanted + '), ' +
+        'stored AS (SELECT c.comic_id, c.chapter_id, c.date_upload FROM wanted w ' +
+          'JOIN shelf_chapters c ON c.comic_id = w.comic_id), ' +
+        'dedup AS (SELECT comic_id, chapter_id FROM stored GROUP BY comic_id, chapter_id), ' +
+        'keys AS (SELECT c.comic_id, c.chapter_id FROM dedup c LEFT JOIN shelf_work_details d ON d.comic_id = c.comic_id ' +
+          'WHERE COALESCE(d.has_shared_chapters, 0) = 0 UNION ' +
+          'SELECT s.comic_id, s.chapter_id FROM wanted w JOIN shelf_shared_chapters_all s ON s.comic_id = w.comic_id ' +
+          'JOIN shelf_work_details d ON d.comic_id = s.comic_id AND d.has_shared_chapters = 1), ' +
+        'state_keys AS (SELECT comic_id, chapter_id FROM keys UNION SELECT comic_id, chapter_id FROM dedup), ' +
+        'states AS (SELECT k.comic_id, k.chapter_id, ' +
+          'CASE WHEN COALESCE(l.rowid, -1) >= COALESCE(r.rowid, -1) THEN l.is_read ELSE r.is_read END AS is_read, ' +
+          'CASE WHEN COALESCE(l.rowid, -1) >= COALESCE(r.rowid, -1) THEN l.has_position ELSE r.has_position END AS has_position, ' +
+          'CASE WHEN COALESCE(l.rowid, -1) >= COALESCE(r.rowid, -1) THEN l.total_pages ELSE r.total_pages END AS total_pages, ' +
+          'CASE WHEN COALESCE(l.rowid, -1) >= COALESCE(r.rowid, -1) THEN l.page_index ELSE r.page_index END AS page_index ' +
+          'FROM state_keys k LEFT JOIN reader_chapter_states r ON r.comic_id = k.comic_id AND r.chapter_id = k.chapter_id ' +
+          'LEFT JOIN reader_chapter_states_local l ON l.comic_id = k.comic_id AND l.chapter_id = k.chapter_id), ' +
+        'counts AS (SELECT k.comic_id, COUNT(*) AS chapters, SUM(CASE WHEN r.is_read = 1 THEN 1 ELSE 0 END) AS read_count, ' +
+          'MAX(CASE WHEN r.is_read = 1 OR (r.has_position = 1 AND r.total_pages > 0 AND r.page_index > 0) ' +
+          'THEN 1 ELSE 0 END) AS reading FROM keys k LEFT JOIN states r ' +
+          'ON r.comic_id = k.comic_id AND r.chapter_id = k.chapter_id GROUP BY k.comic_id), ' +
+        'dates AS (SELECT comic_id, COUNT(*) AS records, MAX(date_upload) AS latest FROM stored GROUP BY comic_id), ' +
+        'started AS (SELECT DISTINCT c.comic_id FROM dedup c JOIN states r ' +
+          'ON r.comic_id = c.comic_id AND r.chapter_id = c.chapter_id ' +
+          'WHERE r.is_read = 1 OR r.has_position = 1) ' +
+        'SELECT w.comic_id, COALESCE(d.records, 0), COALESCE(c.chapters, 0), COALESCE(c.read_count, 0), ' +
+          'COALESCE(c.reading, 0), s.comic_id IS NOT NULL, d.latest FROM wanted w ' +
+          'LEFT JOIN counts c ON c.comic_id = w.comic_id LEFT JOIN dates d ON d.comic_id = w.comic_id ' +
+          'LEFT JOIN started s ON s.comic_id = w.comic_id', ids)
+      for (const row of collectLocalRows(rows, (r: relationalStore.ResultSet): ShelfChapterFacts => ({
+        comicId: r.getString(0), storedRows: r.getLong(1), chapterCount: r.getLong(2), readCount: r.getLong(3),
+        reading: r.getLong(4) === 1, started: r.getLong(5) === 1, latestDate: r.isColumnNull(6) ? undefined : r.getLong(6),
+      }))) facts.push(row)
+    }
+    return facts
   }
 
   readWorkForSync(comicId: string): ReaderSessionDocumentSnapshot {

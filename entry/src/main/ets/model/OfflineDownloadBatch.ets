@@ -79,10 +79,12 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
   const service = new OfflineDownloadService(new OfflineDownloadStore(storageBase, runtimeKey), queue, request.context)
   let completed = 0
   await runOrderedDownloadQueueBatch(queue, targets, async (entry: OfflineDownloadQueueEntry): Promise<void> => {
-      const isPending = (): boolean => !OfflineDownloadRuntime.isRemovingChapter(runtimeKey,
-        entry.comicId, entry.chapterId) && queue.load().some((current: OfflineDownloadQueueEntry): boolean =>
-          current.comicId === entry.comicId && current.chapterId === entry.chapterId &&
-          current.requestId === entry.requestId && !current.pausedByUser && isOfflineDownloadTaskPending(current))
+      const isPending = (): boolean => {
+        if (OfflineDownloadRuntime.isRemovingChapter(runtimeKey, entry.comicId, entry.chapterId)) return false
+        const current = queue.loadTask(entry)
+        return current !== undefined && current.requestId === entry.requestId &&
+          !current.pausedByUser && isOfflineDownloadTaskPending(current)
+      }
       if (!recoverableDownloadEntry(entry) || !isPending()) return
       const shelved = request.library.getComic(entry.comicId)
       const standalone = shelved?.chapters.some((chapter: Chapter): boolean => chapter.id === entry.chapterId) !== true
@@ -164,32 +166,26 @@ export function resumeAutomaticDownloads(request: OfflineDownloadBatchRequest): 
     const queue = new OfflineDownloadQueueStore(storageBase, runtimeKey)
     let completed = 0
     let failed = 0
-    const first = queue.load().some((entry: OfflineDownloadQueueEntry): boolean =>
-      entry.automatic === true && !entry.pausedByUser && isOfflineDownloadTaskPending(entry) &&
-        entry.status !== OfflineDownloadStatus.DOWNLOADING)
-    if (!first || !canRunOfflineDownloadQueueNow(queue.loadPreferences())) return
+    if (!canRunOfflineDownloadQueueNow(queue.loadPreferences()) ||
+      !queue.loadAutomaticPendingEntries().some((entry: OfflineDownloadQueueEntry): boolean =>
+        entry.status !== OfflineDownloadStatus.DOWNLOADING)) return
     await BackgroundDownloadOwner.run(request.context, async (): Promise<void> => {
       while (canRunOfflineDownloadQueueNow(queue.loadPreferences())) {
         // New requests resume when eligible. Previously staged records stay staged.
-        const targets = queue.load().filter((entry: OfflineDownloadQueueEntry): boolean =>
-          entry.automatic === true && !entry.pausedByUser && isOfflineDownloadTaskPending(entry) &&
-            entry.status !== OfflineDownloadStatus.DOWNLOADING)
+        const targets = queue.loadAutomaticPendingEntries().filter((entry: OfflineDownloadQueueEntry): boolean =>
+          entry.status !== OfflineDownloadStatus.DOWNLOADING)
         if (targets.length === 0) break
         const count = await runOfflineDownloadBatch(request, targets)
-        const current = queue.load()
         targets.forEach((target: OfflineDownloadQueueEntry): void => {
-          const entry = current.find((item: OfflineDownloadQueueEntry): boolean => item.comicId === target.comicId &&
-            item.chapterId === target.chapterId && item.requestId === target.requestId)
-          if (entry === undefined) return
+          const entry = queue.loadTask(target)
+          if (entry === undefined || entry.requestId !== target.requestId) return
           if (entry.status === OfflineDownloadStatus.DOWNLOADED) completed += 1
           else if (!isOfflineDownloadTaskPending(entry) && !entry.pausedByUser && !entry.canceling) failed += 1
         })
         if (count === 0) break
       }
     })
-    const pending = queue.load().some((entry: OfflineDownloadQueueEntry): boolean =>
-      entry.automatic === true && isOfflineDownloadTaskPending(entry))
-    if (!pending && (completed > 0 || failed > 0)) {
+    if ((completed > 0 || failed > 0) && queue.loadAutomaticPendingEntries(true).length === 0) {
       await publishOfflineDownloadSummary(request.context, completed, failed)
     }
   }).finally(() => { automaticBatches.delete(filesDir) })

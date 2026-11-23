@@ -387,7 +387,7 @@ export class CrossSearchService {
     const libraryStore = this.libraryStore
     const startedAt = Date.now()
     const privateIds = privateLibraryCategoryIds(libraryStore.listCustomCategories())
-    const comics = libraryStore.listComics(false).filter((comic: Comic): boolean => showLibraryComic(comic, privateIds))
+    const comics = libraryStore.listComicSummaries(false).filter((comic: Comic): boolean => showLibraryComic(comic, privateIds))
     const plan = parseLibrarySearchQuery(query)
     const needsReadState = libraryQueryNeedsReadState(plan.root)
     const documents: LocalLibrarySearchDocument[] = comics.map((comic: Comic): LocalLibrarySearchDocument => ({

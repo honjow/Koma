@@ -27,6 +27,7 @@ function createRdbPort(databasePath = ':memory:') {
           getString: column => rows[index][column],
           getLong: column => rows[index][column],
           getDouble: column => rows[index][column],
+          getCurrentRowData: () => rows[index].slice(),
           isColumnNull: column => rows[index][column] === null,
           close() {},
         }

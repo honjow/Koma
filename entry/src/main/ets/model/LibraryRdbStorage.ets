@@ -3,7 +3,7 @@ import type { PersistedCategoryDisplayStrategy, PersistedChapter, PersistedComic
   PersistedLibraryStoreDocument, PersistedPage } from './LibraryPersistence'
 import type { LibrarySmartCategory } from './LibrarySmartCategory'
 import type { SyncLocalShelfMove } from '../deviceSync/DeviceSyncSignals'
-import type { MihonImportRecord } from './MihonBackupReader'
+import type { MihonImportRecord, MihonImportWork } from './MihonBackupReader'
 import { shelfChapters, shelfPages, shelfWorks, shelfWorkDetails, ShelfChapterRow, ShelfPageRow, ShelfWorkRow } from './LibraryCoreRows'
 import { appendMetadataItem, appendPageContent, metadataItems, metadataRow, shelfMemberships, shelfMetadataLists,
   ShelfSharedChapter, shelfSharedChapters, shelfSharedChaptersAll, shelfSharedChaptersLocal, shelfMembershipsAll, shelfMembershipsLocal,
@@ -11,7 +11,7 @@ import { appendMetadataItem, appendPageContent, metadataItems, metadataRow, shel
 import { orderShelfRows, readShelfMoves, readSmartCategories, shelfCategories, shelfCollectionRow, shelfCollections,
   shelfDisplayStrategies, shelfMoveCategories, shelfMoveCategoryRows, shelfMoves, shelfSmartCategories, shelfSmartFilters,
   smartFilterRows } from './LibraryListRows'
-import { readMihonImports, ShelfMihonImports } from './LibraryMihonRows'
+import { readMihonImports, readMihonImportWorks, ShelfMihonImports, stageMihonCatalogLink } from './LibraryMihonRows'
 import { collectLocalRows, textColumn } from './LocalDataRows'
 import { hasUserDataMigration } from './UserDataDatabase'
 import { writeUserRecords } from './UserKeyedRecords'
@@ -42,6 +42,19 @@ export interface LibraryMembershipEdit {
   comicId: string
   categoryIds?: string[]
   updatedAt: number
+}
+
+interface ShelfWorkQuery {
+  where: string
+  args: string[]
+}
+
+function workCategoryQuery(category: string): ShelfWorkQuery | undefined {
+  if (category === 'all') return undefined
+  if (category === 'uncategorized') {
+    return { where: 'comic_id NOT IN (SELECT comic_id FROM shelf_memberships_all)', args: [] }
+  }
+  return { where: 'comic_id IN (SELECT comic_id FROM shelf_memberships_all WHERE category_id = ?)', args: [category] }
 }
 
 // Undefined leaves an existing collection alone. Null is an absent collection,
@@ -252,9 +265,10 @@ function readWorkCatalogs(store: relationalStore.RdbStore, where?: string, args?
   return chapters
 }
 
-function readWorks(store: relationalStore.RdbStore, comicId?: string, catalog: boolean = true): PersistedComic[] {
-  const where = comicId === undefined ? undefined : 'comic_id = ?'
-  const args = comicId === undefined ? undefined : [comicId]
+function readWorks(store: relationalStore.RdbStore, comicId?: string, catalog: boolean = true,
+  query?: ShelfWorkQuery): PersistedComic[] {
+  const where = comicId === undefined ? query?.where : 'comic_id = ?'
+  const args = comicId === undefined ? query?.args : [comicId]
   const chapters = catalog ? readWorkCatalogs(store, where, args) : undefined
   const memberships = new Map<string, string[]>()
   for (const row of shelfMembershipsAll.read(store, where, args)) addToGroup(memberships, row.comicId, row.categoryId)
@@ -339,28 +353,92 @@ export class LibraryRdbStorage {
   }
 
   read(): PersistedLibraryStoreDocument | undefined {
-    return this.readDocument(true)
+    return this.readDocument(true, true)
+  }
+
+  launchShelfCategory(savedCategory: string): string {
+    if (savedCategory === 'all') return 'all'
+    const category = shelfCategories.read(this.store, 'category_id = ?', [savedCategory])[0]?.entry
+    // A deleted, smart or locked category follows its existing UI projection.
+    return category !== undefined && category.isPrivate !== true ? category.id : 'all'
+  }
+
+  readForLaunch(category: string = 'all'): PersistedLibraryStoreDocument | undefined {
+    return this.readDocument(false, false, undefined, workCategoryQuery(category))
+  }
+
+  readWorkSummaries(category: string): PersistedComic[] {
+    return readWorks(this.store, undefined, false, workCategoryQuery(category))
+  }
+
+  readWorkSummariesByKind(kinds: string[]): PersistedComic[] {
+    const placeholders = kinds.map((): string => '?').join(', ')
+    return readWorks(this.store, undefined, false, { where: 'comic_id IN (SELECT comic_id FROM shelf_works_all ' +
+      'WHERE source_kind IN (' + placeholders + '))', args: kinds })
+  }
+
+  readWorkSummariesByIdentity(owner: string, work: string, remote: boolean): PersistedComic[] {
+    const ownerColumn = remote ? 'remote_server_id' : 'source_runtime_id'
+    return readWorks(this.store, undefined, false, { where: 'comic_id IN (SELECT comic_id FROM shelf_works_all ' +
+      'WHERE ' + ownerColumn + ' = ? AND remote_resource_id = ?)', args: [owner, work] })
+  }
+
+  hasWorks(): boolean {
+    const result = this.store.querySqlSync('SELECT 1 FROM shelf_works_all LIMIT 1')
+    try { return result.goToNextRow() } finally { result.close() }
+  }
+
+  readCatalog(comicId: string, chapterId?: string): PersistedChapter[] {
+    const where = chapterId === undefined ? 'comic_id = ?' : 'comic_id = ? AND chapter_id = ?'
+    const args = chapterId === undefined ? [comicId] : [comicId, chapterId]
+    return readWorkCatalogs(this.store, where, args).get(comicId) ?? []
+  }
+
+  readChapterTitle(comicId: string, chapterId?: string): string | undefined {
+    const where = chapterId === undefined ? 'comic_id = ?' : 'comic_id = ? AND chapter_id = ?'
+    const args = chapterId === undefined ? [comicId] : [comicId, chapterId]
+    const result = this.store.querySqlSync('SELECT title FROM shelf_chapters WHERE ' + where + ' ORDER BY list_order LIMIT 1', args)
+    try {
+      return result.goToNextRow() ? textColumn(result, 0) : undefined
+    } finally {
+      result.close()
+    }
+  }
+
+  readChapterIds(comicId: string): string[] {
+    return collectLocalRows(this.store.querySqlSync(
+      'SELECT chapter_id FROM shelf_chapters WHERE comic_id = ? ORDER BY list_order', [comicId]),
+      (row: relationalStore.ResultSet): string => row.getString(0))
+  }
+
+  readMihonImportWorks(): MihonImportWork[] {
+    return readMihonImportWorks(this.store)
+  }
+
+  readMihonImports(id?: string): MihonImportRecord[] {
+    return readMihonImports(this.store, id)
   }
 
   /** WebDAV shares chapter identities from work metadata. Local chapter and
    * page rows and Mihon originals belong to the device and backup. */
   readShelfSync(): LibraryShelfSyncDocument | undefined {
     const incomplete: string[] = []
-    const document: LibraryShelfSyncDocument | undefined = this.readDocument(false, incomplete)
+    const document: LibraryShelfSyncDocument | undefined = this.readDocument(false, false, incomplete)
     if (document !== undefined && incomplete.length > 0) document.incompleteSmartCategoryIds = incomplete
     return document
   }
 
-  private readDocument(catalog: boolean, incompleteSmartCategoryIds?: string[]): LibraryShelfSyncDocument | undefined {
+  private readDocument(catalog: boolean, includeMihonOriginals: boolean,
+    incompleteSmartCategoryIds?: string[], query?: ShelfWorkQuery): LibraryShelfSyncDocument | undefined {
     const header = shelfCollections.read(this.store)[0]
     if (header === undefined) return undefined
     const smart = header.smart || incompleteSmartCategoryIds !== undefined ?
       readSmartCategories(this.store, incompleteSmartCategoryIds) : undefined
-    return { schemaVersion: 1, comics: readWorks(this.store, undefined, catalog),
+    return { schemaVersion: 1, comics: readWorks(this.store, undefined, catalog, query),
       customCategories: header.categories ? shelfCategories.read(this.store).map(row => row.entry) : undefined,
       categoryDisplayStrategies: header.display ? shelfDisplayStrategies.read(this.store).map(row => row.entry) : undefined,
       smartCategories: header.smart || (smart?.length ?? 0) > 0 ? smart : undefined,
-      mihonImports: catalog && header.mihon ? readMihonImports(this.store) : undefined,
+      mihonImports: includeMihonOriginals && header.mihon ? this.readMihonImports() : undefined,
       syncShelfMoves: header.moves ? readShelfMoves(this.store) : undefined,
     }
   }
@@ -387,7 +465,7 @@ export class LibraryRdbStorage {
         }
         await new ShelfWorkRows([work], order).replaceWork(transaction, work.id)
       }
-      await new ShelfMihonImports([record]).stageCatalogLink(transaction)
+      await stageMihonCatalogLink(transaction, record)
       await stageReading(transaction)
       await transaction.commit()
       this.writeRevision += 1
@@ -397,10 +475,10 @@ export class LibraryRdbStorage {
     }
   }
 
-  async saveMihonSourceMatches(records: MihonImportRecord[]): Promise<void> {
+  async saveMihonSourceMatches(records: MihonImportWork[]): Promise<void> {
     const transaction = await this.store.createTransaction({ transactionType: relationalStore.TransactionType.IMMEDIATE })
     try {
-      for (const record of records) await new ShelfMihonImports([record]).stageCatalogLink(transaction)
+      for (const record of records) await stageMihonCatalogLink(transaction, record)
       await transaction.commit()
       this.writeRevision += 1
     } catch (error) {

@@ -8,7 +8,6 @@ import { ActionBarButton, ActionBarStyle, BottomBuilderShowType, HdsActionBar } 
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { comicFromSourceManga, sourceLibraryComicId } from '../model/SourceLibraryComic'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
-import { MihonImportRecord } from '../model/MihonBackupReader'
 import { mihonPlaceholder } from '../model/MihonImportPlanning'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { chapterReadingSortFor } from '../model/ChapterListPreferencesStore'
@@ -990,6 +989,7 @@ export struct MangaDetailPage {
   private decorateChapterStates(chapters: MangaChapterItem[]): MangaChapterItem[] {
     if (chapters.length === 0) return chapters
     const comicId = this.currentComicId()
+    this.readerSessionStore.prepareWorkChapterStates(comicId)
     const summaries = new Map<string, OfflineDownloadQueueEntry>()
     let wait: OfflineDownloadWaitReason | undefined
     let downloadRuntimeKey: string = ''
@@ -1109,7 +1109,7 @@ export struct MangaDetailPage {
   private loadLocalOrMissingManga(mangaId?: string): void {
     const stored = mangaId === undefined ? undefined : this.libraryStore?.getComic(mangaId)
     const pending = stored === undefined && mangaId?.startsWith('mihon:') ?
-      this.libraryStore?.listMihonImports().find((record: MihonImportRecord): boolean => record.id === mangaId) : undefined
+      this.libraryStore?.readMihonImport(mangaId) : undefined
     const comic = stored ?? (pending === undefined ? undefined : mihonPlaceholder(pending))
     if (comic === undefined) {
       // The sentinel is only a definitive invalid/missing local route. It is never used as a source
@@ -1246,8 +1246,8 @@ export struct MangaDetailPage {
 
   private hasPendingMihonEdition(): boolean {
     const id = this.params.mihonImportId
-    return id !== undefined && this.libraryStore?.listMihonImports().some((record: MihonImportRecord): boolean =>
-      record.id === id && !record.targetComicId && record.linkedWork !== undefined) === true
+    const record = id === undefined ? undefined : this.libraryStore?.getMihonImportWork(id)
+    return record !== undefined && !record.targetComicId && record.linkedWork !== undefined
   }
 
   private async loadSourceMangaDetail(sourceId: string, mangaId: string, forceReload: boolean = false,

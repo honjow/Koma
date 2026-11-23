@@ -3,8 +3,8 @@ import { Chapter, Comic, ComicSourceKind, ReadingDirection, ReadingProgress, nor
 import { LibraryStore } from './LibraryStore'
 import { ChapterReadingState, ReaderSessionReadingSnapshot } from './ReaderSessionStore'
 import { SourceReadHistoryEntry } from './SourceReaderSession'
-import { MihonBackup, MihonBackupChapter, MihonBackupHistory, MihonBackupTracking, MihonBackupWork,
-  MihonImportRecord } from './MihonBackupReader'
+import { MihonBackup, MihonBackupChapter, MihonBackupHistory, MihonBackupTracking, MihonBackupWork, MihonBackupWorkSummary,
+  MihonImportRecord, MihonImportWork } from './MihonBackupReader'
 import { mangaHttpUrl } from './MangaWebLink'
 import { MangaStatus } from './MangaDetailModels'
 import { SourceManga } from './SourceModels'
@@ -49,7 +49,7 @@ export function mihonMatchText(value: string | undefined): string {
 }
 
 /** Suggestions use explicit titles only. The user still chooses the edition. */
-export function suggestedMihonShelfWorks(work: MihonBackupWork, shelf: Comic[]): Comic[] {
+export function suggestedMihonShelfWorks(work: MihonBackupWorkSummary, shelf: Comic[]): Comic[] {
   const titles = new Set<string>([mihonMatchText(work.title)])
   for (const line of work.description.split(/\r?\n/)) {
     const alias = /^\s*[*_]*\s*(?:别名|別名|又名|alternate titles?)\s*[*_]*\s*[:：]\s*(.+?)\s*[*_]*\s*$/i.exec(line)
@@ -69,7 +69,7 @@ function sitePath(value: string | undefined): string | undefined {
 
 /** A source name selects where to look. A work path or the same cover and
  * exact title must corroborate the work inside that source's catalog. */
-export function matchesMihonSourceWork(work: MihonBackupWork, title: string, cover: string | undefined,
+export function matchesMihonSourceWork(work: MihonBackupWorkSummary, title: string, cover: string | undefined,
   url: string | undefined, webUrl: string | undefined): boolean {
   const path = sitePath(work.url)
   if (path !== undefined && (path === sitePath(url) || path === sitePath(webUrl))) return true
@@ -79,13 +79,13 @@ export function matchesMihonSourceWork(work: MihonBackupWork, title: string, cov
   return coverUrl !== undefined && coverUrl === httpIdentity(cover)
 }
 
-export function pickMihonSourceWork(work: MihonBackupWork, catalog: SourceManga[]): SourceManga | undefined {
+export function pickMihonSourceWork(work: MihonBackupWorkSummary, catalog: SourceManga[]): SourceManga | undefined {
   const candidates = catalog.filter((candidate: SourceManga): boolean => candidate.id === work.url ||
     matchesMihonSourceWork(work, candidate.title, candidate.coverUrl, candidate.url, candidate.webUrl))
   return candidates.length === 1 ? candidates[0] : undefined
 }
 
-export function matchingMihonShelfWork(work: MihonBackupWork, sourceName: string, candidates: Comic[]): Comic | undefined {
+export function matchingMihonShelfWork(work: MihonBackupWorkSummary, sourceName: string, candidates: Comic[]): Comic | undefined {
   const link = httpIdentity(work.url)
   const matches = candidates.filter((comic: Comic): boolean =>
     comic.sourceRuntimeId !== undefined && !comic.sourceRuntimeId.startsWith('mihon:') &&
@@ -258,7 +258,7 @@ function mihonLinkedWork(comic: Comic): SourceManga | undefined {
 
 // A source-declared identity is sufficient to open the real work. Keep the
 // original reading records until its current chapter list can be matched.
-export function mihonDeclaredWork(record: MihonImportRecord, sourceId: string,
+export function mihonDeclaredWork(record: MihonImportWork, sourceId: string,
   identity: MihonSourceIdentity | undefined): SourceManga | undefined {
   if (identity === undefined || !identity.sourceIds.includes(record.work.sourceId)) return undefined
   const id = mihonPathIdentity(record.work.url, identity.work)
@@ -486,7 +486,7 @@ export function mergeMihonReading(snapshot: ReaderSessionReadingSnapshot,
   return unmatched
 }
 
-export function mihonSourceMatcher(sources: MihonSourceSummary[], identities: Map<string, MihonSourceIdentity>): (record: MihonImportRecord) => MihonSourceSummary | undefined {
+export function mihonSourceMatcher(sources: MihonSourceSummary[], identities: Map<string, MihonSourceIdentity>): (record: MihonImportWork) => MihonSourceSummary | undefined {
   const byId = new Map<string, MihonSourceSummary>()
   const declared = new Map<string, MihonSourceSummary[]>()
   const byName = new Map<string, MihonSourceSummary[]>()
@@ -514,7 +514,7 @@ export function mihonSourceMatcher(sources: MihonSourceSummary[], identities: Ma
       byName.set(name, matches)
     }
   }
-  return (record: MihonImportRecord): MihonSourceSummary | undefined => {
+  return (record: MihonImportWork): MihonSourceSummary | undefined => {
     const matches = declared.get(record.work.sourceId)
     if (matches !== undefined) return matches.length === 1 ? matches[0] : undefined
     const remembered = byId.get(record.matchedSourceId ?? '')

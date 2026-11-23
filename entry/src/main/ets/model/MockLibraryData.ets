@@ -1,5 +1,6 @@
 import {
   Chapter,
+  ChapterId,
   Comic,
   comicDisplayCover,
   ComicCoverInfo,
@@ -379,13 +380,15 @@ export function createLibraryComicCard(comic: Comic, customPresentation: Library
 export function createLibraryContinueReadingCard(
   comics: Comic[],
   sessionStore?: ReaderSessionStore,
-  presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
+  presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>(),
+  progressByComicId?: Map<ComicId, ReadingProgress>,
+  chapterTitleFor?: (comicId: ComicId, chapterId?: ChapterId) => string | undefined,
 ): ContinueReadingCardViewModel {
   let continueComicIndex: number = -1
   let continueProgress: ReadingProgress | undefined = undefined
   for (let index = 0; index < comics.length; index += 1) {
     const comic = comics[index]
-    const progress = sessionStore === undefined ? undefined : sessionStore.getComicProgress(comic)
+    const progress = progressByComicId === undefined ? sessionStore?.getComicProgress(comic) : progressByComicId.get(comic.id)
     if (progress !== undefined && (continueProgress === undefined || progress.updatedAt > continueProgress.updatedAt)) {
       continueComicIndex = index
       continueProgress = progress
@@ -404,7 +407,9 @@ export function createLibraryContinueReadingCard(
 
   const continueComic: Comic = comics[continueComicIndex]
   const continuePresentation = presentationByComicId.get(continueComic.id) ?? createFallbackPresentation(continueComic)
-  const chapterTitle = getProgressChapterTitle(continueComic, continuePresentation, continueProgress)
+  const chapterTitle = chapterTitleFor === undefined ? getProgressChapterTitle(continueComic, continuePresentation, continueProgress) :
+    (continueProgress === undefined ? undefined : chapterTitleFor(continueComic.id, continueProgress.chapterId)) ??
+    continuePresentation.chapterTitle ?? chapterTitleFor(continueComic.id) ?? continueComic.title
   return {
     title: continueComic.title,
     detail: formatContinueDetail(chapterTitle, continueProgress),

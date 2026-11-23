@@ -75,8 +75,7 @@ export function comicMatchesSmartCategory(comic: Comic, group: LibrarySmartCateg
     if (filter.method === 'downloaded') matches = context.downloaded.has(comic.id)
     else if (filter.method === 'tracking') matches = context.tracked.has(comic.id)
     else if (filter.method === 'hasUnread') matches = (context.reader.unreadChapterCount(comic) ?? 0) > 0
-    else if (filter.method === 'started') matches = context.reader.getProgress(comic.id) !== undefined ||
-      comic.chapters.some((chapter): boolean => context.reader.isChapterRead(comic.id, chapter.id) || context.reader.getChapterProgress(comic.id, chapter.id) !== undefined)
+    else if (filter.method === 'started') matches = context.reader.hasStartedComic(comic)
     else if (filter.method === 'completed') matches = (comic.sourceMetadata?.status ?? comic.localMetadata?.status) === 'completed'
     else if (filter.method === 'source') matches = comicSmartSourceKey(comic) === filter.value
     else if (filter.method === 'contentRating') matches = comicSmartContentRating(comic) === filter.value

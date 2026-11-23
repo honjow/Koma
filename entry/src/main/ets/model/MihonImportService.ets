@@ -14,8 +14,7 @@ import { LibraryStore, replaceLibraryContents } from './LibraryStore'
 import { appReaderSessionStore, ChapterReadingState, readLiveMihonReading, READER_PROGRESS_PERSISTENCE_FILE_NAME,
   stageLiveMihonReading,
   usesReaderDatabase, writeLiveReaderSnapshot } from './ReaderSessionStore'
-import { MihonImportRecord } from './MihonBackupReader'
-import { applyMihonSourceMatch } from './MihonCatalogPlanning'
+import { MihonImportRecord, MihonImportWork } from './MihonBackupReader'
 import { Comic } from './ComicModels'
 import { MihonImportLabels, MihonImportSummary, matchingMihonShelfWork, mihonDeclaredWork, mihonMatchText,
   mihonSourceMatcher, pickMihonSourceWork } from './MihonImportPlanning'
@@ -79,10 +78,10 @@ export class MihonImportService {
 
   /** The source and the verified edition have independent lifetimes. Keep the
    * source choice even when a request for this particular work fails. */
-  private async rememberSources(matchSource: (record: MihonImportRecord) => MihonSourceSummary | undefined,
+  private async rememberSources(matchSource: (record: MihonImportWork) => MihonSourceSummary | undefined,
     sourceIds?: string[], workId?: string, isCurrent?: () => boolean): Promise<boolean> {
     const matches: MihonSourceMatch[] = []
-    for (const record of this.library.listMihonImports()) {
+    for (const record of this.library.listMihonImportWorks()) {
       if (record.targetComicId || (workId !== undefined && record.id !== workId)) continue
       const source = matchSource(record)
       if (source === undefined || (sourceIds !== undefined && !sourceIds.includes(source.sourceId))) continue
@@ -102,14 +101,17 @@ export class MihonImportService {
     if (!await BackupRestoreActivity.beginRestoreWhenIdle(current)) return { unmatchedChapters: 0 }
     try {
       const byId = new Map(matches.map((match: MihonSourceMatch): [string, MihonSourceMatch] => [match.id, match]))
-      const records: MihonImportRecord[] = []
-      for (const record of this.library.listMihonImports()) {
+      const records: MihonImportWork[] = []
+      for (const record of this.library.listMihonImportWorks()) {
         const match = byId.get(record.id)
-        if (match !== undefined && !record.targetComicId) records.push(applyMihonSourceMatch(record, match))
+        if (match !== undefined && !record.targetComicId) {
+          records.push({ id: record.id, sourceName: record.sourceName, categoryIds: record.categoryIds,
+            work: record.work, matchedSourceId: match.sourceId, linkedWork: match.work })
+        }
       }
       if (records.length > 0) {
         await saveLiveMihonSourceMatches(this.context.filesDir, records)
-        this.library.updateMihonImports(records)
+        this.library.updateMihonSourceMatches(records)
       }
       return { unmatchedChapters: 0 }
     } finally {
@@ -117,13 +119,14 @@ export class MihonImportService {
     }
   }
 
-  private async matchOriginalAddress(record: MihonImportRecord, entry: SourceRuntimeRegistryEntry,
+  private async matchOriginalAddress(record: MihonImportWork, entry: SourceRuntimeRegistryEntry,
     shelf: Comic[], current: () => boolean): Promise<MihonMatch | undefined> {
     const identity = entry.mihonImport
     const work = mihonDeclaredWork(record, entry.sourceId, identity)
     if (work === undefined) return undefined
-    const cached = shelf.find((comic: Comic): boolean => comic.sourceRuntimeId === entry.sourceId &&
-      comic.remoteResourceId === work.id && comic.chapters.length > 0)
+    const candidate = shelf.find((comic: Comic): boolean => comic.sourceRuntimeId === entry.sourceId &&
+      comic.remoteResourceId === work.id && this.library.listComicChapterIds(comic.id).length > 0)
+    const cached = candidate === undefined ? undefined : this.library.getComic(candidate.id)
     const comic = cached ?? (await prepareMangaMigration(appSourceRuntimeRegistry, work, current)).comic
     return { comic, entry, identity }
   }
@@ -133,7 +136,7 @@ export class MihonImportService {
   async linkOpenedCatalog(id: string, snapshot: SourceMangaDetailSnapshot, settingsFingerprint: string,
     isCurrent: () => boolean): Promise<boolean> {
     if (!isCurrent() || !snapshot.chaptersResolved || snapshot.chapters.length === 0) return false
-    const record = this.library.listMihonImports().find((row: MihonImportRecord): boolean => row.id === id)
+    const record = this.library.getMihonImportWork(id)
     const work = record?.linkedWork
     if (record === undefined || record.targetComicId || work === undefined || work.sourceId !== snapshot.detail.sourceId ||
       work.id !== snapshot.detail.id) return false
@@ -158,7 +161,7 @@ export class MihonImportService {
       signalDeviceSyncRestoreStart(true)
       if (!await reader.flushAsync()) throw new Error('reader_progress_save_failed')
       if (!current()) return { unmatchedChapters: 0 }
-      const record = this.library.listMihonImports().find((row: MihonImportRecord): boolean => row.id === id)
+      const record = this.library.readMihonImport(id)
       if (record === undefined) throw new Error('mihon_import_missing_work')
       if (record.targetComicId && (catalog !== undefined || request?.verifiedEdition === true)) return { unmatchedChapters: 0 }
       const selection = request?.target
@@ -214,9 +217,9 @@ export class MihonImportService {
   async retryFromHistory(id: string, isCurrent: () => boolean): Promise<void> {
     const matchSource = mihonSourceMatcher(appSourceRuntimeRegistry.listInstalledSourceSummaries(), this.sourceIdentities())
     if (!isCurrent()) return
-    await this.rememberSources((record: MihonImportRecord): MihonSourceSummary | undefined =>
+    await this.rememberSources((record: MihonImportWork): MihonSourceSummary | undefined =>
       isCurrent() ? matchSource(record) : undefined, undefined, id, isCurrent)
-    const record = this.library.listMihonImports().find((row: MihonImportRecord): boolean => row.id === id)
+    const record = this.library.getMihonImportWork(id)
     if (!isCurrent() || record === undefined || record.targetComicId) return
     const source = matchSource(record)
     if (source === undefined) return
@@ -224,7 +227,7 @@ export class MihonImportService {
     if (entry === undefined) return
     const current = (): boolean => isCurrent() && entry.enabled &&
       appSourceRuntimeRegistry.lookup(source.sourceId).entry === entry
-    const shelf = this.library.listComics(false)
+    const shelf = this.library.listComicSummaries(false)
     let target: MihonMatch | undefined
     try {
       target = await this.matchOriginalAddress(record, entry, shelf, current)
@@ -236,8 +239,9 @@ export class MihonImportService {
     if (target === undefined && record.linkedWork === undefined &&
       source.capabilities.includes('search') && mihonMatchText(record.work.title)) {
       try {
-        const cached = matchingMihonShelfWork(record.work, record.sourceName, shelf.filter((comic: Comic): boolean =>
+        const candidate = matchingMihonShelfWork(record.work, record.sourceName, shelf.filter((comic: Comic): boolean =>
           comic.sourceRuntimeId === source.sourceId))
+        const cached = candidate === undefined ? undefined : this.library.getComic(candidate.id)
         if (cached !== undefined) {
           target = { comic: cached, entry }
         } else {
@@ -276,7 +280,7 @@ export class MihonImportService {
     }
     const links: MihonLinkRequest[] = []
     // A manual selection made during discovery takes precedence.
-    for (const record of this.library.listMihonImports()) {
+    for (const record of this.library.listMihonImportWorks()) {
       const target = discovered.get(record.id)
       if (!record.targetComicId && target !== undefined &&
         appSourceRuntimeRegistry.lookup(target.entry.sourceId).entry === target.entry && target.entry.enabled) {
@@ -289,11 +293,11 @@ export class MihonImportService {
     return true
   }
 
-  private async discoverWorks(library: LibraryStore, matchSource: (record: MihonImportRecord) => MihonSourceSummary | undefined,
+  private async discoverWorks(library: LibraryStore, matchSource: (record: MihonImportWork) => MihonSourceSummary | undefined,
     sourceIds: string[] | undefined): Promise<Map<string, MihonMatch>> {
-    const shelf = library.listComics(false)
-    const groups = new Map<SourceRuntimeRegistryInstalledSourceSummary, MihonImportRecord[]>()
-    for (const record of library.listMihonImports()) {
+    const shelf = library.listComicSummaries(false)
+    const groups = new Map<SourceRuntimeRegistryInstalledSourceSummary, MihonImportWork[]>()
+    for (const record of library.listMihonImportWorks()) {
       if (record.targetComicId || record.linkedWork !== undefined) continue
       const source = matchSource(record)
       if (source === undefined) continue
@@ -324,8 +328,9 @@ export class MihonImportService {
           const record = works[index]
           const work = record.work
           if (!source.capabilities.includes('search') || !mihonMatchText(work.title)) continue
-          const saved = matchingMihonShelfWork(work, record.sourceName, shelf.filter((comic: Comic): boolean =>
+          const candidate = matchingMihonShelfWork(work, record.sourceName, shelf.filter((comic: Comic): boolean =>
             comic.sourceRuntimeId === entry.sourceId))
+          const saved = candidate === undefined ? undefined : library.getComic(candidate.id)
           if (saved !== undefined) {
             found.set(record.id, { comic: saved, entry })
             continue

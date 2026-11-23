@@ -64,7 +64,7 @@ test('the shelf publishes the selected sort and direction in the same refresh', 
  }]))
  const updates = new Map([['a', 20], ['b', 10], ['c', 30]])
  let frame = 0
- const Shelf = shelfSubject(['setSortBy', 'refreshDisplayedSnapshotFromStore', 'applyCategorySort',
+ const Shelf = shelfSubject(['setSortBy', 'refreshDisplayedSnapshotFromStore', 'applyCategorySort', 'prepareShelfReadingFacts',
   'orderedShelfComics', 'orderedShelfCategories', 'orderedCategoryComics', 'currentListOptions',
   'syncDisplayedSnapshotFromProps', 'applyWorkReadingChange', 'usesLiveShelfFiltersOrSort'], {
   librarySortDirection, effectiveLibraryDefaultSort, normalizeCategoryIds: models.normalizeCategoryIds,
@@ -355,6 +355,52 @@ test('an incoming same-name category uses one ID without losing books, privacy o
  persistence.applyLibraryShelfSyncEdits('/saved-category-names', restored, lateRefresh)
  assert.deepEqual(clone(restored.getComic(late.id).categoryIds), [canonical])
  assert.equal(storage.read().customCategories.length, 1)
+})
+test('cold shelf reads the saved category and can edit or open a work without replacing its catalog', async () => {
+ const { openUserDataDatabase } = load('model/UserDataDatabase')
+ const { LibraryRdbStorage } = load('model/LibraryRdbStorage')
+ const { ReaderRdbStorage } = load('model/ReaderRdbStorage')
+ const { PersistentReaderSessionStore } = load('model/ReaderSessionStore')
+ const owner = new InMemoryLibraryStore()
+ const first = owner.createCustomCategory('First')
+ const second = owner.createCustomCategory('Second')
+ const left = book('left'), right = book('right')
+ left.categoryIds = [first.id]
+ right.categoryIds = [second.id]
+ owner.addComic(left)
+ owner.addComic(right)
+ const db = await openUserDataDatabase({ filesDir: '/startup-shelf-scope' })
+ const queries = []
+ const port = { ...db, querySqlSync(sql, args) {
+  queries.push({ sql, args })
+  return db.querySqlSync(sql, args)
+ } }
+ const storage = new LibraryRdbStorage(port)
+ const reading = new ReaderRdbStorage(port)
+ await storage.migrate(persistence.createLibraryStorePersistenceDocument(owner))
+ await reading.migrate({ progress: [], sourceHistory: [], chapters: [{
+  comicId: left.id, chapterId: left.chapters[0].id, isRead: true, bookmarked: true, updatedAt: 12,
+ }] })
+ queries.length = 0
+ const live = new InMemoryLibraryStore()
+ const service = new persistence.LibraryStorePersistenceService(live, {
+  databaseForEdits: () => storage,
+  saveMemberships(edits) { storage.saveMemberships(edits); return true },
+ })
+ service.restoreForLaunch(first.id)
+ const reader = new PersistentReaderSessionStore({ activityDatabase: () => reading })
+ const firstShelf = live.listShelfSummaries(first.id)
+ assert.deepEqual(clone(firstShelf.map(work => work.id)), [left.id])
+ assert.equal(firstShelf[0].chapterCatalogDeferred, true)
+ assert.equal(queries.some(({ sql }) => /FROM (shelf_chapters|reader_chapter_states_all)\b/.test(sql)), false)
+ assert.equal(reader.prepareShelfReadingFacts(firstShelf), true)
+ assert.equal(reader.unreadChapterCount(firstShelf[0]), 1)
+ assert.equal(reader.isChapterBookmarked(left.id, left.chapters[0].id), true)
+ assert.equal(persistence.editComicCategoriesAndPersistLibraryStore(live, service, [left.id], [second.id], []), 1)
+ assert.equal(live.getComicSummary(left.id).chapterCatalogDeferred, true)
+ assert.deepEqual(clone(live.listShelfSummaries(second.id).map(work => work.id)), [left.id, right.id])
+ assert.deepEqual(clone(live.getComic(right.id).chapters), clone(right.chapters))
+ assert.deepEqual(clone(storage.readWork(left.id).chapters), clone(persistence.persistComic(left).chapters))
 })
 test('batch editing preserves untouched mixed memberships, saves once and rolls back on failure', () => {
  const library = new InMemoryLibraryStore()

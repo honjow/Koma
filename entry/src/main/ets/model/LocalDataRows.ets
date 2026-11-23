@@ -23,6 +23,46 @@ export function booleanValue(value: boolean | undefined): number | null {
   return value === undefined ? null : (value ? 1 : 0)
 }
 
+/** Copy a hot catalog row across ArkData once. Fall back to the original
+ * cursor conversion for older values stored with a different SQLite type. */
+export class LocalRecord {
+  private readonly values: relationalStore.RowData
+  private readonly row: relationalStore.ResultSet
+
+  constructor(row: relationalStore.ResultSet) {
+    this.row = row
+    this.values = row.getCurrentRowData()
+  }
+
+  string(index: number): string {
+    const value = this.values[index]
+    return typeof value === 'string' ? value : this.row.getString(index)
+  }
+
+  text(index: number): string | undefined {
+    return this.values[index] === null ? undefined : this.string(index)
+  }
+
+  long(index: number): number {
+    const value = this.values[index]
+    return typeof value === 'number' && Number.isSafeInteger(value) ? value : this.row.getLong(index)
+  }
+
+  integer(index: number): number | undefined {
+    return this.values[index] === null ? undefined : this.long(index)
+  }
+
+  real(index: number): number | undefined {
+    const value = this.values[index]
+    return value === null ? undefined : typeof value === 'number' ? value : this.row.getDouble(index)
+  }
+
+  boolean(index: number): boolean | undefined {
+    const value = this.integer(index)
+    return value === undefined ? undefined : value !== 0
+  }
+}
+
 export function collectLocalRows<T>(rows: relationalStore.ResultSet, decode: (row: relationalStore.ResultSet) => T): T[] {
   const result: T[] = []
   try {

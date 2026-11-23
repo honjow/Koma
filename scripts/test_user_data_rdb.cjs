@@ -773,13 +773,18 @@ test('first Mihon catalog commits the shelf link and reading position together',
     const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
     const { ReaderRdbStorage } = env.load('ReaderRdbStorage')
     const store = await openUserDataDatabase({ filesDir: '/mihon-first-catalog' })
-    const library = new LibraryRdbStorage(store)
+    const queries = []
+    const library = new LibraryRdbStorage({ ...store, querySqlSync: (sql, args) => {
+      queries.push(sql)
+      return store.querySqlSync(sql, args)
+    } })
     const reader = new ReaderRdbStorage(store)
     const original = 'mihon:old'
     const online = 'com.rumanhua.koma:/new/'
     const record = { id: original, sourceName: 'Original', categoryIds: ['reading'],
       work: { sourceId: '1', url: '/old/', title: 'Original', status: 0, favorite: true, genres: ['Genre'],
-        categoryIds: ['old-category'], chapters: [], history: [], tracking: [] },
+        categoryIds: ['old-category'], chapters: [{ url: '/old/chapter/1', title: 'Chapter 1', pageIndex: 7 }],
+        history: [{ chapterUrl: '/old/chapter/1', readAt: 100, readDuration: 35 }], tracking: [] },
       linkedWork: { id: '/new/', sourceId: 'com.rumanhua.koma', title: 'Original', tags: ['old-tag'] } }
     const chapter = { id: 'chapter', title: 'Chapter', index: 0, pages: [] }
     const comic = { id: online, title: 'Online', sourceKind: 'private_library', sourceRuntimeId: 'com.rumanhua.koma',
@@ -793,9 +798,22 @@ test('first Mihon catalog commits the shelf link and reading position together',
       { id: 'unrelated', title: 'Unrelated', chapters: [] },
     ], mihonImports: [record] })
     await reader.migrate({ progress: [oldPosition], chapters: [], sourceHistory: [] })
+    queries.length = 0
+    const shelf = library.readForLaunch()
+    const imports = library.readMihonImportWorks()
+    assert.deepEqual(shelf.comics.map(work => work.id), [original, 'unrelated'])
+    assert.equal(imports[0].work.title, record.work.title)
+    assert.equal(queries.some(sql => /FROM shelf_mihon_(chapters|history|tracking)\b/i.test(sql)), false)
+    assert.deepEqual(plain(library.readMihonImports(original)), plain([record]))
+    assert.deepEqual(library.readMihonImports('unrelated'), [])
+    const remembered = { ...imports[0], matchedSourceId: 'com.rumanhua.koma' }
+    await library.saveMihonSourceMatches([remembered])
+    assert.equal(library.readMihonImportWorks()[0].matchedSourceId, remembered.matchedSourceId)
+    assert.deepEqual(plain(library.readMihonImports(original)[0].work), plain(record.work))
     const beforeLibrary = plain(library.read())
     const beforeReading = plain(reader.read())
-    const linked = { ...record, targetComicId: online, linkedWork: { ...record.linkedWork, tags: ['new-tag'] } }
+    const linked = { ...record, matchedSourceId: remembered.matchedSourceId, targetComicId: online,
+      linkedWork: { ...record.linkedWork, tags: ['new-tag'] } }
     const commit = () => library.commitCatalogLink(linked, comic, transaction => reader.stageCatalogLink(transaction,
       [original, online], { progress: [position], chapters: [state], sourceHistory: [
         { comicId: online, sourceId: comic.sourceRuntimeId, mangaId: comic.remoteResourceId, chapterId: chapter.id },
@@ -843,6 +861,35 @@ test('reading moves from the previously committed database once, even with stale
     reading.save({ progress: [], chapters: [], sourceHistory: [] })
     await new ReaderRdbStorage(database).migrate(stale)
     assert.deepEqual(reading.read().progress, [])
+  } finally {
+    env.close()
+  }
+})
+
+test('automatic download recovery reads only pending tasks in their saved order', async () => {
+  const env = fixture(new Map(), new Map([
+    ['@kit.CoreFileKit', { fileIo: { ...fs, accessSync: fs.existsSync } }],
+    ['../i18n/AppStrings', { AppStrings: { get: key => key } }],
+    ['../diagnostics/DiagnosticLogger', { DiagnosticLogger: { info() {}, warn() {}, exception() {} } }],
+  ]))
+  try {
+    const { OfflineDownloadQueueStore, prepareOfflineQueueDatabase } = env.load('OfflineDownloadQueueStore')
+    const context = { filesDir: '/download-queue-startup-test' }
+    await prepareOfflineQueueDatabase(context)
+    const queue = new OfflineDownloadQueueStore(context.filesDir)
+    queue.prepareDatabase()
+    const entry = (chapterId, status, change = {}) => ({ comicId: 'sample', chapterId, status,
+      automatic: true, requestId: 'request-' + chapterId, pageCount: 1, downloadedPageCount: 0, updatedAt: 2, ...change })
+    queue.restoreSnapshotText(JSON.stringify({ schemaVersion: 1, entries: [
+      entry('complete', 'downloaded'), entry('paused', 'queued', { pausedByUser: true }),
+      entry('offline', 'blocked', { failureReasonCode: 'offline' }), entry('manual', 'queued', { automatic: false }),
+      entry('canceling', 'queued', { canceling: true }), entry('next', 'queued'), entry('error', 'failed'),
+    ] }))
+    assert.deepEqual(queue.loadAutomaticPendingEntries().map(item => item.chapterId), ['offline', 'next'])
+    assert.deepEqual(queue.loadAutomaticPendingEntries(true).map(item => item.chapterId), ['paused', 'offline', 'next'])
+    assert.deepEqual(queue.loadRunnableEntries().map(item => item.chapterId), ['offline', 'manual', 'next', 'error'])
+    assert.equal(queue.loadTask({ comicId: 'sample', chapterId: 'complete' }).requestId, 'request-complete')
+    assert.equal(queue.load().length, 7)
   } finally {
     env.close()
   }

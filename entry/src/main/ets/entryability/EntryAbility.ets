@@ -48,7 +48,7 @@ import { TRACKER_APP_CALLBACK_URI } from '../model/TrackerModels'
 import { TrackerOAuthCompletionService } from '../model/TrackerOAuthCompletionService'
 import { connectTrackerBrowserAuthorization } from '../state/TrackerBrowserAuthorizationState'
 import { automationEpoch, finishAutomationRestore, resetGeneratedAutomationWork } from '../model/AutomationStateEpoch'
-import { komaContentStorageBase, komaContentStorageUri, prepareKomaContentStorage, waitKomaContentStorageReady } from '../model/KomaContentStorage'
+import { komaContentStorageBase, komaContentStorageUri, restoreKomaContentStorageForLaunch } from '../model/KomaContentStorage'
 import { BackupService } from '../model/BackupService'
 import { prepareLiveLibraryStorage } from '../model/LibraryPersistence'
 import { prepareLiveReaderStorage } from '../model/ReaderSessionStore'
@@ -101,11 +101,13 @@ export default class EntryAbility extends UIAbility {
         ' debug=' + this.context.applicationInfo.debug + ' model=' + deviceInfo.productModel + ' sdk=' + deviceInfo.sdkApiVersion)
       DiagnosticLogger.info('app', 'platform', 'os=' + deviceInfo.osFullName)
     } catch (error) { DiagnosticLogger.exception('app', 'metadata_failed', error as Error) }
-    await prepareLiveLibraryStorage(this.context, false)
-    await prepareLiveReaderStorage(this.context, false)
-    await prepareOfflineQueueDatabase(this.context)
-    await prepareImageRuleDatabase(this.context)
-    await prepareSourceConfigurationDatabases(this.context, false)
+    await Promise.all([
+      prepareLiveLibraryStorage(this.context, false),
+      prepareLiveReaderStorage(this.context, false),
+      prepareOfflineQueueDatabase(this.context),
+      prepareImageRuleDatabase(this.context),
+      prepareSourceConfigurationDatabases(this.context, false),
+    ])
     await BackupRestoreCheckpoint.recoverBeforeStartup(this.context)
     await appDeviceSync.startup(this.context, async (): Promise<void> => {
       await prepareLiveLibraryStorage(this.context, true)
@@ -118,35 +120,39 @@ export default class EntryAbility extends UIAbility {
       await resetGeneratedAutomationWork(this.context)
       finishAutomationRestore(this.context)
     }
-    await this.prepareRemainingDataStorage()
-    await LanguageSettings.restore(this.context).catch((_error: Error): void => {
-      DiagnosticLogger.warn('app', 'startup_apply_failed', '[Language] startup_apply_failed retained_previous_runtime=true')
-    })
-    await restoreReaderRemoteImageCache(this.context)
-    await new ChapterListPreferencesStore(this.context).prepare().catch((error: Error): void => {
-      DiagnosticLogger.exception('chapters', 'preferences_prepare_failed', error)
-    })
-    await sourceBrowseLayoutRecords.prepare(this.context).catch((error: Error): void => {
-      DiagnosticLogger.exception('browse', 'preferences_prepare_failed', error)
-    })
-    await appSourceBrowseDestinationPreferences.prepare(this.context).catch((error: Error): void => {
-      DiagnosticLogger.exception('browse', 'destination_prepare_failed', error)
-    })
-    await synopsisRecords.prepare(this.context).catch((error: Error): void => {
-      DiagnosticLogger.exception('detail', 'preferences_prepare_failed', error)
-    })
-    await trackerMappingRecords.prepare(this.context).catch((error: Error): void => {
-      DiagnosticLogger.exception('tracker', 'preferences_prepare_failed', error)
-    })
-    await new AppearancePreferencesStore(this.context).load().catch((_error: Error): void => {
-      DiagnosticLogger.warn('app', 'startup_load_failed', '[Appearance] startup_load_failed retained_previous_runtime=true')
-    })
-    await new IncognitoPreferencesStore(this.context).load().catch((_error: Error): void => {
-      DiagnosticLogger.warn('app', 'startup_load_failed', '[Incognito] startup_load_failed retained_previous_runtime=true')
-    })
-    await new LibraryFilterStore(this.context).load().catch((_error: Error): void => {
-      DiagnosticLogger.warn('app', 'startup_load_failed', '[LibraryCover] startup_load_failed retained_previous_runtime=true')
-    })
+    // These owners read independent data after recovery. Keep their first
+    // consumers behind preparation without serializing each preference read.
+    await Promise.all([
+      this.prepareRemainingDataStorage(),
+      LanguageSettings.restore(this.context).catch((_error: Error): void => {
+        DiagnosticLogger.warn('app', 'startup_apply_failed', '[Language] startup_apply_failed retained_previous_runtime=true')
+      }),
+      restoreReaderRemoteImageCache(this.context),
+      new ChapterListPreferencesStore(this.context).prepare().catch((error: Error): void => {
+        DiagnosticLogger.exception('chapters', 'preferences_prepare_failed', error)
+      }),
+      sourceBrowseLayoutRecords.prepare(this.context).catch((error: Error): void => {
+        DiagnosticLogger.exception('browse', 'preferences_prepare_failed', error)
+      }),
+      appSourceBrowseDestinationPreferences.prepare(this.context).catch((error: Error): void => {
+        DiagnosticLogger.exception('browse', 'destination_prepare_failed', error)
+      }),
+      synopsisRecords.prepare(this.context).catch((error: Error): void => {
+        DiagnosticLogger.exception('detail', 'preferences_prepare_failed', error)
+      }),
+      trackerMappingRecords.prepare(this.context).catch((error: Error): void => {
+        DiagnosticLogger.exception('tracker', 'preferences_prepare_failed', error)
+      }),
+      new AppearancePreferencesStore(this.context).load().catch((_error: Error): void => {
+        DiagnosticLogger.warn('app', 'startup_load_failed', '[Appearance] startup_load_failed retained_previous_runtime=true')
+      }),
+      new IncognitoPreferencesStore(this.context).load().catch((_error: Error): void => {
+        DiagnosticLogger.warn('app', 'startup_load_failed', '[Incognito] startup_load_failed retained_previous_runtime=true')
+      }),
+      new LibraryFilterStore(this.context).load().catch((_error: Error): void => {
+        DiagnosticLogger.warn('app', 'startup_load_failed', '[LibraryCover] startup_load_failed retained_previous_runtime=true')
+      }),
+    ])
     configureSourceSettingsStore(this.context)
     SourceBodyHost.configure(this.context.cacheDir)
     configureSourceRuntimeHttpTransport()
@@ -271,6 +277,10 @@ export default class EntryAbility extends UIAbility {
       this.applySavedThemeMode()
       this.configureAvoidAreas(windowStage)
       this.bindLayoutWindow(windowStage.getMainWindowSync())
+      void new BackupService(this.context).ensureDefaultAutomaticBackupDirectory(komaContentStorageUri())
+        .catch((error: Error): void => {
+          DiagnosticLogger.exception('backup', 'automatic_default_directory_failed', error)
+        })
       if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
         setTimeout(() => {
           this.syncRemoteProgressInBackground()
@@ -292,19 +302,19 @@ export default class EntryAbility extends UIAbility {
 
   private async prepareEntryContentStorage(): Promise<void> {
     try {
-      await prepareKomaContentStorage(this.context)
-      await waitKomaContentStorageReady()
+      await restoreKomaContentStorageForLaunch(this.context)
       // The public queue can only be resolved after the owning content root.
       for (const base of new Set([this.context.filesDir, komaContentStorageBase(this.context)])) {
         try {
-          new OfflineDownloadQueueStore(base, this.context.filesDir).loadPreferences()
+          const queue = new OfflineDownloadQueueStore(base, this.context.filesDir)
+          queue.prepareDatabase()
+          queue.migratePublicQueue()
         } catch (error) {
           DiagnosticLogger.exception('persistence', 'offline_queue_migration_failed', error as Error)
         }
       }
-      await new BackupService(this.context).ensureDefaultAutomaticBackupDirectory(komaContentStorageUri())
     } catch (error) {
-      DiagnosticLogger.exception('backup', 'automatic_default_directory_failed', error as Error)
+      DiagnosticLogger.exception('storage', 'startup_content_storage_failed', error as Error)
     }
   }
 

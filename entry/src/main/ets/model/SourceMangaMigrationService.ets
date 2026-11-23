@@ -142,7 +142,8 @@ export async function commitMangaMigration(
     }
     target.chapterCount = target.chapters.length
     target.pageCount = target.chapters.reduce((sum: number, chapter: Chapter): number => sum + chapter.pageCount, 0)
-    const plan = planMangaMigrationReadState(source, target, reader.listChapterStates(),
+    const plan = planMangaMigrationReadState(source, target,
+      reader.listChapterStates(source.id).concat(reader.listChapterStates(target.id)),
       reader.getProgress(source.id), reader.getProgress(target.id))
     upsertComicAndPersistLibraryStore(library, persistence, target)
     if (options.readProgress && !reader.commitMigrationReadPlan(plan)) throw new Error('migration_save_failed')

@@ -13,7 +13,7 @@ export function protectedSourceChapterIds(
   try {
     const ids = new Set<string>()
     reader.listProgress().forEach((row): void => { if (row.comicId === comic.id) ids.add(row.chapterId) })
-    reader.listChapterStates().forEach((row): void => { if (row.comicId === comic.id) ids.add(row.chapterId) })
+    reader.listChapterStates(comic.id).forEach((row): void => { ids.add(row.chapterId) })
     reader.listSourceHistory().forEach((row): void => { if (row.comicId === comic.id) ids.add(row.chapterId) })
     reader.listRemoteHistory().forEach((row): void => { if (row.comicId === comic.id) ids.add(row.chapterId) })
     new OfflineDownloadQueueStore(filesDir, runtimeKey).load().forEach((row): void => {

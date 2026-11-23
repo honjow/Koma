@@ -421,8 +421,10 @@ test('a failed Mihon import lookup remembers its source and history retries the 
  class Store {
   constructor(records = []) { this.records = records }
   listMihonImports() { return this.records.slice() }
+  listMihonImportWorks() { return this.records.slice() }
+  getMihonImportWork(id) { return this.records.find(record => record.id === id) }
   replaceMihonImports(records) { this.records = records.slice() }
-  listComics() { return [] }
+  listComicSummaries() { return [] }
  }
  class Persistence {
   constructor(library) { this.library = library }

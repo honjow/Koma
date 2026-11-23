@@ -1,5 +1,7 @@
 import { util } from '@kit.ArkTS'
 import {
+  Chapter,
+  ChapterId,
   Comic,
   ComicId,
   ComicSourceKind,
@@ -11,6 +13,7 @@ import {
   libraryCategoryNameKey,
   normalizeLibraryCategoryName,
   comicToLibraryItem,
+  currentComicReadingProgress,
   normalizeCategoryIds,
   withComicCategoryIds,
 } from './ComicModels'
@@ -18,7 +21,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { ReaderSessionStore } from './ReaderSessionStore'
 import { LibrarySmartCategory, copyLibrarySmartCategory, validateLibrarySmartCategories } from './LibrarySmartCategory'
 import { SyncLocalShelfMove } from '../deviceSync/DeviceSyncSignals'
-import { MihonImportRecord } from './MihonBackupReader'
+import { MihonImportRecord, MihonImportWork } from './MihonBackupReader'
 
 export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source' | 'lastUpdate' | 'latestChapter' | 'unreadCount' | 'chapterCount'
 
@@ -64,14 +67,38 @@ export interface LibraryListOptions {
   readerSessionStore?: ReaderSessionStore
 }
 
+export interface LibraryWorkSummaryReader {
+  work: (id: ComicId) => Comic | undefined
+  category: (id: LibraryCategoryFilter) => Comic[]
+  kinds: (kinds: ComicSourceKind[]) => Comic[]
+  identity: (owner: string, work: string, remote: boolean) => Comic[]
+  hasWorks: () => boolean
+}
+
 export interface LibraryStore {
+  listMihonImportWorks(): MihonImportWork[]
+  getMihonImportWork(id: string): MihonImportWork | undefined
+  readMihonImport(id: string): MihonImportRecord | undefined
   listMihonImports(): MihonImportRecord[]
+  restoreMihonImportWorks(readWorks: () => MihonImportWork[], readOriginals: (id?: string) => MihonImportRecord[]): void
   replaceMihonImports(records: MihonImportRecord[]): void
   updateMihonImports(records: MihonImportRecord[]): void
+  updateMihonSourceMatches(records: MihonImportWork[]): void
   listSyncShelfMoves(): SyncLocalShelfMove[]
   replaceSyncShelfMoves(moves: SyncLocalShelfMove[]): void
   listSmartCategories(): LibrarySmartCategory[]
   replaceSmartCategories(categories: LibrarySmartCategory[], allowSavedNameCollisions?: boolean): void
+  getComicSummary(comicId: ComicId): Comic | undefined
+  listComicSummaries(sortByTitle?: boolean): Comic[]
+  listShelfSummaries(category: LibraryCategoryFilter): Comic[]
+  listComicSummariesByKind(kinds: ComicSourceKind[]): Comic[]
+  shelfProgress(comic: Comic, progress?: ReadingProgress): ReadingProgress | undefined
+  deferWorkSummaries(category: LibraryCategoryFilter, source: LibraryWorkSummaryReader): void
+  readComicChapter(comicId: ComicId, chapterId: ChapterId): Chapter | undefined
+  readComicChapterTitle(comicId: ComicId, chapterId?: ChapterId): string | undefined
+  listComicChapterIds(comicId: ComicId): ChapterId[]
+  deferCatalogs(read: (comic: Comic, chapterId?: ChapterId) => Chapter[],
+    title: (comicId: ComicId, chapterId?: ChapterId) => string | undefined, ids: (comicId: ComicId) => ChapterId[]): void
   getComic(comicId: ComicId): Comic | undefined
   findByRemote(serverId: string, resourceId: string): Comic | undefined
   findBySourceManga(sourceId: string, mangaId: string, sortByTitle?: boolean): Comic | undefined
@@ -125,21 +152,79 @@ export function replaceLibraryContents(target: LibraryStore, source: LibraryCont
   target.replaceMihonImports(source.mihonImports)
 }
 
+interface RestoredMihonImports {
+  works?: MihonImportWork[]
+  readWorks: () => MihonImportWork[]
+  readOriginals: (id?: string) => MihonImportRecord[]
+}
+
 export class InMemoryLibraryStore implements LibraryStore {
   private mihonImports: MihonImportRecord[] = []
+  private restoredMihonImports?: RestoredMihonImports
   private smartCategories: LibrarySmartCategory[] = []
   private syncShelfMoves: SyncLocalShelfMove[] = []
 
-  listMihonImports(): MihonImportRecord[] { return this.mihonImports.slice() }
+  listMihonImportWorks(): MihonImportWork[] {
+    const restored = this.restoredMihonImports
+    return restored === undefined ? this.mihonImports.slice() : this.restoredImportWorks(restored).slice()
+  }
 
-  replaceMihonImports(records: MihonImportRecord[]): void { this.mihonImports = records.slice() }
+  getMihonImportWork(id: string): MihonImportWork | undefined {
+    const restored = this.restoredMihonImports
+    const records = restored === undefined ? this.mihonImports : this.restoredImportWorks(restored)
+    return records.find(row => row.id === id)
+  }
+
+  readMihonImport(id: string): MihonImportRecord | undefined {
+    return this.restoredMihonImports === undefined ? this.mihonImports.find(row => row.id === id) :
+      this.restoredMihonImports.readOriginals(id)[0]
+  }
+
+  listMihonImports(): MihonImportRecord[] {
+    return this.restoredMihonImports?.readOriginals() ?? this.mihonImports.slice()
+  }
+
+  restoreMihonImportWorks(readWorks: () => MihonImportWork[], readOriginals: (id?: string) => MihonImportRecord[]): void {
+    this.mihonImports = []
+    this.restoredMihonImports = { readWorks, readOriginals }
+  }
+
+  private restoredImportWorks(restored: RestoredMihonImports): MihonImportWork[] {
+    if (restored.works === undefined) restored.works = restored.readWorks()
+    return restored.works
+  }
+
+  replaceMihonImports(records: MihonImportRecord[]): void {
+    this.restoredMihonImports = undefined
+    this.mihonImports = records.slice()
+  }
 
   updateMihonImports(records: MihonImportRecord[]): void {
     if (records.length === 0) return
+    if (this.restoredMihonImports !== undefined) {
+      this.updateMihonSourceMatches(records)
+      return
+    }
     const updates = new Map<string, MihonImportRecord>(records.map((record): [string, MihonImportRecord] =>
       [record.id, record]))
     this.mihonImports = this.mihonImports.map((record: MihonImportRecord): MihonImportRecord =>
       updates.get(record.id) ?? record)
+  }
+
+  updateMihonSourceMatches(records: MihonImportWork[]): void {
+    const updates = new Map<string, MihonImportWork>(records.map((record): [string, MihonImportWork] =>
+      [record.id, record]))
+    if (this.restoredMihonImports !== undefined) {
+      const restored = this.restoredMihonImports
+      restored.works = this.restoredImportWorks(restored).map(row => updates.get(row.id) ?? row)
+      return
+    }
+    this.mihonImports = this.mihonImports.map((record: MihonImportRecord): MihonImportRecord => {
+      const update = updates.get(record.id)
+      return update === undefined ? record : { id: record.id, sourceName: record.sourceName, work: record.work,
+        categoryIds: record.categoryIds, matchedSourceId: update.matchedSourceId, targetComicId: update.targetComicId,
+        linkedWork: update.linkedWork }
+    })
   }
 
   listSyncShelfMoves(): SyncLocalShelfMove[] { return this.syncShelfMoves.slice() }
@@ -161,29 +246,157 @@ export class InMemoryLibraryStore implements LibraryStore {
     this.smartCategories = next
   }
   private comics: Map<ComicId, Comic> = new Map<ComicId, Comic>()
+  private workSummaries?: LibraryWorkSummaryReader
+  private readonly loadedShelfCategories = new Set<LibraryCategoryFilter>()
+  private readonly removedSummaries = new Set<ComicId>()
+  private readCatalog?: (comic: Comic, chapterId?: ChapterId) => Chapter[]
+  private readChapterTitle?: (comicId: ComicId, chapterId?: ChapterId) => string | undefined
+  private readChapterIds?: (comicId: ComicId) => ChapterId[]
   private customCategories: Map<string, CustomLibraryCategory> = new Map<string, CustomLibraryCategory>()
   private categoryDisplayStrategies: Map<string, LibraryCategoryDisplayStrategy> = new Map<string, LibraryCategoryDisplayStrategy>()
 
   getComic(comicId: ComicId): Comic | undefined {
-    return this.comics.get(comicId)
+    const comic = this.getComicSummary(comicId)
+    if (comic?.chapterCatalogDeferred === true && this.readCatalog !== undefined) {
+      comic.chapters = this.readCatalog(comic)
+      comic.chapterCatalogDeferred = undefined
+    }
+    return comic
+  }
+
+  getComicSummary(comicId: ComicId): Comic | undefined {
+    const current = this.comics.get(comicId)
+    if (current !== undefined || this.removedSummaries.has(comicId)) return current
+    const stored = this.workSummaries?.work(comicId)
+    if (stored !== undefined) this.comics.set(comicId, stored)
+    return stored
+  }
+
+  deferWorkSummaries(category: LibraryCategoryFilter, source: LibraryWorkSummaryReader): void {
+    if (category === 'all') return
+    this.workSummaries = source
+    this.loadedShelfCategories.add(category)
+  }
+
+  private loadShelfWorks(category: LibraryCategoryFilter): void {
+    const reader = this.workSummaries
+    if (reader === undefined || this.loadedShelfCategories.has(category)) return
+    const rows = reader.category(category)
+    if (category === 'all') {
+      const ordered = new Map<ComicId, Comic>()
+      for (const row of rows) {
+        if (!this.removedSummaries.has(row.id)) ordered.set(row.id, this.comics.get(row.id) ?? row)
+      }
+      this.comics.forEach((comic: Comic, id: ComicId): void => {
+        if (!ordered.has(id)) ordered.set(id, comic)
+      })
+      this.comics = ordered
+      this.workSummaries = undefined
+      this.loadedShelfCategories.clear()
+      this.removedSummaries.clear()
+      return
+    }
+    for (const row of rows) {
+      if (!this.comics.has(row.id) && !this.removedSummaries.has(row.id)) this.comics.set(row.id, row)
+    }
+    this.loadedShelfCategories.add(category)
+  }
+
+  private listKnownComicSummaries(): Comic[] {
+    return Array.from(this.comics.values())
+  }
+
+  listShelfSummaries(category: LibraryCategoryFilter): Comic[] {
+    this.loadShelfWorks(category)
+    const rows = this.listKnownComicSummaries()
+    if (category === 'all') return rows
+    return rows.filter((comic: Comic): boolean => category === 'uncategorized' ?
+      normalizeCategoryIds(comic.categoryIds).length === 0 : normalizeCategoryIds(comic.categoryIds).includes(category))
+  }
+
+  listComicSummariesByKind(kinds: ComicSourceKind[]): Comic[] {
+    const rows = this.workSummaries?.kinds(kinds) ?? []
+    for (const row of rows) {
+      if (!this.comics.has(row.id) && !this.removedSummaries.has(row.id)) this.comics.set(row.id, row)
+    }
+    return this.listKnownComicSummaries().filter((comic: Comic): boolean => kinds.includes(comic.sourceKind))
+  }
+
+  readComicChapter(comicId: ComicId, chapterId: ChapterId): Chapter | undefined {
+    const comic = this.getComicSummary(comicId)
+    if (comic === undefined) return undefined
+    if (comic.chapterCatalogDeferred === true) return this.readCatalog?.(comic, chapterId)[0]
+    return comic.chapters.find((chapter: Chapter): boolean => chapter.id === chapterId)
+  }
+
+  readComicChapterTitle(comicId: ComicId, chapterId?: ChapterId): string | undefined {
+    const comic = this.getComicSummary(comicId)
+    if (comic === undefined) return undefined
+    if (comic.chapterCatalogDeferred === true) return this.readChapterTitle?.(comicId, chapterId)
+    return chapterId === undefined ? comic.chapters[0]?.title : this.readComicChapter(comicId, chapterId)?.title
+  }
+
+  listComicChapterIds(comicId: ComicId): ChapterId[] {
+    const comic = this.getComicSummary(comicId)
+    if (comic === undefined) return []
+    if (comic.chapterCatalogDeferred === true && this.readChapterIds !== undefined) return this.readChapterIds(comicId)
+    return comic.chapters.map((chapter: Chapter): ChapterId => chapter.id)
+  }
+
+  shelfProgress(comic: Comic, progress?: ReadingProgress): ReadingProgress | undefined {
+    if (progress === undefined || comic.chapterCatalogDeferred !== true ||
+      (comic.localImportOrigin === undefined && comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER)) {
+      return currentComicReadingProgress(comic, progress)
+    }
+    const chapter = this.readComicChapter(comic.id, progress.chapterId)
+    return currentComicReadingProgress(comic, progress, chapter === undefined ? [] : [chapter])
+  }
+
+  /** A summary never replaces a stored catalog. Existing detail and full
+   * snapshot consumers use getComic/listComics, which resolve the rows. */
+  deferCatalogs(read: (comic: Comic, chapterId?: ChapterId) => Chapter[],
+    title: (comicId: ComicId, chapterId?: ChapterId) => string | undefined, ids: (comicId: ComicId) => ChapterId[]): void {
+    this.readCatalog = read
+    this.readChapterTitle = title
+    this.readChapterIds = ids
+    for (const comic of this.comics.values()) comic.chapterCatalogDeferred = true
   }
 
   findByRemote(serverId: string, resourceId: string): Comic | undefined {
-    return Array.from(this.comics.values()).find((comic: Comic): boolean => {
+    const found = this.identityCandidates(serverId, resourceId, true).find((comic: Comic): boolean => {
       return comic.remoteServerId === serverId && comic.remoteResourceId === resourceId
     })
+    return found === undefined ? undefined : this.getComic(found.id)
   }
 
   findBySourceManga(sourceId: string, mangaId: string, sortByTitle: boolean = true): Comic | undefined {
     let found: Comic | undefined
-    for (const comic of this.comics.values()) {
+    for (const comic of this.identityCandidates(sourceId, mangaId, false)) {
       if (comic.sourceRuntimeId !== sourceId || comic.remoteResourceId !== mangaId) continue
-      if (!sortByTitle) return comic
+      if (!sortByTitle) return this.getComic(comic.id)
       // Preserve the old title-sorted choice for duplicate legacy records.
       // New editions do not need to sort the entire shelf to detect a miss.
       if (found === undefined || this.compareTitles(comic, found) < 0) found = comic
     }
-    return found
+    return found === undefined ? undefined : this.getComic(found.id)
+  }
+
+  private identityCandidates(owner: string, work: string, remote: boolean): Comic[] {
+    const reader = this.workSummaries
+    if (reader === undefined) return this.listKnownComicSummaries()
+    const persisted = reader.identity(owner, work, remote)
+    const candidates = new Map<ComicId, Comic>()
+    for (const row of persisted) {
+      if (this.removedSummaries.has(row.id)) continue
+      const current = this.comics.get(row.id) ?? row
+      this.comics.set(row.id, current)
+      candidates.set(row.id, current)
+    }
+    for (const row of this.comics.values()) {
+      const identity = remote ? row.remoteServerId : row.sourceRuntimeId
+      if (identity === owner && row.remoteResourceId === work && !candidates.has(row.id)) candidates.set(row.id, row)
+    }
+    return Array.from(candidates.values())
   }
 
   private compareTitles(a: Comic, b: Comic): number {
@@ -191,11 +404,16 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   hasComics(): boolean {
-    return this.comics.size > 0
+    return this.comics.size > 0 || this.workSummaries?.hasWorks() === true
   }
 
   listComics(sortByTitle: boolean = true): Comic[] {
-    const comics = Array.from(this.comics.values())
+    return this.listComicSummaries(sortByTitle).map((comic: Comic): Comic => this.getComic(comic.id) as Comic)
+  }
+
+  listComicSummaries(sortByTitle: boolean = true): Comic[] {
+    this.loadShelfWorks('all')
+    const comics = this.listKnownComicSummaries()
     // Search takes a shallow snapshot and performs the same ordering in its
     // worker. Ordinary consumers retain the established sorted list.
     if (!sortByTitle) return comics
@@ -206,6 +424,7 @@ export class InMemoryLibraryStore implements LibraryStore {
     const sourceFilters = options?.filterSource
     const readStateFilter = options?.filterReadState ?? 'all'
     const categoryFilter = options?.filterCategoryId ?? 'all'
+    this.loadShelfWorks(categoryFilter)
     const sortBy = options?.sortBy ?? 'lastRead'
     const direction = librarySortDirection(sortBy, options?.sortDirection)
     const multiplier = direction === 'asc' ? 1 : -1
@@ -225,7 +444,7 @@ export class InMemoryLibraryStore implements LibraryStore {
       })
       .map((comic: Comic): LibraryItem => {
         const progress = progressByComicId === undefined ? undefined : progressByComicId.get(comic.id)
-        return comicToLibraryItem(comic, progress)
+        return comicToLibraryItem(comic, this.shelfProgress(comic, progress))
       })
       .filter((item: LibraryItem): boolean => {
         if (readStateFilter === 'all') {
@@ -270,9 +489,12 @@ export class InMemoryLibraryStore implements LibraryStore {
       else if (sortBy === 'chapterCount') value = row.chapterCount
       else if (comic !== undefined && sortBy === 'unreadCount') value = options?.readerSessionStore?.unreadChapterCount(comic)
       else if (comic !== undefined && sortBy === 'latestChapter') {
-        for (const chapter of comic.chapters) {
-          const date = chapter.dateUpload
-          if (date !== undefined && Number.isFinite(date) && date > (value ?? 0)) value = date
+        if (options?.readerSessionStore !== undefined) value = options.readerSessionStore.latestCatalogDate(comic)
+        else {
+          for (const chapter of comic.chapters) {
+            const date = chapter.dateUpload
+            if (date !== undefined && Number.isFinite(date) && date > (value ?? 0)) value = date
+          }
         }
       }
       values.set(row.comicId, value)
@@ -285,12 +507,17 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   listReadLibraryItems(progressByComicId: Map<ComicId, ReadingProgress>): LibraryItem[] {
+    this.loadShelfWorks('all')
     // History only needs works with a saved position. Project those works
     // directly and keep the shelf's recent-reading tie break.
     const rows: LibraryItem[] = []
     for (const comic of this.comics.values()) {
       const progress = progressByComicId.get(comic.id)
-      if (progress !== undefined) rows.push(comicToLibraryItem(comic, progress))
+      if (progress !== undefined) {
+        const item = comicToLibraryItem(comic, progress)
+        if (comic.chapterCatalogDeferred === true) item.progress = this.shelfProgress(comic, progress)
+        rows.push(item)
+      }
     }
     return rows.sort((a: LibraryItem, b: LibraryItem): number =>
       (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0) || this.compareByAddedDesc(a, b))
@@ -322,14 +549,17 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   upsertComic(comic: Comic): void {
+    this.removedSummaries.delete(comic.id)
     this.comics.set(comic.id, comic)
   }
 
   removeComic(comicId: ComicId): void {
+    if (this.workSummaries !== undefined) this.removedSummaries.add(comicId)
     this.comics.delete(comicId)
   }
 
   orderComics(comicIds: ComicId[]): void {
+    this.loadShelfWorks('all')
     const ordered = new Map<ComicId, Comic>()
     for (const id of comicIds) {
       const comic = this.comics.get(id)
@@ -473,7 +703,13 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   clear(): void {
-    this.mihonImports = []
+    this.workSummaries = undefined
+    this.loadedShelfCategories.clear()
+    this.removedSummaries.clear()
+    this.readCatalog = undefined
+    this.readChapterTitle = undefined
+    this.readChapterIds = undefined
+    this.replaceMihonImports([])
     this.smartCategories = []
     this.syncShelfMoves = []
     this.comics.clear()
@@ -492,12 +728,7 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   restoreJson(payload: string): void {
-    this.mihonImports = []
-    this.smartCategories = []
-    this.syncShelfMoves = []
-    this.comics.clear()
-    this.customCategories.clear()
-    this.categoryDisplayStrategies.clear()
+    this.clear()
     const parsed = JSON.parse(payload) as Record<string, Object>
     if (!Array.isArray(parsed) && Array.isArray(parsed['mihonImports'])) {
       this.replaceMihonImports(parsed['mihonImports'] as MihonImportRecord[])

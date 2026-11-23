@@ -269,6 +269,7 @@ class HuaweiCloudSync {
     // Register with the database offline. ArkData can
     // independently queue a sync when a schema upgrade clears its watermark.
     // That task does not use the manual round's work predicate.
+    if (names.includes('reader_chapter_states')) appReaderSessionStore(context.filesDir).prepareCloudChapterStates()
     await prepareCloudWorkDeletions(store)
     await this.configureCloudTables(store, names, false)
     store.on('dataChange', relationalStore.SubscribeType.SUBSCRIBE_TYPE_CLOUD_DETAILS,
@@ -436,8 +437,10 @@ class HuaweiCloudSync {
     const store = await this.distributedStore(context)
     const selectedWork = this.verificationComicId()
     const tables = cloudTablesForGroups(selected)
-    if (selected.includes('reading') && !await appReaderSessionStore(context.filesDir).flushAsync()) {
-      throw new Error('sync_local_busy')
+    if (selected.includes('reading')) {
+      const reader = appReaderSessionStore(context.filesDir)
+      if (!await reader.flushAsync()) throw new Error('sync_local_busy')
+      reader.prepareCloudChapterStates()
     }
     guard()
     await startCloudWorkDeletions(store, selectedWork)

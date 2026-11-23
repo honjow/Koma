@@ -12,7 +12,7 @@ import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRe
 import { MangaChapterItem, MangaDetail } from './MangaDetailModels'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ComicUpdateSchedule } from './ComicReleaseSchedule'
-import { MihonImportRecord } from './MihonBackupReader'
+import { MihonImportRecord, MihonImportWork } from './MihonBackupReader'
 import { LibrarySmartCategory, validateLibrarySmartCategories } from './LibrarySmartCategory'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { common } from '@kit.AbilityKit'
@@ -21,6 +21,7 @@ import { LibraryMembershipEdit, LibraryRdbStorage, LibraryReadingMetadata, Libra
 import { openUserDataDatabase } from './UserDataDatabase'
 import {
   Chapter,
+  ChapterId,
   Comic,
   ComicId,
   LocalImportOrigin,
@@ -49,6 +50,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import {
   isLibrarySortBy,
+  LibraryCategoryFilter,
   LibraryCategoryDisplayStrategy,
   LibrarySortBy,
   LibrarySortDirection,
@@ -139,7 +141,7 @@ export function commitLiveMihonCatalog(filesDir: string, record: MihonImportReco
   return storage.commitCatalogLink(record, comic === undefined ? undefined : persistComic(comic), stageReading)
 }
 
-export function saveLiveMihonSourceMatches(filesDir: string, records: MihonImportRecord[]): Promise<void> {
+export function saveLiveMihonSourceMatches(filesDir: string, records: MihonImportWork[]): Promise<void> {
   const storage = liveLibraryStorage.get(filesDir)
   if (storage === undefined) throw new Error('shelf_database_unavailable')
   return storage.saveMihonSourceMatches(records)
@@ -430,6 +432,7 @@ function hydrateChapter(row: PersistedChapter, isMihonPlaceholder: boolean): Cha
 }
 
 export function persistComic(comic: Comic): PersistedComic {
+  if (comic.chapterCatalogDeferred === true) throw new Error('library_catalog_not_loaded')
   const row: PersistedComic = {
     personalNotes: comic.personalNotes, customCoverUri: comic.customCoverUri, sourceCoverUri: comic.sourceCoverUri,
     enhancedCoverUri: comic.enhancedCoverUri, enhancedCoverModel: comic.enhancedCoverModel,
@@ -1101,6 +1104,42 @@ export class LibraryStorePersistenceService {
     this.adapter = adapter
   }
 
+  restoreForLaunch(savedCategory: LibraryCategoryFilter = 'all'): void {
+    const database = this.adapter.databaseForEdits?.()
+    if (database === undefined) {
+      this.restore()
+      return
+    }
+    const category = database.launchShelfCategory(savedCategory)
+    const saved = database.readForLaunch(category)
+    if (saved === undefined) return
+    validateLibraryStoreDocument(saved)
+    hydrateLibraryStoreFromDocument(this.libraryStore, withLegacyLibraryCategories(saved))
+    this.libraryStore.deferCatalogs((comic: Comic, chapterId?: ChapterId): Chapter[] =>
+      database.readCatalog(comic.id, chapterId).map((row: PersistedChapter): Chapter =>
+        hydrateChapter(row, comic.sourceRuntimeId?.startsWith('mihon:') === true)),
+      (id: ComicId, chapterId?: ChapterId): string | undefined => database.readChapterTitle(id, chapterId),
+      (id: ComicId): ChapterId[] => database.readChapterIds(id))
+    const summarize = (row: PersistedComic): Comic => {
+      const comic = hydrateComic(row)
+      comic.chapterCatalogDeferred = true
+      return comic
+    }
+    this.libraryStore.deferWorkSummaries(category, {
+      work: (id: ComicId): Comic | undefined => {
+        const row = database.readWork(id, false)
+        return row === undefined ? undefined : summarize(row)
+      },
+      category: (id: LibraryCategoryFilter): Comic[] => database.readWorkSummaries(id).map(summarize),
+      kinds: (kinds: ComicSourceKind[]): Comic[] => database.readWorkSummariesByKind(kinds).map(summarize),
+      identity: (owner: string, work: string, remote: boolean): Comic[] =>
+        database.readWorkSummariesByIdentity(owner, work, remote).map(summarize),
+      hasWorks: (): boolean => database.hasWorks(),
+    })
+    this.libraryStore.restoreMihonImportWorks((): MihonImportWork[] => database.readMihonImportWorks(),
+      (id?: string): MihonImportRecord[] => database.readMihonImports(id))
+  }
+
   restore(): void {
     const saved = this.adapter.loadForRestore === undefined ? this.adapter.load() : this.adapter.loadForRestore()
     if (typeof saved === 'string') {
@@ -1643,7 +1682,7 @@ export function editComicCategoriesAndPersistLibraryStore(
   // A mixed row left untouched keeps each book's own membership. Apply only
   // explicit changes against the latest records and persist them together.
   new Set<ComicId>(comicIds).forEach((comicId: ComicId): void => {
-    const comic = libraryStore.getComic(comicId)
+    const comic = libraryStore.getComicSummary(comicId)
     if (comic === undefined) return
     const before = normalizeCategoryIds(comic.categoryIds)
     const next = before.filter((id: string): boolean => !removed.has(id))
@@ -1685,7 +1724,7 @@ function saveCategoryChange<T>(library: LibraryStore, persistence: LibraryStoreP
   const memberIds = removedId === undefined ? [] : database.categoryMemberIds(removedId)
   const membersBefore: Comic[] = []
   for (const id of memberIds) {
-    const comic = library.getComic(id)
+    const comic = library.getComicSummary(id)
     if (comic !== undefined) membersBefore.push(comic)
   }
   const result = change(memberIds)
@@ -1706,7 +1745,7 @@ function saveCategoryChange<T>(library: LibraryStore, persistence: LibraryStoreP
     }
     const memberships: LibraryMembershipEdit[] = []
     for (const before of membersBefore) {
-      const comic = library.getComic(before.id)
+      const comic = library.getComicSummary(before.id)
       if (comic !== undefined && comic !== before) {
         memberships.push({ comicId: comic.id, categoryIds: comic.categoryIds, updatedAt: comic.updatedAt })
       }

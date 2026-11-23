@@ -29906,6 +29906,55 @@
       ]
     },
     {
+      "id": "startup-selected-shelf-scope-20261123",
+      "at": "2026-11-23T11:34:06+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "verified",
+      "title": "197 冷启动只装入上次书架分类的作品",
+      "detail": "同机同库、同一日漫分类各两次桌面冷启动，原包首帧 4.446、3.950 秒，候选 1.731、1.650 秒。日漫 111 本的首屏文字、作品顺序和角标与原包一致。切到国漫读回作品与角标，打开《開局一座山》显示 1244/1244 章。原历史续读进入原章 10/32 页并显示图片。书架作品、分类及归属、目录、正文页、章页进度和 Mihon 原始记录双向逐行比对一致。197 副本对照中，94 本的分类只返回 94 条作品及逐本统计，1,064 本全库统计与旧算法一致。发行构建及相关回归通过。",
+      "evidence": [
+        ".hvigor/outputs/startup-shelf-scope-20261123/summary.json",
+        ".hvigor/outputs/startup-shelf-scope-20261123/offline-197.json",
+        ".hvigor/outputs/startup-shelf-scope-20261123/tests.log",
+        ".hvigor/outputs/startup-shelf-scope-20261123/build.log"
+      ]
+    },
+    {
+      "id": "startup-deferred-mihon-20261123",
+      "at": "2026-11-23T10:57:01+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "progress",
+      "title": "冷启动跳过 Mihon 原始章节和历史",
+      "detail": "旧 JSON 启动沿用完整书库恢复入口，RDB 承接了这个读取范围。现保留作品信息，章节关联和回退详情按导入 ID 读原始记录，整份备份保留全部数据。197 原始库副本中 1064 本书架作品和 2267 条导入作品信息与完整读回一致。启动避开 62209 条原始章节和 9876 条原始历史，单本原有 90 章及 90 条历史逐字段一致。本机发行构建及 RDB、备份和书架回归通过。197 真机目前由书源列表验收占用，本次首帧耗时待同机对照。",
+      "evidence": [
+        ".hvigor/outputs/startup-deferred-mihon-20261123/offline-197.json",
+        ".hvigor/outputs/startup-deferred-mihon-20261123/tests.log",
+        ".hvigor/outputs/startup-deferred-mihon-20261123/build.log"
+      ]
+    },
+    {
+      "id": "startup-catalog-row-read-197-20261123",
+      "at": "2026-11-23T10:40:55+08:00",
+      "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",
+      "kind": "verified",
+      "title": "197 书库启动按行读取目录和 Mihon 原始记录",
+      "detail": "原包与候选同设备同数据各两次。原包 ArkUI 首帧 4.809、4.810 秒，候选 4.583、4.369 秒。读完阅读记录到书架恢复完成从 2.777、2.804 秒降至 2.488、2.369 秒。书架目录、Mihon 章节及历史用 ArkData 一次读行，保留旧类型转换。39,866 条书架章节、62,209 条原始章节、9,876 条原始历史和读前原有表双向核对一致。普通界面读到历史原第 10/32 页，从书架打开作品显示完整 21/21 章。",
+      "evidence": [
+        ".hvigor/outputs/startup-row-read-20261123/summary.json"
+      ]
+    },
+    {
+      "id": "offline-download-cold-start-197-20261123",
+      "at": "2026-11-23T10:27:05+08:00",
+      "itemId": "DOWNLOAD_PUBLIC_READABLE_LAYOUT",
+      "kind": "verified",
+      "title": "197 冷启动不再逐章逐页检查已整理的下载目录",
+      "detail": "公开旧版和 RDB 版都在书架前全量检查已整理的下载目录。最终包复用同一内容根的完成标记，两次正常冷启动均未触发目录扫描。197 原包与候选均为 1.6.1（27）发行构建，点击桌面到加载书架从 1.508–2.288 秒降到 0.649–0.673 秒，ArkUI 首帧从 5.926–6.589 秒降到 4.905–5.138 秒。候选日志显示首帧后才运行源检查和自动备份。保留 372 条任务，其中 73 个已完成章节、6,797 页及 2 个未完章节。队列偏好、书架、分类归属与原续读点在打开测试旧章前逐条一致。下载管理中重新打开《蔚蓝档案四格漫画》第二部第六话「吃冰粉吗？」实显 1/1。用户约 10 秒闪退仍无对应故障栈。",
+      "evidence": [
+        ".hvigor/outputs/download-cold-start-20261123/summary.json"
+      ]
+    },
+    {
       "id": "rdb-scoped-library-reader-edits-197-20261123",
       "at": "2026-11-23T03:59:09+08:00",
       "itemId": "LOCAL_DATA_RELATIONAL_REDESIGN",

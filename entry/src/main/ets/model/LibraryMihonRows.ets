@@ -1,7 +1,8 @@
 import type { relationalStore } from '@kit.ArkData'
-import type { MihonBackupChapter, MihonBackupHistory, MihonBackupTracking, MihonBackupWork, MihonImportRecord } from './MihonBackupReader'
+import type { MihonBackupChapter, MihonBackupHistory, MihonBackupTracking, MihonBackupWorkSummary, MihonImportRecord,
+  MihonImportWork } from './MihonBackupReader'
 import type { SourceManga, SourceMangaStatus } from './SourceModels'
-import { booleanColumn, booleanValue, integerColumn, LocalColumnValue, LocalDataRows, realColumn, textColumn } from './LocalDataRows'
+import { booleanColumn, booleanValue, integerColumn, LocalColumnValue, LocalDataRows, LocalRecord, realColumn, textColumn } from './LocalDataRows'
 
 interface MihonImportRow {
   order: number
@@ -9,7 +10,7 @@ interface MihonImportRow {
   sourceName: string
   matchedSourceId?: string
   targetComicId?: string
-  work: MihonBackupWork
+  work: MihonBackupWorkSummary
   linkedWork?: SourceManga
 }
 
@@ -22,7 +23,7 @@ interface MihonListRow<T> extends MihonDetail<T> {
   order: number
 }
 
-function originalWorkValues(work: MihonBackupWork): LocalColumnValue[] {
+function originalWorkValues(work: MihonBackupWorkSummary): LocalColumnValue[] {
   return [
     work.sourceId ?? null, work.url ?? null,
     work.title ?? null, work.artist ?? null, work.author ?? null,
@@ -42,7 +43,7 @@ function linkedWorkValues(work?: SourceManga): LocalColumnValue[] {
   ]
 }
 
-function readOriginalWork(row: relationalStore.ResultSet, offset: number): MihonBackupWork {
+function readOriginalWork(row: relationalStore.ResultSet, offset: number): MihonBackupWorkSummary {
   return {
     sourceId: textColumn(row, 0 + offset) as string,
     url: textColumn(row, 1 + offset) as string,
@@ -57,7 +58,7 @@ function readOriginalWork(row: relationalStore.ResultSet, offset: number): Mihon
     modifiedAt: integerColumn(row, 10 + offset) as number,
     favoriteModifiedAt: integerColumn(row, 11 + offset),
     notes: textColumn(row, 12 + offset) as string,
-    chapters: [], history: [], tracking: [], genres: [], categoryIds: [],
+    genres: [], categoryIds: [],
   }
 }
 
@@ -108,22 +109,25 @@ const importChapters = new LocalDataRows<MihonListRow<MihonBackupChapter>>('shel
     row.detail.uploadedAt ?? null, row.detail.number ?? null, row.detail.sourceOrder ?? null,
     row.detail.modifiedAt ?? null,
   ],
-  (row: relationalStore.ResultSet): MihonListRow<MihonBackupChapter> => ({
-    importId: row.getString(0), order: row.getLong(1),
-    detail: {
-      url: textColumn(row, 2) as string,
-      title: textColumn(row, 3) as string,
-      scanlator: textColumn(row, 4) as string,
-      read: booleanColumn(row, 5) as boolean,
-      bookmarked: booleanColumn(row, 6) as boolean,
-      pageIndex: integerColumn(row, 7) as number,
-      fetchedAt: integerColumn(row, 8) as number,
-      uploadedAt: integerColumn(row, 9) as number,
-      number: realColumn(row, 10) as number,
-      sourceOrder: integerColumn(row, 11) as number,
-      modifiedAt: integerColumn(row, 12) as number,
-    },
-  }))
+  (row: relationalStore.ResultSet): MihonListRow<MihonBackupChapter> => {
+    const record = new LocalRecord(row)
+    return {
+      importId: record.string(0), order: record.long(1),
+      detail: {
+        url: record.text(2) as string,
+        title: record.text(3) as string,
+        scanlator: record.text(4) as string,
+        read: record.boolean(5) as boolean,
+        bookmarked: record.boolean(6) as boolean,
+        pageIndex: record.integer(7) as number,
+        fetchedAt: record.integer(8) as number,
+        uploadedAt: record.integer(9) as number,
+        number: record.real(10) as number,
+        sourceOrder: record.integer(11) as number,
+        modifiedAt: record.integer(12) as number,
+      },
+    }
+  })
 
 const importHistory = new LocalDataRows<MihonListRow<MihonBackupHistory>>('shelf_mihon_history', ['import_id', 'item_order'], [
     'chapter_url', 'read_at', 'read_duration',
@@ -132,14 +136,17 @@ const importHistory = new LocalDataRows<MihonListRow<MihonBackupHistory>>('shelf
     row.importId, row.order, row.detail.chapterUrl ?? null,
     row.detail.readAt ?? null, row.detail.readDuration ?? null,
   ],
-  (row: relationalStore.ResultSet): MihonListRow<MihonBackupHistory> => ({
-    importId: row.getString(0), order: row.getLong(1),
-    detail: {
-      chapterUrl: textColumn(row, 2) as string,
-      readAt: integerColumn(row, 3) as number,
-      readDuration: integerColumn(row, 4) as number,
-    },
-  }))
+  (row: relationalStore.ResultSet): MihonListRow<MihonBackupHistory> => {
+    const record = new LocalRecord(row)
+    return {
+      importId: record.string(0), order: record.long(1),
+      detail: {
+        chapterUrl: record.text(2) as string,
+        readAt: record.integer(3) as number,
+        readDuration: record.integer(4) as number,
+      },
+    }
+  })
 
 const importTracking = new LocalDataRows<MihonListRow<MihonBackupTracking>>('shelf_mihon_tracking', ['import_id', 'item_order'], [
     'service_id', 'library_id', 'media_id', 'url', 'title', 'last_chapter_read', 'total_chapters',
@@ -210,9 +217,7 @@ export class ShelfMihonImports {
 
   constructor(records: MihonImportRecord[]) {
     records.forEach((record: MihonImportRecord, order: number): void => {
-      this.roots.push({ id: record.id, order, sourceName: record.sourceName,
-        matchedSourceId: record.matchedSourceId, targetComicId: record.targetComicId,
-        work: record.work, linkedWork: record.linkedWork })
+      this.roots.push(mihonImportRow(record, order))
       appendRows(record.id, record.work.chapters, this.chapters)
       appendRows(record.id, record.work.history, this.history)
       appendRows(record.id, record.work.tracking, this.tracking)
@@ -221,10 +226,7 @@ export class ShelfMihonImports {
       this.pushText(record.id, 'local_category', record.categoryIds)
       if (record.linkedWork !== undefined) {
         this.pushText(record.id, 'linked_tag', record.linkedWork.tags ?? [])
-        const headers = record.linkedWork.coverHeaders ?? {}
-        Object.keys(headers).forEach((name: string, index: number): void => {
-          this.headers.push({ importId: record.id, name, order: index, value: headers[name] })
-        })
+        for (const header of mihonLinkedHeaders(record)) this.headers.push(header)
       }
     })
   }
@@ -242,21 +244,6 @@ export class ShelfMihonImports {
     await importHeaders.importRows(transaction, this.headers)
   }
 
-  async stageCatalogLink(transaction: relationalStore.Transaction): Promise<void> {
-    const root = this.roots[0]
-    const rows = await transaction.querySql('SELECT list_order FROM shelf_mihon_imports WHERE import_id = ?', [root.id])
-    try {
-      if (!rows.goToNextRow()) throw new Error('mihon_import_missing_work')
-      root.order = rows.getLong(0)
-    } finally {
-      rows.close()
-    }
-    await importedWorks.importRows(transaction, this.roots)
-    await importText.replaceWorkRows(transaction, this.text.filter((row: MihonTextItem): boolean => row.kind === 'linked_tag'),
-      root.id, 'import_id', "item_kind = 'linked_tag'")
-    await importHeaders.replaceWorkRows(transaction, this.headers, root.id, 'import_id')
-  }
-
   replace(store: relationalStore.RdbStore): void {
     importedWorks.replace(store, this.roots)
     importChapters.replace(store, this.chapters)
@@ -267,28 +254,76 @@ export class ShelfMihonImports {
   }
 }
 
-export function readMihonImports(store: relationalStore.RdbStore): MihonImportRecord[] {
-  const records: MihonImportRecord[] = []
-  const byId = new Map<string, MihonImportRecord>()
-  for (const row of importedWorks.read(store)) {
-    const record: MihonImportRecord = { id: row.id, sourceName: row.sourceName, work: row.work, categoryIds: [],
+function mihonImportRow(record: MihonImportWork, order: number): MihonImportRow {
+  return { id: record.id, order, sourceName: record.sourceName, matchedSourceId: record.matchedSourceId,
+    targetComicId: record.targetComicId, work: record.work, linkedWork: record.linkedWork }
+}
+
+function mihonLinkedHeaders(record: MihonImportWork): MihonLinkedHeader[] {
+  const headers = record.linkedWork?.coverHeaders ?? {}
+  return Object.keys(headers).map((name: string, order: number): MihonLinkedHeader =>
+    ({ importId: record.id, name, order, value: headers[name] }))
+}
+
+export async function stageMihonCatalogLink(transaction: relationalStore.Transaction, record: MihonImportWork): Promise<void> {
+  const rows = await transaction.querySql('SELECT list_order FROM shelf_mihon_imports WHERE import_id = ?', [record.id])
+  let order: number
+  try {
+    if (!rows.goToNextRow()) throw new Error('mihon_import_missing_work')
+    order = rows.getLong(0)
+  } finally {
+    rows.close()
+  }
+  const tags = (record.linkedWork?.tags ?? []).map((tag: string, index: number): MihonTextItem =>
+    ({ importId: record.id, kind: 'linked_tag', order: index, text: tag }))
+  await importedWorks.importRows(transaction, [mihonImportRow(record, order)])
+  await importText.replaceWorkRows(transaction, tags, record.id, 'import_id', "item_kind = 'linked_tag'")
+  await importHeaders.replaceWorkRows(transaction, mihonLinkedHeaders(record), record.id, 'import_id')
+}
+
+/** Shelf restore and source discovery use the work information. Original
+ * reading rows are only needed for a chapter match, a fallback detail or export. */
+export function readMihonImportWorks(store: relationalStore.RdbStore, importId?: string): MihonImportWork[] {
+  const where = importId === undefined ? undefined : 'import_id = ?'
+  const args = importId === undefined ? undefined : [importId]
+  const records: MihonImportWork[] = []
+  const byId = new Map<string, MihonImportWork>()
+  for (const row of importedWorks.read(store, where, args)) {
+    const record: MihonImportWork = { id: row.id, sourceName: row.sourceName, work: row.work, categoryIds: [],
       matchedSourceId: row.matchedSourceId, targetComicId: row.targetComicId, linkedWork: row.linkedWork }
     records.push(record)
     byId.set(row.id, record)
   }
-  for (const row of importChapters.read(store)) byId.get(row.importId)?.work.chapters.push(row.detail)
-  for (const row of importHistory.read(store)) byId.get(row.importId)?.work.history.push(row.detail)
-  for (const row of importTracking.read(store)) byId.get(row.importId)?.work.tracking.push(row.detail)
-  for (const row of importHeaders.read(store)) {
+  for (const row of importHeaders.read(store, where, args)) {
     const headers = byId.get(row.importId)?.linkedWork?.coverHeaders
     if (headers !== undefined) headers[row.name] = row.value
   }
-  for (const row of importText.read(store)) {
+  for (const row of importText.read(store, where, args)) {
     const entry = byId.get(row.importId)
     if (row.kind === 'genre') entry?.work.genres.push(row.text)
     if (row.kind === 'original_category') entry?.work.categoryIds.push(row.text)
     if (row.kind === 'local_category') entry?.categoryIds.push(row.text)
     if (row.kind === 'linked_tag') entry?.linkedWork?.tags?.push(row.text)
   }
+  return records
+}
+
+export function readMihonImports(store: relationalStore.RdbStore, importId?: string): MihonImportRecord[] {
+  const where = importId === undefined ? undefined : 'import_id = ?'
+  const args = importId === undefined ? undefined : [importId]
+  const records = readMihonImportWorks(store, importId).map((record: MihonImportWork): MihonImportRecord => {
+    const work = record.work
+    return { id: record.id, sourceName: record.sourceName, categoryIds: record.categoryIds,
+      matchedSourceId: record.matchedSourceId, targetComicId: record.targetComicId, linkedWork: record.linkedWork,
+      work: { sourceId: work.sourceId, url: work.url, title: work.title, artist: work.artist, author: work.author,
+        description: work.description, genres: work.genres, status: work.status, coverUrl: work.coverUrl,
+        addedAt: work.addedAt, favorite: work.favorite, modifiedAt: work.modifiedAt,
+        favoriteModifiedAt: work.favoriteModifiedAt, categoryIds: work.categoryIds, notes: work.notes,
+        chapters: [], history: [], tracking: [] } }
+  })
+  const byId = new Map(records.map((record: MihonImportRecord): [string, MihonImportRecord] => [record.id, record]))
+  for (const row of importChapters.read(store, where, args)) byId.get(row.importId)?.work.chapters.push(row.detail)
+  for (const row of importHistory.read(store, where, args)) byId.get(row.importId)?.work.history.push(row.detail)
+  for (const row of importTracking.read(store, where, args)) byId.get(row.importId)?.work.tracking.push(row.detail)
   return records
 }

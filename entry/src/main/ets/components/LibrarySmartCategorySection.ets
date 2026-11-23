@@ -110,12 +110,12 @@ export struct LibrarySmartCategorySection {
       })
     } else if (method === 'contentRating') {
       choices.set('unknown', s('library_smart_unknown_rating'))
-      this.libraryStore?.listComics().forEach((comic: Comic): void => {
+      this.libraryStore?.listComicSummaries().forEach((comic: Comic): void => {
         const value = comicSmartContentRating(comic)
         if (value !== 'unknown') choices.set(value, value)
       })
     } else {
-      this.libraryStore?.listComics().forEach((comic: Comic): void => {
+      this.libraryStore?.listComicSummaries().forEach((comic: Comic): void => {
         const key = comicSmartSourceKey(comic)
         const title = comic.sourceRuntimeId ? sourceDisplayName(comic.sourceRuntimeId, comic.sourceRuntimeId) :
           key === 'local' ? s('library_source_local') : comic.sourceKind === 'private_library' ? s('library_source_private') :

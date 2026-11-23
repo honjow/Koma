@@ -35,7 +35,7 @@ import { MangaMigrationReadPlan, MangaMigrationReadState } from './SourceMangaMi
 import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from './RemoteReaderSession'
 import { ReadingSessionRecord } from './ReadingStatistics'
 import { AppFilesChapterReadStatePersistenceAdapter, ChapterReadStateOverride } from './ChapterReadStateStore'
-import { ReaderRdbStorage, ReaderSyncWorkScope } from './ReaderRdbStorage'
+import { ReaderRdbStorage, ReaderSyncWorkScope, ShelfChapterFacts } from './ReaderRdbStorage'
 import { openUserDataDatabase } from './UserDataDatabase'
 
 export interface ChapterReadingState {
@@ -830,6 +830,9 @@ export abstract class ReaderSessionStore {
     }
   }
   protected readonly chapterStates: Map<string, ChapterReadingState> = new Map<string, ChapterReadingState>()
+  protected storedChapterState(comicId: ComicId, chapterId: ChapterId): ChapterReadingState | undefined {
+    return this.chapterStates.get(chapterStateKey(comicId, chapterId))
+  }
   protected readonly remoteHistoryByComicId: Map<ComicId, RemoteReadHistoryEntry> = new Map<ComicId, RemoteReadHistoryEntry>()
   abstract getProgress(comicId: ComicId): ReadingProgress | undefined
   abstract saveProgress(progress: ReadingProgress, sourceChapterTitle?: string): void
@@ -870,17 +873,17 @@ export abstract class ReaderSessionStore {
   }
 
   isChapterBookmarked(comicId: ComicId, chapterId: ChapterId): boolean {
-    return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.bookmarked === true
+    return this.storedChapterState(comicId, chapterId)?.bookmarked === true
   }
 
   chapterReadingState(comicId: ComicId, chapterId: ChapterId): Readonly<ChapterReadingState> | undefined {
-    return this.chapterStates.get(chapterStateKey(comicId, chapterId))
+    return this.storedChapterState(comicId, chapterId)
   }
 
   commitChapterBookmark(comicId: ComicId, chapterId: ChapterId, bookmarked: boolean, identity?: SyncReadingSource): boolean {
     const committed = this.commitUserMutation((): void => {
       const key = chapterStateKey(comicId, chapterId)
-      const old = this.chapterStates.get(key)
+      const old = this.storedChapterState(comicId, chapterId)
       this.chapterStates.set(key, { comicId, chapterId, position: old?.position,
         sourceIdentity: identity ?? old?.sourceIdentity,
         isRead: old?.isRead === true, bookmarked, updatedAt: old?.updatedAt ?? Date.now() })
@@ -896,7 +899,7 @@ export abstract class ReaderSessionStore {
       let changed = false
       plan.states.forEach((state: MangaMigrationReadState): void => {
         const key = chapterStateKey(state.comicId, state.chapterId)
-        const previous = this.chapterStates.get(key)
+        const previous = this.storedChapterState(state.comicId, state.chapterId)
         if (previous?.isRead === true && (state.bookmarked !== true || previous.bookmarked === true)) return
         const next: ChapterReadingState = { comicId: state.comicId, chapterId: state.chapterId,
           isRead: previous?.isRead === true || state.isRead, position: previous?.position,
@@ -966,7 +969,7 @@ export abstract class ReaderSessionStore {
   }
 
   getChapterProgress(comicId: ComicId, chapterId: ChapterId): ReadingProgress | undefined {
-    return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.position
+    return this.storedChapterState(comicId, chapterId)?.position
   }
 
   /** Anchor both saved positions to existing page IDs before replacing an EPUB
@@ -997,13 +1000,44 @@ export abstract class ReaderSessionStore {
   }
 
   isChapterRead(comicId: ComicId, chapterId: ChapterId): boolean {
-    return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.isRead === true
+    return this.storedChapterState(comicId, chapterId)?.isRead === true
+  }
+
+  prepareShelfReadingFacts(_comics: Comic[]): boolean { return false }
+
+  protected shelfChapterFacts(_comicId: ComicId): ShelfChapterFacts | undefined { return undefined }
+
+  latestCatalogDate(comic: Comic): number | undefined {
+    if (comic.chapterCatalogDeferred === true) {
+      const date = this.shelfChapterFacts(comic.id)?.latestDate
+      return date !== undefined && date > 0 ? date : undefined
+    }
+    let latest: number | undefined
+    for (const chapter of comic.chapters) {
+      const date = chapter.dateUpload
+      if (date !== undefined && Number.isFinite(date) && date > (latest ?? 0)) latest = date
+    }
+    return latest
+  }
+
+  hasStartedComic(comic: Comic): boolean {
+    if (this.getProgress(comic.id) !== undefined) return true
+    if (comic.chapterCatalogDeferred === true) return this.shelfChapterFacts(comic.id)?.started === true
+    return comic.chapters.some((chapter: Chapter): boolean =>
+      this.isChapterRead(comic.id, chapter.id) || this.getChapterProgress(comic.id, chapter.id) !== undefined)
   }
 
   unreadChapterCount(comic: Comic): number | undefined {
     // Compare completeness with received rows; a complete source catalog may repeat IDs.
     // Count logical chapters only once, without treating duplicates as missing chapters.
     const shared = comic.sourceMetadata?.sharedChapterIds
+    if (comic.chapterCatalogDeferred === true) {
+      const facts = this.shelfChapterFacts(comic.id)
+      if (facts === undefined || facts.chapterCount === 0 || (shared === undefined && comic.chapterCount > facts.storedRows)) {
+        return undefined
+      }
+      return facts.chapterCount - facts.readCount
+    }
     if (shared === undefined && comic.chapterCount > comic.chapters.length) return undefined
     const chapterIds = new Set<ChapterId>(shared ?? comic.chapters.map((chapter: Chapter): ChapterId => chapter.id))
     if (chapterIds.size === 0) return undefined
@@ -1014,17 +1048,26 @@ export abstract class ReaderSessionStore {
     return unread
   }
 
-  listChapterStates(): ChapterReadingState[] {
-    return Array.from(this.chapterStates.values())
+  prepareWorkChapterStates(_comicId: ComicId): void {}
+
+  listChapterStates(comicId?: ComicId): ChapterReadingState[] {
+    const states = Array.from(this.chapterStates.values())
+    return comicId === undefined ? states : states.filter((state: ChapterReadingState): boolean => state.comicId === comicId)
   }
 
   comicReadingState(comic: Comic): ComicReadingState {
     const shared = comic.sourceMetadata?.sharedChapterIds
+    if (comic.chapterCatalogDeferred === true) {
+      const facts = this.shelfChapterFacts(comic.id)
+      if (facts !== undefined && facts.chapterCount > 0 && facts.chapterCount === facts.readCount &&
+        (shared !== undefined || comic.chapterCount <= facts.storedRows)) return 'completed'
+      return facts?.reading === true ? 'reading' : 'unread'
+    }
     const ids = shared ?? comic.chapters.map((chapter: Chapter): ChapterId => chapter.id)
     if (ids.length > 0 && (shared !== undefined || comic.chapterCount <= ids.length) &&
       ids.every((id: ChapterId): boolean => this.isChapterRead(comic.id, id))) return 'completed'
     return ids.some((id: ChapterId): boolean => {
-      const state = this.chapterStates.get(chapterStateKey(comic.id, id))
+      const state = this.storedChapterState(comic.id, id)
       return state !== undefined && (state.isRead || (state.position !== undefined &&
         state.position.totalPages > 0 && state.position.pageIndex > 0))
     }) ? 'reading' : 'unread'
@@ -1039,7 +1082,7 @@ export abstract class ReaderSessionStore {
     mutations.forEach((mutation: ChapterReadMutation): void => {
       if (mutation.comicId.length === 0 || mutation.chapterId.length === 0) return
       const key = chapterStateKey(mutation.comicId, mutation.chapterId)
-      const old = this.chapterStates.get(key)
+      const old = this.storedChapterState(mutation.comicId, mutation.chapterId)
       const state: ChapterReadingState = { comicId: mutation.comicId, chapterId: mutation.chapterId,
         sourceIdentity: identity ?? old?.sourceIdentity,
         position: old?.position, isRead: mutation.isRead, bookmarked: old?.bookmarked, updatedAt: Date.now() }
@@ -1067,7 +1110,7 @@ export abstract class ReaderSessionStore {
 
   protected recordChapterProgress(progress: ReadingProgress): ChapterReadingState {
     const key = chapterStateKey(progress.comicId, progress.chapterId)
-    const old = this.chapterStates.get(key)
+    const old = this.storedChapterState(progress.comicId, progress.chapterId)
     const history = this.getSourceHistory(progress.comicId)
     const identity: SyncReadingSource | undefined = history === undefined ? old?.sourceIdentity :
       { source: history.sourceId, work: history.mangaId }
@@ -1207,6 +1250,11 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   private readonly sourceHistoryByComicId: Map<ComicId, SourceReadHistoryEntry> = new Map<ComicId, SourceReadHistoryEntry>()
   private readonly pendingPageTurns: Map<string, ChapterReadingState> = new Map<string, ChapterReadingState>()
   private readonly pendingSourceHistory: Set<ComicId> = new Set<ComicId>()
+  private readonly shelfFacts = new Map<ComicId, ShelfChapterFacts>()
+  private deferredChapterDatabase?: ReaderRdbStorage
+  private readonly loadedChapterWorks = new Set<ComicId>()
+  private readonly missingChapters = new Set<string>()
+  private cloudChaptersReady: boolean = false
   private needsFullSnapshot: boolean = false
   private pendingReadingSessions: ReadingSessionRecord[] = []
   private persistTimerId: number = -1
@@ -1230,6 +1278,73 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
 
   currentDeviceSyncRevision(): number {
     return this.deviceSyncRevision
+  }
+
+  prepareShelfReadingFacts(comics: Comic[]): boolean {
+    const database = this.adapter.activityDatabase?.()
+    if (database === undefined) return false
+    const ids = comics.filter((comic: Comic): boolean => comic.chapterCatalogDeferred === true)
+      .map((comic: Comic): ComicId => comic.id)
+    try {
+      for (const row of database.readShelfChapterFacts(ids)) this.shelfFacts.set(row.comicId, row)
+      return true
+    } catch (error) {
+      DiagnosticLogger.exception('reader_session_store', 'shelf_facts_failed', error as Error)
+      return false
+    }
+  }
+
+  protected shelfChapterFacts(comicId: ComicId): ShelfChapterFacts | undefined {
+    return this.shelfFacts.get(comicId)
+  }
+
+  protected storedChapterState(comicId: ComicId, chapterId: ChapterId): ChapterReadingState | undefined {
+    const key = chapterStateKey(comicId, chapterId)
+    const cached = this.chapterStates.get(key)
+    const database = this.deferredChapterDatabase
+    if (cached !== undefined || database === undefined || this.loadedChapterWorks.has(comicId) ||
+      this.missingChapters.has(key)) return cached
+    const rows = database.readChapters(comicId, chapterId)
+    const row = rows[rows.length - 1]
+    if (row === undefined) this.missingChapters.add(key)
+    else this.chapterStates.set(key, row)
+    return row
+  }
+
+  prepareWorkChapterStates(comicId: ComicId): void {
+    const database = this.deferredChapterDatabase
+    if (database === undefined || this.loadedChapterWorks.has(comicId)) return
+    this.loadChapterRows(database.readChapters(comicId))
+    this.loadedChapterWorks.add(comicId)
+  }
+
+  listChapterStates(comicId?: ComicId): ChapterReadingState[] {
+    const database = this.deferredChapterDatabase
+    if (database !== undefined) {
+      if (comicId !== undefined) this.prepareWorkChapterStates(comicId)
+      else {
+        this.loadChapterRows(database.readChapters())
+        this.deferredChapterDatabase = undefined
+      }
+    }
+    return super.listChapterStates(comicId)
+  }
+
+  /** Capture portable positions before ArkData starts overwriting the shared
+   * table. Chapter rows of unrelated, device-only works stay on demand. */
+  prepareCloudChapterStates(): void {
+    const database = this.deferredChapterDatabase
+    if (database === undefined || this.cloudChaptersReady) return
+    this.loadChapterRows(database.readSharedChapters())
+    this.cloudChaptersReady = true
+  }
+
+  private loadChapterRows(rows: ChapterReadingState[]): void {
+    const loaded = new Map<string, ChapterReadingState>()
+    for (const row of rows) loaded.set(chapterStateKey(row.comicId, row.chapterId), row)
+    loaded.forEach((row: ChapterReadingState, key: string): void => {
+      if (!this.chapterStates.has(key)) this.chapterStates.set(key, row)
+    })
   }
 
   pendingDeviceSyncPositions(): SyncReadingCapture[] {
@@ -1259,6 +1374,13 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   applyCommittedDeviceSyncEdits(scope: ReaderSyncWorkScope[], snapshot: ReaderSessionDocumentSnapshot): void {
+    for (const work of scope) {
+      for (const chapterId of work.chapterIds) {
+        const key = chapterStateKey(work.comicId, chapterId)
+        this.chapterStates.delete(key)
+        this.missingChapters.delete(key)
+      }
+    }
     this.applyCommittedReadingRows(scope.map((work: ReaderSyncWorkScope): string => work.comicId), snapshot)
     this.syncPositions = snapshot.syncPositions ?? []
     this.syncActions = snapshot.syncActions ?? []
@@ -1280,7 +1402,11 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     }
     const received = storage.applyCloudReading(scope, before)
     for (const item of scope) {
-      for (const chapterId of item.chapterIds) this.chapterStates.delete(chapterStateKey(item.comicId, chapterId))
+      for (const chapterId of item.chapterIds) {
+        const key = chapterStateKey(item.comicId, chapterId)
+        this.chapterStates.delete(key)
+        this.missingChapters.delete(key)
+      }
     }
     this.applyCommittedReadingRows(scope.map((work: ReaderSyncWorkScope): string => work.comicId), received)
     if (!this.persistPending) return
@@ -1312,6 +1438,10 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   restoreReadingState(snapshot: ReaderSessionReadingSnapshot): void {
+    this.deferredChapterDatabase = undefined
+    this.loadedChapterWorks.clear()
+    this.missingChapters.clear()
+    this.shelfFacts.clear()
     this.progressByComicId.clear()
     snapshot.progress.forEach((progress: ReadingProgress): void => {
       this.progressByComicId.set(progress.comicId, copyReadingProgress(progress))
@@ -1334,7 +1464,8 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   private restoreSnapshot(replace: boolean = false, prepared?: ReaderSessionDocumentSnapshot): void {
-    const snapshot = prepared ?? (this.adapter.loadSnapshot === undefined ? undefined : this.adapter.loadSnapshot())
+    const database = prepared === undefined ? this.adapter.activityDatabase?.() : undefined
+    const snapshot = prepared ?? database?.read(false) ?? this.adapter.loadSnapshot?.()
     const progressRows = snapshot === undefined ? this.adapter.load() : snapshot.progress
     const sourceHistory = snapshot !== undefined ? snapshot.sourceHistory :
       (this.adapter.loadSourceHistory === undefined ? [] : this.adapter.loadSourceHistory())
@@ -1342,6 +1473,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       (this.adapter.loadRemoteHistory === undefined ? [] : this.adapter.loadRemoteHistory())
     // Finish loading before retiring the old snapshot or its pending write.
     if (replace) {
+      this.shelfFacts.clear()
       if (this.persistTimerId >= 0) clearTimeout(this.persistTimerId)
       this.persistTimerId = -1
       this.persistPending = false
@@ -1354,8 +1486,12 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       this.sourceHistoryByComicId.clear()
       this.remoteHistoryByComicId.clear()
       this.chapterStates.clear()
+      this.loadedChapterWorks.clear()
+      this.missingChapters.clear()
+      this.cloudChaptersReady = false
       this.replaceReadingSessions([])
     }
+    this.deferredChapterDatabase = database
     progressRows.forEach((progress: ReadingProgress): void => {
       this.progressByComicId.set(progress.comicId, progress)
       if (snapshot === undefined) this.recordChapterProgress(progress)
@@ -1550,9 +1686,14 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     if (BackupRestoreActivity.hasPendingRecovery() || !this.flush()) return false
     const chapters = new Map<string, ChapterReadingState | undefined>()
     const recent = new Map<ComicId, ReadingProgress>()
+    if (actions.length > 1) {
+      for (const id of new Set(actions.map((action: SyncReadingSignal): ComicId => action.comicId))) {
+        this.prepareWorkChapterStates(id)
+      }
+    }
     for (const action of actions) {
       const key = chapterStateKey(action.comicId, action.chapterId)
-      const state = this.chapterStates.get(key)
+      const state = this.storedChapterState(action.comicId, action.chapterId)
       chapters.set(key, state === undefined ? undefined : JSON.parse(JSON.stringify(state)) as ChapterReadingState)
       const position = this.progressByComicId.get(action.comicId)
       if (position?.chapterId === action.chapterId) recent.set(action.comicId, copyReadingProgress(position))

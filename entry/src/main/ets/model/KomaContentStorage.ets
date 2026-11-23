@@ -10,12 +10,11 @@ import {
   OFFLINE_DOWNLOAD_LEGACY_MANIFEST_NAME,
   OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
   createOfflineDownloadStableHash,
-  offlineDownloadIndexDirectory,
 } from './OfflineDownloadStore'
 import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
-import { normalizeDownloadLayout } from './DownloadLayoutMigration'
-import { migrateOfflineImageSuffixes } from './OfflineDownloadImageMigrationWorker'
-import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { hasPreparedOfflineDownloadLayout, invalidatePreparedOfflineDownloadLayout } from './DownloadLayoutMigration'
+import { prepareOfflineDownloadLayout } from './OfflineDownloadImageMigrationWorker'
+import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 
 const CONTENT_STORAGE_SCHEMA_VERSION: number = 1
 const CONTENT_STORAGE_STATE_FILE_NAME: string = '.koma-content-storage.v1.json'
@@ -46,8 +45,6 @@ interface PublicRootSelection {
 let activeStorageBase: string = ''
 let activeStorageUri: string = ''
 let preparation: Promise<void> | undefined = undefined
-let migration: Promise<boolean> | undefined = undefined
-let rootResolutionFailed: boolean = false
 let publicStorageReady: boolean = false
 let preparationRunning: boolean = false
 let cachedStateDirectory: string = ''
@@ -165,18 +162,18 @@ function isDirectory(path: string): boolean {
   }
 }
 
-function removeDirectorySync(path: string): void {
+@Concurrent
+function deleteLegacyDownloadTree(path: string): void {
   if (!fs.accessSync(path)) return
-  const stat = fs.statSync(path)
-  if (!stat.isDirectory()) {
-    fs.unlinkSync(path)
-    return
+  const remove = (target: string): void => {
+    if (!fs.statSync(target).isDirectory()) {
+      fs.unlinkSync(target)
+      return
+    }
+    for (const name of fs.listFileSync(target)) remove(target + '/' + name)
+    fs.rmdirSync(target)
   }
-  const names = fs.listFileSync(path)
-  names.forEach((name: string): void => {
-    removeDirectorySync(joinPath(path, name))
-  })
-  fs.rmdirSync(path)
+  remove(path)
 }
 
 function writeTextFileSync(path: string, payload: string): void {
@@ -383,6 +380,8 @@ async function migrateLegacyDownloads(context: common.UIAbilityContext, rootPath
     return true
   }
   try {
+    // A copy into an already prepared root can introduce old layout and suffixes.
+    invalidatePreparedOfflineDownloadLayout(legacyBase)
     const result = await taskpool.execute(new taskpool.Task(copyLegacyDownloadTree, legacyBase, rootPath)) as LegacyChapterCopySummary
     if (result.failedChapters > 0) {
       DiagnosticLogger.warn('storage', 'legacy_download_migration_failed',
@@ -395,7 +394,7 @@ async function migrateLegacyDownloads(context: common.UIAbilityContext, rootPath
     activeStorageBase = rootPath
     activeStorageUri = rootUri
     publicStorageReady = true
-    cleanupLegacyDownloads(context, nextState)
+    await cleanupLegacyDownloads(context, nextState)
     DiagnosticLogger.info('storage', 'legacy_download_migration_complete',
       `copied_chapters=${result.copiedChapters} copied_pages=${result.copiedPages}`)
     return true
@@ -405,11 +404,11 @@ async function migrateLegacyDownloads(context: common.UIAbilityContext, rootPath
   }
 }
 
-function cleanupLegacyDownloads(context: common.Context, state: PublicContentStorageState): void {
+async function cleanupLegacyDownloads(context: common.Context, state: PublicContentStorageState): Promise<void> {
   if (!state.cleanupPending || state.legacyPreserved) return
   try {
     const legacyDownloads = joinPath(context.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME)
-    if (fs.accessSync(legacyDownloads)) removeDirectorySync(legacyDownloads)
+    if (fs.accessSync(legacyDownloads)) await taskpool.execute(deleteLegacyDownloadTree, legacyDownloads)
     saveState(context, createState(state.rootPath, state.rootUri, state.migrationComplete, false,
       state.legacyPreserved))
     DiagnosticLogger.info('storage', 'legacy_download_cleanup_complete', '')
@@ -418,8 +417,18 @@ function cleanupLegacyDownloads(context: common.Context, state: PublicContentSto
   }
 }
 
+/** Only a previously selected root or existing sandbox downloads can affect the
+ * first page. Resolving the system picker for a fresh installation can wait for foreground. */
+export function restoreKomaContentStorageForLaunch(context: common.UIAbilityContext): Promise<void> {
+  const state = readState(context)
+  if ((state?.migrationComplete && isDirectory(state.rootPath)) ||
+    fs.accessSync(joinPath(context.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME))) {
+    return prepareKomaContentStorage(context)
+  }
+  return Promise.resolve()
+}
+
 async function prepareInternal(context: common.UIAbilityContext): Promise<void> {
-  migration = undefined
   publicStorageReady = false
   try {
     const previous = readState(context)
@@ -427,13 +436,21 @@ async function prepareInternal(context: common.UIAbilityContext): Promise<void> 
     if (previous !== undefined && previous.migrationComplete && isDirectory(previous.rootPath)) {
       // DOWNLOAD-mode roots are app-owned paths; path access is the capability after a cold start.
       root = { path: previous.rootPath, uri: previous.rootUri }
+      const legacyDownloads = joinPath(context.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME)
+      if (!fs.accessSync(legacyDownloads) && hasPreparedOfflineDownloadLayout(root.path, context.filesDir)) {
+        // The marker is root-specific. Ordinary launch does not open the
+        // download index or inspect chapter manifests and page files.
+        activeStorageBase = root.path
+        activeStorageUri = root.uri
+        publicStorageReady = true
+        DiagnosticLogger.info('storage', 'download_layout_reused', '')
+        return
+      }
     }
     if (root === undefined) root = await resolvePublicRoot(context)
     activeStorageUri = root.uri
     activeStorageBase = context.filesDir
-    rootResolutionFailed = false
-    migration = migrateLegacyDownloads(context, root.path, root.uri)
-    const migrated = await migration
+    const migrated = await migrateLegacyDownloads(context, root.path, root.uri)
     // The source registry is bootstrapped before launch content. Persisting
     // the installed localized name keeps old downloads readable even if the
     // package is later unavailable; the resolver falls back to sourceId.
@@ -443,13 +460,11 @@ async function prepareInternal(context: common.UIAbilityContext): Promise<void> 
       } catch (error) {
         DiagnosticLogger.exception('storage', 'public_download_queue_migration_failed', error as Error)
       }
-      normalizeDownloadLayout(joinPath(root.path, OFFLINE_DOWNLOAD_ROOT_DIR_NAME),
-        offlineDownloadIndexDirectory(root.path, context.filesDir),
-        (sourceId: string): string => sourceDisplayName(sourceId))
       try {
-        // Run before reader entry so existing file paths cannot change under an
-        // open chapter; filesystem scanning and renames stay off the UI thread.
-        const summary = await taskpool.execute(migrateOfflineImageSuffixes, root.path, context.filesDir) as string
+        const names: Record<string, string> = {}
+        for (const entry of appSourceRuntimeRegistry.list()) names[entry.sourceId] = sourceDisplayName(entry.sourceId)
+        const summary = await taskpool.execute(prepareOfflineDownloadLayout, root.path, context.filesDir,
+          JSON.stringify(names)) as string
         DiagnosticLogger.info('storage', 'download_image_suffix_migration', summary)
       } catch (error) {
         // A durable per-chapter journal restores interrupted work on the next launch.
@@ -457,7 +472,6 @@ async function prepareInternal(context: common.UIAbilityContext): Promise<void> 
       }
     }
   } catch (error) {
-    rootResolutionFailed = true
     activeStorageBase = context.filesDir
     DiagnosticLogger.exception('storage', 'content_root_unavailable', error as Error)
   }
@@ -477,19 +491,12 @@ export function prepareKomaContentStorage(context: common.UIAbilityContext): Pro
 /** Wait until legacy data has either migrated or been deliberately retained in the sandbox. */
 export async function ensureKomaContentStorageBase(context: common.UIAbilityContext): Promise<string> {
   await prepareKomaContentStorage(context)
-  if (migration !== undefined) await migration
   return activeStorageBase.length > 0 ? activeStorageBase : context.filesDir
-}
-
-export async function waitKomaContentStorageReady(): Promise<void> {
-  if (preparation !== undefined) await preparation
-  if (migration !== undefined) await migration
 }
 
 /** Synchronous consumers use the public root only after this process resolved it. */
 export function komaContentStorageBase(context: common.Context): string {
   if (activeStorageBase.length > 0) return activeStorageBase
-  if (rootResolutionFailed) return context.filesDir
   return context.filesDir
 }
 

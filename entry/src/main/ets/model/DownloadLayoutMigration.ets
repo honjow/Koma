@@ -17,6 +17,26 @@ import {
 
 export type DownloadSourceNameResolver = (sourceId: string) => string
 
+export function offlineDownloadLayoutCompletionPath(appFilesDir: string): string {
+  return appFilesDir + '/.koma-download-image-suffix-v2'
+}
+
+// Previous releases wrote this after directory normalization and the suffix
+// pass. Reuse it for the same root without reopening the chapter index.
+export function hasPreparedOfflineDownloadLayout(storageBase: string, appFilesDir: string): boolean {
+  const marker = offlineDownloadLayoutCompletionPath(appFilesDir)
+  try {
+    return fs.accessSync(marker) && fs.readTextSync(marker, { encoding: 'utf-8' }) === storageBase
+  } catch (_error) {
+    return false
+  }
+}
+
+export function invalidatePreparedOfflineDownloadLayout(appFilesDir: string): void {
+  const marker = offlineDownloadLayoutCompletionPath(appFilesDir)
+  if (fs.accessSync(marker)) fs.unlinkSync(marker)
+}
+
 interface LayoutManifestPage {
   pageIndex: number
   fileName?: string
@@ -146,17 +166,18 @@ function sourceNameForDirectory(comic: DownloadComicIndexEntry,
  * User-visible Download layout is data: keep this conservative and idempotent.
  */
 export function normalizeDownloadLayout(rootDir: string, indexDir: string,
-  sourceNameResolver?: DownloadSourceNameResolver): void {
+  sourceNameResolver?: DownloadSourceNameResolver): boolean {
   let index: DownloadDirectoryIndexFile
   try {
     index = loadOrScanDownloadDirectoryIndex(rootDir, indexDir)
   } catch (error) {
     DiagnosticLogger.exception('storage', 'download_layout_scan_failed', error as Error)
-    return
+    return false
   }
   let migratedChapters = 0
   let migratedPages = 0
   let indexChanged = false
+  let complete = true
   const comicIds = Object.keys(index.comics)
   for (const comicId of comicIds) {
     const comic = index.comics[comicId]
@@ -223,6 +244,7 @@ export function normalizeDownloadLayout(rootDir: string, indexDir: string,
           migratedPages += manifest.pages.length
         }
       } catch (error) {
+        complete = false
         DiagnosticLogger.exception('storage', 'download_layout_chapter_failed', error as Error)
       }
     }
@@ -237,5 +259,7 @@ export function normalizeDownloadLayout(rootDir: string, indexDir: string,
       (publicIndexPresent ? 'present' : 'absent'))
   } catch (error) {
     DiagnosticLogger.exception('storage', 'download_layout_index_failed', error as Error)
+    return false
   }
+  return complete
 }

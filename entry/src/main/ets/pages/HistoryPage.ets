@@ -12,7 +12,6 @@ import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
-  Chapter,
   ComicId,
   ComicSourceKind,
   comicToLibraryItem,
@@ -163,7 +162,7 @@ export struct HistoryPage {
   }
 
   private canShowHistory(comicId: ComicId, visibleCategoryId: string): boolean {
-    return showLibraryComic(this.libraryStore.getComic(comicId), this.privateCategoryIds, visibleCategoryId)
+    return showLibraryComic(this.libraryStore.getComicSummary(comicId), this.privateCategoryIds, visibleCategoryId)
   }
 
   private createReaderSessionStore(): ReaderSessionStore | undefined {
@@ -258,7 +257,7 @@ export struct HistoryPage {
   private historyItemsForWork(store: ReaderSessionStore, id: ComicId): HistoryItem[] {
     const progress = store.getProgress(id)
     if (progress === undefined || !this.canShowHistory(id, this.privacy.visibleCategoryId)) return []
-    const comic = this.libraryStore.getComic(id)
+    const comic = this.libraryStore.getComicSummary(id)
     const history = store.getSourceHistory(id)
     if (comic !== undefined) return [this.libraryHistoryItem(comicToLibraryItem(comic, progress), history)]
     const rows: HistoryItem[] = []
@@ -289,7 +288,7 @@ export struct HistoryPage {
       coverUri: item.coverUri || history?.coverUri,
       sourceRuntimeId: item.sourceRuntimeId,
       sourceName: this.historySourceName(item.sourceRuntimeId,
-        this.libraryStore.getComic(item.comicId)?.sourceMetadata?.sourceName,
+        this.libraryStore.getComicSummary(item.comicId)?.sourceMetadata?.sourceName,
         history?.sourceId === item.sourceRuntimeId ? history?.sourceName : undefined),
       sourceMangaUrl: item.sourcePath,
       sourceImageId: item.sourceImageId,
@@ -362,11 +361,7 @@ export struct HistoryPage {
     if (item.sourceHistory !== undefined || item.remoteHistory !== undefined) {
       return s('history_chapter_read')
     }
-    const comic = this.libraryStore.getComic(item.comicId)
-    const chapter = comic?.chapters.find((candidate: Chapter) => {
-      return candidate.id === item.progress?.chapterId
-    })
-    const chapterTitle = chapter?.title.trim()
+    const chapterTitle = this.libraryStore.readComicChapterTitle(item.comicId, item.progress.chapterId)?.trim()
     if (chapterTitle !== undefined && chapterTitle.length > 0) {
       return chapterTitle
     }

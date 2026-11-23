@@ -37,8 +37,14 @@ assert.equal(format.downloadImageExtension(Buffer.from('000000146674797068656963
 const migration = load('OfflineDownloadImageMigration', { '@kit.CoreFileKit': { fileIo: io },
   '../diagnostics/DiagnosticLogger': { DiagnosticLogger: logger }, './AppFileTextPersistence': persistence,
   './DownloadImageFormat': format, './DownloadDirectoryIndex': index, './OfflineDownloadStore': storeModule })
+const layout = load('DownloadLayoutMigration', { '@kit.CoreFileKit': { fileIo: io },
+  '../diagnostics/DiagnosticLogger': { DiagnosticLogger: logger }, './DownloadDirectoryIndex': index })
+const worker = load('OfflineDownloadImageMigrationWorker', { '@kit.CoreFileKit': { fileIo: io },
+  '../diagnostics/DiagnosticLogger': { DiagnosticLogger: logger }, './AppFileTextPersistence': persistence,
+  './DownloadDirectoryIndex': index, './DownloadLayoutMigration': layout,
+  './OfflineDownloadImageMigration': migration, './OfflineDownloadStore': storeModule })
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-suffix-migration-'))
-try {
+async function main() {
   const storage = path.join(tmp, 'public'), app = path.join(tmp, 'private')
   fs.mkdirSync(storage); fs.mkdirSync(app)
   const store = new storeModule.OfflineDownloadStore(storage, app)
@@ -85,5 +91,38 @@ try {
   assert.equal(fs.readFileSync(existing, 'utf8'), 'owned external file')
   assert.ok(fs.existsSync(collision.pages[0].localPath))
   assert.equal(store.validateDownloadedChapter('book', 'collision').status, storeModule.OfflineDownloadedChapterStatus.DOWNLOADED)
-  console.log('PASS: formats, manifests, retries, interrupted rename recovery and collisions')
-} finally { fs.rmSync(tmp, { recursive: true, force: true }) }
+
+  // A migrated root reopens with its existing index and asset paths. Reaching
+  // any chapter or page filesystem operation during launch fails this check.
+  const prepared = worker.prepareOfflineDownloadLayout(storage, app, '{}')
+  assert.match(prepared, /layout_complete=true/)
+  const statePath = path.join(app, '.koma-content-storage.v1.json')
+  fs.writeFileSync(statePath, JSON.stringify({
+    schemaVersion: 1, rootPath: storage, rootUri: 'file://public', migrationComplete: true,
+  }))
+  const calls = []
+  for (const method of ['accessSync', 'readTextSync', 'statSync', 'listFileSync']) {
+    const operate = io[method]
+    io[method] = file => { calls.push(file); return operate(file) }
+  }
+  const content = load('KomaContentStorage', {
+    '@kit.CoreFileKit': { fileIo: io },
+    '@kit.ArkTS': { taskpool: { execute: () => { throw Error('unexpected migration worker') } } },
+    './AppFileTextPersistence': persistence, '../diagnostics/DiagnosticLogger': { DiagnosticLogger: logger },
+    './OfflineDownloadStore': storeModule, './OfflineDownloadQueueStore': {},
+    './DownloadLayoutMigration': layout, './OfflineDownloadImageMigrationWorker': worker,
+    '../sourceRuntime/SourceRuntimeAppRegistry': {},
+  })
+  await content.restoreKomaContentStorageForLaunch({ filesDir: app })
+  assert.equal(content.komaContentStorageBase({ filesDir: app }), storage)
+  assert.ok(calls.every(file => !file.startsWith(storage + '/') && !file.endsWith('index.v1.json')), calls.join('\n'))
+  assert.equal(worker.prepareOfflineDownloadLayout(storage, app, '{}'), 'already_complete')
+  assert.equal(layout.hasPreparedOfflineDownloadLayout(storage + '/other', app), false)
+  layout.invalidatePreparedOfflineDownloadLayout(app)
+  assert.equal(layout.hasPreparedOfflineDownloadLayout(storage, app), false)
+  console.log('PASS: formats, recovery, collisions and cold startup without chapter or page reads')
+}
+main().finally(() => fs.rmSync(tmp, { recursive: true, force: true })).catch(error => {
+  console.error(error)
+  process.exitCode = 1
+})

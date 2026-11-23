@@ -4,7 +4,7 @@ import type { PersistedChapter, PersistedComic, PersistedPage } from './LibraryP
 import type { SourceRequiredImageDecode } from './SourceRequiredImageDecode'
 import { metadataRow, readShelfMetadata, SHELF_METADATA_FIELDS, shelfMetadataValues } from './LibraryRelations'
 import { ShelfSharedWork, sharedShelfWork } from './ShelfSharedRows'
-import { booleanColumn, booleanValue, integerColumn, LocalColumnValue, LocalDataRows, realColumn, textColumn } from './LocalDataRows'
+import { booleanColumn, booleanValue, integerColumn, LocalColumnValue, LocalDataRows, LocalRecord, realColumn, textColumn } from './LocalDataRows'
 
 export interface ShelfWorkRow {
   order: number
@@ -132,34 +132,37 @@ export const shelfChapters = new LocalDataRows<ShelfChapterRow>('shelf_chapters'
     entry.chapter.sourceSettingsFingerprint ?? null, entry.chapter.pageCount ?? null, entry.chapter.createdAt ?? null,
     entry.chapter.updatedAt ?? null, entry.chapter.comicId === entry.ownerId ? null : entry.chapter.comicId,
   ],
-  (row: relationalStore.ResultSet): ShelfChapterRow => ({
-    ownerId: row.getString(0),
-    occurrence: row.getLong(2),
-    order: row.getLong(3),
-    chapter: {
-      comicId: textColumn(row, 22) ?? row.getString(0),
-      id: row.getString(1),
-      title: textColumn(row, 4) as string,
-      index: integerColumn(row, 5) as number,
-      chapterNumber: realColumn(row, 6),
-      volumeNumber: textColumn(row, 7),
-      readingOrder: realColumn(row, 8),
-      readingGroup: textColumn(row, 9),
-      readingVariantGroup: textColumn(row, 10),
-      readingVariantSequence: textColumn(row, 11),
-      continuationEligible: booleanColumn(row, 12),
-      scanlator: textColumn(row, 13),
-      language: textColumn(row, 14),
-      dateUpload: integerColumn(row, 15),
-      sourcePath: textColumn(row, 16) as string,
-      sortKey: textColumn(row, 17) as string,
-      sourceSettingsFingerprint: textColumn(row, 18),
-      pageCount: integerColumn(row, 19) as number,
-      createdAt: integerColumn(row, 20) as number,
-      updatedAt: integerColumn(row, 21) as number,
-      pages: [],
-    },
-  }))
+  (row: relationalStore.ResultSet): ShelfChapterRow => {
+    const record = new LocalRecord(row)
+    return {
+      ownerId: record.string(0),
+      occurrence: record.long(2),
+      order: record.long(3),
+      chapter: {
+        comicId: record.text(22) ?? record.string(0),
+        id: record.string(1),
+        title: record.text(4) as string,
+        index: record.integer(5) as number,
+        chapterNumber: record.real(6),
+        volumeNumber: record.text(7),
+        readingOrder: record.real(8),
+        readingGroup: record.text(9),
+        readingVariantGroup: record.text(10),
+        readingVariantSequence: record.text(11),
+        continuationEligible: record.boolean(12),
+        scanlator: record.text(13),
+        language: record.text(14),
+        dateUpload: record.integer(15),
+        sourcePath: record.text(16) as string,
+        sortKey: record.text(17) as string,
+        sourceSettingsFingerprint: record.text(18),
+        pageCount: record.integer(19) as number,
+        createdAt: record.integer(20) as number,
+        updatedAt: record.integer(21) as number,
+        pages: [],
+      },
+    }
+  })
 
 export const shelfPages = new LocalDataRows<ShelfPageRow>('shelf_pages', ['comic_id', 'chapter_id', 'chapter_occurrence', 'page_id', 'page_occurrence'], [
     'list_order', 'page_index', 'file_name', 'uri', 'sort_key',

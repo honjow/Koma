@@ -50,6 +50,10 @@ class ScopedReaderRows<T> {
     return this.combined.read(store, filter, args)
   }
 
+  readShared(store: relationalStore.RdbStore): T[] {
+    return this.shared.read(store)
+  }
+
   /** Scope is already established for this exact work and chapter, even
    * after history is removed and the cloud row has no local source metadata. */
   hasSharedChapter(store: relationalStore.RdbStore, comicId: string, chapterId: string): boolean {

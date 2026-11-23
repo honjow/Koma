@@ -102,8 +102,9 @@ import { SourceSearchPage } from './SourceSearchPage'
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
 import { MangaGridItem } from '../components/MangaGridItem'
 import { MangaMigrationPage } from './MangaMigrationPage'
-import { MihonImportRecord } from '../model/MihonBackupReader'
+import { MihonImportWork } from '../model/MihonBackupReader'
 import { MihonImportService } from '../model/MihonImportService'
+import { LibraryFilterStore } from '../model/LibraryFilterStore'
 import { SourceMangaDetailSnapshot, sourceMangaDetailSnapshotCache } from '../model/SourceMangaDetailSnapshotCache'
 import { MangaMigrationPreferencesStore } from '../model/MangaMigrationPreferencesStore'
 import { MigrationCommand } from '../state/MangaMigrationRouteChromeState'
@@ -319,6 +320,16 @@ class SettingsModalLayoutFrame extends FrameCallback {
   onIdle(): void {
     this.onLayout()
   }
+}
+
+class StartupFrame extends FrameCallback {
+  private readonly publish: () => void
+  constructor(publish: () => void) {
+    super()
+    this.publish = publish
+  }
+  onFrame(_timestamp: number): void { this.publish() }
+  onIdle(_timeLeft: number): void {}
 }
 
 @Entry
@@ -775,15 +786,8 @@ struct Index {
     void this.libraryRevision
     void this.readerProgressRevision
     const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
-    // Start with works that have a saved position. Progress updates must not
-    // enumerate an unrelated shelf or reload it from the database.
     for (const position of this.readerSessionStore.listProgress()) {
-      const comic = this.libraryStore.getComic(position.comicId)
-      if (comic === undefined) continue
-      const progress = this.readerSessionStore.getComicProgress(comic)
-      if (progress !== undefined) {
-        progressByComicId.set(comic.id, progress)
-      }
+      progressByComicId.set(position.comicId, position)
     }
     return progressByComicId
   }
@@ -805,21 +809,26 @@ struct Index {
     void this.readerProgressRevision
     void this.languageState.effectiveLocale
     const candidates: Comic[] = []
+    const positions = new Map<ComicId, ReadingProgress>()
+    const ordered = Array.from(this.shelfReadingProgress.values()).sort((a: ReadingProgress, b: ReadingProgress): number =>
+      b.updatedAt - a.updatedAt)
     let latest: number | undefined
-    this.shelfReadingProgress.forEach((progress: ReadingProgress, id: ComicId): void => {
-      const comic = this.libraryStore.getComic(id)
-      if (comic === undefined || !showLibraryComic(comic, this.privateCategoryIds, scope) ||
-        (latest !== undefined && progress.updatedAt < latest)) return
-      if (latest === undefined || progress.updatedAt > latest) {
-        candidates.length = 0
-        latest = progress.updatedAt
-      }
+    for (const progress of ordered) {
+      if (latest !== undefined && progress.updatedAt < latest) break
+      const comic = this.libraryStore.getComicSummary(progress.comicId)
+      if (comic === undefined || !showLibraryComic(comic, this.privateCategoryIds, scope)) continue
+      const saved = this.libraryStore.shelfProgress(comic, progress)
+      if (saved === undefined) continue
+      latest = saved.updatedAt
+      positions.set(comic.id, saved)
       candidates.push(comic)
-    })
+    }
     // Only equal last-read times need the existing shelf title tie-breaker.
     candidates.sort((left: Comic, right: Comic): number =>
       left.sortTitle.localeCompare(right.sortTitle) || left.createdAt - right.createdAt)
-    return createLibraryContinueReadingCard(candidates, this.readerSessionStore, this.presentationByComicId)
+    return createLibraryContinueReadingCard(candidates, this.readerSessionStore, this.presentationByComicId,
+      positions, (id: ComicId, chapterId?: string): string | undefined =>
+        this.libraryStore.readComicChapterTitle(id, chapterId))
   }
 
   @Computed
@@ -835,7 +844,7 @@ struct Index {
   }
 
   private canOpenLibraryComic(comicId: ComicId): boolean {
-    return showLibraryComic(this.libraryStore.getComic(comicId), this.privateCategoryIds, this.libraryPrivacy.visibleCategoryId)
+    return showLibraryComic(this.libraryStore.getComicSummary(comicId), this.privateCategoryIds, this.libraryPrivacy.visibleCategoryId)
   }
 
   private readerChapterIdForComic(comic: Comic): string | undefined {
@@ -2483,7 +2492,7 @@ struct Index {
     void this.catalogFilters.prepare(getContext(this) as common.UIAbilityContext)
       .catch((): void => { DiagnosticLogger.warn('source_catalog', 'filters_load_failed', 'phase=restore') })
     this.readerTrackerProgress?.resetAfterRestore()
-    this.ensureLibraryPersistenceService()?.restore()
+    this.ensureLibraryPersistenceService()?.restoreForLaunch(this.savedShelfCategory())
     new TrackerPreferencesStore(getContext(this) as common.UIAbilityContext).invalidateMappingSnapshot()
     this.libraryPreferencesRevision += 1
     void synchronizeBackgroundMaintenance(getContext(this) as common.UIAbilityContext)
@@ -2505,7 +2514,7 @@ struct Index {
   }
 
   private queueMihonMatching(sourceIds?: string[], directOnly: boolean = false): void {
-    if (!this.libraryStore.listMihonImports().some((record: MihonImportRecord): boolean => !record.targetComicId)) return
+    if (!this.libraryStore.listMihonImportWorks().some((record: MihonImportWork): boolean => !record.targetComicId)) return
     const service = new MihonImportService(getContext(this) as common.UIAbilityContext, this.libraryStore)
     this.mihonMatching = this.mihonMatching.then((): Promise<boolean> =>
       service.matchUnresolved(sourceIds, directOnly))
@@ -2823,7 +2832,7 @@ struct Index {
   }
 
   private async openMihonImportedWork(comicId: string, resume: boolean = true, fromHistory: boolean = false): Promise<boolean> {
-    let imported = this.libraryStore.listMihonImports().find((record: MihonImportRecord): boolean => record.id === comicId)
+    let imported = this.libraryStore.getMihonImportWork(comicId)
     if (imported === undefined) return false
     // An exact edition can show its detail immediately. Its successful catalog
     // load resolves the original progress with the same response.
@@ -2847,7 +2856,7 @@ struct Index {
         if (this.historyResumeLoadingTimer === timer) this.closeHistoryResumeLoading()
       }
       if (!current()) return true
-      const updated = this.libraryStore.listMihonImports().find((record: MihonImportRecord): boolean => record.id === comicId)
+      const updated = this.libraryStore.getMihonImportWork(comicId)
       if (updated === undefined) {
         this.showToast(AppStrings.get('mihon_import_resume_failed'))
         return true
@@ -2875,11 +2884,14 @@ struct Index {
     if (existing !== undefined) {
       if (resume && progress !== undefined && existing.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
         await this.openReader(existing.id, progress.chapterId)
-      } else if (resume && imported.work.history.length === 0 && existing.chapters.length > 0) {
-        await this.openReader(existing.id)
       } else {
-        if (resume && imported.work.history.length > 0) this.showToast(AppStrings.get('mihon_import_resume_chapter_unmatched'))
-        this.openLibraryMangaDetail(existing.id, !resume)
+        const hasOriginalHistory = resume && (this.libraryStore.readMihonImport(comicId)?.work.history.length ?? 0) > 0
+        if (resume && !hasOriginalHistory && existing.chapters.length > 0) {
+          await this.openReader(existing.id)
+        } else {
+          if (hasOriginalHistory) this.showToast(AppStrings.get('mihon_import_resume_chapter_unmatched'))
+          this.openLibraryMangaDetail(existing.id, !resume)
+        }
       }
     } else if (imported.linkedWork !== undefined) {
       const work = imported.linkedWork
@@ -3370,6 +3382,14 @@ struct Index {
     return this.libraryPersistenceService
   }
 
+  private savedShelfCategory(): string {
+    try {
+      return new LibraryFilterStore(getContext(this) as common.UIAbilityContext).loadSync().category
+    } catch (_error) {
+      return 'all'
+    }
+  }
+
   @Monitor('appForegroundState.revision')
   private runForegroundAutomaticBackup(): void {
     if (!this.libraryUpdateReady || !this.appForegroundState.active ||
@@ -3382,7 +3402,12 @@ struct Index {
       return
     }
     this.automaticBackupPending = true
-    void new BackupService(context).runAutomaticLocalBackupIfDue(Date.now(), true)
+    const service = new BackupService(context)
+    void service.ensureDefaultAutomaticBackupDirectory(komaContentStorageUri())
+      .catch((error: Error): void => {
+        DiagnosticLogger.exception('backup', 'automatic_default_directory_failed', error)
+      })
+      .then(() => service.runAutomaticLocalBackupIfDue(Date.now(), true))
       .then((result: BackupAutomaticRunResult) => {
         if (result.ran || result.failureCode !== undefined) this.backupSettingsRevision += 1
         if (result.ran) {
@@ -3450,13 +3475,13 @@ struct Index {
     })
     RouterHelper.consumePendingLaunchRoute()
     const context = getContext(this) as common.UIAbilityContext
-    this.retryPublicContentStorage(0)
+    if (komaContentStorageBase(context) === context.filesDir) this.retryPublicContentStorage(0)
     if (!this.readerSessionPersistenceReady) {
       this.reloadReaderSessionStore('app_appear')
     }
     appDeviceSync.attachPublisher((groups: SyncGroup[], readingComicIds?: string[], shelfEdits?: LibraryShelfSyncEdits): void => {
       if (groups.includes('shelf')) {
-        if (shelfEdits === undefined) this.ensureLibraryPersistenceService()?.restore()
+        if (shelfEdits === undefined) this.ensureLibraryPersistenceService()?.restoreForLaunch(this.savedShelfCategory())
         else applyLibraryShelfSyncEdits(context.filesDir, this.libraryStore, shelfEdits)
         this.refreshLibrarySnapshot()
       }
@@ -3471,21 +3496,25 @@ struct Index {
     if (this.sourceRegistry.count() === 0) {
       bootstrapSourceRuntimeAppRegistry(context)
     }
-    // Publish persisted positive updates first. Automatic checking is detached
-    // from route creation and shares the existing manager request owner.
-    void appSourcePackageManagerCache.prepare(context, connectLanguageState().effectiveLocale)
-      .then((): void => { appSourcePackageManagerCache.revalidateInBackground(context) })
-    ImageRuleStore.forContext(context).revalidateInBackground()
+    // Publish saved package state for the first frame, including a saved
+    // Browse tab. Network revalidation belongs to the first-frame follow-up.
+    const sourcePackagesReady = appSourcePackageManagerCache.prepare(context, connectLanguageState().effectiveLocale)
+      .then((): boolean => true)
+      .catch((error: Error): boolean => {
+        DiagnosticLogger.exception('source_index', 'startup_prepare_failed', error)
+        return false
+      })
     appSourceWebSessionStore.configure(context, this.sourceRegistry)
     if (!this.libraryPersistenceRestored) {
       this.libraryPersistenceRestored = true
       const persistenceService = this.ensureLibraryPersistenceService()
       if (persistenceService !== undefined) {
         try {
-          persistenceService.restore()
-          this.retryMihonAfterSourceChange()
-          bindRemoteProgressLibrary((): Comic[] => this.libraryStore.listComics())
-          void activateLocalLibraryFolderAccessForComics(this.libraryStore.listComics())
+          persistenceService.restoreForLaunch(this.savedShelfCategory())
+          bindRemoteProgressLibrary((): Comic[] => this.libraryStore.listComicSummariesByKind(
+            [ComicSourceKind.KOMGA_REMOTE, ComicSourceKind.KAVITA_REMOTE])
+            .map((comic: Comic): Comic => this.libraryStore.getComic(comic.id) as Comic))
+          void activateLocalLibraryFolderAccessForComics(this.libraryStore.listComicSummariesByKind([ComicSourceKind.LOCAL_FOLDER]))
             .then((summary) => {
               console.info('[LocalFolderAccess] step=restore_activate roots=' + summary.rootCount +
                 ' activated=' + summary.activatedCount +
@@ -3495,10 +3524,13 @@ struct Index {
             })
             .finally(() => {
               this.refreshLibrarySnapshot()
-              this.libraryUpdateReady = true
-              this.resumeAutomaticDownloadQueue()
-              this.runForegroundLibraryUpdate()
-              this.runForegroundAutomaticBackup()
+              this.afterStartupFrame((): void => {
+                this.libraryUpdateReady = true
+                this.retryMihonAfterSourceChange()
+                if (!this.appForegroundState.active) this.resumeAutomaticDownloadQueue()
+                this.runForegroundLibraryUpdate()
+                this.runForegroundAutomaticBackup()
+              })
             })
         } catch (error) {
           void error
@@ -3506,13 +3538,22 @@ struct Index {
         }
       }
     }
-    this.runForegroundLibraryUpdate()
-    if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
-      setTimeout(() => {
-        this.runForegroundAutomaticBackup()
-        this.triggerPendingTrackerProgressSync(context)
-      }, 250)
-    }
+    this.afterStartupFrame((): void => {
+      void sourcePackagesReady.then((ready: boolean): void => {
+        if (ready) appSourcePackageManagerCache.revalidateInBackground(context)
+      })
+      ImageRuleStore.forContext(context).revalidateInBackground()
+      if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) this.triggerPendingTrackerProgressSync(context)
+    })
+  }
+
+  /** The first layout requests its own frame. Start optional application work
+   * from the following frame so it cannot delay rendering the initial page. */
+  private afterStartupFrame(work: () => void): void {
+    const ui = this.getUIContext()
+    ui.postFrameCallback(new StartupFrame((): void => {
+      ui.postFrameCallback(new StartupFrame(work))
+    }))
   }
 
   /** The DOWNLOAD picker needs a foreground UI ability; retry after the first page is present. */
@@ -3822,8 +3863,8 @@ struct Index {
           },
           onOpenSourceReader: (request: SourceReaderSessionRequest) => {
             const importedId = (param as MangaDetailRouteParam).mihonImportId
-            if (importedId !== undefined && this.libraryStore.listMihonImports().some((record: MihonImportRecord): boolean =>
-              record.id === importedId && !record.targetComicId)) void this.openMihonImportedWork(importedId)
+            const imported = importedId === undefined ? undefined : this.libraryStore.getMihonImportWork(importedId)
+            if (imported !== undefined && !imported.targetComicId) void this.openMihonImportedWork(imported.id)
             else void this.openSourceReader(request)
           },
           onMihonCatalogReady: async (snapshot: SourceMangaDetailSnapshot, fingerprint: string,
@@ -3850,8 +3891,8 @@ struct Index {
           onLibraryChanged: () => { this.onMangaDetailLibraryChanged() },
           onOpenExistingFavorite: (comicId: string): void => { this.openLibraryMangaDetail(comicId, true) },
           onMigrationRequested: (comicId: string) => {
-            void this.openMangaMigration([comicId], true, this.libraryStore.listMihonImports()
-              .some((row: MihonImportRecord): boolean => row.id === comicId && !row.targetComicId))
+            const imported = this.libraryStore.getMihonImportWork(comicId)
+            void this.openMangaMigration([comicId], true, imported !== undefined && !imported.targetComicId)
           }
         })
       }

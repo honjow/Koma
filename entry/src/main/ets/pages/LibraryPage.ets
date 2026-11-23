@@ -34,7 +34,6 @@ import {
   createLibraryComicCard,
 } from '../model/MockLibraryData'
 import {
-  Chapter,
   Comic,
   ComicId,
   ComicSourceKind,
@@ -482,7 +481,7 @@ export struct LibraryPage {
         this.exitSelectionMode()
         this.onMigrationRequested(ids)
       }, this.selectedCount() > 0 && Array.from(this.selectedIds).every((id: string): boolean =>
-        canMigrateLibraryComic(this.libraryStore.getComic(id)))),
+        canMigrateLibraryComic(this.libraryStore.getComicSummary(id)))),
       this.titleMenuItem(s('library_batch_mark_read'), $r('sys.symbol.book'),
         () => { this.markSelectedReadState(true) }, this.selectedCount() > 0),
       this.titleMenuItem(s('library_batch_mark_unread'), $r('sys.symbol.book'),
@@ -555,6 +554,8 @@ export struct LibraryPage {
       return false
     }
     const id = change.comicIds[0]
+    const summary = this.libraryStore.getComicSummary(id)
+    if (summary !== undefined) this.prepareShelfReadingFacts([summary])
     const positions = this.shelfReadingProgress
     const updatedAt = positions.get(id)?.updatedAt
     if (this.sortBy === 'lastRead' && this.displayedReadingProgress?.get(id)?.updatedAt !== updatedAt) {
@@ -629,6 +630,8 @@ export struct LibraryPage {
     const category = this.validCategoryFilter()
     const strategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory)
     this.applyCategorySort(strategy)
+    const scoped = this.libraryStore.listShelfSummaries(category)
+    this.prepareShelfReadingFacts(scoped)
     const nextComics = this.orderedCategoryComics(category)
     const privateIds = this.privateCategoryIds
     const visibleScope = this.privacy.visibleCategoryId === category ? category : ''
@@ -653,11 +656,21 @@ export struct LibraryPage {
     this.removeMissingSelectedComics()
   }
 
+  private prepareShelfReadingFacts(comics: Comic[]): void {
+    if (this.readerSessionStore.prepareShelfReadingFacts(comics)) return
+    // Incognito and a failed projection read use the active work's actual state.
+    for (const comic of comics) {
+      if (comic.chapterCatalogDeferred !== true) continue
+      this.libraryStore.getComic(comic.id)
+      this.readerSessionStore.prepareWorkChapterStates(comic.id)
+    }
+  }
+
   private orderedShelfComics(category: LibraryCategoryFilter): Comic[] {
     const items = this.libraryStore.listLibraryItems(this.shelfReadingProgress, this.currentListOptions(category))
     const comics: Comic[] = []
     items.forEach((item: LibraryItem) => {
-      const comic = this.libraryStore.getComic(item.comicId)
+      const comic = this.libraryStore.getComicSummary(item.comicId)
       if (comic !== undefined) comics.push(comic)
     })
     return comics
@@ -665,7 +678,8 @@ export struct LibraryPage {
 
   private orderedCategoryComics(category: LibraryCategoryFilter): Comic[] {
     // Live source names and chapter-update times need to be read on each refresh.
-    if (this.sortBy === 'source' || this.sortBy === 'lastUpdate') return this.orderedShelfComics(category)
+    if (this.sortBy === 'source' || this.sortBy === 'lastUpdate' || this.sortBy === 'unreadCount' ||
+      this.sortBy === 'latestChapter') return this.orderedShelfComics(category)
 
     const cached = this.shelfCategoryProjection
     const readingProgress = this.shelfReadingProgress
@@ -678,6 +692,7 @@ export struct LibraryPage {
       return category === 'all' ? cached.all : cached.categories.get(category) ?? []
     }
 
+    if (category !== 'all') return this.orderedShelfComics(category)
     const all = this.orderedShelfComics('all')
     const categories = new Map<string, Comic[]>()
     all.forEach((comic: Comic): void => {
@@ -771,17 +786,14 @@ export struct LibraryPage {
         entriesByComicId.set(entry.comicId, existing)
       })
       comics.forEach((comic: Comic) => {
-        const chapterIds = new Set<string>()
-        comic.chapters.forEach((chapter: Chapter) => {
-          if (chapter.id.trim().length > 0) {
-            chapterIds.add(chapter.id)
-          }
-        })
+        const chapterEntries = entriesByComicId.get(comic.id)
+        if (chapterEntries === undefined) return
+        const chapterIds = new Set<string>(this.libraryStore.listComicChapterIds(comic.id)
+          .filter((id: string): boolean => id.trim().length > 0))
         if (chapterIds.size === 0) {
           return
         }
         const downloadedChapterIds = new Set<string>()
-        const chapterEntries = entriesByComicId.get(comic.id) ?? []
         for (let index = 0; index < chapterEntries.length; index += 1) {
           const entry = chapterEntries[index]
           if (!chapterIds.has(entry.chapterId)) {
@@ -1254,7 +1266,7 @@ export struct LibraryPage {
   private cardForComic(fallback: Comic): ComicCoverInfo {
     // A retained row can be drawn before the shelf reprojects. Resolve its
     // current record first so a redraw cannot cache old metadata for its ID.
-    const comic = this.libraryStore.getComic(fallback.id) ?? fallback
+    const comic = this.libraryStore.getComicSummary(fallback.id) ?? fallback
     const cache = this.libraryCardCache
     const existing = cache.cards.get(comic.id)
     if (existing?.comic === comic) return existing.card
@@ -1335,7 +1347,7 @@ export struct LibraryPage {
 
   private unreadForCover(comicId: ComicId): number | undefined {
     void this.readerProgressRevision
-    const comic = this.libraryStore.getComic(comicId)
+    const comic = this.libraryStore.getComicSummary(comicId)
     return comic === undefined ? undefined : this.readerSessionStore.unreadChapterCount(comic)
   }
 
@@ -1434,7 +1446,7 @@ export struct LibraryPage {
   private privateServerFilterOptions(): LibraryServerSourceFilterOption[] {
     const seenFilters: string[] = []
     const options: LibraryServerSourceFilterOption[] = []
-    this.libraryStore.listComics().forEach((comic: Comic) => {
+    this.libraryStore.listComicSummaries().forEach((comic: Comic) => {
       if (!this.isPrivateLibraryComic(comic) || comic.remoteServerId === undefined) {
         return
       }
@@ -1459,7 +1471,7 @@ export struct LibraryPage {
     const summaries = this.sourceRegistry.listInstalledSourceSummaries()
     const seenFilters: string[] = []
     const options: LibraryServerSourceFilterOption[] = []
-    this.libraryStore.listComics().forEach((comic: Comic) => {
+    this.libraryStore.listComicSummaries().forEach((comic: Comic) => {
       if (!this.isSourcePackageComic(comic) || comic.sourceRuntimeId === undefined) {
         return
       }
@@ -1523,11 +1535,11 @@ export struct LibraryPage {
   private canRemoveComic(comicId: ComicId): boolean {
     // A category change doesn't change which actions a comic supports.
     void this.libraryRevision
-    return isRemovableLocalComic(this.libraryStore.getComic(comicId))
+    return isRemovableLocalComic(this.libraryStore.getComicSummary(comicId))
   }
 
   private canSelectComic(comicId: ComicId): boolean {
-    const comic = this.libraryStore.getComic(comicId)
+    const comic = this.libraryStore.getComicSummary(comicId)
     return this.displayedRevision >= 0 && comic !== undefined &&
       showLibraryComic(comic, this.privateCategoryIds, this.privacy.visibleCategoryId)
   }
@@ -1591,7 +1603,7 @@ export struct LibraryPage {
   }
 
   private openComicDetailFromLibrary(comicId: ComicId): void {
-    if (this.libraryStore.getComic(comicId) === undefined) {
+    if (this.libraryStore.getComicSummary(comicId) === undefined) {
       this.showToast(s('common_unavailable'))
       return
     }
@@ -1644,11 +1656,11 @@ export struct LibraryPage {
 
   private selectedRemovableIds(): ComicId[] {
     return this.displayedRevision < 0 ? [] : Array.from(this.selectedIds).filter((comicId: ComicId): boolean =>
-      isRemovableShelfComic(this.libraryStore.getComic(comicId)))
+      isRemovableShelfComic(this.libraryStore.getComicSummary(comicId)))
   }
 
   private async verifyShelfRemoval(ids: ComicId[]): Promise<boolean> {
-    if (ids.every((id: ComicId): boolean => showLibraryComic(this.libraryStore.getComic(id), this.privateCategoryIds))) return true
+    if (ids.every((id: ComicId): boolean => showLibraryComic(this.libraryStore.getComicSummary(id), this.privateCategoryIds))) return true
     const result = await this.privacy.verify(this.getUIContext().getHostContext() as common.UIAbilityContext)
     const message = libraryPrivacyAuthMessage(result)
     if (message.length > 0) this.showToast(message)
@@ -1672,7 +1684,7 @@ export struct LibraryPage {
 
   private openCategoryEditor(): void {
     const comics = Array.from(this.selectedIds)
-      .map((id: ComicId): Comic | undefined => this.libraryStore.getComic(id))
+      .map((id: ComicId): Comic | undefined => this.libraryStore.getComicSummary(id))
       .filter((comic: Comic | undefined): boolean => comic !== undefined) as Comic[]
     if (comics.length === 0) return
     this.categoryEditComicIds = comics.map((comic: Comic): ComicId => comic.id)
@@ -1729,19 +1741,11 @@ export struct LibraryPage {
       return
     }
     const mutations: ChapterReadMutation[] = []
-    comicIds.forEach((comicId: ComicId) => {
-      const comic = this.libraryStore.getComic(comicId)
-      if (comic === undefined || comic.chapters.length === 0) {
-        return
+    for (const comicId of comicIds) {
+      for (const chapterId of this.libraryStore.listComicChapterIds(comicId)) {
+        mutations.push({ comicId, chapterId, isRead })
       }
-      comic.chapters.forEach((chapter: Chapter) => {
-        mutations.push({
-          comicId: comic.id,
-          chapterId: chapter.id,
-          isRead,
-        })
-      })
-    })
+    }
     if (mutations.length === 0) {
       this.showToast(s('library_batch_read_state_no_chapters'))
       return
@@ -2375,13 +2379,13 @@ export struct LibraryPage {
     const scope = this.privacy.visibleCategoryId
     const scoped = this.scopedContinueReadingCard
     if (scope.length > 0 && scope === this.filterCategory && scoped !== undefined &&
-      showLibraryComic(this.libraryStore.getComic(scoped.comicId), this.privateCategoryIds, scope)) return scoped
+      showLibraryComic(this.libraryStore.getComicSummary(scoped.comicId), this.privateCategoryIds, scope)) return scoped
     return this.continueReadingCard
   }
 
   private canShowContinueReading(): boolean {
     if (!this.showContinueReadingCard) return false
-    const comic = this.libraryStore.getComic(this.visibleContinueReadingCard().comicId)
+    const comic = this.libraryStore.getComicSummary(this.visibleContinueReadingCard().comicId)
     const scope = this.privacy.visibleCategoryId
     return comic !== undefined && showLibraryComic(comic, this.privateCategoryIds, scope === this.filterCategory ? scope : '')
   }

@@ -235,7 +235,7 @@ export struct LibraryCategoryManagementPage {
     void this.categories
     const counts = new Map<string, number>()
     if (this.libraryStore === undefined) return counts
-    this.libraryStore.listComics().forEach((comic: Comic): void => {
+    this.libraryStore.listComicSummaries().forEach((comic: Comic): void => {
       if (comic.categoryIds === undefined) return
       new Set<string>(comic.categoryIds).forEach((categoryId: string): void => {
         counts.set(categoryId, (counts.get(categoryId) ?? 0) + 1)

@@ -37,7 +37,7 @@ export interface MihonBackupTracking {
   private: boolean
 }
 
-export interface MihonBackupWork {
+export interface MihonBackupWorkSummary {
   sourceId: string
   url: string
   title: string
@@ -51,23 +51,30 @@ export interface MihonBackupWork {
   favorite: boolean
   modifiedAt: number
   favoriteModifiedAt?: number
-  chapters: MihonBackupChapter[]
   // Mihon field 17 stores category order values. Keep the serialized property name for saved imports.
   categoryIds: string[]
-  history: MihonBackupHistory[]
-  tracking: MihonBackupTracking[]
   notes: string
 }
 
-/** Store the original chapter and tracking facts even after linking a Koma edition. */
-export interface MihonImportRecord {
+export interface MihonBackupWork extends MihonBackupWorkSummary {
+  chapters: MihonBackupChapter[]
+  history: MihonBackupHistory[]
+  tracking: MihonBackupTracking[]
+}
+
+export interface MihonImportWork {
   id: string
   sourceName: string
-  work: MihonBackupWork
+  work: MihonBackupWorkSummary
   categoryIds: string[]
   matchedSourceId?: string
   targetComicId?: string
   linkedWork?: SourceManga
+}
+
+/** Store the original chapter and tracking facts even after linking a Koma edition. */
+export interface MihonImportRecord extends MihonImportWork {
+  work: MihonBackupWork
 }
 
 export interface MihonBackupSource {

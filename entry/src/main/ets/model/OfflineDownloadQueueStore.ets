@@ -282,6 +282,14 @@ class OfflineQueueRdbStorage {
       entries: offlineTasks.read(this.database, 'queue_id = ?', [this.queueId]).map((row: OfflineTaskRow) => row.entry) }
   }
 
+  incompleteEntries(automaticOnly: boolean, includePaused: boolean): OfflineDownloadQueueEntry[] {
+    let filter = 'queue_id = ? AND status <> ? AND (is_canceling IS NULL OR is_canceling = 0)'
+    if (automaticOnly) filter += ' AND is_automatic = 1'
+    if (!includePaused) filter += ' AND (paused_by_user IS NULL OR paused_by_user = 0)'
+    return offlineTasks.read(this.database, filter, [this.queueId, OfflineDownloadStatus.DOWNLOADED])
+      .map((row: OfflineTaskRow): OfflineDownloadQueueEntry => row.entry)
+  }
+
   private taskRow(task: OfflineDownloadTaskId): OfflineTaskRow | undefined {
     return offlineTasks.read(this.database, 'queue_id = ? AND comic_id = ? AND chapter_id = ? AND task_occurrence = 0',
       [this.queueId, task.comicId, task.chapterId])[0]
@@ -628,6 +636,31 @@ export class OfflineDownloadQueueStore {
     return this.loadDocument().entries
   }
 
+  loadAutomaticPendingEntries(includePaused: boolean = false): OfflineDownloadQueueEntry[] {
+    const database = this.database()
+    if (database !== undefined) return database.incompleteEntries(true, includePaused).filter(isOfflineDownloadTaskPending)
+    return this.loadDocument(false).entries.filter((entry: OfflineDownloadQueueEntry): boolean =>
+      entry.automatic === true && (includePaused || !entry.pausedByUser) && isOfflineDownloadTaskPending(entry))
+  }
+
+  loadRunnableEntries(): OfflineDownloadQueueEntry[] {
+    const database = this.database()
+    if (database !== undefined) return database.incompleteEntries(false, false)
+    return this.loadDocument(false).entries.filter((entry: OfflineDownloadQueueEntry): boolean =>
+      !entry.pausedByUser && !entry.canceling && entry.status !== OfflineDownloadStatus.DOWNLOADED)
+  }
+
+  loadTask(task: OfflineDownloadTaskId): OfflineDownloadQueueEntry | undefined {
+    const database = this.database()
+    if (database !== undefined) return database.entry(task)
+    return this.loadDocument(false).entries.find((entry: OfflineDownloadQueueEntry): boolean =>
+      entry.comicId === task.comicId && entry.chapterId === task.chapterId)
+  }
+
+  prepareDatabase(): void {
+    this.database()
+  }
+
   loadSnapshot(): OfflineDownloadQueueSnapshot {
     const document = this.loadDocument(false)
     return { entries: document.entries.slice(), preferences: normalizePreferences(document.preferences) }
@@ -894,8 +927,8 @@ export class OfflineDownloadQueueStore {
   }
 
   migratePublicQueue(): void {
-    const storage = this.database()
     if (this.queuePath === this.legacyQueuePath || !fs.accessSync(this.legacyQueuePath)) return
+    const storage = this.database()
     if (storage !== undefined) {
       // Selection and commit are complete before deleting the old public copy.
       storage.read()

@@ -896,20 +896,22 @@ export class BackupService {
   /** Apply the public Download app folder once for automatic backups. Explicit later choices win. */
   async ensureDefaultAutomaticBackupDirectory(uri: string): Promise<boolean> {
     if (uri.trim().length === 0) return false
-    if (BackupRestoreActivity.isRestoring()) return false
-    const store = await this.automaticPreferences()
-    const applied = await store.get(BACKUP_AUTOMATIC_DEFAULT_PATH_APPLIED_KEY, false) as boolean
-    if (applied) return false
-    const current = (await store.get(BACKUP_AUTOMATIC_DIRECTORY_KEY, '') as string).trim()
-    if (current.length === 0) {
-      await activateBackupDirectory(uri)
-      await store.put(BACKUP_AUTOMATIC_DIRECTORY_KEY, uri)
-      await store.put(BACKUP_AUTOMATIC_DIRECTORY_MODES_KEY, 0)
-    }
-    await store.put(BACKUP_AUTOMATIC_DEFAULT_PATH_APPLIED_KEY, true)
-    await store.flush()
-    DiagnosticLogger.info('backup', 'automatic_default_directory', `applied=${current.length === 0}`)
-    return current.length === 0
+    return queueBackupPreferences(async (): Promise<boolean> => {
+      if (BackupRestoreActivity.isRestoring()) return false
+      const store = await this.automaticPreferences()
+      const applied = await store.get(BACKUP_AUTOMATIC_DEFAULT_PATH_APPLIED_KEY, false) as boolean
+      if (applied) return false
+      const current = (await store.get(BACKUP_AUTOMATIC_DIRECTORY_KEY, '') as string).trim()
+      if (current.length === 0) {
+        await activateBackupDirectory(uri)
+        await store.put(BACKUP_AUTOMATIC_DIRECTORY_KEY, uri)
+        await store.put(BACKUP_AUTOMATIC_DIRECTORY_MODES_KEY, 0)
+      }
+      await store.put(BACKUP_AUTOMATIC_DEFAULT_PATH_APPLIED_KEY, true)
+      await store.flush()
+      DiagnosticLogger.info('backup', 'automatic_default_directory', `applied=${current.length === 0}`)
+      return current.length === 0
+    })
   }
 
   async export(content?: BackupContentPreferences): Promise<string> {

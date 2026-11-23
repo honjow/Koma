@@ -9,7 +9,14 @@ const statuses = { DOWNLOADED: 'downloaded', QUEUED: 'queued', DOWNLOADING: 'dow
 const pending = e => e.status === 'queued' || e.status === 'downloading'
 class Queue {
  loadPreferences() { return {} }
- load() { return rows.map(e => ({ ...e })) }
+ loadAutomaticPendingEntries(includePaused = false) {
+  return rows.filter(e => e.automatic && !e.canceling && (includePaused || !e.pausedByUser) && pending(e))
+    .map(e => ({ ...e }))
+ }
+ loadTask(task) {
+  const row = rows.find(e => e.comicId === task.comicId && e.chapterId === task.chapterId)
+  return row === undefined ? undefined : { ...row }
+ }
  upsert(entry) { const i = rows.findIndex(e => e.comicId === entry.comicId && e.chapterId === entry.chapterId); rows[i] = { ...entry } }
 }
 class Service {

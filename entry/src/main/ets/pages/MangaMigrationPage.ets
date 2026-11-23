@@ -10,7 +10,6 @@ import { ReaderSessionStore, InMemoryReaderSessionStore } from '../model/ReaderS
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { PreparedMangaMigration, prepareMangaMigration, commitMangaMigration } from '../model/SourceMangaMigrationService'
 import { SourceRuntimeError } from '../model/SourceRuntimeError'
-import { MihonImportRecord } from '../model/MihonBackupReader'
 import { MihonImportService } from '../model/MihonImportService'
 import { mihonMatchText, mihonPlaceholder, suggestedMihonShelfWorks } from '../model/MihonImportPlanning'
 import { CrossSearchResultItem, CrossSearchSection } from '../model/CrossSearchService'
@@ -111,7 +110,7 @@ export struct MangaMigrationPage {
     this.rows = this.comicIds.map((id: string): Comic | undefined => {
       const comic = this.libraryStore.getComic(id)
       if (comic !== undefined || !this.fromMihon) return comic
-      const original = this.libraryStore.listMihonImports().find((record: MihonImportRecord): boolean => record.id === id)
+      const original = this.libraryStore.readMihonImport(id)
       return original === undefined ? undefined : mihonPlaceholder(original)
     })
       .filter((comic: Comic | undefined): boolean => canMigrateLibraryComic(comic))
@@ -239,7 +238,7 @@ export struct MangaMigrationPage {
   }
 
   private mihonShelfMatches(comic: Comic): Comic[] {
-    const record = this.libraryStore.listMihonImports().find((value: MihonImportRecord): boolean => value.id === comic.id)
+    const record = this.libraryStore.getMihonImportWork(comic.id)
     if (record === undefined) return []
     return suggestedMihonShelfWorks(record.work, this.libraryStore.listComics(false)).filter((candidate: Comic): boolean =>
       sourceRuntimeEntryEnabled(this.registry.lookup(candidate.sourceRuntimeId ?? '').entry))

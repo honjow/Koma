@@ -177,6 +177,8 @@ export interface Comic {
   sourceMetadata?: SourceMangaMetadata
   sortTitle: string
   preferredDirection: ReadingDirection
+  /** Runtime shelf summary. The catalog is fetched by work or chapter ID. */
+  chapterCatalogDeferred?: boolean
   chapters: Chapter[]
   chapterCount: number
   pageCount: number
@@ -330,6 +332,7 @@ export function withComicCategoryIds(comic: Comic, categoryIds?: string[]): Comi
     sourcePath: comic.sourcePath,
     sortTitle: comic.sortTitle,
     preferredDirection: comic.preferredDirection,
+    chapterCatalogDeferred: comic.chapterCatalogDeferred,
     chapters: comic.chapters,
     chapterCount: comic.chapterCount,
     pageCount: comic.pageCount,
@@ -459,16 +462,21 @@ export function readingProgressPageIndex(
   return pageIndex >= 0 && pageIndex < totalPages ? pageIndex : fallback
 }
 
-export function currentComicReadingProgress(comic: Comic, progress?: ReadingProgress): ReadingProgress | undefined {
+export function currentComicReadingProgress(comic: Comic, progress?: ReadingProgress,
+  catalog?: Chapter[]): ReadingProgress | undefined {
+  // The shelf supplies progress normalized against the saved chapter when
+  // necessary. Its work summary represents an unread catalog, not an empty one.
+  if (comic.chapterCatalogDeferred === true && catalog === undefined) return progress
+  const chapters = catalog ?? comic.chapters
   if (comic.localImportOrigin !== undefined && progress !== undefined &&
-    !comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
+    !chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
     return undefined
   }
   if (progress === undefined || (comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER &&
     !(comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE && comic.localImportOrigin?.epubOrderRevision === 1))) {
     return progress
   }
-  const chapter = comic.chapters.find((item: Chapter): boolean => item.id === progress.chapterId)
+  const chapter = chapters.find((item: Chapter): boolean => item.id === progress.chapterId)
   if (chapter === undefined) {
     return progress
   }
