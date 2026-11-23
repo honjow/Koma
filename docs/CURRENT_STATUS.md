@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T04:00:00+08:00",
+  "updatedAt": "2026-11-23T10:45:50+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -12831,6 +12831,37 @@
         ".hvigor/outputs/published-source-order-audit-20261123/checksum-investigation/final-archive-verification/verification.json"
       ],
       "stage": "本地1.6.1已验，等待允许发布App"
+    },
+    {
+      "id": "SOURCE_BROWSE_LIST_INFO",
+      "number": 348,
+      "title": "书源浏览列表缺少摘要信息",
+      "priority": "P2",
+      "kind": "active",
+      "progressPhase": "verification",
+      "status": "App接口与排版已本地提交，源SDK和197普通路径验收进行中",
+      "owner": "本会话：App与接口；Volta：源SDK及试点；Darwin：197设备验收",
+      "reportedAt": "2026-11-23T10:44:10+08:00",
+      "reportedAtSource": "用户本会话要求列表利用封面右侧空间展示书源自定标签、最新章节等有效信息，标题适度缩小；精确消息时间未提供。",
+      "updatedAt": "2026-11-23T10:45:50+08:00",
+      "relatedItems": [
+        "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT"
+      ],
+      "result": "App c276f166已接通可选有序listInfo文字/标签项；旧源使用已有subtitle、作者、已知状态及tags。列表标题14fp，保留封面、网格和点击行为，不逐本追加详情请求。JSON信封仍v1，新源按source_manga_list_info_v1协商。4项实际解析兼容与坏项隔离检查通过，1.6.1/code27构建通过。额外原动态筛选fixture因既有SourcePreferencePersistence依赖未注入而失败，保原错误，未改期望放行。源SDK及普通197路径继续。",
+      "remaining": "补齐源SDK及真实试点，完成编译和设备列表/网格/分页及详情返回验证；App按用户要求暂不发布。",
+      "remainingActions": [
+        "源SDK与真实站点摘要消费，兼容无feature宿主。",
+        "197普通浏览列表实测，核最新章节/标签、长标题与原导航分页，恢复原布局偏好。"
+      ],
+      "boundaries": [
+        "源只提供纯文本内容和顺序，App统一排版；不接入任意样式或执行动作。",
+        "不因可选摘要提高旧源最低App版本；不追加逐本详情请求。",
+        "原119源核验不中断，237仍由原owner独占。"
+      ],
+      "evidencePoints": [
+        ".hvigor/outputs/source-list-info-20261123/"
+      ],
+      "stage": "实现及验收进行中"
     }
   ],
   "source": {
@@ -30046,6 +30077,12 @@
       "itemId": "SOURCE_INSTALL_STALE_INDEX_CHECKSUM",
       "title": "237不手动刷新自然跨发布安装恢复通过；固定归档已公开",
       "detail": "精确1.6.1/code27/5a76 HAP覆盖安装，保留c5旧漫蛙0.1.0摘要d658与未装条目；d200/CI45096872983正式公开后只点原安装按钮一次。09:58:58 download→09:59:10 checksum_mismatch→09:59:11 fetch_ok119/install_metadata_recovery→09:59:13 install_ok，实际已装/已启用及注册hashOk1。未清缓存/改DB/删除原安装/手动刷新或重启。新正式90/肉漫/漫蛙三成员与c5逐字相等，固定ZIP元数据、CRC及索引摘要通过。App b812fbfd只本地，用户暂不发布；原Copy/GUI/优酷4/漫画屋队列继续。"
+    },
+    {
+      "at": "2026-11-23T10:44:10+08:00",
+      "itemId": "SOURCE_BROWSE_LIST_INFO",
+      "title": "开始接通书源自定列表摘要",
+      "detail": "保留旧字段回退，使用有序文字/标签项与可选host feature；原源核验继续。"
     }
   ],
   "reportAgeAudit": {
