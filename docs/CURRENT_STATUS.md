@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T20:50:53+08:00",
+  "updatedAt": "2026-11-23T21:47:30+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -13128,12 +13128,12 @@
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求将包子默认镜像改为tw.webmata.com，经问题回复确认实际指tw.webmota.com；随后补充部分镜像切换后CF难以通过，精确消息时刻未核实。",
-      "status": "台湾Webmota默认值已改，镜像验证路由已修，237实测中",
-      "updatedAt": "2026-11-23T20:39:02+08:00",
-      "result": "包子新版已将无设置及无效设置时的默认镜像改为tw.webmota.com；17个显式选择值保持，原来手动选的镜像不迁移。同步包默认主页与显式域名映射，并把网站canonical允许范围和默认选择分离，保留原章序和阅读资源规则。App中发现镜像源手动验证可能借用旧失败域名，已改为跟随已保存选择或包默认；自动验证保持精确失败请求。另修复详情/目录验证遗漏请求凭据与操作生命周期的接线，避免错误归属。源及App代码已分别本地提交，237正验证新包的普通入口、切换镜像与正文；尚未把部分镜像CF现象登记为全部解决。",
+      "status": "默认台湾入口已发布；其它镜像CF现象待具体入口复核",
+      "updatedAt": "2026-11-23T21:47:30+08:00",
+      "result": "包子0.1.31已正式发布，默认入口为tw.webmota.com；原来保存的显式选择保留。237已核默认值4、原生台湾列表、普通网页与手动连接均落到台湾站；WWW2和AppCN15保存值、列表、详情及目录成功，AppCN第2话实际正文可见。公开索引仍保留原119个源，包与校验和已回读，最低App版本不变。App中验证入口与所选镜像不一致的接线修复已本地提交到1.6.1，未推送发布。本次未遇到用户描述的镜像CF反复失败，正在确认具体镜像，不将未复现写成全部已修。验收另发现WWW第1话P2模糊，已独立登记继续调查；默认入口更新没有修改页表、图片或增强实现。",
       "remainingActions": [
-        "完成237默认台湾入口及原显式偏好保留、WWW和App镜像切换后的网页与原生请求、详情和正文验证。",
-        "验证通过后发布包子源；App保持1.6.1本地提交，不推送或发布。"
+        "根据用户补充的具体失败镜像复核CF与原请求恢复；当前三个镜像样本不能外推全部挑战条件。",
+        "App验证入口修复保留在本地1.6.1，按原约定暂不推送发布；模糊页转独立事项继续处理。"
       ],
       "evidence": [
         ".hvigor/outputs/baozimh-default-mirror-20261123/domain-check.json",
@@ -13142,7 +13142,34 @@
         ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/default-tw-031/candidate-ready.json",
         ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/default-tw-031/report.md",
         ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/app-detail-guard-validation/results.json",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/app-candidate-ready.json"
+        ".hvigor/outputs/baozimh-default-mirror-20261123/app-candidate-ready.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-7a9e34b/public-readback.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-7a9e34b7695fb21886208fe5560b3e073ce1ac31"
+      ]
+    },
+    {
+      "id": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
+      "number": 360,
+      "title": "包子WWW《劍尊歸來》第1話P2只显示模糊图",
+      "kind": "active",
+      "progressPhase": "needs_work",
+      "priority": "本轮源验收新增观察",
+      "owner": "Root定位与集成；Aristotle图像链只读核对；Darwin独占237",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "本轮237包子0.1.31镜像验收中观察；不是用户原始反馈，不用登记时间冒充提出时刻。",
+      "status": "原图与增强切换都呈模糊，继续对照实际文件像素",
+      "updatedAt": "2026-11-23T21:47:30+08:00",
+      "result": "237的WWW第1話取得195张页表，P2截图只显示模糊画面；文件准备完成及Core displayed不能代替正文可见。后续记录显示该页采用system增强，切回原图和恢复增强仍呈模糊，尚未取得两张实际文件及其绑定身份，不能归因网络、缓存、增强或显示生命周期。AppCN第2话152张页表及漫画实显是另一个通过样本。源0.1.31仅调整默认入口、主页与canonical校验，未修改页表和图片处理。原增强开关、无痕、源设置及阅读位置已恢复，继续用现有精准索引定位本页文件。",
+      "remainingActions": [
+        "按当前P2的源、页身份和增强记录定位未增强输入及增强输出，核对两文件实际像素和绑定URI；只读取必要图片缓存索引和匹配条目。",
+        "若文件本身清晰，再核本slot/request的解码、几何及呈现回执；若文件已模糊，追查其来源或处理过程。不能以猜测或清缓存替代定位。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/P2-original-enhancement-comparison.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-28-WWW2-image-settled-readonly/screen.png"
       ]
     }
   ],
@@ -30954,6 +30981,45 @@
         ".hvigor/outputs/source-candidates-20261120/bakamh/web-http-20261123/routing5ac-post-image-readonly/report.md",
         ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/routing5ac-11-once-native-reader-first/diagnostics.log",
         ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/routing5ac-11-once-native-reader-first/screen.png"
+      ]
+    },
+    {
+      "id": "baozimh-031-official-release-verified-20261123",
+      "at": "2026-11-23T21:47:30+08:00",
+      "itemId": "BAOZI_DEFAULT_MIRROR_AND_VERIFICATION_CONTEXT",
+      "kind": "delivery",
+      "title": "包子台湾默认入口已正式发布，镜像验收范围明确保留",
+      "detail": "包子0.1.31已正式发布，默认入口为tw.webmota.com；原来保存的显式选择保留。237已核默认值4、原生台湾列表、普通网页与手动连接均落到台湾站；WWW2和AppCN15保存值、列表、详情及目录成功，AppCN第2话实际正文可见。公开索引仍保留原119个源，包与校验和已回读，最低App版本不变。App中验证入口与所选镜像不一致的接线修复已本地提交到1.6.1，未推送发布。本次未遇到用户描述的镜像CF反复失败，正在确认具体镜像，不将未复现写成全部已修。验收另发现WWW第1话P2模糊，已独立登记继续调查；默认入口更新没有修改页表、图片或增强实现。",
+      "evidence": [
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-7a9e34b/public-readback.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-7a9e34b7695fb21886208fe5560b3e073ce1ac31"
+      ]
+    },
+    {
+      "id": "baozi-www-p2-blurred-observation-20261123",
+      "at": "2026-11-23T21:47:30+08:00",
+      "itemId": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
+      "kind": "verification",
+      "title": "模糊P2独立登记，继续核对原图与增强实际文件",
+      "detail": "237的WWW第1話取得195张页表，P2截图只显示模糊画面；文件准备完成及Core displayed不能代替正文可见。后续记录显示该页采用system增强，切回原图和恢复增强仍呈模糊，尚未取得两张实际文件及其绑定身份，不能归因网络、缓存、增强或显示生命周期。AppCN第2话152张页表及漫画实显是另一个通过样本。源0.1.31仅调整默认入口、主页与canonical校验，未修改页表和图片处理。原增强开关、无痕、源设置及阅读位置已恢复，继续用现有精准索引定位本页文件。",
+      "evidence": [
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/P2-original-enhancement-comparison.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-28-WWW2-image-settled-readonly/screen.png"
+      ]
+    },
+    {
+      "id": "bakamh-fetch-frompage-attribution-corrected-20261123",
+      "at": "2026-11-23T21:47:30+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "correction",
+      "title": "更正Baka Referer调用条件误判，停止错误候选",
+      "detail": "此前将BrowserHeaders的可选FromPage收窄规则误当成Baka默认图片链，漏核KeiSource附加的是裸Fetch.IMAGE。父代理已亲读固定BrowserRequests、BrowserHeaders、MadaraBase和KeiSource调用点，停止2074候选，定点前向更正两文件，保留已验Native文档和页表读取。2074未导入237；Baka仍不可公开安装。实际正文Native403继续定位，未把更正当作图片修复。",
+      "evidence": [
+        ".hvigor/outputs/source-candidates-20261120/bakamh/web-http-20261123/native-image-headers-readonly-20261123/report.md",
+        ".hvigor/outputs/source-candidates-20261120/bakamh/web-http-20261123/image-referrer-policy-20261123/withdrawal.json",
+        "https://github.com/honjow/koma-sources/commit/7a9e34b7695fb21886208fe5560b3e073ce1ac31"
       ]
     }
   ],
