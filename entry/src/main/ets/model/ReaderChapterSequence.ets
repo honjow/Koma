@@ -11,7 +11,30 @@ export interface ReaderChapterDescriptor extends SortableChapter {
   readingVariantGroup?: string
   readingVariantSequence?: string
   scanlator?: string
+  language?: string
   continuationEligible?: boolean
+}
+
+export interface ChapterMetadataFilter {
+  languageFilter: string
+  groupFilter: string
+}
+
+/** Editions/languages define the reading catalog as well as the detail view.
+ * Read/download/bookmark flags remain view filters: reading a chapter must not
+ * remove it from its own sequence. An explicit old history target outside the
+ * selected edition remains readable on its own, never by merging editions. */
+export function filterChapterMetadata<T extends ReaderChapterDescriptor>(
+  chapters: T[], filter?: ChapterMetadataFilter, currentId?: string,
+): T[] {
+  const language = filter?.languageFilter?.trim() ?? ''
+  const group = filter?.groupFilter?.trim() ?? ''
+  if (language.length === 0 && group.length === 0) return chapters
+  const filtered = chapters.filter((chapter: T): boolean =>
+    (language.length === 0 || chapter.language?.trim() === language) &&
+    (group.length === 0 || chapter.scanlator?.trim() === group))
+  const current = currentId === undefined ? undefined : chapters.find((chapter: T): boolean => chapter.id === currentId)
+  return current !== undefined && !filtered.includes(current) ? [current] : filtered
 }
 
 export interface ChapterReadSequenceEntry extends ReaderChapterDescriptor {
@@ -63,6 +86,7 @@ export function cloneReaderChapterDescriptor(chapter: ReaderChapterDescriptor): 
     readingVariantGroup: chapter.readingVariantGroup,
     readingVariantSequence: chapter.readingVariantSequence,
     scanlator: chapter.scanlator,
+    language: chapter.language,
     continuationEligible: chapter.continuationEligible,
   }
 }

@@ -15,7 +15,7 @@ import { HdsListItemCard, SuffixCustomBuilder } from '@kit.UIDesignKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ChapterListPreferencesStore, ChapterReadFilter } from '../model/ChapterListPreferencesStore'
 import { ChapterSortPolicy, compareChapterSort } from '../model/ChapterSortOrder'
-import { previousUnreadChapterIds } from '../model/ReaderChapterSequence'
+import { ChapterMetadataFilter, filterChapterMetadata, previousUnreadChapterIds } from '../model/ReaderChapterSequence'
 import { sourceCatalogDirection } from '../model/SourceChapterChronology'
 import type { SourceChapterOrder } from '../sourceRuntime/SourceChapterOrder'
 export { ChapterReadFilter } from '../model/ChapterListPreferencesStore'
@@ -51,7 +51,7 @@ class ChapterDownloadProgressText {
 
 // One presentation state per detail route, shared by both width layouts.
 @ObservedV2
-export class ChapterListPresentation {
+export class ChapterListPresentation implements ChapterMetadataFilter {
   comicId: string | undefined = undefined
   @Trace sortBasis: ChapterSortBasis = ChapterSortBasis.SOURCE_ORDER
   @Trace sortDirection: ChapterSortDirection = ChapterSortDirection.FORWARD
@@ -93,6 +93,7 @@ export struct ChapterListSection {
   @Param comicId: string = ''
   @Param archiveBusy: boolean = false
   @Param chapters: MangaChapterItem[] = []
+  @Param catalogResolved: boolean = false
   @Param sourceOrder: SourceChapterOrder | undefined = undefined
   @Local private languageState: LanguageState = connectLanguageState()
   @Param presentation: ChapterListPresentation = new ChapterListPresentation()
@@ -156,7 +157,7 @@ export struct ChapterListSection {
     this.onDisplayOrderChange(this.sortedChapters)
   }
 
-  @Monitor('chapters')
+  @Monitor('chapters', 'catalogResolved')
   private rebuildDataSource(): void {
     this.ensureMetadataFiltersAvailable()
     if (this.presentation.selectedChapterIds.size > 0) {
@@ -213,17 +214,7 @@ export struct ChapterListSection {
     if (this.presentation.readFilter === ChapterReadFilter.DOWNLOADED) {
       filtered = filtered.filter((chapter: MangaChapterItem): boolean => chapter.isDownloaded)
     }
-    if (this.presentation.languageFilter.length > 0) {
-      filtered = filtered.filter((chapter: MangaChapterItem): boolean => {
-        return this.normalizeMetadataValue(chapter.language) === this.presentation.languageFilter
-      })
-    }
-    if (this.presentation.groupFilter.length > 0) {
-      filtered = filtered.filter((chapter: MangaChapterItem): boolean => {
-        return this.normalizeMetadataValue(chapter.scanlator) === this.presentation.groupFilter
-      })
-    }
-    return filtered
+    return filterChapterMetadata(filtered, this.presentation)
   }
 
   private sortLabel(): string {
@@ -335,12 +326,21 @@ export struct ChapterListSection {
   }
 
   private ensureMetadataFiltersAvailable(): void {
-    if (this.presentation.languageFilter.length > 0 && !this.chapterVariantOptions.languages.includes(this.presentation.languageFilter)) {
+    // Loading/legacy snapshots cannot invalidate a saved edition selection.
+    // Only a confirmed, nonempty catalog can retire an unavailable option;
+    // publish that same change to the reader's shared preference owner.
+    if (!this.catalogResolved || this.chapters.length === 0) return
+    const options = this.chapterVariantOptions
+    let changed = false
+    if (this.presentation.languageFilter.length > 0 && !options.languages.includes(this.presentation.languageFilter.trim())) {
       this.presentation.languageFilter = ''
+      changed = true
     }
-    if (this.presentation.groupFilter.length > 0 && !this.chapterVariantOptions.groups.includes(this.presentation.groupFilter)) {
+    if (this.presentation.groupFilter.length > 0 && !options.groups.includes(this.presentation.groupFilter.trim())) {
       this.presentation.groupFilter = ''
+      changed = true
     }
+    if (changed) this.savePreferences()
   }
 
   @Computed

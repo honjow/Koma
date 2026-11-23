@@ -4,12 +4,13 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { ChapterSortPolicy } from './ChapterSortOrder'
 import { connectLanguageState } from '../state/LanguageState'
 import { chapterListRecords } from './MigratedPreferenceRecords'
+import { ChapterMetadataFilter, filterChapterMetadata, ReaderChapterDescriptor } from './ReaderChapterSequence'
 
 export enum ChapterReadFilter {
   ALL = 'all', UNREAD = 'unread', READ = 'read', DOWNLOADED = 'downloaded',
 }
 
-export interface ChapterListPreferences {
+export interface ChapterListPreferences extends ChapterMetadataFilter {
   sortBasis: ChapterSortBasis
   sortDirection: ChapterSortDirection
   readFilter: ChapterReadFilter
@@ -36,10 +37,32 @@ export function normalizeChapterListPreferences(value?: ChapterListPreferences):
   }
 }
 
+function readingPreferencesFor(comicId: string): ChapterListPreferences | undefined {
+  const saved = chapterListRecords.prepared(chapterPreferenceDirectory)?.get(comicId)
+  return pendingPreferences.get(comicId) ?? (saved === undefined ? undefined : JSON.parse(saved) as ChapterListPreferences)
+}
+
+/** Every reader entry and catalog refresh consumes the same saved edition.
+ * Keep the full source catalog in storage; this is only a reading projection. */
+export function chapterReadingChaptersFor<T extends ReaderChapterDescriptor>(
+  comicId: string, chapters: T[], currentId?: string,
+): T[] {
+  return filterChapterMetadata(chapters, readingPreferencesFor(comicId), currentId)
+}
+
+/** Old saved chapters can have ordinals but predate edition/language metadata.
+ * Resolve the catalog in the background instead of treating that absence as a
+ * confirmed mismatch. The adapter retires pending after that one resolution. */
+export function chapterReadingMetadataPendingFor<T extends ReaderChapterDescriptor>(comicId: string, chapter?: T): boolean {
+  if (chapter === undefined) return false
+  const filter = readingPreferencesFor(comicId)
+  return ((filter?.groupFilter?.trim().length ?? 0) > 0 && !chapter.scanlator?.trim()) ||
+    ((filter?.languageFilter?.trim().length ?? 0) > 0 && !chapter.language?.trim())
+}
+
 /** History and the shelf reuse the same per-work sort record as the detail page. */
 export function chapterReadingSortFor(comicId: string): ChapterSortPolicy | undefined {
-  const saved = chapterListRecords.prepared(chapterPreferenceDirectory)?.get(comicId)
-  const value = pendingPreferences.get(comicId) ?? (saved === undefined ? undefined : JSON.parse(saved) as ChapterListPreferences)
+  const value = readingPreferencesFor(comicId)
   const basis = value?.sortBasis
   if (basis !== ChapterSortBasis.CHAPTER_NUMBER && basis !== ChapterSortBasis.UPLOAD_DATE &&
     basis !== ChapterSortBasis.NAME) return undefined

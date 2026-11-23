@@ -37,8 +37,9 @@ const chronology = {}
 new Function('exports', ts.transpileModule(fs.readFileSync(path.join(base, 'model/SourceChapterChronology.ets'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText)(chronology)
-new Function('exports','ChapterReadFilter','compareChapterSort','sourceCatalogDirection',js)(
-  exported,readFilter,comparison.compareChapterSort,chronology.sourceCatalogDirection)
+new Function('exports','ChapterReadFilter','compareChapterSort','sourceCatalogDirection','filterChapterMetadata',js)(
+  exported,readFilter,comparison.compareChapterSort,chronology.sourceCatalogDirection,
+  (...args) => reading.filterChapterMetadata(...args))
 const SOURCE='source_order', NUMBER='chapter_number', UPLOAD='upload_date', NAME='name', FORWARD='forward', REVERSE='reverse'
 const reading = {}
 new Function('exports', 'require', ts.transpileModule(

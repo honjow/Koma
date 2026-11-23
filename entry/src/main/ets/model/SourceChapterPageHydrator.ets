@@ -1,5 +1,5 @@
 import { sourceTextOverlay } from './SourceTextOverlay'
-import { chapterReadingSortFor } from './ChapterListPreferencesStore'
+import { chapterReadingChaptersFor, chapterReadingSortFor } from './ChapterListPreferencesStore'
 import { sourceRequiredImageDecode } from './SourceRequiredImageDecode'
 import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
 import { configureSourceRequestPolicy } from '../sourceRuntime/SourceRequestPolicy'
@@ -522,7 +522,8 @@ export class SourceChapterPageHydrator {
       else upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, updated)
       this.onLibraryChanged?.()
     }
-    return continuationChapterIds(resolved.chapters, chapterId, true, chapterReadingSortFor(comicId))
+    return continuationChapterIds(chapterReadingChaptersFor(comicId, resolved.chapters, chapterId),
+      chapterId, true, chapterReadingSortFor(comicId))
   }
 
   async ensureChapterPages(

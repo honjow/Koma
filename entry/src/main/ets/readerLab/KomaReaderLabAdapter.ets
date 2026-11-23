@@ -456,7 +456,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const config = this.configs.get(this.unitId(unit.key))
     if (config === undefined) return null
     // Online adjacency shares preloading's verified edition boundary. The manual
-    // picker has a forward presentation too, but retains all other editions.
+    // picker has a forward presentation too, and retains every entry inside
+    // the detail page's selected edition/language scope.
     const chapterIds = this.readingChapterIds(config)
     const index = chapterIds.indexOf(unit.key.unit)
     const target = index + (direction === 'next' ? 1 : -1)
@@ -484,9 +485,9 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   chapterChoices(unit: ReaderUnitKey): KomaReaderLabChapterChoice[] {
     const config = this.configs.get(this.unitId(unit))
     if (config === undefined) return []
-    // Manual selection shows the complete catalog. Only the
-    // previous/next boundary above is restricted to the verified continuation
-    // sequence, so editions outside that sequence do not disappear from UI.
+    // The host already applies the detail edition/language selection. Keep
+    // every manual choice in that scope, rather than replacing this catalog
+    // with the narrower verified continuation sequence.
     const choices: KomaReaderLabChapterChoice[] = []
     config.chapterIds.forEach((chapterId: string, index: number): void => {
       const bookmarks = chapterId === unit.unit ? (this.archiveBookmarks.get(this.unitId(unit)) ?? []) : []

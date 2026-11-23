@@ -82,7 +82,7 @@ import { SourceMangaDetailSnapshot, sourceMangaDetailSnapshotCache } from '../mo
 import { sourceMangaDetailSnapshotPersistence } from '../model/SourceMangaDetailSnapshotPersistence'
 import { sourceChapterDisplayRows } from '../model/SourceChapterVisibility'
 import { resolveSourceChapterList } from '../model/SourceChapterListResolver'
-import { ReaderChapterDescriptor, cloneReaderChapterDescriptor } from '../model/ReaderChapterSequence'
+import { ReaderChapterDescriptor, cloneReaderChapterDescriptor, filterChapterMetadata } from '../model/ReaderChapterSequence'
 import {
   Chapter,
   Comic,
@@ -343,7 +343,7 @@ export struct MangaDetailPage {
   @Local private sourceDetailContentState: SourceDetailContentState = SourceDetailContentState.UNRESOLVED
   // A route list row is preview data. It is not a resolved detail payload.
   @Local private sourceDetailDataResolved: boolean = false
-  private sourceChaptersResolved: boolean = false
+  @Local private sourceChaptersResolved: boolean = false
   @Local private downloadBusy: boolean = false
   @Local private trackerSyncBusy: boolean = false
   @Local private trackerMappingBusy: boolean = false
@@ -1964,13 +1964,18 @@ export struct MangaDetailPage {
   }
 
   @Computed
+  private get readingChaptersValue(): MangaChapterItem[] {
+    return filterChapterMetadata(this.chapters, this.chapterPresentation)
+  }
+
+  @Computed
   private get firstUnreadChapterValue(): string | undefined {
     void this.readerSessionStore
     void this.readerProgressRevision
     // Follow a newly selected basis before its asynchronous preference flush.
     void this.chapterPresentation.sortBasis
     const comicId = this.currentComicId()
-    return firstReaderChapter(this.chapters, sourceChapterOrderFor(this.manga?.sourceId),
+    return firstReaderChapter(this.readingChaptersValue, sourceChapterOrderFor(this.manga?.sourceId),
       (id: string): boolean => this.readerSessionStore.isChapterRead(comicId, id), chapterReadingSortFor(comicId))?.id
   }
 
@@ -1991,7 +1996,7 @@ export struct MangaDetailPage {
     if (progress === undefined || progress.chapterId.trim().length === 0) {
       return undefined
     }
-    return this.chapters.some((chapter: MangaChapterItem): boolean => chapter.id === progress.chapterId)
+    return this.readingChaptersValue.some((chapter: MangaChapterItem): boolean => chapter.id === progress.chapterId)
       ? progress.chapterId
       : undefined
   }
@@ -2002,7 +2007,12 @@ export struct MangaDetailPage {
 
   @Computed
   private get primaryReadChapterValue(): string | undefined {
-    return this.progressChapterId() ?? this.firstUnreadChapterId()
+    const chapterId = this.progressChapterId() ?? this.firstUnreadChapterId()
+    if (chapterId !== undefined) return chapterId
+    // Read flags can outlive the work's resume point. A fully read catalog
+    // still supports starting again in the same reading order.
+    return firstReaderChapter(this.readingChaptersValue, sourceChapterOrderFor(this.manga?.sourceId), undefined,
+      chapterReadingSortFor(this.currentComicId()))?.id
   }
 
   private primaryReadChapterId(): string | undefined {
@@ -4088,6 +4098,9 @@ export struct MangaDetailPage {
         onDisplayOrderChange: (chapters: MangaChapterItem[]) => { this.chrome.displayedChapters = chapters },
         archiveBusy: this.chapterArchiveBusy,
         chapters: this.chapters,
+        catalogResolved: this.sourceDetailContentState === SourceDetailContentState.LOCAL
+          ? (this.manga?.sourceId?.trim().length ?? 0) === 0
+          : this.sourceDetailContentState === SourceDetailContentState.READY && this.sourceChaptersResolved,
         onExportChapter: (chapterId: string, share: boolean) => { void this.exportChapter(chapterId, share) },
         onBookmarkChapter: (chapterId: string, bookmarked: boolean) => {
           if (this.readerSessionStore.commitChapterBookmark(this.currentComicId(), chapterId, bookmarked, this.readingSourceIdentity())) {

@@ -13,7 +13,7 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
 import { continuationChapterIds, firstReaderChapter, needsSourceCatalogChronology, readerChapterPickerChapters, ReaderChapterOpenIntent } from './ReaderChapterSequence'
-import { chapterReadingSortFor } from './ChapterListPreferencesStore'
+import { chapterReadingChaptersFor, chapterReadingMetadataPendingFor, chapterReadingSortFor } from './ChapterListPreferencesStore'
 import {
   Chapter,
   ChapterId,
@@ -2202,21 +2202,24 @@ export function createReaderSessionConfigFromComic(
   includeChapterNavigation: boolean = true,
 ): ReaderSessionConfig {
   const sort = includeChapterNavigation || !chapterId ? chapterReadingSortFor(comic.id) : undefined
+  const readingChapters = includeChapterNavigation
+    ? chapterReadingChaptersFor(comic.id, comic.chapters, chapterId) : comic.chapters
   const targetChapterId = chapterId !== undefined && chapterId.length > 0
     ? chapterId
-    : (firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId), undefined, sort)?.id ?? '')
+    : (firstReaderChapter(readingChapters, sourceChapterOrderFor(comic.sourceRuntimeId), undefined, sort)?.id ?? '')
   const chapter = comic.chapters.find((item) => item.id === targetChapterId)
   const pages = preparedPages ?? chapter?.pages ?? []
   // Downloads resolve images for one chapter and do not open the reader's
   // chapter picker or cross-chapter navigation.
-  const picker = includeChapterNavigation ? readerChapterPickerChapters(comic.chapters,
+  const picker = includeChapterNavigation ? readerChapterPickerChapters(readingChapters,
     sourceChapterOrderFor(comic.sourceRuntimeId), sort) : []
   return {
     comicId: comic.id,
     chapterId: targetChapterId,
     chapterIds: picker.map((item) => item.id),
-    continuationChapterIds: includeChapterNavigation ? continuationChapterIds(comic.chapters, targetChapterId, true, sort) : undefined,
-    sourceChapterChronologyPending: comic.sourceRuntimeId !== undefined && needsSourceCatalogChronology(chapter, true),
+    continuationChapterIds: includeChapterNavigation ? continuationChapterIds(readingChapters, targetChapterId, true, sort) : undefined,
+    sourceChapterChronologyPending: comic.sourceRuntimeId !== undefined &&
+      (needsSourceCatalogChronology(chapter, true) || chapterReadingMetadataPendingFor(comic.id, chapter)),
     chapterTitles: picker.map((item) => readerChapterDisplayTitle(item)),
     title: comic.title,
     chapterTitle: chapter === undefined ? undefined : readerChapterDisplayTitle(chapter),

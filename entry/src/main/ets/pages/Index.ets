@@ -96,7 +96,7 @@ import {
   needsSourceCatalogChronology,
 } from '../model/ReaderChapterSequence'
 import { SourceBrowsePage } from './SourceBrowsePage'
-import { chapterReadingSortFor } from '../model/ChapterListPreferencesStore'
+import { chapterReadingChaptersFor, chapterReadingMetadataPendingFor, chapterReadingSortFor } from '../model/ChapterListPreferencesStore'
 import { SourceWebFetchBridgeHost } from '../components/SourceWebFetchBridgeHost'
 import { SourceSearchPage } from './SourceSearchPage'
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
@@ -840,7 +840,7 @@ struct Index {
     if (progress !== undefined && comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
       return progress.chapterId
     }
-    return firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId),
+    return firstReaderChapter(chapterReadingChaptersFor(comic.id, comic.chapters), sourceChapterOrderFor(comic.sourceRuntimeId),
       (id: string): boolean => this.readerSessionStore.isChapterRead(comic.id, id), chapterReadingSortFor(comic.id))?.id
   }
 
@@ -1096,7 +1096,7 @@ struct Index {
       (comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0))) {
       return progress.chapterId
     }
-    const firstChapter = firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId),
+    const firstChapter = firstReaderChapter(chapterReadingChaptersFor(comic.id, comic.chapters), sourceChapterOrderFor(comic.sourceRuntimeId),
       (id: string): boolean => this.readerSessionStore.isChapterRead(comic.id, id), chapterReadingSortFor(comic.id))
     return firstChapter?.id
   }
@@ -1331,8 +1331,10 @@ struct Index {
     })
     const metadata = new Map<string, ReaderChapterDescriptor>()
     request.chapters?.forEach((chapter: ReaderChapterDescriptor): void => { metadata.set(chapter.id, chapter) })
-    const picker = readerChapterPickerChapters(chapterIds.map((id: string, index: number): ReaderChapterDescriptor =>
-      metadata.get(id) ?? { id, title: chapterTitles[index] }), sourceChapterOrderFor(request.sourceId),
+    const readingChapters = chapterReadingChaptersFor(request.comicId,
+      chapterIds.map((id: string, index: number): ReaderChapterDescriptor =>
+        metadata.get(id) ?? { id, title: chapterTitles[index] }), request.chapterId)
+    const picker = readerChapterPickerChapters(readingChapters, sourceChapterOrderFor(request.sourceId),
       chapterReadingSortFor(request.comicId))
     return {
       comicId: request.comicId,
@@ -1340,9 +1342,9 @@ struct Index {
       chapterIds: picker.map((chapter: ReaderChapterDescriptor): string => chapter.id),
       chapterTitles: picker.map((chapter: ReaderChapterDescriptor): string => chapter.title),
       continuationChapterIds: request.chaptersResolved === true && request.chapters !== undefined
-        ? continuationChapterIds(request.chapters, request.chapterId, true, chapterReadingSortFor(request.comicId)) : undefined,
-      sourceChapterChronologyPending: needsSourceCatalogChronology(request.chapters?.find(
-        (chapter: ReaderChapterDescriptor): boolean => chapter.id === request.chapterId)),
+        ? continuationChapterIds(readingChapters, request.chapterId, true, chapterReadingSortFor(request.comicId)) : undefined,
+      sourceChapterChronologyPending: needsSourceCatalogChronology(metadata.get(request.chapterId)) ||
+        chapterReadingMetadataPendingFor(request.comicId, metadata.get(request.chapterId)),
       title: request.title,
       chapterTitle: chapterTitles[selectedIndex],
       readingFormat: request.readingFormat,
@@ -1581,10 +1583,11 @@ struct Index {
       this.rememberSharedChapterCatalog(updated)
       sourceMangaDetailSnapshotCache.rememberVerifiedReaderCatalog(lookup.entry, source.mangaId, source.mangaUrl,
         settingsRevision, catalog.chapters, catalog.excludedChapterIds)
-      const picker = readerChapterPickerChapters(catalog.chapters, sourceChapterOrderFor(source.sourceId),
+      const readingChapters = chapterReadingChaptersFor(target.work, catalog.chapters, target.unit)
+      const picker = readerChapterPickerChapters(readingChapters, sourceChapterOrderFor(source.sourceId),
         chapterReadingSortFor(target.work))
       return {
-        continuation: continuationChapterIds(catalog.chapters, target.unit, true, chapterReadingSortFor(target.work)),
+        continuation: continuationChapterIds(readingChapters, target.unit, true, chapterReadingSortFor(target.work)),
         chapterIds: picker.map((chapter: ReaderChapterDescriptor): string => chapter.id),
         chapterTitles: picker.map((chapter: ReaderChapterDescriptor): string => chapter.title),
       }
@@ -1843,13 +1846,15 @@ struct Index {
 
   private reuseVerifiedReaderCatalog(request: SourceReaderSessionRequest): void {
     const existing = request.chapters?.find((chapter: ReaderChapterDescriptor): boolean => chapter.id === request.chapterId)
-    if (request.chaptersResolved === true && existing !== undefined && !needsSourceCatalogChronology(existing)) return
+    if (request.chaptersResolved === true && existing !== undefined && !needsSourceCatalogChronology(existing) &&
+      !chapterReadingMetadataPendingFor(request.comicId, existing)) return
     const lookup = this.sourceRegistry.lookup(request.sourceId)
     if (!lookup.ok || lookup.entry === undefined || !sourceRuntimeEntryEnabled(lookup.entry) ||
       lookup.entry.authentication !== undefined) return
     const cached = sourceMangaDetailSnapshotCache.read(lookup.entry, request.sourceId, request.mangaId, request.mangaUrl)
     const current = cached?.chapters.find((chapter: ReaderChapterDescriptor): boolean => chapter.id === request.chapterId)
-    if (cached?.chaptersResolved !== true || current === undefined || needsSourceCatalogChronology(current)) return
+    if (cached?.chaptersResolved !== true || current === undefined || needsSourceCatalogChronology(current) ||
+      chapterReadingMetadataPendingFor(request.comicId, current)) return
     // Restore only a verified catalog. Each new source-reader entry still
     // requests fresh page descriptors so signed URLs and auth stay current.
     request.chapters = cached.chapters

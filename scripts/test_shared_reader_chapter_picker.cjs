@@ -893,14 +893,18 @@ test('a complete source catalog retires missing chapter adjacency without losing
   for (const readingGroup of ['source-catalog', 'source-edition']) {
     const missing = { id: 'missing', index: 0, readingGroup, readingOrder: 0, continuationEligible: true,
       pages: [{ uri: 'saved-original' }], isRead: true, lastReadPage: 4 }
-    const present = { id: 'present', index: 1, readingGroup, readingOrder: 1, continuationEligible: true }
+    const present = { id: 'present', index: 1, readingGroup, readingOrder: 1, continuationEligible: true,
+      scanlator: '旧分组', language: 'zh' }
     const comic = { chapters: [missing, present] }
-    assert.equal(output.enrichSourceChapterMetadata(comic, [{ ...present }]), true)
+    const confirmed = { ...present, scanlator: undefined, language: undefined }
+    assert.equal(output.enrichSourceChapterMetadata(comic, [confirmed]), true)
     assert.equal(missing.continuationEligible, false)
     assert.deepEqual(missing.pages, [{ uri: 'saved-original' }])
     assert.deepEqual([missing.isRead, missing.lastReadPage, missing.readingOrder], [true, 4, 0])
     assert.equal(present.continuationEligible, true)
-    assert.equal(output.enrichSourceChapterMetadata(comic, [{ ...present }]), false)
+    assert.equal(present.scanlator, undefined)
+    assert.equal(present.language, undefined)
+    assert.equal(output.enrichSourceChapterMetadata(comic, [confirmed]), false)
   }
 })
 
@@ -927,4 +931,71 @@ test('failed history catalog remains retryable without replacing its readable ch
   assert.equal(adapter.adjacent(unit, 'next').unit, 'C')
   assert.equal(config.chapterIds.length, 3)
   adapter.close()
+})
+
+test('saved edition filters constrain source and shelf reading without changing the complete catalog or downloads', async () => {
+  const sequence = chapterSequence()
+  const rows = ['v2', 's2', 'v1', 's1'].map((id, index) => ({
+    id, title: id, index, sortKey: id, pages: [{ id: id + '-p', uri: id + '.jpg' }], pageCount: 1,
+    scanlator: id.startsWith('s') ? ' 连载 ' : '单行本', language: 'zh',
+    readingOrder: 3 - index, readingGroup: 'source-catalog', continuationEligible: true,
+  }))
+  const records = new Map([['work', JSON.stringify({ groupFilter: '连载' })]])
+  const preferences = loadHostModel('ChapterListPreferencesStore', {
+    './ReaderChapterSequence': sequence,
+    './MangaDetailModels': { ChapterSortBasis: { SOURCE_ORDER: 'source_order', CHAPTER_NUMBER: 'chapter_number',
+      UPLOAD_DATE: 'upload_date', NAME: 'name' }, ChapterSortDirection: { FORWARD: 'forward', REVERSE: 'reverse' } },
+    './MigratedPreferenceRecords': { chapterListRecords: { prepared: () => records,
+      prepare: async () => ({ put: (id, value) => records.set(id, value) }) } },
+    './BackupRestoreActivity': { BackupRestoreActivity: { runWrite: run => run() } },
+    '../state/LanguageState': { connectLanguageState: () => ({ effectiveLocale: 'zh-CN' }) },
+  })
+  const globals = { ...sequence, ...preferences, sourceChapterOrderFor: () => 'newest_first' }
+  const comicModels = loadHostModel('ComicModels')
+  const { createReaderSessionConfigFromComic } = loadHostModel('ReaderSessionStore', {
+    './ReaderChapterSequence': sequence, './ChapterListPreferencesStore': preferences,
+    './ComicModels': comicModels, '../sourceRuntime/SourceRuntimeAppRegistry': globals,
+    '../i18n/AppStrings': { AppStrings: { get: () => 'Chapter %s' } },
+  })
+  const comic = { id: 'work', title: 'Editions', sourceRuntimeId: 'source', chapters: rows }
+  const original = JSON.stringify(comic)
+  const Index = subject('../pages/Index.ets', 'Index', ['createSourceReaderSessionConfig'], globals)
+  const index = new Index()
+  const request = { comicId: 'work', sourceId: 'source', chapterId: 's1', chapters: rows,
+    chapterIds: rows.map(row => row.id), chapterTitles: rows.map(row => row.title), chaptersResolved: true }
+  const verify = (config, ids) => {
+    assert.deepEqual(Array.from(config.chapterIds), ids)
+    assert.deepEqual(Array.from(config.continuationChapterIds), ids)
+  }
+  verify(createReaderSessionConfigFromComic(comic), ['s1', 's2'])
+  verify(index.createSourceReaderSessionConfig(request, []), ['s1', 's2'])
+  const oldComic = { ...comic, chapters: rows.map(row => ({ ...row, scanlator: undefined })) }
+  const oldConfig = createReaderSessionConfigFromComic(oldComic, 's1')
+  assert.equal(oldConfig.sourceChapterChronologyPending, true)
+  assert.deepEqual(Array.from(oldConfig.chapterIds), ['s1'])
+  const Detail = subject('../pages/MangaDetailPage.ets', 'MangaDetailPage',
+    ['readingChaptersValue', 'progressChapterValue', 'progressChapterId', 'firstUnreadChapterValue', 'firstUnreadChapterId',
+      'primaryReadChapterValue'], { ...globals, Computed: () => {} })
+  const detail = new Detail()
+  Object.assign(detail, { chapters: rows, manga: { sourceId: 'source' }, chapterPresentation: { groupFilter: '连载' },
+    currentComicId: () => 'work', currentReadingProgress: () => ({ chapterId: 'v2' }),
+    readerSessionStore: { isChapterRead: () => false } })
+  assert.equal(detail.primaryReadChapterValue, 's1', 'detail continue cannot reopen a hidden edition')
+
+  const store = new preferences.ChapterListPreferencesStore({ filesDir: '/test' })
+  const save = store.save('work', { ...store.load('work'), groupFilter: '单行本', readFilter: 'unread' })
+  verify(createReaderSessionConfigFromComic(comic), ['v1', 'v2'])
+  await save
+  verify(index.createSourceReaderSessionConfig({ ...request, chapterId: 'v1' }, []), ['v1', 'v2'])
+  verify(createReaderSessionConfigFromComic(comic, 's2'), ['s2'])
+  const download = createReaderSessionConfigFromComic(comic, 's2', undefined, false)
+  assert.equal(download.chapterId, 's2')
+  assert.equal(download.pageUris[0], 's2.jpg')
+  assert.equal(download.continuationChapterIds, undefined)
+  const clone = sequence.cloneReaderChapterDescriptor(rows[0])
+  assert.equal(clone.language, 'zh')
+  assert.deepEqual(Array.from(sequence.filterChapterMetadata([clone], { languageFilter: 'en', groupFilter: '' })), [])
+  await store.save('work', { ...store.load('work'), groupFilter: '', languageFilter: '' })
+  verify(createReaderSessionConfigFromComic(comic), ['s1', 'v1', 's2', 'v2'])
+  assert.equal(JSON.stringify(comic), original)
 })

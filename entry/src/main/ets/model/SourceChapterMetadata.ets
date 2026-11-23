@@ -55,7 +55,7 @@ export function enrichSourceChapterMetadata(comic: Comic, remoteChapters: MangaC
       chapter.readingVariantSequence = remote.readingVariantSequence
       changed = true
     }
-    if (remote.scanlator !== undefined && remote.scanlator !== chapter.scanlator) {
+    if (remote.scanlator !== chapter.scanlator) {
       chapter.scanlator = remote.scanlator
       changed = true
     }
