@@ -121,7 +121,7 @@ export struct MangaMigrationPage {
       const originalName = this.rows[0].comic.sourceMetadata?.sourceName?.trim()
       const suggested = this.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean =>
         source.displayName === originalName || resolveSourceLocalizedName(source.displayName, source.localizedNames,
-          this.languageState.effectiveLocale) === originalName)
+          this.languageState.effectiveLocale, source.presentation) === originalName)
       if (suggested.length === 1) this.selectedSources = [suggested[0].sourceId]
     }
     this.deepSearch = this.initialMatchOptions.deepSearch
@@ -594,7 +594,7 @@ export struct MangaMigrationPage {
     // This snapshot already holds the row metadata. Rebuilding all summaries
     // here would synchronously recheck every installed source's icon file.
     ConciseListRow({ title: resolveSourceLocalizedName(source.displayName, source.localizedNames,
-      this.languageState.effectiveLocale), showChevron: false, wrapTitle: true,
+      this.languageState.effectiveLocale, source.presentation), showChevron: false, wrapTitle: true,
       subtitle: sourceLanguageName(source.language), hasSourceIdentityPrefix: true,
       sourceIdentityIconUri: source.icon ?? '',
       isEnabled: !this.starting,

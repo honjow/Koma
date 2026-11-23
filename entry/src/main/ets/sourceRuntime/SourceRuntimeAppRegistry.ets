@@ -1,3 +1,4 @@
+import { SourcePresentation, normalizeSourcePresentation, resolveSourcePresentationText } from './SourcePresentation'
 import { SourceChapterOrder } from './SourceChapterOrder'
 import { SourcePrivateSessionHost } from './SourcePrivateSessionHost'
 import { appSourceWebSessionStore, sourceSessionStorageIdentity, sourceWebPackageIdentity } from './SourceWebSessionStore'
@@ -100,6 +101,7 @@ export interface InstalledSourcePackage {
   catalogOrigin?: string
   name: string
   localizedNames?: Record<string, string>
+  presentation?: SourcePresentation
   version: string
   lang: string
   nsfw: boolean
@@ -480,6 +482,7 @@ function sourcePackageFromEntry(entry: SourceRuntimeRegistryEntry): InstalledSou
     catalogOrigin: entry.catalogOrigin,
     name: entry.manifestName,
     localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
+    presentation: normalizeSourcePresentation(entry.presentation),
     version: entry.manifestVersion,
     lang: entry.language,
     nsfw: entry.nsfw,
@@ -634,6 +637,7 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
       id: entry.manifestId,
       name: entry.manifestName,
       localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
+      presentation: normalizeSourcePresentation(entry.presentation),
       chapterOrder: entry.chapterOrder,
       version: entry.manifestVersion,
       language: entry.language,
@@ -1013,6 +1017,7 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
       const unchanged = existing.importStatus === entry.importStatus &&
         existing.manifestVersion === entry.manifestVersion &&
         existing.chapterOrder === entry.chapterOrder &&
+        JSON.stringify(existing.presentation) === JSON.stringify(entry.presentation) &&
         JSON.stringify(normalizeSourceLocalizedNames(existing.localizedNames)) ===
           JSON.stringify(normalizeSourceLocalizedNames(entry.localizedNames)) &&
         existing.wasmByteCount === entry.wasmByteCount &&
@@ -1048,6 +1053,7 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
           id: entry.manifestId,
           name: entry.manifestName,
           localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
+          presentation: normalizeSourcePresentation(entry.presentation),
           chapterOrder: entry.chapterOrder,
           version: entry.manifestVersion,
           language: entry.language,
@@ -1158,7 +1164,20 @@ export function sourceDisplayName(sourceId: string, fallback: string = ''): stri
   if (entry === undefined) {
     return fallback
   }
-  return resolveSourceLocalizedName(entry.manifestName, entry.localizedNames, connectLanguageState().effectiveLocale)
+  return resolveSourceLocalizedName(entry.manifestName, entry.localizedNames, connectLanguageState().effectiveLocale, entry.presentation)
+}
+
+export function sourceDisplayDescription(sourceId: string, fallback: string = ''): string {
+  const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+  return entry === undefined ? fallback : resolveSourcePresentationText(
+    entry.packageDescription || fallback || entry.presentationDescription, entry.presentation,
+    'description', connectLanguageState().effectiveLocale)
+}
+
+export function sourceAuthenticationDisplayLabel(sourceId: string, field: string, literal: string): string {
+  const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+  return resolveSourcePresentationText(literal, entry?.presentation,
+    'authentication.' + field, connectLanguageState().effectiveLocale)
 }
 
 export function getInstalledSourcePackage(sourceId: string): InstalledSourcePackage | undefined {

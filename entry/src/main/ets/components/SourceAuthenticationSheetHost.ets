@@ -4,7 +4,8 @@ import { AppStrings } from '../i18n/AppStrings'
 import { KOMA_BUNDLE_NAME } from '../common/Constants'
 import { SourceAuthenticationRequest, SourceAuthenticationService } from '../sourceRuntime/SourceAuthenticationService'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
-import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { appSourceRuntimeRegistry, sourceDisplayName, sourceAuthenticationDisplayLabel } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { sourceAuthenticationOrigin } from '../sourceRuntime/SourceAuthenticationDescriptor'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { SourceRuntimeError } from '../model/SourceRuntimeError'
@@ -25,6 +26,7 @@ export struct SourceAuthenticationSheetHost {
   @Event onAuthenticationChanged: () => void = () => {}
   @Local private shown: boolean = false
   @Local private title: string = ''
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private usernameLabel: string = ''
   @Local private passwordLabel: string = ''
   @Local private loginOrigin: string = ''
@@ -72,6 +74,18 @@ export struct SourceAuthenticationSheetHost {
     catch (_error) { return false }
   }
 
+  @Monitor('languageState.effectiveLocale')
+  private refreshDisplayLabels(): void {
+    if (this.service === null) return
+    const sourceId = this.service.entry.sourceId
+    const descriptor = this.service.descriptor
+    this.title = sourceDisplayName(sourceId, this.service.title)
+    this.usernameLabel = sourceAuthenticationDisplayLabel(sourceId, 'usernameLabel',
+      descriptor.usernameLabel ?? AppStrings.get('common_username'))
+    this.passwordLabel = sourceAuthenticationDisplayLabel(sourceId, 'passwordLabel',
+      descriptor.passwordLabel ?? AppStrings.get('common_password'))
+  }
+
   private open(): void {
     const request = this.request
     if (!this.mounted || !this.active || request === null || !request.current()) return
@@ -86,9 +100,7 @@ export struct SourceAuthenticationSheetHost {
       this.service = new SourceAuthenticationService(request.sourceId,
         (): boolean => this.mounted && this.active && this.epoch === epoch && request === this.request && request.current())
       const descriptor = this.service.descriptor
-      this.title = this.service.title
-      this.usernameLabel = descriptor.usernameLabel ?? AppStrings.get('common_username')
-      this.passwordLabel = descriptor.passwordLabel ?? AppStrings.get('common_password')
+      this.refreshDisplayLabels()
       this.loginOrigin = sourceAuthenticationOrigin(this.service.loginUrl)
       this.credentialStorage = descriptor.credentialStorage ?? ''
       this.webTokenStorageKey = descriptor.webToken?.storageKey ?? ''

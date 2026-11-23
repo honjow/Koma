@@ -260,11 +260,11 @@ export struct BrowsePage {
     // local so a locale or source change always computes the original order.
     const displayNames = new Map<string, string>()
     sources.forEach((source: SourceRuntimeRegistryInstalledSourceSummary): void => {
-      displayNames.set(source.sourceId, resolveSourceLocalizedName(source.displayName, source.localizedNames, locale))
+      displayNames.set(source.sourceId, resolveSourceLocalizedName(source.displayName, source.localizedNames, locale, source.presentation))
     })
     return sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean =>
       sourceMatchesCatalogSearch(this.chrome.search.query, displayNames.get(source.sourceId) ?? source.displayName,
-        source.displayName, source.localizedNames, source.sourceId))
+        source.displayName, source.localizedNames, source.sourceId, source.presentation))
       .sort((left: SourceRuntimeRegistryInstalledSourceSummary, right: SourceRuntimeRegistryInstalledSourceSummary): number =>
       compareSourceNames(displayNames.get(left.sourceId) ?? left.displayName, left.sourceId,
         displayNames.get(right.sourceId) ?? right.displayName, right.sourceId))

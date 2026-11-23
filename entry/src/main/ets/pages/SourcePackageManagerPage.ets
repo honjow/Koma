@@ -18,6 +18,7 @@ import { IncognitoPreferencesStore } from '../model/IncognitoPreferencesStore'
 import { connectIncognitoState, IncognitoState } from '../state/IncognitoState'
 import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { SourcePresentation, resolveSourcePresentationText } from '../sourceRuntime/SourcePresentation'
 import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
 import { common } from '@kit.AbilityKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
@@ -291,7 +292,7 @@ export struct SourcePackageManagerPage {
     const locale = this.languageState.effectiveLocale
     const names = new Map<string, string>()
     entries.forEach((entry: SourceIndexEntry): void => {
-      names.set(entry.id, resolveSourceLocalizedName(entry.name, entry.localizedNames, locale))
+      names.set(entry.id, resolveSourceLocalizedName(entry.name, entry.localizedNames, locale, entry.presentation))
     })
     return entries.slice().sort((left: SourceIndexEntry, right: SourceIndexEntry): number =>
       compareSourceNames(names.get(left.id) ?? left.name, left.id, names.get(right.id) ?? right.name, right.id))
@@ -352,8 +353,8 @@ export struct SourcePackageManagerPage {
   private reload(): void {
     const locale = this.languageState.effectiveLocale
     this.packages = listInstalled().slice().sort((left: InstalledSourcePackage, right: InstalledSourcePackage): number =>
-      compareSourceNames(resolveSourceLocalizedName(left.name, left.localizedNames, locale), left.id,
-        resolveSourceLocalizedName(right.name, right.localizedNames, locale), right.id))
+      compareSourceNames(resolveSourceLocalizedName(left.name, left.localizedNames, locale, left.presentation), left.id,
+        resolveSourceLocalizedName(right.name, right.localizedNames, locale, right.presentation), right.id))
     this.refreshSavedSettingsCounts()
     const sheetSource = this.sourceSheetSource()
     if (sheetSource !== undefined) {
@@ -428,7 +429,7 @@ export struct SourcePackageManagerPage {
     // identities. Do not retain this map across locale or package changes.
     const displayNames = new Map<string, string>()
     packages.forEach((item: InstalledSourcePackage): void => {
-      displayNames.set(item.id, resolveSourceLocalizedName(item.name, item.localizedNames, locale))
+      displayNames.set(item.id, resolveSourceLocalizedName(item.name, item.localizedNames, locale, item.presentation))
     })
     this.packages = packages.sort((left: InstalledSourcePackage, right: InstalledSourcePackage): number =>
       compareSourceNames(displayNames.get(left.id) ?? left.name, left.id,
@@ -486,7 +487,7 @@ export struct SourcePackageManagerPage {
 
 
   private indexDisplayName(entry: SourceIndexEntry): string {
-    return resolveSourceLocalizedName(entry.name, entry.localizedNames, this.languageState.effectiveLocale)
+    return resolveSourceLocalizedName(entry.name, entry.localizedNames, this.languageState.effectiveLocale, entry.presentation)
   }
 
   private installedSourceIds(): string[] {
@@ -817,7 +818,7 @@ export struct SourcePackageManagerPage {
     const displayNames = new Map<string, string>()
     candidates.forEach((candidate: SourcePackageUpdateCandidate): void => {
       const entry = candidate.entry
-      displayNames.set(entry.id, resolveSourceLocalizedName(entry.name, entry.localizedNames, locale))
+      displayNames.set(entry.id, resolveSourceLocalizedName(entry.name, entry.localizedNames, locale, entry.presentation))
     })
     return candidates.sort((left: SourcePackageUpdateCandidate, right: SourcePackageUpdateCandidate): number =>
       compareSourceNames(displayNames.get(left.entry.id) ?? left.entry.name, left.entry.id,
@@ -828,22 +829,22 @@ export struct SourcePackageManagerPage {
     const filters: SourceCatalogFilters = { languages: this.catalogFilters.languages, rating: this.catalogFilters.rating }
     const matches = (entry: SourceIndexEntry): boolean => sourceMatchesCatalogFilters(entry.lang, entry.nsfw, entry.contentRating, filters)
     const locale = this.languageState.effectiveLocale
-    const matchesName = (id: string, name: string, localizedNames?: Record<string, string>): boolean =>
+    const matchesName = (id: string, name: string, localizedNames?: Record<string, string>, presentation?: SourcePresentation): boolean =>
       this.chrome.search.query.trim().length === 0 ||
-      sourceMatchesCatalogSearch(this.chrome.search.query, resolveSourceLocalizedName(name, localizedNames, locale), name, localizedNames, id)
+      sourceMatchesCatalogSearch(this.chrome.search.query, resolveSourceLocalizedName(name, localizedNames, locale, presentation), name, localizedNames, id, presentation)
     const allUpdates = this.availablePackageUpdates().filter((candidate: SourcePackageUpdateCandidate): boolean => matches(candidate.entry))
     const updating = new Set<string>(allUpdates.map((candidate: SourcePackageUpdateCandidate): string => candidate.entry.id))
     const updates = allUpdates.filter((candidate: SourcePackageUpdateCandidate): boolean => {
       const entry = candidate.entry
       const installed = this.installedPackage(entry.id)
-      return matchesName(entry.id, entry.name, entry.localizedNames) || (installed !== undefined &&
-        matchesName(installed.id, installed.name, installed.localizedNames))
+      return matchesName(entry.id, entry.name, entry.localizedNames, entry.presentation) || (installed !== undefined &&
+        matchesName(installed.id, installed.name, installed.localizedNames, installed.presentation))
     })
     return { updates, missing: this.missingIndexEntries().filter((entry: SourceIndexEntry): boolean =>
-      matches(entry) && matchesName(entry.id, entry.name, entry.localizedNames)),
+      matches(entry) && matchesName(entry.id, entry.name, entry.localizedNames, entry.presentation)),
       installed: this.packages.filter((source: InstalledSourcePackage): boolean => !updating.has(source.id) &&
         sourceMatchesCatalogFilters(source.lang, source.nsfw, source.contentRating, filters) &&
-        matchesName(source.id, source.name, source.localizedNames)) }
+        matchesName(source.id, source.name, source.localizedNames, source.presentation)) }
   }
 
   @Computed
@@ -2120,8 +2121,12 @@ export struct SourcePackageManagerPage {
   }
 
   private hasSourcePackageMetadata(source: InstalledSourcePackage): boolean {
-    return source.description.length > 0 || source.author.length > 0 ||
+    return this.packagePresentationText(source, 'description', source.description).length > 0 || source.author.length > 0 ||
       source.contentRating.length > 0 || source.minAppVersion.length > 0
+  }
+
+  private packagePresentationText(source: InstalledSourcePackage, role: string, literal: string): string {
+    return resolveSourcePresentationText(literal, source.presentation, role, this.languageState.effectiveLocale)
   }
 
   private sourceSettingsText(source: InstalledSourcePackage): string {
@@ -2420,10 +2425,10 @@ export struct SourcePackageManagerPage {
 
       if (this.hasSourcePackageMetadata(params.source)) {
         GroupedListSection({ inModal: true, title: t('source_pkg_information_section') }) {
-          if (params.source.description.length > 0) {
+          if (this.packagePresentationText(params.source, 'description', params.source.description).length > 0) {
             ConciseListRow({
               title: t('common_description'),
-              subtitle: params.source.description,
+              subtitle: this.packagePresentationText(params.source, 'description', params.source.description),
               subtitleMaxLines: 3,
               showChevron: false,
             })
@@ -2434,7 +2439,7 @@ export struct SourcePackageManagerPage {
           if (params.source.author.length > 0) {
             ConciseListRow({
               title: t('source_pkg_author'),
-              subtitle: params.source.author,
+              subtitle: this.packagePresentationText(params.source, 'author', params.source.author),
               showChevron: false,
             })
             if (params.source.contentRating.length > 0 || params.source.minAppVersion.length > 0) {

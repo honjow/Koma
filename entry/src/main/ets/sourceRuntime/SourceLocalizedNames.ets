@@ -1,4 +1,5 @@
 // Package display names are descriptive metadata, never source identity.
+import { SourcePresentation, resolveSourcePresentationText } from './SourcePresentation'
 function hasUnpairedSurrogate(value: string): boolean {
   for (let index = 0; index < value.length; index += 1) {
     const unit = value.charCodeAt(index)
@@ -59,7 +60,11 @@ export function resolveSourceLocalizedName(
   baseName: string,
   names: Record<string, string> | undefined,
   locale: string,
+  presentation?: SourcePresentation,
 ): string {
+  if (presentation?.texts['name'] !== undefined) {
+    return resolveSourcePresentationText(baseName, presentation, 'name', locale)
+  }
   const normalized = normalizeSourceLocalizedNames(names)
   if (normalized === undefined) {
     return baseName

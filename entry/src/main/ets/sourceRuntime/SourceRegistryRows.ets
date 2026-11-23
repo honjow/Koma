@@ -1,6 +1,7 @@
 import type { relationalStore } from '@kit.ArkData'
 import type { SourceRuntimeRegistryPersistedEntry, SourceRuntimeRegistryRouteStatus } from './SourceRuntimeRegistry'
 import type { SourceChapterOrder } from './SourceChapterOrder'
+import { normalizeSourcePresentation } from './SourcePresentation'
 import { booleanColumn, booleanValue, integerColumn, LocalColumnValue, LocalDataRows, textColumn } from '../model/LocalDataRows'
 
 interface RegistryRow {
@@ -129,6 +130,9 @@ export function readSourceRegistryRows(store: relationalStore.RdbStore): SourceR
     if (attr.kind === 'localized_name' && entry.localizedNames !== undefined && attr.label !== undefined) {
       entry.localizedNames[attr.label] = attr.value
     }
+    if (attr.kind === 'presentation') {
+      try { entry.presentation = normalizeSourcePresentation(JSON.parse(attr.value) as Object) } catch (_error) {}
+    }
     if (attr.kind === 'capability') entry.capabilities?.push(attr.value)
     if (attr.kind === 'web_origin') entry.webSessionOrigins?.push(attr.value)
     if (attr.kind === 'required_decode') entry.requiredImageDecodes?.push(attr.value)
@@ -147,6 +151,10 @@ export function replaceSourceRegistryRows(store: relationalStore.RdbStore, entri
     const occurrence = occurrences.get(entry.sourceId) ?? 0
     occurrences.set(entry.sourceId, occurrence + 1)
     const row: RegistryRow = { entry, order, occurrence }
+    const presentation = normalizeSourcePresentation(entry.presentation)
+    if (presentation !== undefined) {
+      related.push({ sourceId: entry.sourceId, occurrence, kind: 'presentation', order: 0, value: JSON.stringify(presentation) })
+    }
     const names = entry.localizedNames
     if (names !== undefined) {
       Object.keys(names).forEach((label: string, index: number): void => {

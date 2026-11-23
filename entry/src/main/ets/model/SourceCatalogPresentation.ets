@@ -1,5 +1,7 @@
 export type SourceCatalogRating = 'all' | 'safe' | 'suggestive' | 'adult' | 'unknown'
 
+import type { SourcePresentation } from '../sourceRuntime/SourcePresentation'
+
 export interface SourceCatalogFilters {
   // Undefined means all languages, including languages installed in the future.
   // An explicitly empty selection means none, not an accidental reset to all.
@@ -35,14 +37,15 @@ export function sourceMatchesCatalogFilters(language: string, nsfw: boolean, rat
 
 /** Search only the source's own names and ID; filtering never changes row identity or order. */
 export function sourceMatchesCatalogSearch(query: string, displayName: string, canonicalName: string,
-  localizedNames: Record<string, string> | undefined, sourceId: string): boolean {
+  localizedNames: Record<string, string> | undefined, sourceId: string, presentation?: SourcePresentation): boolean {
   const needle = query.trim().replace(/\s+/g, ' ').toLowerCase()
   if (needle.length === 0) return true
   const matches = (value: string): boolean => value.trim().replace(/\s+/g, ' ').toLowerCase().includes(needle)
   const id = sourceId.trim().toLowerCase()
   // The shared package suffix is not a source keyword. A full package ID still matches exactly.
   return matches(displayName) || matches(canonicalName) || id === needle || matches(id.replace(/\.koma$/, '')) ||
-    (localizedNames !== undefined && Object.values(localizedNames).some((value: string): boolean => matches(value)))
+    (localizedNames !== undefined && Object.values(localizedNames).some((value: string): boolean => matches(value))) ||
+    Object.values(presentation?.texts['name'] ?? {}).some((value: string): boolean => matches(value))
 }
 
 export function groupSourcesByLanguage<T>(items: T[], language: (item: T) => string): SourceLanguageGroup<T>[] {

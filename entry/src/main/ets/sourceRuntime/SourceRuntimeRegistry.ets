@@ -1,3 +1,4 @@
+import { SourcePresentation, normalizeSourcePresentation } from './SourcePresentation'
 import { SourceCommentsCapability, normalizeSourceCommentsCapability } from './SourceCommentsContract'
 import { SourceWebsitePolicy } from './SourceWebsitePolicy'
 import { SourceRateLimitRule } from './SourceRequestPolicy'
@@ -67,6 +68,7 @@ export interface SourceRuntimeRegistryEntry {
   manifestId: string
   manifestName: string
   localizedNames?: Record<string, string>
+  presentation?: SourcePresentation
   manifestVersion: string
   route: string
   importStatus: SourceRuntimeRegistryRouteStatus
@@ -121,6 +123,7 @@ export interface SourceRuntimeRegistryPersistedEntry {
   manifestId: string
   manifestName: string
   localizedNames?: Record<string, string>
+  presentation?: SourcePresentation
   manifestVersion: string
   route: string
   importStatus: SourceRuntimeRegistryRouteStatus
@@ -174,6 +177,7 @@ export interface SourceRuntimeRegistryInstalledSourceSummary {
   sourceId: string
   displayName: string
   localizedNames?: Record<string, string>
+  presentation?: SourcePresentation
   version: string
   wasmByteCount: number
   importStatus: SourceRuntimeRegistryRouteStatus
@@ -386,6 +390,7 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry,
       id: entry.manifestId,
       name: entry.manifestName,
       localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
+      presentation: normalizeSourcePresentation(installedManifest === undefined ? entry.presentation : installedManifest.package.presentation),
       chapterOrder: entry.chapterOrder,
       version: entry.manifestVersion,
       language: entry.language ?? 'en',
@@ -434,6 +439,7 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     manifestId: entry.manifestId,
     manifestName: entry.manifestName,
     localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
+    presentation: normalizeSourcePresentation(entry.presentation),
     chapterOrder: entry.chapterOrder,
     manifestVersion: entry.manifestVersion,
     route: entry.route,
@@ -593,6 +599,7 @@ export class SourceRuntimeRegistry {
       manifestId: input.manifest.package.id,
       manifestName: input.manifest.package.name,
       localizedNames: normalizeSourceLocalizedNames(input.manifest.package.localizedNames),
+      presentation: normalizeSourcePresentation(input.manifest.package.presentation),
       chapterOrder: input.manifest.package.chapterOrder,
       manifestVersion: input.manifest.package.version,
       route: input.route,
@@ -704,6 +711,7 @@ export class SourceRuntimeRegistry {
         sourceId: entry.sourceId,
         displayName: entry.manifestName,
         localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
+        presentation: normalizeSourcePresentation(entry.presentation),
         version: entry.manifestVersion,
         wasmByteCount: entry.wasmByteCount,
         importStatus: entry.importStatus,

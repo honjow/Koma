@@ -1,3 +1,4 @@
+import { SourcePresentation, normalizeSourcePresentation } from './SourcePresentation'
 import { SourceCommentsCapability, normalizeSourceCommentsCapability } from './SourceCommentsContract'
 import { SourceWebsitePolicy, validSourceWebsitePolicy } from './SourceWebsitePolicy'
 import { SOURCE_IMAGE_PROCESSOR_KIND, sourceImageProcessorModule, sourceRequiredImageDecodes,
@@ -71,6 +72,7 @@ export interface LocalSourcePackageInfo {
   id: string
   name: string
   localizedNames?: Record<string, string>
+  presentation?: SourcePresentation
   version: string
   language: string
   type: string
@@ -134,6 +136,7 @@ interface SourceRepoPackageManifest {
   id: string
   name: string
   localizedNames?: Record<string, string>
+  presentation?: SourcePresentation
   version: string
   lang?: string
   language?: string
@@ -179,7 +182,7 @@ export function sourceRepoManifestForShare(manifest: LocalSourcePackageManifest,
   }
   const exported: SourceRepoPackageManifest = {
     id: manifest.package.id, name: manifest.package.name, version: manifest.package.version,
-    localizedNames: manifest.package.localizedNames, chapterOrder: manifest.package.chapterOrder,
+    localizedNames: manifest.package.localizedNames, presentation: normalizeSourcePresentation(manifest.package.presentation), chapterOrder: manifest.package.chapterOrder,
     language: manifest.package.language, runtime: manifest.package.type, nsfw: manifest.package.nsfw,
     homepage: manifest.package.homepage, author: manifest.package.author,
     description: manifest.package.description, contentRating: manifest.package.contentRating,
@@ -687,6 +690,7 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
       id,
       name,
       localizedNames: normalizeSourceLocalizedNames(parsed.localizedNames),
+      presentation: normalizeSourcePresentation(parsed.presentation),
       chapterOrder: parsed.chapterOrder,
       version,
       language: nonEmptyString(parsed.language) ?? nonEmptyString(parsed.lang) ?? 'multi',

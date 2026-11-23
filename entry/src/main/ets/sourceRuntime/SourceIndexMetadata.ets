@@ -1,3 +1,4 @@
+import { SourcePresentation, normalizeSourcePresentation } from './SourcePresentation'
 import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
 import { SOURCE_REPO_PACKAGE_ICON_FILES, isValidSourcePackageMinAppVersion, normalizeSourceHomepage } from './SourcePackageMetadata'
 
@@ -50,6 +51,7 @@ export interface SourceIndexEntry {
   id: string
   name: string
   localizedNames?: Record<string, string>
+  presentation?: SourcePresentation
   version: string
   lang: string
   nsfw: boolean
@@ -312,6 +314,7 @@ export function parseIndexEntry(raw: Object): SourceIndexEntry | undefined {
     id,
     name,
     localizedNames: normalizeSourceLocalizedNames(record['localizedNames']),
+    presentation: normalizeSourcePresentation(record['presentation']),
     version: safeString(record['version']),
     lang: safeString(record['lang']),
     nsfw: safeBoolean(record['nsfw']),
@@ -332,6 +335,7 @@ export function entryWithCachedIcon(entry: SourceIndexEntry, iconUri: string): S
     repositoryUrl: entry.repositoryUrl,
     name: entry.name,
     localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
+    presentation: normalizeSourcePresentation(entry.presentation),
     version: entry.version,
     lang: entry.lang,
     nsfw: entry.nsfw,

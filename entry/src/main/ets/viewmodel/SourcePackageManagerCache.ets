@@ -157,7 +157,7 @@ export class SourcePackageManagerCache {
     const current = listInstalled()
     const names = new Map<string, string>()
     current.forEach((source: InstalledSourcePackage): void => {
-      names.set(source.id, resolveSourceLocalizedName(source.name, source.localizedNames, locale))
+      names.set(source.id, resolveSourceLocalizedName(source.name, source.localizedNames, locale, source.presentation))
     })
     const previous = new Map<string, InstalledSourcePackage>()
     this.packages.forEach((source: InstalledSourcePackage): void => { previous.set(source.id, source) })
@@ -268,7 +268,7 @@ export class SourcePackageManagerCache {
     const locale = this.locale
     const names = new Map<string, string>()
     packages.forEach((item: InstalledSourcePackage): void => {
-      names.set(item.id, resolveSourceLocalizedName(item.name, item.localizedNames, locale))
+      names.set(item.id, resolveSourceLocalizedName(item.name, item.localizedNames, locale, item.presentation))
     })
     packages.sort((left: InstalledSourcePackage, right: InstalledSourcePackage): number =>
       compareSourceNames(names.get(left.id) ?? left.name, left.id, names.get(right.id) ?? right.name, right.id))
@@ -342,7 +342,7 @@ export class SourcePackageManagerCache {
     if (url === this.displayedIndexUrl) this.indexEntries.forEach((entry: SourceIndexEntry): void => { previous.set(entry.id, entry) })
     const names = new Map<string, string>()
     const next = entries.map((entry: SourceIndexEntry): SourceIndexEntry => {
-      names.set(entry.id, resolveSourceLocalizedName(entry.name, entry.localizedNames, this.locale))
+      names.set(entry.id, resolveSourceLocalizedName(entry.name, entry.localizedNames, this.locale, entry.presentation))
       const old = previous.get(entry.id)
       return old !== undefined && JSON.stringify(old) === JSON.stringify(entry) ? old : entry
     }).sort((left: SourceIndexEntry, right: SourceIndexEntry): number =>
