@@ -86,6 +86,29 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "LANGUAGE_PICKER_AUTONYMS",
+      "number": 352,
+      "title": "语言选项固定显示各自语言原名",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": "2026-11-23T13:11:30+08:00",
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "用户指出英语界面把简体中文选项显示为 Simplified Chinese，要求所有界面里的语言选项保留各自原名。",
+      "updatedAt": "2026-11-23T13:12:55+08:00",
+      "status": "197 五种界面语言已核对",
+      "result": "LanguageSettings.label 统一提供简体中文、繁體中文、English、日本語和한국어；菜单与当前选中值均沿此入口，只有跟随系统随界面语言翻译。各资源中的简体中文名称同时更正。构建首次被另一项 WIP 的 export/import 顺序挡住，仅把 export 移到 imports 后构建成功。197 普通设置路径依次切到英语、简中、繁中、日语和韩语，每次打开菜单均显示五个原名。原 system 语言和 SLEEP/10000ms 已恢复，租约已释放。",
+      "remaining": "未发布。",
+      "relatedItems": [
+        "APPEARANCE_CONSUMERS"
+      ],
+      "evidence": [
+        ".hvigor/outputs/language-autonyms-20261123/build.log",
+        ".hvigor/outputs/language-autonyms-20261123/device197/language-menu-130946175158/screen.png",
+        ".hvigor/outputs/language-autonyms-20261123/device197/original-language.json"
+      ]
+    },
+    {
       "id": "SOURCE_BROWSE_LIBRARY_VISIBILITY",
       "number": 347,
       "title": "书源浏览隐藏已入书架作品并标识收藏",
@@ -12925,6 +12948,22 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "language-picker-autonyms-commit-approved-20261123",
+      "at": "2026-11-23T13:12:55+08:00",
+      "itemId": "LANGUAGE_PICKER_AUTONYMS",
+      "kind": "decision",
+      "title": "用户要求提交语言名称修正",
+      "detail": "提交语言名称原名显示及对应资源、规则和197验收记录；其他任务改动保留。"
+    },
+    {
+      "id": "language-picker-autonyms-197-20261123",
+      "at": "2026-11-23T13:11:30+08:00",
+      "itemId": "LANGUAGE_PICKER_AUTONYMS",
+      "kind": "verification",
+      "title": "197 验证语言菜单使用原名",
+      "detail": "英语、简中、繁中、日语、韩语五种界面均显示简体中文、繁體中文、English、日本語、한국어；恢复原语言与电源后释租。"
+    },
     {
       "id": "source-list-info-published-insets237-reviewed-20261123",
       "at": "2026-11-23T11:58:11+08:00",

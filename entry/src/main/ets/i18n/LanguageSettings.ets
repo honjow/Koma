@@ -44,11 +44,13 @@ export class LanguageSettings {
 
   static label(mode: string): string {
     const normalized = LanguageSettings.normalize(mode)
+    // Autonyms keep the language picker recognizable in every interface locale.
+    // Only the system-following choice is translated with the interface.
     if (normalized === LanguageSettings.MODE_ZH_CN) {
-      return AppStrings.get('language_zh_cn')
+      return '简体中文'
     }
     if (normalized === LanguageSettings.MODE_EN_US) {
-      return AppStrings.get('language_en_us')
+      return 'English'
     }
     if (normalized === LanguageSettings.MODE_ZH_HANT) {
       return '繁體中文'

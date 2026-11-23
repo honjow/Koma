@@ -119,7 +119,7 @@
     { "name": "route_backup_management_title", "value": "備份與恢復" },
     { "name": "route_tracker_settings_title", "value": "追蹤賬號" },
     { "name": "language_system", "value": "跟隨系統" },
-    { "name": "language_zh_cn", "value": "簡體中文" },
+    { "name": "language_zh_cn", "value": "简体中文" },
     { "name": "language_en_us", "value": "English" },
     { "name": "theme_system", "value": "跟隨系統" },
     { "name": "theme_light", "value": "淺色" },

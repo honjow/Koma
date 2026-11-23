@@ -121,7 +121,7 @@
     { "name": "route_backup_management_title", "value": "Backup & restore" },
     { "name": "route_tracker_settings_title", "value": "Tracker accounts" },
     { "name": "language_system", "value": "Follow system" },
-    { "name": "language_zh_cn", "value": "Simplified Chinese" },
+    { "name": "language_zh_cn", "value": "简体中文" },
     { "name": "language_en_us", "value": "English" },
     { "name": "theme_system", "value": "Follow system" },
     { "name": "theme_light", "value": "Light" },
