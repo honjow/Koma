@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T16:42:28+08:00",
+  "updatedAt": "2026-11-23T17:04:14+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3520,7 +3520,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
-      "updatedAt": "2026-11-23T16:42:28+08:00",
+      "updatedAt": "2026-11-23T17:04:14+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -3713,7 +3713,7 @@
         "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
         "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
-        "巴卡漫画（bakamh）｜237列表、真实封面及自动完成网页验证已验；详情和数字入口仍403，目录、正文、跨章和下载未通过。已确认隐藏请求上下文的UA与原点匹配；现用既有原始响应接口对照上游页面请求头，并记录首次请求取消原因。候选已本地提交交237，尚未通过；临时诊断采后移除并用正常包复验，App不推发，源未发布。",
+        "巴卡漫画（bakamh）｜237列表、封面及自动完成网页验证已验；详情和数字入口仍403，目录、原生阅读、跨章和下载未通过。已定位验证后重复准备同一隐藏网页会取消首个请求，修复已本地提交并构建待237复测；同源授权网页已显示目标作品和章节，继续核实际错误提示及请求差异。临时诊断采后移除并用正常包复验，App不推发，源未发布。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
         "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
@@ -12987,6 +12987,31 @@
       "evidencePoints": [
         ".hvigor/outputs/web-http-download-order-20261123/parent-library-ui-review.json",
         ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/library-density/final-result.json"
+      ]
+    },
+    {
+      "id": "SOURCE_UI_TEXT_LOCALIZATION",
+      "number": 353,
+      "title": "书源设置、描述等界面文本的多语言能力设计",
+      "kind": "active",
+      "progressPhase": "needs_work",
+      "priority": "用户本轮新增要求",
+      "owner": "Root设计评审；Aristotle核对App与源SDK现状",
+      "status": "核对现有文本、语言上下文和回退规则，设计中",
+      "updatedAt": "2026-11-23T17:04:14+08:00",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "用户本会话要求重新检查此前讨论的书源多语言支持，先设计App提供的通用能力，并明确覆盖设置项、书源描述等位置；原消息精确时刻未核实。",
+      "result": "现有localizedNames覆盖源名称；本轮设计覆盖设置标题、说明、选项、筛选及分类、源名称和描述、提示等源提供的界面文本。宿主提供通用语言环境和离线元数据展示，源SDK负责文案选择；具体字段、回退、缓存失效和旧源兼容仍在代码核对，不将提案记为已实现。",
+      "remainingActions": [
+        "核实现有请求语言上下文、静态元数据投影与动态文案消费、缓存和语言切换，纠正规范中未落实的locale表述。",
+        "在现有接口设计文档中给出统一语言环境、默认回退、源SDK示例、离线名称和描述、旧源兼容及实施落点；不为每类字段增加专用接口。",
+        "本轮先设计；不得将设计稿、能力名或示例写成App已经实现，也不据此发布依赖该能力的源。"
+      ],
+      "evidence": [
+        "docs/source-runtime-abi-design.md",
+        "entry/src/main/ets/sourceRuntime/SourceLocalizedNames.ets",
+        "/Users/honjow/git/koma-sources/docs/WRITING_A_SOURCE.md"
       ]
     }
   ],
@@ -30491,6 +30516,31 @@
         ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r10-current-diagnostics.log",
         ".hvigor/outputs/source-candidates-20261120/bakamh/web-http-20261123/native-document-r11/candidate-ready.json",
         ".hvigor/outputs/web-http-download-order-20261123/web-cancel-diagnostic-hap-receipt.json"
+      ]
+    },
+    {
+      "id": "bakamh-r11-native403-and-duplicate-host-preparation-20261123",
+      "at": "2026-11-23T17:04:14+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "investigation",
+      "title": "定位首请求被重复网页加载取消，详情403继续取实际原因",
+      "detail": "R11已在237普通覆盖安装及文件导入，精确HAPce308f662b64/sourcec0819bcc/WASMc0ff3916。16:44:01首POST的op=true/ctl=true、rev=false/avail=false/ready=false，第二次同URL主frame开始使当前请求失效；代码同时有浏览完成主动准备和HTTP prepare再次请求，Host未合并loading中的同一上下文。f382a284保真实导航rev守卫，只合并相同URL/源包/UA/授权修订的在途准备；4f7196e1同时独立修正WebHTTP须显式选择，源R12 6e47eae配套POST声明。父审并构建df49280dd4b3，尚未真机复测。R11 16:45:16 canonical和数字Native均403/BodyRef4547完整UTF8，已知CF/WP/工具/登录标记均未命中，不归因为外部故障。源授权网页hasSourceSession=true已显示同作详情及章链，完整UA/URL对照仍核；不当原生源已通过。临时错误文字取证继续，无新站点API或当前发布。",
+      "evidence": [
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r11-current-diagnostics.log",
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r11-08-canonical-and-numeric-Native-terminals/koma-source-runtime.hilog",
+        ".hvigor/outputs/published-source-order-audit-20261123/web-http-capability/host-preparation-coalescing-freeze.json",
+        ".hvigor/outputs/web-http-download-order-20261123/web-preparation-fix-hap-receipt.json"
+      ]
+    },
+    {
+      "id": "source-ui-text-localization-design-start-20261123",
+      "at": "2026-11-23T17:04:14+08:00",
+      "itemId": "SOURCE_UI_TEXT_LOCALIZATION",
+      "kind": "design",
+      "title": "按用户要求设计书源通用界面文本多语言能力",
+      "detail": "覆盖设置项和说明/选项、源名称与描述、筛选分类和提示等，核对既有localizedNames、请求上下文、manifest/index/import/registry及语言变化缓存。巴卡定位与237验证继续，不用新增设计替代原任务；仅先做设计，不改界面样式或宣称能力已实现。",
+      "evidence": [
+        "docs/source-runtime-abi-design.md"
       ]
     }
   ],
