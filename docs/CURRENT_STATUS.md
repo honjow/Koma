@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T18:14:12+08:00",
+  "updatedAt": "2026-11-23T18:36:26+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -13019,6 +13019,30 @@
         ".hvigor/outputs/source-localization/app-freeze.json"
       ],
       "progressPhase": "needs_work"
+    },
+    {
+      "id": "SOURCE_DESCRIPTION_QUALITY",
+      "number": 355,
+      "title": "书源简介补充站点信息，清理空白及技术套话",
+      "kind": "active",
+      "priority": "用户新增反馈",
+      "owner": "Root改进与集成；Aristotle核公开源资料",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "用户本会话反馈“目前的书源简介太敷衍了”，原消息精确时刻未核实。",
+      "updatedAt": "2026-11-23T18:36:26+08:00",
+      "status": "已核当前119个公开源，Komiic简介已重写，其余逐项核实",
+      "result": "18:28:50取得真实公开索引119条，其中11条的简介和显示译文均为空，108条非空；非空中存在仅重复源名、解析技术及使用情况未知等面向开发者的文字，完整分类核对进行中。Komiic已按真实分话/分卷、读者与AI推荐、图片额度和账号入口重写三语简介，固定source_info同步补文案供旧App显示；0.1.25新候选已构建，尚待237新简介回读。此次不把未经核实的题材、登录要求或免费承诺写进简介，不改变解析或界面样式。",
+      "remainingActions": [
+        "按当前公开范围逐项核源现有README、上游与官网资料，列明空白、套话和已有有效简介；不将本地单源dist误作完整发布索引。",
+        "改进有事实依据的薄弱简介，保留登录、付费、额度和真实收录范围限制，按原源版本与多语言规则打包核对。",
+        "237回读Komiic新简介可见与回退；其它纯文案更新按真实变更验证后交付，不替代原多语言与巴卡任务。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/source-descriptions-20261123/published-index-receipt.json",
+        ".hvigor/outputs/source-localization-20261123/komiic-description/candidate-ready.json"
+      ],
+      "progressPhase": "needs_work"
     }
   ],
   "source": {
@@ -13073,6 +13097,17 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-description-quality-user-feedback-20261123",
+      "at": "2026-11-23T18:36:26+08:00",
+      "itemId": "SOURCE_DESCRIPTION_QUALITY",
+      "kind": "implementation",
+      "title": "按用户反馈整顿书源简介内容",
+      "detail": "以119条真实公开索引圈定现有范围；先补Komiic有信息量的三语及旧宿主固定简介，再核其他空白与技术套话。原多语言普通路径与巴卡定位继续，不因插入反馈丢任务。",
+      "evidence": [
+        ".hvigor/outputs/source-descriptions-20261123/published-index.json"
+      ]
+    },
     {
       "id": "source-ui-text-localization-final-wasm-and-hap-20261123",
       "at": "2026-11-23T18:14:12+08:00",
