@@ -2566,7 +2566,10 @@ export struct SettingsPage {
       } else if (row.key === 'language') {
         this.SelectionMenuItem(select, s('language_system'), this.language.mode === LanguageSettings.MODE_SYSTEM, () => { this.saveLanguageMode(LanguageSettings.MODE_SYSTEM) })
         this.SelectionMenuItem(select, s('language_zh_cn'), this.language.mode === LanguageSettings.MODE_ZH_CN, () => { this.saveLanguageMode(LanguageSettings.MODE_ZH_CN) })
+        this.SelectionMenuItem(select, LanguageSettings.label(LanguageSettings.MODE_ZH_HANT), this.language.mode === LanguageSettings.MODE_ZH_HANT, () => { this.saveLanguageMode(LanguageSettings.MODE_ZH_HANT) })
         this.SelectionMenuItem(select, s('language_en_us'), this.language.mode === LanguageSettings.MODE_EN_US, () => { this.saveLanguageMode(LanguageSettings.MODE_EN_US) })
+        this.SelectionMenuItem(select, LanguageSettings.label(LanguageSettings.MODE_JA_JP), this.language.mode === LanguageSettings.MODE_JA_JP, () => { this.saveLanguageMode(LanguageSettings.MODE_JA_JP) })
+        this.SelectionMenuItem(select, LanguageSettings.label(LanguageSettings.MODE_KO_KR), this.language.mode === LanguageSettings.MODE_KO_KR, () => { this.saveLanguageMode(LanguageSettings.MODE_KO_KR) })
       } else if (row.key === 'reader-background') {
         this.SelectionMenuItem(select, s('reader_background_black'), this.readerBackgroundMode === 'black', () => { this.saveReaderBackgroundMode('black') })
         this.SelectionMenuItem(select, s('reader_background_gray'), this.readerBackgroundMode === 'gray', () => { this.saveReaderBackgroundMode('gray') })

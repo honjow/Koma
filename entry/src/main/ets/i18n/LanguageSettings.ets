@@ -21,10 +21,15 @@ function mutateLanguage(action: () => Promise<void>): Promise<void> {
 export class LanguageSettings {
   static readonly MODE_SYSTEM: string = 'system'
   static readonly MODE_ZH_CN: string = 'zh-Hans'
+  static readonly MODE_ZH_HANT: string = 'zh-Hant'
   static readonly MODE_EN_US: string = 'en-US'
+  static readonly MODE_JA_JP: string = 'ja-JP'
+  static readonly MODE_KO_KR: string = 'ko-KR'
 
   static normalize(mode: string): string {
-    if (mode === LanguageSettings.MODE_ZH_CN || mode === LanguageSettings.MODE_EN_US) {
+    if (mode === LanguageSettings.MODE_ZH_CN || mode === LanguageSettings.MODE_ZH_HANT ||
+      mode === LanguageSettings.MODE_EN_US || mode === LanguageSettings.MODE_JA_JP ||
+      mode === LanguageSettings.MODE_KO_KR) {
       return mode
     }
     return LanguageSettings.MODE_SYSTEM
@@ -44,6 +49,15 @@ export class LanguageSettings {
     }
     if (normalized === LanguageSettings.MODE_EN_US) {
       return AppStrings.get('language_en_us')
+    }
+    if (normalized === LanguageSettings.MODE_ZH_HANT) {
+      return '繁體中文'
+    }
+    if (normalized === LanguageSettings.MODE_JA_JP) {
+      return '日本語'
+    }
+    if (normalized === LanguageSettings.MODE_KO_KR) {
+      return '한국어'
     }
     return AppStrings.get('language_system')
   }

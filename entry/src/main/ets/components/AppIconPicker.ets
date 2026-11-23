@@ -25,21 +25,19 @@ export struct AppIconPreview {
 struct AppIconTile {
   @Require @Param option: AppIconOption
   @Param checked: boolean = false
-  @Param inModal: boolean = false
-  @Event onSelect: (name: string) => void = () => {}
 
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
       Column({ space: ThemeConstants.SPACE_SM }) {
         AppIconPreview({ option: this.option })
+        // Let longer translated names wrap instead of hiding their ending.
         Text(AppStrings.get(this.option.labelKey))
           .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
           .textAlign(TextAlign.Center)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .wordBreak(WordBreak.BREAK_WORD)
       }
       .width('100%')
       .padding({ top: 27, left: ThemeConstants.SPACE_XS, right: ThemeConstants.SPACE_XS,
@@ -58,16 +56,6 @@ struct AppIconTile {
         .accessibilityLevel('no')
     }
     .width('100%')
-    .backgroundColor(this.checked ? ThemeConstants.SOFT_TINT : (this.inModal ? komaModalCardSurface() : ThemeConstants.CARD))
-    .border({ width: 1, color: this.checked ? ThemeConstants.BRAND_PRIMARY : Color.Transparent,
-      radius: ThemeConstants.LIST_ROW_RADIUS })
-    .focusable(true)
-    .accessibilityGroup(true)
-    .accessibilityText(AppStrings.get(this.option.labelKey))
-    .accessibilityRole(AccessibilityRoleType.CHECKBOX)
-    .accessibilityChecked(this.checked)
-    .id('launcher-icon-' + (this.option.name || 'default'))
-    .onClick((): void => { this.onSelect(this.option.name) })
   }
 }
 
@@ -102,14 +90,25 @@ export struct AppIconPicker {
               AppIconTile({
                 option,
                 checked: option.name === this.iconState.activeName,
-                inModal: this.inModal,
-                onSelect: (name: string): void => { void this.select(name) },
               })
             }
+            .backgroundColor(option.name === this.iconState.activeName ? ThemeConstants.SOFT_TINT :
+              (this.inModal ? komaModalCardSurface() : ThemeConstants.CARD))
+            .border({ width: 1, color: option.name === this.iconState.activeName ? ThemeConstants.BRAND_PRIMARY :
+              Color.Transparent, radius: ThemeConstants.LIST_ROW_RADIUS })
+            .focusable(true)
+            .accessibilityGroup(true)
+            .accessibilityText(AppStrings.get(option.labelKey))
+            .accessibilityRole(AccessibilityRoleType.CHECKBOX)
+            .accessibilityChecked(option.name === this.iconState.activeName)
+            .id('launcher-icon-' + (option.name || 'default'))
+            .onClick((): void => { void this.select(option.name) })
           }
         }, (option: AppIconOption): string => option.name || 'default')
       }
       .width('100%')
+      // Keep cards in the same row aligned when translated names wrap.
+      .alignItems(ItemAlign.Stretch)
       .enabled(!this.iconState.changing)
     } else {
       Column({ space: ThemeConstants.SPACE_MD }) {
