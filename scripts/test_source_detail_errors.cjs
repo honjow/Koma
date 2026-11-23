@@ -25,6 +25,8 @@ const { SourceRuntimeError } = errors.exports
 const gateModule = { exports: {} }
 new Function('exports', compile(read('sourceRuntime/SourceWebChallengeGate')))(gateModule.exports)
 const { SourceWebChallengeGate } = gateModule.exports
+const operationGuards = {}
+new Function('exports', compile(read('sourceRuntime/SourceRuntimeOperationGuard')))(operationGuards)
 const authentication = {}
 new Function('exports', 'require', compile(read('sourceRuntime/SourceAuthenticationService')))(authentication, () => ({}))
 const chapterIdentity = {}
@@ -39,8 +41,9 @@ const method = name => {
   assert.ok(member, name)
   return member.getText(file)
 }
-function fixture() {
+function fixture(runtime = {}) {
   const logs = [], writes = [], applied = [], reads = [], cancelledSessions = [], chapterCalls = [], identities = []
+  const rejectedClears = [], rejectedSelections = []
   const entry = { sourceId: 'source.test', enabled: true, manifestName: 'Test', wasmBytes: new Uint8Array(1) }
   const state = { response: { ok: true, data: { manga: { title: 'Real detail' } } },
     chapterError: undefined, library: undefined, cache: undefined, chapters: [], task: undefined }
@@ -51,15 +54,19 @@ function fixture() {
   new Function('exports', 'SourceAuthenticationRequest', 'SourceRuntimeError', 'DiagnosticLogger', 's', 'sourceHttpIdentityJson',
     'diagnoseSourceOperation', 'taskpool', 'executeMangaDetailSourceOperation', 'parseMangaDetailFromSourceItem', 'parseSourceRelatedManga',
     'parseMangaChapterFromSourceItem', 'sourceRuntimeEntryEnabled', 'sourceMangaDetailSnapshotCache',
-    'resolveSourceChapterList', 'SourceDetailContentState', 'mangaChapterItemFromComicChapter', 'SourceWebChallengeGate', 'appSourceWebSessionStore', 'appSourceSettingsStore', 'sourceSettingsFingerprint', 'UIUtils', code)(
+    'resolveSourceChapterList', 'SourceDetailContentState', 'mangaChapterItemFromComicChapter', 'SourceWebChallengeGate', 'appSourceWebSessionStore', 'appSourceSettingsStore', 'sourceSettingsFingerprint', 'UIUtils',
+    'newSourceRuntimeOperationGuardId', 'registerSourceRuntimeOperationGuard', 'clearSourceRejectedRequest', 'selectSourceRejectedRequest', code)(
     exports, authentication.SourceAuthenticationRequest, SourceRuntimeError, { warn: (...args) => logs.push(args.join(' ')) }, key => key,
     (...args) => { identities.push(args); return '{}' },
     (_request, execute) => execute(), { execute: async () => state.task ? state.task() : JSON.stringify(state.response) },
     async () => state.task ? state.task() : JSON.stringify(state.response),
     (_source, item) => item, () => undefined, item => item, item => item.enabled,
     { read: () => { reads.push(true); return state.cache }, write: (...args) => writes.push(args) },
-    async (...args) => { chapterCalls.push(args); if (state.chapterError) throw state.chapterError; return { resolved: true, chapters: state.chapters, excludedChapterIds: state.excludedChapterIds } },
-    { UNRESOLVED: 'unresolved', LOADING: 'loading', READY: 'ready', ERROR: 'error' }, chapter => ({ ...chapter }), SourceWebChallengeGate, { cancel: (...args) => cancelledSessions.push(args) }, { loadForSource: () => ({}) }, () => '', { getTarget: value => value })
+    async (...args) => { chapterCalls.push(args); if (runtime.resolveSourceChapterList) return runtime.resolveSourceChapterList(...args); if (state.chapterError) throw state.chapterError; return { resolved: true, chapters: state.chapters, excludedChapterIds: state.excludedChapterIds } },
+    { UNRESOLVED: 'unresolved', LOADING: 'loading', READY: 'ready', ERROR: 'error' }, chapter => ({ ...chapter }), SourceWebChallengeGate, { cancel: (...args) => cancelledSessions.push(args) }, { loadForSource: () => ({}) }, () => '', { getTarget: value => value },
+    operationGuards.newSourceRuntimeOperationGuardId, operationGuards.registerSourceRuntimeOperationGuard,
+    runtime.clearSourceRejectedRequest ?? ((...args) => rejectedClears.push(args)),
+    runtime.selectSourceRejectedRequest ?? ((...args) => rejectedSelections.push(args)))
   const page = new exports.Page()
   Object.assign(page, {
     chrome: { visible: true }, detailWebChallenge: null, detailWebChallengeShown: false, detailWebChallengeId: 0,
@@ -70,13 +77,14 @@ function fixture() {
     buildSourceDetailRequestJson: () => '{}', copyWasmBytes: () => new Uint8Array(1),
     sourceEmbeddedChapterItems: () => [], sourceMangaRouteUrl: () => undefined,
     beginSourceDetailRequest: () => 1, isCurrentSourceDetailRequest: () => true,
+    hasPendingMihonEdition: () => false, hasCompleteSavedSourceCatalog: () => false,
     sourceDetailWithRouteIdentity: detail => detail, refreshSourceLibraryDetail: () => {},
     applySourceMangaDetail: (...args) => { applied.push(args); page.manga = args[4]; page.chapters = args[5]; page.feedbackText = args[6]; page.sourceDetailContentState = args[7]; page.sourceDetailDataResolved = true; return true },
     sourceComicId: () => 'saved', findSourceRuntimeComic: () => state.library,
     sourceDetailFromInitialRouteManga: () => ({ title: 'Original preview' }),
     loadLocalOrMissingManga: () => { page.chapters = state.library.chapters; page.manga = state.library },
   })
-  return { page, state, entry, logs, applied, writes, reads, cancelledSessions, chapterCalls, identities }
+  return { page, state, entry, logs, applied, writes, reads, cancelledSessions, chapterCalls, identities, rejectedClears, rejectedSelections }
 }
 
 test('a synced detail without local chapter rows visibly waits and reports a failed catalogue request', async () => {
