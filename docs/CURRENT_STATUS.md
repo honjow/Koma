@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T13:13:26+08:00",
+  "updatedAt": "2026-11-23T13:54:44+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3713,7 +3713,7 @@
         "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
         "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
-        "巴卡漫画（bakamh）｜通用WebHTTP6e1e5db4及旧GET限速d005eaf7已App本地提交；候选0.1.1/min1.6.1已独立原仓e51132a/4b75ec7保护。237通过标准网页验证后普通POST列表与重复搜索健身已成功；详情GET及封面仍403，已取得bridge miss与原生HTTP日志，自动挑战信号在源协议被归forbidden的问题正查。继续修具体GET/图片及挑战传递，未冒作阅读或发布通过。App不推不发。",
+        "巴卡漫画（bakamh）｜237已能浏览列表及重复搜索；详情GET和封面旧路径仍403。通用CF信号修复及文档/图片新候选均已在独立源仓本地提交，当前接续同一237验证详情、目录、正文和下载。未发布候选，App保持本地1.6.1不推发。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
         "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
@@ -12902,30 +12902,31 @@
       "number": 349,
       "title": "下载入队未沿正向章节顺序",
       "priority": "P1",
-      "kind": "active",
-      "progressPhase": "verification",
+      "kind": "done",
+      "progressPhase": "verified",
       "reportedAt": "2026-11-23T12:21:22+08:00",
       "reportedAtSource": "用户本会话反馈添加下载任务仍乱序或优先后面的章节，要求从前到后；精确消息时间未提供。",
       "relatedItems": [
         "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
         "CHAPTER_SORT_MENU"
       ],
-      "updatedAt": "2026-11-23T13:07:45+08:00",
-      "status": "公共入队已修并本地提交，237候选验收中",
+      "updatedAt": "2026-11-23T13:42:17+08:00",
+      "status": "已修复：237真实新增批次正向入队并完成自有任务清理",
       "owner": "Aristotle：公共入队模型；本会话：整合/构建/237验证",
-      "result": "本地43df9d96统一详情/更新及书架批量/自动下载的新增批次，固定图源正向；无号与独立版本保留。6组生产方法运行及既有章节投影通过，合并HAP2cd已给237；不把模型或构建通过当真机验收。",
-      "remaining": "237普通少量新增任务的持久顺序与执行先后仍在验，保留已有任务、优先级和暂停状态。",
-      "remainingActions": [
-        "237从原普通入口选择少量章节，核新增批次实际顺序；只清理本轮自有测试任务。"
-      ],
+      "result": "237新候选ead42fd26fdf普通详情路径实际按1243、1241、1242点选，倒序列表投影1243、1242、1241；新增RDB队列实际1241、1242、1243。无编号番外保留，原11任务完整不变、全局暂停true及零传输保持。模型43df9d96本地提交，App未推发。",
+      "remaining": "App修改已本地提交43df9d96，按用户约定未推送或发布；不据本次暂停队列样本声称全量下载验收。",
+      "remainingActions": [],
       "boundaries": [
         "只规范新入队批次，不整体重排用户既有队列或中断当前下载。",
         "下载固定使用已确认的图源正向位置；详情的显示方向、按名称/上传日期等排序不改变下载顺序。Mihon Downloader.queueChapters亦按sourceOrder从起点入队；Koma使用readingOrder递增，不机械照抄其索引方向。",
         "不按标题临时解析章节号，不丢无编号/手动/独立版本，缺少已确认位置时稳定保留原序。",
         "App仍本地1.6.1，不自行推送或发布。"
       ],
-      "evidencePoints": [],
-      "stage": "普通队列验证中"
+      "evidencePoints": [
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/download-order/three-entry-order-result.json",
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/download-order/final-result.json"
+      ],
+      "stage": "已验证，本地提交"
     },
     {
       "id": "LIBRARY_LIST_CARD_LAYOUT",
@@ -12938,56 +12939,54 @@
       "relatedItems": [
         "SOURCE_BROWSE_LIST_INFO"
       ],
-      "updatedAt": "2026-11-23T13:13:26+08:00",
-      "status": "局部布局已本地提交并构建，237实际按下反馈待补验",
-      "progressPhase": "verification",
+      "updatedAt": "2026-11-23T13:54:44+08:00",
+      "status": "卡片留边与标题排版已修并通过237，补充信息待确认",
+      "progressPhase": "verified",
       "owner": "本会话：LibraryPage及卡片投影；Darwin：237统一验收",
-      "result": "已核原生HDS行自带内容内距，外Row额外上下8vp使按下区上下留带。按用户明确要求去掉该层；标题沿已采用书源样式14fp最多两行、靠上，原话数/分类组靠下。",
-      "remaining": "异步询问下方采用作者/书源/话数或作者/最近阅读位置/话数；只等待该产品取舍，其余已授权实现与Baka/下载继续。",
+      "result": "卡片按下反馈覆盖上下，原多选和普通点击仍正常；标题缩小至14fp并支持最多两行。保留原话数和分类，尚未自行增加作者或书源等显示项目。237原设置及本轮录屏临时文件已恢复清理。",
+      "remaining": "补充信息采用作者/书源/话数，还是作者/最近阅读位置/话数，原异步偏好问题待用户回答；仅此显示取舍待确认，其余工作继续。",
       "remainingActions": [
-        "收到补充信息取舍后仅从已载摘要增加投影，避免热路径读取完整章表。",
-        "统一构建新HAP，237观察整卡按下/正常打开/长按原交互及两行标题、缺省信息。"
+        "收到补充信息取舍后只使用已载作品摘要投影，不读取完整章表。"
       ],
       "boundaries": [
         "只改用户指出的书架列表；网格、封面尺寸、密度、选择/更多菜单、点击和长按语义保持。",
         "本次去的是外层上下边距，沿HDS内部既有排版，不额外添加左右留白。",
-        "不增加或改变硬件触觉设置；App本地1.6.1不推不发。"
+        "不增加或改变硬件触觉设置；App本地1.6.1不推不发。",
+        "当前库没有符合原本地移除菜单条件的作品；未造测试数据，也不宣称该菜单正向样本已验。"
       ],
       "evidencePoints": [
-        ".hvigor/outputs/web-http-download-order-20261123/"
+        ".hvigor/outputs/web-http-download-order-20261123/parent-library-ui-review.json",
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/library-density/final-result.json"
       ],
-      "stage": "书架列表局部修正中"
+      "stage": "已验布局；补充信息待选择"
     },
     {
       "id": "LIBRARY_LIST_GRID_DENSITY_DECOUPLE",
       "number": 351,
       "title": "列表大小与网格间距耦合",
       "priority": "P1",
-      "kind": "active",
+      "kind": "done",
       "reportedAt": "2026-11-23T13:00:31+08:00",
       "reportedAtSource": "用户本会话指出列表密度同时改变网格间距及列表高度，明确要求独立控制。",
       "relatedItems": [
         "LIBRARY_LIST_CARD_LAYOUT"
       ],
-      "updatedAt": "2026-11-23T13:13:26+08:00",
-      "status": "拆分已本地提交并构建，237普通路径待补验",
+      "updatedAt": "2026-11-23T13:54:44+08:00",
+      "status": "已修复：列表大小与网格间距可分别调整",
       "owner": "Aristotle：偏好迁移/设置/网格公共消费；本会话：LibraryPage整合",
-      "progressPhase": "verification",
-      "result": "设置已拆为列表大小及网格间距；LibraryPage与共享源网格使用gridSpacing，列表尺寸保留原listDensity。旧设置在首次load或直接update前迁移，保原96/140vp目标宽及已有手动列宽；旧备份兼容一起处理。",
-      "remaining": "新签名候选ead42fd26fdf（1.6.1/code27）交237，待双向独立控制、冷启动及原值恢复。",
-      "remainingActions": [
-        "先从旧持久值迁移独立字段，再处理新列表写入，覆盖直接write而未先load。",
-        "父整合LibraryPage使用独立gridSpacing；保网格列宽/双指缩放合同。",
-        "新HAP在237与列表整卡反馈一起核实际效果，恢复原设置。"
-      ],
+      "progressPhase": "verified",
+      "result": "设置→书架已拆为两个独立选项。237实测调大列表不改变网格列数与间距；只改网格间距不改变列表高度与行距，冷启动后分别保留。旧设置/备份兼容与手动列宽保持，测试后的原偏好已逐项恢复。",
+      "remaining": "App修改已本地提交9a9999bc，按用户约定未推送或发布。",
+      "remainingActions": [],
       "boundaries": [
         "用户已明确要求拆分控制，沿原设置菜单/样式，不新增外观设计。",
         "原书源列表固定卡片尺寸不因此改变；书源与书架网格继续共享已采用的列宽规则。",
         "备份/恢复读取旧配置保外观；本地App1.6.1不推不发。"
       ],
-      "stage": "237候选验证中",
+      "stage": "237已验证，本地提交",
       "evidencePoints": [
-        ".hvigor/outputs/web-http-download-order-20261123/"
+        ".hvigor/outputs/web-http-download-order-20261123/parent-library-ui-review.json",
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/library-density/final-result.json"
       ]
     }
   ],
@@ -13043,6 +13042,22 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-density-and-press-237-accepted-20261123",
+      "at": "2026-11-23T13:54:44+08:00",
+      "itemId": "LIBRARY_LIST_GRID_DENSITY_DECOUPLE",
+      "kind": "verification",
+      "title": "237实测列表与网格互不影响，重启和原设置恢复通过",
+      "detail": "ead42候选：列表252→282px时网格保持原3列/36px间距；网格36→72px时列表保持282px高/24px行距。实际进程60168→11657后两个值仍独立保存。原全部library.*键及手动列宽逐项恢复；按下录像67编码帧经父亲审，灰色按下表面无旧上下白带，长按进入已选1，普通短按打开详情，未点阅读。视频缩放只作定性，不跨尺寸推断像素；无本地菜单正向样本不冒验。App9a9999bc本地未推发。"
+    },
+    {
+      "id": "download-source-forward-237-accepted-20261123",
+      "at": "2026-11-23T13:42:17+08:00",
+      "itemId": "DOWNLOAD_CHAPTER_READING_ORDER",
+      "kind": "verification",
+      "title": "237普通详情下载选择已按源正向追加",
+      "detail": "选择次序1243、1241、1242，真实持久任务1241、1242、1243，无号番外保留；原11任务及全局暂停逐字段不变，仅本轮3个任务已清除。既有执行层按RDB list_order取待下载任务，未为了测试启动用户暂停队列。App43df9d96本地未推发。"
+    },
     {
       "id": "library-list-grid-independent-implemented-20261123",
       "at": "2026-11-23T13:13:26+08:00",
