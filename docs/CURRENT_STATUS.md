@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T17:04:14+08:00",
+  "updatedAt": "2026-11-23T17:14:41+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -12994,21 +12994,16 @@
       "id": "SOURCE_UI_TEXT_LOCALIZATION",
       "number": 353,
       "title": "书源设置、描述等界面文本的多语言能力设计",
-      "kind": "active",
-      "progressPhase": "needs_work",
+      "kind": "done",
       "priority": "用户本轮新增要求",
-      "owner": "Root设计评审；Aristotle核对App与源SDK现状",
-      "status": "核对现有文本、语言上下文和回退规则，设计中",
-      "updatedAt": "2026-11-23T17:04:14+08:00",
+      "owner": "Root",
+      "status": "接口设计已完成并本地提交，尚未实现",
+      "updatedAt": "2026-11-23T17:14:41+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求重新检查此前讨论的书源多语言支持，先设计App提供的通用能力，并明确覆盖设置项、书源描述等位置；原消息精确时刻未核实。",
-      "result": "现有localizedNames覆盖源名称；本轮设计覆盖设置标题、说明、选项、筛选及分类、源名称和描述、提示等源提供的界面文本。宿主提供通用语言环境和离线元数据展示，源SDK负责文案选择；具体字段、回退、缓存失效和旧源兼容仍在代码核对，不将提案记为已实现。",
-      "remainingActions": [
-        "核实现有请求语言上下文、静态元数据投影与动态文案消费、缓存和语言切换，纠正规范中未落实的locale表述。",
-        "在现有接口设计文档中给出统一语言环境、默认回退、源SDK示例、离线名称和描述、旧源兼容及实施落点；不为每类字段增加专用接口。",
-        "本轮先设计；不得将设计稿、能力名或示例写成App已经实现，也不据此发布依赖该能力的源。"
-      ],
+      "result": "已核对现有源码并完成设计：一次通用语言环境快照，源内同一文案目录生成设置/说明/选项/筛选/栏目等字符串，打包生成名称与描述的离线显示资料。源可指定默认回退语言；缺环境、缺翻译先用该语言再退原始文字。设计还覆盖安装前后、索引、分享备份、语言变化缓存及旧源兼容；保留设置值、筛选、登录和内容身份。本项仅完成用户要求的设计阶段，App与SDK生产能力尚未实现，不可据此发布依赖源。",
+      "remainingActions": [],
       "evidence": [
         "docs/source-runtime-abi-design.md",
         "entry/src/main/ets/sourceRuntime/SourceLocalizedNames.ets",
@@ -30551,6 +30546,18 @@
       "detail": "覆盖设置项和说明/选项、源名称与描述、筛选分类和提示等，核对既有localizedNames、请求上下文、manifest/index/import/registry及语言变化缓存。巴卡定位与237验证继续，不用新增设计替代原任务；仅先做设计，不改界面样式或宣称能力已实现。",
       "evidence": [
         "docs/source-runtime-abi-design.md"
+      ]
+    },
+    {
+      "id": "source-ui-text-localization-design-reviewed-20261123",
+      "at": "2026-11-23T17:14:41+08:00",
+      "itemId": "SOURCE_UI_TEXT_LOCALIZATION",
+      "kind": "design",
+      "title": "源多语言能力设计已核对并本地提交，生产实现尚未开始",
+      "detail": "9ba96f44在既有接口设计文档中完成现状、通用environment语言快照、源Catalog/text/format、静态presentation名称/描述、默认语言与literal回退、安装/索引/分享备份贯通、缓存代次及身份保护。父审后纠正无环境也应先用作者defaultLocale，补资源界限；SDK示例和feature均明确提案，不声明当前App或旧包支持。源规范中“既有locale”的失实句另行更正。本项按用户“先设计好”完成设计范围，未实现生产代码、未做新能力237验证、未公开发布。巴卡原任务继续。",
+      "evidence": [
+        "docs/source-runtime-abi-design.md",
+        "entry/src/main/ets/sourceRuntime/SourceLocalizedNames.ets"
       ]
     }
   ],
