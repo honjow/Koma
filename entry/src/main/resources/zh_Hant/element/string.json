@@ -1,5 +1,11 @@
 {
   "string": [
+    {"name": "appearance_detail_transition", "value": "詳情頁轉場"},
+    {"name": "appearance_detail_transition_hint", "value": "選擇從列表進入詳情頁時的轉場效果"},
+    {"name": "appearance_detail_transition_system", "value": "系統預設"},
+    {"name": "appearance_detail_transition_seamless", "value": "一鏡到底"},
+    {"name": "appearance_detail_transition_cover_expand", "value": "封面展開"},
+    {"name": "appearance_detail_transition_save_failed", "value": "儲存轉場設定失敗，請重試"},
     {"name": "cover_sr_system", "value": "系統圖像增強"},
     {"name": "cover_sr_title", "value": "封面圖像增強"},
     {"name": "cover_sr_installed", "value": "已下載"},
@@ -2675,6 +2681,7 @@
     {"name": "source_hide_in_library_save_failed", "value": "儲存書源瀏覽設定失敗"},
     {"name": "source_in_library", "value": "已加入書架"},
     {"name": "source_all_in_library", "value": "目前作品皆已加入書架"},
-    {"name": "source_all_in_library_hint", "value": "如需檢視，可在設定的服務頁關閉「隱藏已加入書架的作品」"}
+    {"name": "source_all_in_library_hint", "value": "如需檢視，可在設定的服務頁關閉「隱藏已加入書架的作品」"},
+    {"name": "library_list_not_started", "value": "尚未開始閱讀"}
   ]
 }

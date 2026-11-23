@@ -1,5 +1,11 @@
 {
   "string": [
+    {"name": "appearance_detail_transition", "value": "詳細トランジション"},
+    {"name": "appearance_detail_transition_hint", "value": "一覧から詳細への遷移効果を選択します"},
+    {"name": "appearance_detail_transition_system", "value": "システム標準"},
+    {"name": "appearance_detail_transition_seamless", "value": "シームレス"},
+    {"name": "appearance_detail_transition_cover_expand", "value": "表紙展開"},
+    {"name": "appearance_detail_transition_save_failed", "value": "画面遷移の設定を保存できませんでした。もう一度お試しください。"},
     {
       "name": "cover_sr_system",
       "value": "システム画像強化"
@@ -9822,6 +9828,7 @@
     {"name": "source_hide_in_library_save_failed", "value": "ソースの表示設定を保存できませんでした"},
     {"name": "source_in_library", "value": "本棚に追加済み"},
     {"name": "source_all_in_library", "value": "本棚の作品は非表示です"},
-    {"name": "source_all_in_library_hint", "value": "設定 · サービス · ソースで非表示を解除できます"}
+    {"name": "source_all_in_library_hint", "value": "設定 · サービス · ソースで非表示を解除できます"},
+    {"name": "library_list_not_started", "value": "未読"}
   ]
 }

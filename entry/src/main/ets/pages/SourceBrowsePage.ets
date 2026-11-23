@@ -1,3 +1,4 @@
+import { MangaDetailTransitionCoordinator } from '../navigation/MangaDetailTransitionCoordinator'
 import { HdsNavigationMenuItemOptions } from '@kit.UIDesignKit'
 import { SourceSearchPresetSheetHost } from '../components/SourceSearchPresetSheetHost'
 import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
@@ -70,6 +71,7 @@ interface SourceBrowseGridProjection {
 
 @ComponentV2
 export struct SourceBrowsePage {
+  private detailTransitionScope: string = MangaDetailTransitionCoordinator.allocateScope('browse')
   @Param source: SourceRuntimeRegistryInstalledSourceSummary = {
     sourceId: '',
     displayName: '',
@@ -720,7 +722,8 @@ export struct SourceBrowsePage {
   @Builder
   private GridRowContent(row: RepeatItem<SourceBrowseGridRow>) {
     if (row.item.kind === 'manga') {
-      MangaGridItem({ manga: row.item.manga!, inLibrary: row.item.inLibrary === true, listLayout: this.chrome.layout === 'list', deferOffscreenCover: true,
+      MangaGridItem({ detailTransitionScope: this.detailTransitionScope,
+        transitionSourceIsCurrent: (): boolean => this.chrome.visible, manga: row.item.manga!, inLibrary: row.item.inLibrary === true, listLayout: this.chrome.layout === 'list', deferOffscreenCover: true,
         onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
     } else if (row.item.kind === 'home-header') {
       this.HomeSectionHeader(row)
@@ -962,6 +965,7 @@ export struct SourceBrowsePage {
       }
       .width('100%')
       .height('100%')
+      .id(this.detailTransitionScope)
       .bindSheet($$this.filtersShown, this.SourceFiltersSheet,
         komaSheetOptions(sourceFilterSheetOptions(() => { this.finishFiltersDismiss() })))
     }

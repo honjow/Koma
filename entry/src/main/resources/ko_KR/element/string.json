@@ -1,5 +1,11 @@
 {
   "string": [
+    {"name": "appearance_detail_transition", "value": "상세 화면 전환"},
+    {"name": "appearance_detail_transition_hint", "value": "목록에서 상세 화면으로 이동할 때의 전환 효과 선택"},
+    {"name": "appearance_detail_transition_system", "value": "시스템 기본값"},
+    {"name": "appearance_detail_transition_seamless", "value": "매끄러운 전환"},
+    {"name": "appearance_detail_transition_cover_expand", "value": "표지 펼치기"},
+    {"name": "appearance_detail_transition_save_failed", "value": "화면 전환 설정을 저장하지 못했습니다. 다시 시도해 주세요."},
     {
       "name": "cover_sr_system",
       "value": "시스템 이미지 향상"
@@ -9822,6 +9828,7 @@
     {"name": "source_hide_in_library_save_failed", "value": "소스 탐색 설정을 저장하지 못했습니다"},
     {"name": "source_in_library", "value": "서재에 추가됨"},
     {"name": "source_all_in_library", "value": "서재에 추가한 작품을 숨겼습니다"},
-    {"name": "source_all_in_library_hint", "value": "설정 · 서비스 · 소스에서 숨기기를 해제할 수 있습니다"}
+    {"name": "source_all_in_library_hint", "value": "설정 · 서비스 · 소스에서 숨기기를 해제할 수 있습니다"},
+    {"name": "library_list_not_started", "value": "읽기 전"}
   ]
 }

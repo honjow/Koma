@@ -252,6 +252,7 @@ async function verifyRoundTrip() {
     'catalog.filters': '{"rating":"all","pinnedSourceIds":["source-a","source-b"]}',
     'appearance.autoHideBottomBar': false,
     'navigation.backGuardEnabled': false,
+    'appearance.detailTransitionMode': 'coverExpand',
     'download.notifications.enabled': true,
     'download.notifications.sound': 'vibrate',
     'library.gridColumnWidth': 146,
@@ -347,6 +348,7 @@ async function verifyRoundTrip() {
     { name: 'koma_manga_migration_v1', values: { 'migration.selectedSources': '[1]' }, clearedKeys: [] },
     { name: 'koma_search_history_v1', values: { 'search.results.only': true }, clearedKeys: [] },
     { name: 'koma_download_notifications_v1', values: { 'download.notifications.sound': 'unknown' }, clearedKeys: [] },
+    { name: 'koma_appearance_preferences_v1', values: { 'appearance.detailTransitionMode': 'unknown' }, clearedKeys: [] },
   ]) {
     const countBefore = mutations
     await assert.rejects(backup.importApplicationSettings(destination, { schemaVersion: 2, preferences: [invalid] }), /backup_application_settings_invalid/)

@@ -10,7 +10,7 @@ import { FormTitleActionState } from '../state/FormTitleActionState'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { LibraryAutomationSettingRow, LIBRARY_AUTOMATION_SETTING_KEYS } from '../components/LibraryAutomationSettingRow'
 import { LibraryAutomationPreferences, defaultLibraryAutomationPreferences } from '../model/LibraryAutomationPolicy'
-import { AppearanceState, connectAppearanceState, effectiveAppearanceAccent, isCustomAppearanceAccentColor } from '../state/AppearanceState'
+import { AppearanceState, connectAppearanceState, effectiveAppearanceAccent, isCustomAppearanceAccentColor, MangaDetailTransitionMode } from '../state/AppearanceState'
 import { AppColorPicker } from '../components/AppColorPicker'
 import { AppIconPicker, AppIconPreview } from '../components/AppIconPicker'
 import { AppIconSettings, AppIconState, connectAppIconState } from '../model/AppIconSettings'
@@ -253,6 +253,7 @@ function createSettingsSections(): SettingsSection[] {
     { key: 'theme', titleKey: 'settings_row_theme_title', detailKey: 'settings_row_theme_detail' },
     { key: 'theme-color', titleKey: 'settings_row_theme_color_title', detailKey: 'settings_row_theme_color_detail' },
     { key: 'language', titleKey: 'settings_row_language_title', detailKey: 'settings_row_language_detail' },
+    { key: 'detail-transition', titleKey: 'appearance_detail_transition', detailKey: 'appearance_detail_transition_hint' },
     { key: 'auto-hide-bottom-bar', titleKey: 'settings_auto_hide_bottom_bar', detailKey: 'settings_auto_hide_bottom_bar_hint' },
     { key: 'show-resume-mini-bar', titleKey: 'settings_show_resume_mini_bar', detailKey: 'settings_show_resume_mini_bar_hint' },
   ]
@@ -758,6 +759,7 @@ export struct SettingsPage {
     if (row.key === 'theme-color') {
       return getAppearanceAccentColorLabel(effectiveAppearanceAccent(this.appearanceState))
     }
+    if (row.key === 'detail-transition') return this.detailTransitionModeLabel(this.appearanceState.detailTransitionMode)
     if (row.key === 'language') {
       return LanguageSettings.label(this.language.mode)
     }
@@ -2338,7 +2340,7 @@ export struct SettingsPage {
     return row.key === 'page-mode' ||
       row.key === 'reading-direction' ||
       row.key === 'theme' ||
-      row.key === 'theme-color' ||
+      row.key === 'theme-color' || row.key === 'detail-transition' ||
       row.key === 'language' ||
       row.key === 'reader-screen-orientation' ||
       row.key === 'reader-spread-layout' ||
@@ -2565,10 +2567,30 @@ export struct SettingsPage {
     }))
   }
 
+  private detailTransitionModeLabel(mode: string): string {
+    return s(mode === MangaDetailTransitionMode.SYSTEM ? 'appearance_detail_transition_system'
+      : mode === MangaDetailTransitionMode.COVER_EXPAND ? 'appearance_detail_transition_cover_expand'
+      : 'appearance_detail_transition_seamless')
+  }
+
+  private async saveDetailTransitionMode(mode: string): Promise<void> {
+    try {
+      await this.appearancePreferencesStore().saveDetailTransitionMode(mode)
+    } catch (error) {
+      DiagnosticLogger.warn('settings_page', 'save_detail_transition_failed', safeSettingsErrorCode(error as Error))
+      this.showToast(s('appearance_detail_transition_save_failed'))
+    }
+  }
+
   @Builder
   private SettingsSelectionMenu(row: SettingsRow, select: (action: () => void) => void) {
     Menu() {
-      if (row.key === 'page-mode') {
+      if (row.key === 'detail-transition') {
+        ForEach([MangaDetailTransitionMode.SYSTEM, MangaDetailTransitionMode.SEAMLESS, MangaDetailTransitionMode.COVER_EXPAND], (mode: string) => {
+          this.SelectionMenuItem(select, this.detailTransitionModeLabel(mode), this.appearanceState.detailTransitionMode === mode,
+            (): void => { void this.saveDetailTransitionMode(mode) })
+        }, (mode: string): string => mode)
+      } else if (row.key === 'page-mode') {
         ForEach(['single_page', 'double_page', 'auto_page'] as ReaderPageMode[], (mode: ReaderPageMode) => {
           this.SelectionMenuItem(select, getReaderPageModeLabel(mode), this.horizontalPageMode() === mode,
             (): void => { this.savePageMode(mode) })
@@ -2789,7 +2811,8 @@ export struct SettingsPage {
     } else if (this.isSelectionRow(row) && this.canOpenSelectionMenu(row)) {
         ConciseListRow({
           title: this.rowTitle(row),
-          subtitle: row.key === 'library-update-interval' ? getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences) : '',
+          subtitle: row.key === 'library-update-interval' ? getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)
+            : row.key === 'detail-transition' ? this.rowBaseDetail(row) : '',
           trailingText: this.rowDetail(row),
           trailingMaxLines: this.rowDetailMaxLines(row),
           trailingDropdown: true,

@@ -1,3 +1,6 @@
+import { CachedCoverImage } from '../components/CachedCoverImage'
+import { MangaDetailTransitionCoordinator, MANGA_DETAIL_ROOT_ID } from '../navigation/MangaDetailTransitionCoordinator'
+import { connectMangaDetailTransition, MangaDetailTransitionState, MangaDetailTransitionPhase } from '../state/MangaDetailTransitionState'
 import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { SyncGroup } from '../deviceSync/DeviceSyncFacts'
 import { SyncReadingWorkConflict } from '../deviceSync/DeviceSyncEngine'
@@ -345,6 +348,7 @@ struct Index {
   @Local private sharedReaderRequest: ReaderLabRequest = new ReaderLabRequest('', '', 0)
   private sharedReaderCatalogHost: KomaReaderCatalogHost | null = null
   private readerPreparation: Promise<void> | null = null
+  @Local private detailTransition: MangaDetailTransitionState = connectMangaDetailTransition()
   @Local private readerRouteTransition: ReaderRouteTransition = new ReaderRouteTransition()
 
   private captureSharedReaderEntry(newRoute: boolean): void {
@@ -2565,7 +2569,7 @@ struct Index {
       void this.openMihonImportedWork(comicId, false)
       return
     }
-    const comic = this.libraryStore.getComic(comicId)
+    const comic = this.libraryStore.getComicSummary(comicId)
     if (comic === undefined) {
       return
     }
@@ -3442,6 +3446,7 @@ struct Index {
   }
 
   aboutToDisappear(): void {
+    this.detailTransition.reset()
     this.rootTabScrollers.forEach((scroller: Scroller): void => { this.tabController.unbindScroller(scroller) })
     if (this.bottomBarAnimationTimer !== -1) clearTimeout(this.bottomBarAnimationTimer)
     this.bottomBarAnimationTimer = -1
@@ -3585,6 +3590,17 @@ struct Index {
       bounceTrigger: this.tabIconBounceTriggers[idx] ?? -1,
       badgeCount: idx === TabIndex.BROWSE ? this.catalogUpdateCount() : 0,
     })
+  }
+
+  private popMangaDetail(param: MangaDetailRouteParam): void {
+    if (!MangaDetailTransitionCoordinator.preparePop(this.getUIContext(), param.transitionToken,
+      (): void => { this.appPathStack.pop(this.isReaderDetailRouteVisible()) })) {
+      this.appPathStack.pop(this.isReaderDetailRouteVisible())
+    }
+  }
+
+  private ownsDetailTransition(param: MangaDetailRouteParam): boolean {
+    return this.detailTransition.owns(param.transitionToken)
   }
 
   private readerOrdinaryNavTransition(_from: NavContentInfo, to: NavContentInfo,
@@ -3839,63 +3855,84 @@ struct Index {
       MangaWebPage({ params: param as MangaWebRouteParam })
     } else if (name === RouteName.MANGA_DETAIL) {
       HdsNavDestination() {
-        MangaDetailPage({
-          params: param as MangaDetailRouteParam,
-          libraryStore: this.libraryStore,
-          libraryPersistenceService: this.ensureLibraryPersistenceService(),
-          readerSessionStore: this.readerSessionStore,
-          readerProgressRevision: this.readerProgressRevision,
-          onReadingStateChanged: (comicId: string) => { this.queueReadingPresentation([comicId]) },
-          sourceRegistry: this.sourceRegistry,
-          chrome: RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam),
-          onBack: () => {
-            this.appPathStack.pop(this.isReaderDetailRouteVisible())
-          },
-          onOpenReader: (mangaId: string, chapterId?: string) => {
-            void this.openReader(mangaId, chapterId)
-          },
-          onOpenSourceReader: (request: SourceReaderSessionRequest) => {
-            const importedId = (param as MangaDetailRouteParam).mihonImportId
-            const imported = importedId === undefined ? undefined : this.libraryStore.getMihonImportWork(importedId)
-            if (imported !== undefined && !imported.targetComicId) void this.openMihonImportedWork(imported.id)
-            else void this.openSourceReader(request)
-          },
-          onMihonCatalogReady: async (snapshot: SourceMangaDetailSnapshot, fingerprint: string,
-            isCurrent: () => boolean): Promise<boolean> => {
-            const importedId = (param as MangaDetailRouteParam).mihonImportId
-            if (importedId === undefined) return false
-            try {
-              const service = new MihonImportService(getContext(this) as common.UIAbilityContext, this.libraryStore)
-              if (!await service.linkOpenedCatalog(importedId, snapshot, fingerprint, isCurrent)) return false
-              // The detail reads the committed live stores. Reproject the
-              // covered shelf and history when the root becomes visible.
-              this.libraryPresentationPending = true
-              this.queueReadingPresentation()
-              if (this.rootNavigation.visible) this.publishDeferredReaderBackgroundPresentation()
-              return true
-            } catch (error) {
-              DiagnosticLogger.exception('backup', 'mihon_detail_restore_failed', error as Error)
-              if (isCurrent()) this.showToast(AppStrings.get('mihon_import_resume_failed'))
-              return false
-            }
-          },
-          onOpenImportRequested: () => { this.openImport() },
-          onRefreshLocalFolder: (comicId: string) => this.rescanLocalLibraryFolders(comicId),
-          onLibraryChanged: () => { this.onMangaDetailLibraryChanged() },
-          onOpenExistingFavorite: (comicId: string): void => { this.openLibraryMangaDetail(comicId, true) },
-          onMigrationRequested: (comicId: string) => {
-            const imported = this.libraryStore.getMihonImportWork(comicId)
-            void this.openMangaMigration([comicId], true, imported !== undefined && !imported.targetComicId)
+        Stack() {
+          Column() {}.width('100%').height('100%').backgroundColor(ThemeConstants.BG_SUB)
+          if (this.ownsDetailTransition(param as MangaDetailRouteParam) && !this.detailTransition.isCoverExpand() && this.detailTransition.cardSnapshot !== undefined) {
+            Image(this.detailTransition.cardSnapshot)
+              .width('100%').height('100%').objectFit(ImageFit.Fill).syncLoad(true)
+              .opacity(this.detailTransition.cardOpacity).hitTestBehavior(HitTestMode.None)
+              .transition(TransitionEffect.IDENTITY)
           }
-        })
+          MangaDetailPage({
+            params: param as MangaDetailRouteParam,
+          transitionCoverId: this.ownsDetailTransition(param as MangaDetailRouteParam) && this.detailTransition.isCoverExpand()
+            ? this.detailTransition.targetCoverComponentId : '',
+            libraryStore: this.libraryStore,
+            libraryPersistenceService: this.ensureLibraryPersistenceService(),
+            readerSessionStore: this.readerSessionStore,
+            readerProgressRevision: this.readerProgressRevision,
+            onReadingStateChanged: (comicId: string) => { this.queueReadingPresentation([comicId]) },
+            sourceRegistry: this.sourceRegistry,
+            chrome: RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam),
+            onBack: () => {
+              this.popMangaDetail(param as MangaDetailRouteParam)
+            },
+            onOpenReader: (mangaId: string, chapterId?: string) => {
+              void this.openReader(mangaId, chapterId)
+            },
+            onOpenSourceReader: (request: SourceReaderSessionRequest) => {
+              const importedId = (param as MangaDetailRouteParam).mihonImportId
+              const imported = importedId === undefined ? undefined : this.libraryStore.getMihonImportWork(importedId)
+              if (imported !== undefined && !imported.targetComicId) void this.openMihonImportedWork(imported.id)
+              else void this.openSourceReader(request)
+            },
+            onMihonCatalogReady: async (snapshot: SourceMangaDetailSnapshot, fingerprint: string,
+              isCurrent: () => boolean): Promise<boolean> => {
+              const importedId = (param as MangaDetailRouteParam).mihonImportId
+              if (importedId === undefined) return false
+              try {
+                const service = new MihonImportService(getContext(this) as common.UIAbilityContext, this.libraryStore)
+                if (!await service.linkOpenedCatalog(importedId, snapshot, fingerprint, isCurrent)) return false
+                // The detail reads the committed live stores. Reproject the
+                // covered shelf and history when the root becomes visible.
+                this.libraryPresentationPending = true
+                this.queueReadingPresentation()
+                if (this.rootNavigation.visible) this.publishDeferredReaderBackgroundPresentation()
+                return true
+              } catch (error) {
+                DiagnosticLogger.exception('backup', 'mihon_detail_restore_failed', error as Error)
+                if (isCurrent()) this.showToast(AppStrings.get('mihon_import_resume_failed'))
+                return false
+              }
+            },
+            onOpenImportRequested: () => { this.openImport() },
+            onRefreshLocalFolder: (comicId: string) => this.rescanLocalLibraryFolders(comicId),
+            onLibraryChanged: () => { this.onMangaDetailLibraryChanged() },
+            onOpenExistingFavorite: (comicId: string): void => { this.openLibraryMangaDetail(comicId, true) },
+            onMigrationRequested: (comicId: string) => {
+              const imported = this.libraryStore.getMihonImportWork(comicId)
+              void this.openMangaMigration([comicId], true, imported !== undefined && !imported.targetComicId)
+            }
+          })
+          .opacity(this.ownsDetailTransition(param as MangaDetailRouteParam) ? this.detailTransition.contentOpacity : 1)
+        }.width('100%').height('100%')
       }
       .titleBar(this.mangaDetailTitleBarOpts(param as MangaDetailRouteParam))
+      .hideTitleBar(this.ownsDetailTransition(param as MangaDetailRouteParam) && !this.detailTransition.chromeVisible, false)
+      .backgroundColor(this.ownsDetailTransition(param as MangaDetailRouteParam) ? Color.Transparent : ThemeConstants.BG_SUB)
+      .scale({ x: this.ownsDetailTransition(param as MangaDetailRouteParam) && !this.detailTransition.isCoverExpand() ? this.detailTransition.scaleX : 1,
+        y: this.ownsDetailTransition(param as MangaDetailRouteParam) && !this.detailTransition.isCoverExpand() ? this.detailTransition.scaleY : 1,
+        centerX: '50%', centerY: '50%' })
+      .translate({ x: this.ownsDetailTransition(param as MangaDetailRouteParam) && !this.detailTransition.isCoverExpand() ? this.detailTransition.translateX : 0,
+        y: this.ownsDetailTransition(param as MangaDetailRouteParam) && !this.detailTransition.isCoverExpand() ? this.detailTransition.translateY : 0 })
+      .borderRadius(this.ownsDetailTransition(param as MangaDetailRouteParam) && !this.detailTransition.isCoverExpand() ? this.detailTransition.radius : 0)
+      .clip(this.ownsDetailTransition(param as MangaDetailRouteParam) && !this.detailTransition.isCoverExpand())
       .bindToScrollable(this.mangaDetailScrollers(param as MangaDetailRouteParam))
       .onBackPressed((): boolean => {
         const selection = RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam).chapterPresentation
-        if (!selection.selectionMode) return false
-        selection.setSelectionMode(false)
-        return true
+        if (selection.selectionMode) { selection.setSelectionMode(false); return true }
+        return MangaDetailTransitionCoordinator.preparePop(this.getUIContext(),
+          (param as MangaDetailRouteParam).transitionToken, (): void => { this.appPathStack.pop() })
       })
       .onShown(() => {
         RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam).visible = true
@@ -4669,12 +4706,178 @@ struct Index {
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
+  private coverExpandSurfaceActive(): boolean {
+    return this.detailTransition.eligible &&
+      this.detailTransition.isCoverExpand() &&
+      !this.detailTransition.independentPopSurfaceActive &&
+      (this.detailTransition.phase === MangaDetailTransitionPhase.OPENING ||
+        this.detailTransition.phase === MangaDetailTransitionPhase.CLOSING)
+  }
+
+  private sourceCoverLeftInCard(): number {
+    return Math.max(0, Math.min(
+      this.detailTransition.handoffWidth,
+      this.detailTransition.sourceCoverX - this.detailTransition.handoffX,
+    ))
+  }
+
+  private sourceCoverTopInCard(): number {
+    return Math.max(0, Math.min(
+      this.detailTransition.handoffHeight,
+      this.detailTransition.sourceCoverY - this.detailTransition.handoffY,
+    ))
+  }
+
+  private sourceCoverRightInCard(): number {
+    return Math.max(this.sourceCoverLeftInCard(), Math.min(
+      this.detailTransition.handoffWidth,
+      this.detailTransition.sourceCoverX + this.detailTransition.sourceCoverWidth -
+        this.detailTransition.handoffX,
+    ))
+  }
+
+  private sourceCoverBottomInCard(): number {
+    return Math.max(this.sourceCoverTopInCard(), Math.min(
+      this.detailTransition.handoffHeight,
+      this.detailTransition.sourceCoverY + this.detailTransition.sourceCoverHeight -
+        this.detailTransition.handoffY,
+    ))
+  }
+
+  // These nodes are disposable transition resources, not another animation owner. Identity only
+  // disables ArkUI's implicit If enter/exit; the coordinator still owns all 350ms geometry/opacity.
+  @Builder
+  private MangaDetailCardSnapshotSlice(
+    sliceX: number,
+    sliceY: number,
+    sliceWidth: number,
+    sliceHeight: number,
+  ) {
+    if (
+      this.detailTransition.cardSnapshot !== undefined &&
+      sliceWidth > 0 &&
+      sliceHeight > 0
+    ) {
+      Stack({ alignContent: Alignment.TopStart }) {
+        Image(this.detailTransition.cardSnapshot)
+          .width(this.detailTransition.handoffWidth)
+          .height(this.detailTransition.handoffHeight)
+          .objectFit(ImageFit.Fill)
+          .syncLoad(true)
+          .position({
+            x: -sliceX,
+            y: -sliceY,
+          })
+          .hitTestBehavior(HitTestMode.None)
+          .transition(TransitionEffect.IDENTITY)
+      }
+      .width(sliceWidth)
+      .height(sliceHeight)
+      .position({
+        x: sliceX,
+        y: sliceY,
+      })
+      .clip(true)
+      .hitTestBehavior(HitTestMode.None)
+      .transition(TransitionEffect.IDENTITY)
+    }
+  }
+
+  @Builder
+  private MangaDetailSourceCardRemainder() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      this.MangaDetailCardSnapshotSlice(
+        0,
+        0,
+        this.detailTransition.handoffWidth,
+        this.sourceCoverTopInCard(),
+      )
+      this.MangaDetailCardSnapshotSlice(
+        0,
+        this.sourceCoverTopInCard(),
+        this.sourceCoverLeftInCard(),
+        this.sourceCoverBottomInCard() - this.sourceCoverTopInCard(),
+      )
+      this.MangaDetailCardSnapshotSlice(
+        this.sourceCoverRightInCard(),
+        this.sourceCoverTopInCard(),
+        this.detailTransition.handoffWidth - this.sourceCoverRightInCard(),
+        this.sourceCoverBottomInCard() - this.sourceCoverTopInCard(),
+      )
+      this.MangaDetailCardSnapshotSlice(
+        0,
+        this.sourceCoverBottomInCard(),
+        this.detailTransition.handoffWidth,
+        this.detailTransition.handoffHeight - this.sourceCoverBottomInCard(),
+      )
+    }
+    .width(this.detailTransition.handoffWidth)
+    .height(this.detailTransition.handoffHeight)
+    .position({
+      x: this.detailTransition.handoffX,
+      y: this.detailTransition.handoffY,
+    })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .clip(true)
+    .opacity(this.detailTransition.cardOpacity)
+    .zIndex(2)
+    .hitTestBehavior(HitTestMode.None)
+    .transition(TransitionEffect.IDENTITY)
+  }
+
+  @Builder
+  private MangaDetailSourceSurfaceSnapshot(zIndex: number) {
+    if (this.detailTransition.sourceSnapshot !== undefined) {
+      Image(this.detailTransition.sourceSnapshot)
+        .width(this.detailTransition.sourceSnapshotWidth)
+        .height(this.detailTransition.sourceSnapshotHeight)
+        .objectFit(ImageFit.Fill)
+        .syncLoad(true)
+        .position({
+          x: this.detailTransition.sourceSnapshotX,
+          y: this.detailTransition.sourceSnapshotY,
+        })
+        .zIndex(zIndex)
+        .hitTestBehavior(HitTestMode.None)
+        .transition(TransitionEffect.IDENTITY)
+    }
+  }
+
+  @Builder
+  private MangaDetailFlightCover(token: number) {
+    if (this.detailTransition.coverSource !== undefined && this.detailTransition.coverSource.uri.length > 0) {
+      CachedCoverImage({
+        uri: this.detailTransition.coverSource.uri,
+        sourceRuntimeId: this.detailTransition.coverSource.sourceRuntimeId,
+        sourceImageId: this.detailTransition.coverSource.sourceImageId,
+        sourceMangaUrl: this.detailTransition.coverSource.sourceMangaUrl,
+        sourceCoverHeaders: this.detailTransition.coverSource.sourceCoverHeaders,
+        sourceKind: this.detailTransition.coverSource.sourceKind,
+        remoteServerId: this.detailTransition.coverSource.remoteServerId,
+        decodeMaxEdge: this.detailTransition.coverSource.decodeMaxEdge,
+        onReady: (): void => { if (this.detailTransition.owns(token)) this.detailTransition.markCoverResourceReady() },
+      }).transition(TransitionEffect.IDENTITY)
+    }
+  }
+
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
       // Application-scoped bridged WebView: history and shelf reader entries
       // must not depend on SourceBrowsePage still being mounted.
       SourceWebFetchBridgeHost()
+      if (this.detailTransition.eligible && this.detailTransition.sourceSnapshot !== undefined &&
+        !this.detailTransition.independentPopSurfaceActive && (!this.detailTransition.isCoverExpand() ||
+          this.detailTransition.phase === MangaDetailTransitionPhase.OPENING ||
+          this.detailTransition.phase === MangaDetailTransitionPhase.CLOSING ||
+          this.detailTransition.phase === MangaDetailTransitionPhase.POST_POP_HANDOFF)) {
+        Image(this.detailTransition.sourceSnapshot)
+          .width(this.detailTransition.sourceSnapshotWidth).height(this.detailTransition.sourceSnapshotHeight)
+          .position({ x: this.detailTransition.sourceSnapshotX, y: this.detailTransition.sourceSnapshotY }).objectFit(ImageFit.Fill).syncLoad(true)
+          .hitTestBehavior(HitTestMode.None)
+          .transition(TransitionEffect.IDENTITY)
+      }
       if (this.languageState.effectiveLocale.length >= 0) {
+        Stack({ alignContent: Alignment.TopStart }) {
         HdsNavigation(this.appPathStack) {
           HdsTabs({ controller: this.tabController }) {
             TabContent() {
@@ -4899,6 +5102,7 @@ struct Index {
         .navDestination(this.AppDestination)
         .customNavContentTransition((from: NavContentInfo, to: NavContentInfo,
           operation: NavigationOperation): NavigationAnimatedTransition | undefined =>
+          MangaDetailTransitionCoordinator.transition(this.getUIContext(), from, to, operation) ??
           this.readerOrdinaryNavTransition(from, to, operation))
         .mode(NavigationMode.Stack)
         .accessibilityLevel(this.showPrivateRouteLock() ? 'no-hide-descendants' : 'auto')
@@ -4911,9 +5115,163 @@ struct Index {
             if (comicId !== undefined) void this.openMihonImportedWork(comicId)
           } else this.resetRootBackConfirmation()
         })
-        .width('100%')
-        .height('100%')
+        .width(this.coverExpandSurfaceActive() ? Math.max(1, this.detailTransition.rootWidth) : '100%')
+        .height(this.coverExpandSurfaceActive() ? Math.max(1, this.detailTransition.rootHeight) : '100%')
+        .position({ x: this.coverExpandSurfaceActive() ? -this.detailTransition.clipX : 0,
+          y: this.coverExpandSurfaceActive() ? -this.detailTransition.clipY : 0 })
+        .id(MANGA_DETAIL_ROOT_ID)
+        .backgroundColor(this.detailTransition.eligible ? Color.Transparent : $r('sys.color.ohos_id_color_sub_background'))
+        }
+        .width(this.coverExpandSurfaceActive() ? Math.max(1, this.detailTransition.clipWidth) : '100%')
+        .height(this.coverExpandSurfaceActive() ? Math.max(1, this.detailTransition.clipHeight) : '100%')
+        .position({ x: this.coverExpandSurfaceActive() ? this.detailTransition.clipX : 0,
+          y: this.coverExpandSurfaceActive() ? this.detailTransition.clipY : 0 })
+        .backgroundColor(ThemeConstants.BG_SUB)
+        .shadow(ShadowStyle.OUTER_DEFAULT_MD)
+        .borderRadius(this.coverExpandSurfaceActive() ? this.detailTransition.radius : 0)
+        .clip(this.coverExpandSurfaceActive())
+      }
+      if (this.detailTransition.independentPopSurfaceVisible()) {
+        Stack({ alignContent: Alignment.TopStart }) {
+          Image(this.detailTransition.detailSnapshot)
+            .width(this.detailTransition.rootWidth)
+            .height(this.detailTransition.rootHeight)
+            .objectFit(ImageFit.Fill)
+            .syncLoad(true)
+            .position({
+              x: -this.detailTransition.clipX,
+              y: -this.detailTransition.clipY,
+            })
+            .hitTestBehavior(HitTestMode.None)
+            .transition(TransitionEffect.IDENTITY)
+        }
+        .width(Math.max(1, this.detailTransition.clipWidth))
+        .height(Math.max(1, this.detailTransition.clipHeight))
+        .position({
+          x: this.detailTransition.clipX,
+          y: this.detailTransition.clipY,
+        })
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+        .shadow(ShadowStyle.OUTER_DEFAULT_MD)
+        .borderRadius(this.detailTransition.radius)
+        .clip(true)
+        .zIndex(1)
+        .hitTestBehavior(HitTestMode.None)
+        .transition(TransitionEffect.IDENTITY)
+      }
+      if (
+        (this.detailTransition.phase === MangaDetailTransitionPhase.PREPARING ||
+          (this.detailTransition.phase === MangaDetailTransitionPhase.OPENING && !this.detailTransition.animationStarted)) &&
+        this.detailTransition.cardSnapshot !== undefined
+      ) {
+        Image(this.detailTransition.cardSnapshot)
+          .width(this.detailTransition.handoffWidth)
+          .height(this.detailTransition.handoffHeight)
+          .objectFit(ImageFit.Fill)
+          .syncLoad(true)
+          .position({
+            x: this.detailTransition.handoffX,
+            y: this.detailTransition.handoffY,
+          })
+          .hitTestBehavior(HitTestMode.None)
+          .transition(TransitionEffect.IDENTITY)
+      }
+      if (
+        this.detailTransition.eligible &&
+        this.detailTransition.isCoverExpand() &&
+        this.detailTransition.cardSnapshot !== undefined
+      ) {
+        if (this.detailTransition.preserveSourceCoverBackground) {
+          // The card snapshot was captured after only the foreground image became transparent. Its real
+          // blur/gradient layer therefore remains complete and needs no synthetic mask or background patch.
+          Image(this.detailTransition.cardSnapshot)
+            .width(this.detailTransition.handoffWidth)
+            .height(this.detailTransition.handoffHeight)
+            .objectFit(ImageFit.Fill)
+            .syncLoad(true)
+            .position({
+              x: this.detailTransition.handoffX,
+              y: this.detailTransition.handoffY,
+            })
+            .borderRadius(ThemeConstants.RADIUS_CARD)
+            .clip(true)
+            .opacity(this.detailTransition.cardOpacity)
+            .zIndex(2)
+            .hitTestBehavior(HitTestMode.None)
+            .transition(TransitionEffect.IDENTITY)
+        } else {
+          // Covers without a separate backdrop keep the existing four-slice path so the expanding detail
+          // surface is revealed instead of exposing the thumbnail's generic loading placeholder.
+          this.MangaDetailSourceCardRemainder()
+        }
+      }
+      if (
+        this.detailTransition.coverFlightVisible() &&
+        this.detailTransition.coverSnapshot !== undefined
+      ) {
+        // The cover belongs to the expanding card surface. Give it a second clip with exactly the
+        // surface bounds/radius so it can never protrude past a rounded container corner while flying.
+        Stack({ alignContent: Alignment.TopStart }) {
+          Stack() {
+            this.MangaDetailFlightCover(this.detailTransition.routeToken)
+            if (!this.detailTransition.coverResourceReady) {
+              // The click-time pixels guarantee that the first transition frame cannot be blank.
+              // Once the already-cached thumbnail resource paints, it takes over at the identical
+              // Cover crop and can reveal the full image continuously as the flight rect changes.
+              Image(this.detailTransition.coverSnapshot)
+                .width('100%')
+                .height('100%')
+                .objectFit(ImageFit.Cover)
+                .syncLoad(true)
+                .transition(TransitionEffect.IDENTITY)
+            }
+          }
+            .width(this.detailTransition.flightCoverWidth)
+            .height(this.detailTransition.flightCoverHeight)
+            .position({
+              x: this.detailTransition.flightCoverX - this.detailTransition.clipX,
+              y: this.detailTransition.flightCoverY - this.detailTransition.clipY,
+            })
+            .borderRadius(this.detailTransition.flightCoverRadius)
+            .clip(true)
+            .renderGroup(true)
+            .hitTestBehavior(HitTestMode.None)
+            .transition(TransitionEffect.IDENTITY)
+        }
+        .width(Math.max(1, this.detailTransition.clipWidth))
+        .height(Math.max(1, this.detailTransition.clipHeight))
+        .position({
+          x: this.detailTransition.clipX,
+          y: this.detailTransition.clipY,
+        })
+        .borderRadius(this.detailTransition.radius)
+        .clip(true)
+        .zIndex(3)
+        .hitTestBehavior(HitTestMode.None)
+        .transition(TransitionEffect.IDENTITY)
+      }
+      if (
+        this.detailTransition.fallbackCoverVisible() &&
+        this.detailTransition.coverSnapshot !== undefined
+      ) {
+        // When the detail cover is off-screen there is no valid flight origin. Fade the click-time
+        // source pixels in at their exact landing rect while the detail surface finishes collapsing;
+        // this avoids exposing the intentionally hidden source card as an empty cover slot.
+        Image(this.detailTransition.coverSnapshot)
+          .width(this.detailTransition.sourceCoverWidth)
+          .height(this.detailTransition.sourceCoverHeight)
+          .objectFit(ImageFit.Fill)
+          .syncLoad(true)
+          .position({
+            x: this.detailTransition.sourceCoverX,
+            y: this.detailTransition.sourceCoverY,
+          })
+          .borderRadius(this.detailTransition.sourceCoverRadius)
+          .clip(true)
+          .opacity(this.detailTransition.fallbackCoverOpacity)
+          .zIndex(3)
+          .hitTestBehavior(HitTestMode.None)
+          .transition(TransitionEffect.IDENTITY)
       }
 
       Row()

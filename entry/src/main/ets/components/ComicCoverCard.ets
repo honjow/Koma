@@ -8,6 +8,7 @@ export const COMIC_COVER_ASPECT_RATIO: number = 0.68
 
 @ComponentV2
 export struct ComicCoverCard {
+  @Param transitionCoverId: string = ''
   @Param comic: ComicCoverInfo = {
     id: '',
     title: '',
@@ -110,7 +111,7 @@ export struct ComicCoverCard {
       remoteServerId: this.comic.remoteServerId ?? '',
       sourceMangaUrl: this.comic.sourceMangaUrl ?? '',
       onError: () => { this.failedCoverUri = this.coverFailureKey() },
-    })
+    }).id(this.transitionCoverId)
   }
 
   build() {
@@ -133,7 +134,7 @@ export struct ComicCoverCard {
               .backgroundColor(ThemeConstants.SELECTED_OVERLAY)
           }
 
-          libraryUnreadBadgeBackdrop(this.unreadBadgeCount ?? this.comic.unreadChapterCount, this.getUIContext())
+          libraryUnreadBadgeBackdrop({ count: this.unreadBadgeCount ?? this.comic.unreadChapterCount, context: this.getUIContext() })
         }
         .width('100%')
         .aspectRatio(COMIC_COVER_ASPECT_RATIO)

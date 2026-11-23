@@ -1,3 +1,4 @@
+import { connectMangaDetailTransition } from '../state/MangaDetailTransitionState'
 import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { RouteName } from './Constants'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -16,6 +17,8 @@ import { connectIncognitoState } from '../state/IncognitoState'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 
 export interface MangaDetailRouteParam {
+  /** 本次卡片导航的运行时身份；不属于作品信息或持久化数据。 */
+  transitionToken?: number
   mangaId: string
   sourceId?: string
   /** Persisted display name used only to explain a missing source on the detail route. */
@@ -204,6 +207,7 @@ export class RouterHelper {
       return
     }
     RouterHelper.ensureMangaDetailRouteChrome(param)
+    param.transitionToken = connectMangaDetailTransition().pendingToken()
     if (newInstance) {
       stack.pushPath({ name: RouteName.MANGA_DETAIL, param: param }, { launchMode: LaunchMode.NEW_INSTANCE })
     } else {

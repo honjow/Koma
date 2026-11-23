@@ -71,7 +71,9 @@ test('a retained shelf row cannot cache the old title or cover after a book is e
   const shelf = new Shelf(), original = comic(['only'])
   const saved = { ...original, title: 'Edited title', coverUri: '/edited-cover.jpg' }
   Object.assign(shelf, {
-    libraryStore: { getComic: () => saved },
+    // Shelf metadata now has a summary-only port. Keep the original stale-row
+    // assertion and reject accidental full-catalog hydration while drawing it.
+    libraryStore: { getComicSummary: () => saved, getComic() { throw Error('shelf must not hydrate the catalog') } },
     libraryCardCache: { cards: new Map(), categoryNames: new Map() },
     presentationByComicId: new Map(),
   })

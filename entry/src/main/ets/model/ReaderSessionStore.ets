@@ -1039,6 +1039,16 @@ export abstract class ReaderSessionStore {
 
   protected shelfChapterFacts(_comicId: ComicId): ShelfChapterFacts | undefined { return undefined }
 
+  /** Shelf rows consume the already prepared, scoped projection. Never hydrate
+   * a catalog or query a chapter from a row builder just to display a title. */
+  shelfResumeChapterTitle(comic: Comic, progress: ReadingProgress): string | undefined {
+    if (comic.chapterCatalogDeferred !== true) {
+      return comic.chapters.find((chapter: Chapter): boolean => chapter.id === progress.chapterId)?.title
+    }
+    const facts = this.shelfChapterFacts(comic.id)
+    return facts?.resumeChapterId === progress.chapterId ? facts.resumeChapterTitle : undefined
+  }
+
   latestCatalogDate(comic: Comic): number | undefined {
     if (comic.chapterCatalogDeferred === true) {
       const date = this.shelfChapterFacts(comic.id)?.latestDate
@@ -1059,20 +1069,28 @@ export abstract class ReaderSessionStore {
       this.isChapterRead(comic.id, chapter.id) || this.getChapterProgress(comic.id, chapter.id) !== undefined)
   }
 
-  unreadChapterCount(comic: Comic): number | undefined {
-    // Compare completeness with received rows; a complete source catalog may repeat IDs.
-    // Count logical chapters only once, without treating duplicates as missing chapters.
+  /** Total and unread labels share the same distinct catalog and completeness
+   * rules. An imported work's old chapterCount can differ from its synced IDs. */
+  shelfChapterCount(comic: Comic): number | undefined {
     const shared = comic.sourceMetadata?.sharedChapterIds
     if (comic.chapterCatalogDeferred === true) {
       const facts = this.shelfChapterFacts(comic.id)
       if (facts === undefined || facts.chapterCount === 0 || (shared === undefined && comic.chapterCount > facts.storedRows)) {
         return undefined
       }
-      return facts.chapterCount - facts.readCount
+      return facts.chapterCount
     }
     if (shared === undefined && comic.chapterCount > comic.chapters.length) return undefined
-    const chapterIds = new Set<ChapterId>(shared ?? comic.chapters.map((chapter: Chapter): ChapterId => chapter.id))
-    if (chapterIds.size === 0) return undefined
+    const count = new Set<ChapterId>(shared ?? comic.chapters.map((chapter: Chapter): ChapterId => chapter.id)).size
+    return count > 0 ? count : undefined
+  }
+
+  unreadChapterCount(comic: Comic): number | undefined {
+    const count = this.shelfChapterCount(comic)
+    if (count === undefined) return undefined
+    if (comic.chapterCatalogDeferred === true) return count - (this.shelfChapterFacts(comic.id)?.readCount ?? 0)
+    const chapterIds = new Set<ChapterId>(comic.sourceMetadata?.sharedChapterIds ??
+      comic.chapters.map((chapter: Chapter): ChapterId => chapter.id))
     let unread = 0
     chapterIds.forEach((chapterId: ChapterId): void => {
       if (!this.isChapterRead(comic.id, chapterId)) unread += 1

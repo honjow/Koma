@@ -1,5 +1,11 @@
 {
   "string": [
+    {"name": "appearance_detail_transition", "value": "Detail transition"},
+    {"name": "appearance_detail_transition_hint", "value": "Choose the transition from lists to details"},
+    {"name": "appearance_detail_transition_system", "value": "System default"},
+    {"name": "appearance_detail_transition_seamless", "value": "Seamless"},
+    {"name": "appearance_detail_transition_cover_expand", "value": "Cover expand"},
+    {"name": "appearance_detail_transition_save_failed", "value": "Could not save the transition setting. Please try again."},
     {"name": "cover_sr_system", "value": "System image enhancement"},
     {"name": "cover_sr_title", "value": "Cover image enhancement"},
     {"name": "cover_sr_installed", "value": "Downloaded"},
@@ -2675,6 +2681,7 @@
     {"name": "source_hide_in_library_save_failed", "value": "Could not save source browsing preference"},
     {"name": "source_in_library", "value": "In library"},
     {"name": "source_all_in_library", "value": "Works already in library are hidden"},
-    {"name": "source_all_in_library_hint", "value": "You can turn this off in Settings · Services · Sources"}
+    {"name": "source_all_in_library_hint", "value": "You can turn this off in Settings · Services · Sources"},
+    {"name": "library_list_not_started", "value": "Not started"}
   ]
 }

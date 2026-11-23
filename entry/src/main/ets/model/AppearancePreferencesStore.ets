@@ -1,5 +1,7 @@
 import {
+  DEFAULT_DETAIL_TRANSITION_MODE,
   appearanceAccentValue,
+  normalizeAppearanceDetailTransitionMode,
   connectAppearanceState,
   DEFAULT_APPEARANCE_COLOR_FAVORITES,
   isCustomAppearanceAccentColor,
@@ -15,6 +17,7 @@ export interface AppearancePreferences {
 }
 
 const APPEARANCE_PREFERENCES_STORE_NAME: string = 'koma_appearance_preferences_v1'
+const DETAIL_TRANSITION_MODE_KEY: string = 'appearance.detailTransitionMode'
 const ACCENT_COLOR_KEY: string = 'appearance.accentColor'
 const ACCENT_FAVORITES_KEY: string = 'appearance.accentColorFavorites'
 const AUTO_HIDE_BOTTOM_BAR_KEY: string = 'appearance.autoHideBottomBar'
@@ -81,6 +84,8 @@ export class AppearancePreferencesStore {
       const accentColor = normalizeAppearanceAccentColor(raw)
       const state = connectAppearanceState()
       state.accentColor = accentColor
+      state.detailTransitionMode = normalizeAppearanceDetailTransitionMode(
+        await store.get(DETAIL_TRANSITION_MODE_KEY, DEFAULT_DETAIL_TRANSITION_MODE) as string)
       state.autoHideBottomBar = await store.get(AUTO_HIDE_BOTTOM_BAR_KEY, true) as boolean
       state.showResumeMiniBar = await store.get(SHOW_RESUME_MINI_BAR_KEY, true) !== false
       state.doubleBackToExit = await store.get(DOUBLE_BACK_TO_EXIT_KEY, true) as boolean
@@ -137,6 +142,14 @@ export class AppearancePreferencesStore {
       // Use the initial palette for malformed stored values.
     }
     return DEFAULT_APPEARANCE_COLOR_FAVORITES.slice()
+  }
+
+  saveDetailTransitionMode(mode: string): Promise<void> {
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<void> => {
+      const normalized = normalizeAppearanceDetailTransitionMode(mode)
+      await this.writePreference(await this.preferences(), DETAIL_TRANSITION_MODE_KEY, normalized)
+      connectAppearanceState().detailTransitionMode = normalized
+    }))
   }
 
   saveAutoHideBottomBar(enabled: boolean): Promise<void> {

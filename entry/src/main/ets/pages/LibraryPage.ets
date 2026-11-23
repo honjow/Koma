@@ -1,8 +1,13 @@
+import { MangaDetailTransitionCoverSource } from '../state/MangaDetailTransitionCoverSource'
+import { MangaDetailTransitionCoordinator } from '../navigation/MangaDetailTransitionCoordinator'
+import { connectMangaDetailTransition, MangaDetailTransitionState } from '../state/MangaDetailTransitionState'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { libraryUnreadBadgeBackdrop, libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
 import { LibrarySortMenuItems, librarySortLabel, librarySortSummary } from '../components/LibrarySortMenu'
 import { cachedLibraryChapterUpdateTimes } from '../model/LibraryChapterUpdates'
+import { createLibraryListDetails, LibraryListDetails } from '../model/LibraryListPresentation'
+import { MangaStatusBadge } from '../components/MangaStatusBadge'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { privateLibraryCategoryIds, showLibraryComic } from '../model/LibraryPrivacyVisibility'
@@ -353,6 +358,8 @@ export interface LibraryTitleBarPresentation {
 
 @ComponentV2
 export struct LibraryPage {
+  private detailTransitionScope: string = MangaDetailTransitionCoordinator.allocateScope('library')
+  @Local private detailTransition: MangaDetailTransitionState = connectMangaDetailTransition()
   @Param libraryStore: LibraryStore = new InMemoryLibraryStore()
   @Param libraryRevision: number = 0
   @Param libraryPreferencesRevision: number = 0
@@ -1244,10 +1251,35 @@ export struct LibraryPage {
   }
 
   private listRowSubtitle(comic: ComicCoverInfo): string {
+    const chapters = this.listDetails(comic).chapterText
     if (comic.categoryLabels !== undefined && comic.categoryLabels.length > 0) {
-      return [comic.subtitle].concat(comic.categoryLabels).filter((label: string): boolean => label !== '').join(' · ')
+      return [chapters].concat(comic.categoryLabels).filter((label: string): boolean => label !== '').join(' · ')
     }
-    return comic.subtitle
+    return chapters
+  }
+
+  @Computed
+  private get listDetailsCache(): Map<ComicId, LibraryListDetails> {
+    void this.libraryRevision
+    void this.readerProgressRevision
+    void this.displayedRevision
+    void this.languageState.effectiveLocale
+    return new Map<ComicId, LibraryListDetails>()
+  }
+
+  private listDetails(card: ComicCoverInfo): LibraryListDetails {
+    const cache = this.listDetailsCache
+    const cached = cache.get(card.id)
+    if (cached !== undefined) return cached
+    const comic = this.libraryStore.getComicSummary(card.id)
+    if (comic === undefined) return { authorText: '', status: '', readingText: '', pageText: '', unreadText: '', sourceName: '', chapterText: '' }
+    const progress = this.displayedReadingProgress.get(comic.id)
+    const details = createLibraryListDetails(comic, progress,
+      progress === undefined ? undefined : this.readerSessionStore.shelfResumeChapterTitle(comic, progress),
+      this.readerSessionStore.unreadChapterCount(comic), this.readerSessionStore.hasStartedComic(comic),
+      this.librarySourceSortName(comic), this.readerSessionStore.shelfChapterCount(comic))
+    cache.set(comic.id, details)
+    return details
   }
 
   @Computed
@@ -1426,22 +1458,22 @@ export struct LibraryPage {
 
   private libraryListCoverWidth(): number {
     if (this.listDensity === 'compact') {
-      return 42
+      return 64
     }
     if (this.listDensity === 'comfortable') {
-      return 56
+      return 96
     }
-    return 48
+    return 80
   }
 
   private libraryListCoverHeight(): number {
     if (this.listDensity === 'compact') {
-      return 60
+      return 88
     }
     if (this.listDensity === 'comfortable') {
-      return 78
+      return 136
     }
-    return 68
+    return 112
   }
 
   private privateServerFilterOptions(): LibraryServerSourceFilterOption[] {
@@ -1599,8 +1631,34 @@ export struct LibraryPage {
     if (this.selectionMode) {
       this.toggleSelection(comicId)
     } else {
-      this.openComicDetailFromLibrary(comicId)
+      const viewMode: string = this.viewMode
+      const filterRevision: number = this.filterPreferencesMutationRevision
+      const displayedRevision: number = this.displayedRevision
+      const sourceId = this.detailCardId(viewMode === 'list' ? 'list' : 'grid', comicId)
+      MangaDetailTransitionCoordinator.open(this.getUIContext(), sourceId, (): void => {
+        this.openComicDetailFromLibrary(comicId)
+      }, this.detailTransitionScope, `${sourceId}-cover`, this.detailTransitionCoverSource(comicId),
+        (): boolean => this.active && this.rootNavigation.visible && !this.selectionMode &&
+          this.viewMode === viewMode && this.filterPreferencesMutationRevision === filterRevision &&
+          this.displayedRevision === displayedRevision && this.displayedCards.some((comic: ComicCoverInfo): boolean => comic.id === comicId))
     }
+  }
+
+  private detailTransitionCoverSource(comicId: string): MangaDetailTransitionCoverSource {
+    const comic = this.libraryStore.getComicSummary(comicId)
+    const source = new MangaDetailTransitionCoverSource()
+    source.uri = comic?.coverUri ?? ''
+    source.sourceRuntimeId = comic?.sourceRuntimeId ?? ''
+    source.sourceImageId = comic?.remoteResourceId ?? comicId
+    source.sourceMangaUrl = comic?.sourcePath ?? ''
+    source.sourceKind = comic?.sourceKind
+    source.remoteServerId = comic?.remoteServerId ?? ''
+    source.decodeMaxEdge = this.viewMode === 'list' ? coverDecodeEdgeForDisplay(this.libraryListCoverHeight()) : this.libraryGridCoverDecodeEdge()
+    return source
+  }
+
+  private detailCardId(mode: string, comicId: string): string {
+    return MangaDetailTransitionCoordinator.sourceId(this.detailTransitionScope, mode, comicId)
   }
 
   private openComicDetailFromLibrary(comicId: ComicId): void {
@@ -2314,6 +2372,7 @@ export struct LibraryPage {
   private LibraryGridCell(index: number, readComic: () => Comic) {
     Stack({ alignContent: Alignment.TopEnd }) {
       ComicCoverCard({
+        transitionCoverId: `${this.detailCardId('grid', readComic().id)}-cover`,
         comic: this.gridCardForComic(readComic()),
         unreadBadgeCount: this.unreadForCover(readComic().id),
         selected: this.isComicSelected(readComic().id),
@@ -2363,6 +2422,8 @@ export struct LibraryPage {
       }
     }
     .width('100%')
+    .id(this.detailCardId('grid', readComic().id))
+    .opacity(this.detailTransition.hidesSource(this.detailCardId('grid', readComic().id)) ? 0 : 1)
   }
 
   @Builder
@@ -2558,12 +2619,14 @@ export struct LibraryPage {
               )
             },
           })
+          .id(`${this.detailCardId('list', row.item.id)}-cover`)
         } else {
           SymbolGlyph($r('sys.symbol.book'))
+            .id(`${this.detailCardId('list', row.item.id)}-cover`)
             .fontSize(ThemeConstants.FONT_SIZE_H2)
             .fontColor([ThemeConstants.TEXT_TERTIARY])
         }
-        libraryUnreadBadgeBackdrop(this.unreadForCover(row.item.id), this.getUIContext())
+        libraryUnreadBadgeBackdrop({ count: this.unreadForCover(row.item.id), context: this.getUIContext() })
       }
       .width(this.libraryListCoverWidth())
       .height(this.libraryListCoverHeight())
@@ -2591,26 +2654,112 @@ export struct LibraryPage {
 
   @Builder
   private LibraryListText(row: RepeatItem<ComicCoverInfo>) {
-    Column() {
+    // CURRENT_STATUS LIBRARY_LIST_CARD_LAYOUT: the former 60/68/78vp covers
+    // cramped the text and even the largest was smaller than Continue Reading.
+    // Give all three sizes real cover space and clear title/metadata leading.
+    // Text still stays inside the cover height; native priorities hide optional
+    // rows as a whole. Keep the original HDS insets and interaction surface.
+    Column({ space: ThemeConstants.SPACE_XS }) {
       Text(row.item.title)
-        .fontSize(14)
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_LIST_TITLE)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
         .maxLines(2)
         .wordBreak(WordBreak.BREAK_WORD)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .width('100%')
-      Text(this.listRowSubtitle(row.item))
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .displayPriority(5)
+      if (this.listDetails(row.item).authorText.length > 0 || this.listDetails(row.item).status.length > 0) {
+        Row({ space: ThemeConstants.SPACE_SM }) {
+          if (this.listDetails(row.item).status.length > 0) {
+            MangaStatusBadge({ status: this.listDetails(row.item).status, presentation: 'inline' })
+              .flexShrink(0)
+          }
+          if (this.listDetails(row.item).authorText.length > 0) {
+            Text(this.listDetails(row.item).authorText)
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .lineHeight(ThemeConstants.LINE_HEIGHT_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
+          }
+        }
         .width('100%')
+        .displayPriority(2)
+      }
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        Text(this.listDetails(row.item).readingText)
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .lineHeight(ThemeConstants.LINE_HEIGHT_CAPTION)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
+        if (this.listDetails(row.item).pageText.length > 0) {
+          Text(this.listDetails(row.item).pageText)
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .lineHeight(ThemeConstants.LINE_HEIGHT_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .maxLines(1)
+            .flexShrink(0)
+        }
+      }
+      .width('100%')
+      .displayPriority(3)
+      Row({ space: ThemeConstants.SPACE_XS }) {
+        if (this.listDetails(row.item).chapterText.length > 0) {
+          Text(this.listDetails(row.item).chapterText)
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .lineHeight(ThemeConstants.LINE_HEIGHT_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .maxLines(1)
+            .flexShrink(0)
+        }
+        if (this.listDetails(row.item).unreadText.length > 0) {
+          if (this.listDetails(row.item).chapterText.length > 0) {
+            Text('·')
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .lineHeight(ThemeConstants.LINE_HEIGHT_CAPTION)
+              .fontColor(ThemeConstants.TEXT_TERTIARY)
+          }
+          Text(this.listDetails(row.item).unreadText)
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .lineHeight(ThemeConstants.LINE_HEIGHT_CAPTION)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
+            .maxLines(1)
+            .flexShrink(0)
+        }
+        Text(this.listDetails(row.item).sourceName)
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .lineHeight(ThemeConstants.LINE_HEIGHT_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .textAlign(TextAlign.End)
+          .layoutWeight(1)
+      }
+      .width('100%')
+      .displayPriority(4)
+      if (row.item.categoryLabels !== undefined && row.item.categoryLabels.length > 0) {
+        Text(row.item.categoryLabels.join(' · '))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .lineHeight(ThemeConstants.LINE_HEIGHT_CAPTION)
+          .fontColor(ThemeConstants.TEXT_TERTIARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+          .displayPriority(1)
+      }
     }
     .width('100%')
-    .constraintSize({ minHeight: this.libraryListCoverHeight() })
+    .height(this.libraryListCoverHeight())
+    .constraintSize({ maxHeight: this.libraryListCoverHeight() })
     .justifyContent(FlexAlign.SpaceBetween)
     .alignItems(HorizontalAlign.Start)
+    .clip(true)
   }
 
   @Builder
@@ -2669,6 +2818,8 @@ export struct LibraryPage {
       }
     }
     .width('100%')
+    .id(this.detailCardId('list', row.item.id))
+    .opacity(this.detailTransition.hidesSource(this.detailCardId('list', row.item.id)) ? 0 : 1)
     // The native row owns its content insets and press surface. Extra outer
     // padding would leave unpressed bands above and below this separate card.
     .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
@@ -2845,6 +2996,7 @@ export struct LibraryPage {
     .width('100%')
     .height('100%')
     .backgroundColor(ThemeConstants.BG_SUB)
+    .id(this.detailTransitionScope)
     .bindSheet($$this.categoryEditorShown, this.CategoryEditor, libraryCategoryPickerSheetOptions())
     .onAreaChange((_old: Area, next: Area) => {
       this.containerWidth = next.width as number

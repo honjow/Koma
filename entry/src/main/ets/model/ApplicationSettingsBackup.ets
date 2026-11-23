@@ -44,6 +44,7 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
   'koma_download_notifications_v1': ['download.notifications.enabled', 'download.notifications.sound'],
   'koma_appearance_preferences_v1': [
     'appearance.accentColor', 'appearance.accentColorFavorites', 'appearance.autoHideBottomBar', 'navigation.backGuardEnabled',
+    'appearance.detailTransitionMode',
   ],
   'koma_library_filter_preferences': [
     'library.sort', 'library.sortDirection', 'library.sortConfigured', 'library.viewMode', 'library.listDensity',
@@ -85,6 +86,8 @@ function checkPortableValue(name: string, key: string, value: ApplicationSetting
     if (key === 'download.notifications.enabled' && typeof value !== 'boolean') throw new Error('backup_application_settings_invalid')
     if (key === 'download.notifications.sound' && (typeof value !== 'string' ||
       !['silent', 'sound', 'vibrate', 'sound_vibrate'].includes(value))) throw new Error('backup_application_settings_invalid')
+  } else if (name === 'koma_appearance_preferences_v1' && key === 'appearance.detailTransitionMode') {
+    if (value !== 'system' && value !== 'seamless' && value !== 'coverExpand') throw new Error('backup_application_settings_invalid')
   } else if (name === 'koma_appearance_preferences_v1' &&
     (key === 'appearance.autoHideBottomBar' || key === 'navigation.backGuardEnabled')) {
     if (typeof value !== 'boolean') throw new Error('backup_application_settings_invalid')

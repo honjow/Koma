@@ -168,6 +168,7 @@ export struct CachedCoverImage {
   @Param decodeMaxEdge: number = COVER_DECODE_MAX_EDGE
   @Param extractMainColor: boolean = false
   @Event onError: () => void = () => {}
+  @Event onReady: () => void = () => {}
   @Local private pixelMap: image.PixelMap | undefined = undefined
   @Local private displayedOwnerId: string = ''
   @Local private animatedCover: AnimatedCover | undefined = undefined
@@ -555,7 +556,7 @@ export struct CachedCoverImage {
       .objectFit(this.objectFit)
       .interpolation(ImageInterpolation.Medium)
       .opacity(this.animatedCoverVisible ? 1 : 0)
-      .onComplete(() => { this.onAnimatedCoverReady(cover) })
+      .onComplete(() => { this.onAnimatedCoverReady(cover); this.onReady() })
       .onError(() => { this.onAnimatedCoverError(cover) })
   }
 
@@ -567,6 +568,7 @@ export struct CachedCoverImage {
           .height('100%')
           .objectFit(this.objectFit)
           .interpolation(ImageInterpolation.Medium)
+          .onComplete(() => { this.onReady() })
           .transition(this.fadeStaticCover
             ? TransitionEffect.asymmetric(TransitionEffect.OPACITY.animation({ duration: COVER_FADE_DURATION_MS, curve: Curve.EaseOut }), TransitionEffect.IDENTITY)
             : TransitionEffect.IDENTITY)

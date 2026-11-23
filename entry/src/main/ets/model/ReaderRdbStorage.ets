@@ -77,6 +77,8 @@ export interface ShelfChapterFacts {
   reading: boolean
   started: boolean
   latestDate?: number
+  resumeChapterId?: string
+  resumeChapterTitle?: string
 }
 
 async function legacyRows<T>(transaction: relationalStore.Transaction, sql: string, args?: string[]): Promise<T[]> {
@@ -248,14 +250,22 @@ export class ReaderRdbStorage {
         'dates AS (SELECT comic_id, COUNT(*) AS records, MAX(date_upload) AS latest FROM stored GROUP BY comic_id), ' +
         'started AS (SELECT DISTINCT c.comic_id FROM dedup c JOIN states r ' +
           'ON r.comic_id = c.comic_id AND r.chapter_id = c.chapter_id ' +
-          'WHERE r.is_read = 1 OR r.has_position = 1) ' +
+          'WHERE r.is_read = 1 OR r.has_position = 1), ' +
+        'resume AS (SELECT w.comic_id, CASE WHEN COALESCE(l.rowid, -1) >= COALESCE(p.rowid, -1) ' +
+          'THEN l.chapter_id ELSE p.chapter_id END AS chapter_id FROM wanted w ' +
+          'LEFT JOIN reader_current_positions p ON p.comic_id = w.comic_id ' +
+          'LEFT JOIN reader_current_positions_local l ON l.comic_id = w.comic_id) ' +
         'SELECT w.comic_id, COALESCE(d.records, 0), COALESCE(c.chapters, 0), COALESCE(c.read_count, 0), ' +
-          'COALESCE(c.reading, 0), s.comic_id IS NOT NULL, d.latest FROM wanted w ' +
+          'COALESCE(c.reading, 0), s.comic_id IS NOT NULL, d.latest, p.chapter_id, ' +
+          '(SELECT title FROM shelf_chapters ch WHERE ch.comic_id = w.comic_id AND ch.chapter_id = p.chapter_id ' +
+          'ORDER BY ch.list_order LIMIT 1) FROM wanted w ' +
           'LEFT JOIN counts c ON c.comic_id = w.comic_id LEFT JOIN dates d ON d.comic_id = w.comic_id ' +
-          'LEFT JOIN started s ON s.comic_id = w.comic_id', ids)
+          'LEFT JOIN started s ON s.comic_id = w.comic_id LEFT JOIN resume p ON p.comic_id = w.comic_id', ids)
       for (const row of collectLocalRows(rows, (r: relationalStore.ResultSet): ShelfChapterFacts => ({
         comicId: r.getString(0), storedRows: r.getLong(1), chapterCount: r.getLong(2), readCount: r.getLong(3),
         reading: r.getLong(4) === 1, started: r.getLong(5) === 1, latestDate: r.isColumnNull(6) ? undefined : r.getLong(6),
+        resumeChapterId: r.isColumnNull(7) ? undefined : r.getString(7),
+        resumeChapterTitle: r.isColumnNull(8) ? undefined : r.getString(8),
       }))) facts.push(row)
     }
     return facts

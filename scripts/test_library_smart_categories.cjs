@@ -379,7 +379,9 @@ test('cold shelf reads the saved category and can edit or open a work without re
  const storage = new LibraryRdbStorage(port)
  const reading = new ReaderRdbStorage(port)
  await storage.migrate(persistence.createLibraryStorePersistenceDocument(owner))
- await reading.migrate({ progress: [], sourceHistory: [], chapters: [{
+ const savedPosition = { comicId: left.id, chapterId: left.chapters[1].id, pageIndex: 0, totalPages: 1,
+  progressRatio: 1, completed: true, updatedAt: 12 }
+ await reading.migrate({ progress: [savedPosition], sourceHistory: [], chapters: [{
   comicId: left.id, chapterId: left.chapters[0].id, isRead: true, bookmarked: true, updatedAt: 12,
  }] })
  queries.length = 0
@@ -395,7 +397,15 @@ test('cold shelf reads the saved category and can edit or open a work without re
  assert.equal(firstShelf[0].chapterCatalogDeferred, true)
  assert.equal(queries.some(({ sql }) => /FROM (shelf_chapters|reader_chapter_states_all)\b/.test(sql)), false)
  assert.equal(reader.prepareShelfReadingFacts(firstShelf), true)
+ assert.equal(reader.shelfChapterCount(firstShelf[0]), 2)
  assert.equal(reader.unreadChapterCount(firstShelf[0]), 1)
+ const staleImportedCount = { ...firstShelf[0], chapterCount: 1 }
+ assert.equal(reader.shelfChapterCount(staleImportedCount), 2)
+ assert.equal(reader.unreadChapterCount(staleImportedCount), 1)
+ const projectedQueries = queries.length
+ assert.equal(reader.shelfResumeChapterTitle(firstShelf[0], savedPosition), left.chapters[1].title)
+ assert.equal(reader.shelfResumeChapterTitle(firstShelf[0], { ...savedPosition, chapterId: 'missing' }), undefined)
+ assert.equal(queries.length, projectedQueries, 'drawing shelf titles uses prepared facts without per-row reads')
  assert.equal(reader.isChapterBookmarked(left.id, left.chapters[0].id), true)
  assert.equal(persistence.editComicCategoriesAndPersistLibraryStore(live, service, [left.id], [second.id], []), 1)
  assert.equal(live.getComicSummary(left.id).chapterCatalogDeferred, true)

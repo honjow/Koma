@@ -21,15 +21,23 @@ function badgeBackdropWidth(count: number, context: UIContext): number {
 // samples the cover beneath it; never blur the Badge container or its text.
 // Match ArkUI's numeric badge geometry (one-digit circle, otherwise 6vp padding):
 // frameworks/core/components_ng/pattern/badge/badge_layout_algorithm.cpp.
+interface LibraryUnreadBadgeBackdropParams {
+  count: number | undefined
+  context: UIContext
+}
+
+// One object literal passed by reference is required here. A multi-argument
+// value builder freezes the old count when Repeat reuses a card: its blur can
+// retain the previous width or survive count=0 after the native digits vanish.
 @Builder
-export function libraryUnreadBadgeBackdrop(count: number | undefined, context: UIContext) {
-  if ((count ?? 0) > 0) {
+export function libraryUnreadBadgeBackdrop($$: LibraryUnreadBadgeBackdropParams) {
+  if (($$.count ?? 0) > 0) {
     // A plain empty surface owns the blur. Badge is the only digit renderer;
     // never add duplicate, transparent or shadow text to imitate its glyphs.
     Row()
-      .width(badgeBackdropWidth(count ?? 0, context))
-      .height(badgeBackdropHeight(context))
-      .borderRadius(badgeBackdropHeight(context) / 2)
+      .width(badgeBackdropWidth($$.count ?? 0, $$.context))
+      .height(badgeBackdropHeight($$.context))
+      .borderRadius(badgeBackdropHeight($$.context) / 2)
       .backdropBlur(10)
       .shadow(ShadowStyle.OUTER_DEFAULT_XS)
       .position({ x: BADGE_INSET, y: BADGE_INSET })

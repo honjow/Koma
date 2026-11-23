@@ -141,4 +141,6 @@ export class ThemeConstants {
   static readonly SOURCE_GRID_MIN_COLUMN_WIDTH: number = 104
   static readonly LINE_HEIGHT_TITLE: number = 22
   static readonly LINE_HEIGHT_BODY: number = 20
+  static readonly LINE_HEIGHT_LIST_TITLE: number = 22
+  static readonly LINE_HEIGHT_CAPTION: number = 16
 }

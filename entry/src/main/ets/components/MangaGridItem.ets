@@ -1,3 +1,6 @@
+import { MangaDetailTransitionCoverSource } from '../state/MangaDetailTransitionCoverSource'
+import { MangaDetailTransitionCoordinator } from '../navigation/MangaDetailTransitionCoordinator'
+import { connectMangaDetailTransition, MangaDetailTransitionState } from '../state/MangaDetailTransitionState'
 import { CachedCoverImage, NativeCoverImage, cachedCoverFailureKey, coverDecodeEdgeForDisplay } from './CachedCoverImage'
 import { ComicSourceKind } from '../model/ComicModels'
 import { SourceManga, sourceMangaListInfo } from '../model/SourceModels'
@@ -18,6 +21,10 @@ export interface MangaGridCoverOptions {
 
 @ComponentV2
 export struct MangaGridItem {
+  @Param detailTransitionScope: string = ''
+  @Event transitionSourceIsCurrent: () => boolean = (): boolean => true
+  private fallbackDetailScope: string = MangaDetailTransitionCoordinator.allocateScope('unanimated')
+  @Local private detailTransition: MangaDetailTransitionState = connectMangaDetailTransition()
   @Param inLibrary: boolean = false
   @Param reserveTitleSpace: boolean = false
   @Param listLayout: boolean = false
@@ -34,6 +41,31 @@ export struct MangaGridItem {
   @Local private coverWasVisible: boolean = false
   @Local private gridCoverDecodeEdge: number = 0
   @Local private retryWhenVisibleAgain: boolean = false
+
+  private detailCardId(): string {
+    return MangaDetailTransitionCoordinator.sourceId(
+      this.detailTransitionScope.length > 0 ? this.detailTransitionScope : this.fallbackDetailScope, this.listLayout ? 'list' : 'grid', this.manga.id)
+  }
+
+  private openDetail(): void {
+    const manga = this.manga
+    if (this.detailTransitionScope.length === 0) this.onMangaTap(manga)
+    else {
+      const source = new MangaDetailTransitionCoverSource()
+      source.uri = manga.coverUrl ?? ''
+      source.sourceRuntimeId = manga.sourceId
+      source.sourceImageId = this.coverOptions?.imageId ?? manga.id
+      source.sourceMangaUrl = manga.url ?? ''
+      source.sourceCoverHeaders = manga.coverHeaders
+      source.sourceKind = this.coverOptions?.sourceKind
+      source.remoteServerId = this.coverOptions?.remoteServerId ?? ''
+      source.decodeMaxEdge = this.listLayout ? coverDecodeEdgeForDisplay(SOURCE_LIST_COVER_HEIGHT) : this.gridCoverDecodeEdge
+      void MangaDetailTransitionCoordinator.open(this.getUIContext(), this.detailCardId(), (): void => {
+        this.onMangaTap(manga)
+      }, this.detailTransitionScope, `${this.detailCardId()}-cover`, source,
+        (): boolean => this.transitionSourceIsCurrent() && this.manga.id === manga.id && this.manga.sourceId === manga.sourceId)
+    }
+  }
 
   private coverVisibilityChanged(visible: boolean): void {
     if (this.deferOffscreenCover && visible && !this.coverWasVisible) this.coverWasVisible = true
@@ -82,7 +114,7 @@ export struct MangaGridItem {
         NativeCoverImage({
           uri: this.manga.coverUrl ?? '',
           onError: () => { this.failedCoverUrl = this.coverFailureKey() },
-        })
+        }).id(`${this.detailCardId()}-cover`)
       } else if (this.listLayout || this.gridCoverDecodeEdge > 0) {
         CachedCoverImage({
           uri: this.manga.coverUrl ?? '',
@@ -97,7 +129,7 @@ export struct MangaGridItem {
           sourceKind: this.coverOptions?.sourceKind,
           remoteServerId: this.coverOptions?.remoteServerId ?? '',
           onError: () => { this.failedCoverUrl = this.coverFailureKey() },
-        })
+        }).id(`${this.detailCardId()}-cover`)
       }
     }
   }
@@ -212,8 +244,10 @@ export struct MangaGridItem {
     .width('100%')
     .alignItems(HorizontalAlign.Start)
     .onClick(() => {
-      this.onMangaTap(this.manga)
+      this.openDetail()
     })
+    .id(this.detailCardId())
+    .opacity(this.detailTransition.hidesSource(this.detailCardId()) ? 0 : 1)
   }
 
   build() {
@@ -222,7 +256,7 @@ export struct MangaGridItem {
         ConciseListRow({ title: this.manga.title, wrapTitle: true, wrapTitleByWord: true,
           showChevron: false, prefixActsAsLeading: true,
           textBuilderParam: () => { this.ListText() },
-          prefixBuilderParam: () => { this.ListCover() }, action: () => { this.onMangaTap(this.manga) } })
+          prefixBuilderParam: () => { this.ListCover() }, action: () => { this.openDetail() } })
           .layoutWeight(1)
       }
       .width('100%')
@@ -230,6 +264,8 @@ export struct MangaGridItem {
       // supplies the same 8vp at the left. Do not add a second vertical inset.
       .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
       .backgroundColor(ThemeConstants.CARD)
+      .id(this.detailCardId())
+      .opacity(this.detailTransition.hidesSource(this.detailCardId()) ? 0 : 1)
     } else {
       this.GridCard()
     }

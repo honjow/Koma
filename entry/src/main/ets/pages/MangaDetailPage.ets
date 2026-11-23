@@ -1,3 +1,5 @@
+import { connectMangaDetailTransition } from '../state/MangaDetailTransitionState'
+import { MangaDetailTransitionCoordinator } from '../navigation/MangaDetailTransitionCoordinator'
 import { SourceCommentsSheet } from '../components/SourceCommentsSheet'
 import { SourceCommentScope, SourceCommentsTarget } from '../sourceRuntime/SourceCommentsContract'
 import { hasSourceComments } from '../sourceRuntime/SourceCommentsService'
@@ -163,6 +165,7 @@ type TrackingNumberField = 'chapters' | 'volumes' | 'score'
 export const MANGA_DETAIL_ROUTE_NAME: string = 'MangaDetailPage'
 
 interface MangaDetailRouteParams {
+  transitionToken?: number
   mangaId?: string
   sourceId?: string
   sourceName?: string
@@ -325,6 +328,7 @@ enum SourceDetailContentState {
 
 @ComponentV2
 export struct MangaDetailPage {
+  @Param transitionCoverId: string = ''
   @Param params: MangaDetailRouteParams = {}
   // A detail object is data, not a loading placeholder. A source route may have a real list-row
   // preview before its full detail is resolved, but it must never render a fabricated manga merely
@@ -634,7 +638,28 @@ export struct MangaDetailPage {
       hiTraceMeter.finishTrace('KomaDetailSeed', 0)
     }
     const mount = ++this.detailMountGeneration
-    if (!this.usesDetailPanes && this.sourceDetailDataResolved && this.chapters.length > 0) {
+    const transition = connectMangaDetailTransition()
+    if (transition.owns(this.params.transitionToken)) {
+      // Prepare the real metadata and virtual chapter list before the first visible transition frame.
+      // Keeping the existing deferred mount here would place its List layout inside the 350ms animation.
+      this.detailBodyReady = false
+      this.detailChaptersReady = false
+      const token = this.params.transitionToken
+      const ui = this.getUIContext()
+      ui.postFrameCallback(new DetailBodyAfterFrame((): void => {
+        if (this.detailMountGeneration !== mount || !transition.owns(token)) return
+        this.detailBodyReady = true
+        ui.postFrameCallback(new DetailBodyAfterFrame((): void => {
+          if (this.detailMountGeneration !== mount || !transition.owns(token)) return
+          this.detailChaptersReady = true
+          ui.postFrameCallback(new DetailBodyAfterFrame((): void => {
+            if (this.detailMountGeneration !== mount || !transition.owns(token)) return
+            MangaDetailTransitionCoordinator.syncDetailCoverTarget(ui)
+            transition.markDetailLayoutReady(token)
+          }))
+        }))
+      }))
+    } else if (!this.usesDetailPanes && this.sourceDetailDataResolved && this.chapters.length > 0) {
       // Let the cover and main reading action render first, followed by the
       // metadata and secondary actions, then the virtual chapter rows.
       const ui = this.getUIContext()
@@ -4021,6 +4046,7 @@ export struct MangaDetailPage {
   private DetailInformationItems() {
     if (this.manga !== undefined) {
       MangaDetailHeader({
+        transitionCoverId: this.transitionCoverId,
         manga: this.displayedManga(this.manga),
         showChapterCount: this.shouldShowChapterCount(),
         sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
@@ -4465,6 +4491,16 @@ export struct MangaDetailPage {
       .onSizeChange((_old: SizeOptions, size: SizeOptions): void => {
         const width = Number(size.width)
         const height = Number(size.height)
+        const transition = connectMangaDetailTransition()
+        const token = this.params.transitionToken
+        if (transition.owns(token) && transition.isCoverExpand()) {
+          const generation = this.detailMountGeneration
+          this.getUIContext().postFrameCallback(new DetailBodyAfterFrame((): void => {
+            if (generation === this.detailMountGeneration && transition.owns(token)) {
+              MangaDetailTransitionCoordinator.syncDetailCoverTarget(this.getUIContext())
+            }
+          }))
+        }
         if (height > 0 && height !== this.detailViewportHeight) this.detailViewportHeight = height
         if (Number.isFinite(width) && width > 0) {
           const availableWidth = Math.max(0, width - 2 * ThemeConstants.SPACE_MD)

@@ -1,5 +1,11 @@
 {
   "string": [
+    {"name": "appearance_detail_transition", "value": "详情页转场"},
+    {"name": "appearance_detail_transition_hint", "value": "选择列表进入详情页时的转场效果"},
+    {"name": "appearance_detail_transition_system", "value": "系统默认"},
+    {"name": "appearance_detail_transition_seamless", "value": "一镜到底"},
+    {"name": "appearance_detail_transition_cover_expand", "value": "封面展开"},
+    {"name": "appearance_detail_transition_save_failed", "value": "保存转场设置失败，请重试"},
     {"name": "cover_sr_system", "value": "系统图像增强"},
     {"name": "cover_sr_title", "value": "封面图像增强"},
     {"name": "cover_sr_installed", "value": "已下载"},
@@ -2675,6 +2681,7 @@
     {"name": "source_hide_in_library_save_failed", "value": "保存书源浏览设置失败"},
     {"name": "source_in_library", "value": "已加入书架"},
     {"name": "source_all_in_library", "value": "当前作品均已添加到书架"},
-    {"name": "source_all_in_library_hint", "value": "如需查看，可在设置的服务页关闭“隐藏已添加到书架的作品”"}
+    {"name": "source_all_in_library_hint", "value": "如需查看，可在设置的服务页关闭“隐藏已添加到书架的作品”"},
+    {"name": "library_list_not_started", "value": "未开始阅读"}
   ]
 }

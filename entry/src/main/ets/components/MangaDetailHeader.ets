@@ -1,8 +1,10 @@
+import { connectMangaDetailTransition, MangaDetailTransitionState } from '../state/MangaDetailTransitionState'
 import { LengthMetrics } from '@kit.ArkUI'
 import { CachedCoverImage, cachedCoverFailureKey, coverDecodeEdgeForDisplay } from './CachedCoverImage'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
-import { MangaDetail, MangaStatus } from '../model/MangaDetailModels'
+import { MangaDetail } from '../model/MangaDetailModels'
+import { MangaStatusBadge } from './MangaStatusBadge'
 import { ComicSourceKind } from '../model/ComicModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { formatMangaCreatorList } from './MangaCreatorText'
@@ -15,6 +17,8 @@ function s(name: string): string {
 
 @ComponentV2
 export struct MangaDetailHeader {
+  @Param transitionCoverId: string = ''
+  @Local private detailTransition: MangaDetailTransitionState = connectMangaDetailTransition()
   @Param manga: MangaDetail = {
     id: '',
     title: '',
@@ -65,40 +69,6 @@ export struct MangaDetailHeader {
     return s('manga_detail_creator_unknown')
   }
 
-  private statusLabel(): string {
-    const status = this.manga.status === undefined ? MangaStatus.UNKNOWN : this.manga.status
-    if (status === MangaStatus.ONGOING) {
-      return s('manga_status_ongoing')
-    }
-    if (status === MangaStatus.COMPLETED) {
-      return s('manga_status_completed')
-    }
-    if (status === MangaStatus.HIATUS) {
-      return s('manga_status_hiatus')
-    }
-    if (status === MangaStatus.CANCELLED) {
-      return s('manga_status_cancelled')
-    }
-    return s('manga_status_unknown')
-  }
-
-  private statusBackgroundColor(): ResourceColor {
-    const status = this.manga.status === undefined ? MangaStatus.UNKNOWN : this.manga.status
-    if (status === MangaStatus.ONGOING) {
-      return ThemeConstants.STATUS_SUCCESS
-    }
-    if (status === MangaStatus.COMPLETED) {
-      return ThemeConstants.STATUS_INFO
-    }
-    if (status === MangaStatus.HIATUS) {
-      return ThemeConstants.STATUS_MUTED
-    }
-    if (status === MangaStatus.CANCELLED) {
-      return ThemeConstants.STATUS_DANGER
-    }
-    return ThemeConstants.TEXT_SECONDARY
-  }
-
   @Builder
   private Cover() {
     Stack({ alignContent: Alignment.Center }) {
@@ -120,7 +90,14 @@ export struct MangaDetailHeader {
           },
         })
       }
+      // Permanent mask keeps the actual cached image mounted while the root flight owns its pixels.
+      Column() {}.width('100%').height('100%')
+        .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
+        .opacity(this.transitionCoverId.length > 0 &&
+          this.detailTransition.targetCoverComponentId === this.transitionCoverId && this.detailTransition.coverMaskVisible() ? 1 : 0)
+        .hitTestBehavior(HitTestMode.None)
     }
+    .id(this.transitionCoverId)
     .width(104)
     .height(DETAIL_COVER_HEIGHT)
     .backgroundColor(this.hasCover() ? ThemeConstants.COVER_PLACEHOLDER : ThemeConstants.BRAND_PRIMARY)
@@ -155,13 +132,7 @@ export struct MangaDetailHeader {
           main: LengthMetrics.vp(ThemeConstants.SPACE_SM),
           cross: LengthMetrics.vp(ThemeConstants.SPACE_SM),
         } }) {
-          Text(this.statusLabel())
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
-            .borderRadius(ThemeConstants.RADIUS_ROUND)
-            .backgroundColor(this.statusBackgroundColor())
+          MangaStatusBadge({ status: this.manga.status ?? 'unknown' })
 
           if (this.manga.sourceName !== undefined && this.manga.sourceName.length > 0) {
             Row({ space: ThemeConstants.SPACE_XS }) {

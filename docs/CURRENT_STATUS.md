@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-24T01:33:02+08:00",
+  "updatedAt": "2026-11-24T01:54:32+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -12939,33 +12939,44 @@
       "id": "LIBRARY_LIST_CARD_LAYOUT",
       "number": 350,
       "title": "书架列表按下反馈留边与信息布局",
-      "kind": "active",
+      "kind": "done",
       "priority": "P2",
       "reportedAt": "2026-11-23T12:52:11+08:00",
       "reportedAtSource": "用户本会话指出书架列表按下反馈上下留空，明确去掉外层边距；并指出标题过大单行、只显示话数，空间浪费。",
       "relatedItems": [
         "SOURCE_BROWSE_LIST_INFO"
       ],
-      "updatedAt": "2026-11-23T13:54:44+08:00",
-      "status": "卡片留边与标题排版已修并通过237，补充信息待确认",
-      "progressPhase": "verified",
-      "owner": "本会话：LibraryPage及卡片投影；Darwin：237统一验收",
-      "result": "卡片按下反馈覆盖上下，原多选和普通点击仍正常；标题缩小至14fp并支持最多两行。保留原话数和分类，尚未自行增加作者或书源等显示项目。237原设置及本轮录屏临时文件已恢复清理。",
-      "remaining": "补充信息采用作者/书源/话数，还是作者/最近阅读位置/话数，原异步偏好问题待用户回答；仅此显示取舍待确认，其余工作继续。",
-      "remainingActions": [
-        "收到补充信息取舍后只使用已载作品摘要投影，不读取完整章表。"
-      ],
+      "updatedAt": "2026-11-24T01:54:32+08:00",
+      "status": "整档封面与文字放大、拉开行距已201三档/英文及封面展开进退验收，原状态恢复释租",
+      "progressPhase": "completed",
+      "owner": "Root：参考成熟列表实现与整合；nexte_detail_transition：201三档、滚动和进退验收",
+      "result": "按用户新增行距/主次和整体尺寸反馈，最终候选13改为小64×88、中80×112、大96×136vp封面；标题16fp/22行高，辅助12fp/16行高，文字Column最小4vp间距并SpaceBetween，固定高度仍受封面约束。Root与执行代理亲审201三档中文及标准英文：同屏大档明显大于76×102vp继续阅读封面；真实封面224×308/280×392/336×476px，双行标题154px，右文字无越界、半行或重叠。短标题保彩色状态/作者，长标题按空间隐藏辅助行；inline状态无大胶囊，章名无前缀、页码右端独立，总数·未读两个纯数字及同口径计数保持，未知目录不捏造数字。候选13封面展开列表进退98帧由双方按序亲审，末97原魔王53·51、03話1/18页、封面51角标与原位置/背景归还，无末态残留。原宽松/简中/网格/显式一镜到底/全部分类与读态/最近阅读降序已恢复；本次原SLEEP/Override10000独立读回，01:43:36释租released，保留13新包。安装前013322已出现新的超超续读，测试中实见云位置与章节状态下行；不据此证明首个变化的原因，不回写旧进度或声称fresh最初续读已恢复。稳定51/78/496样本仍可见。已按用户确认纳入本地提交，未推送。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
-        "只改用户指出的书架列表；网格、封面尺寸、密度、选择/更多菜单、点击和长按语义保持。",
-        "本次去的是外层上下边距，沿HDS内部既有排版，不额外添加左右留白。",
-        "不增加或改变硬件触觉设置；App本地1.6.1不推不发。",
-        "当前库没有符合原本地移除菜单条件的作品；未造测试数据，也不宣称该菜单正向样本已验。"
+        "用户本次明确允许增大封面和调整字号以拉开行距；当前采用64×88/80×112/96×136vp三档、16fp标题/22行高及12fp辅助/16行高，最小4vp行间距，文字仍不得超对应封面高；旧12的小尺寸只留历史。",
+        "列表仅状态彩色字，不恢复用户否定的大胶囊；详情原有状态胶囊外观保留。",
+        "计数为两个纯数字，总数/未读同一逻辑目录事实；known0显示0，封面零Badge继续隐藏，未知完整目录不捏造总数。",
+        "保原网格、原生内距、选择/菜单、点击/长按与转场nodeId；不扩硬件触觉/本地移除菜单验证。",
+        "用户本轮已明确授权本地提交；不推送、不发布，版本字段保持。"
       ],
       "evidencePoints": [
-        ".hvigor/outputs/web-http-download-order-20261123/parent-library-ui-review.json",
-        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/library-density/final-result.json"
+        ".hvigor/outputs/detail-transition-20261123/three-modes-candidate-13.hap",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate13-list-layout-result.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/tap-text-013407651558/screen.png",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/library-after-density-compact-013506122420/list-text-cover-geometry.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/library-after-density-standard-013644208395/list-text-cover-geometry.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/library-after-language-013802858660/screen.png",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate13-list-cover-roundtrip-review",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate13-original-grid-restored-014248104906/screen.png",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-014313076164/run-metadata.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-current.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/library-after-settings-013322187750/screen.png",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate13-filtered-state-log-013707209246/app-state-log.txt",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate9-list-count-result.json",
+        ".hvigor/outputs/detail-transition-20261123/report.md"
       ],
-      "stage": "已验布局；补充信息待选择"
+      "stage": "已验证，按用户授权本地提交"
     },
     {
       "id": "LIBRARY_LIST_GRID_DENSITY_DECOUPLE",
@@ -13189,6 +13200,55 @@
         ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-6a5363b/publication-verification.json",
         "https://github.com/honjow/koma-sources/releases/tag/sources-6a5363b24fb635dd2bc1cf0200b99744ee75748c"
       ]
+    },
+    {
+      "id": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "number": 359,
+      "title": "完整移植 NextE 三种详情转场并检查书架掉帧",
+      "kind": "done",
+      "progressPhase": "completed",
+      "priority": "用户当前要求",
+      "owner": "Root 集成；nexte_detail_transition 实现与 201 验证",
+      "reportedAt": null,
+      "reportedDate": "2026-11-23",
+      "reportedAtSource": "用户本会话要求移植 NextE 列表转场，覆盖书架打开作品页和浏览进入作品页，随后明确要求开子代理并直接在 201 验证；精确原始消息时刻未核实。",
+      "status": "完整三模式已验；按新增要求缺省改封面展开，既有显式偏好保留，201新列表进退与恢复完成",
+      "updatedAt": "2026-11-24T01:54:32+08:00",
+      "result": "完整移植NextE系统默认/一镜到底/封面展开，用户最新要求默认改为封面展开：缺省与非法值统一coverExpand，既有显式system/seamless/coverExpand保留；Root执行现有真实偏好保存/重载/失败回滚和备份检查，未清201偏好凑默认。外观原生菜单、当前项/持久化及备份owner沿既有模型；系统模式原生横向，自定义350ms与曲线/空间淡入保持。异步快照、真实布局握手、V2 applySync初态与几何、资源IDENTITY、迟到token/source取消与合法4.5秒超时普通打开回退保留。候选6三模式各书架/漫画屋普通进退、连续两本、封面展开列表及冷启勾选均有完整原片；本轮13临时选封面展开新列表98帧双方亲审，末97原魔王53·51/03話1/18页、封面角标及原位置/背景恢复，无终态残层。201原显式一镜到底及其他设置已恢复，本次SLEEP/10000与独立released已核；保留13新包。5×仅旧轮系统诊断，产品350ms从未改，本轮未重跑大矩阵。候选7同605章warm trace的动画段UI冲刷改善仍成立，但准备46.400ms/点击至动画192.678ms慢于旧124.587ms，POP前置25.422ms、按键至动画61.187ms及落地33.385ms仍为实测限制，不能把新录像或7统计当13新性能trace。旧联系表整页移动与媒体query时刻误当末PTS的误判已撤回，原件保留。 用户已确认本轮效果并授权本地提交，未推送。",
+      "remainingActions": [],
+      "evidence": [
+        "entry/src/main/ets/navigation/MangaDetailTransitionCoordinator.ets",
+        "entry/src/main/ets/state/MangaDetailTransitionState.ets",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/",
+        ".hvigor/outputs/detail-transition-20261123/state-lifecycle-check.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/library-215506626106/",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/browse-220004288335/",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/final-coldstart-221607849327",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/final-library-221630862189",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/observe-221709636775/screen.png",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-221935974487",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final.json",
+        ".hvigor/outputs/detail-transition-20261123/report.md",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate6-normal-analysis/",
+        ".hvigor/outputs/detail-transition-20261123/frame-cover-candidate6-list-normal-review/",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/final-coldstart-000646891195/",
+        "scripts/test_detail_transition_capture.cjs",
+        ".hvigor/outputs/detail-transition-20261123/candidate7-performance-comparison.json",
+        ".hvigor/outputs/detail-transition-20261123/frame-seamless-candidate7-normal-review/",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate7-normal-analysis/trace.db",
+        ".hvigor/outputs/detail-transition-20261123/three-modes-candidate-12.hap",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate12-list-roundtrip-review/",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/final-coldstart-010723911740/",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-010808197178/",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-current.json",
+        ".hvigor/outputs/detail-transition-20261123/three-modes-candidate-13.hap",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate13-list-cover-roundtrip-review",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/transition-selected-menu-coverExpand-013925023446/screen.png",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/transition-selected-menu-seamless-014142877077/screen.png",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-014313076164/run-metadata.json"
+      ],
+      "boundaries": [],
+      "stage": "已验证，按用户授权本地提交"
     }
   ],
   "source": {
@@ -31149,6 +31209,132 @@
         ".hvigor/outputs/bakamh-client-parity-20261124/client012-scoped-result.json",
         ".hvigor/outputs/bakamh-client-parity-20261124/public-release-dd4576f/publication-verification.json",
         "https://github.com/honjow/koma-sources/releases/tag/sources-dd4576f745ee04c125d699ced0680cd98619571c"
+      ]
+    },
+    {
+      "id": "nexte-detail-transition-implementation-20261123",
+      "at": "2026-11-23T21:38:56+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "implementation",
+      "title": "NextE 默认整卡转场已接入，201 验收准备中",
+      "detail": "书架和源浏览的网格、列表接同一快照转场；沿用 350ms 进退和空间进度交叉淡入。当前只确认实现与静态差异，统一构建和 201 连续录像尚未完成。",
+      "evidence": [
+        "entry/src/main/ets/navigation/MangaDetailTransitionCoordinator.ets",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/"
+      ]
+    },
+    {
+      "id": "nexte-detail-transition201-final-20261123",
+      "at": "2026-11-23T22:20:39+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "verification",
+      "title": "201完成两入口完整进退及最终整合包冷启动复核，设备已恢复释租",
+      "detail": "书架两作品和漫画屋热门两作品完整进退原片共378帧已亲审；最终整合包70e6dbee冷启动读回原包子、最近阅读降序、全部阅读状态、496/159和原续读，再录89帧详情进退。附带角标大→小和现有零未读作品无残底均有完整画面。未修改读数，已还原桌面与SLEEP/10000ms并独立释租。即时冷启动续读卡短暂未显示、随后稳定恢复的证据保留；没有用构建、布局或录像命令exit冒充画面通过。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/report.md",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/final-library-221630862189",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final.json"
+      ]
+    },
+    {
+      "id": "nexte-full-detail-transition-correction-20261123",
+      "at": "2026-11-23T22:54:03+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "correction",
+      "title": "撤回只做默认效果的完成结论，补齐参考三模式",
+      "detail": "原默认整卡进退证据保留，但没有系统默认/一镜到底/封面展开选择和外观入口，不构成完整移植。现完整三模式及持久化已接入，异步截图和真实详情布局握手候选整合中；201保留原全部分类、最近阅读降序、496和605章普通路径基线。新包三模式两入口、冷启动与性能对比尚未验收。",
+      "evidence": [
+        "entry/src/main/ets/navigation/MangaDetailTransitionCoordinator.ets",
+        ".hvigor/outputs/detail-transition-20261123/frame-baseline-analysis/transition-performance-with-preparation.json"
+      ]
+    },
+    {
+      "id": "nexte-full-transition201-candidate7-20261124",
+      "at": "2026-11-24T00:20:24+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "verification",
+      "title": "完整三模式两入口与列表实机已验，准备等待和返回长帧保留",
+      "detail": "候选6三模式各自书架/漫画屋普通进退、连续两本快照身份、封面展开列表及冷启动勾选均以原片亲审；系统原1×已UI恢复，产品始终350ms。候选7修4.5秒合法源快照超时丢点击、删ready后冗余帧并将普通POP必要隐藏更新隔到帧尾。最终97帧普通进退完整，末96归还原496卡/背景/标题；同605章warm trace证实动画内嵌套冲刷消失，但push抬起至动画192.678ms仍较旧124.587ms慢，POP隐藏更新25.422ms前置帧和33.385ms落地帧仍在，不能只以动画窗口下降记性能完成。原一镜到底/网格/全部/最近阅读降序已恢复；201仍持有效租约等待Root确认边界和独立最终电源恢复，未修改读数或新列表样式。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/report.md",
+        ".hvigor/outputs/detail-transition-20261123/candidate7-performance-comparison.json",
+        ".hvigor/outputs/detail-transition-20261123/frame-seamless-candidate7-normal-review/",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate7-normal-analysis/trace.db"
+      ]
+    },
+    {
+      "id": "library-list-final201-20261124",
+      "at": "2026-11-24T01:10:45+08:00",
+      "itemId": "LIBRARY_LIST_CARD_LAYOUT",
+      "kind": "verification",
+      "title": "最终纯数字/彩色状态和三档固定高度完成201验收，原状态恢复释租",
+      "detail": "候选10大胶囊被用户明确否定，最终采用12的同基线彩色状态字、章名无前缀、总数·未读两个纯数字且含known0。三档封面42×60/48×68/56×78vp不缩；首本两行标题112px，右文字210/238/273px严格不超对应cover，必需章页/footer完整、辅助行原生按空间隐藏。Root亲审12三档中英文、96帧完整进退及30·0等现有零样本。8的125/237旧矛盾由同逻辑目录事实修正，9实机238/237原章页保留。原设置与书架页、AWAKE/无覆盖恢复，01:08:27独立释租，未改读数。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/report.md",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate12-existing-zero-010532202501/screen.png",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-current.json"
+      ]
+    },
+    {
+      "id": "nexte-full-detail-transition-final201-20261124",
+      "at": "2026-11-24T01:10:45+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "verification",
+      "title": "完整三模式两入口验收收尾，保留准备与落地性能限制",
+      "detail": "三模式菜单/持久化、两入口普通进退及封面展开列表均有201完整原片；最终12列表进退96帧Root亲审无残层。异步截图和V2同步恢复完整首段，动画350ms未改，系统倍率已回原1×；候选7准备192.678ms点击等待和POP前置25.422ms/落地33.385ms作为实测限制保留，不再以动画窗口下降冒整体消除掉帧。最终12保留、原界面设置/496/续读及AWAKE无Override读回，租约released。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/report.md",
+        ".hvigor/outputs/detail-transition-20261123/candidate7-performance-comparison.json",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate12-list-roundtrip-review/",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-010808197178/",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-current.json"
+      ]
+    },
+    {
+      "id": "library-list-spacing-feedback-20261124",
+      "at": "2026-11-24T01:31:09+08:00",
+      "itemId": "LIBRARY_LIST_CARD_LAYOUT",
+      "kind": "implementation",
+      "title": "按新增行距与整体尺寸反馈重开原项",
+      "detail": "用户允许适当加高封面或调整字号，随后指出最大档甚至小于继续阅读卡。原42/48/56宽度与60/68/78高度已被本次允许调整取代；Root核续读76×102vp后实施三档64×88/80×112/96×136vp、标题16fp和辅助12fp，保纯数字与inline状态。201 fresh解析/新租约，先记录本次原状态；不重开三模式功能和性能大矩阵。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/report.md"
+      ]
+    },
+    {
+      "id": "library-list-spacing-final201-20261124",
+      "at": "2026-11-24T01:45:13+08:00",
+      "itemId": "LIBRARY_LIST_CARD_LAYOUT",
+      "kind": "verification",
+      "title": "整档放大与行距分层完成201三档/英文及普通封面展开验收",
+      "detail": "候选13按用户允许放大三档封面为64×88/80×112/96×136vp，标题16/22、辅助12/16与最小4vp间距；右文仍在封面内。Root和执行代理亲审三档、英文及98帧完整列表进退，末97魔王53·51/章页和角标归还。宽松/简中/显式一镜到底/网格与原筛选排序恢复，本次SLEEP10000读回，01:43:36独立释租。安装前已有新续读且本轮收到云位置下行，保实时进度、不写回最初03話，原因时点边界保留。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate13-list-layout-result.json",
+        ".hvigor/outputs/detail-transition-20261123/report.md",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate13-list-cover-roundtrip-review"
+      ]
+    },
+    {
+      "id": "nexte-detail-default-coverexpand-20261124",
+      "at": "2026-11-24T01:45:13+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "verification",
+      "title": "按用户要求默认封面展开并保留既有显式选择",
+      "detail": "Root把缺省/非法模式统一coverExpand，既有system/seamless/coverExpand不迁改。201未清偏好，13仍保原一镜到底；临时封面展开后录新列表98帧完整进退并恢复原一镜到底勾选。产品350ms未改，不把本轮视觉录像冒新性能验收，旧准备/落地限制保留。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/transition-selected-menu-coverExpand-013925023446/screen.png",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/transition-selected-menu-seamless-014142877077/screen.png",
+        ".hvigor/outputs/detail-transition-20261123/frame-candidate13-list-cover-roundtrip-review"
+      ]
+    },
+    {
+      "id": "library-transition-authorized-commit-20261124",
+      "at": "2026-11-24T01:54:32+08:00",
+      "title": "用户确认列表尺寸与行距并授权提交",
+      "detail": "用户确认201三档列表、英文和封面展开完整进退效果；提交LIBRARY_LIST_CARD_LAYOUT和NEXTE_MANGA_DETAIL_TRANSITION及必要摘要/计数依赖，保留其余WIP。仅本地提交，不推送、不发布；201已恢复并释租。",
+      "items": [
+        "LIBRARY_LIST_CARD_LAYOUT",
+        "NEXTE_MANGA_DETAIL_TRANSITION"
       ]
     }
   ],

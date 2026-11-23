@@ -6,8 +6,24 @@ export const DEFAULT_APPEARANCE_COLOR_FAVORITES: string[] = [
   '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722', '#795548', '#607D8B', '#9E9E9E',
 ]
 
+export enum MangaDetailTransitionMode {
+  SYSTEM = 'system',
+  SEAMLESS = 'seamless',
+  COVER_EXPAND = 'coverExpand',
+}
+
+// CURRENT_STATUS #359: the user chose cover expansion as the default.
+// Explicit saved choices still win; do not migrate them to the new default.
+export const DEFAULT_DETAIL_TRANSITION_MODE: string = MangaDetailTransitionMode.COVER_EXPAND
+
+export function normalizeAppearanceDetailTransitionMode(mode: string): string {
+  return mode === MangaDetailTransitionMode.SYSTEM || mode === MangaDetailTransitionMode.SEAMLESS ||
+    mode === MangaDetailTransitionMode.COVER_EXPAND ? mode : DEFAULT_DETAIL_TRANSITION_MODE
+}
+
 @ObservedV2
 export class AppearanceState {
+  @Trace detailTransitionMode: string = DEFAULT_DETAIL_TRANSITION_MODE
   @Trace accentColor: string = 'emerald'
   // The picker owns this transient override until its sheet disappears. The store publishes confirmed colors separately.
   @Trace previewAccentColor: string = ''
