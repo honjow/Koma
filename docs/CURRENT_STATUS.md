@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T22:13:51+08:00",
+  "updatedAt": "2026-11-23T22:30:12+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -13152,19 +13152,20 @@
       "id": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
       "number": 360,
       "title": "包子WWW《劍尊歸來》第1話P2只显示模糊图",
-      "kind": "pending_verification",
-      "progressPhase": "verification",
+      "kind": "active",
+      "progressPhase": "needs_work",
       "priority": "本轮源验收新增观察",
       "owner": "Root定位与集成；Aristotle图像链只读核对；Darwin独占237",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "本轮237包子0.1.31镜像验收中观察；不是用户原始反馈，不用登记时间冒充提出时刻。",
-      "status": "已定位网页下载墙占位图，0.1.32候选在237复验",
-      "updatedAt": "2026-11-23T22:13:51+08:00",
-      "result": "根因已从实际文件和固定上游调用链核实：设备P2原文件与公开占位图逐字节相同；上游已统一使用App阅读页，因普通网页返回下载墙和占位图片。本源却继续优先旧AMP路径，把其页表当成正文。0.1.32已在源侧改为所有镜像直接使用既有App reader，保留台湾默认、17个镜像值、原章节及页身份；删除失效AMP优先分支，未修改App显示或增强。候选已构建并本地提交，正在237回到原作品第1話P2并抽查中末页及另一章节。旧195页原件作为失败反例保留，不改原件或测试期望替新实现放行。",
+      "status": "App入口候选仍复现模糊页，继续补齐上游图片域名处理",
+      "updatedAt": "2026-11-23T22:30:12+08:00",
+      "result": "已核实原模糊文件是站点返回的占位图片；源侧已改用上游App阅读入口。237导入0.1.32后，新取页请求实际执行并返回成功，但原第2张仍是模糊图，候选尚未通过，未发布。当前日志显示实际图片地址使用baozicdn.com，上游在图片请求前会改用baozimh.com，而本源遗漏了这一步，正在补齐并复验。没有此作品的原下载任务，未清缓存或改App渲染。此前因读取了轮换前日志而判断没有新取页请求，已按当前日志撤回；不能把这个误判归因于宿主页表失效。",
       "remainingActions": [
-        "完成237默认台湾站下原劍尊歸來第1話P2、同章中末图及其它章节实际正文回归，核旧ID与续读位置保持。",
-        "真实通过后提交推送发布0.1.32，公开索引、整包和必要WASM行为回读；本处不需要App更新。"
+        "补齐固定上游的实际图片域名处理，保持旧章节/页ID、目录方向、镜像选择、台湾默认及横幅处理。",
+        "在237验证原第1話P2与同章首中末正文，并抽查另一章节；新候选通过后推送发布书源。",
+        "正式包回读索引和制品，保留旧下载及原阅读位置；App继续仅保留本地1.6.1，不推发。"
       ],
       "evidence": [
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao31-scoped-result.json",
@@ -13173,7 +13174,9 @@
         ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/P2-exact-device-files-result.json",
         ".hvigor/outputs/baozimh-default-mirror-20261123/p2-public-reference/metadata.json",
         ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/upstream/Baozi.kt",
-        ".hvigor/outputs/baozimh-default-mirror-20261123/app-reader-032/candidate-ready.json"
+        ".hvigor/outputs/baozimh-default-mirror-20261123/app-reader-032/candidate-ready.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-real-P2-counterexample.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-62-active-221759-log-readback/diagnostics.log"
       ]
     }
   ],
@@ -31049,6 +31052,18 @@
         ".hvigor/outputs/baozimh-default-mirror-20261123/p2-public-reference/metadata.json",
         ".hvigor/outputs/published-source-order-audit-20261123/baozi-settings-parity/upstream/Baozi.kt",
         ".hvigor/outputs/baozimh-default-mirror-20261123/app-reader-032/candidate-ready.json"
+      ]
+    },
+    {
+      "id": "baozi032-real-app-p2-still-placeholder-20261123",
+      "at": "2026-11-23T22:30:12+08:00",
+      "itemId": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
+      "kind": "investigation",
+      "title": "普通App取页仍复现，撤回旧日志误判并核图片域名缺口",
+      "detail": "已核实原模糊文件是站点返回的占位图片；源侧已改用上游App阅读入口。237导入0.1.32后，新取页请求实际执行并返回成功，但原第2张仍是模糊图，候选尚未通过，未发布。当前日志显示实际图片地址使用baozicdn.com，上游在图片请求前会改用baozimh.com，而本源遗漏了这一步，正在补齐并复验。没有此作品的原下载任务，未清缓存或改App渲染。此前因读取了轮换前日志而判断没有新取页请求，已按当前日志撤回；不能把这个误判归因于宿主页表失效。",
+      "evidence": [
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-real-P2-counterexample.json",
+        ".hvigor/outputs/baozimh-default-mirror-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/baozi-mirrors031/bao32-62-active-221759-log-readback/diagnostics.log"
       ]
     }
   ],
