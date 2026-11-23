@@ -514,6 +514,18 @@ test('production HTTP transport never duplicates an attempted Web mutation or fa
     assert.equal(result.calls.length, 1, 'pure native retains its old budget; exactly 1MiB Web can fall back before send')
     assert.equal(result.calls[0].options.extraData, body)
   }
+  for (const method of ['GET', 'HEAD']) {
+    const f = fixture(); f.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } })); f.grant()
+    let sends = 0
+    const web = fetchBridgeFixture(async () => { sends++; return new Response(null, { status: 204 }) })
+    const origin = 'https://site.invalid/', revision = f.store.requestContext(f.identity(), origin).authorizationRevision
+    web.bridge.attach(web.controller, 'source.one', origin, 'ActualWebViewUA', revision)
+    web.bridge.markReady('source.one', origin, 'ActualWebViewUA', revision)
+    const result = await f.http([], JSON.stringify(f.identity()), { method, body: '', webFetch: { version: 1 } }, { bridge: web.bridge })
+    assert.equal(result.result.status, 204)
+    assert.equal(sends, 1, 'an empty GET/HEAD must reach Web fetch under actual ArkTS encoder semantics')
+    assert.equal(result.calls.length, 0)
+  }
   const scoped = fixture(); scoped.changeEntry(entry => ({ ...entry, websitePolicy: { webFetchBridge: true } })); scoped.grant()
   // WebHTTP v1 is still unreleased: its completed data contract now permits
   // byte/ref combinations. Keep rejection coverage for genuinely invalid data.
@@ -653,7 +665,7 @@ test('Web BodyRef transport returns real errors and closes partial bodies withou
     const privateHost = Object.create(f.privateHost)
     privateHost.callIsActive = () => live
     const result = await f.http([], JSON.stringify({ ...f.identity(), privateCallId: 'call' }),
-      { method: 'GET', webFetch: { version: 1 }, responseKind: 'bodyRef', timeoutMs: 1000 }, { bridge: web.bridge, bodyHost, privateHost })
+      { method: terminal === 'empty' ? 'HEAD' : 'GET', webFetch: { version: 1 }, responseKind: 'bodyRef', timeoutMs: 1000 }, { bridge: web.bridge, bodyHost, privateHost })
     assert.equal(sends, 1)
     assert.equal(result.calls.length, 0, 'attempted Web image is never fetched again natively')
     if (['http-error', 'empty'].includes(terminal)) {
@@ -1235,7 +1247,8 @@ function fixture(sdkApiVersion = 23) {
       if (name === './SourceBodyHost') return { SourceBodyHost: network.bodyHost ?? {} }
       if (name === './SourceHttpBodyStream') return { requestSourceBodyStream: () => { throw Error('unexpected body stream in legacy fixture') } }
       if (name === '@kit.ArkTS') return { url: { URL }, util: { TextEncoder: class {
-        encodeInto(value) { return new TextEncoder().encode(value) }
+        // Match @ohos.util.d.ts: empty input returns undefined on ArkTS.
+        encodeInto(value) { return value.length === 0 ? undefined : new TextEncoder().encode(value) }
       }, Base64Helper: class {
         encodeToStringSync(bytes) { return Buffer.from(bytes).toString('base64') }
         decodeSync(value) { return Uint8Array.from(Buffer.from(value, 'base64')) }
