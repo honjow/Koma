@@ -37,7 +37,7 @@ interface ActiveWebFetch {
 
 const WEB_FETCH_TIMEOUT_MS: number = 20000
 const WEB_FETCH_POLL_MS: number = 200
-const WEB_FETCH_PREPARE_TIMEOUT_MS: number = 20000
+export const WEB_FETCH_PREPARE_TIMEOUT_MS: number = 20000
 
 /**
  * AppStorage key for the one application-scoped hidden WebView. The bridge

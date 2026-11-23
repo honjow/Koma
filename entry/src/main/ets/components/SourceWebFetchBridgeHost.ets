@@ -1,5 +1,5 @@
 import { webview } from '@kit.ArkWeb'
-import { SOURCE_WEB_FETCH_BRIDGE_REQUEST_KEY, sourceWebFetchBridge } from '../sourceRuntime/SourceWebFetchBridge'
+import { SOURCE_WEB_FETCH_BRIDGE_REQUEST_KEY, WEB_FETCH_PREPARE_TIMEOUT_MS, sourceWebFetchBridge } from '../sourceRuntime/SourceWebFetchBridge'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { appSourceWebSessionStore, SourceWebRequestContext, sourceWebPackageIdentity, sourceWebOrigin } from '../sourceRuntime/SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -21,6 +21,9 @@ export struct SourceWebFetchBridgeHost {
   private handledRequest: string = ''
   private loadedPackageIdentity: string = ''
   private loadedAuthorizationRevision: number = 0
+  private loadedUserAgent: string = ''
+  private preparationUntil: number = 0
+  private preparationFailed: boolean = false
   // TEMP R10 observation only; remove after collection, before release. These
   // counters never participate in bridge readiness, authorization or navigation.
   private diagnosticNavigation: number = 0
@@ -54,12 +57,22 @@ export struct SourceWebFetchBridgeHost {
     if (context === undefined) return
     const userAgent = context.userAgent
     const authorizationRevision = context.authorizationRevision
-    if (this.loadedUrl === url && sourceWebFetchBridge.availableFor(sourceId, url, userAgent, authorizationRevision)) return
-    this.loadingSourceId = sourceId
     const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
     if (entry === undefined) return
+    // Browse completion and HTTP prepare both request the same granted root.
+    // Their timestamp keys are deliveries, not two reload commands. Coalesce
+    // only this exact context while its original preparation is still pending.
+    const sameContext = this.loadingSourceId === sourceId && this.loadedUrl === url &&
+      this.loadedPackageIdentity === sourceWebPackageIdentity(entry) && this.loadedUserAgent === userAgent &&
+      this.loadedAuthorizationRevision === authorizationRevision
+    if (sameContext && !this.preparationFailed &&
+      (sourceWebFetchBridge.availableFor(sourceId, url, userAgent, authorizationRevision) || Date.now() < this.preparationUntil)) return
+    this.loadingSourceId = sourceId
     this.loadedPackageIdentity = sourceWebPackageIdentity(entry)
     this.loadedAuthorizationRevision = authorizationRevision
+    this.loadedUserAgent = userAgent
+    this.preparationFailed = false
+    this.preparationUntil = Date.now() + WEB_FETCH_PREPARE_TIMEOUT_MS
     this.diagnosticNavigation += 1
     sourceWebFetchBridge.attach(this.controller, sourceId, url, userAgent, authorizationRevision)
     this.loadedUrl = url
@@ -70,13 +83,24 @@ export struct SourceWebFetchBridgeHost {
       this.controller.loadUrl(url)
     } catch (_error) {
       // A rejected navigation leaves the bridge unavailable; callers fail closed.
+      this.preparationUntil = 0
+      this.preparationFailed = true
     }
   }
 
   aboutToDisappear(): void {
+    this.preparationUntil = 0
     this.diagnosticNavigation += 1
     this.attached = false
     sourceWebFetchBridge.detach(this.loadingSourceId)
+  }
+
+  private finishPreparation(documentUrl: string, failed: boolean = false): void {
+    try {
+      if (documentUrl !== this.loadedUrl && documentUrl !== this.controller.getUrl()) return
+      this.preparationUntil = 0
+      if (failed) this.preparationFailed = true
+    } catch (_error) { this.preparationUntil = 0 }
   }
 
   private documentVisible(documentUrl: string): void {
@@ -180,6 +204,7 @@ export struct SourceWebFetchBridgeHost {
           this.loadRequestedPage()
         })
         .onPageBegin((event: OnPageBeginEvent) => {
+          if (Date.now() >= this.preparationUntil) this.preparationUntil = Date.now() + WEB_FETCH_PREPARE_TIMEOUT_MS
           this.diagnosticNavigation += 1
           // TEMP R11: address relations only; retain the original lifecycle.
           try {
@@ -194,7 +219,16 @@ export struct SourceWebFetchBridgeHost {
         // A committed same-origin document is enough to execute fetch. Waiting
         // for third-party ads/images to end can exceed the bridge's own timeout.
         .onPageVisible((event: OnPageVisibleEvent) => { this.documentVisible(event.url) })
-        .onPageEnd((event: OnPageEndEvent) => { this.documentVisible(event.url) })
+        .onPageEnd((event: OnPageEndEvent) => {
+          this.finishPreparation(event.url)
+          this.documentVisible(event.url)
+        })
+        .onErrorReceive((event: OnErrorReceiveEvent) => {
+          if (event.request.isMainFrame()) this.finishPreparation(event.request.getRequestUrl(), true)
+        })
+        .onHttpErrorReceive((event: OnHttpErrorReceiveEvent) => {
+          if (event.request.isMainFrame()) this.finishPreparation(event.request.getRequestUrl(), true)
+        })
     }
   }
 }

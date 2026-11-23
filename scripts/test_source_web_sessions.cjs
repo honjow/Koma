@@ -317,6 +317,60 @@ function fetchBridgeFixture(fetchRequest, runtimeDate = Date) {
   return { bridge, controller, calls, window }
 }
 
+test('hidden Host coalesces an in-flight exact context and preserves new navigation and retry', () => {
+  const input = fs.readFileSync(path.join(base, '../components/SourceWebFetchBridgeHost.ets'), 'utf8')
+    .replace('export struct SourceWebFetchBridgeHost', 'export class SourceWebFetchBridgeHost')
+  const ast = ts.createSourceFile('host.ts', input, ts.ScriptTarget.Latest, true)
+  const owner = ast.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SourceWebFetchBridgeHost')
+  const methods = ['requestContext', 'loadRequestedPage', 'finishPreparation', 'documentVisible', 'build']
+  const code = ts.transpileModule('export class Host { ' + methods.map(name => owner.members.find(n => n.name?.text === name).getText(ast)).join('\n') + ' }',
+    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
+  const callbacks = {}, chain = new Proxy({}, { get: (_target, name) => value => {
+    if (name.startsWith('on')) callbacks[name] = value
+    return chain
+  } })
+  const loaded = [], attached = [], epochs = [], exports = {}
+  let entry = { sourceId: 'one', manifestVersion: '1', pkg: 'pkg', websitePolicy: { webFetchBridge: true } }
+  let grant = { userAgent: 'UA', authorizationRevision: 1 }, ready = false, broken = false, actualAgent = ''
+  const bridge = { availableFor: () => ready, attach: (...args) => { attached.push(args); ready = false },
+    markReady: () => { ready = true }, markLoading: () => { epochs.push('navigation'); ready = false } }
+  new Function('exports', 'appSourceRuntimeRegistry', 'appSourceWebSessionStore', 'sourceWebFetchBridge',
+    'sourceWebPackageIdentity', 'sourceWebOrigin', 'DiagnosticLogger', 'WEB_FETCH_PREPARE_TIMEOUT_MS', 'Web', code)(exports,
+    { lookup: () => ({ entry }) }, { requestContext: () => grant }, bridge, e => e.pkg, value => new URL(value).origin,
+    { info() {} }, 20000, () => chain)
+  const h = new exports.Host(), url = 'https://site.invalid/'
+  Object.assign(h, { attached: true, request: '', handledRequest: '', loadingSourceId: '', loadedUrl: '',
+    loadedPackageIdentity: '', loadedAuthorizationRevision: 0, loadedUserAgent: '', preparationUntil: 0,
+    preparationFailed: false, diagnosticNavigation: 0, observeContext: async () => {},
+    controller: { getCustomUserAgent: () => actualAgent, setCustomUserAgent: ua => { actualAgent = ua },
+      getUrl: () => h.loadedUrl, loadUrl: target => { if (broken) throw Error('load failed'); loaded.push(target) } } })
+  let sequence = 0
+  const request = (target = url) => {
+    h.request = JSON.stringify({ sourceId: entry.sourceId, url: target, revision: ++sequence }); h.loadRequestedPage()
+  }
+  request(); request()
+  assert.equal(loaded.length, 1, 'Browse completion and prepare deliveries share the pending root load')
+  assert.equal(attached.length, 1)
+  h.documentVisible(url); request()
+  assert.equal(loaded.length, 1, 'already-ready exact context remains reusable')
+  grant = { ...grant, authorizationRevision: 2 }; request(); assert.equal(loaded.length, 2)
+  grant = { ...grant, userAgent: 'new UA' }; request(); assert.equal(loaded.length, 3)
+  entry = { ...entry, pkg: 'new package' }; request(); assert.equal(loaded.length, 4)
+  entry = { ...entry, sourceId: 'two' }; request(); assert.equal(loaded.length, 5)
+  request(url + 'other'); assert.equal(loaded.length, 6)
+  h.preparationUntil = Date.now() - 1; request(url + 'other'); assert.equal(loaded.length, 7, 'an expired pending load can retry')
+  h.build()
+  callbacks.onPageBegin({ url: url + 'other' })
+  assert.equal(epochs.length, 1, 'same-URL real navigation still invalidates the original bridge epoch')
+  request(url + 'other'); assert.equal(loaded.length, 7)
+  callbacks.onErrorReceive({ request: { isMainFrame: () => false, getRequestUrl: () => url + 'other' } })
+  request(url + 'other'); assert.equal(loaded.length, 7, 'subresource failure cannot restart the main document')
+  callbacks.onHttpErrorReceive({ request: { isMainFrame: () => true, getRequestUrl: () => url + 'other' } })
+  request(url + 'other'); assert.equal(loaded.length, 8, 'a real main-frame failure allows a new preparation')
+  h.preparationUntil = 0; broken = true; request(url + 'other')
+  broken = false; request(url + 'other'); assert.equal(loaded.length, 9, 'synchronous load failure does not poison later attempts')
+})
+
 test('bridge readiness and reads share the verified origin and agent', async () => {
   const { bridge, controller, calls, window } = fetchBridgeFixture()
   const address = 'https://site.invalid/a', agent = 'VerifiedArkWebUA'
