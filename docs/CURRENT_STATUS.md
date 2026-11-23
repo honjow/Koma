@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-23T13:54:44+08:00",
+  "updatedAt": "2026-11-23T14:51:16+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -3520,7 +3520,7 @@
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports 开发新源；Root 核对候选、237 和发布",
       "status": "14 个候选仍待交付，90漫画网和肉漫屋已发布",
-      "updatedAt": "2026-11-21T04:41:04+08:00",
+      "updatedAt": "2026-11-23T14:51:16+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
@@ -3713,7 +3713,7 @@
         "CCC追漫台（creativecomic）｜目录补回与 Mihon 一致的锁标，197 实测《無能戀愛諮商中心》76 章目录，点击受限第 13 话后从阅读器直达官网登录表单。此前已验免费章首图、游客完成提示和 201 免费章离线。正式 Koma 1.5.5 缺少会员令牌能力，真实会员登录、授权章和离线权益仍待验，未发布。",
         "花火漫画（hanabimanga）｜237 已验热门、搜索、详情和评论。本机已还原真实首图；真机游客额度用尽，登录后正文及会话回流待验。",
         "喜漫漫画（favcomic）｜237 已确认四个备用域选项和网页入口。现有测试中目录未加载、部分入口进入停放页；需要核实可用入口与登录后重载。",
-        "巴卡漫画（bakamh）｜237已能浏览列表及重复搜索；详情GET和封面旧路径仍403。通用CF信号修复及文档/图片新候选均已在独立源仓本地提交，当前接续同一237验证详情、目录、正文和下载。未发布候选，App保持本地1.6.1不推发。",
+        "巴卡漫画（bakamh）｜237已验证普通浏览CF后自动关闭、原POST及重复搜索200；封面和详情仍403，尚未完成。通用Web HTTP已接通原有字节/BodyRef及GET验证续接，本地1.6.1新包配源R4已交237普通路径复测；继续核封面、详情、目录、正文和下载。源/App修改已本地保护，未发布，App不推发。",
         "BookWalker Taiwan（bookwalkertw）｜0.1.2 在 197 首次打开原生热门时收到 403，复用已有网页验证，官网目录就绪后自动收起并重试成 HTTP 200；后续原生搜索「星際迷航」正常。该作 30 页公开试读已打开并显示封面；此前《膽大黨》23/23 卷、21 页公开试读和网页会话后的最近更新、分页、分类已验。正式 Koma 1.5.5 缺少公开试读用的最终响应地址能力，真实重排页、已购和租阅仍待验，未发布。",
         "哔哩漫画（bilimanga）｜0.1.12 已正式发布，最低 App 仍为 1.4.1。自动输入搜索验证码默认关闭；只在 App 同时具备二进制响应与原生 Cookie 会话能力时显示，缺任一项就隐藏并保留手动验证，即使旧设置保存过开启值也不调用新接口。237 已验证自动搜索、同词及换词重搜、封面、详情和 147 章目录；公开最终包又通过四种能力组合及真实网站自动搜索验证，包和索引哈希一致。发布提交 ddc0546（功能提交 2fb8e12），完整 CI 成功，latest 已核对。本次只发布哔哩漫画、SDK 依赖及必要清单/流水线修正，原有 WIP 保留。App 能力本地提交 97da5605 尚未推送发布。",
         "18漫画（eighteenmanhua）｜已打包并核对官网存档。实际访问遭拒，待验证目录和正文。",
@@ -30398,6 +30398,31 @@
       "itemId": "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT",
       "title": "原20源普通宿主队列结算，237已恢复释租",
       "detail": "15源完成具名目录/代表阅读范围、5源保留具体访问或登录条件；不报全站通过。漫画屋正常词搜/1275章/代表1→2图通过，分类Native和同请求Web403保留；两条列表路由与固定MCCMSWeb上游相同，不作无依据改动。优酷四作与漫画柜补样已验。App及优酷继续按用户暂不公开。"
+    },
+    {
+      "id": "bakamh-r3-web-vs-native-binary-proof-20261123",
+      "at": "2026-11-23T14:13:09+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "investigation",
+      "title": "237确认自动验证已修，图片与详情访问继续定位",
+      "detail": "精确R3包5d606b26/WASMec4a32b0，普通浏览触发Sheet；14:05仅标准真人勾选后，日志automatic=true/retry_original_once，原POST经WebHTTP200。get_image_request经已有BodyRef且session=attached、cookieState=present、uaSource=webview仍HTTP403，拒绝正文未交图片缓存。不是缺Cookie或只加UA即可解决，当前图片未通过；复用同一个WebHTTP Request/Response把原有数据类型可组合起来，源/App同1.6.1候选再验。 同一轮canonical详情GET即使使用WebHTTP也403；普通作品网页使用不同UA/授权身份，不能据其可见内容宣称同一验证会话可用。新数据类型仅补传输组合，不据此判定站点GET已恢复。",
+      "evidence": [
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r3-automatic-cf-post200-native-image403.log",
+        ".hvigor/outputs/web-http-download-order-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/bakamh/r3-canonical-detail-and-ordinary-page-comparison.log"
+      ]
+    },
+    {
+      "id": "bakamh-web-data-paired-candidate-20261123",
+      "at": "2026-11-23T14:51:16+08:00",
+      "itemId": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "kind": "implementation",
+      "title": "通用Web HTTP数据类型已接通，配对新包交237验证",
+      "detail": "沿同一source_web_http_v1和原HTTP Request/Response，补bodyText/bodyBytes/bodyRef、三种正文及分块背压、作用域清理、GET拒绝因果与一次性交接。813b6dbc本地提交，b146e6eb前置UTF8预算小修；父亲审后新HAP9497473b6ca8配R4包4caf14f8。构建成功仅代表构建；巴卡GET、封面、完整目录、阅读与下载尚无新验收结果，未推送或发布App/源。",
+      "evidence": [
+        ".hvigor/outputs/web-http-download-order-20261123/webdata-budget-hap-receipt.json",
+        ".hvigor/outputs/published-source-order-audit-20261123/web-http-capability/data-channel-handoff.md",
+        ".hvigor/outputs/published-source-order-audit-20261123/web-http-capability/utf8-admission-freeze.json"
+      ]
     }
   ],
   "reportAgeAudit": {
