@@ -52,8 +52,8 @@ export function libraryUnreadBadgeBackdrop($$: LibraryUnreadBadgeBackdropParams)
       .height(badgeBackdropHeight($$.context))
       .borderRadius(badgeBackdropHeight($$.context) / 2)
       .clip($$.blurredCover !== undefined)
-      // Separate the capsule from busy artwork without increasing the tint opacity.
-      .shadow(ShadowStyle.OUTER_DEFAULT_SM)
+      // A centered, unfilled shadow adds contrast along the capsule edge.
+      .shadow({ radius: $$.context.vp2px(5), color: '#99000000', fill: false })
       .position({ x: BADGE_INSET, y: BADGE_INSET })
       .hitTestBehavior(HitTestMode.None)
       .accessibilityLevel('no')
@@ -73,8 +73,8 @@ export function libraryUnreadBadgeOptions(count: number | undefined, color: Reso
       fontSize: ThemeConstants.FONT_SIZE_TAG,
       fontWeight: FontWeight.Medium,
       badgeSize: BADGE_SIZE,
-      // Give the surface 70% opacity and keep the digits at their native opacity.
-      badgeColor: ColorMetrics.rgba(background.red, background.green, background.blue, 0.7).color,
+      // Give the surface 80% opacity and keep the digits at their native opacity.
+      badgeColor: ColorMetrics.rgba(background.red, background.green, background.blue, 0.8).color,
       borderColor: color,
       borderWidth: 0,
     },

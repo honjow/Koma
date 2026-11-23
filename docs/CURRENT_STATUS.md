@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-24T04:16:56+08:00",
+  "updatedAt": "2026-11-24T04:24:19+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "MIHON_BACKUP_IMPORT",
   "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
@@ -2767,15 +2767,15 @@
       "kind": "exception",
       "progressPhase": "needs_work",
       "priority": "用户反馈",
-      "status": "103 已验证默认 70% 半透明，角标实时滤镜开销归零",
+      "status": "103 已验证默认 80% 半透明和调浅的居中外阴影",
       "stage": "用户选定半透明，103 保留普通入口验证通过的同签包",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-08",
       "reportedAtSource": "本轮用户反馈，原始消息时刻未核实。",
       "result": "197 最终候选从主屏恢复书架后 150ms 开始连续六次上下滑动，trace 覆盖 1021 个应用帧，最长 5.572ms，0 帧超过 8.3ms。代码路径上，回前台的私有库进度同步不再在 UI 线程重读并 hydrate 整份书库；后台更新结果合并也不再为回滚序列化整库，只回滚受影响的几本。2026-11-24 在 103 已安装的 1.6.1 (27) 沿「全部」五列网格滚动，首屏 15 张作品卡，后段同屏 20 张，与首屏无重合。四次惯性期间系统分别报告合成最长帧 16、16、16、18ms，应用 UI 帧回调最长 11.1ms；系统追踪记录 5.17 秒内 492 次合成。较慢帧的主要耗时集中在重绘 Koma 窗口和提交图形命令。",
-      "remaining": "同包 A/B 关闭 50% 半透明角标的实时滤镜后，系统合成 P95 由 21.768–22.695 降到 14.071–14.158ms，超过 20ms 的帧由 82 降到 0。裁后磨砂较纯半透明仍多 0.8–1.3ms，默认关闭。103 普通五列书架以 70% 底色用同一四次惯性协议对照小号外阴影：合成 P95 15.095 → 15.309ms，最长 18.413 → 17.256ms，角标实时滤镜调用仍为零。更多负载、设备和列表实际性能未由本次网格测量覆盖。",
-      "updatedAt": "2026-11-24T04:08:59+08:00",
+      "remaining": "同包 A/B 关闭 50% 半透明角标的实时滤镜后，系统合成 P95 由 21.768–22.695 降到 14.071–14.158ms，超过 20ms 的帧由 82 降到 0。裁后磨砂较纯半透明仍多 0.8–1.3ms，默认关闭。用户最终选用 80% 底色和较浅的 5 vp 居中外阴影。103 普通五列书架四次惯性记录 657 个合成帧，P95 9.800ms，最长 15.866ms，角标实时滤镜调用为零。更多负载、设备和列表实际性能未由本次网格测量覆盖。",
+      "updatedAt": "2026-11-24T04:24:19+08:00",
       "relatedItems": [
         "CONTINUOUS_PERFORMANCE",
         "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR"
@@ -2798,7 +2798,8 @@
         ".hvigor/outputs/shelf-grid-jank-20261124/103-static-vs-plain-comparison.json",
         ".hvigor/outputs/shelf-grid-jank-20261124/103-cropped-vs-plain-comparison.json",
         ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/77-translucent-70-inertia/attribution.json",
-        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/80-translucent-70-shadow-sm-inertia/attribution.json"
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/80-translucent-70-shadow-sm-inertia/attribution.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/89-translucent-80-shadow-inertia/attribution.json"
       ],
       "latestCounterexampleAt": "2026-11-08T21:10:00+08:00"
     },
@@ -13123,8 +13124,8 @@
       "kind": "verified",
       "priority": "用户本轮界面调整",
       "owner": "Root",
-      "status": "默认采用 70% 半透明与小号外阴影，103 网格已实测",
-      "updatedAt": "2026-11-24T04:08:59+08:00",
+      "status": "用户确认 80% 半透明与较浅的居中外阴影，103 网格已实测",
+      "updatedAt": "2026-11-24T04:24:19+08:00",
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求数字标识背景采用带透明度的模糊，原消息精确时刻未核实。",
@@ -13134,8 +13135,10 @@
       ],
       "result": "取色沿用AndroidX Palette鲜明色目标评分，系统量化色板与后台像素占比作宿主适配，所选RGB保持原值。用户要求避免过白后，对全部候选及回退设置HSL明度不超过70%的过滤。已彻底删除造成重影的额外文字层，数字只由原生Badge绘制，空Row负责模糊底板，几何通过系统文字测量取得。用户评价“总算是好多了”后继续要求胶囊外阴影，现使用系统OUTER_DEFAULT_XS。197按用户指定的未读章节数倒序，连续4屏核对21部带标作品；此前偏白的108已换为较深的封面色块，199等重影消失。网格、列表计数一致，正常速度上下滚动抽帧未见底板脱离。发行候选构建与取色关键逻辑检查通过，原网格、原SLEEP/10000ms已恢复并释租，保留同签1.6.1开发包。 本轮按用户实际反例修正公共Builder刷新：原多参数按值Builder在复用时保留旧未读数，改为单个$$对象按引用传参，两处封面入口共用原生Badge可见性和当前计数。保留原白字、封面主色、50%透明、模糊、尺寸及轻外阴影。201从包子496/159切全部51/78无双层背景；已有5部零未读作品不显示数字或空胶囊，未修改任何读数。最终整合包冷启动及书架进退后原496/159仍在。",
       "remainingActions": [],
-      "remaining": "用户采用 70% 不透明度的半透明底色，并要求加深胶囊周围的阴影。外阴影由系统微型档调为小号档。原生数字、零未读隐藏和封面主色沿用。裁后磨砂保留为网格可选实现，默认关闭。103 已同签复核五列书架并保留新包。列表共用底色和阴影组件，本次未单独实机复测列表。",
+      "remaining": "按用户最新决定，底色设为 80% 不透明度。居中外阴影使用原 5 vp 半径，黑色由 80% 降到 60%，保留胶囊轮廓。原生数字、零未读隐藏和封面主色沿用。裁后磨砂保留为网格可选实现，默认关闭。103 同签安装后同位置抽查三个角标，外缘变浅且远离角标的封面像素一致。列表共用底色和阴影组件，本次未单独实机复测列表。",
       "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-80-shadow-comparison.png",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-80-shadow-appearance.json",
         ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-70-shadow-sm-comparison.png",
         ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-70-preview.png",
         ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-70-appearance-check.json",
@@ -31717,6 +31720,20 @@
         ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-70-shadow-sm-comparison.png",
         ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/80-translucent-70-shadow-sm-inertia/attribution.json",
         ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/81-translucent-70-shadow-sm-retained-anchor/run-metadata.json"
+      ]
+    },
+    {
+      "id": "library-badge-shadow-80-103-20261124",
+      "at": "2026-11-24T04:24:19+08:00",
+      "itemId": "LIBRARY_UNREAD_BADGE_BACKDROP_BLUR",
+      "kind": "verification",
+      "title": "用户确认 80% 底色与较浅的居中外阴影",
+      "detail": "用户试用 90% 底色和重阴影后，选择底色 80%，恢复 5 vp 半径并把居中黑色外阴影调为 60% 不透明度。103 同位置实拍，三个角标周围颜色减轻，外侧封面像素保持一致。包内参数已核。四次惯性 657 个合成帧，P95 9.800ms、最长 15.866ms，角标实时滤镜调用为零。103 已保留同签包，回到原书架位置，读回原超时并释放租约。",
+      "evidence": [
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-80-shadow-comparison.png",
+        ".hvigor/outputs/shelf-grid-jank-20261124/103-translucent-80-shadow-tests.log",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/89-translucent-80-shadow-inertia/attribution.json",
+        ".hvigor/outputs/shelf-grid-jank-20261124/device103__MLR-AL00/not-applicable/portrait-1600x2560/shelf-grid/90-translucent-80-shadow-retained-anchor/run-metadata.json"
       ]
     }
   ],
