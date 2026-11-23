@@ -1,6 +1,7 @@
 import { CachedCoverImage, NativeCoverImage, cachedCoverFailureKey, coverDecodeEdgeForDisplay } from './CachedCoverImage'
 import { ComicSourceKind } from '../model/ComicModels'
-import { SourceManga } from '../model/SourceModels'
+import { SourceManga, sourceMangaListInfo } from '../model/SourceModels'
+import { SourceMangaListInfo, sourceMangaListInfoText } from '../model/SourceMangaListInfo'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { AppStrings } from '../i18n/AppStrings'
@@ -132,6 +133,30 @@ export struct MangaGridItem {
   }
 
   @Builder
+  private ListText() {
+    Column({ space: 2 }) {
+      Text(this.manga.title)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .maxLines(2)
+        .wordBreak(WordBreak.BREAK_WORD)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .width('100%')
+      ForEach(sourceMangaListInfo(this.manga), (info: SourceMangaListInfo) => {
+        Text(sourceMangaListInfoText(info))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+      })
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
   private GridCard() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Stack({ alignContent: Alignment.TopStart }) {
@@ -186,6 +211,7 @@ export struct MangaGridItem {
       Row() {
         ConciseListRow({ title: this.manga.title, wrapTitle: true, wrapTitleByWord: true,
           showChevron: false, prefixActsAsLeading: true,
+          textBuilderParam: () => { this.ListText() },
           prefixBuilderParam: () => { this.ListCover() }, action: () => { this.onMangaTap(this.manga) } })
           .layoutWeight(1)
       }

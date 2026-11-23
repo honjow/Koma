@@ -15,7 +15,7 @@ export function sourceHostFeatures(): string[] {
     'source_http_response_metadata_v1', 'source_web_token_v1',
     'source_http_bytes_v1', 'source_http_cookie_session_v1',
     'source_http_headers_v1', 'source_http_request_bytes_v1',
-    'source_related_manga_v1', 'source_image_response_errors_v1', 'source_web_document_handoff_v1',
+    'source_related_manga_v1', 'source_manga_list_info_v1', 'source_image_response_errors_v1', 'source_web_document_handoff_v1',
     'source_web_fetch_bridge_v1', 'source_comments_v1', SOURCE_IMAGE_PROCESSOR_FEATURE]
 }
 

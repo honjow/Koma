@@ -1,6 +1,7 @@
 import { SourceMangaWebLink, sourceMangaWebUrl } from './MangaWebLink'
 import { AppStrings } from '../i18n/AppStrings'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTextNormalizer'
+import { normalizeSourceMangaListInfo, SourceMangaListInfo } from './SourceMangaListInfo'
 
 export type SourceMangaStatus = 'ongoing' | 'completed' | 'hiatus' | 'cancelled' | 'unknown'
 export type SourceCoverHeaders = Record<string, string>
@@ -9,6 +10,7 @@ export interface SourceManga {
   id: string
   sourceId: string
   title: string
+  subtitle?: string
   author?: string
   artist?: string
   description?: string
@@ -17,6 +19,7 @@ export interface SourceManga {
   status?: SourceMangaStatus
   contentRating?: string
   tags?: string[]
+  listInfo?: SourceMangaListInfo[]
   url?: string
   webUrl?: string
 }
@@ -109,6 +112,7 @@ interface SourceRuntimeMangaPayload {
   content_rating?: string
   tags?: string[]
   sourceTags?: string[]
+  listInfo?: Object
   links?: SourceMangaWebLink[]
   url?: string
 }
@@ -309,6 +313,7 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
     id: firstNonEmpty([payload.id, title]) ?? title,
     sourceId,
     title: normalizeSourceDisplayText(title) ?? title,
+    subtitle: normalizeSourceDisplayText(payload.subtitle),
     author: firstNonEmptyList([payload.author, payload.authors]),
     artist: firstNonEmptyList([payload.artist, payload.artists]),
     description: normalizeSourceDisplayText(firstNonEmpty([payload.description, payload.summary, payload.synopsis])),
@@ -317,9 +322,23 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
     status: normalizeSourceMangaStatus(payload.status),
     contentRating: optionalString(payload.contentRating ?? payload.content_rating),
     tags: normalizeTags(payload),
+    listInfo: normalizeSourceMangaListInfo(payload.listInfo),
     url: optionalString(payload.url),
     webUrl: sourceMangaWebUrl(payload.links, payload.url),
   }
+}
+
+/** Reuse only data already returned with this card; never fetch details per list row. */
+export function sourceMangaListInfo(manga: SourceManga): SourceMangaListInfo[] {
+  if (manga.listInfo !== undefined) return manga.listInfo
+  const rows: SourceMangaListInfo[] = []
+  if (manga.subtitle && manga.subtitle !== manga.title) rows.push({ type: 'text', text: manga.subtitle })
+  const creator: string[] = []
+  if (manga.author) creator.push(manga.author)
+  if (manga.status && manga.status !== 'unknown') creator.push(AppStrings.get(`manga_status_${manga.status}`))
+  if (creator.length > 0) rows.push({ type: 'text', text: creator.join(' · ') })
+  if (manga.tags && manga.tags.length > 0) rows.push({ type: 'tags', items: manga.tags })
+  return normalizeSourceMangaListInfo(rows) ?? []
 }
 
 /** Optional detail recommendations have the same identity and cover contract as catalogue cards. */
