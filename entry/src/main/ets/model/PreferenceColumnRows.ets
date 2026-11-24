@@ -3,7 +3,7 @@ import { hasUserDataMigration, markUserDataMigration } from './UserDataDatabase'
 import { booleanValue, collectLocalRows, LocalColumnValue } from './LocalDataRows'
 import { readLibraryUpdateReport, REPORT_JOB_KEY, REPORT_RESULT_KEY, writeLibraryUpdateReport } from './LibraryUpdateReportRows'
 import { UserKeyedRecords, UserRecordValues, writeUserRecords } from './UserKeyedRecords'
-import { READER_GLOBAL_DOMAIN, readReaderPreferenceColumns, readerPreferenceWrites } from './ReaderPreferenceColumns'
+import { isDeviceLocalReaderPageMode, READER_GLOBAL_DOMAIN, readReaderPreferenceColumns, readerPreferenceWrites } from './ReaderPreferenceColumns'
 
 interface PreferenceField {
   name: string
@@ -340,7 +340,7 @@ export class PreferenceColumnRows {
       'UNION ALL SELECT 1 FROM reader_chapter_states WHERE comic_id = ? LIMIT 1', [key, key, key])
     let portable: boolean
     try {
-      portable = mode['pageMode'] !== 'auto_page' && rows.goToNextRow()
+      portable = !isDeviceLocalReaderPageMode(mode['pageMode']) && rows.goToNextRow()
     } finally { rows.close() }
     const target = portable ? 'book_reader_modes' : 'book_reader_modes_local'
     const previous = portable ? 'book_reader_modes_local' : 'book_reader_modes'

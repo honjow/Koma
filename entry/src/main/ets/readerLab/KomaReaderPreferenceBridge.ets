@@ -1,4 +1,5 @@
 import { ReaderDisplayPolicy } from '@reader-kit/core'
+import { ReaderDirectionChoice } from '../model/ReaderControlChoices'
 import { ReadingDirection } from '../model/ComicModels'
 import { ReaderPreferences, ReaderPageMode, normalizeReaderPreferences, readerModeSelection } from '../model/ReaderPreferencesStore'
 
@@ -81,13 +82,22 @@ export class KomaReaderPreferenceBridge {
       left.readerImplementation === right.readerImplementation
   }
 
+  static directionChoice(policy: ReaderDisplayPolicy): ReaderDirectionChoice {
+    if (policy.layout === 'continuous') {
+      if (policy.continuousAxis === 'vertical') return 'continuous'
+      return policy.direction === 'rtl' ? 'continuous_rtl' : 'continuous_ltr'
+    }
+    return policy.pagingAxis === 'vertical' ? 'vertical_page' : policy.direction
+  }
+
   static applyPolicy(current: ReaderPreferences, policy: ReaderDisplayPolicy): ReaderPreferences {
     const next = KomaReaderPreferenceBridge.copy(current)
-    const mode: ReaderPageMode = policy.layout === 'continuous' ? 'continuous_scroll' :
-      policy.pagingAxis === 'vertical' ? 'vertical_page' : policy.automaticPaging ? 'auto_page' :
-      policy.layout === 'spread' ? 'double_page' : 'single_page'
-    // Vertical layouts do not choose a horizontal direction. Preserve the host's dormant choice.
-    if (policy.layout !== 'continuous' && policy.pagingAxis !== 'vertical') {
+    const mode: ReaderPageMode = policy.layout === 'continuous'
+      ? (policy.continuousAxis === 'horizontal' ? 'horizontal_continuous_scroll' : 'continuous_scroll')
+      : policy.pagingAxis === 'vertical' ? 'vertical_page' : policy.automaticPaging ? 'auto_page' :
+        policy.layout === 'spread' ? 'double_page' : 'single_page'
+    // Vertical layouts preserve the host's dormant horizontal direction.
+    if (mode !== 'continuous_scroll' && mode !== 'vertical_page') {
       next.readingDirection = policy.direction === 'rtl' ? ReadingDirection.RIGHT_TO_LEFT : ReadingDirection.LEFT_TO_RIGHT
     }
     const choice = readerModeSelection({ pageMode: next.pageMode, readingDirection: next.readingDirection }, mode)

@@ -14,6 +14,8 @@ export struct ReaderDirectionControl {
   @Local private menuTextColor: ResourceColor = $r('sys.color.font_primary')
 
   private label(direction: ReaderDirectionChoice): Resource {
+    if (direction === 'continuous_ltr') return $r('app.string.reader_direction_continuous_ltr')
+    if (direction === 'continuous_rtl') return $r('app.string.reader_direction_continuous_rtl')
     if (direction === 'rtl') return $r('app.string.reader_direction_rtl')
     if (direction === 'vertical_page') return $r('app.string.reader_page_mode_vertical_page')
     if (direction === 'continuous') return $r('app.string.reader_page_mode_continuous')

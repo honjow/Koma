@@ -42,7 +42,7 @@ import { AutomaticDownloadController } from '../model/AutomaticDownloadControlle
 import { ReadDownloadCleanup } from '../model/ReadDownloadCleanup'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
-import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
+import { KomaReaderEntryStage, KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
 import { KomaReaderCatalogHost, KomaReaderChapterCatalogUpdate } from '../readerLab/KomaReaderCatalogHost'
 import { KomaReaderFailure } from '../readerLab/KomaReaderFailure'
 import { comicArchiveExtractionRoot } from '../import/ComicArchiveBookmarks'
@@ -349,6 +349,7 @@ struct Index {
   @Local private sharedReaderRequest: ReaderLabRequest = new ReaderLabRequest('', '', 0)
   private sharedReaderCatalogHost: KomaReaderCatalogHost | null = null
   private readerPreparation: Promise<void> | null = null
+  @Local private readerEntryStage: KomaReaderEntryStage = 'chapter'
   @Local private detailTransition: MangaDetailTransitionState = connectMangaDetailTransition()
   @Local private readerRouteTransition: ReaderRouteTransition = new ReaderRouteTransition()
 
@@ -1245,6 +1246,7 @@ struct Index {
     chapterId: string | undefined,
     openEpoch: number,
     offline: Promise<OfflineDownloadManifestValidation | undefined>,
+    checkOffline: boolean,
   ): Promise<void> {
     let originalComic = this.readerComicForOpen(comicId)
     if (originalComic === undefined) {
@@ -1253,15 +1255,22 @@ struct Index {
       }
       return
     }
+    if (this.readerPageRequestCurrent(openEpoch) && originalComic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE) {
+      this.readerEntryStage = 'local'
+    }
     await this.upgradeLegacyEpubOrder(originalComic, openEpoch)
+    if (!this.readerPageRequestCurrent(openEpoch)) return
     originalComic = this.readerComicForOpen(comicId) ?? originalComic
     if (originalComic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
       const rootUri = localLibraryFolderRootUriFromComic(originalComic)
       if (rootUri !== undefined) {
+        this.readerEntryStage = 'local'
         const access = await activateLocalLibraryFolderAccess(rootUri)
         console.info('[LocalFolderAccess] step=reader_activate status=' + access.status)
       }
     }
+    if (!this.readerPageRequestCurrent(openEpoch)) return
+    if (checkOffline) this.readerEntryStage = 'offline'
     const validation = await offline
     if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) return
     const offlineReaderPagesReady = validation?.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
@@ -1269,7 +1278,8 @@ struct Index {
     let sourcePagesReady = true
     let sourceFailureReason: string | undefined = undefined
     let sourceFailure: SourceFailureDetails | undefined = undefined
-    if (!offlineReaderPagesReady) {
+    if (!offlineReaderPagesReady && this.chapterNeedsReaderSourcePages(originalComic, chapterId)) {
+      this.readerEntryStage = 'source'
       sourcePagesReady = await this.ensureReaderSourceChapterPages(originalComic, chapterId,
         (reason: string | undefined, details?: SourceFailureDetails): void => { sourceFailureReason = reason; sourceFailure = details },
         false, (): boolean => this.readerPageRequestCurrent(openEpoch))
@@ -1278,6 +1288,7 @@ struct Index {
     if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) {
       return
     }
+    this.readerEntryStage = 'chapter'
     let nextSessionConfig = createKomaReaderLabOfflineConfig(createReaderSessionConfigFromComic(comic, chapterId), validation)
     if (!sourcePagesReady && nextSessionConfig.totalPages <= 0) {
       nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, chapterId, nextSessionConfig, sourceFailureReason, sourceFailure)
@@ -1392,6 +1403,8 @@ struct Index {
     offline: Promise<OfflineDownloadManifestValidation | undefined>,
   ): Promise<void> {
     const preparedRequest = cloneSourceReaderSessionRequest(request)
+    if (!this.readerPageRequestCurrent(openEpoch)) return
+    this.readerEntryStage = 'offline'
     const validation = await offline
     if (!this.readerPageRequestCurrent(openEpoch)) return
     const local = validation?.status === OfflineDownloadedChapterStatus.DOWNLOADED
@@ -1401,6 +1414,7 @@ struct Index {
     // Do not share the library hydrator's result here. Source hosts may issue
     // short-lived descriptors; transient online opens resolve pages afresh.
     const pagePlanStartedAt = Date.now()
+    if (local === undefined) this.readerEntryStage = 'source'
     const resolution = local !== undefined ? undefined :
       await this.readReaderPagesWithVerification<SourceChapterPagesResolveResult>(request.sourceId,
       (guard?: string): Promise<SourceChapterPagesResolveResult> => resolveSourceChapterPages(this.sourceRegistry, {
@@ -1420,6 +1434,7 @@ struct Index {
       activeRequest.chapterId !== request.chapterId) {
       return
     }
+    this.readerEntryStage = 'chapter'
     DiagnosticLogger.info('reader', 'source_entry_page_plan',
       `elapsedMs=${Date.now() - pagePlanStartedAt} ready=${local !== undefined || (resolution?.pages.length ?? 0) > 0} offline=${local !== undefined}`)
     this.activeSourceReaderRequest = preparedRequest
@@ -1857,6 +1872,7 @@ struct Index {
     this.beginShelfReadingSync(comic, this.readerSessionConfig.chapterId)
     this.readerPageIndex = this.readerSessionStore.openPageIndex(this.readerSessionConfig, this.readerOpenIntent)
     this.readerPreparation = null
+    this.readerEntryStage = 'chapter'
     this.captureSharedReaderEntry(shouldPresentReader)
     // Starting a chapter from a detail page that was opened by Reader updates
     // the already-mounted Reader beneath it.  It is not a second Reader route.
@@ -1875,7 +1891,8 @@ struct Index {
       this.appPathStack.pushPath({ name: RouteName.READER }, true)
     }
     if (comic !== undefined) {
-      this.readerPreparation = this.prepareReaderSession(comicId, targetChapterId, openEpoch, offline)
+      this.readerPreparation = this.prepareReaderSession(comicId, targetChapterId, openEpoch, offline,
+        validatedDownload === undefined && targetChapterId !== undefined)
     } else {
       // No session preparation will follow, so this publication is terminal.
       this.readerOpenIntent = 'resume'
@@ -1949,6 +1966,7 @@ struct Index {
     this.readerSessionConfig = this.createSourceReaderSessionConfig(nextRequest, [])
     this.readerPageIndex = this.readerSessionStore.openPageIndex(this.readerSessionConfig, this.readerOpenIntent)
     this.readerPreparation = null
+    this.readerEntryStage = 'chapter'
     this.captureSharedReaderEntry(shouldPresentReader)
     // This matches normal Reader chapter switching: a detail page opened from
     // Reader is popped before the already-mounted Reader receives its next
@@ -3566,6 +3584,7 @@ struct Index {
         productionEntry: true,
         routeTransition: this.readerRouteTransition,
         closeRequestId: this.readerCloseRequestId,
+        entryStage: this.readerEntryStage,
         catalogHost: this.sharedReaderCatalogHost,
         webChallenge: this.readerWebChallenge,
         onWebChallengeFinished: (request: ReaderSourceWebChallenge, verified: boolean): void => {

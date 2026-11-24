@@ -38,6 +38,7 @@ const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
  './ReaderDisplaySettings':display,
  './BackupRestoreActivity':{BackupRestoreActivity:activity}, '@kit.AbilityKit':{ConfigurationConstant:{ColorMode:{COLOR_MODE_DARK:0,COLOR_MODE_LIGHT:1,COLOR_MODE_NOT_SET:-1}}},
  './UserDataDatabase': database, './UserKeyedRecords': keyed, './MigratedPreferenceRecords': migrations,
+ './ReaderPreferenceColumns': readerColumns,
  '../i18n/AppStrings':{AppStrings:{get:s=>s}},'./ComicModels':{ReadingDirection},
  '../state/ReaderModeState':{ReaderModeSnapshot:class{constructor(...a){this.args=a}},ReaderModeStateBridge:{publish:v=>published.push(v),snapshot:columnMode=>({...mod.DEFAULT_READER_PREFERENCES,columnMode})}},
  '../state/AppearanceState':{connectAppearanceState:()=>appearance}
@@ -80,6 +81,27 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  assert.equal(snapshot.showPageNumber,false);
  assert.equal(snapshot.mode.pageMode,'single_page');
  assert.deepEqual(snapshot.books.book,{pageMode:'single_page',readingDirection:ReadingDirection.RIGHT_TO_LEFT});
+
+ const horizontalContext={filesDir:'/owned-memory/horizontal-continuous'};
+ const horizontalStore=new mod.ReaderPreferencesStore(horizontalContext);
+ await horizontalStore.savePageMode('horizontal_continuous_scroll');
+ const horizontalBook=await horizontalStore.loadForComic('book');
+ await horizontalStore.saveChangesForComic('book',horizontalBook,{
+  ...horizontalBook,readingDirection:ReadingDirection.RIGHT_TO_LEFT
+ });
+ const horizontalWire=await horizontalStore.captureDeviceSyncPreferences();
+ assert.equal(horizontalWire.mode.pageMode,'single_page');
+ assert.deepEqual(horizontalWire.books.book,{pageMode:'single_page',readingDirection:ReadingDirection.RIGHT_TO_LEFT});
+ await horizontalStore.applyDeviceSyncPreferences(horizontalWire);
+ assert.equal((await horizontalStore.load()).pageMode,'horizontal_continuous_scroll');
+ const reopenedHorizontalBook=await horizontalStore.loadForComic('book');
+ assert.equal(reopenedHorizontalBook.pageMode,'horizontal_continuous_scroll');
+ assert.equal(reopenedHorizontalBook.readingDirection,ReadingDirection.RIGHT_TO_LEFT);
+ const horizontalRdb=await rdb.relationalStore.getRdbStore(horizontalContext,{});
+ const portableMode=await horizontalRdb.querySql('SELECT page_mode FROM reader_shared_preferences');
+ assert.equal(portableMode.goToNextRow(),true);
+ assert.equal(portableMode.getString(0),'single_page');
+ portableMode.close();
 
  let applied=[];ctx.getApplicationContext=()=>({setColorMode:n=>{if(n===0 && ctx.failTheme)throw Error('platform_fail');applied.push(n)}});
  await store.save(mod.DEFAULT_READER_PREFERENCES);assert.deepEqual(applied,[]);

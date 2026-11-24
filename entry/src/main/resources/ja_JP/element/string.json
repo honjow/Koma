@@ -607,6 +607,38 @@
       "value": "縦ページ"
     },
     {
+      "name": "reader_entry_loading_chapter",
+      "value": "この話を準備しています"
+    },
+    {
+      "name": "reader_entry_loading_offline",
+      "value": "オフラインファイルを確認しています"
+    },
+    {
+      "name": "reader_entry_loading_local",
+      "value": "ローカルファイルを準備しています"
+    },
+    {
+      "name": "reader_entry_loading_source",
+      "value": "ページ一覧を取得しています"
+    },
+    {
+      "name": "reader_entry_loading_settings",
+      "value": "閲覧設定を準備しています"
+    },
+    {
+      "name": "reader_entry_loading_verification",
+      "value": "サイトの認証を待っています"
+    },
+    {
+      "name": "reader_direction_continuous_ltr",
+      "value": "左から右へ（連続）"
+    },
+    {
+      "name": "reader_direction_continuous_rtl",
+      "value": "右から左へ（連続）"
+    },
+    {
       "name": "reader_direction_ltr",
       "value": "左から右"
     },

@@ -607,6 +607,38 @@
       "value": "세로 페이지"
     },
     {
+      "name": "reader_entry_loading_chapter",
+      "value": "이 회차를 준비하는 중"
+    },
+    {
+      "name": "reader_entry_loading_offline",
+      "value": "오프라인 파일 확인 중"
+    },
+    {
+      "name": "reader_entry_loading_local",
+      "value": "로컬 파일 준비 중"
+    },
+    {
+      "name": "reader_entry_loading_source",
+      "value": "페이지 목록을 가져오는 중"
+    },
+    {
+      "name": "reader_entry_loading_settings",
+      "value": "읽기 설정 준비 중"
+    },
+    {
+      "name": "reader_entry_loading_verification",
+      "value": "사이트 인증 대기 중"
+    },
+    {
+      "name": "reader_direction_continuous_ltr",
+      "value": "왼쪽에서 오른쪽으로 (연속)"
+    },
+    {
+      "name": "reader_direction_continuous_rtl",
+      "value": "오른쪽에서 왼쪽으로 (연속)"
+    },
+    {
       "name": "reader_direction_ltr",
       "value": "좌에서 우로"
     },

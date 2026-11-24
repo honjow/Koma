@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-25T03:22:02+08:00",
+  "updatedAt": "2026-11-25T04:01:36+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "DOWNLOAD_START_LATENCY_FULL_READ_20261124",
   "activity": "197 在 376 行队列上核到冷启动首点下载的初始化与入队合计约 9 ms，全量读写路径已改为按目标行处理。",
@@ -85,6 +85,38 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "READER_HORIZONTAL_CONTINUOUS_ENTRY_20261125",
+      "number": 366,
+      "title": "横向连续阅读与入场加载提示",
+      "kind": "accepted",
+      "priority": "用户当前需求",
+      "owner": "Koma 阅读器宿主与 reader-kit",
+      "reportedAt": null,
+      "reportedDate": "2026-11-25",
+      "reportedAtSource": "用户在当前会话要求新增左右连续阅读、按 Mihon 提示方向，随后要求转圈下显示实际准备阶段，并将最终验收设备改为 237。",
+      "updatedAt": "2026-11-25T04:01:36+08:00",
+      "closedAt": "2026-11-25T04:01:36+08:00",
+      "status": "237 真机验收通过",
+      "result": "阅读方向菜单新增从左到右连续和从右到左连续，采用左右箭头图标。入场短提示显示实际生效方向，本章准备转圈按离线文件检查、本地文件准备、书源页表、网站验证和阅读设置显示对应文字。237 签名包实测线上章节显示「正在获取本章图片列表」和原方向提示，随后上游章节未能加载。用已下载的《葬送的芙莉莲 作品集》第 1 话实际滑动核对两种横向模式、页间连续、右到左从第 2 页到第 3 页、退出重进续读第 3 页和当前方向提示。测试作品恢复跟随全局及第 2 页，恢复原 10 秒超时并释租。197 在改用 237 前已验两个方向滑动，随后恢复跟随全局及原超时并释租。",
+      "stage": "方向切换、连续滑动、续读和加载提示已验收",
+      "remainingActions": [],
+      "boundaries": [
+        "保留原分页、条漫和旧版可读的同步格式。横向连续布局沿用自动分页的设备本地保存规则。",
+        "真机确认了书源取页表文案。离线、网站验证及阅读设置各短过渡未逐项取证。"
+      ],
+      "relatedItems": [
+        "READER_SETTINGS_PLACEMENT",
+        "DOWNLOAD_DETAIL_LOCAL_OPEN_20261124"
+      ],
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/koma-horizontal-continuous-237/device237__VDE-AL00/unfolded/portrait-1320x2120/recorded-first-entry/summary.json",
+        ".hvigor/outputs/user-flow-audit/koma-horizontal-continuous-237/device237__VDE-AL00/unfolded/portrait-1320x2120/recorded-horizontal-modes/summary.json",
+        ".hvigor/outputs/user-flow-audit/koma-horizontal-continuous-237/device237__VDE-AL00/unfolded/portrait-1320x2120/recorded-resume/summary.json",
+        ".hvigor/outputs/user-flow-audit/koma-horizontal-continuous-237/device237__VDE-AL00/unfolded/portrait-1320x2120/restore-offline-position/original-page-layout.json",
+        "Koma 1.6.2 code28 签名 HAP SHA-256 6dbe591bad911417130b1828705546cac84dddad911af00b1809c46068be74bf；共享依赖 bdfca32。"
+      ]
+    },
     {
       "id": "DOWNLOAD_DETAIL_LOCAL_OPEN_20261124",
       "number": 365,
@@ -13694,6 +13726,13 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-horizontal-continuous-237-20261125",
+      "at": "2026-11-25T04:01:36+08:00",
+      "itemId": "READER_HORIZONTAL_CONTINUOUS_ENTRY_20261125",
+      "title": "237 验证横向连续阅读、续读和入场提示",
+      "detail": "同一离线章实测左右两向自由滑动和跨页，右到左第 3 页退出重开后保留页位和方向。另在线上入口录到获取图片列表阶段的提示。恢复 237 测试作品原方向、第 2 页及屏幕超时。"
+    },
     {
       "id": "source-release-audit-20261125",
       "at": "2026-11-25T03:45:00+08:00",

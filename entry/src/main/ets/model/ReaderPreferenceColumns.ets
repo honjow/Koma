@@ -65,8 +65,12 @@ const SHARED_FIELDS = fields.filter((field: ReaderPreferenceField): boolean => S
 const LOCAL_FIELDS = fields.filter((field: ReaderPreferenceField): boolean =>
   !SHARED_KEYS.includes(field.key) || field.key === 'reader.pageMode')
 
-// page_mode in the device table is only the automatic mode override. The
-// portable mode and the other shared controls have a single durable owner.
+export function isDeviceLocalReaderPageMode(mode: Object | null | undefined): boolean {
+  return mode === 'auto_page' || mode === 'horizontal_continuous_scroll'
+}
+
+// The shared table keeps the older clients' page modes. New layouts that
+// project to single-page are kept in the device table.
 export const CREATE_READER_PREFERENCES = 'CREATE TABLE IF NOT EXISTS reader_preferences (' +
   'id INTEGER PRIMARY KEY CHECK (id = 1), ' +
   LOCAL_FIELDS.map((field: ReaderPreferenceField): string => field.column + ' ' + sqlType(field.type)).join(', ') + ', ' +
@@ -100,9 +104,10 @@ export function readerPreferenceWrites(key: string, raw?: string): ReaderPrefere
     if (!SHARED_KEYS.includes(key)) return [{ sql: upsert([field.column]), values: [value] }]
     const sharedSql = upsert([field.column], 'reader_shared_preferences')
     if (key !== 'reader.pageMode') return [{ sql: sharedSql, values: [value] }]
+    const local = isDeviceLocalReaderPageMode(value)
     return [
-      { sql: upsert([field.column]), values: [value === 'auto_page' ? value : null] },
-      { sql: sharedSql, values: [value === 'auto_page' ? 'single_page' : value] },
+      { sql: upsert([field.column]), values: [local ? value : null] },
+      { sql: sharedSql, values: [local ? 'single_page' : value] },
     ]
   }
   if (raw === undefined) return [{ sql: upsert(DISPLAY_COLUMNS), values: DISPLAY_COLUMNS.map((): LocalColumnValue => null) }]

@@ -1064,7 +1064,7 @@ export struct SettingsPage {
   }
 
   private isReaderWebtoonLayout(): boolean {
-    return this.pageMode === 'continuous_scroll' ||
+    return this.pageMode === 'continuous_scroll' || this.pageMode === 'horizontal_continuous_scroll' ||
       (this.readingDirection === ReadingDirection.WEBTOON && this.pageMode !== 'vertical_page')
   }
 

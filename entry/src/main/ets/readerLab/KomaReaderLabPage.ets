@@ -19,7 +19,8 @@ import { komaSheetOptions, komaToastOptions, komaDialogMaterial, komaReaderMenuT
 import { Binding, ColorMetrics, FrameCallback, LengthMetrics } from '@kit.ArkUI'
 import { ReaderTitleContent } from '../components/ReaderTitleContent'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { ReaderDirectionControl, ReaderDirectionChoice } from '../components/ReaderDirectionControl'
+import { ReaderDirectionControl } from '../components/ReaderDirectionControl'
+import { ReaderDirectionChoice, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
 import { ReadingDirection } from '../model/ComicModels'
 import { LibraryAutomationPreferencesStore } from '../model/LibraryAutomationPreferencesStore'
 import { common } from '@kit.AbilityKit'
@@ -84,6 +85,8 @@ class KomaReaderAfterLayout extends FrameCallback {
   onIdle(_timeLeftInNano: number): void { this.observe() }
 }
 
+export type KomaReaderEntryStage = 'chapter' | 'offline' | 'local' | 'source'
+
 @ComponentV2
 export struct KomaReaderLabPage {
   @Local private imageRules: ImageRuleState = connectImageRuleState()
@@ -104,6 +107,7 @@ export struct KomaReaderLabPage {
   @Param productionEntry: boolean = false
   @Param routeTransition: ReaderRouteTransition = new ReaderRouteTransition()
   @Param closeRequestId: number = 0
+  @Param entryStage: KomaReaderEntryStage = 'chapter'
   @Event prepareInitial: () => Promise<void> = async (): Promise<void> => {}
   @Event onRouteVisibleChange: (visible: boolean) => void = (_visible: boolean) => {}
   @Event onRouteDisappear: () => void = () => {}
@@ -159,6 +163,8 @@ export struct KomaReaderLabPage {
   private surfaceGeneration: number = 0
   @Local private labVisibility: ReaderLabVisibilityState = connectReaderLabVisibility()
   @Local private routeActive: boolean = false
+  @Local private preparingEntryPreferences: boolean = false
+  private entryDirectionShown: boolean = false
   @Local private preloadNetworkWifi: boolean = false
   private preloadNetworkMonitor: ReaderPreloadNetworkMonitor | null = null
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
@@ -410,6 +416,8 @@ export struct KomaReaderLabPage {
     this.surfaceEntries = []
     if (this.request.readingChrome) this.session = null
     this.readerClosed = false
+    this.entryDirectionShown = false
+    this.preparingEntryPreferences = false
     // A replaced entry is a new reading session, even when this component is retained.
     this.translationAutoEnabled = false
     this.translationRequestedPages = []
@@ -484,6 +492,7 @@ export struct KomaReaderLabPage {
     try {
       if (this.productionEntry) await this.prepareInitial()
       if (cancellation.isCancelled() || this.readerClosed) return
+      this.preparingEntryPreferences = true
       const preferencesStore = new ReaderPreferencesStore(context)
       const initial = this.catalogHost?.initial(this.unitKey.work, this.unitKey.unit)
       const initialFormat = this.productionEntry
@@ -519,6 +528,30 @@ export struct KomaReaderLabPage {
     } finally {
       if (this.initialization === cancellation) this.initialization = null
     }
+  }
+
+  /** The resolved session policy is available before images; show it once on the visible route. */
+  @Monitor('routeActive', 'routeTransition.phase', 'labVisibility.foreground', 'session')
+  private showEntryDirection(): void {
+    const session = this.session
+    if (!this.productionEntry || !this.routeActive || !this.labVisibility.foreground || !this.routeTransition.ready() ||
+      this.readerClosed || this.entryDirectionShown || session === null) return
+    this.entryDirectionShown = true
+    const direction = KomaReaderPreferenceBridge.directionChoice(session.snapshot().policy)
+    try {
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({
+        message: AppStrings.get(readerControlDirectionLabelKey(direction)),
+        duration: 1600,
+      }))
+    } catch (error) {
+      DiagnosticLogger.exception('reader', 'entry_direction_toast_failed', error as Error)
+    }
+  }
+
+  private entryLoadingLabel(): string {
+    if (this.webChallenge !== null) return AppStrings.get('reader_entry_loading_verification')
+    if (this.preparingEntryPreferences) return AppStrings.get('reader_entry_loading_settings')
+    return AppStrings.get('reader_entry_loading_' + this.entryStage)
   }
 
   private resolveTapZone(x: number, y: number, _layout: ReaderLayout): ReaderTapAction {
@@ -989,17 +1022,19 @@ export struct KomaReaderLabPage {
   @Builder
   private HostModeControl(params: ReaderModeControlParams) {
     ReaderDirectionControl({
-      readingMode: params.policy.layout === 'continuous' ? 'continuous' :
-        params.policy.pagingAxis === 'vertical' ? 'vertical_page' : params.policy.direction,
+      readingMode: KomaReaderPreferenceBridge.directionChoice(params.policy),
       controlEnabled: params.enabled,
       onDirectionChange: (direction: ReaderDirectionChoice): void => {
         const policy = params.policy.copy()
-        policy.layout = direction === 'continuous' ? 'continuous' :
-          policy.layout === 'spread' ? 'spread' : 'single'
+        const horizontalContinuous = direction === 'continuous_ltr' || direction === 'continuous_rtl'
+        const continuous = direction === 'continuous' || horizontalContinuous
+        policy.layout = continuous ? 'continuous' : policy.layout === 'spread' ? 'spread' : 'single'
         policy.pagingAxis = direction === 'vertical_page' ? 'vertical' : 'horizontal'
+        policy.continuousAxis = horizontalContinuous ? 'horizontal' : 'vertical'
         if (direction === 'vertical_page') policy.layout = 'single'
-        if (direction === 'vertical_page' || direction === 'continuous') policy.automaticPaging = false
-        if (direction === 'rtl' || direction === 'ltr') policy.direction = direction
+        if (direction === 'vertical_page' || continuous) policy.automaticPaging = false
+        if (direction === 'rtl' || direction === 'continuous_rtl') policy.direction = 'rtl'
+        if (direction === 'ltr' || direction === 'continuous_ltr') policy.direction = 'ltr'
         params.onChange(policy)
       },
       onMenuVisible: (visible: boolean): void => { params.onMenuVisible(visible) },
@@ -1381,7 +1416,7 @@ export struct KomaReaderLabPage {
     const mode = this.hostPreferences?.pageMode ?? this.readerMode.pageMode
     if (mode === 'double_page') return ReaderMode.DUAL_PAGE
     if (mode === 'vertical_page') return ReaderMode.VERTICAL_PAGE
-    if (mode === 'continuous_scroll') return ReaderMode.CONTINUOUS_SCROLL
+    if (mode === 'continuous_scroll' || mode === 'horizontal_continuous_scroll') return ReaderMode.CONTINUOUS_SCROLL
     return ReaderMode.SINGLE_PAGE
   }
 
@@ -1401,7 +1436,7 @@ export struct KomaReaderLabPage {
     const current = this.hostPreferences
     const session = this.session
     if (current === null || session === null || this.readerClosed) return
-    if (current.pageMode === 'continuous_scroll' ||
+    if (current.pageMode === 'continuous_scroll' || current.pageMode === 'horizontal_continuous_scroll' ||
       current.readingDirection === ReadingDirection.WEBTOON) {
       this.autoFormatApplied = true
       return
@@ -1475,7 +1510,7 @@ export struct KomaReaderLabPage {
   private readerPageGap(): number {
     const pageMode = this.hostPreferences?.pageMode ?? this.readerMode.pageMode
     const direction = this.hostPreferences?.readingDirection ?? this.readerMode.readingDirection
-    if (pageMode === 'continuous_scroll' ||
+    if (pageMode === 'continuous_scroll' || pageMode === 'horizontal_continuous_scroll' ||
       (pageMode !== 'vertical_page' && direction === ReadingDirection.WEBTOON)) return 0
     const mode = this.hostPreferences?.pageGapMode ?? this.readerMode.pageGapMode
     if (mode === 'compact') return 2
@@ -1707,11 +1742,13 @@ export struct KomaReaderLabPage {
           }
         }, (entry: KomaReaderSessionEntry): string => `${entry.id}`)
       } else if (this.productionEntry) {
-        Column() {
+        Column({ space: 10 }) {
           if (this.error.length > 0) {
             Text(AppStrings.get('reader_page_load_failed')).fontSize(16).fontColor(Color.White)
           } else {
             LoadingProgress().width(32).height(32).color(Color.White)
+            Text(this.entryLoadingLabel()).fontSize(14).fontColor(Color.White)
+              .textAlign(TextAlign.Center).id('koma-reader-entry-loading-label')
           }
         }.width('100%').height('100%').justifyContent(FlexAlign.Center)
       } else {

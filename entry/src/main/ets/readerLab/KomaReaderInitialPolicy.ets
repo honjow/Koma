@@ -8,9 +8,12 @@ export class KomaReaderInitialPolicy {
   static resolveHost(preferences: ReaderPreferences, column: ReaderColumnMode): ReaderDisplayPolicy {
     const policy = new ReaderDisplayPolicy()
     const vertical = preferences.pageMode === 'vertical_page'
-    policy.layout = vertical ? 'single' :
-      preferences.pageMode === 'continuous_scroll' || preferences.readingDirection === ReadingDirection.WEBTOON
-        ? 'continuous' : preferences.pageMode === 'double_page' ? 'spread' : 'single'
+    const horizontalContinuous = preferences.pageMode === 'horizontal_continuous_scroll'
+    const continuous = horizontalContinuous || preferences.pageMode === 'continuous_scroll' ||
+      preferences.readingDirection === ReadingDirection.WEBTOON
+    policy.layout = vertical ? 'single' : continuous ? 'continuous' :
+      preferences.pageMode === 'double_page' ? 'spread' : 'single'
+    policy.continuousAxis = horizontalContinuous ? 'horizontal' : 'vertical'
     policy.automaticPaging = preferences.pageMode === 'auto_page' && policy.layout === 'single' && !vertical
     policy.pagingAxis = vertical ? 'vertical' : 'horizontal'
     policy.direction = preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? 'rtl' : 'ltr'
@@ -29,6 +32,7 @@ export class KomaReaderInitialPolicy {
     if (request.entryLayoutOverride === 'single' || request.entryLayoutOverride === 'spread' ||
       request.entryLayoutOverride === 'continuous') {
       policy.layout = request.entryLayoutOverride
+      policy.continuousAxis = 'vertical'
       policy.automaticPaging = false
       policy.pagingAxis = 'horizontal'
     }

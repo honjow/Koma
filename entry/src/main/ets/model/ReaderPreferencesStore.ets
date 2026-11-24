@@ -10,8 +10,10 @@ import { AppStrings } from '../i18n/AppStrings'
 import { ReaderSeriesFormat, ReadingDirection } from './ComicModels'
 import { ReaderModeSnapshot, ReaderModeStateBridge } from '../state/ReaderModeState'
 import { connectAppearanceState } from '../state/AppearanceState'
+import { isDeviceLocalReaderPageMode } from './ReaderPreferenceColumns'
 
-export type ReaderPageMode = 'single_page' | 'double_page' | 'auto_page' | 'continuous_scroll' | 'vertical_page'
+export type ReaderPageMode = 'single_page' | 'double_page' | 'auto_page' | 'continuous_scroll' |
+  'horizontal_continuous_scroll' | 'vertical_page'
 export type ReaderScreenOrientation = 'system' | 'portrait' | 'landscape'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
 /** Matches NextE's persisted reader background contract. */
@@ -104,6 +106,11 @@ export interface ReaderSeriesModeOverride {
   readingDirection: ReadingDirection
 }
 
+/** Keep the sync wire enum readable by older installs. Each device keeps its local layout. */
+function readerModeForDeviceSync(mode: ReaderPageMode): ReaderPageMode {
+  return isDeviceLocalReaderPageMode(mode) ? 'single_page' : mode
+}
+
 /** Explicit commands reconcile legacy WEBTOON without rewriting stored data on load.
  * Horizontal direction remains dormant while a vertical mode owns movement. */
 export function readerModeSelection(current: ReaderSeriesModeOverride, pageMode: ReaderPageMode): ReaderSeriesModeOverride {
@@ -192,7 +199,8 @@ export function getReaderCropStrengthLabel(value: string): string {
 }
 
 export function normalizeReaderPageMode(value: string): ReaderPageMode {
-  if (value === 'auto_page' || value === 'double_page' || value === 'continuous_scroll' || value === 'vertical_page') {
+  if (value === 'auto_page' || value === 'double_page' || value === 'continuous_scroll' ||
+    value === 'horizontal_continuous_scroll' || value === 'vertical_page') {
     return value
   }
   return 'single_page'
@@ -881,11 +889,10 @@ export class ReaderPreferencesStore {
       if (values['reader.imageFitMode'] === undefined) unsetFields.push('image-fit')
       const books = await this.readSeriesModeOverrides()
       for (const id of Object.keys(books)) {
-        if (books[id].pageMode === 'auto_page') books[id].pageMode = 'single_page'
+        books[id].pageMode = readerModeForDeviceSync(books[id].pageMode)
       }
       return {
-        // Keep the existing wire enum readable by older installs. Automatic is local.
-        mode: { pageMode: pageMode === 'auto_page' ? 'single_page' : pageMode, readingDirection },
+        mode: { pageMode: readerModeForDeviceSync(pageMode), readingDirection },
         pageTurnAnimation: (values['reader.pageTurnAnimation'] ?? defaults.pageTurnAnimation) !== false,
         showPageNumber: (values['reader.showPageNumber'] ?? defaults.showPageNumber) !== false,
         imageFitMode: normalizeReaderImageFitMode((values['reader.imageFitMode'] ?? defaults.imageFitMode) as string),
@@ -901,13 +908,14 @@ export class ReaderPreferencesStore {
     // the current global preference on this device.
     return this.ordered(async (): Promise<ReaderPreferences> => {
       const current = await this.readPreferences()
-      if (current.pageMode !== 'auto_page' || state.mode.pageMode !== 'single_page') {
+      if (readerModeForDeviceSync(current.pageMode) !== state.mode.pageMode) {
         current.pageMode = state.mode.pageMode
       }
       const localBooks = await this.readSeriesModeOverrides()
       for (const id of Object.keys(state.books)) {
-        if (localBooks[id]?.pageMode === 'auto_page' && state.books[id].pageMode === 'single_page') {
-          state.books[id].pageMode = 'auto_page'
+        const localMode = localBooks[id]?.pageMode
+        if (localMode !== undefined && readerModeForDeviceSync(localMode) === state.books[id].pageMode) {
+          state.books[id].pageMode = localMode
         }
       }
       current.readingDirection = state.mode.readingDirection
