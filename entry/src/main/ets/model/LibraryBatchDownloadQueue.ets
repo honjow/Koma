@@ -69,9 +69,11 @@ export class LibraryBatchDownloadQueue {
 
   /** Disk status is read once per work from the directory index. Asking the
    * filesystem per chapter made a long catalogue look like a stalled tap. */
-  private diskStatuses(comicId: ComicId): Map<string, OfflineDownloadStatus> {
+  private diskStatuses(comicId: ComicId, targets: Set<string>, queued: Map<string, OfflineDownloadQueueEntry>,
+    downloads: OfflineDownloadStore): Map<string, OfflineDownloadStatus> {
     try {
-      return this.downloads.indexedChapterStatuses(comicId)
+      return downloads.indexedChapterStatuses(comicId,
+        (id: string): boolean => targets.has(id) && this.existingStatus(comicId, id, queued) === undefined)
     } catch (_error) {
       return new Map<string, OfflineDownloadStatus>()
     }
@@ -86,7 +88,7 @@ export class LibraryBatchDownloadQueue {
 
   prepare(comicIds: ComicId[], unreadOnly: boolean): LibraryBatchDownloadPlan {
     const ids = Array.from(new Set<ComicId>(comicIds))
-    const entries = this.queueIndex(this.queue.load())
+    const entries = this.queueIndex(this.queue.loadTasksForComics(ids))
     const plan: LibraryBatchDownloadPlan = {
       comicCount: ids.length, matchedChapterCount: 0, downloadedCount: 0,
       existingCount: 0, unavailableComicCount: 0, targets: [],
@@ -97,12 +99,12 @@ export class LibraryBatchDownloadQueue {
         plan.unavailableComicCount += 1
         return
       }
-      const disk = this.diskStatuses(comicId)
       const chapters = new Map<string, Chapter>()
       comic.chapters.forEach((chapter: Chapter): void => {
         if (!chapters.has(chapter.id)) chapters.set(chapter.id, chapter)
       })
       const chapterIds = selectedChapterIdsInReadingOrder(comic.chapters, Array.from(chapters.keys()))
+      const disk = this.diskStatuses(comicId, new Set<string>(chapterIds), entries, this.downloads)
       chapterIds.forEach((chapterId: string): void => {
         const chapter = chapters.get(chapterId)
         if (chapter === undefined || chapter.id.length === 0 ||
@@ -130,7 +132,8 @@ export class LibraryBatchDownloadQueue {
       chapterTitle: target.chapterTitle, pageCount: target.pageCount,
     }))
     await OfflineDownloadService.ensureQueueInitialized(this.filesDir, this.runtimeKeyValue)
-    const entries = this.queueIndex(this.queue.load())
+    const entries = this.queueIndex(this.queue.loadTasks(snapshot))
+    const downloads = new OfflineDownloadStore(this.filesDir, this.runtimeKeyValue)
     const additions: OfflineDownloadQueueEntry[] = []
     // Preserve the first requested book's batch position. Recheck chapter order
     // against current metadata after initialization, including automatic requests.
@@ -143,15 +146,16 @@ export class LibraryBatchDownloadQueue {
     byComic.forEach((selected: LibraryBatchDownloadTarget[], comicId: ComicId): void => {
       const comic = this.library.getComic(comicId)
       if (comic === undefined || !this.isRemoteComic(comic)) return
-      const disk = this.diskStatuses(comicId)
       const byChapter = new Map<string, LibraryBatchDownloadTarget>()
       selected.forEach((target: LibraryBatchDownloadTarget): void => {
         if (!byChapter.has(target.chapterId)) byChapter.set(target.chapterId, target)
       })
       const chapterIds = selectedChapterIdsInReadingOrder(comic.chapters, Array.from(byChapter.keys()))
+      const catalogIds = new Set<string>(comic.chapters.map((chapter: Chapter): string => chapter.id))
+      const disk = this.diskStatuses(comicId, new Set<string>(chapterIds), entries, downloads)
       chapterIds.forEach((chapterId: string): void => {
         const target = byChapter.get(chapterId)
-        if (target === undefined || !comic.chapters.some((chapter: Chapter): boolean => chapter.id === chapterId) ||
+        if (target === undefined || !catalogIds.has(chapterId) ||
           (unreadOnly && this.reader.isChapterRead(comicId, chapterId)) ||
           this.planStatus(comicId, chapterId, entries, disk) !== undefined) return
         additions.push({

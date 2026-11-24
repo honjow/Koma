@@ -1143,8 +1143,14 @@ struct Index {
       if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
         return undefined
       }
-      return await validateStoredDownloadManifestAsync(komaContentStorageBase(context), komaRuntimeStorageKey(context),
-        comicId, chapterId, { validateContentHash: false })
+      const root = komaContentStorageBase(context)
+      const key = komaRuntimeStorageKey(context)
+      const queue = new OfflineDownloadQueueStore(root, key)
+      const before = queue.loadTask({ comicId, chapterId })
+      const validation = await validateStoredDownloadManifestAsync(root, key, comicId, chapterId,
+        { validateContentHash: false })
+      if (before !== undefined) queue.recordChapterAvailability(before, validation)
+      return validation
     } catch (_error) {
       DiagnosticLogger.warn('index', 'open_manifest_probe', '[ReaderOffline] step=open_manifest_probe failed=true reason=manifest_session')
       return undefined
@@ -1713,17 +1719,18 @@ struct Index {
       chapterTitles: [comic.chapters.find((item: Chapter): boolean => item.id === chapter)?.title ?? ''] })
   }
 
-  private async openDownloadedChapter(comicId: ComicId, chapterId: string): Promise<void> {
+  private async openDownloadedChapter(comicId: ComicId, chapterId: string,
+    validatedDownload?: OfflineDownloadManifestValidation): Promise<void> {
     const comic = this.libraryStore.getComic(comicId)
     if (comic?.chapters.some((chapter: Chapter): boolean => chapter.id === chapterId)) {
-      void this.openReader(comicId, chapterId)
+      void this.openReader(comicId, chapterId, 'resume', undefined, validatedDownload)
       return
     }
     // Finished downloads own their local bytes and labels even after unfavoriting.
     // A detached Reader snapshot must never re-add the work to the bookshelf.
     const epoch = ++this.readerOpenEpoch
     const origin = this.appPathStack.getAllPathName().join('|')
-    const validation = await this.readOfflineReaderChapter(comicId, chapterId)
+    const validation = validatedDownload ?? await this.readOfflineReaderChapter(comicId, chapterId)
     if (epoch !== this.readerOpenEpoch || origin !== this.appPathStack.getAllPathName().join('|')) return
     const manifest = validation?.manifest
     if (validation === undefined || manifest === undefined || validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED) {
@@ -4034,7 +4041,9 @@ struct Index {
     } else if (name === RouteName.DOWNLOADS) {
       HdsNavDestination() {
         DownloadsPage({ chrome: param as DownloadsChrome, libraryStore: this.libraryStore,
-          onOpenReader: (comicId: ComicId, chapterId: string): void => { void this.openDownloadedChapter(comicId, chapterId) } })
+          onOpenReader: (comicId: ComicId, chapterId: string, validation?: OfflineDownloadManifestValidation): void => {
+            void this.openDownloadedChapter(comicId, chapterId, validation)
+          } })
       }
       .titleBar(this.downloadsTitleBarOptions(param as DownloadsChrome))
       .onHidden((): void => { this.downloadsMenu.close() })

@@ -768,9 +768,9 @@ export struct LibraryPage {
     const comicAvailability = new Map<ComicId, OfflineDownloadStatus>()
     try {
       const context = getContext(this) as common.UIAbilityContext
-      // Startup reconciliation already validates manifests off the UI thread. Filtering uses the
-      // durable queue projection instead of restating every downloaded manifest while the shelf moves.
-      const entries = new OfflineDownloadQueueStore(komaContentStorageBase(context), komaRuntimeStorageKey(context)).load()
+      // Shelf filters consume the queue projection for the current shelf scope.
+      const entries = new OfflineDownloadQueueStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
+        .loadTasksForComics(comics.map((comic: Comic): ComicId => comic.id))
       const entriesByComicId = new Map<ComicId, OfflineDownloadQueueEntry[]>()
       entries.forEach((entry: OfflineDownloadQueueEntry) => {
         if (entry.status !== OfflineDownloadStatus.DOWNLOADED) {

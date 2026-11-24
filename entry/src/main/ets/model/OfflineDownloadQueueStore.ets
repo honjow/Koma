@@ -189,6 +189,8 @@ interface OfflineTaskRow {
 
 const INCOMPLETE_DOWNLOAD_SQL: string = 'queue_id = ? AND status <> ? AND (is_canceling IS NULL OR is_canceling = 0)'
 const UNPAUSED_DOWNLOAD_SQL: string = ' AND (paused_by_user IS NULL OR paused_by_user = 0)'
+const PENDING_DOWNLOAD_SQL: string = " AND (status IN ('queued','downloading') OR " +
+  "failure_reason_code IN ('paused','wifi_only','offline','download_interrupted'))"
 
 const offlineTasks = new LocalDataRows<OfflineTaskRow>('offline_download_tasks',
   ['queue_id', 'comic_id', 'chapter_id', 'task_occurrence'], [
@@ -288,7 +290,7 @@ class OfflineQueueRdbStorage {
 
   incompleteEntries(automaticOnly: boolean, includePaused: boolean): OfflineDownloadQueueEntry[] {
     let filter = INCOMPLETE_DOWNLOAD_SQL
-    if (automaticOnly) filter += ' AND is_automatic = 1'
+    if (automaticOnly) filter += ' AND is_automatic = 1' + PENDING_DOWNLOAD_SQL
     if (!includePaused) filter += UNPAUSED_DOWNLOAD_SQL
     return offlineTasks.read(this.database, filter, [this.queueId, OfflineDownloadStatus.DOWNLOADED])
       .map((row: OfflineTaskRow): OfflineDownloadQueueEntry => row.entry)
@@ -308,30 +310,29 @@ class OfflineQueueRdbStorage {
     return this.taskRow(task)?.entry
   }
 
-  /** Keyed by `offlineDownloadTaskKey`, so batch callers can resolve a
-   * requested chapter without reading the whole queue. */
-  entryByKey(key: string): OfflineDownloadQueueEntry | undefined {
-    const parsed = JSON.parse(key) as string[]
-    if (!Array.isArray(parsed) || parsed.length !== 2) return undefined
-    return this.entry({ comicId: parsed[0], chapterId: parsed[1] })
+  private taskRows(tasks: OfflineDownloadTaskId[]): OfflineTaskRow[] {
+    const byComic = new Map<string, Set<string>>()
+    tasks.forEach((task: OfflineDownloadTaskId): void => {
+      const chapters = byComic.get(task.comicId) ?? new Set<string>()
+      chapters.add(task.chapterId)
+      byComic.set(task.comicId, chapters)
+    })
+    const rows: OfflineTaskRow[] = []
+    byComic.forEach((chapters: Set<string>, comicId: string): void => {
+      const ids = Array.from(chapters)
+      for (let start = 0; start < ids.length; start += 200) {
+        const batch = ids.slice(start, start + 200)
+        const slots = batch.map((): string => '?').join(', ')
+        rows.push(...offlineTasks.read(this.database,
+          'queue_id = ? AND comic_id = ? AND task_occurrence = 0 AND chapter_id IN (' + slots + ')',
+          [this.queueId, comicId, ...batch]))
+      }
+    })
+    return rows
   }
 
-  /** Resolve requested tasks without issuing one statement per chapter. */
-  entriesByKeys(keys: Set<string>): Map<string, OfflineDownloadQueueEntry> {
-    const found = new Map<string, OfflineDownloadQueueEntry>()
-    if (keys.size === 0) return found
-    if (keys.size <= 8) {
-      keys.forEach((key: string): void => {
-        const entry = this.entryByKey(key)
-        if (entry !== undefined) found.set(key, entry)
-      })
-      return found
-    }
-    this.entriesInOrder().forEach((entry: OfflineDownloadQueueEntry): void => {
-      const key = offlineDownloadTaskKey(entry)
-      if (keys.has(key)) found.set(key, entry)
-    })
-    return found
+  entriesForTasks(tasks: OfflineDownloadTaskId[]): OfflineDownloadQueueEntry[] {
+    return this.taskRows(tasks).map((row: OfflineTaskRow): OfflineDownloadQueueEntry => row.entry)
   }
 
   /** Interrupted writers after a cold start: the only status whose meaning
@@ -343,24 +344,29 @@ class OfflineQueueRdbStorage {
       .filter((entry: OfflineDownloadQueueEntry): boolean => !entry.canceling)
   }
 
-  entriesInOrder(): OfflineDownloadQueueEntry[] {
-    return offlineTasks.read(this.database, 'queue_id = ?', [this.queueId])
-      .map((row: OfflineTaskRow): OfflineDownloadQueueEntry => row.entry)
-  }
-
   entriesForComic(comicId: ComicId): OfflineDownloadQueueEntry[] {
     return offlineTasks.read(this.database, 'queue_id = ? AND comic_id = ?', [this.queueId, comicId])
       .map((row: OfflineTaskRow): OfflineDownloadQueueEntry => row.entry)
   }
 
+  entriesForComics(comicIds: ComicId[]): OfflineDownloadQueueEntry[] {
+    const entries: OfflineDownloadQueueEntry[] = []
+    const ids = Array.from(new Set(comicIds))
+    for (let start = 0; start < ids.length; start += 200) {
+      const batch = ids.slice(start, start + 200)
+      const slots = batch.map((): string => '?').join(', ')
+      for (const row of offlineTasks.read(this.database, 'queue_id = ? AND comic_id IN (' + slots + ')',
+        [this.queueId, ...batch])) entries.push(row.entry)
+    }
+    return entries
+  }
+
   /** Staged rows keep the same eligibility as the document fallback. */
   stagedEntries(): OfflineDownloadQueueEntry[] {
     return offlineTasks.read(this.database, INCOMPLETE_DOWNLOAD_SQL +
-      ' AND (paused_by_user IS NULL OR paused_by_user = 0) AND (is_automatic IS NULL OR is_automatic = 0)',
-      [this.queueId, OfflineDownloadStatus.DOWNLOADED])
+      UNPAUSED_DOWNLOAD_SQL + PENDING_DOWNLOAD_SQL + ' AND (is_automatic IS NULL OR is_automatic = 0) AND status <> ?',
+      [this.queueId, OfflineDownloadStatus.DOWNLOADED, OfflineDownloadStatus.DOWNLOADING])
       .map((row: OfflineTaskRow): OfflineDownloadQueueEntry => row.entry)
-      .filter((entry: OfflineDownloadQueueEntry): boolean =>
-        isOfflineDownloadTaskPending(entry) && entry.status !== OfflineDownloadStatus.DOWNLOADING)
   }
 
   cancelingEntries(): OfflineDownloadQueueEntry[] {
@@ -393,37 +399,32 @@ class OfflineQueueRdbStorage {
 
   /** Commit only the supplied rows. Structural queue edits must not rewrite every
    * historical chapter just to change one selection. */
-  saveEntries(entries: OfflineDownloadQueueEntry[]): void {
+  saveEntries(entries: OfflineDownloadQueueEntry[], prependNew: boolean = false): void {
     if (entries.length === 0) return
     writeUserRecords(this.database, (): void => {
       const state = this.state()
-      const ranks = entries.length > 8 ? this.entryOrders() : undefined
+      const ranks = new Map<string, number>()
+      for (const row of this.taskRows(entries)) ranks.set(offlineDownloadTaskKey(row.entry), row.order)
       const rows: OfflineTaskRow[] = []
-      let order = state?.nextOrder ?? 0
+      let order = prependNew ? this.firstOrder() - (entries.length - ranks.size) : state?.nextOrder ?? 0
       entries.forEach((entry: OfflineDownloadQueueEntry): void => {
-        const previousOrder = ranks === undefined ? this.taskRow(entry)?.order : ranks.get(offlineDownloadTaskKey(entry))
+        const key = offlineDownloadTaskKey(entry)
+        const previousOrder = ranks.get(key)
         rows.push({ queueId: this.queueId, occurrence: 0, order: previousOrder ?? order, entry: normalizeEntry(entry) })
-        if (previousOrder === undefined) order += 1
+        if (previousOrder === undefined) ranks.set(key, order++)
       })
-      offlineQueueState.put(this.database, { queueId: this.queueId, nextOrder: order,
-        preferences: normalizePreferences(state?.preferences) })
+      if (state === undefined || (!prependNew && order !== state.nextOrder)) {
+        offlineQueueState.put(this.database, { queueId: this.queueId, nextOrder: prependNew ? 0 : order,
+          preferences: normalizePreferences(state?.preferences) })
+      }
       offlineTasks.putMany(this.database, rows)
     })
   }
 
-  /** Persisted row order keyed by task, without decoding queue payload columns. */
-  private entryOrders(): Map<string, number> {
-    const rows = this.database.querySqlSync(
-      'SELECT comic_id, chapter_id, list_order FROM offline_download_tasks WHERE queue_id = ?', [this.queueId])
-    const orders = new Map<string, number>()
-    try {
-      while (rows.goToNextRow()) {
-        orders.set(offlineDownloadTaskKey({ comicId: rows.getString(0), chapterId: rows.getString(1) }), rows.getLong(2))
-      }
-    } finally {
-      rows.close()
-    }
-    return orders
+  private firstOrder(): number {
+    const rows = this.database.querySqlSync('SELECT list_order FROM offline_download_tasks ' +
+      'WHERE queue_id = ? ORDER BY list_order LIMIT 1', [this.queueId])
+    try { return rows.goToNextRow() ? rows.getLong(0) : 0 } finally { rows.close() }
   }
 
   removeEntries(entries: OfflineDownloadTaskId[]): void {
@@ -448,23 +449,19 @@ class OfflineQueueRdbStorage {
     return previous.length
   }
 
-  /** Publish a new persisted order without rewriting rows that already match it. */
-  reorder(ordered: OfflineDownloadQueueEntry[]): void {
-    const current = new Map<string, OfflineTaskRow>()
-    offlineTasks.read(this.database, 'queue_id = ?', [this.queueId]).forEach((row: OfflineTaskRow): void => {
-      current.set(offlineDownloadTaskKey(row.entry), row)
-    })
-    const updates: OfflineTaskRow[] = []
-    ordered.forEach((entry: OfflineDownloadQueueEntry, order: number): void => {
-      const row = current.get(offlineDownloadTaskKey(entry))
-      if (row === undefined || row.order === order) return
-      updates.push({ queueId: this.queueId, occurrence: row.occurrence, order, entry: row.entry })
-    })
-    if (updates.length === 0) return
+  /** Move the selected rows outside the existing rank range, keeping every other rank. */
+  moveEntries(entries: OfflineDownloadQueueEntry[], toTop: boolean): void {
     writeUserRecords(this.database, (): void => {
-      offlineQueueState.put(this.database, { queueId: this.queueId, nextOrder: ordered.length,
-        preferences: this.preferences() })
-      offlineTasks.putMany(this.database, updates)
+      const current = this.state()
+      if (current === undefined) return
+      let first = toTop ? this.firstOrder() - entries.length : current.nextOrder
+      for (const entry of entries) {
+        this.database.executeSync('UPDATE offline_download_tasks SET list_order = ? ' +
+          'WHERE queue_id = ? AND comic_id = ? AND chapter_id = ? AND task_occurrence = 0',
+          [first++, this.queueId, entry.comicId, entry.chapterId])
+      }
+      if (!toTop) offlineQueueState.put(this.database, { queueId: this.queueId, nextOrder: first,
+        preferences: current.preferences })
     })
   }
 
@@ -855,6 +852,23 @@ export class OfflineDownloadQueueStore {
     this.database()
   }
 
+  loadTasks(tasks: OfflineDownloadTaskId[]): OfflineDownloadQueueEntry[] {
+    if (tasks.length === 0) return []
+    const database = this.database()
+    if (database !== undefined) return database.entriesForTasks(tasks)
+    const keys = new Set<string>(tasks.map(offlineDownloadTaskKey))
+    return this.loadDocument(false).entries.filter((entry: OfflineDownloadQueueEntry): boolean =>
+      keys.has(offlineDownloadTaskKey(entry)))
+  }
+
+  loadTasksForComics(comicIds: ComicId[]): OfflineDownloadQueueEntry[] {
+    if (comicIds.length === 0) return []
+    const database = this.database()
+    if (database !== undefined) return database.entriesForComics(comicIds)
+    const ids = new Set<ComicId>(comicIds)
+    return this.loadDocument(false).entries.filter((entry: OfflineDownloadQueueEntry): boolean => ids.has(entry.comicId))
+  }
+
   loadSnapshot(): OfflineDownloadQueueSnapshot {
     const document = this.loadDocument(false)
     return { entries: document.entries.slice(), preferences: normalizePreferences(document.preferences) }
@@ -940,23 +954,51 @@ export class OfflineDownloadQueueStore {
       !OfflineDownloadRuntime.isActive(this.runtimeKeyValue, entry.comicId, entry.chapterId))
   }
 
-  /** Replace only the rows a startup reconciliation actually changed. */
-  applyReconciledEntries(entries: OfflineDownloadQueueEntry[]): void {
-    if (entries.length === 0) return
+  /** Apply file observations to the same request only. Keep live pause and order;
+   * a canceled, deleted or restarted task must never be revived by the worker. */
+  applyReconciledEntries(original: OfflineDownloadQueueEntry[], entries: OfflineDownloadQueueEntry[]): number {
+    if (entries.length === 0 || BackupRestoreActivity.isRestoring()) return 0
+    const originalByKey = new Map<string, OfflineDownloadQueueEntry>()
+    const observedByKey = new Map<string, OfflineDownloadQueueEntry>()
+    for (const entry of original) originalByKey.set(offlineDownloadTaskKey(entry), entry)
+    for (const entry of entries) observedByKey.set(offlineDownloadTaskKey(entry), entry)
     const database = this.database()
-    if (database !== undefined) {
-      database.saveEntries(entries)
-      OfflineDownloadRuntime.publish(this.runtimeKeyValue)
-      return
+    const document = database === undefined ? this.loadDocument() : undefined
+    const current = database?.entriesForTasks(entries) ?? document!.entries
+    const changed: OfflineDownloadQueueEntry[] = []
+    for (const row of current) {
+      const key = offlineDownloadTaskKey(row)
+      const before = originalByKey.get(key)
+      const observed = observedByKey.get(key)
+      if (before === undefined || observed === undefined || row.canceling || row.requestId !== before.requestId ||
+        row.status !== before.status || row.pageCount !== before.pageCount ||
+        row.downloadedPageCount !== before.downloadedPageCount || row.failureReasonCode !== before.failureReasonCode ||
+        OfflineDownloadRuntime.isActive(this.runtimeKeyValue, row.comicId, row.chapterId) ||
+        OfflineDownloadRuntime.isRemovingChapter(this.runtimeKeyValue, row.comicId, row.chapterId)) continue
+      row.status = observed.status
+      row.pageCount = observed.pageCount
+      row.downloadedPageCount = observed.downloadedPageCount
+      row.failureReasonCode = observed.failureReasonCode
+      row.updatedAt = Date.now()
+      changed.push(row)
     }
-    const document = this.loadDocument()
-    const replacements = new Map<string, OfflineDownloadQueueEntry>()
-    entries.forEach((entry: OfflineDownloadQueueEntry): void => {
-      replacements.set(offlineDownloadTaskKey(entry), entry)
-    })
-    document.entries = document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry =>
-      replacements.get(offlineDownloadTaskKey(entry)) ?? entry)
-    this.saveDocument(document)
+    if (changed.length === 0) return 0
+    if (database !== undefined) {
+      database.saveEntries(changed)
+      const only = changed.length === 1 ? changed[0] : undefined
+      OfflineDownloadRuntime.publish(this.runtimeKeyValue, only?.comicId, only?.chapterId)
+    } else {
+      this.saveDocument(document!, changed.length === 1 ? changed[0].comicId : undefined)
+    }
+    return changed.length
+  }
+
+  /** A reader's validation updates its task without scheduling a whole rescan. */
+  recordChapterAvailability(before: OfflineDownloadQueueEntry, validation: OfflineDownloadManifestValidation): void {
+    if (before.status !== OfflineDownloadStatus.DOWNLOADED ||
+      validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
+      validation.comicId !== before.comicId || validation.chapterId !== before.chapterId) return
+    this.applyReconciledEntries([before], [reconciledEntry(before, validation)])
   }
 
   /** Worker-side startup reconciliation. The caller passes only interrupted
@@ -969,8 +1011,12 @@ export class OfflineDownloadQueueStore {
     entries.forEach((entry: OfflineDownloadQueueEntry): void => {
       if (entry.canceling || !shouldReconcileEntry(entry) ||
         OfflineDownloadRuntime.isActive(this.runtimeKeyValue, entry.comicId, entry.chapterId)) return
-      const validation = store.reconcileDownloadedChapter(entry.comicId, entry.chapterId, { validateContentHash: false })
+      const validation = store.validateDownloadedChapter(entry.comicId, entry.chapterId,
+        { validateContentHash: false, includeInterrupted: true })
       const next = reconciledEntry(entry, validation)
+      if (validation.manifest?.status === OfflineDownloadStatus.DOWNLOADING && next.status !== OfflineDownloadStatus.DOWNLOADED) {
+        next.failureReasonCode = 'download_interrupted'
+      }
       if (!isSameEntry(entry, next)) changed.push(next)
     })
     return changed.length === 0 ? undefined : JSON.stringify(changed)
@@ -1011,10 +1057,16 @@ export class OfflineDownloadQueueStore {
   }
 
   async recoverFromManifests(): Promise<OfflineDownloadQueueRecoverySummary> {
+    if (BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_busy')
+    const startedAt = Date.now()
     const store = new OfflineDownloadStore(this.filesDir, this.runtimeKeyValue)
     const scan = await store.scanDownloadedChapterManifests()
-    const document = this.loadDocument()
-    const entries = document.entries.slice()
+    if (BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_busy')
+    const database = this.database()
+    const document = database === undefined ? this.loadDocument() : undefined
+    const entries = document?.entries ?? database!.entriesForTasks(scan.validations)
+    const existingByKey = new Map<string, OfflineDownloadQueueEntry>()
+    for (const entry of entries) existingByKey.set(offlineDownloadTaskKey(entry), entry)
     const summary: OfflineDownloadQueueRecoverySummary = {
       scannedCount: scan.scannedManifestCount,
       restoredCount: 0,
@@ -1024,9 +1076,11 @@ export class OfflineDownloadQueueStore {
       failedCount: 0,
       skippedCount: scan.skippedManifestCount,
     }
-    let changed = false
+    const updated = new Map<string, OfflineDownloadQueueEntry>()
+    const restored: OfflineDownloadQueueEntry[] = []
     scan.validations.forEach((validation: OfflineDownloadManifestValidation) => {
-      if (OfflineDownloadRuntime.isActive(this.runtimeKeyValue, validation.comicId, validation.chapterId)) {
+      if (OfflineDownloadRuntime.isActive(this.runtimeKeyValue, validation.comicId, validation.chapterId) ||
+        OfflineDownloadRuntime.isRemovingChapter(this.runtimeKeyValue, validation.comicId, validation.chapterId)) {
         summary.skippedCount += 1
         return
       }
@@ -1042,17 +1096,20 @@ export class OfflineDownloadQueueStore {
       } else if (recovered.status === OfflineDownloadStatus.FAILED) {
         summary.failedCount += 1
       }
-      const existingIndex = entries.findIndex((entry: OfflineDownloadQueueEntry): boolean => {
-        return entry.comicId === recovered.comicId && entry.chapterId === recovered.chapterId
-      })
-      if (existingIndex < 0) {
-        entries.unshift(recovered)
+      const key = offlineDownloadTaskKey(recovered)
+      const existing = existingByKey.get(key)
+      if (existing === undefined) {
+        restored.push(recovered)
         summary.restoredCount += 1
-        changed = true
         return
       }
-      const existing = entries[existingIndex]
-      if (existing.canceling || existing.updatedAt > recovered.updatedAt) {
+      // An observation of missing bytes is current even if the manifest is old.
+      // A new request or another edit during the scan keeps its live state.
+      const checkedFiles = existing.status === OfflineDownloadStatus.DOWNLOADED ||
+        (existing.status === OfflineDownloadStatus.PARTIAL && !isOfflineDownloadTaskPending(existing))
+      if (existing.canceling || existing.updatedAt >= startedAt ||
+        (!checkedFiles && existing.updatedAt > recovered.updatedAt) ||
+        (checkedFiles && validation.reasonCode === 'status_not_reader_ready')) {
         summary.skippedCount += 1
         return
       }
@@ -1075,17 +1132,20 @@ export class OfflineDownloadQueueStore {
         failureReasonCode: recovered.failureReasonCode,
       })
       if (!isSameEntry(existing, next)) {
-        entries[existingIndex] = next
+        updated.set(key, next)
         summary.updatedCount += 1
-        changed = true
       }
     })
-    if (changed) {
-      this.saveDocument({
-        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
-        preferences: document.preferences,
-        entries,
-      })
+    if (updated.size > 0 || restored.length > 0) {
+      restored.reverse()
+      if (database !== undefined) {
+        database.saveEntries(restored.concat(Array.from(updated.values())), true)
+        OfflineDownloadRuntime.publish(this.runtimeKeyValue)
+      } else {
+        this.saveDocument({ schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+          preferences: document!.preferences, entries: restored.concat(entries.map((entry: OfflineDownloadQueueEntry) =>
+            updated.get(offlineDownloadTaskKey(entry)) ?? entry)) })
+      }
     }
     return summary
   }
@@ -1252,7 +1312,8 @@ export class OfflineDownloadQueueStore {
     })
     if (storage !== undefined) {
       storage.saveEntry(normalized)
-      OfflineDownloadRuntime.publish(this.runtimeKeyValue, entry.comicId)
+      // Existing task updates preserve its position. A new task needs a fresh queue order.
+      OfflineDownloadRuntime.publish(this.runtimeKeyValue, entry.comicId, previous === undefined ? undefined : entry.chapterId)
       return normalized
     }
     if (document === undefined) throw new Error('offline_download_queue_missing')
@@ -1274,25 +1335,24 @@ export class OfflineDownloadQueueStore {
   move(comicId: ComicId, chapterId: string, toTop: boolean, wholeComic: boolean = false): void {
     if (BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_busy')
     const database = this.database()
-    const document = database === undefined ? this.loadDocument() : undefined
-    const all = document === undefined ? database!.entriesInOrder() : document.entries
-    const selected: OfflineDownloadQueueEntry[] = []
-    const others: OfflineDownloadQueueEntry[] = []
-    for (const entry of all) {
-      const matches = entry.comicId === comicId && (wholeComic || entry.chapterId === chapterId) &&
-        isOfflineDownloadTaskPending(entry) && entry.status !== OfflineDownloadStatus.DOWNLOADING &&
-        !OfflineDownloadRuntime.isActive(this.runtimeKeyValue, entry.comicId, entry.chapterId)
-      if (matches) selected.push(entry)
-      else others.push(entry)
-    }
-    if (selected.length === 0) return
-    const ordered = toTop ? selected.concat(others) : others.concat(selected)
+    const eligible = (entry: OfflineDownloadQueueEntry): boolean =>
+      entry.comicId === comicId && (wholeComic || entry.chapterId === chapterId) &&
+      isOfflineDownloadTaskPending(entry) && entry.status !== OfflineDownloadStatus.DOWNLOADING &&
+      !OfflineDownloadRuntime.isActive(this.runtimeKeyValue, entry.comicId, entry.chapterId)
     if (database !== undefined) {
-      database.reorder(ordered)
+      const targets = wholeComic ? database.entriesForComic(comicId) : database.entriesForTasks([{ comicId, chapterId }])
+      const selected = targets.filter(eligible)
+      if (selected.length === 0) return
+      database.moveEntries(selected, toTop)
       OfflineDownloadRuntime.publish(this.runtimeKeyValue)
       return
     }
-    this.saveDocument({ schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION, preferences: document!.preferences,
+    const document = this.loadDocument()
+    const selected = document.entries.filter(eligible)
+    if (selected.length === 0) return
+    const others = document.entries.filter((entry: OfflineDownloadQueueEntry): boolean => !eligible(entry))
+    const ordered = toTop ? selected.concat(others) : others.concat(selected)
+    this.saveDocument({ schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION, preferences: document.preferences,
       entries: ordered })
   }
 
@@ -1300,9 +1360,12 @@ export class OfflineDownloadQueueStore {
     const database = this.database()
     if (database !== undefined) {
       const added: OfflineDownloadQueueEntry[] = []
+      const keys = new Set<string>(database.entriesForTasks(entries).map(offlineDownloadTaskKey))
       entries.forEach((entry: OfflineDownloadQueueEntry) => {
         const normalized = normalizeEntry(entry)
-        if (database.entry(normalized) !== undefined) return
+        const key = offlineDownloadTaskKey(normalized)
+        if (keys.has(key)) return
+        keys.add(key)
         normalized.requestId = newOfflineDownloadRequestId()
         added.push(normalized)
       })
@@ -1348,17 +1411,16 @@ export class OfflineDownloadQueueStore {
     // its single document.
     const database = this.database()
     const document = database === undefined ? this.loadDocument() : undefined
-    const requestedKeys = new Set<string>()
+    const requested: OfflineDownloadTaskId[] = []
     batches.forEach((batch: OfflineDownloadChapterBatch): void => {
       batch.chapterIds.forEach((id: string): void => {
-        requestedKeys.add(offlineDownloadTaskKey({ comicId: batch.comic.id, chapterId: id }))
+        requested.push({ comicId: batch.comic.id, chapterId: id })
       })
     })
-    const stored = database === undefined ?
-      new Map<string, OfflineDownloadQueueEntry>(document!.entries
-        .filter((entry: OfflineDownloadQueueEntry): boolean => requestedKeys.has(offlineDownloadTaskKey(entry)))
-        .map((entry: OfflineDownloadQueueEntry): [string, OfflineDownloadQueueEntry] => [offlineDownloadTaskKey(entry), entry])) :
-      database.entriesByKeys(requestedKeys)
+    const stored = new Map<string, OfflineDownloadQueueEntry>()
+    for (const entry of document?.entries ?? database!.entriesForTasks(requested)) {
+      stored.set(offlineDownloadTaskKey(entry), entry)
+    }
     const added: OfflineDownloadQueueEntry[] = []
     const changed = new Map<string, OfflineDownloadQueueEntry>()
     let count = 0
@@ -1406,9 +1468,7 @@ export class OfflineDownloadQueueStore {
     })
     if (count > 0) {
       if (database !== undefined) {
-        const updates = Array.from(changed.values()).filter((entry: OfflineDownloadQueueEntry): boolean =>
-          added.indexOf(entry) < 0)
-        database.saveEntries(updates.concat(added))
+        database.saveEntries(Array.from(changed.values()))
         OfflineDownloadRuntime.publish(this.runtimeKeyValue)
       } else {
         this.saveDocument({
@@ -1448,9 +1508,8 @@ export class OfflineDownloadQueueStore {
     const database = this.database()
     if (database !== undefined) {
       const changed: OfflineDownloadQueueEntry[] = []
-      keys.forEach((key: string): void => {
-        const entry = database.entryByKey(key)
-        if (entry === undefined || !isOfflineDownloadTaskPending(entry) ||
+      database.entriesForTasks(targets).forEach((entry: OfflineDownloadQueueEntry): void => {
+        if (!isOfflineDownloadTaskPending(entry) ||
           (entry.pausedByUser === true) === paused) return
         entry.pausedByUser = paused ? true : undefined
         if (!paused) entry.automatic = true
@@ -1494,9 +1553,8 @@ export class OfflineDownloadQueueStore {
     const database = this.database()
     if (database !== undefined) {
       const changed: OfflineDownloadQueueEntry[] = []
-      keys.forEach((key: string): void => {
-        const entry = database.entryByKey(key)
-        if (entry === undefined || !isOfflineDownloadTaskRetryable(entry) ||
+      database.entriesForTasks(targets).forEach((entry: OfflineDownloadQueueEntry): void => {
+        if (!isOfflineDownloadTaskRetryable(entry) ||
           OfflineDownloadRuntime.isActive(this.runtimeKeyValue, entry.comicId, entry.chapterId)) return
         entry.requestId = newOfflineDownloadRequestId()
         entry.automatic = true
@@ -1532,9 +1590,8 @@ export class OfflineDownloadQueueStore {
     const database = this.database()
     if (database !== undefined) {
       const entries: OfflineDownloadQueueEntry[] = []
-      keys.forEach((key: string): void => {
-        const entry = database.entryByKey(key)
-        if (entry !== undefined && !entry.canceling && entry.status !== OfflineDownloadStatus.DOWNLOADED) entries.push(entry)
+      database.entriesForTasks(targets).forEach((entry: OfflineDownloadQueueEntry): void => {
+        if (!entry.canceling && entry.status !== OfflineDownloadStatus.DOWNLOADED) entries.push(entry)
       })
       if (entries.length === 0) return 0
       // Commit the whole scope before awaiting any transfer or touching any files.

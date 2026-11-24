@@ -17,6 +17,7 @@ class Queue {
   const row = rows.find(e => e.comicId === task.comicId && e.chapterId === task.chapterId)
   return row === undefined ? undefined : { ...row }
  }
+ loadTasks(tasks) { return tasks.map(task => this.loadTask(task)).filter(row => row !== undefined) }
  upsert(entry) { const i = rows.findIndex(e => e.comicId === entry.comicId && e.chapterId === entry.chapterId); rows[i] = { ...entry } }
 }
 class Service {
@@ -32,6 +33,7 @@ class Service {
 const deps = {
  './ComicModels': { sameComicIdentity: () => true },
  './OfflineDownloadQueueStore': { OfflineDownloadQueueStore: Queue, isOfflineDownloadTaskPending: pending,
+   offlineDownloadTaskKey: task => JSON.stringify([task.comicId, task.chapterId]),
    hasOfflineDownloadSourceIdentity: entry => Boolean(entry.sourceId && entry.sourceMangaId) },
  './OfflineDownloadService': { OfflineDownloadService: Service, canRunOfflineDownloadQueueNow: () => runnable,
    publicSourceWorkUri: (_source, value) => value },

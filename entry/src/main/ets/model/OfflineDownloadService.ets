@@ -228,8 +228,7 @@ export class OfflineDownloadService {
           filesDir, runtimeKey, payload)) as string | undefined
         if (reconciled !== undefined) {
           const changed = JSON.parse(reconciled) as OfflineDownloadQueueEntry[]
-          reconciledCount = changed.length
-          queue.applyReconciledEntries(changed)
+          reconciledCount = queue.applyReconciledEntries(interrupted, changed)
         }
       }
       await queue.finishCanceledTasks()
@@ -370,9 +369,11 @@ export class OfflineDownloadService {
       return this.saveBlockedChapter(comic, chapterId, 'pages_missing', labels)
     }
 
-    const existingValidation = await validateDownloadManifestAsync(this.store, comic.id, chapterId)
+    const existingValidation = await validateDownloadManifestAsync(this.store, comic.id, chapterId, { includeInterrupted: true })
     if (existingValidation.status === OfflineDownloadedChapterStatus.DOWNLOADED &&
       existingValidation.manifest !== undefined) {
+      existingValidation.manifest.status = OfflineDownloadStatus.DOWNLOADED
+      existingValidation.manifest.failureReasonCode = undefined
       const manifest = await saveDownloadManifestAsync(this.store, applyManifestLabels(existingValidation.manifest, comic, chapter, labels))
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       this.saveWorkCover(comic)

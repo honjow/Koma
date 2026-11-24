@@ -138,6 +138,8 @@ export interface OfflineDownloadManifestValidation {
 
 export interface OfflineDownloadValidationOptions {
   validateContentHash?: boolean
+  /** A stopped writer's checkpoint can be checked without changing its manifest. */
+  includeInterrupted?: boolean
   /** Startup reconciliation checks manifest structure only. Opening a chapter
    * and the explicit rescan keep the per-page file and hash checks. */
   skipPageFiles?: boolean
@@ -508,11 +510,12 @@ export class OfflineDownloadStore {
   /** Statuses for every chapter this work already has on disk, resolved from the
    * directory index so batch planning does not probe one manifest path per
    * chapter of a long catalogue. Read-only: no page or integrity checks. */
-  indexedChapterStatuses(comicId: ComicId): Map<string, OfflineDownloadStatus> {
+  indexedChapterStatuses(comicId: ComicId, needsStatus: (chapterId: string) => boolean): Map<string, OfflineDownloadStatus> {
     const statuses = new Map<string, OfflineDownloadStatus>()
     const comic = this.directoryIndex.comics[comicId]
     if (comic === undefined) return statuses
     Object.keys(comic.chapters).forEach((chapterId: string): void => {
+      if (!needsStatus(chapterId)) return
       const manifest = this.loadManifest(comicId, chapterId)
       if (manifest === undefined || manifest.comicId !== comicId || manifest.chapterId !== chapterId) return
       const status = parseOfflineDownloadStatus(manifest.status)
@@ -604,7 +607,8 @@ export class OfflineDownloadStore {
         reasonCode: 'status_invalid',
       }
     }
-    if (!isReaderReadyOfflineDownloadStatus(manifestStatus)) {
+    if (!isReaderReadyOfflineDownloadStatus(manifestStatus) &&
+      !(options?.includeInterrupted === true && manifestStatus === OfflineDownloadStatus.DOWNLOADING)) {
       return {
         comicId,
         chapterId,

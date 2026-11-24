@@ -4,7 +4,7 @@ import { LibraryStore } from './LibraryStore'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { resolveDownloadChapterPages, resolveSourceChapterPages, SourceChapterPageHydrationResult } from './SourceChapterPageHydrator'
 import { hasOfflineDownloadSourceIdentity, OfflineDownloadQueueEntry, OfflineDownloadQueueStore,
-  isOfflineDownloadTaskPending } from './OfflineDownloadQueueStore'
+  isOfflineDownloadTaskPending, offlineDownloadTaskKey } from './OfflineDownloadQueueStore'
 import { comicFromSourceManga } from './SourceLibraryComic'
 import { fetchSourceMangaDetail } from './SourceMangaDetailRequest'
 import { sourceMangaDetailSnapshotCache } from './SourceMangaDetailSnapshotCache'
@@ -166,23 +166,25 @@ export function resumeAutomaticDownloads(request: OfflineDownloadBatchRequest): 
     const queue = new OfflineDownloadQueueStore(storageBase, runtimeKey)
     let completed = 0
     let failed = 0
-    if (!canRunOfflineDownloadQueueNow(queue.loadPreferences()) ||
-      !queue.loadAutomaticPendingEntries().some((entry: OfflineDownloadQueueEntry): boolean =>
-        entry.status !== OfflineDownloadStatus.DOWNLOADING)) return
+    if (!canRunOfflineDownloadQueueNow(queue.loadPreferences())) return
+    let targets = queue.loadAutomaticPendingEntries().filter((entry: OfflineDownloadQueueEntry): boolean =>
+      entry.status !== OfflineDownloadStatus.DOWNLOADING)
+    if (targets.length === 0) return
     await BackgroundDownloadOwner.run(request.context, async (): Promise<void> => {
-      while (canRunOfflineDownloadQueueNow(queue.loadPreferences())) {
+      while (targets.length > 0 && canRunOfflineDownloadQueueNow(queue.loadPreferences())) {
         // New requests resume when eligible. Previously staged records stay staged.
-        const targets = queue.loadAutomaticPendingEntries().filter((entry: OfflineDownloadQueueEntry): boolean =>
-          entry.status !== OfflineDownloadStatus.DOWNLOADING)
-        if (targets.length === 0) break
         const count = await runOfflineDownloadBatch(request, targets)
-        targets.forEach((target: OfflineDownloadQueueEntry): void => {
-          const entry = queue.loadTask(target)
-          if (entry === undefined || entry.requestId !== target.requestId) return
+        const requests = new Map<string, string | undefined>()
+        for (const target of targets) requests.set(offlineDownloadTaskKey(target), target.requestId)
+        queue.loadTasks(targets).forEach((entry: OfflineDownloadQueueEntry): void => {
+          const key = offlineDownloadTaskKey(entry)
+          if (!requests.has(key) || entry.requestId !== requests.get(key)) return
           if (entry.status === OfflineDownloadStatus.DOWNLOADED) completed += 1
           else if (!isOfflineDownloadTaskPending(entry) && !entry.pausedByUser && !entry.canceling) failed += 1
         })
         if (count === 0) break
+        targets = queue.loadAutomaticPendingEntries().filter((entry: OfflineDownloadQueueEntry): boolean =>
+          entry.status !== OfflineDownloadStatus.DOWNLOADING)
       }
     })
     if ((completed > 0 || failed > 0) && queue.loadAutomaticPendingEntries(true).length === 0) {

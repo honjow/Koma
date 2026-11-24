@@ -9,7 +9,8 @@ export interface OfflineDownloadPageProgress {
   pageCount: number
 }
 
-type OfflineDownloadListener = (signal: OfflineDownloadRuntimeSignal, progress?: OfflineDownloadPageProgress, comicId?: string) => void
+type OfflineDownloadListener = (signal: OfflineDownloadRuntimeSignal, progress?: OfflineDownloadPageProgress,
+  comicId?: string, chapterId?: string) => void
 
 
 interface OfflineDownloadExecution {
@@ -111,7 +112,7 @@ export class OfflineDownloadRuntime {
       return await execution.promise
     } finally {
       OfflineDownloadRuntime.executions.delete(key)
-      OfflineDownloadRuntime.publish(filesDir, comicId)
+      OfflineDownloadRuntime.publish(filesDir, comicId, chapterId)
     }
   }
 
@@ -244,10 +245,10 @@ export class OfflineDownloadRuntime {
     }
   }
 
-  static publish(filesDir: string, comicId?: string): void {
+  static publish(filesDir: string, comicId?: string, chapterId?: string): void {
     OfflineDownloadRuntime.admitWaiting(filesDir)
     OfflineDownloadRuntime.listeners.get(filesDir)?.forEach(
-      (listener: OfflineDownloadListener) => listener('change', undefined, comicId))
+      (listener: OfflineDownloadListener) => listener('change', undefined, comicId, chapterId))
   }
 
   static pageProgress(filesDir: string, comicId: string, chapterId: string): number | undefined {

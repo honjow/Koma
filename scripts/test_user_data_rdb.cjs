@@ -1033,3 +1033,121 @@ test('automatic download recovery reads only pending tasks in their saved order'
     env.close()
   }
 })
+
+test('large download batches keep unrelated ranks and interrupted recovery keeps live edits', async () => {
+  const rdb = createRdbPort()
+  const runtime = new Map([
+    ['@kit.CoreFileKit', { fileIo: { ...fs, accessSync: fs.existsSync } }],
+    ['../i18n/AppStrings', { AppStrings: { get: key => key } }],
+    ['../diagnostics/DiagnosticLogger', { DiagnosticLogger: { info() {}, warn() {}, exception() {} } }],
+  ])
+  const env = fixture(new Map(), runtime, rdb)
+  try {
+    const context = { filesDir: '/download-batch-scope-test' }
+    const { OfflineDownloadQueueStore, prepareOfflineQueueDatabase } = env.load('OfflineDownloadQueueStore')
+    const database = await env.load('UserDataDatabase').openUserDataDatabase(context)
+    await prepareOfflineQueueDatabase(context)
+    const queue = new OfflineDownloadQueueStore(context.filesDir)
+    const row = (comicId, chapterId, status, extra = {}) => ({ comicId, chapterId, status,
+      requestId: chapterId, pageCount: 3, downloadedPageCount: 0, updatedAt: 1, ...extra })
+    const historical = Array.from({ length: 500 }, (_, i) => row('history-' + i, 'done', 'downloaded'))
+    queue.restoreSnapshotText(JSON.stringify({ schemaVersion: 1, entries: historical.concat([
+      row('interrupted', 'pause', 'downloading'), row('interrupted', 'remove', 'downloading'),
+      row('interrupted', 'replace', 'downloading'),
+    ]) }))
+
+    let decoded = 0
+    const query = database.querySqlSync.bind(database)
+    database.querySqlSync = (sql, args) => {
+      const result = query(sql, args)
+      if (sql.includes('FROM offline_download_tasks')) {
+        const next = result.goToNextRow.bind(result)
+        result.goToNextRow = () => { const hasRow = next(); if (hasRow) decoded++; return hasRow }
+      }
+      return result
+    }
+    const chapters = Array.from({ length: 260 }, (_, i) => ({ id: 'page-' + i, title: 'Chapter ' + i, pages: [],
+      pageCount: 3, readingGroup: 'source-catalog', readingOrder: i, continuationEligible: true }))
+    const work = { id: 'fresh', title: 'Fresh', chapters: chapters.slice().reverse() }
+    assert.equal(queue.requestChapters(work, chapters.map(chapter => chapter.id).reverse()), chapters.length)
+    assert.equal(decoded, 0, 'batch enqueue must not load the other 500 tasks')
+    assert.deepEqual(queue.loadComicSnapshot(work.id).entries.map(entry => entry.chapterId), chapters.map(chapter => chapter.id))
+    assert.equal(queue.addNewEntries([historical[0], row('fresh', 'unique', 'queued'), row('fresh', 'unique', 'queued')]), 1)
+    queue.move(work.id, 'page-1', true)
+    assert.equal(queue.load()[0].chapterId, 'page-1')
+    queue.move(work.id, 'page-1', false)
+    const order = queue.load()
+    assert.equal(order.at(-1).chapterId, 'page-1')
+    assert.deepEqual(order.filter(entry => entry.comicId.startsWith('history-')).map(plain), historical)
+
+    const original = queue.entriesNeedingReconcile()
+    const [paused, removed, replaced] = original
+    assert.equal(queue.setTasksPaused([paused], true), 1)
+    queue.remove(removed.comicId, removed.chapterId)
+    queue.remove(replaced.comicId, replaced.chapterId)
+    assert.equal(queue.addNewEntries([{ ...replaced, status: 'queued' }]), 1)
+    assert.equal(queue.applyReconciledEntries(original, original.map(entry => ({ ...entry, status: 'partial',
+      downloadedPageCount: 2, failureReasonCode: 'download_interrupted' }))), 1)
+    assert.equal(queue.loadTask(paused).pausedByUser, true)
+    assert.equal(queue.loadTask(paused).downloadedPageCount, 2)
+    assert.equal(queue.loadTask(removed), undefined)
+    assert.equal(queue.loadTask(replaced).status, 'queued')
+  } finally { env.close() }
+})
+
+test('missing bytes update only the affected download and make it eligible for a new request', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-download-availability-'))
+  const fileIo = { ...fs, accessSync: fs.existsSync, access: async file => fs.existsSync(file),
+    readTextSync: file => fs.readFileSync(file, 'utf8'), listFileSync: file => fs.readdirSync(file),
+    listFile: (file, options) => fs.promises.readdir(file, { recursive: options?.recursion }),
+    mkdirSync: file => fs.mkdirSync(file, { recursive: true }),
+    OpenMode: { READ_ONLY: 0, WRITE_ONLY: 1, CREATE: 2, TRUNC: 4 },
+    openSync: (file, mode) => ({ fd: fs.openSync(file, mode ? 'w' : 'r') }),
+    closeSync: file => fs.closeSync(file.fd),
+    writeSync: (fd, value) => fs.writeSync(fd, typeof value === 'string' ? value : Buffer.from(value)),
+    readSync: (fd, value) => fs.readSync(fd, Buffer.from(value), 0, value.byteLength, null),
+  }
+  const env = fixture(new Map(), new Map([
+    ['@kit.CoreFileKit', { fileIo }],
+    ['../i18n/AppStrings', { AppStrings: { get: key => key } }],
+    ['../diagnostics/DiagnosticLogger', { DiagnosticLogger: { info() {}, warn() {}, exception() {} } }],
+  ]))
+  try {
+    const { OfflineDownloadQueueStore, prepareOfflineQueueDatabase } = env.load('OfflineDownloadQueueStore')
+    const { OfflineDownloadStore, createOfflineDownloadFileContentHash } = env.load('OfflineDownloadStore')
+    await prepareOfflineQueueDatabase({ filesDir: directory })
+    const queue = new OfflineDownloadQueueStore(directory)
+    const store = new OfflineDownloadStore(directory)
+    const make = chapterId => {
+      const saved = store.createManifest('work', chapterId, 1, 'queued', { seriesId: 'work' })
+      const file = store.pageFilePath('work', chapterId, 'first', 0, 'jpg')
+      fs.writeFileSync(file, Buffer.from([1, 2, 3]))
+      const withPage = store.recordPage(saved, { pageId: 'first', pageIndex: 0, localPath: file, size: 3,
+        updatedAt: 1, contentHash: createOfflineDownloadFileContentHash(file) })
+      return store.saveManifest({ ...withPage, status: 'downloaded' })
+    }
+    const opened = make('opened'), scanned = make('scanned'), intact = make('intact')
+    const initial = [opened, scanned, intact].map(manifest => ({ ...queue.fromManifest(manifest),
+      requestId: manifest.chapterId, updatedAt: manifest.updatedAt + 1 }))
+    queue.restoreSnapshotText(JSON.stringify({ schemaVersion: 1, entries: initial }))
+    fs.unlinkSync(opened.pages[0].localPath)
+    fs.unlinkSync(scanned.pages[0].localPath)
+    const before = queue.loadTask(initial[0])
+    const result = store.validateDownloadedChapter('work', 'opened')
+    assert.equal(result.reasonCode, 'pages_missing')
+    queue.recordChapterAvailability(before, result)
+    assert.equal(queue.loadTask(before).status, 'failed')
+    const newChapter = { id: 'opened', title: 'Opened', pages: [], pageCount: 1 }
+    assert.equal(queue.requestChapters({ id: 'work', title: 'Work', chapters: [newChapter] }, ['opened']), 1)
+    queue.recordChapterAvailability(before, result)
+    assert.equal(queue.loadTask(before).status, 'queued')
+    const intactBefore = queue.loadTask(initial[2])
+    const summary = await queue.recoverFromManifests()
+    assert.equal(summary.updatedCount, 1)
+    assert.equal(queue.loadTask(initial[1]).status, 'failed')
+    assert.deepEqual(queue.loadTask(initial[2]), intactBefore)
+  } finally {
+    env.close()
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})

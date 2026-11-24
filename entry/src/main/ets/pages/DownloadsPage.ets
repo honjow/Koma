@@ -18,10 +18,11 @@ import { sourceRuntimeEntryEnabled } from '../sourceRuntime/SourceRuntimeRegistr
 import { Chapter } from '../model/ComicModels'
 import { OfflineDownloadPageProgress, OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
 import {
+  OfflineDownloadManifestValidation,
   OfflineDownloadedChapterStatus,
   OfflineDownloadStatus,
-  OfflineDownloadStore,
 } from '../model/OfflineDownloadStore'
+import { validateStoredDownloadManifestAsync } from '../model/OfflineDownloadManifestWorker'
 import {
   hasOfflineDownloadSourceIdentity,
   OfflineDownloadQueueEntry,
@@ -30,6 +31,7 @@ import {
   OfflineDownloadQueueSnapshot,
   OfflineDownloadQueueSummary,
   OfflineDownloadQueueStore,
+  OfflineDownloadTaskId,
   summarizeOfflineDownloadQueue,
   isOfflineDownloadTaskPending,
   isOfflineDownloadTaskRetryable,
@@ -119,12 +121,16 @@ export struct DownloadsPage {
   @Local private actionMenuKey: string = ''
   private unsubscribeQueue: (() => void) | undefined = undefined
   private queueVisible: boolean = false
+  private openDownloadRequest: number = 0
   private queueRefreshTimer: number = -1
   private projectedEntries: OfflineDownloadQueueEntry[] = []
   private queueScrolling: boolean = false
   private queueRefreshPending: boolean = false
+  private fullQueueRefreshPending: boolean = false
+  private readonly pendingQueueTasks = new Map<string, OfflineDownloadTaskId>()
+  private readonly queueRowIndexes = new Map<string, number>()
   private readonly chapterRows = new Map<string, DownloadChapterRowState>()
-  @Event onOpenReader: (comicId: string, chapterId: string) => void =
+  @Event onOpenReader: (comicId: string, chapterId: string, validation?: OfflineDownloadManifestValidation) => void =
     (_comicId: string, _chapterId: string) => {}
 
   private context(): common.UIAbilityContext {
@@ -157,18 +163,17 @@ export struct DownloadsPage {
 
   private loadQueue(): void {
     try {
+      this.clearQueueRefresh()
       const store = this.queueStore()
       const snapshot: OfflineDownloadQueueSnapshot = store.loadSnapshot()
       const currentKeys = new Set<string>()
-      for (const entry of snapshot.entries) {
+      this.queueRowIndexes.clear()
+      for (let index = 0; index < snapshot.entries.length; index += 1) {
+        const entry = snapshot.entries[index]
         const key = this.rowKey(entry)
         currentKeys.add(key)
-        const row = this.chapterRowState(key)
-        if (row.entry === undefined || JSON.stringify(row.entry) !== JSON.stringify(entry)) row.entry = entry
-        row.downloaded = entry.status === OfflineDownloadStatus.DOWNLOADING
-          ? OfflineDownloadRuntime.pageProgress(this.context().filesDir, entry.comicId, entry.chapterId)
-            ?? entry.downloadedPageCount
-          : entry.downloadedPageCount
+        this.queueRowIndexes.set(key, index)
+        this.updateQueueRow(key, entry)
       }
       for (const key of this.chapterRows.keys()) {
         if (!currentKeys.has(key)) this.chapterRows.delete(key)
@@ -186,6 +191,49 @@ export struct DownloadsPage {
     } catch (_error) {
       DiagnosticLogger.warn('downloads_page', 'load_queue_failed', '[Downloads] step=load_queue_failed code=queue_read_failed')
     }
+  }
+
+  private updateQueueRow(key: string, entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry {
+    const row = this.chapterRowState(key)
+    if (row.entry === undefined || JSON.stringify(row.entry) !== JSON.stringify(entry)) row.entry = entry
+    row.downloaded = entry.status === OfflineDownloadStatus.DOWNLOADING
+      ? OfflineDownloadRuntime.pageProgress(this.context().filesDir, entry.comicId, entry.chapterId)
+        ?? entry.downloadedPageCount : entry.downloadedPageCount
+    return row.entry ?? entry
+  }
+
+  private refreshQueueTasks(): void {
+    const keys = Array.from(this.pendingQueueTasks.values())
+    if (this.fullQueueRefreshPending) { this.loadQueue(); return }
+    this.clearQueueRefresh()
+    if (keys.length === 0) return
+    try {
+      const rows = this.queueStore().loadTasks(keys)
+      if (rows.length !== keys.length) { this.loadQueue(); return }
+      let next: OfflineDownloadQueueEntry[] | undefined
+      for (const entry of rows) {
+        const key = this.rowKey(entry)
+        const index = this.queueRowIndexes.get(key)
+        if (index === undefined) { this.loadQueue(); return }
+        const row = this.updateQueueRow(key, entry)
+        if (row === this.projectedEntries[index]) continue
+        next = next ?? this.projectedEntries.slice()
+        next[index] = row
+      }
+      if (next !== undefined) {
+        this.projectedEntries = next
+        this.entries = next
+        this.syncChrome()
+      }
+    } catch (_error) { this.loadQueue() }
+  }
+
+  private clearQueueRefresh(): void {
+    if (this.queueRefreshTimer >= 0) clearTimeout(this.queueRefreshTimer)
+    this.queueRefreshTimer = -1
+    this.queueRefreshPending = false
+    this.fullQueueRefreshPending = false
+    this.pendingQueueTasks.clear()
   }
 
   private rowKey(entry: OfflineDownloadQueueEntry): string {
@@ -641,20 +689,6 @@ export struct DownloadsPage {
       completed ? this.canRead(entry) : this.canCancel(entry) && !isOfflineDownloadTaskPending(entry))
   }
 
-  private hasReadableDownloadedManifest(entry: OfflineDownloadQueueEntry): boolean {
-    try {
-      const context = this.context()
-      const validation = new OfflineDownloadStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
-        .validateDownloadedChapter(entry.comicId, entry.chapterId, { validateContentHash: false })
-      return validation.manifest !== undefined &&
-        validation.availablePageCount > 0 &&
-        validation.status === OfflineDownloadedChapterStatus.DOWNLOADED
-    } catch (_error) {
-      DiagnosticLogger.warn('downloads_page', 'read_manifest_validation_failed', '[Downloads] step=read_manifest_validation_failed failed=true reason=download_manifest')
-      return false
-    }
-  }
-
   private openDownloadEntry(entry: OfflineDownloadQueueEntry): void {
     const comic = this.libraryStore?.getComic(entry.comicId)
     if (comic === undefined) {
@@ -688,16 +722,28 @@ export struct DownloadsPage {
     RouterHelper.pushMangaDetail({ mangaId: entry.comicId })
   }
 
-  private openDownloadedChapter(entry: OfflineDownloadQueueEntry): void {
-    if (!this.canRead(entry)) {
-      return
+  private async openDownloadedChapter(entry: OfflineDownloadQueueEntry): Promise<void> {
+    if (!this.canRead(entry)) return
+    const request = ++this.openDownloadRequest
+    const context = this.context()
+    const queue = this.queueStore()
+    try {
+      const validation = await validateStoredDownloadManifestAsync(komaContentStorageBase(context),
+        komaRuntimeStorageKey(context), entry.comicId, entry.chapterId, { validateContentHash: false })
+      queue.recordChapterAvailability(entry, validation)
+      if (!this.queueVisible || request !== this.openDownloadRequest) return
+      if (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED && validation.availablePageCount > 0) {
+        const current = queue.loadTask(entry)
+        if (current !== undefined && current.requestId === entry.requestId && current.updatedAt === entry.updatedAt &&
+          this.canRead(current)) {
+          this.onOpenReader(entry.comicId, entry.chapterId, validation)
+          return
+        }
+      }
+    } catch (error) {
+      DiagnosticLogger.exception('downloads_page', 'read_manifest_validation_failed', error as Error)
     }
-    if (!this.hasReadableDownloadedManifest(entry)) {
-      this.loadQueue()
-      this.showToast(s('downloads_toast_entry_unavailable'))
-      return
-    }
-    this.onOpenReader(entry.comicId, entry.chapterId)
+    if (this.queueVisible && request === this.openDownloadRequest) this.showToast(s('downloads_toast_entry_unavailable'))
   }
 
   private retryDownloads(entries: OfflineDownloadQueueEntry[]): void {
@@ -823,7 +869,7 @@ export struct DownloadsPage {
   private async deleteDownloads(targets: OfflineDownloadQueueEntry[]): Promise<void> {
     try {
       const store = this.queueStore()
-      const allowed = new Set<string>(store.load().filter((entry: OfflineDownloadQueueEntry): boolean =>
+      const allowed = new Set<string>(store.loadTasks(targets).filter((entry: OfflineDownloadQueueEntry): boolean =>
         this.canRead(entry)).map((entry: OfflineDownloadQueueEntry): string => this.rowKey(entry)))
       for (const entry of targets) {
         if (allowed.has(this.rowKey(entry))) await store.deleteChapterDownload(entry.comicId, entry.chapterId)
@@ -898,7 +944,7 @@ export struct DownloadsPage {
       return
     }
     if (this.canRead(entry)) {
-      this.openDownloadedChapter(entry)
+      void this.openDownloadedChapter(entry)
       return
     }
     this.actionMenuKey = `row:${this.rowKey(entry)}`
@@ -975,11 +1021,17 @@ export struct DownloadsPage {
   aboutToAppear(): void {
     this.queueVisible = true
     this.unsubscribeQueue?.()
-    this.unsubscribeQueue = OfflineDownloadRuntime.subscribe(this.context().filesDir, (signal, progress) => {
+    this.unsubscribeQueue = OfflineDownloadRuntime.subscribe(this.context().filesDir, (signal, progress, comicId, chapterId) => {
       // The page count only changes the active row and its group subtitle.
       // Updating the queue snapshot here would invalidate every grouped row.
       if (signal === 'progress' && progress !== undefined) this.updateLiveProgress(progress)
-      else this.scheduleQueueRefresh()
+      else {
+        if (comicId !== undefined && chapterId !== undefined) {
+          const task: OfflineDownloadTaskId = { comicId, chapterId }
+          this.pendingQueueTasks.set(offlineDownloadTaskKey(task), task)
+        } else this.fullQueueRefreshPending = true
+        this.scheduleQueueRefresh()
+      }
     })
     this.loadQueue()
     if (!OfflineDownloadRuntime.isInitialized(this.context().filesDir)) {
@@ -990,14 +1042,12 @@ export struct DownloadsPage {
 
   aboutToDisappear(): void {
     this.queueVisible = false
+    this.openDownloadRequest += 1
     this.chapterRows.clear()
+    this.queueRowIndexes.clear()
     this.projectedEntries = []
     this.queueScrolling = false
-    this.queueRefreshPending = false
-    if (this.queueRefreshTimer >= 0) {
-      clearTimeout(this.queueRefreshTimer)
-      this.queueRefreshTimer = -1
-    }
+    this.clearQueueRefresh()
     this.unsubscribeQueue?.()
     this.unsubscribeQueue = undefined
   }
@@ -1009,8 +1059,7 @@ export struct DownloadsPage {
     this.queueRefreshTimer = setTimeout((): void => {
       this.queueRefreshTimer = -1
       if (!this.queueVisible || this.queueScrolling) return
-      this.queueRefreshPending = false
-      this.loadQueue()
+      this.refreshQueueTasks()
     }, 200)
   }
 
