@@ -33,7 +33,7 @@ import { SourceBodyHost } from '../sourceRuntime/SourceBodyHost'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { prepareSourceConfigurationDatabases } from '../sourceRuntime/SourceConfigurationDatabases'
 import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
-import { CutoutRect } from '../utils/ContentCutout'
+import { CUTOUT_BOUNDARY_TOLERANCE_PX, CutoutRect } from '../utils/ContentCutout'
 import { AppForegroundStateBridge } from '../state/AppForegroundState'
 import { connectLibraryPrivacyState } from '../state/LibraryPrivacyState'
 import { connectAppearanceState } from '../state/AppearanceState'
@@ -497,6 +497,7 @@ export default class EntryAbility extends UIAbility {
         window: toVp({ left: 0, top: 0, width: bounds.width, height: bounds.height }),
         left: toVp(cutout.leftRect), right: toVp(cutout.rightRect),
         topInset, bottomInset,
+        boundaryTolerance: uiContext.px2vp(CUTOUT_BOUNDARY_TOLERANCE_PX),
       })
     } catch (_error) {
       LayoutSafeAreaBridge.publishCutoutLayout(undefined)

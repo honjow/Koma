@@ -13583,20 +13583,18 @@
       "id": "LANDSCAPE_CONTENT_CUTOUT_20261124",
       "number": 364,
       "title": "横屏时挖孔挡住书架封面和列表内容",
-      "kind": "pending_verification",
-      "progressPhase": "verification",
+      "kind": "done",
+      "progressPhase": "completed",
       "priority": "用户当前反馈",
       "owner": "Root：窗口安全区和公共内容容器",
       "reportedAt": null,
       "reportedDate": "2026-11-24",
       "reportedAtSource": "用户反馈正中挖孔在横屏时挡住封面，授权用 197 和 237 实施并验证。",
       "registeredAt": "2026-11-24T19:20:57+08:00",
-      "updatedAt": "2026-11-24T19:49:16+08:00",
-      "status": "已修正横屏边距叠加，197 和 237 双方向复核",
-      "result": "窗口安全区桥接发布真实挖孔范围，现有内容容器只补受遮挡一侧的边距。197 实测 2720×1260 双方向书架网格和滚动，抽验双栏详情、浏览、腾讯动漫网格、设置、筛选半模态及竖屏回归。237 实测 2120×1320 双方向网格、滚动和列表模式，已恢复原网格与旋转锁。两机已回到验证前的详情页、竖屏和原超时，休眠读回及释租已确认。 后续反馈原边距被吃掉、左下角重复留白：现把侧边避让量加到原边距上，并从判定范围扣除已使用的上下系统安全区及根页底栏预留。197 两个横屏方向均在挖孔内缘与卡片之间保留 39 px，237 均保留 36 px。",
-      "remainingActions": [
-        "左下角完全落在既有底栏空间、部分伸入内容两种情况已运行几何用例，缺少对应真机。"
-      ],
+      "updatedAt": "2026-11-24T22:03:00+08:00",
+      "status": "用户验证通过，已确认提交",
+      "result": "窗口安全区桥接发布真实挖孔范围，现有内容容器只补受遮挡一侧的边距。197 实测 2720×1260 双方向书架网格和滚动，抽验双栏详情、浏览、腾讯动漫网格、设置、筛选半模态及竖屏回归。237 实测 2120×1320 双方向网格、滚动和列表模式，已恢复原网格与旋转锁。两机已回到验证前的详情页、竖屏和原超时，休眠读回及释租已确认。 后续反馈原边距被吃掉、左下角重复留白：现把侧边避让量加到原边距上，并从判定范围扣除已使用的上下系统安全区及根页底栏预留。197 两个横屏方向均在挖孔内缘与卡片之间保留 39 px，237 均保留 36 px。 103（1.6.2）左上挖孔下缘 y=105，系统状态栏高 104 px，书架左边距从 28 到 138 px；右下边距 28/28 px。200（1.6.1）展开内屏左下与右上均为 33/33 px，右上挖孔下缘 y=100、状态栏高 107 px。两机恢复原方向、前台或锁屏与电源设置并释租。 具名常量 CUTOUT_BOUNDARY_TOLERANCE_PX 定义 4 个物理像素。以 103 左上实测坐标回放，伸出 1 px 和 4 px 保留原边距，5 px 触发避让；完全处在内容区的挖孔仍避让。 用户确认修正验证通过。",
+      "remainingActions": [],
       "boundaries": [
         "阅读器画布继续使用独立安全区策略。根 HDS 导航和栏体保留原布局。抽验了共用容器的具名页面。"
       ],
@@ -13619,9 +13617,16 @@
         ".hvigor/outputs/landscape-cutout-20261124/device197__ALN-AL80/not-applicable/portrait-to-landscape/cutout/margin-left",
         ".hvigor/outputs/landscape-cutout-20261124/device197__ALN-AL80/not-applicable/portrait-to-landscape/cutout/margin-right",
         ".hvigor/outputs/landscape-cutout-20261124/device237__VDE-AL00/unknown/portrait-to-landscape/cutout/margin-left",
-        ".hvigor/outputs/landscape-cutout-20261124/device237__VDE-AL00/unknown/portrait-to-landscape/cutout/margin-right"
+        ".hvigor/outputs/landscape-cutout-20261124/device237__VDE-AL00/unknown/portrait-to-landscape/cutout/margin-right",
+        ".hvigor/outputs/corner-cutout-compare-20261124/device103__MLR-AL00/not-applicable/landscape-2560x1600/compare/initial/run-metadata.json",
+        ".hvigor/outputs/corner-cutout-compare-20261124/device103__MLR-AL00/not-applicable/landscape-2560x1600/compare/opposite/run-metadata.json",
+        ".hvigor/outputs/corner-cutout-compare-20261124/device200__HOP-AL10/unfolded/landscape-2584x1828/compare/initial/run-metadata.json",
+        ".hvigor/outputs/corner-cutout-compare-20261124/device200__HOP-AL10/unfolded/1828x2584_to_2584x1828/compare/upper-right/run-metadata.json",
+        ".hvigor/outputs/corner-cutout-compare-20261124/device103__MLR-AL00/not-applicable/landscape-2560x1600/compare/restored/run-metadata.json",
+        ".hvigor/outputs/corner-cutout-compare-20261124/device200__HOP-AL10/unfolded/landscape-2584x1828/compare/restored/run-metadata.json",
+        ".hvigor/outputs/cutout-boundary-tolerance-20261124/build.log"
       ],
-      "stage": "原边距叠加已双机复核，左下角由几何验证"
+      "stage": "4 个物理像素容差经用户验收"
     }
   ],
   "source": {
@@ -13676,6 +13681,27 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "landscape-cutout-4px-user-accepted-20261124",
+      "at": "2026-11-24T22:03:00+08:00",
+      "itemId": "LANDSCAPE_CONTENT_CUTOUT_20261124",
+      "title": "用户验收横屏挖孔边界容差",
+      "detail": "用户反馈验证无问题并要求提交。"
+    },
+    {
+      "id": "landscape-cutout-4px-tolerance-20261124",
+      "at": "2026-11-24T21:58:33+08:00",
+      "itemId": "LANDSCAPE_CONTENT_CUTOUT_20261124",
+      "title": "角落挖孔跨过安全区时允许 4 个物理像素偏差",
+      "detail": "按用户确认设置具名常量，由窗口按实际密度换算。103 实测坐标回放与 4/5 px 分界通过，超过容差和完全处在内容区仍避让。签名构建通过，未重新在设备安装。"
+    },
+    {
+      "id": "landscape-corner-103-200-20261124",
+      "at": "2026-11-24T21:44:09+08:00",
+      "itemId": "LANDSCAPE_CONTENT_CUTOUT_20261124",
+      "title": "实测角落挖孔与状态栏边界",
+      "detail": "103 左上挖孔下缘比状态栏多出 1 px，左边距多了 110 px；右下落在书架底栏预留内。200 展开内屏右上挖孔在状态栏内、左下落在底栏预留内，两侧都维持原边距。"
+    },
     {
       "id": "landscape-cutout-margin-20261124",
       "at": "2026-11-24T19:49:16+08:00",

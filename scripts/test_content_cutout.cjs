@@ -8,7 +8,7 @@ const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/utils
 const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
 const compiled = {}
 new Function('exports', output)(compiled)
-const { contentSidePadding } = compiled
+const { CUTOUT_BOUNDARY_TOLERANCE_PX, contentSidePadding } = compiled
 
 const rect = (left, top, width, height) => ({ left, top, width, height })
 const empty = rect(0, 0, 0, 0)
@@ -18,6 +18,7 @@ const landscape = {
   right: empty,
   topInset: 24,
   bottomInset: 24,
+  boundaryTolerance: CUTOUT_BOUNDARY_TOLERANCE_PX,
 }
 
 test('switching rotation moves the extra margin to the actual cutout side', () => {
@@ -32,7 +33,7 @@ test('switching rotation moves the extra margin to the actual cutout side', () =
 test('covered corner cutouts do not move content, but an exposed corner does', () => {
   const covered = { ...landscape, left: rect(4, 4, 26, 20), right: rect(870, 400, 26, 16) }
   assert.deepEqual(contentSidePadding(covered, 12), { left: 12, right: 12 })
-  const exposed = { ...covered, left: rect(4, 4, 26, 22) }
+  const exposed = { ...covered, left: rect(4, 4, 26, 25) }
   assert.deepEqual(contentSidePadding(exposed, 12), { left: 42, right: 12 })
   const header = rect(0, 0, 900, 45)
   assert.deepEqual(contentSidePadding(covered, 12, header, false), { left: 42, right: 12 })
@@ -42,8 +43,30 @@ test('a bottom corner inside the page’s existing bottom clearance adds no side
   const lowerLeft = { ...landscape, left: rect(4, 364, 26, 32) }
   assert.deepEqual(contentSidePadding(lowerLeft, 12, undefined, true, 48), { left: 12, right: 12 })
   assert.deepEqual(contentSidePadding(lowerLeft, 12), { left: 42, right: 12 })
-  const partlyExposed = { ...lowerLeft, left: rect(4, 344, 26, 52) }
+  const atTolerance = { ...lowerLeft, left: rect(4, 344, 26, 52) }
+  assert.deepEqual(contentSidePadding(atTolerance, 12, undefined, true, 48), { left: 12, right: 12 })
+  const partlyExposed = { ...lowerLeft, left: rect(4, 343, 26, 53) }
   assert.deepEqual(contentSidePadding(partlyExposed, 12, undefined, true, 48), { left: 42, right: 12 })
+})
+
+test('103 upper cutout keeps its original margin with up to four pixels of overlap', () => {
+  const density = 2.375
+  const vp = (px) => px / density
+  const measured = {
+    ...landscape,
+    window: rect(0, 0, vp(2560), vp(1600)),
+    topInset: vp(104),
+    bottomInset: vp(66),
+    boundaryTolerance: vp(CUTOUT_BOUNDARY_TOLERANCE_PX),
+  }
+  for (const cutoutTopPx of [25, 28]) {
+    const layout = { ...measured, left: rect(vp(30), vp(cutoutTopPx), vp(80), vp(80)) }
+    assert.deepEqual(contentSidePadding(layout, 12), { left: 12, right: 12 })
+  }
+  const beyondTolerance = { ...measured, left: rect(vp(30), vp(29), vp(80), vp(80)) }
+  assert.deepEqual(contentSidePadding(beyondTolerance, 12), { left: 12 + (vp(30) + vp(80)), right: 12 })
+  const entirelyInContent = { ...measured, left: rect(vp(30), vp(104), vp(80), vp(4)) }
+  assert.deepEqual(contentSidePadding(entirelyInContent, 12), { left: 12 + (vp(30) + vp(80)), right: 12 })
 })
 
 test('a centered sheet or opposite detail pane keeps its original padding', () => {
