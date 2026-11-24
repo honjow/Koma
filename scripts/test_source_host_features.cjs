@@ -104,6 +104,48 @@ test('ordinary cached chapter images skip ticket retrieval when the source-body 
   }
 })
 
+test('covers reuse the same cached original across shelf locators and detail routes; chapter routes stay isolated', async () => {
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'koma-cover-route-cache-'))
+  const { cache } = fileCache(directory)
+  const requests = []
+  const entry = { sourceId: 'source', enabled: true, manifestVersion: '1', wasmPath: '/source.wasm' }
+  const adapter = functions('model/ReaderPageSourceAdapter.ets', ['sourceImageMangaRoute', 'sourceRemoteImageCacheKey',
+    'sourceBodyImageCacheKey', 'cachedSourceImage', 'fetchAndCacheSourceRuntimeRemoteImage',
+    'fetchAndCacheSourceRuntimeCoverImage'], {
+    readerImageCacheStore: cache, SourceWorkerPriority: { FOREGROUND: 0, BACKGROUND: 1 },
+    appSourceRuntimeRegistry: { lookup: () => ({ entry }) }, sourceWebPackageIdentity: () => 'package',
+    sourceImageProcessingFingerprint: () => 'settings', DiagnosticLogger: { info() {} },
+    resolveSourceRuntimeImageRequest: async (_source, uri, id, route) => {
+      requests.push({ id, route })
+      return { url: uri }
+    },
+    downloadReaderRemoteBytes: async () => Uint8Array.of(1, 2, 3).buffer,
+    fetchReaderRemoteFile: async (store, uri, headers, fetch, key) => store.getOrFetch(uri, headers, fetch, key),
+    maintainReaderImageCacheAfterWrite: async () => {},
+  })
+  const uri = 'https://images.invalid/cover.jpg', route = 'https://site.invalid/detail/584'
+  try {
+    const detail = await adapter.fetchAndCacheSourceRuntimeCoverImage('source', uri, 'work:584', route)
+    assert.equal(await adapter.fetchAndCacheSourceRuntimeCoverImage('source', uri, 'work:584',
+      'source://source/work:584'), detail)
+    assert.equal(await adapter.fetchAndCacheSourceRuntimeCoverImage('source', uri, 'work:584',
+      'https://old-site.invalid/detail/584', {}), detail)
+    assert.deepEqual(requests, [{ id: 'work:584', route }])
+    assert.deepEqual([...fs.readFileSync(detail)], [1, 2, 3])
+    // Cold misses still hand the route to the source; another work/URI never
+    // borrows this cover, and ordinary chapter identities keep their routes.
+    await adapter.fetchAndCacheSourceRuntimeCoverImage('source', uri, 'work:585', route)
+    await adapter.fetchAndCacheSourceRuntimeCoverImage('source', uri + '?new', 'work:584', route)
+    await adapter.fetchAndCacheSourceRuntimeRemoteImage('source', uri, 'page:1', route)
+    await adapter.fetchAndCacheSourceRuntimeRemoteImage('source', uri, 'page:1', route + '/other')
+    assert.equal(requests.length, 5)
+    assert.equal(requests.at(-1).route, route + '/other')
+  } finally {
+    await cache.clear()
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test('offline downloads reuse reader originals and canonical source output, and request missing pages', async () => {
   const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'koma-offline-reader-cache-'))
   const { cache } = fileCache(directory)

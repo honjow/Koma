@@ -241,6 +241,20 @@ export struct CachedCoverImage {
   private failedAnimationSignature: string = ''
   private automaticRetryTimer: number = -1
   private completedAutomaticRetries: number = 0
+  private coverVisible: boolean = false
+
+  private coverVisibilityChanged(visible: boolean): void {
+    const reentered = visible && !this.coverVisible
+    this.coverVisible = visible
+    // A failed attempt keeps its placeholder, not a permanent ban on this URI.
+    // Returning to the page or viewport is a new attempt; unchanged visible
+    // content still uses the existing single bounded automatic retry.
+    if (reentered && !this.disposed && this.failedSignature.length > 0 &&
+      this.failedSignature === this.sourceSignature) {
+      this.failedSignature = ''
+      this.onSourceChanged()
+    }
+  }
 
   private cancelAutomaticRetry(): void {
     if (this.automaticRetryTimer !== -1) {
@@ -716,5 +730,6 @@ export struct CachedCoverImage {
     }
     .width('100%')
     .height('100%')
+    .onVisibleAreaChange([0.01], (visible: boolean) => { this.coverVisibilityChanged(visible) })
   }
 }

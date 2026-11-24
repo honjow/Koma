@@ -1213,7 +1213,7 @@ async function fetchAndCacheSourceProcessedImage(entry: SourceRuntimeRegistryEnt
   const tokenRevision = entry.authentication?.webToken === undefined ? '' : await loadSourceWebTokenRevision(entry)
   const current = (): boolean => sourceTextRequestCurrent(entry, settings) &&
     (tokenRevision.length === 0 || sourceWebTokenRevision(entry) === tokenRevision)
-  const key = processedSourceImageCacheKey(entry, uri, sourceImageId, route, settings, tokenRevision)
+  const key = processedSourceImageCacheKey(entry, uri, sourceImageId, coverImage ? undefined : route, settings, tokenRevision)
   let metadata: ArrayBuffer | undefined
   const path = await store.getOrFetch('source-processed.img', undefined, async (report: RemoteImageDownloadProgress) => {
     if (!current()) throw new Error('source_required_decode_request_stale')
@@ -1273,7 +1273,11 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
     return fetchAndCacheSourceProcessedImage(entry, uri, sourceImageId, route, readerImageCacheStore, forceReload,
       priority, coverImage, onProcessing, onSize, onProgress)
   }
-  const cacheKeySeed = sourceRemoteImageCacheKey(sourceId, uri, sourceImageId, route)
+  // #362: a cover already has a source/work ID and original URI. The shelf's
+  // stored locator and the detail's canonical URL must read the same cached
+  // artwork. Keep the actual route for source validation on a miss; chapter
+  // pages still include it because their page IDs may be work-local.
+  const cacheKeySeed = sourceRemoteImageCacheKey(sourceId, uri, sourceImageId, coverImage ? undefined : route)
   // Source-produced pixels may change with its algorithm/settings while the
   // original URL stays stable. Never reuse that result across package changes.
   const fingerprint = sourceImageProcessingFingerprint(sourceId)
@@ -1344,7 +1348,7 @@ export async function fetchAndCacheSourceRuntimeCoverImage(sourceRuntimeId: stri
   const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
   if (publicHeaders !== undefined && sourceId.length > 0 && readerImageCacheStore !== null &&
     entry?.enabled === true && !entry.requiredImageDecodes?.includes(SOURCE_IMAGE_PROCESSOR_KIND)) {
-    const key = sourceRemoteImageCacheKey(sourceId, uri, sourceImageId, sourceImageMangaRoute(mangaUrl))
+    const key = sourceRemoteImageCacheKey(sourceId, uri, sourceImageId)
     let fetched = false
     const path = await readerImageCacheStore.getOrFetch(uri, publicHeaders, (): Promise<ArrayBuffer> => {
       fetched = true

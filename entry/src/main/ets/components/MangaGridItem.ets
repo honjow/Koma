@@ -114,12 +114,14 @@ export struct MangaGridItem {
     this.CoverPlaceholder()
     // ArkUI can pre-layout several screenfuls. A card can keep its measured
     // size without admitting a network request before it enters the viewport.
-    if ((!this.deferOffscreenCover || this.coverWasVisible) && this.hasCover()) {
+    if ((!this.deferOffscreenCover || this.coverWasVisible) && this.displayCoverUri().length > 0) {
       if (this.coverOptions?.nativeImage === true) {
-        NativeCoverImage({
-          uri: this.displayCoverUri(),
-          onError: () => { this.failedCoverUrl = this.coverFailureKey() },
-        }).id(`${this.detailCardId()}-cover`)
+        if (this.hasCover()) {
+          NativeCoverImage({
+            uri: this.displayCoverUri(),
+            onError: () => { this.failedCoverUrl = this.coverFailureKey() },
+          }).id(`${this.detailCardId()}-cover`)
+        }
       } else if (this.listLayout || this.gridCoverDecodeEdge > 0) {
         CachedCoverImage({
           uri: this.displayCoverUri(),
@@ -133,7 +135,6 @@ export struct MangaGridItem {
           sourceCoverHeaders: this.manga.coverHeaders,
           sourceKind: this.coverOptions?.sourceKind,
           remoteServerId: this.coverOptions?.remoteServerId ?? '',
-          onError: () => { this.failedCoverUrl = this.coverFailureKey() },
         }).id(`${this.detailCardId()}-cover`)
       }
     }

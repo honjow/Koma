@@ -733,6 +733,8 @@ test('automatic first merge persists a shared chapter directory and unread count
   const comic = shelfComic(source, work)
   comic.coverUri = comic.customCoverUri = 'file:///local/custom-cover.png'
   comic.sourceCoverUri = 'https://images.example.test/covers/series.jpg'
+  comic.enhancedCoverUri = 'file:///local/enhanced-cover.png'
+  comic.enhancedCoverModel = 'system'
   const ids = Array.from({ length: 440 }, (_, index) => 'stable-chapter-id:' + index)
   comic.sourceMetadata = { ...comic.sourceMetadata, sharedChapterIds: ids, chapterCatalogUpdatedAt: 123 }
   comic.chapterCount = ids.length
@@ -766,6 +768,8 @@ test('automatic first merge persists a shared chapter directory and unread count
   const received = b.coldShelf().shelf.getComic(comic.id)
   assert.equal(received.coverUri, comic.sourceCoverUri)
   assert.equal(received.customCoverUri, undefined)
+  assert.equal(received.enhancedCoverUri, undefined)
+  assert.equal(received.enhancedCoverModel, undefined)
   assert.equal(received.chapterCount, ids.length)
   assert.deepEqual(received.sourceMetadata.sharedChapterIds, ids)
   assert.equal(b.coldReader().unreadChapterCount(received), ids.length - 1)

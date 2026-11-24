@@ -56,3 +56,52 @@ test('rate limits, server failures and neutral transport codes remain retryable 
     assert.equal(policyExports.coverImageAutomaticRetryDelayMs(failure, 0), 1200, failure.message)
   }
 })
+
+function mountedCover() {
+  const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/components/CachedCoverImage.ets'), 'utf8')
+  const tree = ts.createSourceFile('cover.ts', source.replace(/\bstruct\b/g, 'class'), ts.ScriptTarget.Latest, true)
+  const component = tree.statements.find(node => ts.isClassDeclaration(node) && node.name.text === 'CachedCoverImage')
+  const names = ['coverVisibilityChanged', 'createSourceSignature', 'handleSourceChanged', 'onSourceChanged', 'cancelAutomaticRetry']
+  const body = names.map(name => component.members.find(node => node.name?.text === name).getText(tree)).join('\n')
+  const key = tree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'cachedCoverFailureKey').getText(tree)
+  const compiled = ts.transpileModule(key + '\nclass Cover {' + body + '}\nexports.Cover = Cover', {
+    compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, experimentalDecorators: true },
+  }).outputText
+  const api = {}
+  new Function('exports', 'Monitor', compiled)(api, () => () => {})
+  const cover = new api.Cover()
+  const requests = []
+  Object.assign(cover, { uri: 'https://fixture.invalid/cover.jpg', sourceRuntimeId: 'source', sourceImageId: 'work',
+    sourceKind: 'private_library', remoteServerId: '', sourceMangaUrl: 'https://fixture.invalid/work',
+    downloadedComicId: '', decodeMaxEdge: 320, coverOwnerId: 'work', requestedOwnerId: 'work',
+    decodeGeneration: 1, completedAutomaticRetries: 1, automaticRetryTimer: -1, coverVisible: true,
+    disposed: false, loading: false, displayedSignature: '', decodeImage: async (...args) => { requests.push(args) } })
+  cover.sourceSignature = cover.createSourceSignature(cover.uri, cover.sourceRuntimeId, cover.sourceImageId,
+    cover.sourceKind, cover.remoteServerId, cover.sourceMangaUrl)
+  cover.failedSignature = cover.sourceSignature
+  return { cover, requests }
+}
+
+test('a retained failed cover reloads the same URI once when the page becomes visible again', async () => {
+  const { cover, requests } = mountedCover()
+  cover.coverVisibilityChanged(false)
+  cover.coverVisibilityChanged(true)
+  await Promise.resolve()
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0][0], cover.uri)
+  assert.equal(cover.failedSignature, '')
+  assert.equal(cover.completedAutomaticRetries, 0)
+  cover.coverVisibilityChanged(true)
+  await Promise.resolve()
+  assert.equal(requests.length, 1, 'remaining visible does not create a retry loop')
+})
+
+test('successful and destroyed covers do not reload when visibility changes', async () => {
+  for (const state of [{ failedSignature: '' }, { disposed: true }]) {
+    const { cover, requests } = mountedCover()
+    Object.assign(cover, state)
+    cover.coverVisibilityChanged(false); cover.coverVisibilityChanged(true)
+    await Promise.resolve()
+    assert.equal(requests.length, 0)
+  }
+})

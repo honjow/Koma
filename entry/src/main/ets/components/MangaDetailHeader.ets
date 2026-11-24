@@ -75,7 +75,7 @@ export struct MangaDetailHeader {
       SymbolGlyph($r('sys.symbol.book'))
         .fontSize(this.hasCover() ? 42 : 48)
         .fontColor([this.hasCover() ? ThemeConstants.TEXT_TERTIARY : ThemeConstants.TEXT_ON_BRAND])
-      if (this.hasCover()) {
+      if ((this.manga.coverUrl ?? '').length > 0) {
         CachedCoverImage({
           uri: this.manga.coverUrl ?? '',
           decodeMaxEdge: coverDecodeEdgeForDisplay(DETAIL_COVER_HEIGHT),
@@ -88,6 +88,7 @@ export struct MangaDetailHeader {
           onError: () => {
             this.failedCoverUrl = this.coverFailureKey()
           },
+          onReady: () => { this.failedCoverUrl = '' },
         })
       }
     }

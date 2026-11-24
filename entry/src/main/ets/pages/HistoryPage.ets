@@ -629,7 +629,7 @@ export struct HistoryPage {
   @Builder
   private Cover(row: RepeatItem<HistoryListRow>) {
     Stack({ alignContent: Alignment.Center }) {
-      if (this.shouldShowCoverUri(
+      if (!this.shouldShowCoverUri(
         row.item.item!.coverUri,
         row.item.item!.sourceRuntimeId,
         this.sourceImageIdForItem(row.item.item!),
@@ -637,6 +637,12 @@ export struct HistoryPage {
         row.item.item!.remoteServerId,
         row.item.item!.sourceMangaUrl,
       )) {
+        Text('K')
+          .fontSize(ThemeConstants.FONT_SIZE_H1)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
+      }
+      if ((row.item.item!.coverUri ?? '').length > 0) {
         CachedCoverImage({
           uri: row.item.item!.coverUri ?? '',
           objectFit: ImageFit.Cover,
@@ -646,6 +652,12 @@ export struct HistoryPage {
           remoteServerId: row.item.item!.remoteServerId ?? '',
           sourceMangaUrl: row.item.item!.sourceMangaUrl ?? '',
           decodeMaxEdge: coverDecodeEdgeForDisplay(HISTORY_COVER_HEIGHT, 192),
+          onReady: () => {
+            const item = row.item.item!
+            const key = cachedCoverFailureKey(item.coverUri, item.sourceRuntimeId, this.sourceImageIdForItem(item),
+              item.sourceKind, item.remoteServerId, item.sourceMangaUrl)
+            if (this.failedCoverUris.includes(key)) this.failedCoverUris = this.failedCoverUris.filter((value: string): boolean => value !== key)
+          },
           onError: () => {
             const item = row.item.item!
             this.markCoverUriFailed(
@@ -658,11 +670,6 @@ export struct HistoryPage {
             )
           },
         })
-      } else {
-        Text('K')
-          .fontSize(ThemeConstants.FONT_SIZE_H1)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(ThemeConstants.TEXT_ON_BRAND)
       }
     }
     .width(64)

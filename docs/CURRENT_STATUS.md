@@ -20,11 +20,11 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-24T09:33:36+08:00",
+  "updatedAt": "2026-11-24T11:01:58+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "COVER_IDENTITY_MIGRATION_TRANSITION_CONSISTENCY",
-  "activity": "封面一致性已修复，201普通迁移复制及书架、浏览两种转场具名路径已核。",
-  "nextAction": "本次封面、曲线与开关修复已本地提交，保留201测试包，未推送。",
+  "activity": "237两作品清缓存后的封面恢复已验证，按用户要求提交当前修复。",
+  "nextAction": "本次提交已验证的加载恢复和缓存统一；首次冷请求身份错误具体字段单独保留未结。",
   "proof": [
     {
       "label": "正式主仓",
@@ -13433,18 +13433,20 @@
       "id": "COVER_IDENTITY_MIGRATION_TRANSITION_CONSISTENCY",
       "number": 362,
       "title": "书架、详情、转场与迁移封面一致性",
-      "kind": "done",
-      "progressPhase": "completed",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
       "priority": "用户当前反馈",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-24",
       "reportedAtSource": "用户本会话要求先检查迁移、超分与转场封面链路，随后明确不只限超分，书架和作品详情也有不同步；精确消息时刻未核实。",
       "registeredAt": "2026-11-24T06:23:27+08:00",
-      "updatedAt": "2026-11-24T09:22:31+08:00",
-      "status": "统一有效封面与增强失效规则，201具名路径已验证，已本地提交",
-      "result": "此前本地执行确认了书架/详情取增强A、飞行独立取底图B，以及POP冻结点击时资源等分歧。用户随后明确要求一起修复并授权201验证。现书架、已收藏详情和转场统一comicDisplayCover，详情订阅书库revision，浏览已收藏条目沿同一有效封面；未收藏预览保留源入口合同。源底图URI改变或迁移到不同底图时，旧增强关联失效；手选底图及其对应增强保留，撤销指向目标源底图。返回前取得当前封面像素和资源身份，旧ready不能提前释放新快照。19首次换图POP的整卡重截出现标签文字残影，未通过；20封面展开只替换前景图并保留未变几何，原片未再出现。201普通菜单将增强过的包子大象605章复制到此前未收藏的瓜子23127（586章），目标蓝色封面未继承黄色旧增强；该迁移在19执行，20冷启动持久化及进退再核，迁移实现相同。20书架两来源152帧、原包子撤销91帧、一镜到底应用新增强再进退151帧、漫画屋两模式94/98帧全部contact sheet按序亲审，所测封面一致、落点和原列表归还正常。系统FastOutSlowIn、350ms、交接阈值及透明落点未改。19项逻辑回归、原个人封面回归及签名构建通过。仅移除本轮瓜子副本，原四项计数及天降之物第7页13%读回；原包子增强、封面展开、桌面和SLEEP/Override10000恢复，06:54:14独立释租，保留20新包。已按用户授权本地提交，未推送。",
-      "remainingActions": [],
+      "updatedAt": "2026-11-24T11:01:58+08:00",
+      "status": "237原包已复现；两作品恢复与重启缓存通过，首次冷请求身份校验细节待查",
+      "result": "此前本地执行确认了书架/详情取增强A、飞行独立取底图B，以及POP冻结点击时资源等分歧。用户随后明确要求一起修复并授权201验证。现书架、已收藏详情和转场统一comicDisplayCover，详情订阅书库revision，浏览已收藏条目沿同一有效封面；未收藏预览保留源入口合同。源底图URI改变或迁移到不同底图时，旧增强关联失效；手选底图及其对应增强保留，撤销指向目标源底图。返回前取得当前封面像素和资源身份，旧ready不能提前释放新快照。19首次换图POP的整卡重截出现标签文字残影，未通过；20封面展开只替换前景图并保留未变几何，原片未再出现。201普通菜单将增强过的包子大象605章复制到此前未收藏的瓜子23127（586章），目标蓝色封面未继承黄色旧增强；该迁移在19执行，20冷启动持久化及进退再核，迁移实现相同。20书架两来源152帧、原包子撤销91帧、一镜到底应用新增强再进退151帧、漫画屋两模式94/98帧全部contact sheet按序亲审，所测封面一致、落点和原列表归还正常。系统FastOutSlowIn、350ms、交接阈值及透明落点未改。19项逻辑回归、原个人封面回归及签名构建通过。仅移除本轮瓜子副本，原四项计数及天降之物第7页13%读回；原包子增强、封面展开、桌面和SLEEP/Override10000恢复，06:54:14独立释租，保留20新包。已按用户授权本地提交，未推送。 后续反馈重新打开：用户确认同源仅部分作品，清图片缓存并重启后首次书架缺图，详情已加载成功但返回仍空。核源码及原组件方法确认旧失败条件会移除加载组件，阻断后续缓存读取；最初引入为0a0c9045（2026-07-06），0a60aa2f只给浏览补可见重试，上轮漏查此分支。按用户纠正撤掉新增跨组件通知，只保留加载组件并在重新可见时直接重试；有限自动重试和原占位外观保留。同步回放确认只共享源HTTP地址、不发送本机增强路径；图片缓存清理不包含filesDir/comic-custom-covers。候选22构建、20项逻辑回归和共享目录同步回放通过；197已安装22且按用户明确要求点击系统隐私同意，原日漫页面、桌面/SLEEP10000恢复并独立释租，未将正常显示冒称失败恢复验收。201离线及重连失败，USB经只读型号核对为197而非201；用户最新明确改用237并授权清缓存，当前保留237原同步设置进行具名验证。 237原包1.6.1/code27实测：从设置清掉1.0GB/17213项图片缓存到0并重启，天降之物（哔哩bilimanga:584）详情有图但返回书架仍为空，确实复现。22保留组件后重试已发生，但书架/详情不同作品路由被放入缓存键，仍无法共用详情成功的图片。23按源ID、作品图片ID和原URI统一封面缓存；源请求仍保留原路由校验，章节页仍按路由隔离，声明必需还原的封面仍保留包/设置/令牌身份。23再次清图片缓存到0并重启，天降之物详情加载后返回书架立即恢复，日志hit=true；迷宫干 [UC]（巴卡manga:9722，非迷宫饭）先被403真人验证拦截，正常验证通过后get_manga完成，返回书架成功取图，重进详情hit=true。再结束进程重启，两个封面均保持显示。签名23构建成功，原20项封面逻辑回归及新真实文件缓存复用用例通过；扩展宿主测试仍有4项原基线失败，已对HEAD版本测试重跑确认同样失败，未改期望掩盖。测试期间漏查覆盖安装后的隐私层导致误入原续读作品，已用进度滑块恢复第10/20页、书架50%并读回；阅读时间产生了本轮记录，不能称阅读数据完全未动。原全部分类/最近阅读顺序、书架顶部及桌面恢复；同步配置未改，保留23新包，SLEEP/10000ms读回并释租。随后只读补查租约也已释放，未操作界面。用户要求立即提交，首次冷请求身份错误的具体字段尚未查清，未宣称已修复。",
+      "remainingActions": [
+        "核清哔哩首次冷缓存请求identity_mismatch的具体字段；不把本轮详情成功后的恢复验收扩大为首次请求必成功。"
+      ],
       "boundaries": [
         "用户明确要求修复书架、详情、转场与迁移并在201验证；保留当前曲线、350ms、透明落点及原布局。",
         "201普通迁移使用保留原作品的复制路径，未执行删除原作品的迁移分支；历史增强无底图来源信息，不据此批量删文件或推断修复旧错误关联。",
@@ -13476,9 +13478,31 @@
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-mode-restored",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-original-home-restored",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-original-power-restored/run-metadata.json",
-        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-cover-consistency-20261124.json"
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-cover-consistency-20261124.json",
+        ".hvigor/outputs/detail-transition-20261123/cover-direct-retry-tests.log",
+        ".hvigor/outputs/detail-transition-20261123/cover-recovery-sync-test.log",
+        ".hvigor/outputs/detail-transition-20261123/cover-direct-retry-candidate-22.json",
+        ".hvigor/outputs/detail-transition-20261123/cover-shared-cache-candidate-23.json",
+        ".hvigor/outputs/detail-transition-20261123/cover-shared-cache-build.log",
+        ".hvigor/outputs/detail-transition-20261123/cover-shared-cache-targeted-test.log",
+        ".hvigor/outputs/detail-transition-20261123/cover-shared-cache-tests.log",
+        ".hvigor/outputs/detail-transition-20261123/cover-shared-cache-baseline-tests.log",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/baseline-cache-clear-complete",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/baseline-tian-detail",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/baseline-tian-return",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/candidate23-cache-cleared",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/candidate23-tian-return-after-clear",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/candidate23-migonggan-return-after-verification",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/candidate23-migonggan-cached-detail",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/candidate23-cached-cold-two-works",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/restore-original-reader-anchor",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/restored-original-library-top",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/restored-original-home",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/restored-original-power",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/lease-final.json",
+        ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/lease-final-readonly.json"
       ],
-      "stage": "201具名路径通过，已本地提交"
+      "stage": "237具名封面恢复已验证"
     }
   ],
   "source": {
@@ -31970,6 +31994,14 @@
       "kind": "delivery",
       "title": "用户授权本地提交封面、曲线及开关修复",
       "detail": "提交#362封面一致性、#359已采用系统曲线及#361原生开关动画修复，沿用对应201验证及当前签名构建记录。未推送、未发布。现有changelog/v1.6.1.md为本轮开始前已有的跨功能版本日志草稿，保持该差异，未纳入本次修复提交；.codex-attachments与.v2c保留原样。"
+    },
+    {
+      "id": "cover-cache-recovery237-20261124",
+      "at": "2026-11-24T11:01:58+08:00",
+      "itemId": "COVER_IDENTITY_MIGRATION_TRANSITION_CONSISTENCY",
+      "kind": "validation",
+      "title": "237原包复现，直接重试与封面缓存统一后两作恢复",
+      "detail": "天降之物原包详情有图而返回仍空。候选23清缓存重启后，详情成功再返回命中同一缓存；迷宫干 [UC]正常通过巴卡真人验证后恢复，详情重进及两作冷启动均通过。保留当前曲线和布局、同步配置；误入续读已恢复原第10页50%。设备恢复桌面/SLEEP10000并释租，保留23。用户要求立即提交；首次冷请求的identity_mismatch具体字段仍未结，不作修复完成声明。"
     }
   ],
   "reportAgeAudit": {

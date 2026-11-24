@@ -268,24 +268,13 @@ struct ContinueReadingShelfCard {
     color: ThemeConstants.SOURCE_LOCAL_COLOR,
     comicId: '',
   }
-  @Local private failedCoverUri: string = ''
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
 
   private shouldShowCover(): boolean {
     const coverUri = this.info.coverUri ?? ''
-    return coverUri.length > 0 && this.failedCoverUri !== this.coverFailureKey()
+    return coverUri.length > 0
   }
 
-  private coverFailureKey(): string {
-    return cachedCoverFailureKey(
-      this.info.coverUri,
-      this.info.sourceRuntimeId,
-      this.info.sourceImageId ?? this.info.comicId,
-      this.info.sourceKind,
-      this.info.remoteServerId,
-      this.info.sourceMangaUrl,
-    )
-  }
 
   build() {
     Row({ space: this.compactList ? ThemeConstants.SPACE_SM : ThemeConstants.SPACE_MD }) {
@@ -304,9 +293,6 @@ struct ContinueReadingShelfCard {
             remoteServerId: this.info.remoteServerId ?? '',
             sourceMangaUrl: this.info.sourceMangaUrl ?? '',
             decodeMaxEdge: coverDecodeEdgeForDisplay(CONTINUE_READING_COVER_HEIGHT, 256),
-            onError: () => {
-              this.failedCoverUri = this.coverFailureKey()
-            },
           })
         }
       }
@@ -445,7 +431,6 @@ export struct LibraryPage {
   private categoryEditComicIds: ComicId[] = []
   private titleMenu: KomaMenuController = new KomaMenuController()
   @Local private comicActionMenuKey: string = ''
-  @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   private filterPreferencesRestoreEpoch: number = 0
   private filterPreferencesMutationRevision: number = 0
@@ -2553,31 +2538,9 @@ export struct LibraryPage {
 
   private shouldShowCoverUri(
     coverUri: string | undefined,
-    sourceRuntimeId?: string,
-    sourceImageId?: string,
-    sourceKind?: ComicSourceKind,
-    remoteServerId?: string,
-    sourceMangaUrl?: string,
   ): boolean {
     const normalized = coverUri ?? ''
-    return normalized.length > 0 && this.failedCoverUris.indexOf(
-      cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl),
-    ) < 0
-  }
-
-  private markCoverUriFailed(
-    coverUri: string | undefined,
-    sourceRuntimeId?: string,
-    sourceImageId?: string,
-    sourceKind?: ComicSourceKind,
-    remoteServerId?: string,
-    sourceMangaUrl?: string,
-  ): void {
-    const normalized = coverUri ?? ''
-    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl)
-    if (normalized.length > 0 && this.failedCoverUris.indexOf(failureKey) < 0) {
-      this.failedCoverUris = this.failedCoverUris.concat([failureKey])
-    }
+    return normalized.length > 0
   }
 
   private sourceImageIdForComic(comic: ComicCoverInfo): string {
@@ -2590,36 +2553,24 @@ export struct LibraryPage {
       cachedCoverFailureKey(row.item.coverUri, row.item.sourceRuntimeId, this.sourceImageIdForComic(row.item),
         row.item.sourceKind, row.item.remoteServerId, row.item.sourceMangaUrl))) {
       Stack({ alignContent: Alignment.Center }) {
-        if (this.shouldShowCoverUri(
-          row.item.coverUri,
-          row.item.sourceRuntimeId,
-          this.sourceImageIdForComic(row.item),
-          row.item.sourceKind,
-          row.item.remoteServerId,
-          row.item.sourceMangaUrl,
-        )) {
-          CachedCoverImage({
-            uri: row.item.coverUri ?? '',
-            decodeMaxEdge: coverDecodeEdgeForDisplay(this.libraryListCoverHeight()),
-            coverOwnerId: row.item.id,
-            extractMainColor: true,
-            objectFit: ImageFit.Cover,
-            sourceRuntimeId: row.item.sourceRuntimeId ?? '',
-            sourceImageId: this.sourceImageIdForComic(row.item),
-            sourceKind: row.item.sourceKind,
-            remoteServerId: row.item.remoteServerId ?? '',
-            sourceMangaUrl: row.item.sourceMangaUrl ?? '',
-            onError: () => {
-              this.markCoverUriFailed(
-                row.item.coverUri,
-                row.item.sourceRuntimeId,
-                this.sourceImageIdForComic(row.item),
-                row.item.sourceKind,
-                row.item.remoteServerId,
-                row.item.sourceMangaUrl,
-              )
-            },
-          })
+        if (this.shouldShowCoverUri(row.item.coverUri)) {
+          Stack({ alignContent: Alignment.Center }) {
+            SymbolGlyph($r('sys.symbol.book'))
+              .fontSize(ThemeConstants.FONT_SIZE_H2)
+              .fontColor([ThemeConstants.TEXT_TERTIARY])
+            CachedCoverImage({
+              uri: row.item.coverUri ?? '',
+              decodeMaxEdge: coverDecodeEdgeForDisplay(this.libraryListCoverHeight()),
+              coverOwnerId: row.item.id,
+              extractMainColor: true,
+              objectFit: ImageFit.Cover,
+              sourceRuntimeId: row.item.sourceRuntimeId ?? '',
+              sourceImageId: this.sourceImageIdForComic(row.item),
+              sourceKind: row.item.sourceKind,
+              remoteServerId: row.item.remoteServerId ?? '',
+              sourceMangaUrl: row.item.sourceMangaUrl ?? '',
+            })
+          }.width('100%').height('100%')
           .id(`${this.detailCardId('list', row.item.id)}-cover`)
         } else {
           SymbolGlyph($r('sys.symbol.book'))

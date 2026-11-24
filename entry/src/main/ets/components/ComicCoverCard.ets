@@ -26,7 +26,6 @@ export struct ComicCoverCard {
   @Param reuseAcrossWorks: boolean = false
   @Param cacheUnreadBackdrop: boolean = false
   @Param coverDecodeMaxEdge: number = 320
-  @Local private failedCoverUri: string = ''
   @Local private categoryMarqueeStarted: boolean = false
   private categoryMarqueeStartTimer: number = -1
 
@@ -84,7 +83,7 @@ export struct ComicCoverCard {
 
   private shouldDisplayCoverImage(): boolean {
     const coverUri = this.displayCoverUri()
-    return coverUri.length > 0 && this.failedCoverUri !== this.coverFailureKey()
+    return coverUri.length > 0
   }
 
   private coverFailureKey(): string {
@@ -113,7 +112,6 @@ export struct ComicCoverCard {
       sourceKind: this.comic.sourceKind,
       remoteServerId: this.comic.remoteServerId ?? '',
       sourceMangaUrl: this.comic.sourceMangaUrl ?? '',
-      onError: () => { this.failedCoverUri = this.coverFailureKey() },
     }).id(this.transitionCoverId)
   }
 
