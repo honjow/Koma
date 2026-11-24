@@ -1029,10 +1029,10 @@ export struct MangaDetailPage {
       hiTraceMeter.startTrace('KomaDetailQueueSnapshot', 0)
       const queue = this.downloadQueue()
       downloadRuntimeKey = queue.runtimeKey()
-      const snapshot = queue.loadSnapshot()
+      const snapshot = queue.loadComicSnapshot(comicId)
       wait = downloadBlockedReason(snapshot.preferences)
       snapshot.entries.forEach((entry: OfflineDownloadQueueEntry) => {
-        if (entry.comicId === comicId) summaries.set(entry.chapterId, entry)
+        summaries.set(entry.chapterId, entry)
       })
     } catch (error) {
       DiagnosticLogger.exception('manga_detail_page', 'download_snapshot_failed', error as Error)
@@ -2466,10 +2466,13 @@ export struct MangaDetailPage {
     if (this.downloadBusy || !this.chrome.chapterDownloadAvailable || chapterIds.length === 0) return
     const comicId = this.currentComicId()
     this.downloadBusy = true
+    const requestedAt = Date.now()
     try {
       const context = getContext(this) as common.UIAbilityContext
       const storageBase = await ensureKomaContentStorageBase(context)
+      const storageReadyAt = Date.now()
       await OfflineDownloadService.ensureQueueInitialized(storageBase, komaRuntimeStorageKey(context))
+      const queueReadyAt = Date.now()
       if (!this.chrome.visible || comicId !== this.currentComicId()) return
       const manga = this.manga
       const shelved = this.libraryStore?.getComic(comicId)
@@ -2483,7 +2486,12 @@ export struct MangaDetailPage {
       const queue = this.downloadQueue()
       const count = queue.requestChapters(comic, chapterIds, shelved === undefined,
         shelved === undefined ? publicSourceWorkUri(comic.sourceRuntimeId, comic.sourcePath) : undefined)
+      const enqueuedAt = Date.now()
       this.applyChapterStatesToCurrent()
+      DiagnosticLogger.info('downloads', 'detail_request_committed',
+        `[Downloads] step=detail_request_committed chapters=${count} storageMs=${storageReadyAt - requestedAt} ` +
+          `initializeMs=${queueReadyAt - storageReadyAt} enqueueMs=${enqueuedAt - queueReadyAt} ` +
+          `repaintMs=${Date.now() - enqueuedAt}`)
       if (count === 0) {
         this.showToast(s('manga_detail_no_matching_chapters'))
         return

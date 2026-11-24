@@ -136,8 +136,28 @@ export class LocalDataRows<T> {
     store.executeSync(this.upsert, this.encode(record))
   }
 
+  /** Upsert only the given rows; callers that already know the affected scope avoid replacing an owner snapshot. */
+  putMany(store: relationalStore.RdbStore, records: T[]): void {
+    const maxRows = Math.floor(900 / this.columnCount)
+    for (let start = 0; start < records.length; start += maxRows) {
+      const batch = records.slice(start, start + maxRows)
+      const args: LocalColumnValue[] = []
+      for (const record of batch) args.push(...this.encode(record))
+      store.executeSync(this.batchStatement(batch.length), args)
+    }
+  }
+
   remove(store: relationalStore.RdbStore, key: LocalColumnValue[]): void {
     store.executeSync(this.deleteKey, key)
+  }
+
+  /** Delete rows inside one owner scope without reading the previous key set. */
+  removeByColumn(store: relationalStore.RdbStore, scopeColumn: string, scope: string,
+    filter: string, args: LocalColumnValue[]): void {
+    const predicate = ' WHERE ' + scopeColumn + ' = ?' + (filter.length > 0 ? ' AND ' + filter : '')
+    const values: LocalColumnValue[] = [scope]
+    values.push(...args)
+    store.executeSync(this.deleteRows + predicate, values)
   }
 
   async importRows(transaction: relationalStore.Transaction, records: T[], rowIds?: number[]): Promise<void> {

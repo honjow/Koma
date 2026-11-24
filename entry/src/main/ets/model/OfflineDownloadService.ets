@@ -37,6 +37,7 @@ import {
   createOfflineDownloadStableByteHash,
 } from './OfflineDownloadStore'
 import {
+  OfflineDownloadQueueEntry,
   OfflineDownloadQueuePreferences,
   OfflineDownloadQueueStore,
 } from './OfflineDownloadQueueStore'
@@ -198,9 +199,8 @@ export function canRunOfflineDownloadQueueNow(preferences: OfflineDownloadQueueP
 }
 
 @Concurrent
-function initializeOfflineDownloadQueue(filesDir: string, runtimeKey: string, snapshot: string): string | undefined {
-  // Startup restores queue state; explicit scans retain full page-content validation.
-  return new OfflineDownloadQueueStore(filesDir, runtimeKey).reconcileSnapshotText(snapshot)
+function reconcileInterruptedDownloads(filesDir: string, runtimeKey: string, payload: string): string | undefined {
+  return new OfflineDownloadQueueStore(filesDir, runtimeKey).reconcileInterruptedText(payload)
 }
 
 export class OfflineDownloadService {
@@ -214,21 +214,28 @@ export class OfflineDownloadService {
     this.queueStore = queueStore ?? new OfflineDownloadQueueStore(store.filesRootDir(), store.runtimeKey())
   }
 
+  /** Startup restores interrupted chapters only. The explicit rescan keeps the
+   * full manifest scan, and opening a chapter still validates its own pages. */
   static ensureQueueInitialized(filesDir: string, runtimeKey: string = filesDir): Promise<void> {
     return OfflineDownloadRuntime.initialize(runtimeKey, () => BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      const startedAt = Date.now()
       const queue = new OfflineDownloadQueueStore(filesDir, runtimeKey)
-      let snapshot = queue.exportSnapshotText()
-      while (snapshot !== undefined) {
-        const reconciled = await taskpool.execute(new taskpool.Task(initializeOfflineDownloadQueue, filesDir, runtimeKey, snapshot)) as string | undefined
-        const current = queue.exportSnapshotText()
-        if (current !== snapshot) {
-          snapshot = current
-          continue
+      const interrupted = queue.entriesNeedingReconcile()
+      let reconciledCount = 0
+      if (interrupted.length > 0) {
+        const payload = JSON.stringify(interrupted)
+        const reconciled = await taskpool.execute(new taskpool.Task(reconcileInterruptedDownloads,
+          filesDir, runtimeKey, payload)) as string | undefined
+        if (reconciled !== undefined) {
+          const changed = JSON.parse(reconciled) as OfflineDownloadQueueEntry[]
+          reconciledCount = changed.length
+          queue.applyReconciledEntries(changed)
         }
-        if (reconciled !== undefined) queue.restoreSnapshotText(reconciled)
-        break
       }
       await queue.finishCanceledTasks()
+      DiagnosticLogger.info('downloads', 'queue_initialized',
+        `[Downloads] step=queue_initialized interrupted=${interrupted.length} reconciled=${reconciledCount} ` +
+          `elapsedMs=${Date.now() - startedAt}`)
       OfflineDownloadRuntime.publish(runtimeKey)
     }))
   }

@@ -20,11 +20,11 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-24T11:01:58+08:00",
+  "updatedAt": "2026-11-24T18:20:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "COVER_IDENTITY_MIGRATION_TRANSITION_CONSISTENCY",
-  "activity": "237两作品清缓存后的封面恢复已验证，按用户要求提交当前修复。",
-  "nextAction": "本次提交已验证的加载恢复和缓存统一；首次冷请求身份错误具体字段单独保留未结。",
+  "activeId": "DOWNLOAD_START_LATENCY_FULL_READ_20261124",
+  "activity": "197 在 376 行队列上核到冷启动首点下载的初始化与入队合计约 9 ms，全量读写路径已改为按目标行处理。",
+  "nextAction": "继续核长队列的批量入队、暂停、重排与批量取消耗时及顺序；显式重扫边界仍按原事项跟踪。",
   "proof": [
     {
       "label": "正式主仓",
@@ -13508,6 +13508,39 @@
       "stage": "237具名封面恢复已验证"
     },
     {
+      "id": "DOWNLOAD_START_LATENCY_FULL_READ_20261124",
+      "number": 363,
+      "title": "点击下载后开始前的等待",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户当前反馈",
+      "owner": "Root：离线下载队列",
+      "reportedAt": null,
+      "reportedDate": "2026-11-24",
+      "reportedAtSource": "用户反馈点击下载后仍会卡一段时间才开始下载，并询问是否仍有大量全量数据读写；精确消息时刻未核实。",
+      "registeredAt": "2026-11-24T17:40:00+08:00",
+      "updatedAt": "2026-11-24T18:20:00+08:00",
+      "status": "197 已完成点击到提交的耗时核对，全量读写路径已改为按目标行处理",
+      "result": "定位到启动期队列初始化会对全部历史条目逐页 stat，结构性写会把整张队列表重写，批量下载检查每章都探测一次 manifest。改为：初始化只读下载中条目且只检清单结构，入队/新增/暂停/重试/删除/重排只写目标行，批量计划按作品读一次磁盘索引，详情页只读当前作品队列行。197 现有 376 行队列（downloaded 77、partial 2、blocked 221、failed 76、无 downloading）上，冷启动后首次点下载记录 queue_initialized elapsedMs=2、detail_request_committed initializeMs=3 enqueueMs=5 repaintMs=1，随后 1.9 秒内出现 download.chapter.start。写入后库内为 377 行且历史状态分布未变。显式重扫和打开章节仍保留完整页级校验。",
+      "remainingActions": [
+        "长队列结构性操作（批量入队、暂停、重排、批量取消）尚未逐项真机核对耗时与顺序。",
+        "外部删除已下载文件后，启动期只做清单结构校验，需靠打开章节或显式重扫纠正；该边界未单独验收。"
+      ],
+      "boundaries": [
+        "未降低画质、未改变下载目录结构、未改页面样式与交互。",
+        "本轮只测 197 单一设备与 376 行队列规模，其他设备和大批量选择路径未覆盖。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/download-startup-latency-20261124/logs/181336-cand.log",
+        ".hvigor/outputs/download-startup-latency-20261124/logs/180951-old.log",
+        ".hvigor/outputs/download-startup-latency-20261124/rdb/Koma.db",
+        ".hvigor/outputs/download-startup-latency-20261124/rdb2/Koma.db",
+        ".hvigor/outputs/download-startup-latency-20261124/device197__ALN-AL80/not-applicable/portrait-1260x2720/download/candidate/cand-cold-tap-1/protocol-manifest.json",
+        ".hvigor/outputs/download-startup-latency-20261124/device197__ALN-AL80/not-applicable/portrait-1260x2720/download/old/old-full-1/protocol-manifest.json"
+      ],
+      "stage": "197冷启动首点下载已核，长队列结构操作待验"
+    },
+    {
       "id": "LANDSCAPE_CONTENT_CUTOUT_20261124",
       "number": 364,
       "title": "横屏时挖孔挡住书架封面和列表内容",
@@ -13612,6 +13645,13 @@
       "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
       "title": "NoyAcg 详情标签拆分修复并发布",
       "detail": "上游 Ptag 为以空格分隔的多个标签，0.1.13 把整串当作一项；0.1.14 拆分字符串、保留数组各项内的空格。237 已登录环境对同一作品的本地候选前后对照，详情标签从一整项变为多项。源码 bca79a9125432cd57f419f3ddc7c37296817b625 已推送，正式索引和包的 SHA-256 一致；正式 WASM 与本地候选字节不同，已用受控 DTO 执行确认拆分和数组行为，正式包未另上机。候选经本地文件覆盖后首次进入弹网页会话页，页面未出现 CF 验证；重新确认后无需重登并能浏览。代码显示本地不同版本导入不会继承旧授权，订阅更新且登录范围不变时设计为继承，正常订阅更新未进行真机复现，不能保证站点不另行触发 CF。237 临时文件已清、电源和租约已恢复。"
+    },
+    {
+      "id": "download-start-latency-20261124",
+      "at": "2026-11-24T18:20:00+08:00",
+      "itemId": "DOWNLOAD_START_LATENCY_FULL_READ_20261124",
+      "title": "点击下载前的队列全量读写改为按目标行处理",
+      "detail": "197 现有 376 行队列，冷启动首点下载的初始化 2ms、入队总 9ms，随后 1.9 秒内开始取图；写入后 377 行且历史状态分布不变。显式重扫与打开章节仍做完整页级校验。"
     },
     {
       "id": "source-comments-tier1-20261124",

@@ -138,6 +138,9 @@ export interface OfflineDownloadManifestValidation {
 
 export interface OfflineDownloadValidationOptions {
   validateContentHash?: boolean
+  /** Startup reconciliation checks manifest structure only. Opening a chapter
+   * and the explicit rescan keep the per-page file and hash checks. */
+  skipPageFiles?: boolean
 }
 
 export interface OfflineDownloadManifestScanResult {
@@ -502,6 +505,22 @@ export class OfflineDownloadStore {
     return downloadManifestPath(this.chapterDir(comicId, chapterId))
   }
 
+  /** Statuses for every chapter this work already has on disk, resolved from the
+   * directory index so batch planning does not probe one manifest path per
+   * chapter of a long catalogue. Read-only: no page or integrity checks. */
+  indexedChapterStatuses(comicId: ComicId): Map<string, OfflineDownloadStatus> {
+    const statuses = new Map<string, OfflineDownloadStatus>()
+    const comic = this.directoryIndex.comics[comicId]
+    if (comic === undefined) return statuses
+    Object.keys(comic.chapters).forEach((chapterId: string): void => {
+      const manifest = this.loadManifest(comicId, chapterId)
+      if (manifest === undefined || manifest.comicId !== comicId || manifest.chapterId !== chapterId) return
+      const status = parseOfflineDownloadStatus(manifest.status)
+      if (status !== undefined) statuses.set(chapterId, status)
+    })
+    return statuses
+  }
+
   pageFilePath(comicId: ComicId, chapterId: string, pageId: string, pageIndex: number, extension: string): string {
     const fileName = downloadPageFileName(pageIndex, normalizeExtension(extension))
     const path = joinOfflineDownloadPath(this.chapterDir(comicId, chapterId), fileName)
@@ -688,6 +707,10 @@ export class OfflineDownloadStore {
         }
       }
       seenIndexes.add(page.pageIndex)
+      if (options?.skipPageFiles === true) {
+        availablePageCount += 1
+        continue
+      }
       if (fs.accessSync(page.localPath)) {
         const stat = fs.statSync(page.localPath)
         if (stat.size !== Math.max(0, Math.floor(page.size))) {
