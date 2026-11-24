@@ -1,16 +1,20 @@
 import { SourceTextOverlay } from '../model/SourceTextOverlay'
-import { ReaderSessionConfig } from '../model/ReaderSessionStore'
+import { cloneReaderSessionConfig, ReaderSessionConfig } from '../model/ReaderSessionStore'
 import {
   OfflineDownloadedChapterStatus, OfflineDownloadedPage, OfflineDownloadManifestValidation,
 } from '../model/OfflineDownloadStore'
 import { createReaderOfflineMissingUri } from '../model/ReaderPageSourceAdapter'
 
-/** Mirrors Index's manifest fallback without changing the library or its chapter order. */
+/** A complete download owns the page plan. Partial or damaged downloads keep
+ * the existing fallback rules, including an already available source plan. */
 export function createKomaReaderLabOfflineConfig(
   baseConfig: ReaderSessionConfig,
-  validation: OfflineDownloadManifestValidation,
+  validation?: OfflineDownloadManifestValidation,
 ): ReaderSessionConfig {
-  if (baseConfig.totalPages > 0 || baseConfig.chapterId.length === 0) return baseConfig
+  if (validation === undefined || validation.comicId !== baseConfig.comicId ||
+    validation.chapterId !== baseConfig.chapterId || baseConfig.chapterId.length === 0) return baseConfig
+  const complete = validation.status === OfflineDownloadedChapterStatus.DOWNLOADED
+  if (!complete && baseConfig.totalPages > 0 && baseConfig.pageUris.length > 0) return baseConfig
   const hasReaderReadyPages = validation.availablePageCount > 0 &&
     (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
       validation.status === OfflineDownloadedChapterStatus.PARTIAL)
@@ -26,8 +30,12 @@ export function createKomaReaderLabOfflineConfig(
   const pageIds: string[] = []
   const pageWidths: Array<number | undefined> = []
   const pageHeights: Array<number | undefined> = []
+  const downloadedPages = new Map<number, OfflineDownloadedPage>()
+  manifest.pages.forEach((page: OfflineDownloadedPage): void => { downloadedPages.set(page.pageIndex, page) })
+  const offlinePages: Array<OfflineDownloadedPage | undefined> = []
   for (let index = 0; index < validation.pageCount; index += 1) {
-    const page = manifest.pages.find((item: OfflineDownloadedPage): boolean => item.pageIndex === index)
+    const page = downloadedPages.get(index)
+    if (complete) offlinePages.push(page)
     sourceOriginalImageUris.push(page?.sourceOriginalUri)
     pageTextOverlays.push(page?.sourceTextOverlay)
     pageIds.push(page?.pageId ?? `page-${index + 1}`)
@@ -46,23 +54,21 @@ export function createKomaReaderLabOfflineConfig(
     const title = baseConfig.chapterTitles?.[index] ?? ''
     return title.length > 0 || chapterId !== baseConfig.chapterId ? title : (manifest.chapterTitle ?? '')
   })
-  return {
-    comicId: baseConfig.comicId,
-    chapterId: baseConfig.chapterId,
-    title: baseConfig.title,
-    chapterTitle: baseConfig.chapterTitle ?? manifest.chapterTitle,
-    chapterIds,
-    continuationChapterIds: baseConfig.continuationChapterIds,
-    sourceChapterChronologyPending: baseConfig.sourceChapterChronologyPending,
-    chapterTitles,
-    totalPages: validation.pageCount,
-    pageUris,
-    sourceOriginalImageUris,
-    pageTextOverlays,
-    pageIds,
-    pageWidths,
-    pageHeights,
-    sourceRuntimeId: baseConfig.sourceRuntimeId,
-    sourceMangaUrl: baseConfig.sourceMangaUrl ?? manifest.sourceMangaUrl,
-  }
+  const config = cloneReaderSessionConfig(baseConfig)
+  config.chapterTitle = baseConfig.chapterTitle ?? manifest.chapterTitle
+  config.chapterIds = chapterIds
+  config.chapterTitles = chapterTitles
+  config.totalPages = validation.pageCount
+  config.pageUris = pageUris
+  config.sourceOriginalImageUris = sourceOriginalImageUris
+  config.pageTextOverlays = pageTextOverlays
+  config.pageRequiredImageDecodes = undefined
+  config.pageTextPages = undefined
+  config.pageTextRequests = undefined
+  config.pageIds = pageIds
+  config.pageWidths = pageWidths
+  config.pageHeights = pageHeights
+  config.sourceMangaUrl = baseConfig.sourceMangaUrl ?? manifest.sourceMangaUrl
+  config.offlinePages = complete ? offlinePages : undefined
+  return config
 }

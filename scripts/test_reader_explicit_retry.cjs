@@ -28,6 +28,113 @@ function methods(file, owner, names, globals = {}, declarations = []) {
 const Cache = methods('model/RemoteImageCacheStore.ets', 'RemoteImageCacheStore', ['getOrFetch'], {
   cacheKeyFor: (url, _headers, seed) => seed || url,
 }, ['RemoteImageFileRequest'])
+
+test('a downloaded page reuses a plugin timeout until explicit retry or a new configuration', async () => {
+  let pluginAttempts = 0
+  let timedOut = true
+  const files = new Map()
+  const state = { processingFailures: {} }
+  const output = {}
+  const imports = {
+    '@kit.ArkTS': { taskpool: { execute: async task => {
+      if (task.name === 'imageFileContentHash') return 'downloaded-image'
+      pluginAttempts++
+      return timedOut ? { bytes: new ArrayBuffer(0), extension: '', timedOut: true }
+        : { bytes: new Uint8Array([1]).buffer, extension: 'png' }
+    } } },
+    './ImageFileContent': { imageFileContentHash: function imageFileContentHash() {} },
+    '../state/ImageRuleState': { connectImageRuleState: () => state },
+  }
+  const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/ImagePluginService.ets'), 'utf8')
+  vm.runInNewContext(ts.transpileModule(source.replace(/^@Concurrent\s*$/gm, ''), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports: output, require: name => imports[name] ?? {}, console: { info() {}, warn() {} } })
+  const service = output.ImagePluginService
+  const cache = {
+    get: async (_name, _headers, key) => files.get(key),
+    put: async (_name, _headers, _bytes, key) => {
+      files.set(key, '/cache/processed.png')
+      return '/cache/processed.png'
+    },
+  }
+  const plan = { key: 'plugin', plugin: { processor: { abi: 'test', sha256: 'test' } }, configuration: { mode: 'initial' } }
+  const page = '/download/page.png'
+  assert.equal(await service.prepare(page, [plan], cache, true), page)
+  assert.equal(await service.prepare(page, [plan], cache, true), page)
+  assert.equal(pluginAttempts, 1)
+  assert.equal(files.size, 0, 'A timeout must not become a persistent no-hit')
+  assert.equal(state.processingFailures.plugin, 'processing_failed')
+  await service.prepare(page, [{ ...plan, configuration: { mode: 'changed' } }], cache, true)
+  assert.equal(pluginAttempts, 2)
+  timedOut = false
+  assert.equal(await service.prepare(page, [plan], cache, false), '/cache/processed.png')
+  assert.equal(await service.prepare(page, [plan], cache, true), '/cache/processed.png')
+  assert.equal(pluginAttempts, 3)
+})
+
+test('the source reader opens a complete local chapter before asking the provider for its page list', async () => {
+  const statuses = { DOWNLOADED: 'downloaded', PARTIAL: 'partial', CORRUPT: 'corrupt', MISSING: 'missing' }
+  const configExports = {}
+  const configSource = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/readerLab/KomaReaderLabOfflineConfig.ets'), 'utf8')
+  vm.runInNewContext(ts.transpileModule(configSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, {
+    exports: configExports,
+    require: name => ({
+      '../model/ReaderSessionStore': { cloneReaderSessionConfig: structuredClone },
+      '../model/OfflineDownloadStore': { OfflineDownloadedChapterStatus: statuses },
+      '../model/ReaderPageSourceAdapter': { createReaderOfflineMissingUri: (_work, _chapter, index) => `missing:${index}` },
+    })[name],
+  })
+  const request = { comicId: 'source:work', chapterId: '10', chapterIds: ['9', '10', '11'] }
+  let providerCalls = 0
+  const subject = new (methods('pages/Index.ets', 'Index', ['prepareSourceReaderSession'], {
+    OfflineDownloadedChapterStatus: statuses,
+    createKomaReaderLabOfflineConfig: configExports.createKomaReaderLabOfflineConfig,
+    cloneSourceReaderSessionRequest: structuredClone,
+    DiagnosticLogger: { info() {} },
+    appDeviceSync: { validateReadingPages: () => true },
+    resolveSourceChapterPages: async () => {
+      providerCalls++
+      return { pages: [{ id: 'online-unit', uri: 'https://example.invalid/page' }] }
+    },
+  }))()
+  Object.assign(subject, {
+    readerOpen: true, readerClosing: false, readerOpenEpoch: 1, readerOpenIntent: 'resume',
+    activeSourceReaderRequest: request, readerPageRequestCurrent: epoch => epoch === 1,
+    createSourceReaderSessionConfig: (source, pages) => ({
+      comicId: source.comicId, chapterId: source.chapterId, chapterIds: source.chapterIds,
+      continuationChapterIds: ['9', '10', '11'], readingFormat: 'strip',
+      totalPages: pages.length, pageUris: pages.map(page => page.uri), pageIds: pages.map(page => page.id),
+    }),
+    readReaderPagesWithVerification: (_source, read) => read(),
+    readerSessionStore: { openPageIndex: config => config.pageIds.indexOf('page-2') },
+    saveSourceReaderHistory() {},
+  })
+  const pages = [
+    { pageIndex: 1, pageId: 'page-2', localPath: '/offline/2', requiredImageDecodeResolved: true },
+    { pageIndex: 0, pageId: 'page-1', localPath: '/offline/1', imageProcessingResolved: true },
+  ]
+  await subject.prepareSourceReaderSession(request, 1, Promise.resolve({
+    comicId: request.comicId, chapterId: request.chapterId, status: statuses.DOWNLOADED,
+    pageCount: 2, availablePageCount: 2, manifest: { pages },
+  }))
+  assert.equal(providerCalls, 0)
+  assert.deepEqual(Array.from(subject.readerSessionConfig.pageUris), ['/offline/1', '/offline/2'])
+  assert.equal(subject.readerSessionConfig.offlinePages[1].requiredImageDecodeResolved, true)
+  assert.deepEqual(subject.readerSessionConfig.continuationChapterIds, ['9', '10', '11'])
+  assert.equal(subject.readerSessionConfig.readingFormat, 'strip')
+  assert.equal(subject.readerPageIndex, 1)
+  for (const status of [statuses.PARTIAL, statuses.CORRUPT, statuses.MISSING]) {
+    await subject.prepareSourceReaderSession(request, 1, Promise.resolve({
+      comicId: request.comicId, chapterId: request.chapterId, status, pageCount: 2,
+      availablePageCount: 1, manifest: { pages },
+    }))
+    assert.equal(subject.readerSessionConfig.pageUris[0], 'https://example.invalid/page')
+  }
+  assert.equal(providerCalls, 3)
+})
+
 function cacheFixture() {
   const cache = new Cache(), writes = []
   Object.assign(cache, { imageRequests: new Map(), reloadRequests: new Map(),

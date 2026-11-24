@@ -1386,6 +1386,7 @@ export interface ReaderPageRenderSource extends ReaderRemoteIdentity {
   imageProcessingFingerprint?: string
   imageRuleSnapshot?: ImageRuleSnapshot
   skipBannerFilter?: boolean
+  completeOfflineDownload?: boolean
   kind: ReaderPageRenderKind
   uri: string
   imageUri: string
@@ -1476,6 +1477,13 @@ function resolveOfflineReaderPage(
 interface OfflineReaderPage { path: string; hint?: ImageProcessingHint; processingResolved?: boolean; processingFingerprint?: string; requiredImageDecodeResolved?: boolean }
 
 function resolveOfflineReaderPages(config: ReaderSessionConfig): OfflineReaderPage[] {
+  if (config.offlinePages !== undefined) {
+    return config.offlinePages.map((page): OfflineReaderPage => ({
+      path: page?.localPath ?? '', hint: page?.imageProcessing,
+      processingResolved: page?.imageProcessingResolved, processingFingerprint: page?.imageProcessingFingerprint,
+      requiredImageDecodeResolved: page?.requiredImageDecodeResolved,
+    }))
+  }
   const count = Math.max(0, Math.floor(config.totalPages))
   const paths: OfflineReaderPage[] = []
   for (let index = 0; index < count; index += 1) {
@@ -1535,6 +1543,7 @@ function createReaderPageRenderSourceWithOfflinePath(
       sourceRuntimeId: config.sourceRuntimeId,
       sourceMangaUrl: config.sourceMangaUrl,
       sourceOriginalImageUri: config.sourceOriginalImageUris?.[index] ?? pageUri,
+      completeOfflineDownload: config.offlinePages !== undefined,
       sourceTextOverlay: config.pageTextOverlays?.[index] ?? undefined,
     }
   }
@@ -1599,7 +1608,8 @@ export function createReaderPageRenderSource(
   const offlineOnly = options?.offlineOnly === true
   let offlinePath = ''
   if (preferOffline || offlineOnly) {
-    offlinePath = resolveOfflineReaderPage(config, index)
+    offlinePath = config.offlinePages === undefined ? resolveOfflineReaderPage(config, index)
+      : (config.offlinePages[index]?.localPath ?? '')
   }
   const source = createReaderPageRenderSourceWithOfflinePath(config, index, offlinePath, offlineOnly)
   source.comicId = config.comicId
@@ -1663,7 +1673,7 @@ function retainRequiredDecode(source: ReaderPageRenderSource, hint: SourceRequir
 }
 
 async function prepareSourcePagePresentation(source: ReaderPageRenderSource, originalPath: string,
-  context?: common.UIAbilityContext, presentation?: ReaderBannerPresentation): Promise<string> {
+  context?: common.UIAbilityContext, presentation?: ReaderBannerPresentation, forceReload: boolean = false): Promise<string> {
   const sourceId = source.sourceRuntimeId?.trim() ?? ''
   let path = originalPath
   if (source.requiredImageDecode !== undefined && source.requiredImageDecodeResolved !== true) {
@@ -1709,7 +1719,8 @@ async function prepareSourcePagePresentation(source: ReaderPageRenderSource, ori
   const plans = imageBannerPlans(presentation.snapshot, presentation.policy, hint)
   const compatible = await ImageBannerService.prepare(path, plans, readerImageCacheStore)
   const plugins = imagePluginPlans(presentation.snapshot, presentation.policy, hint)
-  const prepared = await ImagePluginService.prepare(compatible, plugins, readerImageCacheStore)
+  const prepared = await ImagePluginService.prepare(compatible, plugins, readerImageCacheStore,
+    source.completeOfflineDownload === true && !forceReload)
   if (plans.length > 0 || plugins.length > 0) await maintainReaderImageCacheAfterWrite(prepared)
   if (needsSourceHint && entry !== undefined && !sourceTextRequestCurrent(entry, fingerprint))
     throw new Error('reader_source_page_processing_stale')
@@ -1734,7 +1745,7 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
       return rendered
     }
     if (source.sourceText !== undefined) return cacheSourceTextPageImage(source.sourceText, forceReload)
-    const prepared = await prepareSourcePagePresentation(source, source.imageUri, context, presentation)
+    const prepared = await prepareSourcePagePresentation(source, source.imageUri, context, presentation, forceReload)
     // Local originals have the same size-publication contract as downloaded
     // HTTP cache entries. A manifest need not already contain dimensions.
     if (onSize !== undefined) void probeReaderImageFileSize(prepared, onSize)

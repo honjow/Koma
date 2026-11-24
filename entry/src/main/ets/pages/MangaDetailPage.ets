@@ -100,7 +100,7 @@ import {
   setCompleteSourceChapterCatalog,
 } from '../model/ComicModels'
 import { downloadBlockedReason, OfflineDownloadService, OfflineDownloadWaitReason, publicSourceWorkUri } from '../model/OfflineDownloadService'
-import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore, isOfflineDownloadTaskPending } from '../model/OfflineDownloadQueueStore'
+import { OfflineDownloadQueueEntry, OfflineDownloadQueueSnapshot, OfflineDownloadQueueStore, isOfflineDownloadTaskPending } from '../model/OfflineDownloadQueueStore'
 import { OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
 import {
   OfflineDownloadStatus,
@@ -1018,7 +1018,7 @@ export struct MangaDetailPage {
       mangaChapterItemFromComicChapter(chapter, comic.sourceKind)))
   }
 
-  private decorateChapterStates(chapters: MangaChapterItem[]): MangaChapterItem[] {
+  private decorateChapterStates(chapters: MangaChapterItem[], downloadSnapshot?: OfflineDownloadQueueSnapshot): MangaChapterItem[] {
     if (chapters.length === 0) return chapters
     const comicId = this.currentComicId()
     this.readerSessionStore.prepareWorkChapterStates(comicId)
@@ -1029,7 +1029,7 @@ export struct MangaDetailPage {
       hiTraceMeter.startTrace('KomaDetailQueueSnapshot', 0)
       const queue = this.downloadQueue()
       downloadRuntimeKey = queue.runtimeKey()
-      const snapshot = queue.loadComicSnapshot(comicId)
+      const snapshot = downloadSnapshot ?? queue.loadComicSnapshot(comicId)
       wait = downloadBlockedReason(snapshot.preferences)
       snapshot.entries.forEach((entry: OfflineDownloadQueueEntry) => {
         summaries.set(entry.chapterId, entry)
@@ -1606,7 +1606,10 @@ export struct MangaDetailPage {
       this.feedbackText = this.chapters.length > 0 ? '' : s('manga_detail_loading_chapters')
       return
     }
+    if (afterHydration && this.sourceDetailDataResolved && this.manga?.id === mangaId &&
+      this.manga?.sourceId === sourceId && this.chapters.length > 0) return
     const detail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
+    if (this.seedDownloadedSourceDetail(sourceId, mangaId, comicId, detail)) return
     if (detail === undefined) {
       // A reused destination may previously have rendered another source. With no real list-row
       // preview for this route, start unresolved rather than carrying that prior detail forward.
@@ -1632,6 +1635,46 @@ export struct MangaDetailPage {
     this.sourceDetailContentState = SourceDetailContentState.LOADING
     this.feedbackText = s('manga_detail_loading_source')
     this.localRefreshText = ''
+  }
+
+  // When the content cache was cleared, the download queue can still supply
+  // this work's local chapter rows. Keep the source catalog unresolved so it
+  // can replace this subset once available, without inventing adjacency.
+  private seedDownloadedSourceDetail(sourceId: string, mangaId: string, comicId: string,
+    preview?: MangaDetail): boolean {
+    let snapshot: OfflineDownloadQueueSnapshot
+    try {
+      snapshot = this.downloadQueue().loadComicSnapshot(comicId)
+    } catch (error) {
+      DiagnosticLogger.exception('manga_detail_page', 'download_snapshot_failed', error as Error)
+      return false
+    }
+    const entries = snapshot.entries.filter((entry: OfflineDownloadQueueEntry): boolean =>
+      entry.status === OfflineDownloadStatus.DOWNLOADED && entry.pageCount > 0)
+    const first = entries[0]
+    if (first === undefined) return false
+    const title = first.comicTitle?.trim() || preview?.title || ''
+    if (title.length === 0) return false
+    const detail: MangaDetail = preview ?? {
+      id: mangaId, title, sourceId, sourceImageId: mangaId, chapterCount: 0, isInLibrary: false,
+      url: publicSourceWorkUri(sourceId, first.sourceMangaUrl),
+    }
+    detail.sourceName = this.sourceRegistry.lookup(sourceId).entry?.manifestName ?? first.sourceName ?? sourceId
+    detail.chapterCount = entries.length
+    this.activeLibraryComicId = ''
+    this.isInLibrary = false
+    this.manga = detail
+    this.chapters = this.decorateChapterStates(entries.map((entry: OfflineDownloadQueueEntry): MangaChapterItem => ({
+      id: entry.chapterId, title: entry.chapterTitle?.trim() || entry.chapterId,
+      pageCount: entry.pageCount, isRead: false, isDownloaded: true,
+    })), snapshot)
+    this.appliedReadingStateRevision = this.readerProgressRevision
+    this.sourceDetailDataResolved = true
+    this.sourceChaptersResolved = false
+    this.sourceDetailContentState = SourceDetailContentState.READY
+    this.feedbackText = ''
+    this.localRefreshText = ''
+    return true
   }
 
   private refreshSourceLibraryDetail(sourceId: string, mangaId: string, detail: MangaDetail,

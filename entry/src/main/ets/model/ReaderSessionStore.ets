@@ -30,6 +30,7 @@ import {
 } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFailureDetails } from './SourceRuntimeError'
+import type { OfflineDownloadedPage } from './OfflineDownloadStore'
 import { SourceReadHistoryEntry } from './SourceReaderSession'
 import { MangaMigrationReadPlan, MangaMigrationReadState } from './SourceMangaMigration'
 import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from './RemoteReaderSession'
@@ -197,6 +198,8 @@ export interface ReaderSessionConfig {
   pageUris: string[]
   /** Original public image URIs retained by newer offline manifests, when available. */
   sourceOriginalImageUris?: (string | undefined)[]
+  /** A complete download structurally validated for this reader session. */
+  offlinePages?: ReadonlyArray<OfflineDownloadedPage | undefined>
   pageIds?: string[]
   pageWidths?: (number | undefined)[]
   pageHeights?: (number | undefined)[]
@@ -240,6 +243,7 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     deferredLocalArchive: config.deferredLocalArchive,
     pageUris: config.pageUris.slice(),
     sourceOriginalImageUris: config.sourceOriginalImageUris?.slice(),
+    offlinePages: config.offlinePages,
     pageIds: config.pageIds?.slice(),
     pageWidths: config.pageWidths?.slice(),
     pageHeights: config.pageHeights?.slice(),

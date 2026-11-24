@@ -37,6 +37,14 @@ export function saveDownloadManifestAsync(store: OfflineDownloadStore,
 export async function validateDownloadManifestAsync(store: OfflineDownloadStore, comicId: ComicId,
   chapterId: string, options: OfflineDownloadValidationOptions = {},
   writtenChapterDir: string = ''): Promise<OfflineDownloadManifestValidation> {
-  return await taskpool.execute(validateOfflineDownload, store.filesRootDir(), store.runtimeKey(),
+  return validateStoredDownloadManifestAsync(store.filesRootDir(), store.runtimeKey(),
+    comicId, chapterId, options, writtenChapterDir)
+}
+
+/** The caller need not open the index or construct a store on the UI thread. */
+export async function validateStoredDownloadManifestAsync(filesDir: string, runtimeKey: string, comicId: ComicId,
+  chapterId: string, options: OfflineDownloadValidationOptions, writtenChapterDir: string = ''):
+  Promise<OfflineDownloadManifestValidation> {
+  return await taskpool.execute(validateOfflineDownload, filesDir, runtimeKey,
     comicId, chapterId, options, writtenChapterDir) as OfflineDownloadManifestValidation
 }

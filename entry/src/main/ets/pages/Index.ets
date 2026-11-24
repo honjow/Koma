@@ -49,7 +49,7 @@ import { comicArchiveExtractionRoot } from '../import/ComicArchiveBookmarks'
 import { readOrderedEpubImages } from '../import/EpubArchiveReader'
 import { planLegacyEpubOrder } from '../import/LegacyEpubOrder'
 import { SourceFailureDetails, SourceRuntimeError } from '../model/SourceRuntimeError'
-import { SourceTextOverlay } from '../model/SourceTextOverlay'
+import { createKomaReaderLabOfflineConfig } from '../readerLab/KomaReaderLabOfflineConfig'
 import { ReaderLabLaunchState, ReaderLabRequest, connectReaderLabLaunch, ReaderRouteTransition } from '@reader-kit/ui'
 import { ReaderCancellation, ReaderObservedPosition, ReaderUnitKey } from '@reader-kit/core'
 import {
@@ -198,10 +198,10 @@ import {
   upsertLocalLibraryFolderRescanAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import { OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
+import { validateStoredDownloadManifestAsync } from '../model/OfflineDownloadManifestWorker'
 import {
   OfflineDownloadedChapterStatus,
-  OfflineDownloadedPage,
-  OfflineDownloadStore,
+  OfflineDownloadManifestValidation,
 } from '../model/OfflineDownloadStore'
 import {
   ensureKomaContentStorageBase,
@@ -219,7 +219,6 @@ import {
   createReaderSessionConfigFromComic,
   getReaderSessionPageId,
 } from '../model/ReaderSessionStore'
-import { createReaderOfflineMissingUri } from '../model/ReaderPageSourceAdapter'
 import { SourceChapterPageFailure, SourceChapterPageHydrator, SourceChapterPageHydrationResult,
   SourceChapterPagesResolveResult, resolveSourceChapterPages, sourceChapterPagesMatchSettings } from '../model/SourceChapterPageHydrator'
 import {
@@ -1134,24 +1133,21 @@ struct Index {
     DiagnosticLogger.warn('index', 'open_source_pages_unavailable', '[Reader] step=open_source_pages_unavailable failed=true reason=source_pages_unavailable')
   }
 
-  private hasAvailableOfflineReaderPages(comicId: ComicId, chapterId: string | undefined): boolean {
+  private async readOfflineReaderChapter(comicId: ComicId, chapterId: string | undefined):
+    Promise<OfflineDownloadManifestValidation | undefined> {
     if (chapterId === undefined || chapterId.length === 0) {
-      return false
+      return undefined
     }
     try {
       const context = getContext(this) as common.UIAbilityContext
       if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
-        return false
+        return undefined
       }
-      const validation = new OfflineDownloadStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
-        .validateDownloadedChapter(comicId, chapterId, { validateContentHash: false })
-      return validation.manifest !== undefined &&
-        validation.availablePageCount > 0 &&
-        (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
-          validation.status === OfflineDownloadedChapterStatus.PARTIAL)
+      return await validateStoredDownloadManifestAsync(komaContentStorageBase(context), komaRuntimeStorageKey(context),
+        comicId, chapterId, { validateContentHash: false })
     } catch (_error) {
       DiagnosticLogger.warn('index', 'open_manifest_probe', '[ReaderOffline] step=open_manifest_probe failed=true reason=manifest_session')
-      return false
+      return undefined
     }
   }
 
@@ -1242,6 +1238,7 @@ struct Index {
     comicId: ComicId,
     chapterId: string | undefined,
     openEpoch: number,
+    offline: Promise<OfflineDownloadManifestValidation | undefined>,
   ): Promise<void> {
     let originalComic = this.readerComicForOpen(comicId)
     if (originalComic === undefined) {
@@ -1259,7 +1256,10 @@ struct Index {
         console.info('[LocalFolderAccess] step=reader_activate status=' + access.status)
       }
     }
-    const offlineReaderPagesReady = this.hasAvailableOfflineReaderPages(originalComic.id, chapterId)
+    const validation = await offline
+    if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) return
+    const offlineReaderPagesReady = validation?.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
+      validation?.status === OfflineDownloadedChapterStatus.PARTIAL
     let sourcePagesReady = true
     let sourceFailureReason: string | undefined = undefined
     let sourceFailure: SourceFailureDetails | undefined = undefined
@@ -1272,7 +1272,7 @@ struct Index {
     if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) {
       return
     }
-    let nextSessionConfig = this.createReaderSessionConfigForOpen(comic, chapterId)
+    let nextSessionConfig = createKomaReaderLabOfflineConfig(createReaderSessionConfigFromComic(comic, chapterId), validation)
     if (!sourcePagesReady && nextSessionConfig.totalPages <= 0) {
       nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, chapterId, nextSessionConfig, sourceFailureReason, sourceFailure)
     }
@@ -1383,15 +1383,20 @@ struct Index {
   private async prepareSourceReaderSession(
     request: SourceReaderSessionRequest,
     openEpoch: number,
+    offline: Promise<OfflineDownloadManifestValidation | undefined>,
   ): Promise<void> {
     const preparedRequest = cloneSourceReaderSessionRequest(request)
+    const validation = await offline
+    if (!this.readerPageRequestCurrent(openEpoch)) return
+    const local = validation?.status === OfflineDownloadedChapterStatus.DOWNLOADED
+      ? createKomaReaderLabOfflineConfig(this.createSourceReaderSessionConfig(preparedRequest, []), validation) : undefined
     // History already identifies the exact chapter. The adapter fills in the
     // manual catalog and verified continuation in the background.
     // Do not share the library hydrator's result here. Source hosts may issue
-    // short-lived descriptors; a transient Reader open always resolves pages
-    // afresh and never writes them to LibraryStore.
+    // short-lived descriptors; transient online opens resolve pages afresh.
     const pagePlanStartedAt = Date.now()
-    const resolution = await this.readReaderPagesWithVerification<SourceChapterPagesResolveResult>(request.sourceId,
+    const resolution = local !== undefined ? undefined :
+      await this.readReaderPagesWithVerification<SourceChapterPagesResolveResult>(request.sourceId,
       (guard?: string): Promise<SourceChapterPagesResolveResult> => resolveSourceChapterPages(this.sourceRegistry, {
       comicId: request.comicId,
       sourceId: request.sourceId,
@@ -1410,9 +1415,9 @@ struct Index {
       return
     }
     DiagnosticLogger.info('reader', 'source_entry_page_plan',
-      `elapsedMs=${Date.now() - pagePlanStartedAt} ready=${resolution.pages.length > 0}`)
+      `elapsedMs=${Date.now() - pagePlanStartedAt} ready=${local !== undefined || (resolution?.pages.length ?? 0) > 0} offline=${local !== undefined}`)
     this.activeSourceReaderRequest = preparedRequest
-    if (resolution.pages.length === 0) {
+    if (resolution !== undefined && resolution.pages.length === 0) {
       this.logReaderSourcePagesUnavailable(resolution.reasonCode)
       const unavailableConfig = this.createUnavailableSourceReaderSessionConfig(preparedRequest, resolution.sourceFailureReason, resolution.sourceFailure)
       this.readerSessionConfig = unavailableConfig
@@ -1427,7 +1432,7 @@ struct Index {
       this.readerSessionLoading = false
       return
     }
-    const nextSessionConfig = this.createSourceReaderSessionConfig(preparedRequest, resolution.pages)
+    const nextSessionConfig = local ?? this.createSourceReaderSessionConfig(preparedRequest, resolution?.pages ?? [])
     if (this.readerOpenIntent !== 'start' && !appDeviceSync.validateReadingPages(preparedRequest.comicId, preparedRequest.chapterId, nextSessionConfig.totalPages)) {
       if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) return
       this.readerSessionConfig = this.createUnavailableSourceReaderSessionConfig(preparedRequest, 'sync_saved_position_changed')
@@ -1473,7 +1478,7 @@ struct Index {
       this.readerSessionConfig.totalPages > 0) return cloneReaderSessionConfig(this.readerSessionConfig)
     const comic = this.readerComicForOpen(work)
     if (comic === undefined) return null
-    const config = this.createReaderSessionConfigForOpen(comic, unit)
+    const config = createReaderSessionConfigFromComic(comic, unit)
     return config.chapterId === unit && config.totalPages > 0 ? config : null
   }
 
@@ -1501,6 +1506,11 @@ struct Index {
         // provider request before the shared surface can display it.
         return cloneReaderSessionConfig(this.readerSessionConfig)
       }
+      const validation = await this.readOfflineReaderChapter(target.work, target.unit)
+      cancellation.check()
+      if (validation?.status === OfflineDownloadedChapterStatus.DOWNLOADED) {
+        return createKomaReaderLabOfflineConfig(this.createSourceReaderSessionConfig(nextRequest, []), validation)
+      }
       const resolution = await this.readReaderPagesWithVerification<SourceChapterPagesResolveResult>(nextRequest.sourceId,
         (guard?: string): Promise<SourceChapterPagesResolveResult> => resolveSourceChapterPages(this.sourceRegistry, {
         comicId: nextRequest.comicId,
@@ -1525,6 +1535,13 @@ struct Index {
     }
     let original = this.readerComicForOpen(target.work)
     if (original === undefined) return null
+    // Keep local-folder permission activation in the adapter's established path.
+    if (original.sourceKind === ComicSourceKind.LOCAL_FOLDER) return null
+    const validation = await this.readOfflineReaderChapter(target.work, target.unit)
+    cancellation.check()
+    if (validation?.status === OfflineDownloadedChapterStatus.DOWNLOADED) {
+      return createKomaReaderLabOfflineConfig(createReaderSessionConfigFromComic(original, target.unit), validation)
+    }
     if (original.sourceRuntimeId !== undefined &&
       !original.chapters.some((chapter: Chapter): boolean => chapter.id === target.unit)) {
       await this.readReaderPagesWithVerification<boolean>(original.sourceRuntimeId,
@@ -1534,12 +1551,9 @@ struct Index {
       cancellation.check()
       original = this.readerComicForOpen(target.work) ?? original
     }
-    // Keep local-folder permission activation in the adapter's established path.
-    if (original.sourceKind === ComicSourceKind.LOCAL_FOLDER) return null
-    const offlineReady = this.hasAvailableOfflineReaderPages(original.id, target.unit)
     let sourceFailureReason: string | undefined = undefined
     let sourceFailure: SourceFailureDetails | undefined = undefined
-    if (!offlineReady) {
+    if (validation?.status !== OfflineDownloadedChapterStatus.PARTIAL) {
       const hydrated = await this.ensureReaderSourceChapterPages(original, target.unit,
         (reason: string | undefined, details?: SourceFailureDetails): void => { sourceFailureReason = reason; sourceFailure = details },
         forceRefresh, current)
@@ -1549,7 +1563,7 @@ struct Index {
     cancellation.check()
     const comic = this.readerComicForOpen(target.work) ?? original
     cancellation.check()
-    const config = this.createReaderSessionConfigForOpen(comic, target.unit)
+    const config = createKomaReaderLabOfflineConfig(createReaderSessionConfigFromComic(comic, target.unit), validation)
     if (config.totalPages > 0) return config
     if (this.chapterNeedsReaderSourcePages(comic, target.unit)) {
       throw KomaReaderFailure.sourceError(sourceFailureReason, sourceFailure)
@@ -1680,9 +1694,6 @@ struct Index {
   }
 
   private readerNeedsAsyncPreparation(comic: Comic, chapterId: string | undefined): boolean {
-    if (this.hasAvailableOfflineReaderPages(comic.id, chapterId)) {
-      return false
-    }
     if (this.chapterNeedsReaderSourcePages(comic, chapterId)) {
       return true
     }
@@ -1702,7 +1713,7 @@ struct Index {
       chapterTitles: [comic.chapters.find((item: Chapter): boolean => item.id === chapter)?.title ?? ''] })
   }
 
-  private openDownloadedChapter(comicId: ComicId, chapterId: string): void {
+  private async openDownloadedChapter(comicId: ComicId, chapterId: string): Promise<void> {
     const comic = this.libraryStore.getComic(comicId)
     if (comic?.chapters.some((chapter: Chapter): boolean => chapter.id === chapterId)) {
       void this.openReader(comicId, chapterId)
@@ -1710,11 +1721,12 @@ struct Index {
     }
     // Finished downloads own their local bytes and labels even after unfavoriting.
     // A detached Reader snapshot must never re-add the work to the bookshelf.
-    const context = getContext(this) as common.UIAbilityContext
-    const validation = new OfflineDownloadStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
-      .validateDownloadedChapter(comicId, chapterId, { validateContentHash: false })
-    const manifest = validation.manifest
-    if (manifest === undefined || validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED) {
+    const epoch = ++this.readerOpenEpoch
+    const origin = this.appPathStack.getAllPathName().join('|')
+    const validation = await this.readOfflineReaderChapter(comicId, chapterId)
+    if (epoch !== this.readerOpenEpoch || origin !== this.appPathStack.getAllPathName().join('|')) return
+    const manifest = validation?.manifest
+    if (validation === undefined || manifest === undefined || validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED) {
       this.showToast(AppStrings.get('downloads_toast_entry_unavailable'))
       return
     }
@@ -1731,7 +1743,7 @@ struct Index {
       chapters: [chapter], chapterCount: 1, pageCount: manifest.pageCount,
       createdAt: manifest.updatedAt, updatedAt: manifest.updatedAt, lastImportedAt: manifest.updatedAt,
     }
-    void this.openReader(comicId, chapterId, 'resume', snapshot)
+    void this.openReader(comicId, chapterId, 'resume', snapshot, validation)
   }
 
   private async openReader(
@@ -1739,6 +1751,7 @@ struct Index {
     chapterId?: string,
     intent: ReaderChapterOpenIntent = 'resume',
     comicSnapshot?: Comic,
+    validatedDownload?: OfflineDownloadManifestValidation,
   ): Promise<void> {
     if (!this.canOpenLibraryComic(comicId)) return
     if (comicId.startsWith('mihon:')) {
@@ -1767,14 +1780,25 @@ struct Index {
         targetChapterId = this.readerChapterIdForOpen(comic, chapterId)
       }
     }
-    if (targetChapterId !== undefined && comic?.sourceRuntimeId && !this.hasAvailableOfflineReaderPages(comicId, targetChapterId) &&
-      appDeviceSync.receivedReading(comicId, targetChapterId)) {
+    const openEpoch = ++this.readerOpenEpoch
+    const originPaths = this.appPathStack.getAllPathName().join('|')
+    const originTab = this.selectedTab
+    const isCurrent = (): boolean => openEpoch === this.readerOpenEpoch &&
+      originPaths === this.appPathStack.getAllPathName().join('|') && originTab === this.selectedTab
+    const offline = validatedDownload !== undefined ? Promise.resolve(validatedDownload)
+      : this.readOfflineReaderChapter(comicId, targetChapterId)
+    if (targetChapterId !== undefined && comic?.sourceRuntimeId && appDeviceSync.receivedReading(comicId, targetChapterId)) {
       const history = this.readerSessionStore.getSourceHistoryForResume(comicId)
       const request = history === undefined || history.chapterId !== targetChapterId ? undefined :
         sourceReaderSessionRequestFromHistory(history)
       if (request !== undefined) {
-        await this.openSourceReader(request, intent)
-        return
+        const validation = await offline
+        if (!isCurrent()) return
+        if (validation?.status !== OfflineDownloadedChapterStatus.DOWNLOADED &&
+          validation?.status !== OfflineDownloadedChapterStatus.PARTIAL) {
+          await this.openSourceReader(request, intent, offline)
+          return
+        }
       }
     }
     const remoteHistory = this.readerSessionStore.getRemoteHistory(comicId)
@@ -1783,38 +1807,36 @@ struct Index {
       remoteHistory.chapterTitle = comic.chapters.find((item: Chapter): boolean => item.id === targetChapterId)?.title
       this.readerSessionStore.saveRemoteHistory(remoteHistory)
     }
-    const openEpoch = this.readerOpenEpoch + 1
-    this.readerOpenEpoch = openEpoch
     if (comic !== undefined && targetChapterId !== undefined &&
       comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0 &&
       !comic.chapters.some((chapter: Chapter): boolean => chapter.id === targetChapterId)) {
-      const originPaths = this.appPathStack.getAllPathName().join('|')
-      const originTab = this.selectedTab
-      const isCurrent = (): boolean => openEpoch === this.readerOpenEpoch &&
-        originPaths === this.appPathStack.getAllPathName().join('|') && originTab === this.selectedTab
-      this.showToast(AppStrings.get('manga_detail_loading_source'))
-      try {
-        const restored = await new SourceChapterPageHydrator(
-          this.libraryStore, this.sourceRegistry, this.ensureLibraryPersistenceService(),
-          () => { this.refreshLibrarySnapshot() },
-        ).ensureChapterDescriptor(comicId, targetChapterId, isCurrent)
-        comic = this.libraryStore.getComic(comicId)
-        if (!isCurrent()) {
-          return
-        }
-        // Only restore the chapter identity before navigation. Foreground page
-        // resolution belongs to the reader and may need its verification sheet.
-        if (!restored || comic === undefined) {
+      const validation = await offline
+      if (!isCurrent()) return
+      if (validation?.status !== OfflineDownloadedChapterStatus.DOWNLOADED) {
+        this.showToast(AppStrings.get('manga_detail_loading_source'))
+        try {
+          const restored = await new SourceChapterPageHydrator(
+            this.libraryStore, this.sourceRegistry, this.ensureLibraryPersistenceService(),
+            () => { this.refreshLibrarySnapshot() },
+          ).ensureChapterDescriptor(comicId, targetChapterId, isCurrent)
+          comic = this.libraryStore.getComic(comicId)
+          if (!isCurrent()) {
+            return
+          }
+          // Only restore the chapter identity before navigation. Foreground page
+          // resolution belongs to the reader and may need its verification sheet.
+          if (!restored || comic === undefined) {
+            if (isCurrent()) {
+              this.showToast(AppStrings.get('manga_detail_load_source_chapters_failed'))
+            }
+            return
+          }
+        } catch (_error) {
           if (isCurrent()) {
             this.showToast(AppStrings.get('manga_detail_load_source_chapters_failed'))
           }
           return
         }
-      } catch (_error) {
-        if (isCurrent()) {
-          this.showToast(AppStrings.get('manga_detail_load_source_chapters_failed'))
-        }
-        return
       }
     }
     this.readerOpenIntent = intent
@@ -1824,7 +1846,7 @@ struct Index {
     this.readerSessionLoading = comic !== undefined && this.readerNeedsAsyncPreparation(comic, targetChapterId)
     this.readerSessionConfig = comic === undefined
       ? MOCK_LIBRARY_READER_SESSION
-      : this.createReaderSessionConfigForOpen(comic, targetChapterId)
+      : createKomaReaderLabOfflineConfig(createReaderSessionConfigFromComic(comic, targetChapterId), validatedDownload)
     this.beginShelfReadingSync(comic, this.readerSessionConfig.chapterId)
     this.readerPageIndex = this.readerSessionStore.openPageIndex(this.readerSessionConfig, this.readerOpenIntent)
     this.readerPreparation = null
@@ -1846,7 +1868,7 @@ struct Index {
       this.appPathStack.pushPath({ name: RouteName.READER }, true)
     }
     if (comic !== undefined) {
-      this.readerPreparation = this.prepareReaderSession(comicId, targetChapterId, openEpoch)
+      this.readerPreparation = this.prepareReaderSession(comicId, targetChapterId, openEpoch, offline)
     } else {
       // No session preparation will follow, so this publication is terminal.
       this.readerOpenIntent = 'resume'
@@ -1875,6 +1897,7 @@ struct Index {
   private async openSourceReader(
     request: SourceReaderSessionRequest,
     intent: ReaderChapterOpenIntent = 'resume',
+    offline?: Promise<OfflineDownloadManifestValidation | undefined>,
   ): Promise<void> {
     if (!this.canOpenLibraryComic(request.comicId)) return
     const nextRequest = cloneSourceReaderSessionRequest(request)
@@ -1885,17 +1908,28 @@ struct Index {
       !nextRequest.chapterIds.includes(nextRequest.chapterId)) {
       return
     }
-    this.sourceReaderOpenRequest++
+    const generation = ++this.sourceReaderOpenRequest
     if (nextRequest.sourceId.startsWith('mihon:')) {
       if (!await this.openMihonImportedWork(nextRequest.comicId)) this.showToast(AppStrings.get('mihon_import_resume_failed'))
       return
     }
     this.reuseVerifiedReaderCatalog(nextRequest)
     const sourceIncognito = this.incognito.isSourceEnabled(nextRequest.sourceId)
+    const downloaded = offline ?? this.readOfflineReaderChapter(nextRequest.comicId, nextRequest.chapterId)
     if (appDeviceSync.openReading(nextRequest, !sourceIncognito) === 'missing') {
-      const name = nextRequest.sourceName || nextRequest.sourceId
-      RouterHelper.promptMissingSourceRecovery(this.getUIContext(), nextRequest.sourceId, name, true)
-      return
+      const origin = this.appPathStack.getAllPathName().join('|')
+      const originTab = this.selectedTab
+      const epoch = this.readerOpenEpoch
+      const validation = await downloaded
+      if (generation !== this.sourceReaderOpenRequest || epoch !== this.readerOpenEpoch ||
+        origin !== this.appPathStack.getAllPathName().join('|') || originTab !== this.selectedTab ||
+        !this.canOpenLibraryComic(nextRequest.comicId)) return
+      if (validation?.status !== OfflineDownloadedChapterStatus.DOWNLOADED) {
+        const name = nextRequest.sourceName || nextRequest.sourceId
+        RouterHelper.promptMissingSourceRecovery(this.getUIContext(), nextRequest.sourceId, name, true)
+        return
+      }
+      if (!sourceIncognito) appDeviceSync.beginReadingChapter(nextRequest)
     }
     this.readerOpenIntent = intent
     const readerDetailVisible = this.isReaderDetailRouteVisible()
@@ -1922,7 +1956,7 @@ struct Index {
       this.readerOpen = true
       this.appPathStack.pushPath({ name: RouteName.READER }, true)
     }
-    this.readerPreparation = this.prepareSourceReaderSession(nextRequest, openEpoch)
+    this.readerPreparation = this.prepareSourceReaderSession(nextRequest, openEpoch, downloaded)
   }
 
   private async resumeSourceFromHistory(request: SourceReaderSessionRequest): Promise<void> {
@@ -2173,93 +2207,6 @@ struct Index {
       sourceRuntimeId: comic.sourceRuntimeId,
       sourceFailureReason,
       sourceFailure,
-    }
-  }
-
-  private createReaderSessionConfigForOpen(comic: Comic, chapterId?: string): ReaderSessionConfig {
-    const config = createReaderSessionConfigFromComic(comic, chapterId)
-    const offlineChapterId = chapterId ?? config.chapterId
-    if ((config.totalPages > 0 && config.pageUris.length > 0) || offlineChapterId.length === 0) {
-      return config
-    }
-    return this.createOfflineDownloadReaderSessionConfig(comic, offlineChapterId, config) ?? config
-  }
-
-  private createOfflineDownloadReaderSessionConfig(
-    comic: Comic,
-    chapterId: string,
-    baseConfig: ReaderSessionConfig
-  ): ReaderSessionConfig | undefined {
-    try {
-      const context = getContext(this) as common.UIAbilityContext
-      if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
-        return undefined
-      }
-      const store = new OfflineDownloadStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
-      const validation = store.validateDownloadedChapter(comic.id, chapterId, { validateContentHash: false })
-      const hasReaderReadyPages = validation.availablePageCount > 0 &&
-        (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
-          validation.status === OfflineDownloadedChapterStatus.PARTIAL)
-      const hasCorruptManifestPageMap = validation.status === OfflineDownloadedChapterStatus.CORRUPT &&
-        validation.pageCount > 0
-      if (validation.manifest === undefined ||
-        validation.pageCount <= 0 ||
-        (!hasReaderReadyPages && !hasCorruptManifestPageMap)) {
-        return undefined
-      }
-      const pageUris: string[] = []
-      const pageIds: string[] = []
-      const pageWidths: Array<number | undefined> = []
-      const pageHeights: Array<number | undefined> = []
-      const pageTextOverlays: Array<SourceTextOverlay | undefined> = []
-      for (let index = 0; index < validation.pageCount; index += 1) {
-        const page = validation.manifest.pages.find((item: OfflineDownloadedPage): boolean => item.pageIndex === index)
-        const pageId = page?.pageId ?? `page-${index + 1}`
-        pageIds.push(pageId)
-        // `validateDownloadedChapter` above is the one structural validation
-        // for this open: it already checks the manifest identity, safe root,
-        // each page index, file existence and byte size. Calling
-        // `resolveDownloadedPage` here would repeat that full validation once
-        // for every page (53 × for the affected chapter) before ReaderPage can
-        // even present. Keep a corrupt manifest fail-closed; for a validated
-        // downloaded or partial chapter, hand its local path to the session.
-        const localPagePath = hasReaderReadyPages ? (page?.localPath ?? '') : ''
-        pageUris.push(localPagePath.length > 0
-          ? localPagePath
-          : createReaderOfflineMissingUri(comic.id, chapterId, index))
-        pageWidths.push(page?.width)
-        pageHeights.push(page?.height)
-        pageTextOverlays.push(page?.sourceTextOverlay)
-      }
-      const chapterIds = baseConfig.chapterIds.includes(chapterId) ? baseConfig.chapterIds : baseConfig.chapterIds.concat([chapterId])
-      const chapterTitles = chapterIds.map((item: string, index: number): string => {
-        const title = baseConfig.chapterTitles?.[index] ?? ''
-        if (title.length > 0 || item !== chapterId) {
-          return title
-        }
-        return validation.manifest?.chapterTitle ?? ''
-      })
-      console.info(`[ReaderOffline] step=open_from_manifest pages=${validation.availablePageCount}/${validation.pageCount}`)
-      return {
-        comicId: comic.id,
-        chapterId,
-        title: comic.title,
-        chapterTitle: baseConfig.chapterTitle ?? validation.manifest.chapterTitle,
-        chapterIds,
-        continuationChapterIds: baseConfig.continuationChapterIds,
-        sourceChapterChronologyPending: baseConfig.sourceChapterChronologyPending,
-        chapterTitles,
-        totalPages: validation.pageCount,
-        pageUris,
-        pageIds,
-        pageWidths,
-        pageHeights,
-        pageTextOverlays,
-        sourceRuntimeId: comic.sourceRuntimeId,
-      }
-    } catch (_error) {
-      DiagnosticLogger.warn('index', 'open_from_manifest', '[ReaderOffline] step=open_from_manifest failed=true reason=manifest_session')
-      return undefined
     }
   }
 
@@ -4087,7 +4034,7 @@ struct Index {
     } else if (name === RouteName.DOWNLOADS) {
       HdsNavDestination() {
         DownloadsPage({ chrome: param as DownloadsChrome, libraryStore: this.libraryStore,
-          onOpenReader: (comicId: ComicId, chapterId: string): void => { this.openDownloadedChapter(comicId, chapterId) } })
+          onOpenReader: (comicId: ComicId, chapterId: string): void => { void this.openDownloadedChapter(comicId, chapterId) } })
       }
       .titleBar(this.downloadsTitleBarOptions(param as DownloadsChrome))
       .onHidden((): void => { this.downloadsMenu.close() })

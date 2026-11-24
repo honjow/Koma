@@ -86,6 +86,45 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "DOWNLOAD_DETAIL_LOCAL_OPEN_20261124",
+      "number": 365,
+      "title": "已下载章节从作品页打开仍等待加载",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户当前反馈",
+      "owner": "Koma 阅读器宿主",
+      "reportedAt": null,
+      "reportedDate": "2026-11-24",
+      "reportedAtSource": "用户报告浏览已下载章节后从作品页点击仍持续加载。",
+      "registeredAt": "2026-11-24T20:39:36+08:00",
+      "updatedAt": "2026-11-24T20:45:25+08:00",
+      "status": "237 已验未收藏作品的离线打开和超时后重开",
+      "result": "未收藏入口先取书源正文页表，书架入口重复校验清单。改用一次后台结构校验的完整下载页表，内容缓存缺失时由下载记录恢复未收藏详情的已下载章节。237 两类缓存读回为零、拒绝 Koma 联网后冷启，从查看作品进入《葬送的芙莉莲 作品集》详情，显示 1/22 并翻到 2/22。最终 1.6.1 code27 离线连开第 2 页，两次均命中本机页表。第一次图片插件明确超时，文件准备 6097 ms，随后回原图。同一进程再点同一章，复用该次超时的原图回退，文件准备 31 ms 并显示第 2 页。定向回归覆盖完整下载、清单损坏或缺失时回源、插件超时后重开及显式重试。",
+      "stage": "未收藏作品离线链路已在 237 验证",
+      "remainingActions": [
+        "书架、旧下载清单和其他源未做本轮真机抽样。首次遇到插件超时时，仍须等待该次执行返回。"
+      ],
+      "boundaries": [
+        "超时只在同一进程复用相同图片内容和插件方案，保持成功的画面处理，超时不写入持久缓存。",
+        "237 保留最终 1.6.1 测试包。已恢复 Koma WLAN、原全队列暂停、10 秒超时及休眠，取消未完成的两条临时任务。自动审批拒绝删除 3 个本轮完整测试下载，下载和本轮阅读记录暂留。"
+      ],
+      "relatedItems": [
+        "DOWNLOAD_USER_FLOW",
+        "OFFLINE_DOWNLOADED_WORK_COVER"
+      ],
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/offline-reader-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/works-detail/18-cache-zero/layout.json",
+        ".hvigor/outputs/user-flow-audit/offline-reader-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/works-detail/30-offline-work-detail/layout.json",
+        ".hvigor/outputs/user-flow-audit/offline-reader-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/works-detail/31-offline-open-recording/summary.json",
+        ".hvigor/outputs/user-flow-audit/offline-reader-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/works-detail/33-offline-reader-page-turn/screen.png",
+        ".hvigor/outputs/user-flow-audit/offline-reader-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/works-detail/47-final-offline-repeat/summary.json",
+        ".hvigor/outputs/user-flow-audit/offline-reader-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/works-detail/48-final-reader-page2/screen.png",
+        ".hvigor/outputs/user-flow-audit/offline-reader-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/works-detail/50-final-network-restored/layout.json",
+        ".hvigor/outputs/user-flow-audit/offline-reader-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/works-detail/58-leave-test-downloads-intact/layout.json",
+        ".hvigor/outputs/user-flow-audit/offline-reader-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/works-detail/59-final-device-restored/run-metadata.json"
+      ]
+    },
+    {
       "id": "LOCAL_FOLDER_IMPORT_CRASH_AUDIT_20261123",
       "number": 358,
       "title": "文件夹导入后闪退排查",

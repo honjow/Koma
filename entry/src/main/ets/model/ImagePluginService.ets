@@ -10,7 +10,7 @@ import { ImagePluginPlan, ImagePluginConfiguration, ImagePluginContext, imagePlu
 import { ImageRuleSnapshot, BannerFilterMode, ImageProcessingHint } from './ImageBannerRules'
 import { connectImageRuleState } from '../state/ImageRuleState'
 
-interface ProcessedPluginBytes { bytes: ArrayBuffer; extension: string }
+interface ProcessedPluginBytes { bytes: ArrayBuffer; extension: string; timedOut?: boolean }
 
 interface ImagePluginExecutionPlan {
   moduleBase64: string
@@ -79,6 +79,7 @@ async function processImagePlugins(path: string, plans: ImagePluginExecutionPlan
       const moduleHash = Array.from(moduleDigest.digestSync().data).map((v: number): string => v.toString(16).padStart(2, '0')).join('')
       if (moduleHash !== plan.moduleSha256) throw new Error('image_plugin_module_changed')
       const result = imagePluginNative.runImageProcessor(module, pixels, width, height, plan.configuration)
+      if (result.reason === 'processor_timeout') return { bytes: new ArrayBuffer(0), extension: '', timedOut: true }
       if (!result.ok) throw new Error('image_plugin_' + result.reason)
       if (!result.changed) continue
       pixels = result.pixels; width = result.width; height = result.height
@@ -104,6 +105,8 @@ async function processImagePlugins(path: string, plans: ImagePluginExecutionPlan
 export class ImagePluginService {
   private static inFlight: Map<string, Promise<string>> = new Map()
   private static transforms: Map<string, Promise<string | undefined>> = new Map()
+  private static timedOut: Set<string> = new Set()
+  private static readonly MAX_RECENT_TIMEOUTS: number = 256
   private static active: number = 0
   private static waiters: Array<() => void> = []
   private static report(plans: ImagePluginPlan[], failed: boolean): void {
@@ -117,13 +120,14 @@ export class ImagePluginService {
     }
     state.processingFailures = failures
   }
-  static prepare(path: string, plans: ImagePluginPlan[], cache: RemoteImageCacheStore): Promise<string> {
+  static prepare(path: string, plans: ImagePluginPlan[], cache: RemoteImageCacheStore,
+    reuseTimeout: boolean = false): Promise<string> {
     if (plans.length === 0) return Promise.resolve(path)
     const identity = ImagePluginService.identity(plans)
-    const pendingKey = JSON.stringify([path, identity])
+    const pendingKey = JSON.stringify([path, identity, reuseTimeout])
     const pending = ImagePluginService.inFlight.get(pendingKey)
     if (pending) return pending
-    const request = ImagePluginService.process(path, plans, identity, cache)
+    const request = ImagePluginService.process(path, plans, identity, cache, reuseTimeout)
     ImagePluginService.inFlight.set(pendingKey, request)
     const retire = (): void => { if (ImagePluginService.inFlight.get(pendingKey) === request) ImagePluginService.inFlight.delete(pendingKey) }
     void request.then(retire, retire)
@@ -135,10 +139,19 @@ export class ImagePluginService {
       JSON.stringify([plan.plugin.processor.abi, plan.plugin.processor.sha256, plan.plugin.output, plan.configuration])))
   }
   private static async process(path: string, plans: ImagePluginPlan[], identity: string,
-    cache: RemoteImageCacheStore): Promise<string> {
+    cache: RemoteImageCacheStore, reuseTimeout: boolean): Promise<string> {
     try {
       const content = await taskpool.execute<[string], string>(imageFileContentHash, path)
       const key = JSON.stringify(['koma-image-v1', content, identity])
+      // Reopening the same complete download should keep showing the original
+      // after a plugin timeout. Changes to pixels or the plugin plan use a
+      // different key. An explicit retry runs normally. Never save a timeout
+      // into the image cache as a successful no-op.
+      if (reuseTimeout && ImagePluginService.timedOut.has(key)) {
+        ImagePluginService.report(plans, true)
+        console.info('[ImagePlugin] processing_timeout_reused')
+        return path
+      }
       let pending = ImagePluginService.transforms.get(key)
       if (pending === undefined) {
         pending = ImagePluginService.transform(path, plans, content, key, cache)
@@ -150,9 +163,10 @@ export class ImagePluginService {
       const result = await pending
       ImagePluginService.report(plans, false)
       return await taskpool.execute<[string], string>(imageFileContentHash, path) === content ? (result ?? path) : path
-    } catch (_error) {
+    } catch (error) {
       ImagePluginService.report(plans, true)
-      console.warn('[ImagePlugin] processing_failed')
+      console.warn((error as Error).message === 'image_plugin_processor_timeout'
+        ? '[ImagePlugin] processing_failed reason=processor_timeout' : '[ImagePlugin] processing_failed')
       return path
     }
   }
@@ -184,6 +198,14 @@ export class ImagePluginService {
       if (next) next()
       else ImagePluginService.active -= 1
     }
+    if (result.timedOut === true) {
+      if (ImagePluginService.timedOut.size >= ImagePluginService.MAX_RECENT_TIMEOUTS) {
+        ImagePluginService.timedOut.delete(Array.from(ImagePluginService.timedOut)[0])
+      }
+      ImagePluginService.timedOut.add(key)
+      throw new Error('image_plugin_processor_timeout')
+    }
+    ImagePluginService.timedOut.delete(key)
     if (result.bytes.byteLength === 0) {
       await cache.put('image-plugin.nohit', undefined, new Uint8Array([1]).buffer as ArrayBuffer, key + ':nohit')
       return undefined
