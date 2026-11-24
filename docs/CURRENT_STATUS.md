@@ -22,9 +22,9 @@
   "outcome": "查看当前问题、已验收范围和剩余工作。",
   "updatedAt": "2026-11-24T07:29:55+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "MIHON_BACKUP_IMPORT",
-  "activity": "197 同场对照，原生章节行使章节出现帧降至 24.2 ms。详情进场约 33.5 ms，切分类约 26.8 ms。",
-  "nextAction": "详情首屏布局仍约 19 ms，切分类长帧约 27 ms。哔咔样本正文请求仍为 403。",
+  "activeId": "COVER_IDENTITY_MIGRATION_TRANSITION_CONSISTENCY",
+  "activity": "封面一致性已修复，201普通迁移复制及书架、浏览两种转场具名路径已核。",
+  "nextAction": "本次封面、曲线与开关修复已本地提交，保留201测试包，未推送。",
   "proof": [
     {
       "label": "正式主仓",
@@ -13304,9 +13304,9 @@
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话要求移植 NextE 列表转场，覆盖书架打开作品页和浏览进入作品页，随后明确要求开子代理并直接在 201 验证；精确原始消息时刻未核实。",
-      "status": "封面展开目标灰块已改透明，201书架网格/列表与源浏览列表全程验收，原状态恢复释租",
-      "updatedAt": "2026-11-24T05:21:55+08:00",
-      "result": "用户新反馈在旧13原片中直接成立：封面尚未到顶时，详情目标位置被永久灰遮罩挡住。现去除灰Column，按原coverMaskVisible把目标Stack整体停止绘制，连底色/备用图标/阴影一起透明，保挂载/id/测量，落位恢复原封面。候选14已在201本次跟随系统深色现场覆盖安装；Root与执行代理按序亲审书架网格91帧、国漫同作品列表102帧、漫画屋真实单列92帧，并放大飞行中30/26/31帧：目标确实透出详情背景纹理，无灰矩形/备用图标/阴影，落地正常。末帧归还原国漫大象605/495、7/39页或原漫画屋热门斗破首卡与位置，无终态残留。完整三模式和用户已定默认封面展开、既有显式偏好保留；350ms与曲线/空间阈值未改。本次只重验灰块相关三条coverExpand路径，不冒原三模式/字号全矩阵新结果。漫画屋原网格、书架原国漫网格/宽松/封面展开/简中及跟随系统深色均保留或恢复，原大象495与第7页18%续读读回；本次原SLEEP/10000独立恢复，05:17:36释租released，保留14新包。此前7同605章warm trace的动画段冲刷改善仍为原证据；准备46.400ms/点击至动画192.678ms慢于旧124.587ms，POP前置25.422ms、按键至动画61.187ms和落地33.385ms仍属保留限制，本轮录像不证明FPS或这些开销已消除。未改阅读数据，已按用户明确授权纳入本地提交，未推送。",
+      "status": "用户确认保留系统标准曲线，201两模式与两入口完整进退已检查",
+      "updatedAt": "2026-11-24T09:22:31+08:00",
+      "result": "用户新反馈在旧13原片中直接成立：封面尚未到顶时，详情目标位置被永久灰遮罩挡住。现去除灰Column，按原coverMaskVisible把目标Stack整体停止绘制，连底色/备用图标/阴影一起透明，保挂载/id/测量，落位恢复原封面。候选14已在201本次跟随系统深色现场覆盖安装；Root与执行代理按序亲审书架网格91帧、国漫同作品列表102帧、漫画屋真实单列92帧，并放大飞行中30/26/31帧：目标确实透出详情背景纹理，无灰矩形/备用图标/阴影，落地正常。末帧归还原国漫大象605/495、7/39页或原漫画屋热门斗破首卡与位置，无终态残留。完整三模式和用户已定默认封面展开、既有显式偏好保留；350ms与曲线/空间阈值未改。本次只重验灰块相关三条coverExpand路径，不冒原三模式/字号全矩阵新结果。漫画屋原网格、书架原国漫网格/宽松/封面展开/简中及跟随系统深色均保留或恢复，原大象495与第7页18%续读读回；本次原SLEEP/10000独立恢复，05:17:36释租released，保留14新包。此前7同605章warm trace的动画段冲刷改善仍为原证据；准备46.400ms/点击至动画192.678ms慢于旧124.587ms，POP前置25.422ms、按键至动画61.187ms和落地33.385ms仍属保留限制，本轮录像不证明FPS或这些开销已消除。未改阅读数据，已按用户明确授权纳入本地提交，未推送。 用户后续要求拉长收尾减速段：候选15进入曲线改为(0.16,1,0.3,1)，返回(0.22,1,0.36,1)，均350ms；这一新增修改尚待真机验收，之前透明落点验收保留。 后续纠正：17的(0.16,1,0.3,1)/(0.22,1,0.36,1)被用户明确否定，原片只能证明几何/落点/返回无残留，不能证明缓冲感符合要求。调用方向核对未反；数学采样进入175ms已完成97.18%。本地20改参数试案未安装、未采用。用户要求先理清设计并禁止再以NextE为正确性依据，已停止沿其查曲线。官方将屏内图片形变归标准缓入缓出，现成Curve.FastOutSlowIn为(0.4,0,0.2,1)：350ms下约222ms完成90%，剩约128ms平顺落位。该方案为研究结论，尚未作为采用决定或安装验收。实际弹簧支持无回弹的临界阻尼，但鸿蒙物理弹簧会自行决定时长，不能冒称仍精确350ms。 用户随后明确要求执行研究方案：进入/返回统一curves.initCurve(Curve.FastOutSlowIn)，保350ms与原空间交接阈值；18签名包已构建，真实回退与路由生命周期6项通过。测试fixture仅补齐SDK曲线工厂与全局枚举，未改变断言。 当前结论：用户明确要求保留现在的更改。18已覆盖安装201，Root亲审封面展开/一镜到底×书架国漫网格/漫画屋热门网格四段原速完整进退（91/90/104/99帧）；透明落点、原卡归还和终态位置正常，350ms保留。录像不代替FPS或旧准备耗时trace结论，不重开列表/旋转矩阵。原封面展开模式已读回、原桌面与SLEEP10000独立恢复，06:18:04释租。续读在无阅读器输入期间从原大象第7页18%变为天降之物第7页13%，来源未核，未回写旧值，不声称保持。保留当前包及开关修复，未提交/推送。新增封面一致性另归#362检查。 用户随后授权提交：系统FastOutSlowIn曲线与350ms随本轮封面及开关修复一并纳入本地提交，未推送。",
       "remainingActions": [],
       "evidence": [
         "entry/src/main/ets/navigation/MangaDetailTransitionCoordinator.ets",
@@ -13346,10 +13346,23 @@
         ".hvigor/outputs/detail-transition-20261123/frame-candidate14-cover-browse-list-review",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate14-original-library-restored-051702621121/screen.png",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-051721107557/run-metadata.json",
-        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-cover-transparent-20261124.json"
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-cover-transparent-20261124.json",
+        ".hvigor/outputs/detail-transition-20261123/motion-design-analysis.json",
+        "https://developer.huawei.com/consumer/cn/doc/design-guides/animation-attributes-0000001797117229/",
+        "https://developer.huawei.com/consumer/cn/doc/HarmonyOS-references/js-apis-curve/",
+        ".hvigor/outputs/detail-transition-20261123/three-modes-candidate-18.hap",
+        ".hvigor/outputs/detail-transition-20261123/candidate18-transition-tests.log",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate18-standard-cover-library-grid",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate18-standard-seamless-library-grid",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate18-standard-cover-browse-grid",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate18-standard-seamless-browse-grid",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate18-cover-mode-restored-20261124",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate18-original-library-restored-20261124",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate18-original-power-restored-20261124",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-standard-20261124.json"
       ],
       "boundaries": [],
-      "stage": "已验证，按用户授权本地提交"
+      "stage": "系统FastOutSlowIn已安装并保留"
     },
     {
       "id": "BAOZI_WWW_CHAPTER_IMAGE_BLURRED_OBSERVATION",
@@ -13383,6 +13396,86 @@
         ".hvigor/outputs/baozimh-default-mirror-20261123/public-release-6a5363b/publication-verification.json",
         "https://github.com/honjow/koma-sources/releases/tag/sources-6a5363b24fb635dd2bc1cf0200b99744ee75748c"
       ]
+    },
+    {
+      "id": "LIBRARY_SETTINGS_SWITCH_ANIMATION",
+      "number": 361,
+      "title": "书架徽标与继续阅读卡片开关动画跳变",
+      "kind": "done",
+      "progressPhase": "completed",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedAtSource": "用户本会话反馈，精确原始消息时刻未核实。",
+      "registeredAt": "2026-11-24T05:40:48+08:00",
+      "boundaries": [
+        "保持HDS原生开关、现有外观和保存/回退语义；连续双向切换必须稳定，不能以偶尔有动画作为通过。"
+      ],
+      "evidence": [
+        "entry/src/main/ets/components/ui/ConciseListRow.ets",
+        "entry/src/main/ets/pages/LibraryPage.ets",
+        ".hvigor/outputs/user-flow-audit/device201__LMR-AL00/not-applicable/portrait-1276x2848/settings-library-switches/candidate17-motion/",
+        ".hvigor/outputs/user-flow-audit/device201__LMR-AL00/not-applicable/portrait-1276x2848/settings-library-switches/candidate17-edges-motion/",
+        ".hvigor/outputs/user-flow-audit/device201__LMR-AL00/not-applicable/portrait-1276x2848/settings-library-switches/candidate17-final-switch-values-20261124/",
+        ".hvigor/outputs/user-flow-audit/device201__LMR-AL00/not-applicable/portrait-1276x2848/settings-library-switches/restore-home-20261124/",
+        ".hvigor/outputs/user-flow-audit/device201__LMR-AL00/not-applicable/portrait-1276x2848/settings-library-switches/restore-power-20261124/"
+      ],
+      "status": "201连续切换、功能及重入验证完成，原设置/桌面/电源恢复并释租",
+      "result": "候选17将checked核对移到Monitor，同一次原生点击的父级回传只确认值、不触发HDS绘制配置；外部值、禁用与主题色变化仍同步。书架偏好读回只在实际筛选/排序或书库/进度变化时重算投影，纯显示字段保留当前作品顺序；这项多余重算未被当成动画根因。201各六次连续切换及各十次左右端交替点击均逐帧检查，滑块双向移动、底色渐变可见，无直接跳到终点。徽标开启后出现分类胶囊，卡片关闭后顶部续读消失；离开重进为开启/关闭。随后恢复原徽标关闭、卡片开启并重进读回，分类胶囊隐藏、续读恢复；后台检查原值也已恢复。未实际注入保存失败，不冒失败回退真机验收。 最终桌面已恢复，独立电源协议读回SLEEP/Override10000，06:00:06释租released，保留17测试包。",
+      "updatedAt": "2026-11-24T09:22:31+08:00",
+      "remainingActions": [],
+      "stage": "201具名路径已验证，已本地提交"
+    },
+    {
+      "id": "COVER_IDENTITY_MIGRATION_TRANSITION_CONSISTENCY",
+      "number": 362,
+      "title": "书架、详情、转场与迁移封面一致性",
+      "kind": "done",
+      "progressPhase": "completed",
+      "priority": "用户当前反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-24",
+      "reportedAtSource": "用户本会话要求先检查迁移、超分与转场封面链路，随后明确不只限超分，书架和作品详情也有不同步；精确消息时刻未核实。",
+      "registeredAt": "2026-11-24T06:23:27+08:00",
+      "updatedAt": "2026-11-24T09:22:31+08:00",
+      "status": "统一有效封面与增强失效规则，201具名路径已验证，已本地提交",
+      "result": "此前本地执行确认了书架/详情取增强A、飞行独立取底图B，以及POP冻结点击时资源等分歧。用户随后明确要求一起修复并授权201验证。现书架、已收藏详情和转场统一comicDisplayCover，详情订阅书库revision，浏览已收藏条目沿同一有效封面；未收藏预览保留源入口合同。源底图URI改变或迁移到不同底图时，旧增强关联失效；手选底图及其对应增强保留，撤销指向目标源底图。返回前取得当前封面像素和资源身份，旧ready不能提前释放新快照。19首次换图POP的整卡重截出现标签文字残影，未通过；20封面展开只替换前景图并保留未变几何，原片未再出现。201普通菜单将增强过的包子大象605章复制到此前未收藏的瓜子23127（586章），目标蓝色封面未继承黄色旧增强；该迁移在19执行，20冷启动持久化及进退再核，迁移实现相同。20书架两来源152帧、原包子撤销91帧、一镜到底应用新增强再进退151帧、漫画屋两模式94/98帧全部contact sheet按序亲审，所测封面一致、落点和原列表归还正常。系统FastOutSlowIn、350ms、交接阈值及透明落点未改。19项逻辑回归、原个人封面回归及签名构建通过。仅移除本轮瓜子副本，原四项计数及天降之物第7页13%读回；原包子增强、封面展开、桌面和SLEEP/Override10000恢复，06:54:14独立释租，保留20新包。已按用户授权本地提交，未推送。",
+      "remainingActions": [],
+      "boundaries": [
+        "用户明确要求修复书架、详情、转场与迁移并在201验证；保留当前曲线、350ms、透明落点及原布局。",
+        "201普通迁移使用保留原作品的复制路径，未执行删除原作品的迁移分支；历史增强无底图来源信息，不据此批量删文件或推断修复旧错误关联。",
+        "本轮未重开旋转、全部布局及所有书源组合，漫画屋浏览样本未收藏；录像不证明FPS和既有准备耗时已消除。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/cover-consistency-audit-20261124.md",
+        ".hvigor/outputs/detail-transition-20261123/cover-consistency-audit-20261124.json",
+        "entry/src/main/ets/pages/LibraryPage.ets",
+        "entry/src/main/ets/pages/Index.ets",
+        "entry/src/main/ets/pages/MangaDetailPage.ets",
+        "entry/src/main/ets/model/SourceMangaMigrationService.ets",
+        "entry/src/main/ets/model/ComicModels.ets",
+        ".hvigor/outputs/detail-transition-20261123/cover-consistency-fixed-replay-20261124.json",
+        ".hvigor/outputs/detail-transition-20261123/cover-consistency-final-tests.log",
+        ".hvigor/outputs/detail-transition-20261123/cover-personalization-test.log",
+        ".hvigor/outputs/detail-transition-20261123/cover-consistency-build-3.log",
+        ".hvigor/outputs/detail-transition-20261123/cover-consistency-candidate-20.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate20-installed-20261124/run-metadata.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover19-apply-and-library-roundtrip",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-two-source-library-roundtrips",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-undo-and-return",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-seamless-changed-artwork",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-seamless-browse",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-cover-browse",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-copy-cleanup-identity",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-copy-removed",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-original-library-restored",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-mode-restored",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-original-home-restored",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/cover20-original-power-restored/run-metadata.json",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-cover-consistency-20261124.json"
+      ],
+      "stage": "201具名路径通过，已本地提交"
     }
   ],
   "source": {
@@ -31806,6 +31899,61 @@
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/restore-051721107557/run-metadata.json",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-cover-transparent-20261124.json"
       ]
+    },
+    {
+      "id": "library-switch-native-ack-20261124",
+      "at": "2026-11-24T06:01:45+08:00",
+      "itemId": "LIBRARY_SETTINGS_SWITCH_ANIMATION",
+      "kind": "verification",
+      "title": "201连续切换与显示生效通过，恢复桌面电源并释租",
+      "detail": "候选17把同一次点击回传从HDS绘制依赖中移出；各六次连续和各十次左右端交替完整原片均亲审，功能与重入持久化正确，恢复原徽标false、卡片true、后台检查true。多余书架投影刷新另行按实际变化收敛，不冒已证实动画根因。独立恢复Home/SLEEP10000及06:00:06 released。未提交。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device201__LMR-AL00/not-applicable/portrait-1276x2848/settings-library-switches/candidate17-motion/",
+        ".hvigor/outputs/user-flow-audit/device201__LMR-AL00/not-applicable/portrait-1276x2848/settings-library-switches/candidate17-edges-motion/",
+        ".hvigor/outputs/user-flow-audit/device201__LMR-AL00/not-applicable/portrait-1276x2848/settings-library-switches/restore-power-20261124/"
+      ]
+    },
+    {
+      "id": "detail-easing-design-rejected-20261124",
+      "at": "2026-11-24T06:01:45+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "kind": "correction",
+      "title": "用户否定17缓冲感，改为先核清运动场景和现成曲线",
+      "detail": "不再依据NextE；区分屏内形变与屏外入场，采用连续速度作为设计判断。17几何录像不等于曲线体验验收，20试案未装。现成FastOutSlowIn是研究建议，尚未采用。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/motion-design-analysis.json"
+      ]
+    },
+    {
+      "id": "detail-standard-adopted-and-cover-audit-20261124",
+      "at": "2026-11-24T06:23:27+08:00",
+      "itemId": "COVER_IDENTITY_MIGRATION_TRANSITION_CONSISTENCY",
+      "kind": "investigation",
+      "title": "保留系统标准曲线，并核清迁移与封面取图分歧",
+      "detail": "#359的201四段进退原片完成亲审，模式/桌面/电源恢复且释租；用户确认保留。#362执行生产迁移及选图方法，确认增强/原图与返回资源分歧，当前仅检查未改封面行为。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/cover-consistency-audit-20261124.json"
+      ]
+    },
+    {
+      "id": "cover-consistency-fixed-device201-20261124",
+      "at": "2026-11-24T06:55:35+08:00",
+      "itemId": "COVER_IDENTITY_MIGRATION_TRANSITION_CONSISTENCY",
+      "kind": "verification",
+      "title": "封面取图、换图返回与迁移增强关联修复，201具名验证完成",
+      "detail": "保留FastOutSlowIn/350ms；实际复制增强作品到不同封面书源，20复核两来源进退、增强撤销、一镜到底换图和浏览两模式，连续原片完整亲审。原作品和设置恢复，测试副本移除，原桌面/电源独立恢复并释租，未提交推送。",
+      "evidence": [
+        ".hvigor/outputs/detail-transition-20261123/cover-consistency-audit-20261124.md",
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-cover-consistency-20261124.json"
+      ]
+    },
+    {
+      "id": "cover-switch-motion-local-commit-20261124",
+      "at": "2026-11-24T09:22:31+08:00",
+      "itemId": "COVER_IDENTITY_MIGRATION_TRANSITION_CONSISTENCY",
+      "kind": "delivery",
+      "title": "用户授权本地提交封面、曲线及开关修复",
+      "detail": "提交#362封面一致性、#359已采用系统曲线及#361原生开关动画修复，沿用对应201验证及当前签名构建记录。未推送、未发布。现有changelog/v1.6.1.md为本轮开始前已有的跨功能版本日志草稿，保持该差异，未纳入本次修复提交；.codex-attachments与.v2c保留原样。"
     }
   ],
   "reportAgeAudit": {

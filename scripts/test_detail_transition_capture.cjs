@@ -15,10 +15,12 @@ function fixture() {
     const js = ts.transpileModule(source, { compilerOptions: {
       target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, experimentalDecorators: true,
     } }).outputText
-    new Function('require', 'exports', 'ObservedV2', 'Trace', 'setTimeout', 'clearTimeout', js)(name => {
+    new Function('require', 'exports', 'ObservedV2', 'Trace', 'Curve', 'setTimeout', 'clearTimeout', js)(name => {
       if (name === '@kit.ArkUI') return {
         FrameCallback: class {}, UIUtils: { applySync: action => action() },
-        curves: { cubicBezierCurve: () => ({ interpolate: x => x }) },
+        // Capture recovery does not run native animation; provide the SDK's
+        // curve factory without changing this fixture's linear timing model.
+        curves: { initCurve: () => ({ interpolate: x => x }) },
         AppStorageV2: { connect(_type, key, factory) {
           if (!states.has(key)) states.set(key, factory())
           return states.get(key)
@@ -31,7 +33,7 @@ function fixture() {
       if (name === '../i18n/AppStrings') return { AppStrings: { get: key => key } }
       if (name.startsWith('.')) return load(path.posix.normalize(path.posix.join(path.posix.dirname(file), name)))
       throw Error('Unexpected import ' + name)
-    }, exports, () => {}, () => {}, (action, delay) => {
+    }, exports, () => {}, () => {}, { FastOutSlowIn: 5 }, (action, delay) => {
       const id = ++timerId; timers.set(id, { action, delay }); return id
     }, id => timers.delete(id))
     return exports

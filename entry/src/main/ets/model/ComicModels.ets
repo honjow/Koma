@@ -192,9 +192,12 @@ export function copyComicPersonalFields(source: Comic, target: Comic): void {
   target.personalNotes = source.personalNotes
   target.customCoverUri = source.customCoverUri
   target.sourceCoverUri = source.sourceCoverUri
-  target.enhancedCoverUri = source.enhancedCoverUri
-  target.enhancedCoverModel = source.enhancedCoverModel
   if (source.customCoverUri) target.coverUri = source.customCoverUri
+  // #362: enhancement is derived from the effective base image, not a
+  // source-independent user cover. Retain it only while that base survives.
+  const sameBase = source.coverUri === target.coverUri
+  target.enhancedCoverUri = sameBase ? source.enhancedCoverUri : undefined
+  target.enhancedCoverModel = sameBase ? source.enhancedCoverModel : undefined
 }
 
 /** Display-only override. Source requests, downloads and sync still read the base cover. */
@@ -203,6 +206,11 @@ export function comicDisplayCover(comic: Comic): string | undefined {
 }
 
 export function assignComicSourceCover(comic: Comic, coverUri: string): void {
+  if (!comic.customCoverUri && comic.coverUri !== coverUri &&
+    (comic.enhancedCoverUri !== undefined || comic.enhancedCoverModel !== undefined)) {
+    comic.enhancedCoverUri = undefined
+    comic.enhancedCoverModel = undefined
+  }
   if (comic.customCoverUri) { comic.sourceCoverUri = coverUri; comic.coverUri = comic.customCoverUri }
   else comic.coverUri = coverUri
 }

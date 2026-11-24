@@ -132,12 +132,16 @@ export async function commitMangaMigration(
     copyComicPersonalFields(existing ?? source, target)
     // The target's release history belongs to its source; never carry an old source's due date across.
     if (existing !== undefined) copyComicUpdateSchedule(existing, target)
-    if (existing === undefined && source.customCoverUri) target.sourceCoverUri = targetSourceCover
+    // The new source owns its base cover, including the undo target of a
+    // retained custom cover. Never carry the old source's undo URI across.
+    if (target.customCoverUri) target.sourceCoverUri = targetSourceCover
     if (!target.personalNotes) target.personalNotes = source.personalNotes
     if (!target.customCoverUri && source.customCoverUri) {
       target.sourceCoverUri = target.coverUri
       target.customCoverUri = source.customCoverUri
       target.coverUri = source.customCoverUri
+      target.enhancedCoverUri = source.enhancedCoverUri
+      target.enhancedCoverModel = source.enhancedCoverModel
     }
     target.chapterCount = target.chapters.length
     target.pageCount = target.chapters.reduce((sum: number, chapter: Chapter): number => sum + chapter.pageCount, 0)

@@ -16,6 +16,7 @@ import {
 import { ColorMetrics, ImageModifier, LengthMetrics, ProgressButtonV2, ProgressButtonV2Color,
   SymbolGlyphModifier, TextModifier } from '@kit.ArkUI'
 import { connectLanguageState } from '../../state/LanguageState'
+import { AppearanceState, connectAppearanceState, effectiveAppearanceAccent } from '../../state/AppearanceState'
 import { ThemeConstants } from '../../theme/ThemeConstants'
 
 @ObservedV2
@@ -70,6 +71,10 @@ export struct ConciseListRow {
   private sourceIdentityPrefixItem: PrefixCustomBuilder | undefined = undefined
   private customSuffixItem: SuffixCustomBuilder | undefined = undefined
   private progressSuffixItem: SuffixCustomBuilder | undefined = undefined
+  @Local private switchSuffixItem: SuffixSwitch | undefined = undefined
+  @Local private switchAppearanceState: AppearanceState = connectAppearanceState()
+  private switchNativeValue: boolean = false
+  private switchSuffixAccent: string = ''
   @Local private decodedSourceIdentityUri: string = ''
   @Param count: number = -1
   @Param destructive: boolean = false
@@ -112,6 +117,38 @@ export struct ConciseListRow {
   @Event switchAction?: (value: boolean) => void
   @Event counterDecreaseAction?: () => void
   @Event counterIncreaseAction?: () => void
+
+  aboutToAppear(): void {
+    this.syncSwitchSuffix()
+  }
+
+  @Monitor('hasSwitch', 'checked', 'isEnabled', 'switchAppearanceState.accentColor', 'switchAppearanceState.previewAccentColor')
+  private syncSwitchSuffix(): void {
+    if (!this.hasSwitch) {
+      this.switchSuffixItem = undefined
+      return
+    }
+    const accent = effectiveAppearanceAccent(this.switchAppearanceState)
+    // CURRENT_STATUS #361: a native onChange already owns its new value.
+    // Acknowledge the parent's echo without invalidating the HDS builder.
+    // Only a genuine external change/rollback, enable or accent change reseeds it.
+    if (this.switchSuffixItem !== undefined && this.switchNativeValue === this.checked &&
+      this.switchSuffixItem.options?.enable === this.isEnabled && this.switchSuffixAccent === accent) return
+    this.switchNativeValue = this.checked
+    this.switchSuffixAccent = accent
+    this.switchSuffixItem = new SuffixSwitch({
+      isCheck: this.checked,
+      selectColor: ThemeConstants.BRAND_PRIMARY,
+      enable: this.isEnabled,
+      onChange: (value: boolean) => {
+        if (this.isEnabled && this.switchAction) {
+          this.switchNativeValue = value
+          if (this.switchSuffixItem?.options !== undefined) this.switchSuffixItem.options.isCheck = value
+          this.switchAction(value)
+        }
+      },
+    })
+  }
 
   private hasLeading(): boolean {
     return this.leadingImageUrl.length > 0 || this.leadingImage !== undefined || this.leadingIcon !== undefined || this.hasSourceIdentityPrefix ||
@@ -315,16 +352,9 @@ export struct ConciseListRow {
       })
     }
     if (this.hasSwitch) {
-      return new SuffixSwitch({
-        isCheck: this.checked,
-        selectColor: ThemeConstants.BRAND_PRIMARY,
-        enable: this.isEnabled,
-        onChange: (value: boolean) => {
-          if (this.isEnabled && this.switchAction) {
-            this.switchAction(value)
-          }
-        },
-      })
+      // Do not read checked here: even returning the same SuffixSwitch from a
+      // checked-dependent builder reapplies native options during the animation.
+      return this.switchSuffixItem
     }
     if (this.hasCounter) {
       return new SuffixCustomBuilder(() => {

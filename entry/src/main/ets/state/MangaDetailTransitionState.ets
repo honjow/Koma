@@ -1,4 +1,4 @@
-import { MangaDetailTransitionCoverSource } from './MangaDetailTransitionCoverSource'
+import { MangaDetailTransitionCoverSource, sameTransitionCover } from './MangaDetailTransitionCoverSource'
 import { AppStorageV2 } from '@kit.ArkUI'
 import { image } from '@kit.ImageKit'
 import { MangaDetailTransitionMode } from './AppearanceState'
@@ -20,6 +20,8 @@ export enum MangaDetailTransitionPhase {
  */
 class SuspendedMangaDetailTransitionContext {
   coverSource?: MangaDetailTransitionCoverSource = undefined
+  detailCoverSource?: MangaDetailTransitionCoverSource = undefined
+  sourceArtworkChanged: boolean = false
   mode: string = MangaDetailTransitionMode.SEAMLESS
   galleryId: string = ''
   routeDestinationId: string = ''
@@ -66,6 +68,8 @@ class SuspendedMangaDetailTransitionContext {
 @ObservedV2
 export class MangaDetailTransitionState {
   coverSource?: MangaDetailTransitionCoverSource = undefined
+  detailCoverSource?: MangaDetailTransitionCoverSource = undefined
+  sourceArtworkChanged: boolean = false
   detailLayoutReady: boolean = false
   preparationToken: number = 0
   private preparationSeed: number = 0
@@ -173,6 +177,8 @@ export class MangaDetailTransitionState {
       const context: SuspendedMangaDetailTransitionContext =
         new SuspendedMangaDetailTransitionContext()
       context.coverSource = this.coverSource
+      context.detailCoverSource = this.detailCoverSource
+      context.sourceArtworkChanged = this.sourceArtworkChanged
       context.mode = this.mode
       context.galleryId = this.galleryId
       context.routeDestinationId = this.routeDestinationId
@@ -278,6 +284,8 @@ export class MangaDetailTransitionState {
       return
     }
     this.coverSource = context.coverSource
+    this.detailCoverSource = context.detailCoverSource
+    this.sourceArtworkChanged = context.sourceArtworkChanged
     this.detailLayoutReady = true
     this.mode = context.mode
     this.galleryId = context.galleryId
@@ -719,6 +727,29 @@ export class MangaDetailTransitionState {
     }
   }
 
+  /** Detail changes are staged while PUSH still owns its click-time image. */
+  setDetailCoverSource(token: number | undefined, source: MangaDetailTransitionCoverSource): void {
+    if (this.owns(token)) this.detailCoverSource = source
+    else {
+      this.suspendedContexts.forEach((context: SuspendedMangaDetailTransitionContext): void => {
+        if (context.galleryId === String(token)) context.detailCoverSource = source
+      })
+    }
+  }
+
+  replacePopCover(token: number | undefined, source: MangaDetailTransitionCoverSource,
+    snapshot: image.PixelMap): boolean {
+    if (!this.owns(token) || this.phase !== MangaDetailTransitionPhase.OPEN) return false
+    this.sourceArtworkChanged = !sameTransitionCover(this.coverSource, source)
+    this.coverSource = source
+    this.coverUrl = source.uri
+    const previous = this.coverSnapshot
+    this.coverSnapshot = snapshot
+    this.coverResourceReady = false
+    previous?.release().catch((_error: Error) => {})
+    return true
+  }
+
   setCoverTarget(
     x: number,
     y: number,
@@ -970,6 +1001,8 @@ export class MangaDetailTransitionState {
 
   private clearCurrentFields(): void {
     this.coverSource = undefined
+    this.detailCoverSource = undefined
+    this.sourceArtworkChanged = false
     this.detailLayoutReady = false
     this.preparationToken = 0
     this.eligible = false

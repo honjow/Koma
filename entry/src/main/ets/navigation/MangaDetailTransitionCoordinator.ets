@@ -1,6 +1,6 @@
 import { RouteName } from '../common/Constants'
 import { MangaDetailRouteParam, RouterHelper } from '../common/RouterHelper'
-import { MangaDetailTransitionCoverSource } from '../state/MangaDetailTransitionCoverSource'
+import { MangaDetailTransitionCoverSource, sameTransitionCover } from '../state/MangaDetailTransitionCoverSource'
 import { image } from '@kit.ImageKit'
 import { FrameCallback, UIUtils, curves } from '@kit.ArkUI'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -15,8 +15,11 @@ import {
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 const MANGA_DETAIL_TRANSITION_DURATION_MS: number = 350
-const MANGA_DETAIL_OPEN_CURVE: curves.ICurve = curves.cubicBezierCurve(0.2, 0, 0, 1)
-const MANGA_DETAIL_CLOSE_CURVE: curves.ICurve = curves.cubicBezierCurve(0.3, 0, 0.2, 1)
+// CURRENT_STATUS #359: the user chose the system standard curve after rejecting
+// a front-loaded custom ease-out. Both directions start and settle at rest;
+// use this same native curve for geometry and spatial fade-time inversion.
+const MANGA_DETAIL_OPEN_CURVE: curves.ICurve = curves.initCurve(Curve.FastOutSlowIn)
+const MANGA_DETAIL_CLOSE_CURVE: curves.ICurve = MANGA_DETAIL_OPEN_CURVE
 // Crossfade thresholds describe spatial window progress, not elapsed time. Curve changes therefore
 // keep the card/detail handoff at the same visible window size.
 const MANGA_DETAIL_OPEN_CARD_EXIT_START_PROGRESS: number = 0
@@ -112,6 +115,7 @@ export class MangaDetailTransitionCoordinator {
   private static scopeSeed: number = 0
   private static opening: boolean = false
   private static openingPreparation: number = 0
+  private static popPreparationToken: number = 0
 
   static syncDetailCoverTarget(uiContext: UIContext): boolean {
     const transition = connectMangaDetailTransition()
@@ -163,7 +167,12 @@ export class MangaDetailTransitionCoordinator {
       const rootRect = uiContext.getComponentUtils().getRectangleById(MANGA_DETAIL_ROOT_ID)
       const rootWidth: number = uiContext.px2vp(rootRect.size.width)
       const rootHeight: number = uiContext.px2vp(rootRect.size.height)
-      return Math.abs(rootWidth - transition.rootWidth) > 0.5 ||
+      // Cover-expand already replaces the foreground image independently of
+      // the card remainder. Do not recapture an unchanged layout just to swap
+      // artwork: a covered Navigation surface can retain outgoing text layers.
+      return (!transition.isCoverExpand() && transition.detailCoverSource !== undefined &&
+        !sameTransitionCover(transition.coverSource, transition.detailCoverSource)) ||
+        Math.abs(rootWidth - transition.rootWidth) > 0.5 ||
         Math.abs(rootHeight - transition.rootHeight) > 0.5
     } catch (_error) {
       return false
@@ -687,12 +696,41 @@ export class MangaDetailTransitionCoordinator {
   static preparePop(uiContext: UIContext, token: number | undefined, pop: () => void): boolean {
     const transition = connectMangaDetailTransition()
     if (!transition.owns(token) || !transition.isCoverExpand() || transition.phase !== MangaDetailTransitionPhase.OPEN) return false
-    UIUtils.applySync((): void => {
-      transition.prepareCoverPop(MangaDetailTransitionCoordinator.syncDetailCoverTarget(uiContext))
-    })
-    uiContext.postFrameCallback(new MangaDetailCaptureFrameCallback((): void => {
-      if (transition.owns(token) && transition.phase === MangaDetailTransitionPhase.OPEN) pop()
-    }))
+    if (MangaDetailTransitionCoordinator.popPreparationToken === token) return true
+    MangaDetailTransitionCoordinator.popPreparationToken = token ?? 0
+    const prepare = async (): Promise<void> => {
+      let snapshot: image.PixelMap | undefined = undefined
+      let readyToPop: boolean = false
+      try {
+        const visible = MangaDetailTransitionCoordinator.syncDetailCoverTarget(uiContext)
+        const source = transition.detailCoverSource
+        // #362: capture the currently displayed artwork before hiding it.
+        // The card remainder excludes this image, so unchanged geometry can
+        // retain its existing snapshot while the new cover flies separately.
+        if (visible && source !== undefined && !sameTransitionCover(source, transition.coverSource)) {
+          snapshot = await uiContext.getComponentSnapshot().get(transition.targetCoverComponentId,
+            { waitUntilRenderFinished: true })
+          if (!transition.replacePopCover(token, source, snapshot)) return
+          snapshot = undefined
+        }
+        if (!transition.owns(token) || transition.phase !== MangaDetailTransitionPhase.OPEN) return
+        UIUtils.applySync((): void => { transition.prepareCoverPop(visible) })
+        readyToPop = true
+      } catch (error) {
+        if (!transition.owns(token)) return
+        UIUtils.applySync((): void => { transition.useSeamlessFallback() })
+        DiagnosticLogger.info('detail-transition', 'changed_cover_capture_failed', `${error}`)
+        readyToPop = true
+      } finally {
+        snapshot?.release().catch((_error: Error) => {})
+        if (!readyToPop && MangaDetailTransitionCoordinator.popPreparationToken === token) MangaDetailTransitionCoordinator.popPreparationToken = 0
+      }
+      uiContext.postFrameCallback(new MangaDetailCaptureFrameCallback((): void => {
+        if (MangaDetailTransitionCoordinator.popPreparationToken === token) MangaDetailTransitionCoordinator.popPreparationToken = 0
+        if (transition.owns(token) && transition.phase === MangaDetailTransitionPhase.OPEN) pop()
+      }))
+    }
+    void prepare()
     return true
   }
   static transition(

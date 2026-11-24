@@ -31,6 +31,7 @@ export struct MangaGridItem {
   @Param deferOffscreenCover: boolean = false
   @Param subtitle: string | undefined = undefined
   @Param coverOptions: MangaGridCoverOptions | undefined = undefined
+  @Param coverUriOverride: string | undefined = undefined
   @Param manga: SourceManga = {
     id: '',
     sourceId: '',
@@ -52,7 +53,7 @@ export struct MangaGridItem {
     if (this.detailTransitionScope.length === 0) this.onMangaTap(manga)
     else {
       const source = new MangaDetailTransitionCoverSource()
-      source.uri = manga.coverUrl ?? ''
+      source.uri = this.displayCoverUri()
       source.sourceRuntimeId = manga.sourceId
       source.sourceImageId = this.coverOptions?.imageId ?? manga.id
       source.sourceMangaUrl = manga.url ?? ''
@@ -80,12 +81,16 @@ export struct MangaGridItem {
   }
 
   private hasCover(): boolean {
-    const coverUrl = this.manga.coverUrl ?? ''
+    const coverUrl = this.displayCoverUri()
     return coverUrl.length > 0 && this.failedCoverUrl !== this.coverFailureKey()
   }
 
+  private displayCoverUri(): string {
+    return this.coverUriOverride ?? this.manga.coverUrl ?? ''
+  }
+
   private coverFailureKey(): string {
-    return cachedCoverFailureKey(this.manga.coverUrl, this.manga.sourceId, this.coverOptions?.imageId ?? this.manga.id,
+    return cachedCoverFailureKey(this.displayCoverUri(), this.manga.sourceId, this.coverOptions?.imageId ?? this.manga.id,
       this.coverOptions?.sourceKind, this.coverOptions?.remoteServerId, this.manga.url, this.manga.coverHeaders)
   }
 
@@ -112,12 +117,12 @@ export struct MangaGridItem {
     if ((!this.deferOffscreenCover || this.coverWasVisible) && this.hasCover()) {
       if (this.coverOptions?.nativeImage === true) {
         NativeCoverImage({
-          uri: this.manga.coverUrl ?? '',
+          uri: this.displayCoverUri(),
           onError: () => { this.failedCoverUrl = this.coverFailureKey() },
         }).id(`${this.detailCardId()}-cover`)
       } else if (this.listLayout || this.gridCoverDecodeEdge > 0) {
         CachedCoverImage({
-          uri: this.manga.coverUrl ?? '',
+          uri: this.displayCoverUri(),
           // Both layouts reuse cards. Keep the old cover only while the same work reloads.
           coverOwnerId: JSON.stringify([this.manga.sourceId, this.manga.id]),
           objectFit: ImageFit.Cover,

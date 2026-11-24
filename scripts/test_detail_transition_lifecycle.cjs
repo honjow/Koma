@@ -38,6 +38,31 @@ function fixture() {
 }
 
 // NextE's route contract: nested transitions move ownership; a child failure restores the parent.
+test('changed detail artwork replaces the POP image only for its route and preserves nested ownership', () => {
+  const { state, prepare } = fixture()
+  const resources = prepare(10, 'coverExpand')
+  const old = { uri: 'file://old' }, current = { uri: 'file://current' }
+  state.coverSource = old
+  state.markPushSettled(true)
+  state.setDetailCoverSource(10, current)
+  assert.equal(state.coverSource, old, 'a running/opened flight keeps its own pixels until POP preparation')
+  const replacement = { releases: 0, release() { this.releases++; return Promise.resolve() } }
+  assert.equal(state.replacePopCover(9, current, replacement), false)
+  assert.equal(state.coverSnapshot, resources[2])
+  assert.equal(state.replacePopCover(10, current, replacement), true)
+  assert.equal(resources[2].releases, 1)
+  assert.equal(state.coverSource, current)
+  assert.equal(state.sourceArtworkChanged, true)
+  prepare(11, 'seamless')
+  state.markPushSettled(false)
+  assert.equal(state.coverSource, current)
+  assert.equal(state.detailCoverSource, current)
+  assert.equal(state.coverSnapshot, replacement)
+  state.reset()
+  assert.equal(replacement.releases, 1)
+})
+
+// NextE's route contract: nested transitions move ownership; a child failure restores the parent.
 test('failed child push restores its parent mode and pixel ownership without consuming another destination', () => {
   const { state, Phase, prepare } = fixture()
   const parent = prepare(1, 'coverExpand')

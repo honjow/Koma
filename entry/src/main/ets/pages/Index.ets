@@ -1,5 +1,6 @@
 import { CachedCoverImage } from '../components/CachedCoverImage'
 import { MangaDetailTransitionCoordinator, MANGA_DETAIL_ROOT_ID } from '../navigation/MangaDetailTransitionCoordinator'
+import { MangaDetailTransitionCoverSource, sameTransitionCover } from '../state/MangaDetailTransitionCoverSource'
 import { connectMangaDetailTransition, MangaDetailTransitionState, MangaDetailTransitionPhase } from '../state/MangaDetailTransitionState'
 import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { SyncGroup } from '../deviceSync/DeviceSyncFacts'
@@ -3862,6 +3863,7 @@ struct Index {
           transitionCoverId: this.ownsDetailTransition(param as MangaDetailRouteParam) && this.detailTransition.isCoverExpand()
             ? this.detailTransition.targetCoverComponentId : '',
             libraryStore: this.libraryStore,
+            libraryRevision: this.libraryRevision,
             libraryPersistenceService: this.ensureLibraryPersistenceService(),
             readerSessionStore: this.readerSessionStore,
             readerProgressRevision: this.readerProgressRevision,
@@ -4838,18 +4840,22 @@ struct Index {
   }
 
   @Builder
-  private MangaDetailFlightCover(token: number) {
-    if (this.detailTransition.coverSource !== undefined && this.detailTransition.coverSource.uri.length > 0) {
+  private MangaDetailFlightCover(token: number, source: MangaDetailTransitionCoverSource | undefined) {
+    if (source !== undefined && source.uri.length > 0) {
       CachedCoverImage({
-        uri: this.detailTransition.coverSource.uri,
-        sourceRuntimeId: this.detailTransition.coverSource.sourceRuntimeId,
-        sourceImageId: this.detailTransition.coverSource.sourceImageId,
-        sourceMangaUrl: this.detailTransition.coverSource.sourceMangaUrl,
-        sourceCoverHeaders: this.detailTransition.coverSource.sourceCoverHeaders,
-        sourceKind: this.detailTransition.coverSource.sourceKind,
-        remoteServerId: this.detailTransition.coverSource.remoteServerId,
-        decodeMaxEdge: this.detailTransition.coverSource.decodeMaxEdge,
-        onReady: (): void => { if (this.detailTransition.owns(token)) this.detailTransition.markCoverResourceReady() },
+        uri: source.uri,
+        sourceRuntimeId: source.sourceRuntimeId,
+        sourceImageId: source.sourceImageId,
+        sourceMangaUrl: source.sourceMangaUrl,
+        sourceCoverHeaders: source.sourceCoverHeaders,
+        sourceKind: source.sourceKind,
+        remoteServerId: source.remoteServerId,
+        decodeMaxEdge: source.decodeMaxEdge,
+        onReady: (): void => {
+          if (this.detailTransition.owns(token) && sameTransitionCover(source, this.detailTransition.coverSource)) {
+            this.detailTransition.markCoverResourceReady()
+          }
+        },
       }).transition(TransitionEffect.IDENTITY)
     }
   }
@@ -5207,7 +5213,7 @@ struct Index {
         // surface bounds/radius so it can never protrude past a rounded container corner while flying.
         Stack({ alignContent: Alignment.TopStart }) {
           Stack() {
-            this.MangaDetailFlightCover(this.detailTransition.routeToken)
+            this.MangaDetailFlightCover(this.detailTransition.routeToken, this.detailTransition.coverSource)
             if (!this.detailTransition.coverResourceReady) {
               // The click-time pixels guarantee that the first transition frame cannot be blank.
               // Once the already-cached thumbnail resource paints, it takes over at the identical

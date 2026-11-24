@@ -48,7 +48,8 @@ import { common } from '@kit.AbilityKit'
 import { LibraryStore } from '../model/LibraryStore'
 import { SourceBrowsePreferencesStore } from '../model/SourceBrowsePreferencesStore'
 import { connectSourceBrowseState, SourceBrowseState } from '../state/SourceBrowseState'
-import { projectSourceLibrary, sourceLibraryKeys, SourceLibraryItem } from '../model/SourceLibraryProjection'
+import { projectSourceLibrary, sourceLibraryKeys, sourceLibraryKey, SourceLibraryItem } from '../model/SourceLibraryProjection'
+import { Comic, comicDisplayCover } from '../model/ComicModels'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -94,6 +95,19 @@ export struct SourceBrowsePage {
   private get shelvedKeys(): Set<string> {
     void this.libraryRevision
     return sourceLibraryKeys(this.libraryStore?.listComicSummaries(false) ?? [])
+  }
+
+  @Computed
+  private get shelvedCovers(): Map<string, string> {
+    void this.libraryRevision
+    const covers = new Map<string, string>()
+    this.libraryStore?.listComicSummaries(false).forEach((comic: Comic): void => {
+      if (comic.sourceRuntimeId && comic.remoteResourceId) {
+        const cover = comicDisplayCover(comic)
+        if (cover !== undefined) covers.set(sourceLibraryKey(comic.sourceRuntimeId, comic.remoteResourceId), cover)
+      }
+    })
+    return covers
   }
 
   @Param viewModel: BrowseViewModel = new BrowseViewModel()
@@ -723,6 +737,7 @@ export struct SourceBrowsePage {
   private GridRowContent(row: RepeatItem<SourceBrowseGridRow>) {
     if (row.item.kind === 'manga') {
       MangaGridItem({ detailTransitionScope: this.detailTransitionScope,
+        coverUriOverride: this.shelvedCovers.get(sourceLibraryKey(row.item.manga!.sourceId, row.item.manga!.id)),
         transitionSourceIsCurrent: (): boolean => this.chrome.visible, manga: row.item.manga!, inLibrary: row.item.inLibrary === true, listLayout: this.chrome.layout === 'list', deferOffscreenCover: true,
         onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
     } else if (row.item.kind === 'home-header') {

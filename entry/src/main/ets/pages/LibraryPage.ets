@@ -1,4 +1,4 @@
-import { MangaDetailTransitionCoverSource } from '../state/MangaDetailTransitionCoverSource'
+import { MangaDetailTransitionCoverSource, comicTransitionCoverSource } from '../state/MangaDetailTransitionCoverSource'
 import { MangaDetailTransitionCoordinator } from '../navigation/MangaDetailTransitionCoordinator'
 import { connectMangaDetailTransition, MangaDetailTransitionState } from '../state/MangaDetailTransitionState'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
@@ -944,6 +944,7 @@ export struct LibraryPage {
   }
 
   private async restoreFilterPreferences(restoreEpoch: number, mutationRevision: number): Promise<void> {
+    let refreshProjection = true
     try {
       const context = getContext(this) as common.UIAbilityContext
       const preferencesValue = await new LibraryFilterStore(context).load()
@@ -952,7 +953,11 @@ export struct LibraryPage {
         console.info('[Library] step=filter_restore_discarded reason=state_changed')
         return
       }
-      this.applyFilterPreferences(preferencesValue)
+      // Display-only preferences do not change membership or ordering (#361).
+      // Keep the existing snapshot; only display fields need updating.
+      refreshProjection = this.applyFilterPreferences(preferencesValue) ||
+        this.displayedLibraryStore !== this.libraryStore || this.displayedLibraryRevision !== this.libraryRevision ||
+        this.displayedSessionStore !== this.readerSessionStore || this.displayedProgressRevision !== this.readerProgressRevision
     } catch (error) {
       void error
       console.info('[Library] step=filter_restore_failed reason=filter_restore')
@@ -961,7 +966,7 @@ export struct LibraryPage {
         // Compute the current projection before exposing it. This covers the
         // persisted snapshot, a user mutation that won the race, and default
         // filters after an unavailable preferences store.
-        this.refreshDisplayedSnapshotFromStore()
+        if (refreshProjection) this.refreshDisplayedSnapshotFromStore()
         this.projectionState = LibraryProjectionState.READY
       }
     }
@@ -1648,15 +1653,8 @@ export struct LibraryPage {
 
   private detailTransitionCoverSource(comicId: string): MangaDetailTransitionCoverSource {
     const comic = this.libraryStore.getComicSummary(comicId)
-    const source = new MangaDetailTransitionCoverSource()
-    source.uri = comic?.coverUri ?? ''
-    source.sourceRuntimeId = comic?.sourceRuntimeId ?? ''
-    source.sourceImageId = comic?.remoteResourceId ?? comicId
-    source.sourceMangaUrl = comic?.sourcePath ?? ''
-    source.sourceKind = comic?.sourceKind
-    source.remoteServerId = comic?.remoteServerId ?? ''
-    source.decodeMaxEdge = this.viewMode === 'list' ? coverDecodeEdgeForDisplay(this.libraryListCoverHeight()) : this.libraryGridCoverDecodeEdge()
-    return source
+    return comic === undefined ? new MangaDetailTransitionCoverSource() : comicTransitionCoverSource(comic,
+      this.viewMode === 'list' ? coverDecodeEdgeForDisplay(this.libraryListCoverHeight()) : this.libraryGridCoverDecodeEdge())
   }
 
   private detailCardId(mode: string, comicId: string): string {

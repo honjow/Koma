@@ -1,4 +1,5 @@
 import { connectMangaDetailTransition } from '../state/MangaDetailTransitionState'
+import { MangaDetailTransitionCoverSource, comicTransitionCoverSource } from '../state/MangaDetailTransitionCoverSource'
 import { MangaDetailTransitionCoordinator } from '../navigation/MangaDetailTransitionCoordinator'
 import { SourceCommentsSheet } from '../components/SourceCommentsSheet'
 import { SourceCommentScope, SourceCommentsTarget } from '../sourceRuntime/SourceCommentsContract'
@@ -87,6 +88,7 @@ import { ReaderChapterDescriptor, cloneReaderChapterDescriptor, filterChapterMet
 import {
   Chapter,
   Comic,
+  comicDisplayCover,
   ComicSourceKind,
   CustomLibraryCategory,
   ReadingDirection,
@@ -428,6 +430,7 @@ export struct MangaDetailPage {
   private detailRefreshController: PullRefreshController = new PullRefreshController()
   private detailRefreshTask: Promise<void> | undefined = undefined
   @Param libraryStore?: LibraryStore = undefined
+  @Param libraryRevision: number = 0
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param readerProgressRevision: number = 0
@@ -640,6 +643,7 @@ export struct MangaDetailPage {
     }
     const mount = ++this.detailMountGeneration
     const transition = connectMangaDetailTransition()
+    this.syncTransitionCoverSource()
     if (transition.owns(this.params.transitionToken)) {
       // Prepare the real metadata and virtual chapter list before the first visible transition frame.
       // Keeping the existing deferred mount here would place its List layout inside the 350ms animation.
@@ -3086,9 +3090,11 @@ export struct MangaDetailPage {
   }
 
   private visibleCoverUrl(manga: MangaDetail): string {
+    void this.libraryRevision
     const comic = this.libraryStore?.getComic(this.currentComicId())
-    const override = comic?.enhancedCoverUri ?? comic?.customCoverUri
-    if (override) return override
+    // #362: a collected work has one display owner. Route previews and cached
+    // source details must not override the shelf's newer base or user cover.
+    if (comic !== undefined) return comicDisplayCover(comic) ?? ''
     // A source can keep the opened preview stable while its detail cover
     // remains available to the source snapshot and shelf.
     const sourceId = manga.sourceId
@@ -3099,6 +3105,27 @@ export struct MangaDetailPage {
       if (preview && (placeholder === undefined || !preview.includes(placeholder))) return preview
     }
     return manga.coverUrl ?? ''
+  }
+
+  @Monitor('manga', 'libraryRevision', 'chrome.visible')
+  private syncTransitionCoverSource(): void {
+    const manga = this.manga
+    if (manga === undefined) return
+    const transition = connectMangaDetailTransition()
+    const comic = this.libraryStore?.getComicSummary(this.currentComicId())
+    let source: MangaDetailTransitionCoverSource
+    if (comic !== undefined) {
+      source = comicTransitionCoverSource(comic, transition.coverSource?.decodeMaxEdge ?? 320)
+    } else {
+      source = new MangaDetailTransitionCoverSource()
+      source.uri = this.visibleCoverUrl(manga)
+      source.sourceRuntimeId = manga.sourceId ?? ''
+      source.sourceImageId = manga.sourceImageId ?? manga.id
+      source.sourceMangaUrl = manga.url ?? ''
+      source.decodeMaxEdge = transition.coverSource?.decodeMaxEdge ?? 320
+    }
+    transition.setDetailCoverSource(this.params.transitionToken, source)
+    if (this.chrome.visible) this.syncTitleActions()
   }
 
   private displayedManga(manga: MangaDetail): MangaDetail {

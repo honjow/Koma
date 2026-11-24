@@ -14,7 +14,7 @@ function productionFunctions(name) {
 }
 const comicTree = ts.createSourceFile('ComicModels.ts', fs.readFileSync(path.join(__dirname,
   '../entry/src/main/ets/model/ComicModels.ets'), 'utf8'), ts.ScriptTarget.Latest, true)
-const comicHelpers = ['assignComicSourceCover', 'setCompleteSourceChapterCatalog'].map(name =>
+const comicHelpers = ['assignComicSourceCover', 'copyComicPersonalFields', 'comicDisplayCover', 'setCompleteSourceChapterCatalog'].map(name =>
   comicTree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name).getText(comicTree))
 const code = [...comicHelpers, productionFunctions('SourceChapterMetadata'), productionFunctions('SourceChapterVisibility'),
   productionFunctions('SourceLibraryComic'),
@@ -45,6 +45,22 @@ test('fresh cover changes only the cover field and persists once, preserving cha
   assert.equal(f.saves(), 1)
   assert.equal(refresh(f.store, f.service, 'owned-work', 'owned-source', 'owned-remote', 'https://owned.invalid/new'), false)
   assert.equal(f.saves(), 1)
+})
+
+test('changed source artwork invalidates only its derived cover, while retained custom artwork keeps its enhancement', () => {
+  const f = fixture(), row = f.store.getComic('owned-work')
+  row.enhancedCoverUri = 'file://enhanced-old'; row.enhancedCoverModel = 'system'
+  refresh(f.store, f.service, row.id, row.sourceRuntimeId, row.remoteResourceId, 'https://owned.invalid/new')
+  assert.equal(exportsForTest.comicDisplayCover(f.store.getComic(row.id)), 'https://owned.invalid/new')
+  const target = { coverUri: 'https://other.invalid/target' }
+  exportsForTest.copyComicPersonalFields(row, target)
+  assert.equal(target.enhancedCoverUri, undefined)
+  row.customCoverUri = 'file://custom'; row.coverUri = row.customCoverUri
+  exportsForTest.copyComicPersonalFields(row, target)
+  exportsForTest.assignComicSourceCover(target, 'https://other.invalid/target')
+  assert.equal(target.sourceCoverUri, 'https://other.invalid/target')
+  assert.equal(exportsForTest.comicDisplayCover(target), 'file://enhanced-old')
+  assert.equal(target.enhancedCoverModel, 'system')
 })
 test('missing/wrong identity, local work, empty/invalid cover never writes or removes the existing cover', () => {
   for (const [id, sourceId, mangaId, cover] of [
