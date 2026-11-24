@@ -1578,6 +1578,13 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.remoteHistoryComplete = true
   }
 
+  getRemoteHistory(comicId: ComicId): RemoteReadHistoryEntry | undefined {
+    const database = this.deferredReadingDatabase
+    if (database === undefined || this.remoteHistoryComplete) return super.getRemoteHistory(comicId)
+    const entry = this.remoteHistoryByComicId.get(comicId) ?? database.readRemoteHistory(comicId)[0]
+    return entry === undefined ? undefined : copyRemoteReadHistoryEntry(entry)
+  }
+
   protected prepareReadingSessions(): void {
     const database = this.deferredReadingDatabase
     if (database === undefined || this.readingSessionsComplete) return

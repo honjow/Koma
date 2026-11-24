@@ -695,7 +695,7 @@ export class LibraryUpdateService {
         return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_no_new_chapters'))
       }
       const identity = reconcileSourceChapterIdentity(liveComic, mangaId, fetchedChapters,
-        this.protectedChapterIds?.(liveComic), entry.websitePolicy?.chapterIdentity)
+        () => this.protectedChapterIds?.(liveComic), entry.websitePolicy?.chapterIdentity)
       const remoteChapters = identity.chapters
       const identityChanged = identity.removedDuplicateIds.length > 0
       const currentComic = identityChanged ? JSON.parse(JSON.stringify(liveComic)) as Comic : liveComic

@@ -190,8 +190,8 @@ export class ReaderRdbStorage {
       readerSourceHistory.read(this.store, 'comic_id = ?', [comicId])
   }
 
-  readRemoteHistory(): RemoteReadHistoryEntry[] {
-    return readRemoteHistory(this.store)
+  readRemoteHistory(comicId?: string): RemoteReadHistoryEntry[] {
+    return readRemoteHistory(this.store, comicId)
   }
 
   readReadingSessions(comicId?: string): ReadingSessionRecord[] {

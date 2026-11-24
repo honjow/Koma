@@ -1727,7 +1727,7 @@ export struct MangaDetailPage {
     const storageContext = getContext(this) as common.UIAbilityContext
     const identity = libraryComic !== undefined && this.sourceChaptersResolved
       ? reconcileSourceChapterIdentity(libraryComic, mangaId, chapters,
-        protectedSourceChapterIds(libraryComic, komaContentStorageBase(storageContext),
+        () => protectedSourceChapterIds(libraryComic, komaContentStorageBase(storageContext),
           this.readerSessionStore, chapterIdentity, komaRuntimeStorageKey(storageContext)), chapterIdentity)
       : undefined
     if (!skipLibraryWrite && persistResolvedChapterMetadata && this.sourceChaptersResolved) {

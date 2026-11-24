@@ -166,6 +166,9 @@ export function resumeAutomaticDownloads(request: OfflineDownloadBatchRequest): 
     const queue = new OfflineDownloadQueueStore(storageBase, runtimeKey)
     let completed = 0
     let failed = 0
+    // Recover interrupted tasks before checking for runnable work. A cold queue
+    // can contain only the chapter that was downloading when the app stopped.
+    await OfflineDownloadService.ensureQueueInitialized(storageBase, runtimeKey)
     if (!canRunOfflineDownloadQueueNow(queue.loadPreferences())) return
     let targets = queue.loadAutomaticPendingEntries().filter((entry: OfflineDownloadQueueEntry): boolean =>
       entry.status !== OfflineDownloadStatus.DOWNLOADING)

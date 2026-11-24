@@ -164,7 +164,7 @@ export function reconcileSourceChapterIdentity(
   comic: Comic,
   mangaId: string,
   chapters: MangaChapterItem[],
-  protectedChapterIds: Set<string> | undefined,
+  readProtectedChapterIds: (() => Set<string> | undefined) | undefined,
   policy?: SourceChapterIdentityPolicy,
 ): SourceChapterIdentityResolution {
   if (policy?.titleSeparator !== undefined) {
@@ -189,6 +189,8 @@ export function reconcileSourceChapterIdentity(
   })
   const aliases = new Map<string, string>()
   const removed = new Set<string>()
+  let protectionChecked = false
+  let protectedChapterIds: Set<string> | undefined
   storedGroups.forEach((stored: Chapter[], key: string): void => {
     const legacy = stored.filter((chapter: Chapter): boolean => chapter.id.startsWith(legacyFormat.prefix))
     const current = stored.filter((chapter: Chapter): boolean => !chapter.id.startsWith(legacyFormat.prefix))
@@ -201,12 +203,15 @@ export function reconcileSourceChapterIdentity(
     const currentId = Array.from(currentIds)[0]
     if (current.length === 1 && current[0].id !== currentId) return
     aliases.set(currentId, legacy[0].id)
-    if (current.length === 1 && current[0].pages.length === 0 && current[0].pageCount === 0 &&
-      protectedChapterIds !== undefined && !protectedChapterIds.has(currentId) &&
-      !remote.some((chapter: MangaChapterItem): boolean => chapter.id === currentId &&
-        (chapter.isRead || chapter.isDownloaded || chapter.downloadStatus !== undefined))) {
-      removed.add(currentId)
+    if (current.length !== 1 || current[0].pages.length !== 0 || current[0].pageCount !== 0 ||
+      remote.some((chapter: MangaChapterItem): boolean => chapter.id === currentId &&
+        (chapter.isRead || chapter.isDownloaded || chapter.downloadStatus !== undefined))) return
+    // Most source refreshes have no duplicate to remove and need no storage probe.
+    if (!protectionChecked) {
+      protectedChapterIds = readProtectedChapterIds?.()
+      protectionChecked = true
     }
+    if (protectedChapterIds !== undefined && !protectedChapterIds.has(currentId)) removed.add(currentId)
   })
   if (aliases.size === 0) return unchanged
   const targets = new Set<string>(Array.from(aliases.values()))

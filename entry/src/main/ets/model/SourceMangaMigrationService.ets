@@ -113,7 +113,7 @@ export async function commitMangaMigration(
     if (existing !== undefined) {
       const policy = prepared.entry.websitePolicy?.chapterIdentity
       const identity = reconcileSourceChapterIdentity(existing, prepared.manga.id, prepared.chapters,
-        protectedSourceChapterIds(existing, storageBase, reader, policy, komaRuntimeStorageKey(context)), policy)
+        () => protectedSourceChapterIds(existing, storageBase, reader, policy, komaRuntimeStorageKey(context)), policy)
       const retained = JSON.parse(JSON.stringify(existing)) as Comic
       retained.chapters = identity.storedChapters
       target.id = existing.id

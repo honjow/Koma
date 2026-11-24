@@ -96,11 +96,14 @@ test('cold reading reads scoped positions and saves before loading history witho
     const position = (comicId, updatedAt) => ({ comicId, chapterId: 'c1',
       pageIndex: 4, totalPages: 10, progressRatio: 0.5, completed: false, updatedAt })
     const savedSession = { comicId: 'keep', chapterId: 'c1', startedAt: 1, endedAt: 2, pagesRead: 1 }
+    const remote = { kind: 'webdav', comicId: 'webdav:server:keep', chapterId: 'webdav:server:remote-chapter', serverId: 'server',
+      resourceId: 'book', title: 'Remote work', pathSegments: ['book', 'chapter'] }
     const action = { id: 'prior', space: 'space', source: 'source', work: 'keep',
       chapterId: 'c1', edits: [{ key: 'bookmark', kind: 'set', value: 'true', observed: [] }] }
     const initial = { progress: [position('keep', 2), position('tie', 2),
       ...Array.from({ length: 33 }, (_, i) => position('hidden-' + i, 10 + i))],
-      chapters: [], sourceHistory: [], readingSessions: [savedSession], syncActions: [action] }
+      chapters: [], sourceHistory: [], readingSessions: [savedSession], syncActions: [action],
+      remoteHistory: [remote, { ...remote, comicId: 'webdav:server:unrelated' }] }
     await reader.migrate(initial)
     queries.length = 0
     const session = new PersistentReaderSessionStore({
@@ -114,6 +117,11 @@ test('cold reading reads scoped positions and saves before loading history witho
     assert.deepEqual(session.latestMatchingProgress(row => !row.comicId.startsWith('hidden-'))
       .map(row => row.comicId).sort(), ['keep', 'tie'])
     assert.ok(queries.every(sql => !sql.includes('reader_sessions') && !sql.includes('reader_source_history')))
+    const beforeRemote = queries.length
+    assert.deepEqual(session.getRemoteHistory(remote.comicId).pathSegments, ['book', 'chapter'])
+    assert.equal(session.getRemoteHistory('missing'), undefined)
+    assert.ok(queries.slice(beforeRemote).every(sql => sql.includes('WHERE comic_id = ?')))
+    assert.equal(session.listRemoteHistory().length, 2)
     session.saveProgress({ ...position('keep', 5), pageIndex: 7 })
     const pending = { ...savedSession, startedAt: 3, endedAt: 4 }
     session.addReadingSession(pending)

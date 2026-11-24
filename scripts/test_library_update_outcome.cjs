@@ -103,7 +103,7 @@ function checkChapterIdentityProtection() {
   const { reconcileSourceChapterIdentity: resolve, sourceChapterForRetainedIdentity: resume } =
     compile(source('SourceChapterIdentity'), {})
   const reconcile = (comic, work, incoming, protectedIds) =>
-    resolve(comic, work, incoming, protectedIds, numericChapterIdentity)
+    resolve(comic, work, incoming, () => protectedIds, numericChapterIdentity)
   const oldId = '/go/' + Buffer.from('9330-123-0123456789').toString('base64url')
   const currentId = '/comic/9330/123.html'
   const old = { id: oldId, pages: [{ id: 'page-1', uri: 'file://kept-page' }], pageCount: 1 }
@@ -124,12 +124,14 @@ function checkChapterIdentityProtection() {
       comic.chapters, 'unknown or referenced duplicates must remain')
   }
   const populated = { ...comic, chapters: [old, { ...emptyDuplicate, pageCount: 2 }] }
-  assert.equal(reconcile(populated, '/comic/9330.html', incoming, new Set()).storedChapters.length, 2)
+  assert.equal(resolve(populated, '/comic/9330.html', incoming,
+    () => assert.fail('A populated chapter cannot be removed and requires no storage probe'),
+    numericChapterIdentity).storedChapters.length, 2)
   const ambiguous = { ...comic, chapters: [...comic.chapters,
     { ...old, id: '/go/' + Buffer.from('9330-123-abcdef0123').toString('base64url') }] }
   assert.deepEqual(reconcile(ambiguous, '/comic/9330.html', incoming, new Set()).removedDuplicateIds, [])
   assert.deepEqual(resolve({ ...comic, sourceRuntimeId: 'other-source' }, '/comic/9330.html',
-    incoming, new Set()).removedDuplicateIds, [])
+    incoming, undefined).removedDuplicateIds, [])
   assert.equal(resume(numericChapterIdentity, '/comic/9330.html', oldId, incoming).id, oldId)
   assert.equal(resume(numericChapterIdentity, '/comic/9330.html', oldId,
     [{ ...incoming[0], id: '/comic/9999/123.html' }]), undefined)

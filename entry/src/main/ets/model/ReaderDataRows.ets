@@ -251,14 +251,16 @@ export function remotePathRows(entries: RemoteReadHistoryEntry[]): ReaderRemoteP
   return parts
 }
 
-export function readRemoteHistory(store: relationalStore.RdbStore): RemoteReadHistoryEntry[] {
+export function readRemoteHistory(store: relationalStore.RdbStore, comicId?: string): RemoteReadHistoryEntry[] {
+  const filter = comicId === undefined ? undefined : 'comic_id = ?'
+  const args = comicId === undefined ? undefined : [comicId]
   const paths = new Map<string, string[]>()
-  for (const part of readerRemotePaths.read(store)) {
+  for (const part of readerRemotePaths.read(store, filter, args)) {
     const path = paths.get(part.comicId)
     if (path === undefined) paths.set(part.comicId, [part.segment])
     else path.push(part.segment)
   }
-  return readerRemoteHistory.read(store).map((record: ReaderRemoteRow): RemoteReadHistoryEntry => {
+  return readerRemoteHistory.read(store, filter, args).map((record: ReaderRemoteRow): RemoteReadHistoryEntry => {
     if (record.hasPath) record.entry.pathSegments = paths.get(record.entry.comicId) ?? []
     return record.entry
   })

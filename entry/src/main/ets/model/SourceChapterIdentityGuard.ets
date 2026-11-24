@@ -12,13 +12,15 @@ export function protectedSourceChapterIds(
   if (policy?.encodedLegacy === undefined) return undefined
   try {
     const ids = new Set<string>()
-    reader.listProgress().forEach((row): void => { if (row.comicId === comic.id) ids.add(row.chapterId) })
+    const position = reader.getProgress(comic.id)
+    if (position !== undefined) ids.add(position.chapterId)
     reader.listChapterStates(comic.id).forEach((row): void => { ids.add(row.chapterId) })
-    reader.listSourceHistory().forEach((row): void => { if (row.comicId === comic.id) ids.add(row.chapterId) })
-    reader.listRemoteHistory().forEach((row): void => { if (row.comicId === comic.id) ids.add(row.chapterId) })
-    new OfflineDownloadQueueStore(filesDir, runtimeKey).load().forEach((row): void => {
-      if (row.comicId === comic.id) ids.add(row.chapterId)
-    })
+    const source = reader.getSourceHistory(comic.id)
+    if (source !== undefined) ids.add(source.chapterId)
+    const remote = reader.getRemoteHistory(comic.id)
+    if (remote !== undefined) ids.add(remote.chapterId)
+    const tasks = new OfflineDownloadQueueStore(filesDir, runtimeKey).loadTasksForComics([comic.id])
+    tasks.forEach((row): void => { ids.add(row.chapterId) })
     const downloaded = new OfflineDownloadStore(filesDir, runtimeKey).storedChapterIds(comic.id)
     if (downloaded === undefined) return undefined
     downloaded.forEach((id: string): void => { ids.add(id) })

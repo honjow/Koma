@@ -21,7 +21,9 @@ class Queue {
  upsert(entry) { const i = rows.findIndex(e => e.comicId === entry.comicId && e.chapterId === entry.chapterId); rows[i] = { ...entry } }
 }
 class Service {
- static async ensureQueueInitialized() {}
+ static async ensureQueueInitialized() {
+  for (const row of rows) if (row.status === 'downloading') row.status = 'queued'
+ }
  async downloadChapter(comic, chapter) {
   downloaded.push({ comic, chapter })
   const row = rows.find(e => e.chapterId === chapter)
@@ -76,6 +78,13 @@ test('pausing a queue with chapters remaining does not announce completion', asy
  await mod.resumeAutomaticDownloads(request)
  assert.deepEqual(published, [])
  assert.equal(rows[1].status, 'queued')
+})
+
+test('automatic startup recovers a queue containing only an interrupted download', async () => {
+ rows = [{ ...make('interrupted'), status: 'downloading' }]; published = []; runnable = true; pauseAfter = false
+ await mod.resumeAutomaticDownloads(request)
+ assert.equal(rows[0].status, 'downloaded')
+ assert.deepEqual(published, [[1, 0]])
 })
 
 test('a cold download queue resolves the work and chapter without a shelf record', async () => {
