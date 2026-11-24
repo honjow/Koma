@@ -1378,7 +1378,7 @@ export struct LibraryPage {
 
   private libraryViewportWidth(): number {
     const width = this.layoutSafeArea.windowWidthVp > 0 ? this.layoutSafeArea.windowWidthVp : this.containerWidth
-    return this.layoutSafeArea.gridWidth(width, this.libraryHorizontalInset())
+    return this.layoutSafeArea.gridWidth(width, this.libraryHorizontalInset(), ThemeConstants.FLOATING_TAB_BAR_CLEARANCE)
   }
 
   private libraryGridColumnCount(): number {
@@ -2517,7 +2517,8 @@ export struct LibraryPage {
     .scrollBar(BarState.Off)
     .width('100%')
     .height('100%')
-    .padding(this.layoutSafeArea.sidePadding(this.libraryHorizontalInset()))
+    .padding(this.layoutSafeArea.sidePadding(this.libraryHorizontalInset(), undefined, true,
+      ThemeConstants.FLOATING_TAB_BAR_CLEARANCE))
     .clipContent(ContentClipMode.CONTENT_ONLY)
     .enableScrollInteraction(this.scrollEnabled)
     .edgeEffect(this.pullRefreshController.nativeSpringEnabled ? EdgeEffect.Spring : EdgeEffect.None, {

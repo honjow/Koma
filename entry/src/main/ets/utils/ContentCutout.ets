@@ -10,9 +10,8 @@ export interface WindowCutoutLayout {
   window: CutoutRect
   left: CutoutRect
   right: CutoutRect
-  systemTop: CutoutRect
-  systemBottom: CutoutRect
-  navigationBottom: CutoutRect
+  topInset: number
+  bottomInset: number
 }
 
 export interface ContentSidePadding {
@@ -28,26 +27,25 @@ function intersect(a: CutoutRect, b: CutoutRect): CutoutRect | undefined {
   return width > 0 && height > 0 ? { left, top, width, height } : undefined
 }
 
-function contains(outer: CutoutRect, inner: CutoutRect): boolean {
-  return outer.left <= inner.left && outer.top <= inner.top &&
-    outer.left + outer.width >= inner.left + inner.width &&
-    outer.top + outer.height >= inner.top + inner.height
-}
-
-/** Measure before applying our padding so a padded result cannot cancel its own inset. */
+/** Measure the unpadded viewport. Existing vertical clearance takes priority over side avoidance. */
 export function contentSidePadding(layout: WindowCutoutLayout, base: number, viewport?: CutoutRect,
-  consumesSystemBars: boolean = true): ContentSidePadding {
-  const bounds = viewport ?? layout.window
-  const visible = intersect(bounds, layout.window)
-  if (visible === undefined || layout.window.width <= layout.window.height) return { left: base, right: base }
+  consumesSystemBars: boolean = true, bottomBarClearance: number = 0): ContentSidePadding {
+  const window = layout.window
+  const bounds = viewport ?? window
+  if (window.width <= window.height) return { left: base, right: base }
+
+  // Lists reserve the inset's height across their width, even if the OS reports a narrow indicator.
+  // Only pages with a floating bottom bar reserve additional space for that bar.
+  const top = consumesSystemBars ? layout.topInset : 0
+  const bottom = consumesSystemBars ? layout.bottomInset + bottomBarClearance : 0
+  const visible = intersect(bounds, { left: window.left, top: window.top + top,
+    width: window.width, height: window.height - top - bottom })
+  if (visible === undefined) return { left: base, right: base }
   const left = intersect(layout.left, visible)
   const right = intersect(layout.right, visible)
-  const needsInset = (hole: CutoutRect | undefined): boolean => hole !== undefined &&
-    (!consumesSystemBars || !(contains(layout.systemTop, hole) || contains(layout.systemBottom, hole) ||
-      contains(layout.navigationBottom, hole)))
   return {
-    left: needsInset(left) && left !== undefined ? Math.max(base, left.left + left.width - bounds.left) : base,
-    right: needsInset(right) && right !== undefined ? Math.max(base, bounds.left + bounds.width - right.left) : base,
+    left: base + (left === undefined ? 0 : left.left + left.width - bounds.left),
+    right: base + (right === undefined ? 0 : bounds.left + bounds.width - right.left),
   }
 }
 

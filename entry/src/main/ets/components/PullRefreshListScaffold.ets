@@ -175,7 +175,7 @@ export struct PullRefreshListScaffold {
     if (!this.reserveSystemSafeArea && this.listViewport === undefined) {
       return { left: this.horizontalPadding, right: this.horizontalPadding }
     }
-    return this.safeArea.sidePadding(this.horizontalPadding, this.listViewport)
+    return this.safeArea.sidePadding(this.horizontalPadding, this.listViewport, true, this.floatingTabTailPadding)
   }
 
   private keyboardPadding(): number {

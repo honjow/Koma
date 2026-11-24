@@ -105,7 +105,8 @@ export struct SecondaryListScaffold {
 
   private contentPadding(): Padding {
     if (this.inModal && this.listViewport === undefined) return { left: 0, right: 0 }
-    return this.safeArea.sidePadding(this.inModal ? 0 : this.horizontalPadding, this.listViewport)
+    return this.safeArea.sidePadding(this.inModal ? 0 : this.horizontalPadding, this.listViewport, true,
+      this.floatingTabTailPadding)
   }
 
   private keyboardPadding(): number {

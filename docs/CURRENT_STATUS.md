@@ -13552,11 +13552,11 @@
       "reportedDate": "2026-11-24",
       "reportedAtSource": "用户反馈正中挖孔在横屏时挡住封面，授权用 197 和 237 实施并验证。",
       "registeredAt": "2026-11-24T19:20:57+08:00",
-      "updatedAt": "2026-11-24T19:20:57+08:00",
-      "status": "197 和 237 双方向横屏已验证",
-      "result": "窗口安全区桥接发布真实挖孔范围，现有内容容器只补受遮挡一侧的边距。197 实测 2720×1260 双方向书架网格和滚动，抽验双栏详情、浏览、腾讯动漫网格、设置、筛选半模态及竖屏回归。237 实测 2120×1320 双方向网格、滚动和列表模式，已恢复原网格与旋转锁。两机已回到验证前的详情页、竖屏和原超时，休眠读回及释租已确认。",
+      "updatedAt": "2026-11-24T19:49:16+08:00",
+      "status": "已修正横屏边距叠加，197 和 237 双方向复核",
+      "result": "窗口安全区桥接发布真实挖孔范围，现有内容容器只补受遮挡一侧的边距。197 实测 2720×1260 双方向书架网格和滚动，抽验双栏详情、浏览、腾讯动漫网格、设置、筛选半模态及竖屏回归。237 实测 2120×1320 双方向网格、滚动和列表模式，已恢复原网格与旋转锁。两机已回到验证前的详情页、竖屏和原超时，休眠读回及释租已确认。 后续反馈原边距被吃掉、左下角重复留白：现把侧边避让量加到原边距上，并从判定范围扣除已使用的上下系统安全区及根页底栏预留。197 两个横屏方向均在挖孔内缘与卡片之间保留 39 px，237 均保留 36 px。",
       "remainingActions": [
-        "角落挖孔被系统栏完全覆盖、部分伸出两种场景已运行几何用例，缺少对应真机。"
+        "左下角完全落在既有底栏空间、部分伸入内容两种情况已运行几何用例，缺少对应真机。"
       ],
       "boundaries": [
         "阅读器画布继续使用独立安全区策略。根 HDS 导航和栏体保留原布局。抽验了共用容器的具名页面。"
@@ -13575,9 +13575,14 @@
         ".hvigor/outputs/landscape-cutout-20261124/device237__VDE-AL00/unknown/portrait-to-landscape/cutout/final-shelf-list",
         ".hvigor/outputs/landscape-cutout-20261124/device237__VDE-AL00/unknown/portrait-to-landscape/cutout/restore-rotation-lock",
         ".hvigor/outputs/landscape-cutout-20261124/lease-device197-final.txt",
-        ".hvigor/outputs/landscape-cutout-20261124/lease-device237-final.txt"
+        ".hvigor/outputs/landscape-cutout-20261124/lease-device237-final.txt",
+        ".hvigor/outputs/landscape-cutout-clearance-20261124/build.log",
+        ".hvigor/outputs/landscape-cutout-20261124/device197__ALN-AL80/not-applicable/portrait-to-landscape/cutout/margin-left",
+        ".hvigor/outputs/landscape-cutout-20261124/device197__ALN-AL80/not-applicable/portrait-to-landscape/cutout/margin-right",
+        ".hvigor/outputs/landscape-cutout-20261124/device237__VDE-AL00/unknown/portrait-to-landscape/cutout/margin-left",
+        ".hvigor/outputs/landscape-cutout-20261124/device237__VDE-AL00/unknown/portrait-to-landscape/cutout/margin-right"
       ],
-      "stage": "双设备真机抽验、角落挖孔几何验证"
+      "stage": "原边距叠加已双机复核，左下角由几何验证"
     }
   ],
   "source": {
@@ -13632,6 +13637,13 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "landscape-cutout-margin-20261124",
+      "at": "2026-11-24T19:49:16+08:00",
+      "itemId": "LANDSCAPE_CONTENT_CUTOUT_20261124",
+      "title": "横屏保留原边距并复用现有底栏避让",
+      "detail": "197 和 237 各在左右横屏读回挖孔与书架卡片边界，挖孔内缘再保留原边距 39 px 和 36 px。底栏区域内的左下角不再触发横向边距，部分伸入仍避让，区分用例已执行。"
+    },
     {
       "id": "landscape-content-cutout-20261124",
       "at": "2026-11-24T19:20:57+08:00",

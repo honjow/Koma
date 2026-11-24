@@ -467,7 +467,7 @@ export default class EntryAbility extends UIAbility {
       const keyboardArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_KEYBOARD)
       const cutout = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT)
       const cutoutRect = cutout.topRect
-      this.publishContentCutout(win, uiContext, cutout)
+      this.publishContentCutout(win, uiContext, cutout, top, bottom)
       LayoutSafeAreaBridge.publishInsets(top, bottom)
       LayoutSafeAreaBridge.publishTopCutout(
         uiContext.px2vp(cutoutRect.left),
@@ -485,10 +485,9 @@ export default class EntryAbility extends UIAbility {
     }
   }
 
-  private publishContentCutout(win: window.Window, uiContext: UIContext, cutout: window.AvoidArea): void {
+  private publishContentCutout(win: window.Window, uiContext: UIContext, cutout: window.AvoidArea,
+    topInset: number, bottomInset: number): void {
     try {
-      const system = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-      const navigation = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
       const bounds = win.getWindowProperties().windowRect
       const toVp = (rect: window.Rect): CutoutRect => ({
         left: uiContext.px2vp(rect.left), top: uiContext.px2vp(rect.top),
@@ -497,8 +496,7 @@ export default class EntryAbility extends UIAbility {
       LayoutSafeAreaBridge.publishCutoutLayout({
         window: toVp({ left: 0, top: 0, width: bounds.width, height: bounds.height }),
         left: toVp(cutout.leftRect), right: toVp(cutout.rightRect),
-        systemTop: toVp(system.topRect), systemBottom: toVp(system.bottomRect),
-        navigationBottom: toVp(navigation.bottomRect),
+        topInset, bottomInset,
       })
     } catch (_error) {
       LayoutSafeAreaBridge.publishCutoutLayout(undefined)

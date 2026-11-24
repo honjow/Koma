@@ -17,14 +17,15 @@ export class LayoutSafeAreaState {
   @Trace topCutout: TopCutout = { left: 0, right: 0, bottom: 0 }
   @Trace cutoutLayout: WindowCutoutLayout | undefined = undefined
 
-  sidePadding(base: number, viewport?: CutoutRect, consumesSystemBars: boolean = true): ContentSidePadding {
+  sidePadding(base: number, viewport?: CutoutRect, consumesSystemBars: boolean = true,
+    bottomBarClearance: number = 0): ContentSidePadding {
     return this.cutoutLayout === undefined ? { left: base, right: base } :
-      contentSidePadding(this.cutoutLayout, base, viewport, consumesSystemBars)
+      contentSidePadding(this.cutoutLayout, base, viewport, consumesSystemBars, bottomBarClearance)
   }
 
   /** Existing grid helpers subtract their usual symmetric inset separately. */
-  gridWidth(width: number, base: number): number {
-    const sides = this.sidePadding(base)
+  gridWidth(width: number, base: number, bottomBarClearance: number = 0): number {
+    const sides = this.sidePadding(base, undefined, true, bottomBarClearance)
     return Math.max(0, width - (sides.left - base) - (sides.right - base))
   }
 }
