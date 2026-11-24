@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-24T07:29:55+08:00",
+  "updatedAt": "2026-11-24T09:33:36+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "COVER_IDENTITY_MIGRATION_TRANSITION_CONSISTENCY",
   "activity": "封面一致性已修复，201普通迁移复制及书架、浏览两种转场具名路径已核。",
@@ -588,10 +588,10 @@
       "reportedDate": "2026-11-19",
       "reportedAtSource": "本会话用户提出查看原站评论，确认作品和章节入口及半模态，原始时刻未核实。",
       "registeredAt": "2026-11-19T01:29:27+08:00",
-      "updatedAt": "2026-11-24T07:29:55+08:00",
-      "status": "禁漫／哔咔评论已通过237验证，候选待发布",
-      "result": "本轮新增禁漫天堂和哔咔的作品只读评论、原站分页和回复。237已验证禁漫连续三页及关闭重开，哔咔真实账号分流2下的首屏、回复及续接主评论；修正哔咔实站页码字符串解析。此前18个新增源的既有验证记录保留。",
-      "remaining": "哔咔0.1.8最低要求含公共网络初始化修复的App1.6.1，宿主按用户要求暂不发布，两源候选均未公开。此前批次的未发布范围继续保留；快看为网页热门评论，嗶哩漫畫为访客可见书评。",
+      "updatedAt": "2026-11-24T09:33:36+08:00",
+      "status": "禁漫／哔咔评论已验证并发布",
+      "result": "禁漫天堂0.1.11和哔咔0.1.8已进入正式订阅。237已验证两源作品评论、回复及续页；公开索引与包的版本、评论声明和校验和一致，正式CI二进制关键回放通过。此前18个新增源的既有记录保留。",
+      "remaining": "本轮两源发布已完成。哔咔0.1.8最低要求包含公共初始化修复的App1.6.1；本次按原要求不发布App。此前其他评论源的验收范围与待办保留，不由本次两源发布关闭。",
       "evidence": [
         ".hvigor/outputs/source-comments-323/live-source-report.json",
         ".hvigor/outputs/source-comments-323/197-result.json",
@@ -605,7 +605,10 @@
         ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/73-pica-comments-schema-ready/hilog.txt",
         ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/100-pica-next-root-comments/app.log",
         ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/108-jm-reopen-comments/app.log",
-        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/112-cleanup-and-restore-power/run-metadata.json"
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/112-cleanup-and-restore-power/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/release/scope.json",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/release/public-verification.json",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/release/comments-replay-results.json"
       ]
     },
     {
@@ -13530,6 +13533,19 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-comments-jm-pica-published-20261124",
+      "at": "2026-11-24T09:33:36+08:00",
+      "itemId": "SOURCE_READ_ONLY_COMMENTS",
+      "kind": "checkpoint",
+      "title": "禁漫天堂0.1.11与哔咔0.1.8已进入正式订阅",
+      "detail": "用户明确要求发布。为避免连带公开其他源，发布提交347032f直接继承当时远端dd4576f，只含禁漫／哔咔源码、元数据及必要版本声明；WNACG和巴卡的树与旧正式版一致。自动审批此前拒绝包含这两项额外更新的整分支推送，故未执行该操作。两源已通过既有CI任务45305077654并原子公开，Release https://github.com/honjow/koma-sources/releases/tag/sources-347032f460fab3b04db75a8079b20947210ce2ef；匿名下载最新索引和完整包均200，120个源的总目录保持，两源索引／manifest／整包SHA256和评论声明一致，其余源显示及依赖元数据未变。JM0.1.11最低App1.4.3，哔咔0.1.8最低App1.6.1，保留公共初始化修复依赖，不降低门槛。本次未发布或推送App；核验时正式App仍v1.6.0。源码普通路径已在237验收；CI公开WASM字节与本地实测包不同，另对公开二进制执行既有8项评论、签名／解密、分页／回复、空回复恢复与失败分类回放均通过，HTTP为受控响应，不冒充公开二进制已重新装机。源仓用正常merge d68772d接回窄范围发布提交，合并树与本地前一提交无差异，原WNACG／巴卡提交及WIP保留，不创建分支／工作树，不重置或stash。此前其他评论源范围和#023待办不由本次发布关闭。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/release/scope.json",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/release/public-verification.json",
+        ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/release/comments-replay-results.json"
+      ]
+    },
     {
       "id": "source-comments-jm-pica-20261124",
       "at": "2026-11-24T07:29:55+08:00",
