@@ -13506,6 +13506,45 @@
         ".hvigor/outputs/detail-transition-20261123/device237__VDE-AL00/unknown/portrait-1320x2120/cover-recovery/lease-final-readonly.json"
       ],
       "stage": "237具名封面恢复已验证"
+    },
+    {
+      "id": "LANDSCAPE_CONTENT_CUTOUT_20261124",
+      "number": 364,
+      "title": "横屏时挖孔挡住书架封面和列表内容",
+      "kind": "pending_verification",
+      "progressPhase": "verification",
+      "priority": "用户当前反馈",
+      "owner": "Root：窗口安全区和公共内容容器",
+      "reportedAt": null,
+      "reportedDate": "2026-11-24",
+      "reportedAtSource": "用户反馈正中挖孔在横屏时挡住封面，授权用 197 和 237 实施并验证。",
+      "registeredAt": "2026-11-24T19:20:57+08:00",
+      "updatedAt": "2026-11-24T19:20:57+08:00",
+      "status": "197 和 237 双方向横屏已验证",
+      "result": "窗口安全区桥接发布真实挖孔范围，现有内容容器只补受遮挡一侧的边距。197 实测 2720×1260 双方向书架网格和滚动，抽验双栏详情、浏览、腾讯动漫网格、设置、筛选半模态及竖屏回归。237 实测 2120×1320 双方向网格、滚动和列表模式，已恢复原网格与旋转锁。两机已回到验证前的详情页、竖屏和原超时，休眠读回及释租已确认。",
+      "remainingActions": [
+        "角落挖孔被系统栏完全覆盖、部分伸出两种场景已运行几何用例，缺少对应真机。"
+      ],
+      "boundaries": [
+        "阅读器画布继续使用独立安全区策略。根 HDS 导航和栏体保留原布局。抽验了共用容器的具名页面。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/landscape-cutout-20261124/final-build-v2.log",
+        ".hvigor/outputs/landscape-cutout-20261124/device197__ALN-AL80/not-applicable/portrait-to-landscape/cutout/baseline-shelf-landscape",
+        ".hvigor/outputs/landscape-cutout-20261124/device197__ALN-AL80/not-applicable/portrait-to-landscape/cutout/candidate-landscape-one",
+        ".hvigor/outputs/landscape-cutout-20261124/device197__ALN-AL80/not-applicable/portrait-to-landscape/cutout/candidate-landscape-three",
+        ".hvigor/outputs/landscape-cutout-20261124/device197__ALN-AL80/not-applicable/portrait-to-landscape/cutout/candidate-detail-left",
+        ".hvigor/outputs/landscape-cutout-20261124/device197__ALN-AL80/not-applicable/portrait-to-landscape/cutout/candidate-source-grid-left",
+        ".hvigor/outputs/landscape-cutout-20261124/device197__ALN-AL80/not-applicable/portrait-to-landscape/cutout/final-settings-right",
+        ".hvigor/outputs/landscape-cutout-20261124/device197__ALN-AL80/not-applicable/portrait-to-landscape/cutout/final-filter-sheet",
+        ".hvigor/outputs/landscape-cutout-20261124/device237__VDE-AL00/unknown/portrait-to-landscape/cutout/final-landscape-one",
+        ".hvigor/outputs/landscape-cutout-20261124/device237__VDE-AL00/unknown/portrait-to-landscape/cutout/final-landscape-three",
+        ".hvigor/outputs/landscape-cutout-20261124/device237__VDE-AL00/unknown/portrait-to-landscape/cutout/final-shelf-list",
+        ".hvigor/outputs/landscape-cutout-20261124/device237__VDE-AL00/unknown/portrait-to-landscape/cutout/restore-rotation-lock",
+        ".hvigor/outputs/landscape-cutout-20261124/lease-device197-final.txt",
+        ".hvigor/outputs/landscape-cutout-20261124/lease-device237-final.txt"
+      ],
+      "stage": "双设备真机抽验、角落挖孔几何验证"
     }
   ],
   "source": {
@@ -13560,6 +13599,13 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "landscape-content-cutout-20261124",
+      "at": "2026-11-24T19:20:57+08:00",
+      "itemId": "LANDSCAPE_CONTENT_CUTOUT_20261124",
+      "title": "横屏内容按挖孔所在侧避让",
+      "detail": "197 与 237 均核对 90° 和 270°，实测挖孔换边时内容边距随之换边。公共列表、书源网格、双栏详情和半模态具名路径已抽验。旋转、状态读回和恢复命令已写入 HarmonyOS 设备诊断技能。"
+    },
     {
       "id": "noyacg-tags-20261124",
       "at": "2026-11-24T18:35:00+08:00",

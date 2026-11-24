@@ -18,7 +18,7 @@ import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { MangaGridItem } from '../components/MangaGridItem'
 import { gridFallbackContainerWidth } from '../utils/GridColumns'
-import { libraryCoverGridColumnCount } from '../utils/LibraryCoverLayout'
+import { libraryCoverGridColumnCount, libraryCoverGridGap } from '../utils/LibraryCoverLayout'
 import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
 import { LibraryCoverGridAdjustment } from '../state/LibraryCoverGridAdjustment'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
@@ -636,7 +636,8 @@ export struct SourceBrowsePage {
 
   private sourceGridColumnCount(): number {
     const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
-    return libraryCoverGridColumnCount(width, this.coverLayout.gridSpacing,
+    return libraryCoverGridColumnCount(this.safeArea.gridWidth(width,
+      libraryCoverGridGap(this.coverLayout.gridSpacing)), this.coverLayout.gridSpacing,
       this.gridAdjustment.width(this.coverLayout.gridColumnWidth))
   }
 

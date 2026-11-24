@@ -1377,7 +1377,8 @@ export struct LibraryPage {
   }
 
   private libraryViewportWidth(): number {
-    return this.layoutSafeArea.windowWidthVp > 0 ? this.layoutSafeArea.windowWidthVp : this.containerWidth
+    const width = this.layoutSafeArea.windowWidthVp > 0 ? this.layoutSafeArea.windowWidthVp : this.containerWidth
+    return this.layoutSafeArea.gridWidth(width, this.libraryHorizontalInset())
   }
 
   private libraryGridColumnCount(): number {
@@ -2516,7 +2517,7 @@ export struct LibraryPage {
     .scrollBar(BarState.Off)
     .width('100%')
     .height('100%')
-    .padding({ left: this.libraryHorizontalInset(), right: this.libraryHorizontalInset() })
+    .padding(this.layoutSafeArea.sidePadding(this.libraryHorizontalInset()))
     .clipContent(ContentClipMode.CONTENT_ONLY)
     .enableScrollInteraction(this.scrollEnabled)
     .edgeEffect(this.pullRefreshController.nativeSpringEnabled ? EdgeEffect.Spring : EdgeEffect.None, {

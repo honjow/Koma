@@ -33,6 +33,7 @@ import { SourceBodyHost } from '../sourceRuntime/SourceBodyHost'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { prepareSourceConfigurationDatabases } from '../sourceRuntime/SourceConfigurationDatabases'
 import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
+import { CutoutRect } from '../utils/ContentCutout'
 import { AppForegroundStateBridge } from '../state/AppForegroundState'
 import { connectLibraryPrivacyState } from '../state/LibraryPrivacyState'
 import { connectAppearanceState } from '../state/AppearanceState'
@@ -446,6 +447,7 @@ export default class EntryAbility extends UIAbility {
       DiagnosticLogger.error('app', 'configure_avoid_areas_failed', '[EntryAbility] step=configure_avoid_areas_failed code=avoid_area_failed')
       LayoutSafeAreaBridge.publishInsets(FALLBACK_TOP_AVOID, FALLBACK_BOTTOM_AVOID)
       LayoutSafeAreaBridge.publishTopCutout(0, 0, 0)
+      LayoutSafeAreaBridge.publishCutoutLayout(undefined)
       LayoutSafeAreaBridge.publishKeyboardHeight(0)
     }
   }
@@ -463,7 +465,9 @@ export default class EntryAbility extends UIAbility {
         this.bottomHeight(win, uiContext, window.AvoidAreaType.TYPE_SYSTEM_GESTURE),
       )
       const keyboardArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_KEYBOARD)
-      const cutoutRect = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT).topRect
+      const cutout = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT)
+      const cutoutRect = cutout.topRect
+      this.publishContentCutout(win, uiContext, cutout)
       LayoutSafeAreaBridge.publishInsets(top, bottom)
       LayoutSafeAreaBridge.publishTopCutout(
         uiContext.px2vp(cutoutRect.left),
@@ -476,7 +480,28 @@ export default class EntryAbility extends UIAbility {
       DiagnosticLogger.error('app', 'publish_avoid_heights_failed', '[EntryAbility] step=publish_avoid_heights_failed code=avoid_area_failed')
       LayoutSafeAreaBridge.publishInsets(FALLBACK_TOP_AVOID, FALLBACK_BOTTOM_AVOID)
       LayoutSafeAreaBridge.publishTopCutout(0, 0, 0)
+      LayoutSafeAreaBridge.publishCutoutLayout(undefined)
       LayoutSafeAreaBridge.publishKeyboardHeight(0)
+    }
+  }
+
+  private publishContentCutout(win: window.Window, uiContext: UIContext, cutout: window.AvoidArea): void {
+    try {
+      const system = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
+      const navigation = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
+      const bounds = win.getWindowProperties().windowRect
+      const toVp = (rect: window.Rect): CutoutRect => ({
+        left: uiContext.px2vp(rect.left), top: uiContext.px2vp(rect.top),
+        width: uiContext.px2vp(rect.width), height: uiContext.px2vp(rect.height),
+      })
+      LayoutSafeAreaBridge.publishCutoutLayout({
+        window: toVp({ left: 0, top: 0, width: bounds.width, height: bounds.height }),
+        left: toVp(cutout.leftRect), right: toVp(cutout.rightRect),
+        systemTop: toVp(system.topRect), systemBottom: toVp(system.bottomRect),
+        navigationBottom: toVp(navigation.bottomRect),
+      })
+    } catch (_error) {
+      LayoutSafeAreaBridge.publishCutoutLayout(undefined)
     }
   }
 

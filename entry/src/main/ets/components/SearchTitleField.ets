@@ -1,3 +1,5 @@
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { ContentSidePadding, CutoutRect, viewportFromArea } from '../utils/ContentCutout'
 import { AppStrings } from '../i18n/AppStrings'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -20,6 +22,8 @@ export struct SearchTitleField {
   @Param chrome: SearchRouteChromeState = new SearchRouteChromeState()
   @Param placeholder: string = s('search_placeholder')
   @Param focusOnShow: boolean = false
+  @Local private viewport?: CutoutRect = undefined
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private fieldText: string = ''
 
   aboutToAppear(): void {
@@ -31,6 +35,12 @@ export struct SearchTitleField {
     if (this.fieldText !== this.chrome.query) {
       this.fieldText = this.chrome.query
     }
+  }
+
+  private sidePadding(): ContentSidePadding {
+    const base = ThemeConstants.SPACE_LG
+    return this.viewport === undefined ? { left: base, right: base } :
+      this.safeArea.sidePadding(base, this.viewport, false)
   }
 
   build() {
@@ -57,10 +67,11 @@ export struct SearchTitleField {
     .height(SEARCH_TITLE_BOTTOM_HEIGHT)
     .alignItems(VerticalAlign.Center)
     .padding({
-      left: ThemeConstants.SPACE_LG,
-      right: ThemeConstants.SPACE_LG,
+      left: this.sidePadding().left,
+      right: this.sidePadding().right,
       bottom: ThemeConstants.SPACE_SM,
     })
+    .onAreaChange((_old: Area, area: Area): void => { this.viewport = viewportFromArea(area) })
   }
 }
 

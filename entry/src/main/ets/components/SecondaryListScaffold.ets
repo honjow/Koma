@@ -2,6 +2,7 @@ import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeA
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ListModifier } from '@kit.ArkUI'
+import { CutoutRect, viewportFromArea } from '../utils/ContentCutout'
 
 @ComponentV2
 export struct SecondaryListScaffold {
@@ -32,6 +33,7 @@ export struct SecondaryListScaffold {
   @Event onScrollStart?: () => void
   @Event onScrollStop?: () => void
   @Event onDidScroll?: (offset: number, state: ScrollState) => void
+  @Local private listViewport?: CutoutRect = undefined
   private defaultList = new ListModifier()
   private visibleRowsOnly = new ListModifier()
 
@@ -67,10 +69,8 @@ export struct SecondaryListScaffold {
         .scrollBar(BarState.Off)
         .width('100%')
         .height('100%')
-        .padding({
-          left: this.inModal ? 0 : this.horizontalPadding,
-          right: this.inModal ? 0 : this.horizontalPadding,
-        })
+        .padding(this.contentPadding())
+        .onAreaChange((_old: Area, area: Area): void => { this.listViewport = viewportFromArea(area) })
         .clipContent(this.inModal ? ContentClipMode.SAFE_AREA : ContentClipMode.CONTENT_ONLY)
         .enableScrollInteraction(this.scrollEnabled)
         .edgeEffect(this.alwaysEnableEdgeSpring ? EdgeEffect.Spring : EdgeEffect.None, {
@@ -101,6 +101,11 @@ export struct SecondaryListScaffold {
     .width('100%')
     .height('100%')
     .backgroundColor(this.inModal ? Color.Transparent : this.surfaceColor)
+  }
+
+  private contentPadding(): Padding {
+    if (this.inModal && this.listViewport === undefined) return { left: 0, right: 0 }
+    return this.safeArea.sidePadding(this.inModal ? 0 : this.horizontalPadding, this.listViewport)
   }
 
   private keyboardPadding(): number {

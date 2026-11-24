@@ -1,3 +1,4 @@
+import { CutoutRect, viewportFromArea } from '../utils/ContentCutout'
 import { KomaSheetOptions, komaModalContentBackground, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions, HdsNavigationTitleBarOptions, hdsMaterial, ScrollEffectType, BlurStrategy, DividerShowType, BottomBuilderParams } from '@kit.UIDesignKit'
 import { deviceInfo } from '@kit.BasicServicesKit'
@@ -43,6 +44,8 @@ export function komaModalTitleBarOptions(title: ResourceStr, actions: HdsNavigat
 
 @ComponentV2
 export struct KomaModalContent {
+  @Local private viewport?: CutoutRect = undefined
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Param useInset: boolean = true
   @BuilderParam content: () => void
 
@@ -53,7 +56,9 @@ export struct KomaModalContent {
       }
       .width('100%')
       .height('100%')
-      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+      .padding(this.viewport === undefined ? { left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG } :
+        this.safeArea.sidePadding(ThemeConstants.SPACE_LG, this.viewport))
+      .onAreaChange((_old: Area, area: Area): void => { this.viewport = viewportFromArea(area) })
     } else {
       this.content()
     }
@@ -86,7 +91,13 @@ export struct KomaModalScaffold {
   @Local private tabHeaderHeight: number = KOMA_MODAL_TABS_HEADER_HEIGHT
   @BuilderParam content: () => void
   private scroller: Scroller = new Scroller()
-  private layout: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private viewport?: CutoutRect = undefined
+  @Local private layout: LayoutSafeAreaState = connectLayoutSafeArea()
+
+  private bodyPadding(): Padding {
+    const base = this.contentHorizontalPadding
+    return this.viewport === undefined ? { left: base, right: base } : this.layout.sidePadding(base, this.viewport)
+  }
 
   // Editors share the native modal title bar. Optional confirmation stays
   // outside the scrolling form; existing read-only sheets retain only Close.
@@ -107,7 +118,7 @@ export struct KomaModalScaffold {
         select: (index: number): void => { this.onTabSelect(index) } })
     }
     .width('100%')
-    .padding({ left: this.contentHorizontalPadding, right: this.contentHorizontalPadding,
+    .padding({ left: this.bodyPadding().left, right: this.bodyPadding().right,
       top: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_SM })
     .onSizeChange((_oldSize: SizeOptions, size: SizeOptions): void => {
       const height = Number(size.height)
@@ -125,7 +136,7 @@ export struct KomaModalScaffold {
     HdsNavigation() {
       Column() { this.content() }
         .width('100%').height('100%')
-        .padding({ left: this.contentHorizontalPadding, right: this.contentHorizontalPadding })
+        .padding(this.bodyPadding())
     }
     .titleBar({
       enableComponentSafeArea: false,
@@ -162,10 +173,7 @@ export struct KomaModalScaffold {
               }
               .layoutWeight(1)
               .width('100%')
-              .padding({
-                left: this.contentHorizontalPadding,
-                right: this.contentHorizontalPadding,
-              })
+              .padding(this.bodyPadding())
             } else {
               List({ space: ThemeConstants.SPACE_SM, scroller: this.scroller }) {
                 this.content()
@@ -179,10 +187,7 @@ export struct KomaModalScaffold {
               }
               .layoutWeight(1)
               .width('100%')
-              .padding({
-                left: this.contentHorizontalPadding,
-                right: this.contentHorizontalPadding,
-              })
+              .padding(this.bodyPadding())
               .scrollBar(BarState.Off)
               // Keep outgoing rows rendered while they pass beneath the HDS title bar.
               .clip(false)
@@ -204,6 +209,7 @@ export struct KomaModalScaffold {
     }
     .width('100%')
     .height('100%')
+    .onAreaChange((_old: Area, area: Area): void => { this.viewport = viewportFromArea(area) })
     .clip(this.contentOwnsNavigation)
     .backgroundColor(komaModalContentBackground(this.modalSurfaceColor))
   }

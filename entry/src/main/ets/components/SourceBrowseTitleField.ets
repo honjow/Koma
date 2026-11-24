@@ -1,3 +1,5 @@
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { ContentSidePadding, CutoutRect, viewportFromArea } from '../utils/ContentCutout'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceBrowseRouteChromeState } from '../state/SourceRouteChromeState'
@@ -18,6 +20,8 @@ function s(name: string): string {
 @ComponentV2
 export struct SourceBrowseTitleField {
   @Param chrome: SourceBrowseRouteChromeState = new SourceBrowseRouteChromeState()
+  @Local private viewport?: CutoutRect = undefined
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private fieldText: string = ''
 
   aboutToAppear(): void {
@@ -34,6 +38,12 @@ export struct SourceBrowseTitleField {
   private placeholder(): string {
     const sourceName = sourceDisplayName(this.chrome.sourceId, this.chrome.sourceName).trim()
     return sourceName.length > 0 ? `${s('source_search_placeholder')} · ${sourceName}` : s('source_search_placeholder')
+  }
+
+  private sidePadding(): ContentSidePadding {
+    const base = ThemeConstants.SPACE_LG
+    return this.viewport === undefined ? { left: base, right: base } :
+      this.safeArea.sidePadding(base, this.viewport, false)
   }
 
   build() {
@@ -59,10 +69,11 @@ export struct SourceBrowseTitleField {
     .height(SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT)
     .alignItems(VerticalAlign.Center)
     .padding({
-      left: ThemeConstants.SPACE_LG,
-      right: ThemeConstants.SPACE_LG,
+      left: this.sidePadding().left,
+      right: this.sidePadding().right,
       bottom: ThemeConstants.SPACE_SM,
     })
+    .onAreaChange((_old: Area, area: Area): void => { this.viewport = viewportFromArea(area) })
   }
 }
 

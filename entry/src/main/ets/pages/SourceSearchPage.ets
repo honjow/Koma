@@ -16,7 +16,7 @@ import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { MangaGridItem } from '../components/MangaGridItem'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { gridFallbackContainerWidth } from '../utils/GridColumns'
-import { libraryCoverGridColumnCount } from '../utils/LibraryCoverLayout'
+import { libraryCoverGridColumnCount, libraryCoverGridGap } from '../utils/LibraryCoverLayout'
 import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
@@ -438,7 +438,8 @@ export struct SourceSearchPage {
       rows.push({ key: kind, kind, bottomPadding: ThemeConstants.SPACE_MD })
     } else {
       const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
-      const columns = libraryCoverGridColumnCount(width, this.coverLayout.gridSpacing, this.coverLayout.gridColumnWidth)
+      const columns = libraryCoverGridColumnCount(this.safeArea.gridWidth(width,
+        libraryCoverGridGap(this.coverLayout.gridSpacing)), this.coverLayout.gridSpacing, this.coverLayout.gridColumnWidth)
       const lastRowStart = Math.floor((visible.length - 1) / columns) * columns
       visible.forEach((item: SourceLibraryItem, index: number) => {
         rows.push({ key: `manga:${item.manga.sourceId}:${item.manga.id}`, kind: 'manga', manga: item.manga,

@@ -56,7 +56,8 @@ export struct SourceMangaGrid {
   }
 
   private viewportWidth(): number {
-    return this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
+    const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
+    return this.safeArea.gridWidth(width, libraryCoverGridGap(this.coverLayout.gridSpacing))
   }
 
   private columnsTemplate(): string {
@@ -95,7 +96,7 @@ export struct SourceMangaGrid {
     .scrollBar(BarState.Off)
     .width('100%')
     .height('100%')
-    .padding({ left: libraryCoverGridGap(this.coverLayout.gridSpacing), right: libraryCoverGridGap(this.coverLayout.gridSpacing) })
+    .padding(this.safeArea.sidePadding(libraryCoverGridGap(this.coverLayout.gridSpacing)))
     .attributeModifier(new SourceGridClipModifier(this.withPullRefresh))
     .edgeEffect(!this.withPullRefresh || this.pullRefreshController.nativeSpringEnabled ? EdgeEffect.Spring : EdgeEffect.None, {
       alwaysEnabled: true,

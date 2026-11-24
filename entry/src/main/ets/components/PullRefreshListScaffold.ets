@@ -1,6 +1,7 @@
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { ContentSidePadding, CutoutRect, viewportFromArea } from '../utils/ContentCutout'
 import { isUserScrollSource } from '../utils/ScrollUserInput'
 import { PullRefresh, PullRefreshController } from './PullRefresh'
 
@@ -14,6 +15,7 @@ export struct PullRefreshListScaffold {
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private pullScrollEnabled: boolean = true
+  @Local private listViewport?: CutoutRect = undefined
   @Param scroller: Scroller = new Scroller()
   @Param controller: PullRefreshController = new PullRefreshController()
   @Param listSpace: number = ThemeConstants.SPACE_SM - 2
@@ -119,10 +121,7 @@ export struct PullRefreshListScaffold {
         .scrollBar(BarState.Off)
         .width('100%')
         .height('100%')
-        .padding({
-          left: this.horizontalPadding,
-          right: this.horizontalPadding,
-        })
+        .padding(this.contentPadding())
         .clip(false)
         .edgeEffect(this.inertialSpring && this.controller.nativeSpringEnabled ? EdgeEffect.Spring : EdgeEffect.None, {
           alwaysEnabled: this.inertialSpring,
@@ -154,11 +153,13 @@ export struct PullRefreshListScaffold {
           }
         })
         .onAreaChange((_oldValue: Area, newValue: Area) => {
+          this.listViewport = viewportFromArea(newValue)
           if (this.onListAreaChange) {
             this.onListAreaChange(newValue)
           }
           if (this.onContentWidth) {
-            const contentWidth = (newValue.width as number) - 2 * this.horizontalPadding
+            const padding = this.contentPadding()
+            const contentWidth = Number(newValue.width) - padding.left - padding.right
             this.onContentWidth(contentWidth > 0 ? contentWidth : 0)
           }
         })
@@ -168,6 +169,13 @@ export struct PullRefreshListScaffold {
     .width('100%')
     .height('100%')
     .backgroundColor(this.surfaceColor)
+  }
+
+  private contentPadding(): ContentSidePadding {
+    if (!this.reserveSystemSafeArea && this.listViewport === undefined) {
+      return { left: this.horizontalPadding, right: this.horizontalPadding }
+    }
+    return this.safeArea.sidePadding(this.horizontalPadding, this.listViewport)
   }
 
   private keyboardPadding(): number {
