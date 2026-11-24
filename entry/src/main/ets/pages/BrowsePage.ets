@@ -12,6 +12,8 @@ import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
 import { SourceListItem } from '../components/SourceListItem'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
+import { WidePairDivider, WidePairRow, usesWideTwoColumnLayout } from '../components/ui/WideTwoColumn'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
@@ -48,6 +50,38 @@ export struct BrowsePage {
   @Param chrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
   @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
   @Local private filtersShown: boolean = false
+  @Local private browseSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+
+  @Computed
+  private get usesWideSourceRows(): boolean {
+    // The page fills the main window. Share the settings home's width gate so
+    // a wide window merges source rows and a narrow window keeps one per row.
+    return usesWideTwoColumnLayout(this.browseSafeArea.windowWidthVp)
+  }
+
+  private pairFirstItems<T>(items: T[]): T[] {
+    return items.filter((_item: T, index: number): boolean => index % 2 === 0)
+  }
+
+  private runtimeSourceSignature(source: SourceRuntimeRegistryInstalledSourceSummary): string[] {
+    return [source.sourceId, source.version, sourceDisplayName(source.sourceId, source.displayName)]
+  }
+
+  // A merged row must rebuild when either member changes (version, localized
+  // name), so the key covers the whole pair, as single rows key their content.
+  private runtimePairKey(sources: SourceRuntimeRegistryInstalledSourceSummary[], row: number): string {
+    return JSON.stringify(sources.slice(row * 2, row * 2 + 2)
+      .map((source: SourceRuntimeRegistryInstalledSourceSummary): string[] => this.runtimeSourceSignature(source)))
+  }
+
+  private privateSourceSignature(entry: PrivateBrowseSourceEntry): string[] {
+    return [entry.key, entry.title, String(entry.detail), String(entry.badge)]
+  }
+
+  private privatePairKey(entries: PrivateBrowseSourceEntry[], row: number): string {
+    return JSON.stringify(entries.slice(row * 2, row * 2 + 2)
+      .map((entry: PrivateBrowseSourceEntry): string[] => this.privateSourceSignature(entry)))
+  }
 
   @Monitor('chrome.requestId')
   private onCatalogAction(): void {
@@ -127,10 +161,6 @@ export struct BrowsePage {
 
   private sourcesInLanguage(language: string): SourceRuntimeRegistryInstalledSourceSummary[] {
     return this.sourcesByLanguage[language] ?? []
-  }
-
-  private sourceNeedsDivider(sources: SourceRuntimeRegistryInstalledSourceSummary[], sourceId: string): boolean {
-    return sources[sources.length - 1]?.sourceId !== sourceId
   }
 
   @Builder
@@ -283,24 +313,51 @@ export struct BrowsePage {
   }
 
   @Builder
+  private PrivateSourceRow(entry: PrivateBrowseSourceEntry) {
+    SourceListItem({
+      title: entry.title,
+      subtitle: entry.detail,
+      badge: entry.badge,
+      accentColor: entry.color,
+      showSearchButton: false,
+      onActivate: () => {
+        this.openPrivateSource(entry.key)
+      },
+    })
+  }
+
+  @Builder
+  private PrivateSourcePair(entries: PrivateBrowseSourceEntry[], row: number) {
+    WidePairRow({
+      first: () => { this.PrivateSourceRow(entries[row * 2]) },
+      second: () => {
+        if (row * 2 + 1 < entries.length) {
+          this.PrivateSourceRow(entries[row * 2 + 1])
+        }
+      },
+    })
+  }
+
+  @Builder
   private PrivateSourceListItems() {
     ListItem() {
       GroupedListSection({ title: s('browse_private_sources_heading') }) {
-        ForEach(this.configuredPrivateSourceEntries, (entry: PrivateBrowseSourceEntry, index: number) => {
-          SourceListItem({
-            title: entry.title,
-            subtitle: entry.detail,
-            badge: entry.badge,
-            accentColor: entry.color,
-            showSearchButton: false,
-            onActivate: () => {
-              this.openPrivateSource(entry.key)
-            },
-          })
-          if (index + 1 < this.configuredPrivateSourceEntries.length) {
-            ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
-          }
-        }, (entry: PrivateBrowseSourceEntry) => JSON.stringify([entry.key, entry.title, entry.detail, entry.badge]))
+        if (this.usesWideSourceRows) {
+          ForEach(this.pairFirstItems(this.configuredPrivateSourceEntries),
+            (entry: PrivateBrowseSourceEntry, row: number) => {
+              this.PrivateSourcePair(this.configuredPrivateSourceEntries, row)
+              if (row * 2 + 2 < this.configuredPrivateSourceEntries.length) {
+                WidePairDivider({ leftMargin: ThemeConstants.SPACE_XL })
+              }
+            }, (entry: PrivateBrowseSourceEntry, row: number) => this.privatePairKey(this.configuredPrivateSourceEntries, row))
+        } else {
+          ForEach(this.configuredPrivateSourceEntries, (entry: PrivateBrowseSourceEntry, index: number) => {
+            this.PrivateSourceRow(entry)
+            if (index + 1 < this.configuredPrivateSourceEntries.length) {
+              ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
+            }
+          }, (entry: PrivateBrowseSourceEntry) => JSON.stringify(this.privateSourceSignature(entry)))
+        }
       }
     }
   }
@@ -316,16 +373,41 @@ export struct BrowsePage {
   }
 
   @Builder
+  private RuntimeSourcePair(sources: SourceRuntimeRegistryInstalledSourceSummary[], row: number) {
+    WidePairRow({
+      first: () => { this.RuntimeSourceRow(sources[row * 2]) },
+      second: () => {
+        if (row * 2 + 1 < sources.length) {
+          this.RuntimeSourceRow(sources[row * 2 + 1])
+        }
+      },
+    })
+  }
+
+  @Builder
+  private RuntimeSourceRows(sources: SourceRuntimeRegistryInstalledSourceSummary[]) {
+    if (this.usesWideSourceRows) {
+      ForEach(this.pairFirstItems(sources), (source: SourceRuntimeRegistryInstalledSourceSummary, row: number) => {
+        this.RuntimeSourcePair(sources, row)
+        if (row * 2 + 2 < sources.length) {
+          WidePairDivider({ leftMargin: ThemeConstants.SPACE_XL })
+        }
+      }, (source: SourceRuntimeRegistryInstalledSourceSummary, row: number) => this.runtimePairKey(sources, row))
+    } else {
+      ForEach(sources, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+        this.RuntimeSourceRow(source)
+        if (index + 1 < sources.length) {
+          ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
+        }
+      }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify(this.runtimeSourceSignature(source)))
+    }
+  }
+
+  @Builder
   private RecentSourceListItems() {
     ListItem() {
       GroupedListSection({ title: s('browse_recent_sources_heading') }) {
-        ForEach(this.recentRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-          this.RuntimeSourceRow(source)
-          if (this.sourceNeedsDivider(this.recentRuntimeSources, source.sourceId)) {
-            ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
-          }
-        }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
-          sourceDisplayName(source.sourceId, source.displayName)]))
+        this.RuntimeSourceRows(this.recentRuntimeSources)
       }
     }.transition(TransitionEffect.IDENTITY)
   }
@@ -335,13 +417,7 @@ export struct BrowsePage {
     ListItem() {
       GroupedListSection({ title: s('browse_pinned_sources_heading') }) {
         // Do not bind the row key to its position just to draw a divider.
-        ForEach(this.pinnedRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-          this.RuntimeSourceRow(source)
-          if (this.sourceNeedsDivider(this.pinnedRuntimeSources, source.sourceId)) {
-            ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
-          }
-        }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
-          sourceDisplayName(source.sourceId, source.displayName)]))
+        this.RuntimeSourceRows(this.pinnedRuntimeSources)
       }
     }.transition(TransitionEffect.IDENTITY)
   }
@@ -354,13 +430,7 @@ export struct BrowsePage {
         // projection. A retained ForEach closure must not keep an old group DTO.
         GroupedListSection({ title: sourceLanguageName(language) || s('source_catalog_language_unknown'),
           subtitle: s('browse_installed_sources_count').replace('%s', `${this.sourcesInLanguage(language).length}`) }) {
-          ForEach(this.sourcesInLanguage(language), (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-            this.RuntimeSourceRow(source)
-            if (this.sourceNeedsDivider(this.sourcesInLanguage(language), source.sourceId)) {
-              ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
-            }
-          }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
-            sourceDisplayName(source.sourceId, source.displayName)]))
+          this.RuntimeSourceRows(this.sourcesInLanguage(language))
         }
       }.transition(TransitionEffect.IDENTITY)
     }, (language: string) => language)

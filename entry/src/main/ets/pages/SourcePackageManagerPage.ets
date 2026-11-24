@@ -29,6 +29,8 @@ import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { SourcePackageListItem } from '../components/SourcePackageListItem'
 import { ConciseListRow, SourceIdentityIconState } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
+import { WidePairDivider, WidePairRow, usesWideTwoColumnLayout } from '../components/ui/WideTwoColumn'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { AppStrings } from '../i18n/AppStrings'
@@ -137,6 +139,38 @@ export struct SourcePackageManagerPage {
   @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
   @Local private localImport: SourcePackageLocalImport = appSourcePackageLocalImport
   @Local private catalogFiltersShown: boolean = false
+  @Local private managerSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+
+  @Computed
+  private get usesWideSourceRows(): boolean {
+    // Share the settings home's width gate so a wide window merges source rows
+    // and a narrow window (or the settings sheet default width) keeps one per row.
+    return usesWideTwoColumnLayout(this.managerSafeArea.windowWidthVp)
+  }
+
+  private pairFirstItems<T>(items: T[]): T[] {
+    return items.filter((_item: T, index: number): boolean => index % 2 === 0)
+  }
+
+  // A merged row rebuilds when either member changes, so the key covers the
+  // whole pair with the same content fields single rows already key on.
+  private pairKey<T>(items: T[], row: number, signature: (item: T) => string[]): string {
+    return JSON.stringify(items.slice(row * 2, row * 2 + 2).map((item: T): string[] => signature(item)))
+  }
+
+  private updateCandidateSignature(candidate: SourcePackageUpdateCandidate): string[] {
+    const installed = this.installedPackage(candidate.entry.id)
+    return [candidate.entry.id, candidate.entry.version, installed?.version ?? '',
+      String(installed?.enabled === true), String(candidate.entry.nsfw)]
+  }
+
+  private installedSignature(source: InstalledSourcePackage): string[] {
+    return [source.id, source.version, String(source.enabled), String(source.nsfw), String(source.icon ?? ''), source.name, source.lang]
+  }
+
+  private indexEntrySignature(entry: SourceIndexEntry): string[] {
+    return [entry.id, entry.version, String(entry.icon ?? ''), String(entry.nsfw)]
+  }
 
   @Monitor('chrome.requestId')
   private onCatalogAction(): void {
@@ -2345,6 +2379,46 @@ export struct SourcePackageManagerPage {
     })
   }
 
+  @Builder
+  private UpdatePackagePair(candidates: SourcePackageUpdateCandidate[], row: number) {
+    WidePairRow({
+      first: () => {
+        const candidate = candidates[row * 2]
+        this.PackageCard(this.installedPackage(candidate.entry.id)!, candidate)
+      },
+      second: () => {
+        if (row * 2 + 1 < candidates.length) {
+          const candidate = candidates[row * 2 + 1]
+          this.PackageCard(this.installedPackage(candidate.entry.id)!, candidate)
+        }
+      },
+    })
+  }
+
+  @Builder
+  private InstalledPackagePair(sources: InstalledSourcePackage[], row: number) {
+    WidePairRow({
+      first: () => { this.PackageCard(sources[row * 2]) },
+      second: () => {
+        if (row * 2 + 1 < sources.length) {
+          this.PackageCard(sources[row * 2 + 1])
+        }
+      },
+    })
+  }
+
+  @Builder
+  private RemoteIndexPair(entries: SourceIndexEntry[], row: number) {
+    WidePairRow({
+      first: () => { this.RemoteIndexCard(entries[row * 2]) },
+      second: () => {
+        if (row * 2 + 1 < entries.length) {
+          this.RemoteIndexCard(entries[row * 2 + 1])
+        }
+      },
+    })
+  }
+
   private saveSourceIncognito(sourceId: string, enabled: boolean): void {
     void new IncognitoPreferencesStore(this.context()).saveSourceEnabled(sourceId, enabled)
       .catch((_error: Error): void => {
@@ -2676,21 +2750,37 @@ export struct SourcePackageManagerPage {
           actionLabel: t('source_pkg_update_all'),
           action: () => { void this.updateAllAvailablePackages() },
         }) {
-          ForEach(groups.updates, (candidate: SourcePackageUpdateCandidate, index: number) => {
-            this.PackageCard(this.installedPackage(candidate.entry.id)!, candidate)
-            if (candidate.entry.id !== this.lastUpdateSourceId) { ListDivider() }
-          }, (candidate: SourcePackageUpdateCandidate, _index: number) => JSON.stringify([candidate.entry.id, candidate.entry.version,
-            this.installedPackage(candidate.entry.id)?.version, this.installedPackage(candidate.entry.id)?.enabled, candidate.entry.nsfw]))
+          if (this.usesWideSourceRows) {
+            ForEach(this.pairFirstItems(groups.updates), (candidate: SourcePackageUpdateCandidate, row: number) => {
+              this.UpdatePackagePair(groups.updates, row)
+              if (row * 2 + 2 < groups.updates.length) { WidePairDivider() }
+            }, (candidate: SourcePackageUpdateCandidate, row: number) =>
+              this.pairKey(groups.updates, row, (item: SourcePackageUpdateCandidate): string[] => this.updateCandidateSignature(item)))
+          } else {
+            ForEach(groups.updates, (candidate: SourcePackageUpdateCandidate, index: number) => {
+              this.PackageCard(this.installedPackage(candidate.entry.id)!, candidate)
+              if (candidate.entry.id !== this.lastUpdateSourceId) { ListDivider() }
+            }, (candidate: SourcePackageUpdateCandidate, _index: number) => JSON.stringify([candidate.entry.id, candidate.entry.version,
+              this.installedPackage(candidate.entry.id)?.version, this.installedPackage(candidate.entry.id)?.enabled, candidate.entry.nsfw]))
+          }
         }
       }
     }
     if (groups.installed.length > 0) {
       ListItem() {
         GroupedListSection({ inModal: this.inModal, title: t('source_pkg_installed_heading') }) {
-          ForEach(groups.installed, (source: InstalledSourcePackage, index: number) => {
-            this.PackageCard(source)
-            if (source.id !== this.lastInstalledSourceId) { ListDivider() }
-          }, (source: InstalledSourcePackage, _index: number) => JSON.stringify([source.id, source.version, source.enabled, source.nsfw, source.icon, source.name, source.lang]))
+          if (this.usesWideSourceRows) {
+            ForEach(this.pairFirstItems(groups.installed), (source: InstalledSourcePackage, row: number) => {
+              this.InstalledPackagePair(groups.installed, row)
+              if (row * 2 + 2 < groups.installed.length) { WidePairDivider() }
+            }, (source: InstalledSourcePackage, row: number) =>
+              this.pairKey(groups.installed, row, (item: InstalledSourcePackage): string[] => this.installedSignature(item)))
+          } else {
+            ForEach(groups.installed, (source: InstalledSourcePackage, index: number) => {
+              this.PackageCard(source)
+              if (source.id !== this.lastInstalledSourceId) { ListDivider() }
+            }, (source: InstalledSourcePackage, _index: number) => JSON.stringify([source.id, source.version, source.enabled, source.nsfw, source.icon, source.name, source.lang]))
+          }
         }
       }
     }
@@ -2701,10 +2791,18 @@ export struct SourcePackageManagerPage {
           // Like Browse, keep the language key stable and read the live members
           // when an install, filter or search changes the section.
           GroupedListSection({ inModal: this.inModal, title: sourceLanguageName(language) || t('source_catalog_language_unknown') }) {
-            ForEach(this.missingInLanguage(language), (entry: SourceIndexEntry) => {
-              this.RemoteIndexCard(entry)
-              if (entry.id !== this.lastMissingSourceId(language)) { ListDivider() }
-            }, (entry: SourceIndexEntry) => JSON.stringify([entry.id, entry.version, entry.icon, entry.nsfw]))
+            if (this.usesWideSourceRows) {
+              ForEach(this.pairFirstItems(this.missingInLanguage(language)), (entry: SourceIndexEntry, row: number) => {
+                this.RemoteIndexPair(this.missingInLanguage(language), row)
+                if (row * 2 + 2 < this.missingInLanguage(language).length) { WidePairDivider() }
+              }, (entry: SourceIndexEntry, row: number) =>
+                this.pairKey(this.missingInLanguage(language), row, (item: SourceIndexEntry): string[] => this.indexEntrySignature(item)))
+            } else {
+              ForEach(this.missingInLanguage(language), (entry: SourceIndexEntry) => {
+                this.RemoteIndexCard(entry)
+                if (entry.id !== this.lastMissingSourceId(language)) { ListDivider() }
+              }, (entry: SourceIndexEntry) => JSON.stringify([entry.id, entry.version, entry.icon, entry.nsfw]))
+            }
           }
         }
       }, (language: string) => language)

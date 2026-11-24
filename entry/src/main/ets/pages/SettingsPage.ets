@@ -38,6 +38,7 @@ import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaSearchField } from '../components/KomaSearchField'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
+import { WidePairDivider, WidePairRow, usesWideTwoColumnLayout } from '../components/ui/WideTwoColumn'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ReadingDirection } from '../model/ComicModels'
 import {
@@ -220,10 +221,11 @@ interface SettingsPaneSection {
 }
 
 const SETTINGS_LIST_HORIZONTAL_PADDING: number = ThemeConstants.SPACE_MD
-const SETTINGS_ROOT_TWO_COLUMN_MIN_WIDTH: number = 560
 
+// Index uses this name for the settings modal width. The shared threshold lives
+// in WideTwoColumn so Browse and the source manager pair rows at the same width.
 export function usesWideSettingsHome(windowWidthVp: number): boolean {
-  return windowWidthVp - 2 * SETTINGS_LIST_HORIZONTAL_PADDING >= SETTINGS_ROOT_TWO_COLUMN_MIN_WIDTH
+  return usesWideTwoColumnLayout(windowWidthVp)
 }
 
 interface SettingsSearchResult {
@@ -2955,16 +2957,14 @@ export struct SettingsPage {
 
   @Builder
   private RootItemPair(first: SettingsPaneItem, second: SettingsPaneItem | undefined) {
-    Row({ space: ThemeConstants.SPACE_SM }) {
-      Column() { this.RootPaneRow(first) }.layoutWeight(1)
-      Column() {
+    WidePairRow({
+      first: () => { this.RootPaneRow(first) },
+      second: () => {
         if (second !== undefined) {
           this.RootPaneRow(second)
         }
-      }.layoutWeight(1)
-    }
-    .width('100%')
-    .alignItems(VerticalAlign.Center)
+      },
+    })
   }
 
   @Computed
@@ -2982,12 +2982,7 @@ export struct SettingsPage {
           (item: SettingsPaneItem, row: number) => {
             this.RootItemPair(item, section.items[row * 2 + 1])
             if (row * 2 + 2 < section.items.length) {
-              // Each segment follows its column and leaves the center gutter untouched.
-              Row({ space: ThemeConstants.SPACE_SM }) {
-                Column() { ListDivider({ rightMargin: ThemeConstants.SPACE_LG }) }.layoutWeight(1)
-                Column() { ListDivider({ rightMargin: ThemeConstants.SPACE_LG }) }.layoutWeight(1)
-              }
-              .width('100%')
+              WidePairDivider({ leftMargin: ThemeConstants.SPACE_LG, rightMargin: ThemeConstants.SPACE_LG })
             }
           }, (item: SettingsPaneItem) => item.key)
       } else {
