@@ -529,6 +529,10 @@ export struct LibraryPage {
     'active', 'rootNavigation.visible')
   private syncDisplayedSnapshotFromProps(): void {
     if (!this.active || !this.rootNavigation.visible) return
+    this.syncDisplayedSnapshot()
+  }
+
+  private syncDisplayedSnapshot(): void {
     const sameShelf = this.displayedLibraryStore === this.libraryStore && this.displayedLibraryRevision === this.libraryRevision &&
       this.displayedSessionStore === this.readerSessionStore
     if (sameShelf && !this.usesLiveShelfFiltersOrSort()) {
@@ -1633,7 +1637,18 @@ export struct LibraryPage {
       }, this.detailTransitionScope, `${sourceId}-cover`, this.detailTransitionCoverSource(comicId),
         (): boolean => this.active && this.rootNavigation.visible && !this.selectionMode &&
           this.viewMode === viewMode && this.filterPreferencesMutationRevision === filterRevision &&
-          this.displayedRevision === displayedRevision && this.displayedCards.some((comic: ComicCoverInfo): boolean => comic.id === comicId))
+          this.displayedRevision === displayedRevision && this.displayedCards.some((comic: ComicCoverInfo): boolean => comic.id === comicId),
+        (): boolean => {
+          // The shelf is still covered during POP. Apply the committed order before capturing any
+          // visible neighbors or measuring this work's new card. The ordinary visibility monitor
+          // uses the same projection and will see these revisions already applied.
+          if (this.active && (this.displayedLibraryStore !== this.libraryStore ||
+            this.displayedLibraryRevision !== this.libraryRevision || this.displayedSessionStore !== this.readerSessionStore ||
+            this.displayedProgressRevision !== this.readerProgressRevision)) {
+            this.syncDisplayedSnapshot()
+          }
+          return this.displayedRevision !== displayedRevision
+        })
     }
   }
 

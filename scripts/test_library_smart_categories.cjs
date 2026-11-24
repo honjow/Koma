@@ -69,7 +69,7 @@ test('the shelf publishes the selected sort and direction in the same refresh', 
  let frame = 0
  const Shelf = shelfSubject(['setSortBy', 'refreshDisplayedSnapshotFromStore', 'applyCategorySort', 'prepareShelfReadingFacts',
   'orderedShelfComics', 'orderedShelfCategories', 'orderedCategoryComics', 'currentListOptions',
-  'syncDisplayedSnapshotFromProps', 'applyWorkReadingChange', 'usesLiveShelfFiltersOrSort'], {
+  'syncDisplayedSnapshotFromProps', 'syncDisplayedSnapshot', 'applyWorkReadingChange', 'usesLiveShelfFiltersOrSort'], {
   librarySortDirection, effectiveLibraryDefaultSort, normalizeCategoryIds: models.normalizeCategoryIds,
   cachedLibraryChapterUpdateTimes: () => updates,
   // ArkUI recomputes a dirty @Computed getter at the next frame, not during the click.
@@ -308,7 +308,8 @@ test('reading/download/tracking facts dynamically change membership, publication
  assert.equal(smart.comicMatchesSmartCategory(a,selected,context),false)
 })
 test('returning to the shelf picks up new download facts with unchanged book and progress revisions', () => {
- const Shelf = shelfSubject(['syncDisplayedSnapshotFromProps', 'usesLiveShelfFiltersOrSort', 'selectedSmartCategory'])
+ const Shelf = shelfSubject(['syncDisplayedSnapshotFromProps', 'syncDisplayedSnapshot', 'usesLiveShelfFiltersOrSort',
+  'selectedSmartCategory'])
  const shelf = new Shelf(), library = new InMemoryLibraryStore(), reader = new InMemoryReaderSessionStore()
  const comic = book('offline'), downloaded = new Set()
  library.replaceSmartCategories([group([rule('downloaded')])])

@@ -407,7 +407,8 @@ export class MangaDetailTransitionCoordinator {
         sourceHeight = uiContext.px2vp(sourceRect.size.height)
         sourceX = uiContext.px2vp(sourceRect.windowOffset.x - rootRect.windowOffset.x)
         sourceY = uiContext.px2vp(sourceRect.windowOffset.y - rootRect.windowOffset.y)
-        if (rootWidth <= 0 || rootHeight <= 0 || sourceWidth <= 0 || sourceHeight <= 0) {
+        if (rootWidth <= 0 || rootHeight <= 0 || sourceWidth <= 0 || sourceHeight <= 0 ||
+          sourceX >= rootWidth || sourceY >= rootHeight || sourceX + sourceWidth <= 0 || sourceY + sourceHeight <= 0) {
           fail('invalid_current_geometry')
           return
         }
@@ -423,7 +424,8 @@ export class MangaDetailTransitionCoordinator {
           coverHeight = uiContext.px2vp(coverRect.size.height)
           coverX = uiContext.px2vp(coverRect.windowOffset.x - rootRect.windowOffset.x)
           coverY = uiContext.px2vp(coverRect.windowOffset.y - rootRect.windowOffset.y)
-          if (coverWidth <= 0 || coverHeight <= 0) {
+          if (coverWidth <= 0 || coverHeight <= 0 || coverX >= rootWidth || coverY >= rootHeight ||
+            coverX + coverWidth <= 0 || coverY + coverHeight <= 0) {
             fail('invalid_current_cover_geometry')
             return
           }
@@ -529,6 +531,7 @@ export class MangaDetailTransitionCoordinator {
     sourceCoverComponentId: string = '',
     coverSource: MangaDetailTransitionCoverSource | undefined = undefined,
     sourceIsCurrent: () => boolean = (): boolean => true,
+    refreshSourceLayout?: () => boolean,
   ): Promise<void> {
     if (MangaDetailTransitionCoordinator.opening) return
     const transition = connectMangaDetailTransition()
@@ -613,6 +616,7 @@ export class MangaDetailTransitionCoordinator {
       card = await uiContext.getComponentSnapshot().get(componentId, { waitUntilRenderFinished: true })
       if (!current()) { abort(); return }
       transition.coverSource = coverSource
+      transition.refreshSourceLayout = refreshSourceLayout
       UIUtils.applySync((): void => {
         transition.beginSourceHandoff(selectedMode, componentId, sourceCoverComponentId, sourceSurfaceComponentId,
           preserveBackground, `${componentId}-detail-cover`, x, y, w, h, card!, cx, cy, cw, ch,
@@ -901,77 +905,66 @@ export class MangaDetailTransitionCoordinator {
             finishOnFrame(false)
           })
         }
-        const startIndependentPopAnimation: () => void = (): void => {
+        const startIndependentPopAnimation = (): void => {
           if (!current()) { finishProxy(); return }
           UIUtils.applySync((): void => { transition.beginPop() })
-          MangaDetailTransitionCoordinator.finishNavigationBeforeIndependentPop(
-            uiContext,
-            (): void => {
-              finishProxy()
-            },
-            (): void => {
-              if (!current()) {
-                finishProxy()
-                return
-              }
-              animatePopSurface((): void => {
-                const handoffStarted: boolean =
-                  MangaDetailTransitionCoordinator.finishPostPopHandoff(
-                    uiContext,
-                    (): void => {
-                      if (current()) {
-                        UIUtils.applySync((): void => { transition.finishRouteContext() })
-                      }
-                    },
-                  )
-                if (!handoffStarted) {
-                  UIUtils.applySync((): void => { transition.markPopSettled(true) })
-                }
+          const animate = (): void => {
+            if (!current()) return
+            animatePopSurface((): void => {
+              const handoffStarted = MangaDetailTransitionCoordinator.finishPostPopHandoff(uiContext, (): void => {
+                if (current()) UIUtils.applySync((): void => { transition.finishRouteContext() })
               })
-            },
-          )
-        }
-        const sourceGeometryNeedsRefresh: boolean =
-          MangaDetailTransitionCoordinator.sourceGeometryNeedsRefresh(uiContext)
-        if (sourceGeometryNeedsRefresh) {
-          const useIndependentPopSurface: boolean = transition.isCoverExpand()
-          if (
-            useIndependentPopSurface &&
-            !await MangaDetailTransitionCoordinator.prepareIndependentPopSurface(uiContext)
-          ) {
-            if (current()) transition.finishRouteContext()
-            finishProxy()
-            return
+              if (!handoffStarted) UIUtils.applySync((): void => { transition.markPopSettled(true) })
+            })
           }
-          if (!current()) { finishProxy(); return }
-          // Only after Navigation starts POP is the destination list the real `to` route with its
-          // post-rotation constraints. Measure and capture it here; the inactive background route can
-          // retain its old portrait layout and is not valid geometry evidence.
-          MangaDetailTransitionCoordinator.refreshSourceGeometryForPop(
-            uiContext,
-            (success: boolean): void => {
-              if (!current()) {
-                finishProxy()
-                return
-              }
+          MangaDetailTransitionCoordinator.finishNavigationBeforeIndependentPop(uiContext, finishProxy, animate)
+        }
+        const preparePopAnimation = async (sourceLayoutChanged: boolean, afterPopLayout: boolean): Promise<void> => {
+          if (sourceLayoutChanged || MangaDetailTransitionCoordinator.sourceGeometryNeedsRefresh(uiContext)) {
+            const useIndependentPopSurface: boolean = transition.isCoverExpand()
+            if (useIndependentPopSurface && !await MangaDetailTransitionCoordinator.prepareIndependentPopSurface(uiContext)) {
+              if (current()) transition.finishRouteContext()
+              finishProxy()
+              return
+            }
+            if (!current()) { finishProxy(); return }
+            // The destination card and background are captured from the same projection.
+            MangaDetailTransitionCoordinator.refreshSourceGeometryForPop(uiContext, (success: boolean): void => {
+              if (!current()) { finishProxy(); return }
               if (!success) {
                 transition.finishRouteContext()
                 finishProxy()
                 return
               }
-              if (useIndependentPopSurface) {
-                startIndependentPopAnimation()
-              } else {
-                startPopAnimation()
-              }
-            },
-          )
-          return
+              if (useIndependentPopSurface) startIndependentPopAnimation()
+              else startPopAnimation()
+            })
+          } else if (afterPopLayout) {
+            startPopAnimation()
+          } else {
+            // Native POP's layout marks the outgoing detail dirty. Animate on the next frame to
+            // avoid forcing a nested flush while Navigation is still laying out.
+            uiContext.postFrameCallback(new MangaDetailCaptureFrameCallback(startPopAnimation))
+          }
         }
-        // onHidden marks the outgoing detail dirty during Native POP's layout. Finish that
-        // necessary update before animateTo can force a nested flush inside the same layout.
-        // Keep the full detail visible and the original 350ms animation on this frame boundary.
-        uiContext.postFrameCallback(new MangaDetailCaptureFrameCallback(startPopAnimation))
+        const refreshSourceLayout = transition.refreshSourceLayout
+        if (refreshSourceLayout === undefined) {
+          await preparePopAnimation(false, false)
+        } else {
+          uiContext.postFrameCallback(new MangaDetailCaptureFrameCallback(async (): Promise<void> => {
+            if (!current()) { finishProxy(); return }
+            let sourceLayoutChanged = false
+            try {
+              UIUtils.applySync((): void => { sourceLayoutChanged = refreshSourceLayout() })
+            } catch (error) {
+              DiagnosticLogger.info('gallery-detail-transition', 'source_layout_refresh_failed', `${error}`)
+              if (current()) transition.finishRouteContext()
+              finishProxy()
+              return
+            }
+            await preparePopAnimation(sourceLayoutChanged, true)
+          }))
+        }
       },
       onTransitionEnd: (success: boolean): void => {
         if (!current()) {

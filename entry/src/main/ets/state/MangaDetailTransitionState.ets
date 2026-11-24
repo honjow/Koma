@@ -21,6 +21,7 @@ export enum MangaDetailTransitionPhase {
 class SuspendedMangaDetailTransitionContext {
   coverSource?: MangaDetailTransitionCoverSource = undefined
   detailCoverSource?: MangaDetailTransitionCoverSource = undefined
+  refreshSourceLayout?: () => boolean = undefined
   sourceArtworkChanged: boolean = false
   mode: string = MangaDetailTransitionMode.SEAMLESS
   galleryId: string = ''
@@ -69,6 +70,7 @@ class SuspendedMangaDetailTransitionContext {
 export class MangaDetailTransitionState {
   coverSource?: MangaDetailTransitionCoverSource = undefined
   detailCoverSource?: MangaDetailTransitionCoverSource = undefined
+  refreshSourceLayout?: () => boolean = undefined
   sourceArtworkChanged: boolean = false
   detailLayoutReady: boolean = false
   preparationToken: number = 0
@@ -130,9 +132,11 @@ export class MangaDetailTransitionState {
   @Trace coverResourceReady: boolean = false
   @Trace coverUrl: string = ''
   @Trace independentPopSurfaceActive: boolean = false
-  sourceSnapshot: image.PixelMap | undefined = undefined
+  // Recapture replaces these images while the original overlay nodes remain mounted.
+  // The image sources must update together with the new landing geometry.
+  @Trace sourceSnapshot: image.PixelMap | undefined = undefined
   detailSnapshot: image.PixelMap | undefined = undefined
-  cardSnapshot: image.PixelMap | undefined = undefined
+  @Trace cardSnapshot: image.PixelMap | undefined = undefined
   coverSnapshot: image.PixelMap | undefined = undefined
   @Trace sourceSnapshotX: number = 0
   @Trace sourceSnapshotY: number = 0
@@ -178,6 +182,7 @@ export class MangaDetailTransitionState {
         new SuspendedMangaDetailTransitionContext()
       context.coverSource = this.coverSource
       context.detailCoverSource = this.detailCoverSource
+      context.refreshSourceLayout = this.refreshSourceLayout
       context.sourceArtworkChanged = this.sourceArtworkChanged
       context.mode = this.mode
       context.galleryId = this.galleryId
@@ -285,6 +290,7 @@ export class MangaDetailTransitionState {
     }
     this.coverSource = context.coverSource
     this.detailCoverSource = context.detailCoverSource
+    this.refreshSourceLayout = context.refreshSourceLayout
     this.sourceArtworkChanged = context.sourceArtworkChanged
     this.detailLayoutReady = true
     this.mode = context.mode
@@ -1002,6 +1008,7 @@ export class MangaDetailTransitionState {
   private clearCurrentFields(): void {
     this.coverSource = undefined
     this.detailCoverSource = undefined
+    this.refreshSourceLayout = undefined
     this.sourceArtworkChanged = false
     this.detailLayoutReady = false
     this.preparationToken = 0

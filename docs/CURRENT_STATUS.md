@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-25T04:01:36+08:00",
+  "updatedAt": "2026-11-25T04:15:13+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "DOWNLOAD_START_LATENCY_FULL_READ_20261124",
   "activity": "197 在 376 行队列上核到冷启动首点下载的初始化与入队合计约 9 ms，全量读写路径已改为按目标行处理。",
@@ -13396,7 +13396,7 @@
       "reportedAtSource": "用户本会话要求移植 NextE 列表转场，覆盖书架打开作品页和浏览进入作品页，随后明确要求开子代理并直接在 201 验证；精确原始消息时刻未核实。",
       "status": "用户确认保留系统标准曲线，201两模式与两入口完整进退已检查",
       "updatedAt": "2026-11-24T09:22:31+08:00",
-      "result": "用户新反馈在旧13原片中直接成立：封面尚未到顶时，详情目标位置被永久灰遮罩挡住。现去除灰Column，按原coverMaskVisible把目标Stack整体停止绘制，连底色/备用图标/阴影一起透明，保挂载/id/测量，落位恢复原封面。候选14已在201本次跟随系统深色现场覆盖安装；Root与执行代理按序亲审书架网格91帧、国漫同作品列表102帧、漫画屋真实单列92帧，并放大飞行中30/26/31帧：目标确实透出详情背景纹理，无灰矩形/备用图标/阴影，落地正常。末帧归还原国漫大象605/495、7/39页或原漫画屋热门斗破首卡与位置，无终态残留。完整三模式和用户已定默认封面展开、既有显式偏好保留；350ms与曲线/空间阈值未改。本次只重验灰块相关三条coverExpand路径，不冒原三模式/字号全矩阵新结果。漫画屋原网格、书架原国漫网格/宽松/封面展开/简中及跟随系统深色均保留或恢复，原大象495与第7页18%续读读回；本次原SLEEP/10000独立恢复，05:17:36释租released，保留14新包。此前7同605章warm trace的动画段冲刷改善仍为原证据；准备46.400ms/点击至动画192.678ms慢于旧124.587ms，POP前置25.422ms、按键至动画61.187ms和落地33.385ms仍属保留限制，本轮录像不证明FPS或这些开销已消除。未改阅读数据，已按用户明确授权纳入本地提交，未推送。 用户后续要求拉长收尾减速段：候选15进入曲线改为(0.16,1,0.3,1)，返回(0.22,1,0.36,1)，均350ms；这一新增修改尚待真机验收，之前透明落点验收保留。 后续纠正：17的(0.16,1,0.3,1)/(0.22,1,0.36,1)被用户明确否定，原片只能证明几何/落点/返回无残留，不能证明缓冲感符合要求。调用方向核对未反；数学采样进入175ms已完成97.18%。本地20改参数试案未安装、未采用。用户要求先理清设计并禁止再以NextE为正确性依据，已停止沿其查曲线。官方将屏内图片形变归标准缓入缓出，现成Curve.FastOutSlowIn为(0.4,0,0.2,1)：350ms下约222ms完成90%，剩约128ms平顺落位。该方案为研究结论，尚未作为采用决定或安装验收。实际弹簧支持无回弹的临界阻尼，但鸿蒙物理弹簧会自行决定时长，不能冒称仍精确350ms。 用户随后明确要求执行研究方案：进入/返回统一curves.initCurve(Curve.FastOutSlowIn)，保350ms与原空间交接阈值；18签名包已构建，真实回退与路由生命周期6项通过。测试fixture仅补齐SDK曲线工厂与全局枚举，未改变断言。 当前结论：用户明确要求保留现在的更改。18已覆盖安装201，Root亲审封面展开/一镜到底×书架国漫网格/漫画屋热门网格四段原速完整进退（91/90/104/99帧）；透明落点、原卡归还和终态位置正常，350ms保留。录像不代替FPS或旧准备耗时trace结论，不重开列表/旋转矩阵。原封面展开模式已读回、原桌面与SLEEP10000独立恢复，06:18:04释租。续读在无阅读器输入期间从原大象第7页18%变为天降之物第7页13%，来源未核，未回写旧值，不声称保持。保留当前包及开关修复，未提交/推送。新增封面一致性另归#362检查。 用户随后授权提交：系统FastOutSlowIn曲线与350ms随本轮封面及开关修复一并纳入本地提交，未推送。",
+      "result": "用户新反馈在旧13原片中直接成立：封面尚未到顶时，详情目标位置被永久灰遮罩挡住。现去除灰Column，按原coverMaskVisible把目标Stack整体停止绘制，连底色/备用图标/阴影一起透明，保挂载/id/测量，落位恢复原封面。候选14已在201本次跟随系统深色现场覆盖安装；Root与执行代理按序亲审书架网格91帧、国漫同作品列表102帧、漫画屋真实单列92帧，并放大飞行中30/26/31帧：目标确实透出详情背景纹理，无灰矩形/备用图标/阴影，落地正常。末帧归还原国漫大象605/495、7/39页或原漫画屋热门斗破首卡与位置，无终态残留。完整三模式和用户已定默认封面展开、既有显式偏好保留；350ms与曲线/空间阈值未改。本次只重验灰块相关三条coverExpand路径，不冒原三模式/字号全矩阵新结果。漫画屋原网格、书架原国漫网格/宽松/封面展开/简中及跟随系统深色均保留或恢复，原大象495与第7页18%续读读回；本次原SLEEP/10000独立恢复，05:17:36释租released，保留14新包。此前7同605章warm trace的动画段冲刷改善仍为原证据；准备46.400ms/点击至动画192.678ms慢于旧124.587ms，POP前置25.422ms、按键至动画61.187ms和落地33.385ms仍属保留限制，本轮录像不证明FPS或这些开销已消除。未改阅读数据，已按用户明确授权纳入本地提交，未推送。 用户后续要求拉长收尾减速段：候选15进入曲线改为(0.16,1,0.3,1)，返回(0.22,1,0.36,1)，均350ms；这一新增修改尚待真机验收，之前透明落点验收保留。 后续纠正：17的(0.16,1,0.3,1)/(0.22,1,0.36,1)被用户明确否定，原片只能证明几何/落点/返回无残留，不能证明缓冲感符合要求。调用方向核对未反；数学采样进入175ms已完成97.18%。本地20改参数试案未安装、未采用。用户要求先理清设计并禁止再以NextE为正确性依据，已停止沿其查曲线。官方将屏内图片形变归标准缓入缓出，现成Curve.FastOutSlowIn为(0.4,0,0.2,1)：350ms下约222ms完成90%，剩约128ms平顺落位。该方案为研究结论，尚未作为采用决定或安装验收。实际弹簧支持无回弹的临界阻尼，但鸿蒙物理弹簧会自行决定时长，不能冒称仍精确350ms。 用户随后明确要求执行研究方案：进入/返回统一curves.initCurve(Curve.FastOutSlowIn)，保350ms与原空间交接阈值；18签名包已构建，真实回退与路由生命周期6项通过。测试fixture仅补齐SDK曲线工厂与全局枚举，未改变断言。 当前结论：用户明确要求保留现在的更改。18已覆盖安装201，Root亲审封面展开/一镜到底×书架国漫网格/漫画屋热门网格四段原速完整进退（91/90/104/99帧）；透明落点、原卡归还和终态位置正常，350ms保留。录像不代替FPS或旧准备耗时trace结论，不重开列表/旋转矩阵。原封面展开模式已读回、原桌面与SLEEP10000独立恢复，06:18:04释租。续读在无阅读器输入期间从原大象第7页18%变为天降之物第7页13%，来源未核，未回写旧值，不声称保持。保留当前包及开关修复，未提交/推送。新增封面一致性另归#362检查。 用户随后授权提交：系统FastOutSlowIn曲线与350ms随本轮封面及开关修复一并纳入本地提交，未推送。 201 在「最近阅读」降序下用三部本地测试作品验证。阅读第三本后，书架在详情遮挡下完成重排，按作品 ID 量取新落点，露出的其他作品已就位。过渡需要替换的截图可被 ArkUI 观察，同一签名包逐帧确认网格和列表封面直接落首位、列表首行从出现就显示新页码，网格首位作品不重排的正常返场也通过。原曲线与时长保持。测试作品、可见历史及导入文件已清理，201 恢复原网格、筛选、最近阅读降序和电源状态，保留验收包并释租。",
       "remainingActions": [],
       "evidence": [
         "entry/src/main/ets/navigation/MangaDetailTransitionCoordinator.ets",
@@ -13449,7 +13449,13 @@
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate18-cover-mode-restored-20261124",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate18-original-library-restored-20261124",
         ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/candidate18-original-power-restored-20261124",
-        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-standard-20261124.json"
+        ".hvigor/outputs/detail-transition-20261123/device201__LMR-AL00/not-applicable/portrait-1276x2848/detail-roundtrip/lease-final-standard-20261124.json",
+        ".hvigor/outputs/shelf-return-201-20261125/device201__LMR-AL00/not-applicable/portrait-1276x2848/shelf-reordered-return/observed-image-list/observed-image-list.mp4",
+        ".hvigor/outputs/shelf-return-201-20261125/device201__LMR-AL00/not-applicable/portrait-1276x2848/shelf-reordered-return/observed-image-grid/observed-image-grid.mp4",
+        ".hvigor/outputs/shelf-return-201-20261125/device201__LMR-AL00/not-applicable/portrait-1276x2848/shelf-reordered-return/observed-image-installed/run-metadata.json",
+        ".hvigor/outputs/shelf-return-201-20261125/device201__LMR-AL00/not-applicable/portrait-1276x2848/shelf-reordered-return/fixture-history-removed-3/run-metadata.json",
+        ".hvigor/outputs/shelf-return-201-20261125/device201__LMR-AL00/not-applicable/portrait-1276x2848/shelf-reordered-return/device-original-ui-restored/run-metadata.json",
+        ".hvigor/outputs/shelf-return-201-20261125/device201__LMR-AL00/not-applicable/portrait-1276x2848/shelf-reordered-return/device-original-power/run-metadata.json"
       ],
       "boundaries": [],
       "stage": "系统FastOutSlowIn已安装并保留"
@@ -13726,6 +13732,13 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "shelf-last-read-cover-return-201-20261125",
+      "at": "2026-11-25T04:15:13+08:00",
+      "itemId": "NEXTE_MANGA_DETAIL_TRANSITION",
+      "title": "201 逐帧复核最近阅读重排后的书架返场",
+      "detail": "201 在「最近阅读」降序下用三部本地测试作品验证。阅读第三本后，书架在详情遮挡下完成重排，按作品 ID 量取新落点，露出的其他作品已就位。过渡需要替换的截图可被 ArkUI 观察，同一签名包逐帧确认网格和列表封面直接落首位、列表首行从出现就显示新页码，网格首位作品不重排的正常返场也通过。原曲线与时长保持。测试作品、可见历史及导入文件已清理，201 恢复原网格、筛选、最近阅读降序和电源状态，保留验收包并释租。"
+    },
     {
       "id": "reader-horizontal-continuous-237-20261125",
       "at": "2026-11-25T04:01:36+08:00",
