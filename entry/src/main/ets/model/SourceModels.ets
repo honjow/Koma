@@ -450,9 +450,17 @@ function normalizeFilterOptionIds(options: string[] | SourceRuntimeFilterOptionP
       ids.push(option)
       return
     }
-    ids.push(firstNonEmpty([option.value, option.id, option.label, option.name]) ?? '')
+    // An empty-string value is a source-declared request value (the option that
+    // means "all"), not a missing ID. Replacing it with the label sends the label
+    // as the filter value and the source rejects it (bookwalkertw 分類 "全部漫畫",
+    // user report 2026-11-24). Keep every ID at its option index.
+    if (typeof option.value === 'string') {
+      ids.push(option.value)
+      return
+    }
+    ids.push(firstNonEmpty([option.id, option.label, option.name]) ?? '')
   })
-  return ids.filter((id: string): boolean => id.trim().length > 0)
+  return ids
 }
 
 export function parseSourceFiltersJson(json: string): SourceFilter[] {

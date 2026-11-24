@@ -16,3 +16,5 @@ build-profile.github.json5
 build-profile.json5.github
 tools/wasm-runtime-spike/rust-sdk/target/
 .hermes/workers/
+.codex-attachments/
+.v2c/

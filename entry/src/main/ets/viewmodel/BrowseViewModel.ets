@@ -878,13 +878,17 @@ export class BrowseViewModel {
     // browse request. Capture its guard at that request boundary, not before
     // asynchronous preparation; the catch keeps the same request guard.
     let challengeCurrent = this.webChallengeGuard('browse')
+    let listings: SourceListingDescriptor[] | undefined = undefined
+    let filterSchema: SourceFilterSchema | undefined = undefined
     try {
-      const listings = await this.loadSourceListings(source)
+      const loadedListings = await this.loadSourceListings(source)
+      listings = loadedListings
       if (requestId !== this.browseRequestId) {
         return
       }
-      const filterSchema = await this.loadSourceFilters(source)
-      const filters = filterSchema.filters
+      const loadedFilterSchema = await this.loadSourceFilters(source)
+      filterSchema = loadedFilterSchema
+      const filters = loadedFilterSchema.filters
       if (requestId !== this.browseRequestId) {
         return
       }
@@ -943,9 +947,9 @@ export class BrowseViewModel {
         cacheKey === this.browseDestinationCacheKey(source, listing, browseFilterValues, filters)) {
         this.rememberBrowseDestination(cacheKey, listingResult !== undefined ? { listingResult } : { homeSections })
       }
-      if (localeRevision === sourceRuntimeLocaleRevision()) this.listings = listings
+      if (localeRevision === sourceRuntimeLocaleRevision()) this.listings = loadedListings
       this.homeAvailable = homeAvailable
-      this.publishFilterSchema(filterSchema, localeRevision)
+      this.publishFilterSchema(loadedFilterSchema, localeRevision)
       this.browseFilterValues = browseFilterValues
       this.homeSections = listing === undefined ? homeSections : []
       if (listing !== undefined && listingResult !== undefined) {
@@ -960,6 +964,17 @@ export class BrowseViewModel {
         return
       }
       const e = error as Error
+      // The source answered listings and the filter schema before the content
+      // request failed. Publish what it returned so the catalogue controls
+      // (filter sheet and listing tabs) stay usable for changing filters and
+      // retrying; a failed list must not hide them. (user report 2026-11-24:
+      // bookwalkertw filters unavailable when the list fails to load)
+      if (listings !== undefined && localeRevision === sourceRuntimeLocaleRevision()) {
+        this.listings = listings
+      }
+      if (filterSchema !== undefined) {
+        this.publishFilterSchema(filterSchema, localeRevision)
+      }
       this.failBrowseLoad(e, effectiveIntent, 'browse_error_load_home')
       this.publishWebChallenge('browse', e, automaticRecovery, challengeCurrent,
         async (handle?: string): Promise<void> => { await this.retryBrowseFailure(true, handle) })
