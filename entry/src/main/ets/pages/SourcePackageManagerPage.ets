@@ -2379,46 +2379,6 @@ export struct SourcePackageManagerPage {
     })
   }
 
-  @Builder
-  private UpdatePackagePair(candidates: SourcePackageUpdateCandidate[], row: number) {
-    WidePairRow({
-      first: () => {
-        const candidate = candidates[row * 2]
-        this.PackageCard(this.installedPackage(candidate.entry.id)!, candidate)
-      },
-      second: () => {
-        if (row * 2 + 1 < candidates.length) {
-          const candidate = candidates[row * 2 + 1]
-          this.PackageCard(this.installedPackage(candidate.entry.id)!, candidate)
-        }
-      },
-    })
-  }
-
-  @Builder
-  private InstalledPackagePair(sources: InstalledSourcePackage[], row: number) {
-    WidePairRow({
-      first: () => { this.PackageCard(sources[row * 2]) },
-      second: () => {
-        if (row * 2 + 1 < sources.length) {
-          this.PackageCard(sources[row * 2 + 1])
-        }
-      },
-    })
-  }
-
-  @Builder
-  private RemoteIndexPair(entries: SourceIndexEntry[], row: number) {
-    WidePairRow({
-      first: () => { this.RemoteIndexCard(entries[row * 2]) },
-      second: () => {
-        if (row * 2 + 1 < entries.length) {
-          this.RemoteIndexCard(entries[row * 2 + 1])
-        }
-      },
-    })
-  }
-
   private saveSourceIncognito(sourceId: string, enabled: boolean): void {
     void new IncognitoPreferencesStore(this.context()).saveSourceEnabled(sourceId, enabled)
       .catch((_error: Error): void => {
@@ -2742,22 +2702,40 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private PackageListGroups(groups: SourcePackageListGroups) {
-    if (groups.updates.length > 0) {
+  private PackageListGroups() {
+    // Read the live groups here instead of receiving them as an argument.
+    // @Builder parameters pass by value unless a single object literal is
+    // used; reading through `this` keeps removals, installs and filters
+    // reaching the rows instead of freezing the first-frame list.
+    if (this.listGroups.updates.length > 0) {
       ListItem() {
         GroupedListSection({ inModal: this.inModal,
           title: t('source_pkg_update_available'),
           actionLabel: t('source_pkg_update_all'),
           action: () => { void this.updateAllAvailablePackages() },
         }) {
+          // Merged cells are built inline so the enclosing by-reference group
+          // object stays the only source. Passing an array into another
+          // @Builder would pass by value and freeze removals and updates.
           if (this.usesWideSourceRows) {
-            ForEach(this.pairFirstItems(groups.updates), (candidate: SourcePackageUpdateCandidate, row: number) => {
-              this.UpdatePackagePair(groups.updates, row)
-              if (row * 2 + 2 < groups.updates.length) { WidePairDivider() }
+            ForEach(this.pairFirstItems(this.listGroups.updates), (candidate: SourcePackageUpdateCandidate, row: number) => {
+              WidePairRow({
+                first: () => {
+                  const first = this.listGroups.updates[row * 2]
+                  this.PackageCard(this.installedPackage(first.entry.id)!, first)
+                },
+                second: () => {
+                  if (row * 2 + 1 < this.listGroups.updates.length) {
+                    const second = this.listGroups.updates[row * 2 + 1]
+                    this.PackageCard(this.installedPackage(second.entry.id)!, second)
+                  }
+                },
+              })
+              if (row * 2 + 2 < this.listGroups.updates.length) { WidePairDivider() }
             }, (candidate: SourcePackageUpdateCandidate, row: number) =>
-              this.pairKey(groups.updates, row, (item: SourcePackageUpdateCandidate): string[] => this.updateCandidateSignature(item)))
+              this.pairKey(this.listGroups.updates, row, (item: SourcePackageUpdateCandidate): string[] => this.updateCandidateSignature(item)))
           } else {
-            ForEach(groups.updates, (candidate: SourcePackageUpdateCandidate, index: number) => {
+            ForEach(this.listGroups.updates, (candidate: SourcePackageUpdateCandidate, index: number) => {
               this.PackageCard(this.installedPackage(candidate.entry.id)!, candidate)
               if (candidate.entry.id !== this.lastUpdateSourceId) { ListDivider() }
             }, (candidate: SourcePackageUpdateCandidate, _index: number) => JSON.stringify([candidate.entry.id, candidate.entry.version,
@@ -2766,17 +2744,24 @@ export struct SourcePackageManagerPage {
         }
       }
     }
-    if (groups.installed.length > 0) {
+    if (this.listGroups.installed.length > 0) {
       ListItem() {
         GroupedListSection({ inModal: this.inModal, title: t('source_pkg_installed_heading') }) {
           if (this.usesWideSourceRows) {
-            ForEach(this.pairFirstItems(groups.installed), (source: InstalledSourcePackage, row: number) => {
-              this.InstalledPackagePair(groups.installed, row)
-              if (row * 2 + 2 < groups.installed.length) { WidePairDivider() }
+            ForEach(this.pairFirstItems(this.listGroups.installed), (source: InstalledSourcePackage, row: number) => {
+              WidePairRow({
+                first: () => { this.PackageCard(this.listGroups.installed[row * 2]) },
+                second: () => {
+                  if (row * 2 + 1 < this.listGroups.installed.length) {
+                    this.PackageCard(this.listGroups.installed[row * 2 + 1])
+                  }
+                },
+              })
+              if (row * 2 + 2 < this.listGroups.installed.length) { WidePairDivider() }
             }, (source: InstalledSourcePackage, row: number) =>
-              this.pairKey(groups.installed, row, (item: InstalledSourcePackage): string[] => this.installedSignature(item)))
+              this.pairKey(this.listGroups.installed, row, (item: InstalledSourcePackage): string[] => this.installedSignature(item)))
           } else {
-            ForEach(groups.installed, (source: InstalledSourcePackage, index: number) => {
+            ForEach(this.listGroups.installed, (source: InstalledSourcePackage, index: number) => {
               this.PackageCard(source)
               if (source.id !== this.lastInstalledSourceId) { ListDivider() }
             }, (source: InstalledSourcePackage, _index: number) => JSON.stringify([source.id, source.version, source.enabled, source.nsfw, source.icon, source.name, source.lang]))
@@ -2784,7 +2769,7 @@ export struct SourcePackageManagerPage {
         }
       }
     }
-    if (groups.missing.length > 0) {
+    if (this.listGroups.missing.length > 0) {
       ListItem() { SectionHeader({ title: t('source_pkg_uninstalled_heading') }) }
       ForEach(this.missingLanguages, (language: string) => {
         ListItem() {
@@ -2793,7 +2778,15 @@ export struct SourcePackageManagerPage {
           GroupedListSection({ inModal: this.inModal, title: sourceLanguageName(language) || t('source_catalog_language_unknown') }) {
             if (this.usesWideSourceRows) {
               ForEach(this.pairFirstItems(this.missingInLanguage(language)), (entry: SourceIndexEntry, row: number) => {
-                this.RemoteIndexPair(this.missingInLanguage(language), row)
+                WidePairRow({
+                  first: () => { this.RemoteIndexCard(this.missingInLanguage(language)[row * 2]) },
+                  second: () => {
+                    const entries = this.missingInLanguage(language)
+                    if (row * 2 + 1 < entries.length) {
+                      this.RemoteIndexCard(entries[row * 2 + 1])
+                    }
+                  },
+                })
                 if (row * 2 + 2 < this.missingInLanguage(language).length) { WidePairDivider() }
               }, (entry: SourceIndexEntry, row: number) =>
                 this.pairKey(this.missingInLanguage(language), row, (item: SourceIndexEntry): string[] => this.indexEntrySignature(item)))
@@ -2864,11 +2857,7 @@ export struct SourcePackageManagerPage {
             if (this.recoverySourceId.length > 0) {
               this.RecoverySourceGroup()
             } else {
-              this.PackageListGroups({
-                updates: this.listGroups.updates,
-                missing: this.listGroups.missing,
-                installed: this.listGroups.installed,
-              })
+              this.PackageListGroups()
             }
             if (this.recoverySourceId.length === 0 &&
               this.listGroups.updates.length + this.listGroups.missing.length + this.listGroups.installed.length === 0) {

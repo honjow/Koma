@@ -59,28 +59,12 @@ export struct BrowsePage {
     return usesWideTwoColumnLayout(this.browseSafeArea.windowWidthVp)
   }
 
-  private pairFirstItems<T>(items: T[]): T[] {
-    return items.filter((_item: T, index: number): boolean => index % 2 === 0)
-  }
-
   private runtimeSourceSignature(source: SourceRuntimeRegistryInstalledSourceSummary): string[] {
     return [source.sourceId, source.version, sourceDisplayName(source.sourceId, source.displayName)]
   }
 
-  // A merged row must rebuild when either member changes (version, localized
-  // name), so the key covers the whole pair, as single rows key their content.
-  private runtimePairKey(sources: SourceRuntimeRegistryInstalledSourceSummary[], row: number): string {
-    return JSON.stringify(sources.slice(row * 2, row * 2 + 2)
-      .map((source: SourceRuntimeRegistryInstalledSourceSummary): string[] => this.runtimeSourceSignature(source)))
-  }
-
   private privateSourceSignature(entry: PrivateBrowseSourceEntry): string[] {
     return [entry.key, entry.title, String(entry.detail), String(entry.badge)]
-  }
-
-  private privatePairKey(entries: PrivateBrowseSourceEntry[], row: number): string {
-    return JSON.stringify(entries.slice(row * 2, row * 2 + 2)
-      .map((entry: PrivateBrowseSourceEntry): string[] => this.privateSourceSignature(entry)))
   }
 
   @Monitor('chrome.requestId')
@@ -90,7 +74,7 @@ export struct BrowsePage {
 
   @Computed
   private get catalogLanguages(): string[] {
-    return Array.from(new Set(this.viewModel.sources.map((source: SourceRuntimeRegistryInstalledSourceSummary): string =>
+    return Array.from(new Set(this.installedSources.map((source: SourceRuntimeRegistryInstalledSourceSummary): string =>
       sourceCatalogLanguage(source.language)))).sort()
   }
 
@@ -172,6 +156,12 @@ export struct BrowsePage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private sourceRuntimeState: SourceRuntimeState = connectSourceRuntimeState()
   @Local private viewModel: BrowseViewModel = new BrowseViewModel()
+  // Rows read this array instead of the view model's own @Trace field. @Local
+  // tracks the view model reference, not mutations inside it, so an uninstall
+  // that only rewrites viewModel.sources would leave the group count new but
+  // the rows stale. Publishing the array here keeps both in one update.
+  @Local private installedSources: SourceRuntimeRegistryInstalledSourceSummary[] = []
+  @Local private sourcesLoading: boolean = false
   @Local private komgaConfigured: boolean = false
   @Local private kavitaConfigured: boolean = false
   @Local private opdsConfigured: boolean = false
@@ -282,7 +272,7 @@ export struct BrowsePage {
   private get enabledRuntimeSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
     const locale = this.languageState.effectiveLocale
     const filters: SourceCatalogFilters = { languages: this.catalogFilters.languages, rating: this.catalogFilters.rating }
-    const sources = this.viewModel.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.enabled &&
+    const sources = this.installedSources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.enabled &&
       sourceMatchesCatalogFilters(source.language, source.nsfw, source.contentRating, filters))
     // A package update also invalidates this retained Browse projection. Resolve
     // names once per source, as in the manager's single-row refresh, rather than
@@ -327,37 +317,10 @@ export struct BrowsePage {
   }
 
   @Builder
-  private PrivateSourcePair(entries: PrivateBrowseSourceEntry[], row: number) {
-    WidePairRow({
-      first: () => { this.PrivateSourceRow(entries[row * 2]) },
-      second: () => {
-        if (row * 2 + 1 < entries.length) {
-          this.PrivateSourceRow(entries[row * 2 + 1])
-        }
-      },
-    })
-  }
-
-  @Builder
   private PrivateSourceListItems() {
     ListItem() {
       GroupedListSection({ title: s('browse_private_sources_heading') }) {
-        if (this.usesWideSourceRows) {
-          ForEach(this.pairFirstItems(this.configuredPrivateSourceEntries),
-            (entry: PrivateBrowseSourceEntry, row: number) => {
-              this.PrivateSourcePair(this.configuredPrivateSourceEntries, row)
-              if (row * 2 + 2 < this.configuredPrivateSourceEntries.length) {
-                WidePairDivider({ leftMargin: ThemeConstants.SPACE_XL })
-              }
-            }, (entry: PrivateBrowseSourceEntry, row: number) => this.privatePairKey(this.configuredPrivateSourceEntries, row))
-        } else {
-          ForEach(this.configuredPrivateSourceEntries, (entry: PrivateBrowseSourceEntry, index: number) => {
-            this.PrivateSourceRow(entry)
-            if (index + 1 < this.configuredPrivateSourceEntries.length) {
-              ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
-            }
-          }, (entry: PrivateBrowseSourceEntry) => JSON.stringify(this.privateSourceSignature(entry)))
-        }
+        this.PrivateSourceRows()
       }
     }
   }
@@ -369,45 +332,135 @@ export struct BrowsePage {
       pinned: this.catalogFilters.pinnedSourceIds.includes(source.sourceId),
       onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary): void => { this.openSource(selected) },
       onPinToggle: (id: string): void => { this.toggleSourcePin(id) } })
-      .transition(TransitionEffect.IDENTITY)
+  }
+
+  // Replace rows whose positions change without keeping their old paint alive.
+  // The group still animates its height when a source moves across sections.
+  private singleSourceRowKey(source: SourceRuntimeRegistryInstalledSourceSummary, index: number, count: number): string {
+    return JSON.stringify([index, index + 1 < count, ...this.runtimeSourceSignature(source)])
   }
 
   @Builder
-  private RuntimeSourcePair(sources: SourceRuntimeRegistryInstalledSourceSummary[], row: number) {
-    WidePairRow({
-      first: () => { this.RuntimeSourceRow(sources[row * 2]) },
-      second: () => {
-        if (row * 2 + 1 < sources.length) {
-          this.RuntimeSourceRow(sources[row * 2 + 1])
-        }
-      },
-    })
+  private SingleRuntimeSourceRow(source: SourceRuntimeRegistryInstalledSourceSummary, showDivider: boolean) {
+    Column() {
+      this.RuntimeSourceRow(source)
+      if (showDivider) {
+        ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
+      }
+    }
+    .width('100%')
+    .transition(TransitionEffect.IDENTITY)
+  }
+
+  // Row source for each merged group. The builders below take no data
+  // argument on purpose: @Builder parameters pass by value, so a computed array
+  // handed in as an argument keeps rendering its first-frame rows and pins,
+  // removals and filter updates never reach the list.
+  @Computed
+  private get pinnedRowGroups(): SourceRuntimeRegistryInstalledSourceSummary[][] {
+    return this.pairRows(this.pinnedRuntimeSources)
+  }
+
+  @Computed
+  private get recentRowGroups(): SourceRuntimeRegistryInstalledSourceSummary[][] {
+    return this.pairRows(this.recentRuntimeSources)
+  }
+
+  @Computed
+  private get privateRowGroups(): PrivateBrowseSourceEntry[][] {
+    return this.pairRows(this.configuredPrivateSourceEntries)
+  }
+
+  private pairRows<T>(items: T[]): T[][] {
+    const rows: T[][] = []
+    for (let index = 0; index < items.length; index += 2) {
+      rows.push(items.slice(index, index + 2))
+    }
+    return rows
   }
 
   @Builder
-  private RuntimeSourceRows(sources: SourceRuntimeRegistryInstalledSourceSummary[]) {
+  private PinnedSourceRows() {
     if (this.usesWideSourceRows) {
-      ForEach(this.pairFirstItems(sources), (source: SourceRuntimeRegistryInstalledSourceSummary, row: number) => {
-        this.RuntimeSourcePair(sources, row)
-        if (row * 2 + 2 < sources.length) {
+      ForEach(this.pinnedRowGroups, (row: SourceRuntimeRegistryInstalledSourceSummary[], index: number) => {
+        WidePairRow({
+          first: () => { this.RuntimeSourceRow(row[0]) },
+          second: () => {
+            if (row.length > 1) this.RuntimeSourceRow(row[1])
+          },
+        })
+        if (index + 1 < this.pinnedRowGroups.length) {
           WidePairDivider({ leftMargin: ThemeConstants.SPACE_XL })
         }
-      }, (source: SourceRuntimeRegistryInstalledSourceSummary, row: number) => this.runtimePairKey(sources, row))
+      }, (row: SourceRuntimeRegistryInstalledSourceSummary[]) => this.pairRowKey(
+        row, (source: SourceRuntimeRegistryInstalledSourceSummary): string[] => this.runtimeSourceSignature(source)))
     } else {
-      ForEach(sources, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
-        this.RuntimeSourceRow(source)
-        if (index + 1 < sources.length) {
+      ForEach(this.pinnedRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+        this.SingleRuntimeSourceRow(source, index + 1 < this.pinnedRuntimeSources.length)
+      }, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) =>
+        this.singleSourceRowKey(source, index, this.pinnedRuntimeSources.length))
+    }
+  }
+
+  @Builder
+  private RecentSourceRows() {
+    if (this.usesWideSourceRows) {
+      ForEach(this.recentRowGroups, (row: SourceRuntimeRegistryInstalledSourceSummary[], index: number) => {
+        WidePairRow({
+          first: () => { this.RuntimeSourceRow(row[0]) },
+          second: () => {
+            if (row.length > 1) this.RuntimeSourceRow(row[1])
+          },
+        })
+        if (index + 1 < this.recentRowGroups.length) {
+          WidePairDivider({ leftMargin: ThemeConstants.SPACE_XL })
+        }
+      }, (row: SourceRuntimeRegistryInstalledSourceSummary[]) => this.pairRowKey(
+        row, (source: SourceRuntimeRegistryInstalledSourceSummary): string[] => this.runtimeSourceSignature(source)))
+    } else {
+      ForEach(this.recentRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+        this.SingleRuntimeSourceRow(source, index + 1 < this.recentRuntimeSources.length)
+      }, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) =>
+        this.singleSourceRowKey(source, index, this.recentRuntimeSources.length))
+    }
+  }
+
+  @Builder
+  private PrivateSourceRows() {
+    if (this.usesWideSourceRows) {
+      ForEach(this.privateRowGroups, (row: PrivateBrowseSourceEntry[], index: number) => {
+        WidePairRow({
+          first: () => { this.PrivateSourceRow(row[0]) },
+          second: () => {
+            if (row.length > 1) this.PrivateSourceRow(row[1])
+          },
+        })
+        if (index + 1 < this.privateRowGroups.length) {
+          WidePairDivider({ leftMargin: ThemeConstants.SPACE_XL })
+        }
+      }, (row: PrivateBrowseSourceEntry[]) => this.pairRowKey(
+        row, (entry: PrivateBrowseSourceEntry): string[] => this.privateSourceSignature(entry)))
+    } else {
+      ForEach(this.configuredPrivateSourceEntries, (entry: PrivateBrowseSourceEntry, index: number) => {
+        this.PrivateSourceRow(entry)
+        if (index + 1 < this.configuredPrivateSourceEntries.length) {
           ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
         }
-      }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify(this.runtimeSourceSignature(source)))
+      }, (entry: PrivateBrowseSourceEntry) => JSON.stringify(this.privateSourceSignature(entry)))
     }
+  }
+
+  // One key per merged row covering both members, so a change in either cell
+  // rebuilds that row the way the single-column keys already do.
+  private pairRowKey<T>(row: T[], signature: (item: T) => string[]): string {
+    return JSON.stringify(row.map((item: T): string[] => signature(item)))
   }
 
   @Builder
   private RecentSourceListItems() {
     ListItem() {
       GroupedListSection({ title: s('browse_recent_sources_heading') }) {
-        this.RuntimeSourceRows(this.recentRuntimeSources)
+        this.RecentSourceRows()
       }
     }.transition(TransitionEffect.IDENTITY)
   }
@@ -416,8 +469,7 @@ export struct BrowsePage {
   private PinnedSourceListItems() {
     ListItem() {
       GroupedListSection({ title: s('browse_pinned_sources_heading') }) {
-        // Do not bind the row key to its position just to draw a divider.
-        this.RuntimeSourceRows(this.pinnedRuntimeSources)
+        this.PinnedSourceRows()
       }
     }.transition(TransitionEffect.IDENTITY)
   }
@@ -430,16 +482,49 @@ export struct BrowsePage {
         // projection. A retained ForEach closure must not keep an old group DTO.
         GroupedListSection({ title: sourceLanguageName(language) || s('source_catalog_language_unknown'),
           subtitle: s('browse_installed_sources_count').replace('%s', `${this.sourcesInLanguage(language).length}`) }) {
-          this.RuntimeSourceRows(this.sourcesInLanguage(language))
+          // Inline instead of calling a parameterized @Builder: its arguments
+          // pass by value, so a retained group row would keep drawing the list
+          // it had when the language first appeared and an uninstalled source
+          // would stay behind after the count above it already dropped.
+          if (this.usesWideSourceRows) {
+            ForEach(this.pairRows(this.sourcesInLanguage(language)),
+              (row: SourceRuntimeRegistryInstalledSourceSummary[], index: number) => {
+                WidePairRow({
+                  first: () => { this.RuntimeSourceRow(row[0]) },
+                  second: () => {
+                    if (row.length > 1) this.RuntimeSourceRow(row[1])
+                  },
+                })
+                if (index + 1 < this.pairRows(this.sourcesInLanguage(language)).length) {
+                  WidePairDivider({ leftMargin: ThemeConstants.SPACE_XL })
+                }
+              }, (row: SourceRuntimeRegistryInstalledSourceSummary[]) => this.pairRowKey(
+                row, (source: SourceRuntimeRegistryInstalledSourceSummary): string[] => this.runtimeSourceSignature(source)))
+          } else {
+            ForEach(this.sourcesInLanguage(language),
+              (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+                this.SingleRuntimeSourceRow(source, index + 1 < this.sourcesInLanguage(language).length)
+              }, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) =>
+                this.singleSourceRowKey(source, index, this.sourcesInLanguage(language).length))
+          }
         }
       }.transition(TransitionEffect.IDENTITY)
     }, (language: string) => language)
   }
 
+  // The page owns the published row array so one state write updates the
+  // groups, their counts and their rows together.
+  private reloadInstalledSources(): void {
+    this.sourcesLoading = true
+    this.viewModel.loadInstalledSources()
+    this.installedSources = this.viewModel.sources
+    this.sourcesLoading = this.viewModel.loadingSources
+  }
+
   aboutToAppear(): void {
     reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
     this.viewModel = new BrowseViewModel(this.sourceRegistry)
-    this.viewModel.loadInstalledSources()
+    this.reloadInstalledSources()
     this.displayedSourceRevision = this.sourceRuntimeState.revision
     this.loadRemoteAvailability()
   }
@@ -455,17 +540,28 @@ export struct BrowsePage {
     }
   }
 
-  @Monitor('sourceRuntimeState.revision', 'active', 'rootNavigation.visible')
+  @Monitor('sourceRuntimeState.revision')
+  private onSourceRevisionChanged(): void {
+    // A commit that changes the installed set must reach this page even when it
+    // is never covered: the source manager can be pushed on top of an already
+    // active Browse tab, so `active` and `rootNavigation.visible` keep their
+    // values and a monitor that waits for those to change would never run.
+    // Only a hidden page defers: its rows are rebuilt when it becomes visible,
+    // which is the same visible-state entry below.
+    if (!this.active || !this.rootNavigation.visible) return
+    this.refreshInstalledSourceSummaries()
+  }
+
+  @Monitor('active', 'rootNavigation.visible')
   private refreshInstalledSourceSummaries(): void {
     // Registry publishers have already committed the live mutation. Reloading
     // every WASM here repeats disk work inside the reactive UI update.
     // A retained Browse page is also hidden under the manager. Keep its current
     // rows there; consume the newest revision once it is visible again instead
     // of rebuilding all summaries inside each package's completion callback.
-    // Active-tab remote availability remains a separate owner below.
     if (!this.active || !this.rootNavigation.visible ||
       this.displayedSourceRevision === this.sourceRuntimeState.revision) return
-    this.viewModel.loadInstalledSources()
+    this.reloadInstalledSources()
     this.displayedSourceRevision = this.sourceRuntimeState.revision
   }
 
@@ -509,7 +605,7 @@ export struct BrowsePage {
     if (this.displayedSourceRevision !== sourceRevision) {
       const sourceMetadataReloaded = reloadInstalledSourcePackages(context)
       this.viewModel = new BrowseViewModel(this.sourceRegistry)
-      this.viewModel.loadInstalledSources()
+      this.reloadInstalledSources()
       this.displayedSourceRevision = sourceRevision
       if (!sourceMetadataReloaded) {
         throw new Error('source_metadata_reload_failed')
@@ -534,7 +630,7 @@ export struct BrowsePage {
         await this.refreshSources()
       },
     }) {
-      if (this.viewModel.loadingSources) {
+      if (this.sourcesLoading) {
         ListItem() {
           Row() {
             LoadingProgress()

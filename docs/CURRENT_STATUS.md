@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-24T18:20:00+08:00",
+  "updatedAt": "2026-11-25T03:22:02+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "DOWNLOAD_START_LATENCY_FULL_READ_20261124",
   "activity": "197 在 376 行队列上核到冷启动首点下载的初始化与入队合计约 9 ms，全量读写路径已改为按目标行处理。",
@@ -3315,11 +3315,11 @@
       "kind": "accepted",
       "priority": "用户明确要求",
       "owner": "Root",
-      "status": "197 已复现闪退，修复包已通过冷启动与交替点按",
+      "status": "103 已通过双栏和悬浮窗单栏置顶与删除刷新复验",
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户要求新增已置顶分组、右侧主题色图钉及分组平滑增减；精确消息时刻未核实。",
-      "result": "浏览页已启用书源可用主题色系统图钉置顶和取消，沿用既有筛选与备份。197 录像确认首个置顶展开和最后取消收起都有连续中间位置，测试书源返回原中文组，应用留在浏览页。稳定行键减少相邻多行重建；过渡中仍有少量标题或移动行与邻行短暂交叠，用户已明确接受当前效果。2026-11-07 用户报告冷启动后快速取消或连续交替操作会闪退。197 原包对 92漫画网的第一次快速取消复现 SIGSEGV，堆栈在 HDS 点击回调结束时关闭句柄。修复包在回调返回后执行分组更新及动画，197 已核冷启动取消和四轮快速交替，每轮在原片中确认换组，保留原高度过渡。测试项冷重启读回已恢复，已恢复电源并释租。",
+      "result": "浏览页已启用书源可用主题色系统图钉置顶和取消，沿用既有筛选与备份。197 录像确认首个置顶展开和最后取消收起都有连续中间位置，测试书源返回原中文组，应用留在浏览页。稳定行键减少相邻多行重建；过渡中仍有少量标题或移动行与邻行短暂交叠，用户已明确接受当前效果。2026-11-07 用户报告冷启动后快速取消或连续交替操作会闪退。197 原包对 92漫画网的第一次快速取消复现 SIGSEGV，堆栈在 HDS 点击回调结束时关闭句柄。修复包在回调返回后执行分组更新及动画，197 已核冷启动取消和四轮快速交替，每轮在原片中确认换组，保留原高度过渡。测试项冷重启读回已恢复，已恢复电源并释租。 103 已复现双栏与悬浮窗单栏置顶重排时的旧行叠影。双栏按配对替换，单栏对位置变化的行同时替换内容和分隔线，实体容器取消默认退场。最终同签包逐帧核对爱看漫取消置顶及重新置顶，双栏、单栏均未再出现标题、图标和角标重叠，保留分组高度过渡。浏览和书源管理在悬浮窗使用单栏，回全屏恢复双栏。全屏及悬浮窗用临时书源輔大猴・四格漫畫复验删除后原浏览查询立即移除结果，测试源已清理，原置顶恢复。保留验证包，恢复全屏和原电源超时，已释租。",
       "remaining": "修复提交已包含在 Koma 1.4.3。用户报告的另一台设备未复验。",
       "evidence": [
         ".hvigor/outputs/browse-source-pin-20261106/final-pin-197-frames",
@@ -3331,11 +3331,24 @@
         ".hvigor/outputs/browse-source-pin-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/browse-source-pin/observe-20261107T173009210458/run-metadata.json",
         ".hvigor/outputs/browse-source-pin-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/browse-source-pin/restart-20261107T173427385777/run-metadata.json",
         ".hvigor/outputs/browse-source-pin-20261106/pin-crash-fix-frames/rapid-pin-top-contact.jpg",
-        ".hvigor/outputs/browse-source-pin-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/browse-source-pin/restore-20261107T173722711709/run-metadata.json"
+        ".hvigor/outputs/browse-source-pin-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/browse-source-pin/restore-20261107T173722711709/run-metadata.json",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/pin-motion/slot-wide-roundtrip-103-20261125/slot-wide-roundtrip-103-20261125.mp4",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/pin-motion/slot-narrow-unpin-103-20261125/slot-narrow-unpin-103-20261125.mp4",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/pin-motion/slot-narrow-repin-103-20261125/slot-narrow-repin-103-20261125.mp4",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/browse-pin-refresh/slot-narrow-manager/run-metadata.json",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/browse-pin-refresh/slot-wide-manager/run-metadata.json",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/browse-pin-refresh/browse-fixture-visible/run-metadata.json",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/browse-pin-refresh/browse-verified-after-removal/run-metadata.json",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/browse-pin-refresh/slot-narrow-browse-fixture-visible/run-metadata.json",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/browse-pin-refresh/slot-narrow-fixture-deleted/run-metadata.json",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/browse-pin-refresh/slot-narrow-browse-after-delete/run-metadata.json",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/browse-pin-refresh/slot-source-columns-restored/run-metadata.json",
+        ".hvigor/outputs/source-catalog-refresh-fix-103/device103__MLR-AL00/not-applicable/portrait-1600x2560/browse-pin-refresh/slot-source-columns-power-restored/run-metadata.json"
       ],
       "boundaries": [
         "保留原生分组高度过渡和稳定行身份，不要求单行飞入顶部，也不为此强制滚动。",
-        "本次实机证据为 197 普通入口的首个置顶和最后取消；未将其写成任意设备或手势都没有短暂交叠。"
+        "本次实机证据为 197 普通入口的首个置顶和最后取消；未将其写成任意设备或手势都没有短暂交叠。",
+        "2026-11-25 用户要求避免布局过渡重叠。保留无位置变化行的身份，证据覆盖 103 竖屏全屏和悬浮窗普通入口。"
       ],
       "commit": "d9e81658a7a573245cabf3e2bb6d0bb9195a6448"
     },
@@ -13681,6 +13694,13 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "browse-source-columns-pin-refresh-103-20261125",
+      "at": "2026-11-25T03:22:02+08:00",
+      "itemId": "BROWSE_SOURCE_PIN",
+      "title": "103 验证书源双栏与单栏置顶及删除刷新",
+      "detail": "103 已复现双栏与悬浮窗单栏置顶重排时的旧行叠影。双栏按配对替换，单栏对位置变化的行同时替换内容和分隔线，实体容器取消默认退场。最终同签包逐帧核对爱看漫取消置顶及重新置顶，双栏、单栏均未再出现标题、图标和角标重叠，保留分组高度过渡。浏览和书源管理在悬浮窗使用单栏，回全屏恢复双栏。全屏及悬浮窗用临时书源輔大猴・四格漫畫复验删除后原浏览查询立即移除结果，测试源已清理，原置顶恢复。保留验证包，恢复全屏和原电源超时，已释租。"
+    },
     {
       "id": "landscape-cutout-4px-user-accepted-20261124",
       "at": "2026-11-24T22:03:00+08:00",

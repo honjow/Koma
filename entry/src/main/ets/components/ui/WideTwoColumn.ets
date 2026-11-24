@@ -14,6 +14,9 @@ export function usesWideTwoColumnLayout(windowWidthVp: number): boolean {
 
 // One merged row: each item owns a half-width column and a center gutter stays
 // empty. A missing second item leaves the column blank instead of collapsing.
+// Pair changes replace the row as a whole. Suppress the default opacity
+// transition on that root so the outgoing pair cannot paint over its
+// replacement while the containing list animates its layout.
 @ComponentV2
 export struct WidePairRow {
   @BuilderParam first: () => void
@@ -33,6 +36,7 @@ export struct WidePairRow {
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
+    .transition(TransitionEffect.IDENTITY)
   }
 }
 
@@ -56,5 +60,6 @@ export struct WidePairDivider {
       .layoutWeight(1)
     }
     .width('100%')
+    .transition(TransitionEffect.IDENTITY)
   }
 }
