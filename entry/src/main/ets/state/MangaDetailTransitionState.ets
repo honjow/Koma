@@ -13,6 +13,12 @@ export enum MangaDetailTransitionPhase {
   POST_POP_HANDOFF = 'post_pop_handoff',
 }
 
+export enum MangaDetailReturnLayout {
+  UNCHANGED,
+  CHANGED,
+  SOURCE_NOT_VISIBLE,
+}
+
 /**
  * Stable OPEN-state payload retained while a deeper list -> detail transition owns the render proxy.
  * PixelMaps move into this context instead of being copied or released; the parent route receives the
@@ -21,7 +27,7 @@ export enum MangaDetailTransitionPhase {
 class SuspendedMangaDetailTransitionContext {
   coverSource?: MangaDetailTransitionCoverSource = undefined
   detailCoverSource?: MangaDetailTransitionCoverSource = undefined
-  refreshSourceLayout?: () => boolean = undefined
+  refreshSourceLayout?: () => MangaDetailReturnLayout = undefined
   sourceArtworkChanged: boolean = false
   mode: string = MangaDetailTransitionMode.SEAMLESS
   galleryId: string = ''
@@ -70,7 +76,7 @@ class SuspendedMangaDetailTransitionContext {
 export class MangaDetailTransitionState {
   coverSource?: MangaDetailTransitionCoverSource = undefined
   detailCoverSource?: MangaDetailTransitionCoverSource = undefined
-  refreshSourceLayout?: () => boolean = undefined
+  refreshSourceLayout?: () => MangaDetailReturnLayout = undefined
   sourceArtworkChanged: boolean = false
   detailLayoutReady: boolean = false
   preparationToken: number = 0

@@ -647,7 +647,8 @@ struct Index {
 
   private tabController: HdsTabsController = new HdsTabsController()
   @Local private resumeMiniBarExpanded: boolean = false
-  private rootTabScrollers: Scroller[] = [new Scroller(), new Scroller(), new Scroller(), new Scroller()]
+  private libraryScroller: ListScroller = new ListScroller()
+  private rootTabScrollers: Scroller[] = [this.libraryScroller, new Scroller(), new Scroller(), new Scroller()]
   @Local private appearanceState: AppearanceState = connectAppearanceState()
   private bottomBarVisibleByScroll: boolean = true
   private bottomBarOffsets: number[] = [0, 0, 0, 0]
@@ -3561,7 +3562,9 @@ struct Index {
 
   private popMangaDetail(param: MangaDetailRouteParam): void {
     if (!MangaDetailTransitionCoordinator.preparePop(this.getUIContext(), param.transitionToken,
-      (): void => { this.appPathStack.pop(this.isReaderDetailRouteVisible()) })) {
+      (systemAnimation: boolean): void => {
+        this.appPathStack.pop(systemAnimation || this.isReaderDetailRouteVisible())
+      })) {
       this.appPathStack.pop(this.isReaderDetailRouteVisible())
     }
   }
@@ -4857,7 +4860,7 @@ struct Index {
           HdsTabs({ controller: this.tabController }) {
             TabContent() {
               LibraryPage({
-                libraryScroller: this.rootTabScrollers[TabIndex.LIBRARY],
+                libraryScroller: this.libraryScroller,
                 onRootScroll: (offset: number, state: ScrollState): void => { this.onRootTabScroll(TabIndex.LIBRARY, offset, state) },
                 active: this.selectedTab === TabIndex.LIBRARY,
                 rootNavigation: this.rootNavigation,

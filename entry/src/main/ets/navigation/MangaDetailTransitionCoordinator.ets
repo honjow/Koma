@@ -6,6 +6,7 @@ import { FrameCallback, UIUtils, curves } from '@kit.ArkUI'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   connectMangaDetailTransition,
+  MangaDetailReturnLayout,
   MangaDetailTransitionPhase,
 } from '../state/MangaDetailTransitionState'
 import {
@@ -531,7 +532,7 @@ export class MangaDetailTransitionCoordinator {
     sourceCoverComponentId: string = '',
     coverSource: MangaDetailTransitionCoverSource | undefined = undefined,
     sourceIsCurrent: () => boolean = (): boolean => true,
-    refreshSourceLayout?: () => boolean,
+    refreshSourceLayout?: () => MangaDetailReturnLayout,
   ): Promise<void> {
     if (MangaDetailTransitionCoordinator.opening) return
     const transition = connectMangaDetailTransition()
@@ -697,10 +698,20 @@ export class MangaDetailTransitionCoordinator {
     })
   }
 
-  static preparePop(uiContext: UIContext, token: number | undefined, pop: () => void): boolean {
+  static preparePop(uiContext: UIContext, token: number | undefined, pop: (systemAnimation: boolean) => void): boolean {
     const transition = connectMangaDetailTransition()
-    if (!transition.owns(token) || !transition.isCoverExpand() || transition.phase !== MangaDetailTransitionPhase.OPEN) return false
+    if (!transition.owns(token) || transition.phase !== MangaDetailTransitionPhase.OPEN) return false
     if (MangaDetailTransitionCoordinator.popPreparationToken === token) return true
+    const refreshSourceLayout = transition.refreshSourceLayout
+    if (refreshSourceLayout !== undefined && refreshSourceLayout() === MangaDetailReturnLayout.SOURCE_NOT_VISIBLE) {
+      // #359: release ownership before POP, while Navigation can still choose its system animation.
+      // Finishing a custom proxy after POP starts would cut straight to the shelf.
+      UIUtils.applySync((): void => { transition.finishRouteContext() })
+      DiagnosticLogger.info('gallery-detail-transition', 'pop_source_not_visible', 'system_animation')
+      pop(true)
+      return true
+    }
+    if (!transition.isCoverExpand()) return false
     MangaDetailTransitionCoordinator.popPreparationToken = token ?? 0
     const prepare = async (): Promise<void> => {
       let snapshot: image.PixelMap | undefined = undefined
@@ -731,7 +742,7 @@ export class MangaDetailTransitionCoordinator {
       }
       uiContext.postFrameCallback(new MangaDetailCaptureFrameCallback((): void => {
         if (MangaDetailTransitionCoordinator.popPreparationToken === token) MangaDetailTransitionCoordinator.popPreparationToken = 0
-        if (transition.owns(token) && transition.phase === MangaDetailTransitionPhase.OPEN) pop()
+        if (transition.owns(token) && transition.phase === MangaDetailTransitionPhase.OPEN) pop(false)
       }))
     }
     void prepare()
@@ -955,7 +966,9 @@ export class MangaDetailTransitionCoordinator {
             if (!current()) { finishProxy(); return }
             let sourceLayoutChanged = false
             try {
-              UIUtils.applySync((): void => { sourceLayoutChanged = refreshSourceLayout() })
+              UIUtils.applySync((): void => {
+                sourceLayoutChanged = refreshSourceLayout() !== MangaDetailReturnLayout.UNCHANGED
+              })
             } catch (error) {
               DiagnosticLogger.info('gallery-detail-transition', 'source_layout_refresh_failed', `${error}`)
               if (current()) transition.finishRouteContext()

@@ -1,6 +1,8 @@
 import { MangaDetailTransitionCoverSource, comicTransitionCoverSource } from '../state/MangaDetailTransitionCoverSource'
 import { MangaDetailTransitionCoordinator } from '../navigation/MangaDetailTransitionCoordinator'
-import { connectMangaDetailTransition, MangaDetailTransitionState } from '../state/MangaDetailTransitionState'
+import {
+  connectMangaDetailTransition, MangaDetailReturnLayout, MangaDetailTransitionState,
+} from '../state/MangaDetailTransitionState'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import {
@@ -397,7 +399,7 @@ export struct LibraryPage {
   @Local private coverLayout: LibraryCoverLayoutState = connectLibraryCoverLayout()
   @Local private gridAdjustment: LibraryCoverGridAdjustment = new LibraryCoverGridAdjustment()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
-  @Param libraryScroller: Scroller = new Scroller()
+  @Param libraryScroller: ListScroller = new ListScroller()
   @Event onRootScroll: (offset: number, state: ScrollState) => void = (_offset: number, _state: ScrollState) => {}
   private activeFilterCount(): number {
     let count = 0
@@ -1638,18 +1640,38 @@ export struct LibraryPage {
         (): boolean => this.active && this.rootNavigation.visible && !this.selectionMode &&
           this.viewMode === viewMode && this.filterPreferencesMutationRevision === filterRevision &&
           this.displayedRevision === displayedRevision && this.displayedCards.some((comic: ComicCoverInfo): boolean => comic.id === comicId),
-        (): boolean => {
-          // The shelf is still covered during POP. Apply the committed order before capturing any
-          // visible neighbors or measuring this work's new card. The ordinary visibility monitor
-          // uses the same projection and will see these revisions already applied.
-          if (this.active && (this.displayedLibraryStore !== this.libraryStore ||
-            this.displayedLibraryRevision !== this.libraryRevision || this.displayedSessionStore !== this.readerSessionStore ||
-            this.displayedProgressRevision !== this.readerProgressRevision)) {
-            this.syncDisplayedSnapshot()
-          }
-          return this.displayedRevision !== displayedRevision
-        })
+        (): MangaDetailReturnLayout => this.prepareDetailReturnLayout(comicId, viewMode, displayedRevision))
     }
+  }
+
+  private prepareDetailReturnLayout(comicId: ComicId, viewMode: string, openedRevision: number): MangaDetailReturnLayout {
+    const before = this.displayedComics
+    // Grid controls are the group's header. In list mode the safe-area spacer,
+    // optional continue-reading card and controls precede the group.
+    const groupIndex = viewMode === 'list' ? (this.canShowContinueReading() ? 3 : 2) : 0
+    if (this.active && (this.displayedLibraryStore !== this.libraryStore ||
+      this.displayedLibraryRevision !== this.libraryRevision || this.displayedSessionStore !== this.readerSessionStore ||
+      this.displayedProgressRevision !== this.readerProgressRevision)) {
+      this.syncDisplayedSnapshot()
+    }
+    if (this.displayedRevision === openedRevision) return MangaDetailReturnLayout.UNCHANGED
+    const destinationIndex = this.displayedComics.findIndex((comic: Comic): boolean => comic.id === comicId)
+    if (destinationIndex < 0) return MangaDetailReturnLayout.SOURCE_NOT_VISIBLE
+    if (before !== this.displayedComics && this.viewMode === viewMode) {
+      const sourceIndex = before.findIndex((comic: Comic): boolean => comic.id === comicId)
+      // The covered shelf still has the old layout. Its native scroller can tell
+      // whether the new slot is in the current viewport without changing the offset.
+      if (sourceIndex >= 0 && sourceIndex !== destinationIndex) {
+        try {
+          const source = this.libraryScroller.getItemRectInGroup(groupIndex, sourceIndex)
+          const destination = this.libraryScroller.getItemRectInGroup(groupIndex, destinationIndex)
+          if (source.height > 0 && destination.height <= 0) return MangaDetailReturnLayout.SOURCE_NOT_VISIBLE
+        } catch (_error) {
+          // If the list is rebuilding, measure its actual destination after layout.
+        }
+      }
+    }
+    return MangaDetailReturnLayout.CHANGED
   }
 
   private detailTransitionCoverSource(comicId: string): MangaDetailTransitionCoverSource {
