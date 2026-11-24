@@ -588,10 +588,10 @@
       "reportedDate": "2026-11-19",
       "reportedAtSource": "本会话用户提出查看原站评论，确认作品和章节入口及半模态，原始时刻未核实。",
       "registeredAt": "2026-11-19T01:29:27+08:00",
-      "updatedAt": "2026-11-24T09:33:36+08:00",
-      "status": "禁漫／哔咔评论已验证并发布",
-      "result": "禁漫天堂0.1.11和哔咔0.1.8已进入正式订阅。237已验证两源作品评论、回复及续页；公开索引与包的版本、评论声明和校验和一致，正式CI二进制关键回放通过。此前18个新增源的既有记录保留。",
-      "remaining": "本轮两源发布已完成。哔咔0.1.8最低要求包含公共初始化修复的App1.6.1；本次按原要求不发布App。此前其他评论源的验收范围与待办保留，不由本次两源发布关闭。",
+      "updatedAt": "2026-11-24T17:49:32+08:00",
+      "status": "第一梯队评论已接入并发布",
+      "result": "禁漫天堂0.1.11和哔咔0.1.8此前已发布。拷贝漫画0.1.9、漫画柜0.1.16、東立0.1.16、腾讯动漫0.1.8、紳士漫畫0.1.12、无限动漫0.1.16已发布，197实际展示作品评论；拷贝漫画另验章节评论。漫本0.1.2和漫小肆韩漫0.1.3已发布，237分别展示《妖神记》和《寄生惡女》作品评论；两源正式包与公开索引校验和已读回。",
+      "remaining": "漫本原站首屏与接口第一页不一致，当前沿用站点从接口第二页续接，可能遗漏条目。漫小肆韩漫桌面模板未做WASM回放。哔咔最低要求App1.6.1；本次不发布App。此前其他评论源的验收范围与待办保留。",
       "evidence": [
         ".hvigor/outputs/source-comments-323/live-source-report.json",
         ".hvigor/outputs/source-comments-323/197-result.json",
@@ -601,6 +601,9 @@
         ".hvigor/outputs/source-comments-extension/candidates.json",
         ".hvigor/outputs/source-comments-extension/catalog-inventory.json",
         ".hvigor/outputs/source-comments-extension/197-result.json",
+        ".hvigor/outputs/user-flow-audit/source-comments-tier1-20261124/device197__ALN-AL80/not-applicable/portrait-1260x2720/comments/43-wnacg-popular-comments/screen.png",
+        ".hvigor/outputs/user-flow-audit/source-comments-tier1-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/10-manben-comments/screen.png",
+        ".hvigor/outputs/user-flow-audit/source-comments-tier1-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/16-ikanmh-comments/screen.png",
         ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/comments-replay-results.json",
         ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/73-pica-comments-schema-ready/hilog.txt",
         ".hvigor/outputs/user-flow-audit/source-comments-jm-pica-20261124/device237__VDE-AL00/unknown/portrait-1320x2120/comments/100-pica-next-root-comments/app.log",
@@ -13557,6 +13560,19 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-comments-tier1-20261124",
+      "at": "2026-11-24T17:49:32+08:00",
+      "itemId": "SOURCE_READ_ONLY_COMMENTS",
+      "title": "第一梯队评论书源真机验证与发布",
+      "detail": "197对拷贝、漫画柜、東立、腾讯、紳士漫畫和无限动漫展示真实评论；拷贝章节评论另有非空样本。六源提交6cb7fc6并进入正式Release，正式包及公开索引校验和已读回。漫本及漫小肆韩漫分别在237显示《妖神记》《寄生惡女》评论；源码提交6172fe1已发布，正式包及索引校验和已读回。漫本沿原站从接口第二页续接，其首屏与接口第一页并不一致。"
+    },
+    {
+      "itemId": "SOURCE_READ_ONLY_COMMENTS",
+      "at": "2026-11-24T17:21:19+08:00",
+      "title": "漫小肆韩漫接入作品评论",
+      "detail": "源仓 ikanmh 0.1.3 使用所选镜像读取作品页直接输出的评论；实站移动页及桌面页未见可用续页，999+不是分页依据。WASM对1262、1007、1054、1103分别读到1、1、5、0条，三个镜像均读回1262评论；无效章节、游标及未协商能力被拒绝。桌面模板解析尚未WASM回放，App真机未验；未提交推送。共享Cargo.lock的ikanmh版本在用户要求停止修改前由0.1.2更新为0.1.3。"
+    },
     {
       "id": "source-comments-jm-pica-published-20261124",
       "at": "2026-11-24T09:33:36+08:00",
