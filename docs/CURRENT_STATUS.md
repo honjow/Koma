@@ -13601,26 +13601,24 @@
       "id": "DOWNLOAD_START_LATENCY_FULL_READ_20261124",
       "number": 363,
       "title": "点击下载后开始前的等待",
-      "kind": "pending_verification",
-      "progressPhase": "verification",
+      "kind": "done",
+      "progressPhase": "completed",
       "priority": "用户当前反馈",
       "owner": "Root：离线下载队列",
       "reportedAt": null,
       "reportedDate": "2026-11-24",
       "reportedAtSource": "用户反馈点击下载后仍会卡一段时间才开始下载，并询问是否仍有大量全量数据读写；精确消息时刻未核实。",
       "registeredAt": "2026-11-24T17:40:00+08:00",
-      "updatedAt": "2026-11-24T18:20:00+08:00",
-      "status": "197 已完成点击到提交的耗时核对，全量读写路径已改为按目标行处理",
-      "result": "定位到启动期队列初始化会对全部历史条目逐页 stat，结构性写会把整张队列表重写，批量下载检查每章都探测一次 manifest。改为：初始化只读下载中条目且只检清单结构，入队/新增/暂停/重试/删除/重排只写目标行，批量计划按作品读一次磁盘索引，详情页只读当前作品队列行。197 现有 376 行队列（downloaded 77、partial 2、blocked 221、failed 76、无 downloading）上，冷启动后首次点下载记录 queue_initialized elapsedMs=2、detail_request_committed initializeMs=3 enqueueMs=5 repaintMs=1，随后 1.9 秒内出现 download.chapter.start。写入后库内为 377 行且历史状态分布未变。显式重扫和打开章节仍保留完整页级校验。",
-      "remainingActions": [
-        "长队列结构性操作（批量入队、暂停、重排、批量取消）尚未逐项真机核对耗时与顺序。",
-        "外部删除已下载文件后，启动期只做清单结构校验，需靠打开章节或显式重扫纠正；该边界未单独验收。"
-      ],
+      "updatedAt": "2026-11-25T04:14:07+08:00",
+      "status": "197 已核十章入队、重排、暂停及冷启动本地阅读",
+      "result": "197 原有 1064 本书架和 377 条下载记录。通过普通详情选择《坐擁星球》十章，本次入队写入 5 ms，四章完成，剩余六章按组置顶、置底及暂停。逐行核对原队列 377 条内容和顺序保持。最终候选冷启动后打开已下载第 70 章，显示第 1/137 页，四章完成记录与六条暂停任务均保留。两种同步在设备验证期间关闭。",
+      "remainingActions": [],
       "boundaries": [
-        "未降低画质、未改变下载目录结构、未改页面样式与交互。",
-        "本轮只测 197 单一设备与 376 行队列规模，其他设备和大批量选择路径未覆盖。"
+        "本机真实 SQLite 覆盖 500 条历史记录、260 章批量入队、并发恢复保留暂停/删除、缺页纠正与重新入队。197 验证实际十章和原大书架。",
+        "原性能样本中队列为 376 条，那一轮的 2 ms 初始化与 9 ms 首次入队保留在历史条目。本轮真实设备操作样本为入队、重排、暂停和本机阅读。"
       ],
       "evidence": [
+        ".hvigor/outputs/download-queue-scope-20261125/summary.json",
         ".hvigor/outputs/download-startup-latency-20261124/logs/181336-cand.log",
         ".hvigor/outputs/download-startup-latency-20261124/logs/180951-old.log",
         ".hvigor/outputs/download-startup-latency-20261124/rdb/Koma.db",
@@ -13628,7 +13626,7 @@
         ".hvigor/outputs/download-startup-latency-20261124/device197__ALN-AL80/not-applicable/portrait-1260x2720/download/candidate/cand-cold-tap-1/protocol-manifest.json",
         ".hvigor/outputs/download-startup-latency-20261124/device197__ALN-AL80/not-applicable/portrait-1260x2720/download/old/old-full-1/protocol-manifest.json"
       ],
-      "stage": "197冷启动首点下载已核，长队列结构操作待验"
+      "stage": "197 下载入队和大队列操作已验证"
     },
     {
       "id": "LANDSCAPE_CONTENT_CUTOUT_20261124",
@@ -13732,6 +13730,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "download-queue-scope-197-20261125",
+      "at": "2026-11-25T04:14:07+08:00",
+      "itemId": "DOWNLOAD_START_LATENCY_FULL_READ_20261124",
+      "title": "197 十章入队和队列局部更新通过",
+      "detail": "现有 1064 本书架、377 条历史队列。在 197 十章入队写入 5 ms，顺序按源目录。置顶、置底和暂停仅影响测试组，原队列逐行一致。最终候选冷启动后本地打开 137 页章节。代码分两阶段提交 0454bf2b 和 1d20061b。",
+      "kind": "verification",
+      "evidence": ".hvigor/outputs/download-queue-scope-20261125/summary.json"
+    },
     {
       "id": "shelf-last-read-cover-return-201-20261125",
       "at": "2026-11-25T04:15:13+08:00",
