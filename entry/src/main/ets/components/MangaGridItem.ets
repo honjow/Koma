@@ -43,6 +43,11 @@ export struct MangaGridItem {
   @Local private gridCoverDecodeEdge: number = 0
   @Local private retryWhenVisibleAgain: boolean = false
 
+  @Computed
+  private get listSummary(): SourceMangaListInfo[] {
+    return sourceMangaListInfo(this.manga)
+  }
+
   private detailCardId(): string {
     return MangaDetailTransitionCoordinator.sourceId(
       this.detailTransitionScope.length > 0 ? this.detailTransitionScope : this.fallbackDetailScope, this.listLayout ? 'list' : 'grid', this.manga.id)
@@ -173,8 +178,8 @@ export struct MangaGridItem {
 
   @Builder
   private ListText() {
-    // Fill the cover's vertical span: title at the top, metadata below.
-    // A minimum (rather than a fixed height) still accommodates scaled text.
+    // Keep sparse summaries next to the title. Three rows can fill the cover's
+    // span, and the minimum height still lets larger text grow naturally.
     Column({ space: ThemeConstants.SPACE_XS }) {
       Text(this.manga.title)
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
@@ -184,9 +189,9 @@ export struct MangaGridItem {
         .wordBreak(WordBreak.BREAK_WORD)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .width('100%')
-      if (sourceMangaListInfo(this.manga).length > 0) {
+      if (this.listSummary.length > 0) {
         Column({ space: 2 }) {
-          ForEach(sourceMangaListInfo(this.manga), (info: SourceMangaListInfo) => {
+          ForEach(this.listSummary, (info: SourceMangaListInfo) => {
             Text(sourceMangaListInfoText(info))
               .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -201,7 +206,7 @@ export struct MangaGridItem {
     }
     .width('100%')
     .constraintSize({ minHeight: SOURCE_LIST_COVER_HEIGHT })
-    .justifyContent(FlexAlign.SpaceBetween)
+    .justifyContent(this.listSummary.length < 3 ? FlexAlign.Start : FlexAlign.SpaceBetween)
     .alignItems(HorizontalAlign.Start)
   }
 
