@@ -12,16 +12,18 @@ import {
   createCustomCategoryAndPersistLibraryStore,
   deleteCustomCategoryAndPersistLibraryStore,
   moveCustomCategoryAndPersistLibraryStore,
+  moveSmartCategoryAndPersistLibraryStore,
   renameCustomCategoryAndPersistLibraryStore,
   setCustomCategoryPrivacyAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
+import { LibrarySmartCategory } from '../model/LibrarySmartCategory'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
+import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { KomaTextInputDialog } from '../components/ui/KomaTextInputDialog'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
-import { LibrarySmartCategorySection } from '../components/LibrarySmartCategorySection'
+import { LibrarySmartCategoryEditorController, LibrarySmartCategorySection } from '../components/LibrarySmartCategorySection'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLibraryPrivacyState, LibraryPrivacyAuthResult, LibraryPrivacyState, libraryPrivacyAuthMessage } from '../state/LibraryPrivacyState'
 
@@ -42,6 +44,7 @@ export struct LibraryCategoryManagementPage {
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
   @Local private categories: CustomLibraryCategory[] = []
+  @Local private smartCategories: LibrarySmartCategory[] = []
   @Local private draftName: string = ''
   @Local private draftError: string = ''
   private categoryDialogId: number = -1
@@ -50,10 +53,12 @@ export struct LibraryCategoryManagementPage {
   @Local private editingCategoryId: string = ''
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private privacy: LibraryPrivacyState = connectLibraryPrivacyState()
+  private smartCategoryEditor: LibrarySmartCategoryEditorController = new LibrarySmartCategoryEditorController()
 
   @Monitor('libraryRevision')
   private refreshCategories(): void {
     this.categories = this.libraryStore === undefined ? [] : this.libraryStore.listCustomCategories()
+    this.smartCategories = this.libraryStore === undefined ? [] : this.libraryStore.listSmartCategories()
   }
 
   private showToast(message: string): void {
@@ -227,6 +232,35 @@ export struct LibraryCategoryManagementPage {
     }
   }
 
+  private smartCategoryIndex(categoryId: string): number {
+    return this.smartCategories.findIndex((item: LibrarySmartCategory): boolean => item.id === categoryId)
+  }
+
+  private moveSmartByOffset(categoryId: string, offset: number): void {
+    const index = this.smartCategoryIndex(categoryId)
+    if (index < 0 || index + offset < 0 || index + offset >= this.smartCategories.length) return
+    this.persistSmartMove(index, index + offset)
+  }
+
+  private persistSmartMove(from: number, to: number): void {
+    const category = this.smartCategories[from]
+    const destination = this.smartCategories[to]
+    if (category === undefined || destination === undefined || from === to) return
+    if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
+      this.showToast(s('library_category_management_unavailable'))
+      return
+    }
+    try {
+      if (moveSmartCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, category.id, destination.id)) {
+        this.refreshCategories()
+        this.onLibraryChanged()
+      }
+    } catch (error) {
+      this.refreshCategories()
+      this.showToast(this.categoryMutationErrorMessage(error as Error))
+    }
+  }
+
   @Computed
   private get categoryUsageCounts(): Map<string, number> {
     // Category rows must not rescan the complete library once per row during
@@ -317,6 +351,61 @@ export struct LibraryCategoryManagementPage {
     return this.categories[this.categories.length - 1]?.id === category.id
   }
 
+  private isFirstSmartCategory(category: LibrarySmartCategory): boolean {
+    return this.smartCategories[0]?.id === category.id
+  }
+
+  @Builder
+  private SmartCategoryActionMenu(group: LibrarySmartCategory) {
+    Menu() {
+      MenuItem({ content: s('library_smart_edit') })
+        .onClick((): void => { this.smartCategoryEditor.openEdit(group) })
+      MenuItem({ content: s('library_category_action_move_up') })
+        .enabled(this.smartCategoryIndex(group.id) > 0)
+        .onClick((): void => { this.moveSmartByOffset(group.id, -1) })
+      MenuItem({ content: s('library_category_action_move_down') })
+        .enabled(this.smartCategoryIndex(group.id) >= 0 && this.smartCategoryIndex(group.id) < this.smartCategories.length - 1)
+        .onClick((): void => { this.moveSmartByOffset(group.id, 1) })
+      MenuItem({ content: s('common_delete') })
+        .contentFontColor(ThemeConstants.DANGER)
+        .onClick((): void => { this.smartCategoryEditor.requestDelete(group) })
+    }
+  }
+
+  @Builder
+  private SmartCategoryActions(group: LibrarySmartCategory) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.ellipsis_circle')).fontSize(20).fontColor([ThemeConstants.TEXT_SECONDARY])
+      }
+      .id('library-smart-category-actions-' + group.id)
+      .width(40)
+      .height(40)
+      .backgroundColor(Color.Transparent)
+      .accessibilityText(s('common_more_actions'))
+      .bindMenu(this.SmartCategoryActionMenu(group), komaMenuOptions({ placement: Placement.BottomRight }))
+
+      if (this.smartCategories.length > 1) {
+        SymbolGlyph($r('sys.symbol.line_3_horizontal'))
+          .fontSize(20)
+          .fontColor([ThemeConstants.TEXT_SECONDARY])
+          .accessibilityText(s('library_category_drag_to_sort'))
+      }
+    }
+  }
+
+  @Builder
+  private SmartCategoryRow(group: LibrarySmartCategory) {
+    ConciseListRow({
+      title: group.name,
+      wrapTitle: true,
+      subtitle: AppStrings.format('library_smart_rules_count', group.filters.length),
+      showChevron: false,
+      surfaceRadius: ThemeConstants.GROUPED_LIST_INNER_RADIUS,
+      suffixBuilderParam: (): void => { this.SmartCategoryActions(group) },
+    })
+  }
+
   aboutToAppear(): void {
     this.pageVisible = true
     this.refreshCategories()
@@ -364,14 +453,60 @@ export struct LibraryCategoryManagementPage {
             .onMove((from: number, to: number): void => { this.persistMove(from, to) })
         }
         ListItem() {
-          LibrarySmartCategorySection({ libraryStore: this.libraryStore, persistence: this.libraryPersistenceService,
-            libraryRevision: this.libraryRevision,
-            onChanged: (): void => {
-              this.refreshCategories()
-              this.onLibraryChanged()
-            } })
-        }.margin({ top: ThemeConstants.SPACE_LG })
+          SectionHeader({ title: s('library_smart_title') })
+        }
+        .margin({ top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_XS })
+        if (this.smartCategories.length > 0) {
+          // Keep drag keys free of sortOrder/updatedAt so reordering does not recreate rows mid-gesture.
+          ForEach(this.smartCategories, (group: LibrarySmartCategory) => {
+            ListItem() {
+              Column() {
+                this.SmartCategoryRow(group)
+                ListDivider()
+              }
+              .padding({ left: ThemeConstants.LIST_SECTION_INSET, right: ThemeConstants.LIST_SECTION_INSET,
+                top: this.isFirstSmartCategory(group) ? ThemeConstants.LIST_SECTION_INSET : 0 })
+            }
+            .backgroundColor(ThemeConstants.CARD)
+            .borderRadius({
+              topLeft: this.isFirstSmartCategory(group) ? ThemeConstants.RADIUS_CARD : 0,
+              topRight: this.isFirstSmartCategory(group) ? ThemeConstants.RADIUS_CARD : 0,
+              bottomLeft: 0,
+              bottomRight: 0,
+            })
+          }, (group: LibrarySmartCategory): string => group.id + ':' + group.name + ':' + JSON.stringify(group.filters))
+            .onMove((from: number, to: number): void => { this.persistSmartMove(from, to) })
+        }
+        ListItem() {
+          Column() {
+            ConciseListRow({
+              title: s('library_smart_create'),
+              leadingIcon: $r('sys.symbol.plus'),
+              surfaceRadius: ThemeConstants.GROUPED_LIST_INNER_RADIUS,
+              action: (): void => { this.smartCategoryEditor.openCreate() },
+            })
+          }
+          .padding({ left: ThemeConstants.LIST_SECTION_INSET, right: ThemeConstants.LIST_SECTION_INSET,
+            top: this.smartCategories.length === 0 ? ThemeConstants.LIST_SECTION_INSET : 0,
+            bottom: ThemeConstants.LIST_SECTION_INSET })
+        }
+        .backgroundColor(ThemeConstants.CARD)
+        .borderRadius({
+          topLeft: this.smartCategories.length === 0 ? ThemeConstants.RADIUS_CARD : 0,
+          topRight: this.smartCategories.length === 0 ? ThemeConstants.RADIUS_CARD : 0,
+          bottomLeft: ThemeConstants.RADIUS_CARD,
+          bottomRight: ThemeConstants.RADIUS_CARD,
+        })
       }
+      LibrarySmartCategorySection({
+        controller: this.smartCategoryEditor,
+        libraryStore: this.libraryStore,
+        persistence: this.libraryPersistenceService,
+        onChanged: (): void => {
+          this.refreshCategories()
+          this.onLibraryChanged()
+        },
+      })
     }
     .width('100%')
     .height('100%')

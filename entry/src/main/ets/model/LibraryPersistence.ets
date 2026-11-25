@@ -1878,6 +1878,16 @@ export function moveCustomCategoryAndPersistLibraryStore(
     () => libraryStore.moveCustomCategory(categoryId, destinationId))
 }
 
+export function moveSmartCategoryAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  categoryId: string,
+  destinationId: string,
+): boolean {
+  return saveCategoryChange(libraryStore, persistenceService, 'smart',
+    () => libraryStore.moveSmartCategory(categoryId, destinationId))
+}
+
 export function deleteCustomCategoryAndPersistLibraryStore(
   libraryStore: LibraryStore,
   persistenceService: LibraryStorePersistenceService,

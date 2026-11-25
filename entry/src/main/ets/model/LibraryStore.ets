@@ -131,6 +131,7 @@ export interface LibraryStore {
   renameCustomCategory(categoryId: string, name: string, now?: number): CustomLibraryCategory
   setCustomCategoryPrivacy(categoryId: string, isPrivate: boolean, now?: number): boolean
   moveCustomCategory(categoryId: string, destinationId: string, now?: number): boolean
+  moveSmartCategory(categoryId: string, destinationId: string, now?: number): boolean
   deleteCustomCategory(categoryId: string, memberIds?: string[]): boolean
   listCategoryDisplayStrategies(): LibraryCategoryDisplayStrategy[]
   getCategoryDisplayStrategy(categoryId: LibraryCategoryDisplayCategoryId): LibraryCategoryDisplayStrategy | undefined
@@ -742,6 +743,22 @@ export class InMemoryLibraryStore implements LibraryStore {
       category.updatedAt = now
       this.customCategories.set(category.id, category)
     })
+    return true
+  }
+
+  moveSmartCategory(categoryId: string, destinationId: string, now: number = Date.now()): boolean {
+    const categories = this.listSmartCategories()
+    const index = categories.findIndex((category: LibrarySmartCategory): boolean => category.id === categoryId)
+    const targetIndex = categories.findIndex((category: LibrarySmartCategory): boolean => category.id === destinationId)
+    if (index < 0 || targetIndex < 0 || index === targetIndex) return false
+    const moved = categories.splice(index, 1)[0]
+    categories.splice(targetIndex, 0, moved)
+    categories.forEach((category: LibrarySmartCategory, position: number): void => {
+      if (category.sortOrder === position) return
+      category.sortOrder = position
+      category.updatedAt = now
+    })
+    this.smartCategories = categories
     return true
   }
 

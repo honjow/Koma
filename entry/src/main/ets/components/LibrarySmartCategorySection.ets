@@ -1,10 +1,10 @@
 import { util } from '@kit.ArkTS'
-import { Comic, ComicSourceKind, CustomLibraryCategory, LEGACY_LIBRARY_CATEGORIES, LegacyLibraryCategory,
+import { ComicSourceKind, CustomLibraryCategory, LEGACY_LIBRARY_CATEGORIES, LegacyLibraryCategory,
   LIBRARY_CATEGORY_NAME_MAX_LENGTH } from '../model/ComicModels'
 import { LibraryShelfSourceFacet, LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService, replaceSmartCategoriesAndPersistLibraryStore } from '../model/LibraryPersistence'
 import { LibrarySmartCategory, LibrarySmartFilter, LibrarySmartFilterMethod, LIBRARY_SMART_FILTER_METHODS,
-  copyLibrarySmartCategory, comicSmartSourceKey, comicSmartContentRating } from '../model/LibrarySmartCategory'
+  copyLibrarySmartCategory } from '../model/LibrarySmartCategory'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { AppStrings } from '../i18n/AppStrings'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -18,22 +18,52 @@ import { KomaFormTextField } from './ui/KomaFormTextField'
 interface SmartFilterChoice { value: string; title: string }
 function s(key: string): string { return AppStrings.get(key) }
 
+@ObservedV2
+export class LibrarySmartCategoryEditorController {
+  @Trace createRequest: number = 0
+  @Trace editRequest: number = 0
+  @Trace deleteRequest: number = 0
+  targetGroup?: LibrarySmartCategory = undefined
+
+  openCreate(): void {
+    this.targetGroup = undefined
+    this.createRequest += 1
+  }
+
+  openEdit(group: LibrarySmartCategory): void {
+    this.targetGroup = copyLibrarySmartCategory(group)
+    this.editRequest += 1
+  }
+
+  requestDelete(group: LibrarySmartCategory): void {
+    this.targetGroup = copyLibrarySmartCategory(group)
+    this.deleteRequest += 1
+  }
+}
+
 @ComponentV2
 export struct LibrarySmartCategorySection {
+  @Param controller: LibrarySmartCategoryEditorController = new LibrarySmartCategoryEditorController()
   @Param libraryStore?: LibraryStore = undefined
-  @Param libraryRevision: number = 0
   @Param persistence?: LibraryStorePersistenceService = undefined
   @Event onChanged: () => void = () => {}
-  @Local private groups: LibrarySmartCategory[] = []
   @Local private editorShown: boolean = false
   @Local private editingId: string = ''
   @Local private draftName: string = ''
   @Local private draftFilters: LibrarySmartFilter[] = []
 
-  aboutToAppear(): void { this.refreshGroups() }
+  @Monitor('controller.createRequest')
+  private onCreateRequested(): void { this.openEditor() }
 
-  @Monitor('libraryRevision')
-  private refreshGroups(): void { this.groups = this.libraryStore?.listSmartCategories() ?? [] }
+  @Monitor('controller.editRequest')
+  private onEditRequested(): void {
+    if (this.controller.targetGroup !== undefined) this.openEditor(this.controller.targetGroup)
+  }
+
+  @Monitor('controller.deleteRequest')
+  private onDeleteRequested(): void {
+    if (this.controller.targetGroup !== undefined) this.confirmDelete(this.controller.targetGroup)
+  }
 
   private openEditor(group?: LibrarySmartCategory): void {
     this.editingId = group?.id ?? ''
@@ -46,7 +76,6 @@ export struct LibrarySmartCategorySection {
     if (this.libraryStore === undefined || this.persistence === undefined) return false
     try {
       replaceSmartCategoriesAndPersistLibraryStore(this.libraryStore, this.persistence, groups)
-      this.groups = this.libraryStore.listSmartCategories()
       this.onChanged()
       return true
     } catch (error) {
@@ -69,16 +98,6 @@ export struct LibrarySmartCategorySection {
     const updated = groups.filter((group: LibrarySmartCategory): boolean => group.id !== next.id)
     updated.push(next)
     if (this.commit(updated)) this.editorShown = false
-  }
-
-  private move(group: LibrarySmartCategory, direction: number): void {
-    const groups = this.libraryStore?.listSmartCategories() ?? []
-    const index = groups.findIndex((item: LibrarySmartCategory): boolean => item.id === group.id)
-    const target = index + direction
-    if (index < 0 || target < 0 || target >= groups.length) return
-    const other = groups[target]; groups[target] = groups[index]; groups[index] = other
-    groups.forEach((item: LibrarySmartCategory, i: number): void => { item.sortOrder = i; item.updatedAt = Date.now() })
-    this.commit(groups)
   }
 
   private confirmDelete(group: LibrarySmartCategory): void {
@@ -192,33 +211,8 @@ export struct LibrarySmartCategorySection {
     }.subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
   }
 
-  @Builder
-  private GroupMenu(group: LibrarySmartCategory, index: number, select: (action: () => void) => void) {
-    Menu() {
-      MenuItem({ content: s('library_smart_edit') }).onClick((): void => { select((): void => { this.openEditor(group) }) })
-      MenuItem({ content: s('library_category_action_move_up') }).enabled(index > 0)
-        .onClick((): void => { select((): void => { this.move(group, -1) }) })
-      MenuItem({ content: s('library_category_action_move_down') }).enabled(index < this.groups.length - 1)
-        .onClick((): void => { select((): void => { this.move(group, 1) }) })
-      MenuItem({ content: s('common_delete') }).contentFontColor(ThemeConstants.DANGER)
-        .onClick((): void => { select((): void => { this.confirmDelete(group) }) })
-    }.subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
-  }
-
   build() {
-    Column() {
-      GroupedListSection({ title: s('library_smart_title') }) {
-        ForEach(this.groups, (group: LibrarySmartCategory, index: number) => {
-          ConciseListRow({ title: group.name,
-            subtitle: AppStrings.format('library_smart_rules_count', group.filters.length),
-            showChevron: false, trailingDropdown: true, dropdownMenuEnabled: true,
-            dropdownMenuBuilder: (select: (action: () => void) => void): void => { this.GroupMenu(group, index, select) } })
-          ListDivider()
-        }, (group: LibrarySmartCategory) => JSON.stringify(group))
-        ConciseListRow({ title: s('library_smart_create'), leadingIcon: $r('sys.symbol.plus'),
-          action: (): void => { this.openEditor() } })
-      }
-    }.width('100%')
+    Column()
       // Gesture dismissal belongs to the native sheet. Its two-way binding
       // updates editorShown after closing without a second close request.
       .bindSheet($$this.editorShown, this.Editor, komaModalSheetOptions({ detents: [SheetSize.LARGE] }))

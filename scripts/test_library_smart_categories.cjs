@@ -559,3 +559,30 @@ test('tracker mapping projection publishes only committed public mappings and re
  store.invalidateMappingSnapshot();assert.equal(seen.length,2);assert.equal(store.mappingSnapshot().length,0)
  stop()
 })
+test('reordering smart categories persists sortOrder cleanly and rolls back on failure', async () => {
+ const { openUserDataDatabase } = load('model/UserDataDatabase')
+ const { LibraryRdbStorage } = load('model/LibraryRdbStorage')
+ const database = await openUserDataDatabase({ filesDir: '/smart-category-reorder' })
+ const rdbStorage = new LibraryRdbStorage(database)
+ const store = new InMemoryLibraryStore()
+ const first = { id: 'smart:11111111-1111-4111-8111-111111111111', name: 'Alpha', sortOrder: 0, createdAt: 10, updatedAt: 10, filters: [rule('downloaded')] }
+ const second = { id: 'smart:22222222-2222-4222-8222-222222222222', name: 'Beta', sortOrder: 1, createdAt: 20, updatedAt: 20, filters: [rule('hasUnread')] }
+ const third = { id: 'smart:33333333-3333-4333-8333-333333333333', name: 'Gamma', sortOrder: 2, createdAt: 30, updatedAt: 30, filters: [rule('started')] }
+ store.replaceSmartCategories([first, second, third])
+ rdbStorage.save(persistence.readLibraryStoreDocument(backupExport.serializeLibraryStoreForBackup(store)))
+ const service = new persistence.LibraryStorePersistenceService(store, {
+  load() {},
+  databaseForEdits() { return rdbStorage },
+ })
+ assert.equal(persistence.moveSmartCategoryAndPersistLibraryStore(store, service, third.id, first.id), true)
+ assert.deepEqual(clone(store.listSmartCategories().map(item => [item.id, item.sortOrder])),
+  [[third.id, 0], [first.id, 1], [second.id, 2]])
+ assert.deepEqual(clone(rdbStorage.readForLaunch('all').smartCategories.map(item => [item.id, item.sortOrder])),
+  [[third.id, 0], [first.id, 1], [second.id, 2]])
+ const failing = new persistence.LibraryStorePersistenceService(store, {
+  load() {},
+  databaseForEdits() { return { saveLocalEdits() { throw Error('disk full') } } },
+ })
+ assert.throws(() => persistence.moveSmartCategoryAndPersistLibraryStore(store, failing, first.id, third.id), /disk full/)
+ assert.deepEqual(clone(store.listSmartCategories().map(item => item.id)), [third.id, first.id, second.id])
+})
