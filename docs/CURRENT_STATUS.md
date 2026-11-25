@@ -8836,8 +8836,8 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "active",
-      "status": "197 复现并回验两部作品首图，书源 0.1.35 已本地提交",
-      "result": "修复已交付；237同一作品自然未缓存第9页六图成功并返回第3页，按具名范围关闭。 11 月 26 日用户反馈《大奉打更人》《一人之下》阅读器正文加载失败。197 同一默认镜像，旧图片选路页表正常，首屏 s1.baozicdn.com 图请求反复失败。源 0.1.35 改用上游直连，HTTP 404 复用 App 现有回退；197 两部首屏三图分别从 s1.baozimh.com 返回 HTTP 200 并显示实图，两部均翻至第 2 页，另抽测《大奉打更人》最新章第 1、2 页。最终包只调整最低 Koma 1.4.2，WASM 字节及网站策略与 197 候选等同。",
+      "status": "197 已回验图片直连；237 已修复并回验原书架续读",
+      "result": "修复已交付；237同一作品自然未缓存第9页六图成功并返回第3页，按具名范围关闭。 11 月 26 日用户反馈《大奉打更人》《一人之下》阅读器正文加载失败。197 同一默认镜像，旧图片选路页表正常，首屏 s1.baozicdn.com 图请求反复失败。源 0.1.35 改用上游直连，HTTP 404 复用 App 现有回退；197 两部首屏三图分别从 s1.baozimh.com 返回 HTTP 200 并显示实图，两部均翻至第 2 页，另抽测《大奉打更人》最新章第 1、2 页。最终包只调整最低 Koma 1.4.2，WASM 字节及网站策略与 197 候选等同。 237 最终包在续读《大奉打更人》001 话时，收到页表后命中单章 SQL 写错列名。更正为已经存在的 settings_fingerprint 后，原书架从第 3/24 页正常显示正文。",
       "evidencePoints": [
         "直接产物索引：open-001-failure-002/library.json；koma-log-20261025-053239.txt；failure.png；failure.json；baozi-image-worker-cache197-session-653/cache-coverage.json；page9-original-observed.png；original-page3-restored.png",
         "96a2123已推及精确CI成功；237同001自然冷页9六图HTTP200并返回3页。依据用户本轮“验证过了就过了，不要总是想要具体设备复测”，不将原机复测设为关闭门槛。",
@@ -13784,6 +13784,14 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "baozi-existing-shelf-chapter-sql-237-20261126",
+      "at": "2026-11-26T03:51:24+08:00",
+      "itemId": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
+      "title": "修复单章保存列名并在 237 验证旧进度续读",
+      "detail": "同一包子最终 0.1.35、默认 tw.webmota.com，旧 App 在《大奉打更人》001 话续读时两次获得 AppCN 200 页表，但保存 SQL 写不存在的 source_settings_fingerprint 列而失败。修正到现有 settings_fingerprint，保持原事务。237 覆盖安装候选后从原记录回到第 3/24 页，实际显示漫画，s1 正文图返回 200。独立 SQLite 复现旧 SQL，修后只更新目标章实例。",
+      "evidence": ".hvigor/outputs/source-summary-spacing-20261126/237/resume-fixed-native/screen.png"
+    },
     {
       "id": "source-browse-sparse-summary-spacing-237-20261126",
       "at": "2026-11-26T03:44:49+08:00",

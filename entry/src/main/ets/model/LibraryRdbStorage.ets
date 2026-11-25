@@ -746,7 +746,7 @@ export class LibraryRdbStorage {
     })
     writeUserRecords(this.store, (): void => {
       this.store.executeSync(
-        'UPDATE shelf_chapters SET source_settings_fingerprint = ?, page_count = ?, updated_at = ? ' +
+        'UPDATE shelf_chapters SET settings_fingerprint = ?, page_count = ?, updated_at = ? ' +
         'WHERE comic_id = ? AND chapter_id = ? AND chapter_occurrence = ?',
         [chapter.sourceSettingsFingerprint ?? null, chapter.pageCount, chapter.updatedAt, comicId, chapter.id, chapterOccurrence])
       const filter = 'comic_id = ? AND chapter_id = ? AND chapter_occurrence = ?'
