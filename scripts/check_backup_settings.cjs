@@ -265,6 +265,8 @@ async function verifyRoundTrip() {
     ]),
     'source_index.url': 'https://sources.example.test/index.json',
     'sourceBrowse.hideInLibrary': true,
+    'continuation.enabled': false,
+    'continuation.autoInstallMissingSource': true,
     'search.source.filter': 'wasm', 'search.results.only': 'true',
   }
   for (const [store, keys] of Object.entries(backup.PORTABLE_FIELDS)) {

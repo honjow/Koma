@@ -26,6 +26,7 @@
         "icon": "$media:app_icon_layered",
         "label": "$string:EntryAbility_label",
         "launchType": "singleton",
+        "continuable": true,
         "backgroundModes": ["dataTransfer"],
         "exported": true,
         "startWindowIcon": "$media:startup_foreground",

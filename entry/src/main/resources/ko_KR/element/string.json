@@ -7388,7 +7388,7 @@
     },
     {
       "name": "settings_pane_advanced_detail",
-      "value": "진단 및 해결방법"
+      "value": "앱 이어하기, 동작 및 진단"
     },
     {
       "name": "settings_pane_advanced_title",
@@ -9861,6 +9861,29 @@
     {"name": "source_in_library", "value": "서재에 추가됨"},
     {"name": "source_all_in_library", "value": "서재에 추가한 작품을 숨겼습니다"},
     {"name": "source_all_in_library_hint", "value": "설정 · 서비스 · 소스에서 숨기기를 해제할 수 있습니다"},
-    {"name": "library_list_not_started", "value": "읽기 전"}
+    {"name": "library_list_not_started", "value": "읽기 전"},
+    {"name": "settings_section_continuation", "value": "앱 이어하기"},
+    {"name": "settings_continuation_enabled_title", "value": "읽기 이어하기"},
+    {"name": "settings_continuation_enabled_detail", "value": "같은 Huawei ID로 로그인한 주변 기기에서 소스 작품 읽기를 이어갈 수 있습니다"},
+    {"name": "settings_continuation_auto_install_title", "value": "미설치 소스 자동 설치"},
+    {"name": "settings_continuation_auto_install_detail", "value": "이어받는 기기에 소스가 없을 때 안내 없이 원본 기기의 소스 패키지를 자동 설치하고 엽니다"},
+    {"name": "settings_continuation_save_failed", "value": "이어하기 설정을 저장하지 못했습니다"},
+    {"name": "continuation_version_mismatch", "value": "대상 기기의 앱 버전이 너무 낮습니다. 업데이트 후 다시 시도하세요"},
+    {"name": "continuation_source_away_title", "value": "다른 기기에서 계속 읽는 중"},
+    {"name": "continuation_source_away_message", "value": "읽기가 다른 기기로 이어졌습니다. 이 기기에서 다시 읽으면 최신 진행 상황을 불러오며, 리더를 닫을 수도 있습니다."},
+    {"name": "continuation_resume_here", "value": "이 기기에서 계속 읽기"},
+    {"name": "continuation_close_reader", "value": "리더 닫기"},
+    {"name": "continuation_install_source_title", "value": "다른 기기의 소스 설치"},
+    {"name": "continuation_install_source_message", "value": "이 기기에 소스 '%1$s'(%2$s)이(가) 설치되어 있지 않습니다. 함께 전송된 소스 패키지를 설치하고 '%3$s'을(를) 이어 읽을까요?"},
+    {"name": "continuation_install_and_continue", "value": "설치하고 계속하기"},
+    {"name": "continuation_auto_installing_source", "value": "소스 '%s' 설치 중"},
+    {"name": "continuation_install_source_failed", "value": "소스 '%s'을(를) 설치하지 못했습니다. 소스 관리에서 찾거나 직접 가져오세요"},
+    {"name": "continuation_enable_source_title", "value": "소스 '%s' 사용 설정"},
+    {"name": "continuation_enable_source_message", "value": "소스 '%s'이(가) 비활성화되어 있습니다. 활성화하고 계속 읽을까요?"},
+    {"name": "continuation_enable_and_continue", "value": "사용 설정 후 계속"},
+    {"name": "continuation_privacy_required", "value": "비공개 작품 이어하기를 열려면 인증이 필요합니다"},
+    {"name": "continuation_restore_failed", "value": "이어하기 복원에 실패했습니다"},
+    {"name": "continuation_chapter_unavailable", "value": "이어받은 챕터를 열 수 없습니다. 상세 페이지에 위치가 유지되었습니다"},
+    {"name": "continuation_local_work_unsupported", "value": "로컬 작품은 기기 간 이어하기를 지원하지 않습니다"}
   ]
 }

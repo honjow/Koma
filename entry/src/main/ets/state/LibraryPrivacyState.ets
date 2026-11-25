@@ -37,6 +37,7 @@ export class LibraryPrivacyState {
   @Trace authenticating: boolean = false
   @Trace presenting: boolean = true
   @Trace foregroundReauthRevision: number = 0
+  @Trace continuationProtected: boolean = false
   private generation: number = 0
   private backgroundSince: number = -1
   private windowPaused: boolean = false
@@ -137,6 +138,10 @@ export class LibraryPrivacyState {
   lock(): void {
     this.invalidateRequest()
     this.unlocked = false
+    if (this.continuationProtected) {
+      this.continuationProtected = false
+      if (this.categoryId.length === 0) void this.protectWindow(false)
+    }
   }
 
   leaveCategory(): void {
@@ -144,6 +149,38 @@ export class LibraryPrivacyState {
     if (this.categoryId.length === 0) return
     this.categoryId = ''
     void this.protectWindow(false)
+  }
+
+  async activateContinuationPrivacy(
+    context: common.UIAbilityContext,
+    isCurrent: () => boolean,
+    categoryId?: string,
+    hasLocalCategory: boolean = false,
+  ): Promise<LibraryPrivacyAuthResult> {
+    if (this.backgroundSince >= 0) return LibraryPrivacyAuthResult.CANCELED
+    const generation = this.generation
+    const result = await this.verify(context)
+    if (result !== LibraryPrivacyAuthResult.SUCCESS) return result
+    if (!isCurrent() || this.generation !== generation || this.backgroundSince >= 0) return LibraryPrivacyAuthResult.CANCELED
+    const ready = await this.protectWindow(true)
+    if (!isCurrent() || this.generation !== generation || this.backgroundSince >= 0) {
+      if (this.categoryId.length === 0 && !this.continuationProtected && ready) void this.protectWindow(false)
+      return LibraryPrivacyAuthResult.CANCELED
+    }
+    if (!ready) return LibraryPrivacyAuthResult.UNAVAILABLE
+    if (categoryId !== undefined && categoryId.length > 0 && hasLocalCategory) {
+      this.categoryId = categoryId
+      this.unlocked = true
+    } else {
+      this.continuationProtected = true
+    }
+    return LibraryPrivacyAuthResult.SUCCESS
+  }
+
+  releaseContinuationPrivacy(): void {
+    if (!this.continuationProtected) return
+    this.continuationProtected = false
+    if (this.categoryId.length === 0) void this.protectWindow(false)
   }
 
   async openCategory(context: common.UIAbilityContext, id: string, isCurrent: () => boolean): Promise<LibraryPrivacyAuthResult> {

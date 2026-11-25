@@ -105,6 +105,7 @@ export struct KomaReaderLabPage {
   @Local private displayPreview: ReaderDisplayPreviewState = connectReaderDisplayPreview()
   @Require @Param request: ReaderLabRequest
   @Param productionEntry: boolean = false
+  @Param inputLocked: boolean = false
   @Param routeTransition: ReaderRouteTransition = new ReaderRouteTransition()
   @Param closeRequestId: number = 0
   @Param entryStage: KomaReaderEntryStage = 'chapter'
@@ -671,11 +672,11 @@ export struct KomaReaderLabPage {
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated',
     'readerMode.volumeKeyNavigationEnabled', 'readerMode.volumeKeyBehavior', 'readerSettingsSheetShown', 'authenticationShown',
-    'chapterPickerShown', 'commentsShown', 'session')
+    'chapterPickerShown', 'commentsShown', 'session', 'inputLocked')
   syncVolumeKeys(): void {
     const enabled = this.request.volumeKeysOverride ??
       (this.hostPreferences?.volumeKeyNavigationEnabled ?? this.readerMode.volumeKeyNavigationEnabled)
-    const active = this.volumeKeys.setActive(!this.readerClosed && this.request.readingChrome && this.session !== null &&
+    const active = this.volumeKeys.setActive(!this.readerClosed && !this.inputLocked && this.request.readingChrome && this.session !== null &&
       this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated &&
       !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && !this.commentsShown && enabled,
       (this.hostPreferences?.volumeKeyBehavior ?? this.readerMode.volumeKeyBehavior) === 'up_next_down_previous')
@@ -703,20 +704,20 @@ export struct KomaReaderLabPage {
   }
 
   private smartKeyAdmitted(): boolean {
-    return !this.readerClosed && this.request.readingChrome && this.session !== null && this.routeActive &&
+    return !this.readerClosed && !this.inputLocked && this.request.readingChrome && this.session !== null && this.routeActive &&
       this.labVisibility.foreground && this.readerMode.hydrated && !this.turnAssistMenuShown &&
       !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && !this.commentsShown &&
       (this.hostPreferences?.smartKeyPageTurnEnabled ?? this.readerMode.smartKeyPageTurnEnabled)
   }
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated', 'readerMode.smartKeyPageTurnEnabled',
-    'hostPreferences', 'readerSettingsSheetShown', 'authenticationShown', 'chapterPickerShown', 'commentsShown', 'session')
+    'hostPreferences', 'readerSettingsSheetShown', 'authenticationShown', 'chapterPickerShown', 'commentsShown', 'session', 'inputLocked')
   private syncSmartKey(): void {
     this.smartKey.setActive(this.smartKeyAdmitted())
   }
 
   private gazeAdmitted(): boolean {
-    return !this.readerClosed && this.request.readingChrome && this.session !== null &&
+    return !this.readerClosed && !this.inputLocked && this.request.readingChrome && this.session !== null &&
       this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated &&
       !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && !this.commentsShown && this.gazeRequested()
   }
@@ -1700,7 +1701,7 @@ export struct KomaReaderLabPage {
                   this.handleHostAction(id, source, navigation, index)
                 }),
               hostStatus: this.translationStatus(),
-              active: this.routeActive && this.labVisibility.foreground && !this.authenticationShown && !this.readerSettingsSheetShown &&
+              active: this.routeActive && this.labVisibility.foreground && !this.inputLocked && !this.authenticationShown && !this.readerSettingsSheetShown &&
                 !this.chapterPickerShown && !this.commentsShown && this.presentedWebChallenge === null,
               centerAction: this.chapterPickerKind.length > 0
                 ? new ReaderCenterAction(this.chapterControlLabel(),

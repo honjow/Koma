@@ -40,7 +40,26 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
 import { AutomaticDownloadController } from '../model/AutomaticDownloadController'
 import { ReadDownloadCleanup } from '../model/ReadDownloadCleanup'
-import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import {
+  appReaderContinuation,
+  connectReaderContinuationRuntimeState,
+  ReaderContinuationRuntimeState,
+  ReaderContinuationSnapshot,
+  RestoredContinuationTask,
+} from '../continuation/ReaderContinuationService'
+import {
+  buildSourceRequestFromContinuation,
+  canContinueSourceSession,
+  ReaderContinuationPayload,
+  resolveContinuationPageIndex,
+} from '../continuation/ReaderContinuationPayload'
+import { connectContinuationState, ContinuationState } from '../state/ContinuationState'
+import {
+  getInstalledSourcePackage,
+  setEnabled as setSourcePackageEnabled,
+  sourceDisplayName,
+} from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { common } from '@kit.AbilityKit'
 import { KomaReaderEntryStage, KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
 import { KomaReaderCatalogHost, KomaReaderChapterCatalogUpdate } from '../readerLab/KomaReaderCatalogHost'
@@ -70,7 +89,7 @@ import {
   BottomBuilderShowType,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
-import { ComponentContent, FrameCallback, LoadingDialogV2, SymbolGlyphModifier } from '@kit.ArkUI'
+import { AdvancedDialogV2Button, ColorMetrics, ComponentContent, CustomContentDialogV2, FrameCallback, LoadingDialogV2, SymbolGlyphModifier } from '@kit.ArkUI'
 import { LibraryPage, LibraryTitleBarPresentation } from './LibraryPage'
 import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
@@ -273,6 +292,12 @@ const SOURCE_ROUTE_TITLE_MENU_MAX_COUNT = 3
 const SETTINGS_MODAL_ROUTE = 'SettingsModal'
 const ROOT_BACK_CONFIRMATION_MS: number = 1000
 const SETTINGS_MODAL_HOME = 'SettingsModalHome'
+interface ContinuationTargetPage {
+  comicId: string
+  chapterId: string
+  pageIndex: number
+}
+
 interface SettingsPaneRouteParam {
   pane: string
   searchTarget?: string
@@ -354,10 +379,11 @@ struct Index {
   @Local private detailTransition: MangaDetailTransitionState = connectMangaDetailTransition()
   @Local private readerRouteTransition: ReaderRouteTransition = new ReaderRouteTransition()
 
-  private captureSharedReaderEntry(newRoute: boolean): void {
+  private captureSharedReaderEntry(newRoute: boolean, animated: boolean = true): void {
     if (this.readerWebChallenge !== null) this.finishReaderWebChallenge(this.readerWebChallenge, false)
     if (newRoute) {
-      this.readerRouteTransition.begin()
+      if (animated) this.readerRouteTransition.begin()
+      else this.readerRouteTransition.skip()
     }
     const config = this.readerSessionConfig
     const request = new ReaderLabRequest(config.comicId, config.chapterId, this.readerPageIndex)
@@ -410,6 +436,15 @@ struct Index {
   @Local private readerWebChallenge: ReaderSourceWebChallenge | null = null
   @Local private readerSessionLoading: boolean = false
   @Local private readerCloseRequestId: number = 0
+  @Local private continuationState: ContinuationState = connectContinuationState()
+  @Local private continuationRuntime: ReaderContinuationRuntimeState = connectReaderContinuationRuntimeState()
+  @Local private continuationAwayResuming: boolean = false
+  private continuationAwayDialogId: number = -1
+  private continuationRestoreEpoch: number = 0
+  private continuationReadyForRestore: boolean = false
+  private rootNavigationMounted: boolean = false
+  private pendingContinuationAfterSourceInstall?: RestoredContinuationTask
+  private continuationTargetPage?: ContinuationTargetPage
   // Passed through the entry request when opening. Progress writes can update
   // the resume position without invalidating the navigation root mid-turn.
   private readerPageIndex: number = 0
@@ -715,13 +750,89 @@ struct Index {
     if (this.readerSessionPersistenceReady) this.readerSessionStore.addReadingSession(record)
   })
 
-  @Monitor('readerRouteVisible', 'readerOpen', 'readerSessionLoading', 'appForegroundState.active')
+  @Monitor('readerRouteVisible', 'readerOpen', 'readerSessionLoading', 'appForegroundState.active', 'continuationRuntime.continuedAway')
   private syncReadingSessionActivity(): void {
     const active = this.readerSessionPersistenceReady && this.readerOpen && this.readerRouteVisible &&
-      !this.readerSessionLoading && this.appForegroundState.active &&
+      !this.readerSessionLoading && this.appForegroundState.active && !this.continuationRuntime.continuedAway &&
       !this.incognito.isSourceEnabled(this.readerSessionConfig.sourceRuntimeId)
     this.readingStatisticsRecorder.setActive(active)
     if (!active && this.readerSessionPersistenceReady) this.readerSessionStore.flush()
+  }
+
+  @Monitor('readerOpen', 'readerClosing', 'readerRouteVisible', 'readerSessionLoading', 'readerSessionConfig',
+    'appForegroundState.active', 'incognito.enabled', 'libraryPrivacy.unlocked', 'libraryPrivacy.presenting',
+    'continuationState.enabled', 'continuationRuntime.continuedAway')
+  private syncReaderContinuationState(): void {
+    const config = this.readerSessionConfig
+    const sourceRequest = this.activeSourceReaderRequest
+    const usingSourceRequest = sourceRequest !== undefined && sourceRequest.comicId === config.comicId
+    const comic = usingSourceRequest ? undefined : this.readerComicForOpen(config.comicId)
+    const sourceId = usingSourceRequest ? sourceRequest.sourceId : (comic?.sourceRuntimeId ?? config.sourceRuntimeId)
+    const mangaId = usingSourceRequest ? sourceRequest.mangaId : (comic?.remoteResourceId ?? '')
+    const sourceKind = usingSourceRequest ? ComicSourceKind.PRIVATE_LIBRARY : (comic?.sourceKind ?? config.sourceKind)
+    const privacySummary = this.libraryStore.getComicSummary(config.comicId)
+    const privateCategoryId = privacySummary?.categoryIds?.find((id: string): boolean => this.privateCategoryIds.has(id))
+    const requiresPrivacyAuth = privateCategoryId !== undefined
+    const eligible = canContinueSourceSession({
+      continuationEnabled: this.continuationState.enabled,
+      readerOpen: this.readerOpen && this.appForegroundState.active,
+      readerClosing: this.readerClosing,
+      readerRouteVisible: this.readerRouteVisible && this.isReaderRouteVisible(),
+      readerSessionLoading: this.readerSessionLoading,
+      continuedAway: this.continuationRuntime.continuedAway,
+      incognitoEnabled: this.incognito.enabled,
+      sourceIncognitoEnabled: this.incognito.isSourceEnabled(sourceId),
+      privacyLocked: this.showPrivateRouteLock() || (requiresPrivacyAuth && (!this.libraryPrivacy.unlocked || !this.libraryPrivacy.presenting)),
+      sourceKind,
+      sourceId,
+      mangaId,
+      chapterId: config.chapterId,
+    })
+    if (!eligible || sourceId === undefined || sourceId.trim().length === 0 || mangaId.trim().length === 0) {
+      appReaderContinuation.publishActiveReading(undefined)
+      return
+    }
+    const resolvedSourceName = sourceDisplayName(sourceId,
+      (usingSourceRequest ? sourceRequest.sourceName : comic?.sourceMetadata?.sourceName) ?? sourceId)
+    const snapshot: ReaderContinuationSnapshot = {
+      sourceId,
+      sourceName: resolvedSourceName,
+      mangaId,
+      comicId: config.comicId,
+      title: (usingSourceRequest ? sourceRequest.title : comic?.title) ?? config.title ?? config.comicId,
+      chapterId: config.chapterId,
+      pageIndex: Math.max(0, this.readerPageIndex),
+      totalPages: Math.max(0, config.totalPages),
+      requiresPrivacyAuth,
+    }
+    const mangaUrl = usingSourceRequest ? sourceRequest.mangaUrl : (comic?.sourcePath ?? config.sourceMangaUrl)
+    if (mangaUrl !== undefined && mangaUrl.length > 0) snapshot.mangaUrl = mangaUrl
+    const coverUri = usingSourceRequest ? sourceRequest.coverUri : comic?.coverUri
+    if (coverUri !== undefined && coverUri.length > 0) snapshot.coverUri = coverUri
+    const readingFormat = usingSourceRequest ? sourceRequest.readingFormat : config.readingFormat
+    if (readingFormat !== undefined) snapshot.readingFormat = readingFormat
+    if (config.chapterTitle !== undefined && config.chapterTitle.length > 0) snapshot.chapterTitle = config.chapterTitle
+    if (privateCategoryId !== undefined) snapshot.privateCategoryId = privateCategoryId
+    appReaderContinuation.publishActiveReading(snapshot)
+  }
+
+  private tryStartPendingContinuationTask(): void {
+    if (this.continuationReadyForRestore && this.rootNavigationMounted &&
+      this.continuationRuntime.pendingTaskId > 0) {
+      void this.processPendingContinuationTask()
+    }
+  }
+
+  @Monitor('continuationRuntime.pendingTaskId')
+  private onContinuationTaskChanged(): void {
+    this.tryStartPendingContinuationTask()
+  }
+
+  @Monitor('continuationRuntime.continuedAway')
+  private onContinuedAwayChanged(): void {
+    if (!this.continuationRuntime.continuedAway) {
+      this.closeContinuationAwayDialog()
+    }
   }
 
   @Monitor('layoutSafeArea.keyboardHeight')
@@ -1296,7 +1407,7 @@ struct Index {
       nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, chapterId, nextSessionConfig, sourceFailureReason, sourceFailure)
     }
     this.readerSessionConfig = nextSessionConfig
-    this.readerPageIndex = this.readerSessionStore.openPageIndex(nextSessionConfig, this.readerOpenIntent)
+    this.readerPageIndex = this.openPageIndexForSession(nextSessionConfig, this.readerOpenIntent, true)
     // Terminal publication: the one-shot crossing intent has been consumed.
     this.readerOpenIntent = 'resume'
     this.readerSessionLoading = false
@@ -1456,7 +1567,11 @@ struct Index {
       return
     }
     const nextSessionConfig = local ?? this.createSourceReaderSessionConfig(preparedRequest, resolution?.pages ?? [])
-    if (this.readerOpenIntent !== 'start' && !appDeviceSync.validateReadingPages(preparedRequest.comicId, preparedRequest.chapterId, nextSessionConfig.totalPages)) {
+    const hasContinuationOverride = this.continuationTargetPage !== undefined &&
+      this.continuationTargetPage.comicId === preparedRequest.comicId &&
+      this.continuationTargetPage.chapterId === preparedRequest.chapterId
+    if (!hasContinuationOverride && this.readerOpenIntent !== 'start' &&
+      !appDeviceSync.validateReadingPages(preparedRequest.comicId, preparedRequest.chapterId, nextSessionConfig.totalPages)) {
       if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) return
       this.readerSessionConfig = this.createUnavailableSourceReaderSessionConfig(preparedRequest, 'sync_saved_position_changed')
       this.readerSessionLoading = false
@@ -1465,7 +1580,7 @@ struct Index {
     }
     if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) return
     this.readerSessionConfig = nextSessionConfig
-    this.readerPageIndex = this.readerSessionStore.openPageIndex(nextSessionConfig, this.readerOpenIntent)
+    this.readerPageIndex = this.openPageIndexForSession(nextSessionConfig, this.readerOpenIntent, true)
     // Terminal publication for the transient source session.
     this.readerOpenIntent = 'resume'
     // Persist only stable identity/title/cover/current-chapter metadata. Page
@@ -1770,22 +1885,44 @@ struct Index {
     void this.openReader(comicId, chapterId, 'resume', snapshot, validation)
   }
 
+  private openPageIndexForSession(
+    config: ReaderSessionConfig,
+    intent: ReaderChapterOpenIntent,
+    consume: boolean,
+  ): number {
+    const target = this.continuationTargetPage
+    if (target !== undefined && target.comicId === config.comicId && target.chapterId === config.chapterId) {
+      const resolved = resolveContinuationPageIndex(target.pageIndex, config.totalPages)
+      if (consume && config.totalPages > 0 && !config.pageUris.includes('source-placeholder://chapter')) {
+        this.continuationTargetPage = undefined
+      }
+      return resolved
+    }
+    return this.readerSessionStore.openPageIndex(config, intent)
+  }
+
   private async openReader(
     comicId: ComicId,
     chapterId?: string,
     intent: ReaderChapterOpenIntent = 'resume',
     comicSnapshot?: Comic,
     validatedDownload?: OfflineDownloadManifestValidation,
+    continuationPageIndex?: number,
   ): Promise<void> {
     if (!this.canOpenLibraryComic(comicId)) return
     if (comicId.startsWith('mihon:')) {
       if (!await this.openMihonImportedWork(comicId)) this.showToast(AppStrings.get('mihon_import_resume_failed'))
       return
     }
+    this.continuationTargetPage = continuationPageIndex !== undefined && chapterId !== undefined
+      ? { comicId, chapterId, pageIndex: continuationPageIndex } : undefined
     if (comicSnapshot !== undefined) this.activeReaderComicSnapshot = comicSnapshot
     else if (this.activeReaderComicSnapshot?.id !== comicId) this.activeReaderComicSnapshot = undefined
     let comic = this.readerComicForOpen(comicId)
     let targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
+    if (continuationPageIndex !== undefined && targetChapterId !== undefined) {
+      this.continuationTargetPage = { comicId, chapterId: targetChapterId, pageIndex: continuationPageIndex }
+    }
     if (chapterId === undefined && comic !== undefined && comic.sourceRuntimeId !== undefined &&
       comic.remoteResourceId !== undefined && !this.incognito.isEnabledForSource(comic.sourceRuntimeId)) {
       const syncChapter = targetChapterId ?? comic.chapters[0]?.id
@@ -1820,7 +1957,7 @@ struct Index {
         if (!isCurrent()) return
         if (validation?.status !== OfflineDownloadedChapterStatus.DOWNLOADED &&
           validation?.status !== OfflineDownloadedChapterStatus.PARTIAL) {
-          await this.openSourceReader(request, intent, offline)
+          await this.openSourceReader(request, intent, offline, continuationPageIndex)
           return
         }
       }
@@ -1872,10 +2009,11 @@ struct Index {
       ? MOCK_LIBRARY_READER_SESSION
       : createKomaReaderLabOfflineConfig(createReaderSessionConfigFromComic(comic, targetChapterId), validatedDownload)
     this.beginShelfReadingSync(comic, this.readerSessionConfig.chapterId)
-    this.readerPageIndex = this.readerSessionStore.openPageIndex(this.readerSessionConfig, this.readerOpenIntent)
+    this.readerPageIndex = this.openPageIndexForSession(this.readerSessionConfig, this.readerOpenIntent, false)
     this.readerPreparation = null
+    const animatedRoute = continuationPageIndex === undefined
     this.readerEntryStage = 'chapter'
-    this.captureSharedReaderEntry(shouldPresentReader)
+    this.captureSharedReaderEntry(shouldPresentReader, animatedRoute)
     // Starting a chapter from a detail page that was opened by Reader updates
     // the already-mounted Reader beneath it.  It is not a second Reader route.
     if (readerDetailVisible) {
@@ -1890,7 +2028,12 @@ struct Index {
       this.readerOpen = true
       // Native root navigation presents the Reader immediately. Descriptor
       // refresh remains session work and never blocks route presentation.
-      this.appPathStack.pushPath({ name: RouteName.READER }, true)
+      this.appPathStack.pushPath({ name: RouteName.READER }, animatedRoute)
+      if (!animatedRoute) {
+        DiagnosticLogger.info('continuation', 'reader_route_pushed',
+          'kind=library stack=' + this.appPathStack.getAllPathName().join(',') +
+          ' navMounted=' + this.rootNavigationMounted + ' navVisible=' + this.rootNavigation.visible)
+      }
     }
     if (comic !== undefined) {
       this.readerPreparation = this.prepareReaderSession(comicId, targetChapterId, openEpoch, offline,
@@ -1924,6 +2067,7 @@ struct Index {
     request: SourceReaderSessionRequest,
     intent: ReaderChapterOpenIntent = 'resume',
     offline?: Promise<OfflineDownloadManifestValidation | undefined>,
+    continuationPageIndex?: number,
   ): Promise<void> {
     if (!this.canOpenLibraryComic(request.comicId)) return
     const nextRequest = cloneSourceReaderSessionRequest(request)
@@ -1934,6 +2078,8 @@ struct Index {
       !nextRequest.chapterIds.includes(nextRequest.chapterId)) {
       return
     }
+    this.continuationTargetPage = continuationPageIndex !== undefined
+      ? { comicId: nextRequest.comicId, chapterId: nextRequest.chapterId, pageIndex: continuationPageIndex } : undefined
     const generation = ++this.sourceReaderOpenRequest
     if (nextRequest.sourceId.startsWith('mihon:')) {
       if (!await this.openMihonImportedWork(nextRequest.comicId)) this.showToast(AppStrings.get('mihon_import_resume_failed'))
@@ -1966,10 +2112,11 @@ struct Index {
     this.activeReaderComicSnapshot = undefined
     this.readerSessionLoading = true
     this.readerSessionConfig = this.createSourceReaderSessionConfig(nextRequest, [])
-    this.readerPageIndex = this.readerSessionStore.openPageIndex(this.readerSessionConfig, this.readerOpenIntent)
+    this.readerPageIndex = this.openPageIndexForSession(this.readerSessionConfig, this.readerOpenIntent, false)
     this.readerPreparation = null
+    const animatedRoute = continuationPageIndex === undefined
     this.readerEntryStage = 'chapter'
-    this.captureSharedReaderEntry(shouldPresentReader)
+    this.captureSharedReaderEntry(shouldPresentReader, animatedRoute)
     // This matches normal Reader chapter switching: a detail page opened from
     // Reader is popped before the already-mounted Reader receives its next
     // transient session.
@@ -1981,7 +2128,12 @@ struct Index {
       this.readerClosing = false
       this.readerRouteVisible = false
       this.readerOpen = true
-      this.appPathStack.pushPath({ name: RouteName.READER }, true)
+      this.appPathStack.pushPath({ name: RouteName.READER }, animatedRoute)
+      if (!animatedRoute) {
+        DiagnosticLogger.info('continuation', 'reader_route_pushed',
+          'kind=source stack=' + this.appPathStack.getAllPathName().join(',') +
+          ' navMounted=' + this.rootNavigationMounted + ' navVisible=' + this.rootNavigation.visible)
+      }
     }
     this.readerPreparation = this.prepareSourceReaderSession(nextRequest, openEpoch, downloaded)
   }
@@ -2308,6 +2460,10 @@ struct Index {
     this.readerRouteVisible = false
     this.readerSessionLoading = false
     this.activeReaderComicSnapshot = undefined
+    this.continuationTargetPage = undefined
+    this.libraryPrivacy.releaseContinuationPrivacy()
+    appReaderContinuation.setContinuedAway(false)
+    this.syncReaderContinuationState()
     if (this.cleanupProgressCommitted) {
       this.cleanupProgressCommitted = false
       void this.cleanupService().run(getContext(this) as common.UIAbilityContext,
@@ -2315,6 +2471,349 @@ struct Index {
         DiagnosticLogger.exception('downloads', 'read_cleanup_failed', error)
       })
     }
+  }
+
+  private handleSourceContinuedAway(): void {
+    if (!this.readerOpen || this.readerClosing || !this.isReaderRouteVisible()) {
+      appReaderContinuation.setContinuedAway(false)
+      return
+    }
+    this.readingStatisticsRecorder.setActive(false)
+    if (this.readerSessionPersistenceReady) this.readerSessionStore.flush()
+    this.syncReaderContinuationState()
+    this.showContinuationAwayDialog()
+  }
+
+  @Builder
+  private ContinuationAwayDialogContent() {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      Text(AppStrings.get('continuation_source_away_message'))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+      if (this.continuationAwayResuming) {
+        Row({ space: ThemeConstants.SPACE_SM }) {
+          LoadingProgress().width(20).height(20).color(ThemeConstants.BRAND_PRIMARY)
+          Text(AppStrings.get('history_resume_loading'))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+        }
+        .width('100%')
+        .margin({ top: ThemeConstants.SPACE_XS })
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  private ContinuationAwayDialog() {
+    CustomContentDialogV2({
+      primaryTitle: AppStrings.get('continuation_source_away_title'),
+      contentBuilder: (): void => { this.ContinuationAwayDialogContent() },
+      buttons: [
+        new AdvancedDialogV2Button({
+          content: AppStrings.get('continuation_close_reader'),
+          buttonStyle: ButtonStyleMode.TEXTUAL,
+          enabled: !this.continuationAwayResuming,
+          action: (): void => {
+            this.closeContinuationAwayDialog()
+            appReaderContinuation.setContinuedAway(false)
+            this.closeReader()
+          },
+        }),
+        new AdvancedDialogV2Button({
+          content: AppStrings.get('continuation_resume_here'),
+          fontColor: ColorMetrics.resourceColor(ThemeConstants.BRAND_PRIMARY),
+          buttonStyle: ButtonStyleMode.TEXTUAL,
+          enabled: !this.continuationAwayResuming,
+          action: (): void => {
+            void this.resumeReaderAfterContinuationAway()
+          },
+        }),
+      ],
+    })
+  }
+
+  private showContinuationAwayDialog(): void {
+    if (this.continuationAwayDialogId >= 0) return
+    this.continuationAwayResuming = false
+    const prompt = this.getUIContext().getPromptAction()
+    void prompt.openCustomDialog({
+      systemMaterial: komaDialogMaterial(),
+      alignment: DialogAlignment.Center,
+      autoCancel: false,
+      builder: (): void => { this.ContinuationAwayDialog() },
+      onWillDismiss: (_action: DismissDialogAction): void => {},
+    }).then((id: number): void => {
+      if (this.continuationRuntime.continuedAway && this.readerOpen && !this.readerClosing) {
+        this.continuationAwayDialogId = id
+      } else {
+        prompt.closeCustomDialog(id)
+      }
+    }).catch((): void => {
+      appReaderContinuation.setContinuedAway(false)
+    })
+  }
+
+  private closeContinuationAwayDialog(): void {
+    this.continuationAwayResuming = false
+    if (this.continuationAwayDialogId < 0) return
+    const id = this.continuationAwayDialogId
+    this.continuationAwayDialogId = -1
+    try {
+      this.getUIContext().getPromptAction().closeCustomDialog(id)
+    } catch (_error) {
+    }
+  }
+
+  private async resumeReaderAfterContinuationAway(): Promise<void> {
+    if (this.continuationAwayResuming) return
+    this.continuationAwayResuming = true
+    const config = this.readerSessionConfig
+    const sourceRequest = this.activeSourceReaderRequest
+    const comic = sourceRequest !== undefined && sourceRequest.comicId === config.comicId
+      ? undefined : this.readerComicForOpen(config.comicId)
+    const syncSourceId = sourceRequest?.sourceId ?? comic?.sourceRuntimeId ?? config.sourceRuntimeId ?? ''
+    const syncMangaId = sourceRequest?.mangaId ?? comic?.remoteResourceId ?? ''
+    let syncedChapterId: string | undefined
+    let syncedPageIndex: number | undefined
+    try {
+      if (syncSourceId.length > 0 && syncMangaId.length > 0 && !this.incognito.enabled &&
+        !this.incognito.isSourceEnabled(syncSourceId)) {
+        const syncRequest: SourceReaderSessionRequest = sourceRequest !== undefined && sourceRequest.comicId === config.comicId
+          ? sourceRequest : {
+            comicId: config.comicId,
+            sourceId: syncSourceId,
+            mangaId: syncMangaId,
+            mangaUrl: comic?.sourcePath ?? config.sourceMangaUrl,
+            sourceName: comic?.sourceMetadata?.sourceName,
+            title: comic?.title ?? config.title ?? config.comicId,
+            chapterId: config.chapterId,
+            chapterIds: config.chapterIds.slice(),
+            chapterTitles: config.chapterTitles?.slice(),
+          }
+        const conflict = await appDeviceSync.waitForReadingSync(syncRequest)
+        if (conflict !== undefined) {
+          await appDeviceSync.resolveReadingResumeConflict(conflict, true)
+        }
+        const latest = this.readerSessionStore.getProgress(config.comicId)
+        if (latest !== undefined &&
+          (latest.chapterId !== config.chapterId || latest.pageIndex !== this.readerPageIndex)) {
+          syncedChapterId = latest.chapterId
+          syncedPageIndex = latest.pageIndex
+        }
+      }
+    } catch (_error) {
+    }
+    this.closeContinuationAwayDialog()
+    appReaderContinuation.setContinuedAway(false)
+    if (!this.readerOpen || this.readerClosing) return
+    if (syncedChapterId !== undefined && syncedPageIndex !== undefined) {
+      if (sourceRequest !== undefined && sourceRequest.comicId === config.comicId) {
+        const nextRequest = sourceReaderSessionRequestForChapter(sourceRequest, syncedChapterId) ?? {
+          comicId: sourceRequest.comicId,
+          sourceId: sourceRequest.sourceId,
+          mangaId: sourceRequest.mangaId,
+          mangaUrl: sourceRequest.mangaUrl,
+          title: sourceRequest.title,
+          coverUri: sourceRequest.coverUri,
+          sourceName: sourceRequest.sourceName,
+          readingFormat: sourceRequest.readingFormat,
+          chapterId: syncedChapterId,
+          chapterIds: sourceRequest.chapterIds.includes(syncedChapterId)
+            ? sourceRequest.chapterIds.slice() : sourceRequest.chapterIds.concat([syncedChapterId]),
+          chapterTitles: sourceRequest.chapterTitles?.slice(),
+          chapters: sourceRequest.chapters,
+          chaptersResolved: false,
+        }
+        await this.openSourceReader(nextRequest, 'resume', undefined, syncedPageIndex)
+      } else {
+        await this.openReader(config.comicId, syncedChapterId, 'resume', undefined, undefined, syncedPageIndex)
+      }
+    }
+    this.syncReadingSessionActivity()
+    this.syncReaderContinuationState()
+  }
+
+  private async processPendingContinuationTask(): Promise<void> {
+    const task = appReaderContinuation.consumePendingRestore()
+    if (task === undefined) return
+    const epoch = ++this.continuationRestoreEpoch
+    const isCurrent = (): boolean => epoch === this.continuationRestoreEpoch
+    this.pendingContinuationAfterSourceInstall = undefined
+    const unlocked = await this.ensureContinuationPrivacyUnlocked(task, isCurrent)
+    if (!isCurrent()) {
+      appReaderContinuation.cleanupDistributedTempFile(task.sourcePackagePath)
+      return
+    }
+    if (!unlocked) {
+      appReaderContinuation.cleanupDistributedTempFile(task.sourcePackagePath)
+      return
+    }
+    const sourceReady = await this.ensureContinuationSourceReady(task, isCurrent)
+    if (!isCurrent() || !sourceReady) {
+      appReaderContinuation.cleanupDistributedTempFile(task.sourcePackagePath)
+      return
+    }
+    appReaderContinuation.cleanupDistributedTempFile(task.sourcePackagePath)
+    await this.openContinuedWork(task.payload)
+  }
+
+  private async ensureContinuationPrivacyUnlocked(
+    task: RestoredContinuationTask,
+    isCurrent: () => boolean,
+  ): Promise<boolean> {
+    const payload = task.payload
+    const summary = this.libraryStore.getComicSummary(payload.comicId)
+    const localPrivateCategoryId = summary?.categoryIds?.find((id: string): boolean => this.privateCategoryIds.has(id))
+    const needsAuth = payload.requiresPrivacyAuth || localPrivateCategoryId !== undefined
+    if (!needsAuth) return true
+    const targetCategoryId = localPrivateCategoryId ?? payload.privateCategoryId
+    const hasLocalCategory = targetCategoryId !== undefined && this.privateCategoryIds.has(targetCategoryId)
+    if (targetCategoryId !== undefined && this.libraryPrivacy.visibleCategoryId === targetCategoryId) {
+      return true
+    }
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    const authResult = await this.libraryPrivacy.activateContinuationPrivacy(
+      context, isCurrent, targetCategoryId, hasLocalCategory)
+    if (!isCurrent()) return false
+    if (authResult === LibraryPrivacyAuthResult.SUCCESS) return true
+    const message = libraryPrivacyAuthMessage(authResult) || AppStrings.get('continuation_privacy_required')
+    this.showToast(message)
+    return false
+  }
+
+  private async ensureContinuationSourceReady(
+    task: RestoredContinuationTask,
+    isCurrent: () => boolean,
+  ): Promise<boolean> {
+    const payload = task.payload
+    const lookup = this.sourceRegistry.lookup(payload.sourceId)
+    if (lookup.ok && lookup.entry !== undefined && sourceRuntimeEntryEnabled(lookup.entry)) {
+      return true
+    }
+    const offline = await this.readOfflineReaderChapter(payload.comicId, payload.chapterId)
+    if (!isCurrent()) return false
+    if (offline?.status === OfflineDownloadedChapterStatus.DOWNLOADED) {
+      return true
+    }
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    const installed = getInstalledSourcePackage(payload.sourceId)
+    if (installed !== undefined && !installed.enabled) {
+      if (this.continuationState.autoInstallMissingSource) {
+        return this.enableContinuationSource(context, payload)
+      }
+      return new Promise<boolean>((resolve: (value: boolean) => void): void => {
+        let settled = false
+        const finish = (value: boolean): void => {
+          if (!settled) { settled = true; resolve(value) }
+        }
+        this.getUIContext().showAlertDialog({
+          title: AppStrings.format('continuation_enable_source_title', payload.sourceName),
+          message: AppStrings.format('continuation_enable_source_message', payload.sourceName),
+          systemMaterial: komaDialogMaterial(),
+          autoCancel: false,
+          primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => { finish(false) } },
+          secondaryButton: {
+            value: AppStrings.get('continuation_enable_and_continue'),
+            action: (): void => { finish(isCurrent() && this.enableContinuationSource(context, payload)) },
+          },
+          cancel: (): void => { finish(false) },
+        })
+      })
+    }
+
+    if (task.sourcePackageUri !== undefined && task.sourcePackageUri.length > 0) {
+      if (this.continuationState.autoInstallMissingSource) {
+        this.showToast(AppStrings.format('continuation_auto_installing_source', payload.sourceName))
+        return this.installContinuationSourceArchive(context, task, isCurrent)
+      }
+      const accepted = await new Promise<boolean>((resolve: (value: boolean) => void): void => {
+        let settled = false
+        const finish = (value: boolean): void => {
+          if (!settled) { settled = true; resolve(value) }
+        }
+        this.getUIContext().showAlertDialog({
+          title: AppStrings.get('continuation_install_source_title'),
+          message: AppStrings.format('continuation_install_source_message', payload.sourceName, payload.sourceId, payload.title),
+          systemMaterial: komaDialogMaterial(),
+          autoCancel: false,
+          primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => { finish(false) } },
+          secondaryButton: {
+            value: AppStrings.get('continuation_install_and_continue'),
+            action: (): void => { finish(true) },
+          },
+          cancel: (): void => { finish(false) },
+        })
+      })
+      if (!isCurrent() || !accepted) return false
+      return this.installContinuationSourceArchive(context, task, isCurrent)
+    }
+
+    this.pendingContinuationAfterSourceInstall = task
+    RouterHelper.promptMissingSourceRecovery(this.getUIContext(), payload.sourceId, payload.sourceName, true)
+    return false
+  }
+
+  private enableContinuationSource(context: common.UIAbilityContext, payload: ReaderContinuationPayload): boolean {
+    if (!setSourcePackageEnabled(context, payload.sourceId, true)) {
+      this.showToast(AppStrings.format('continuation_install_source_failed', payload.sourceName))
+      return false
+    }
+    const source = getInstalledSourcePackage(payload.sourceId)
+    if (source !== undefined) appSourcePackageManagerCache.recordInstalledPackage(source)
+    return true
+  }
+
+  private async installContinuationSourceArchive(
+    context: common.UIAbilityContext,
+    task: RestoredContinuationTask,
+    isCurrent: () => boolean,
+  ): Promise<boolean> {
+    const uri = task.sourcePackageUri
+    const payload = task.payload
+    if (uri === undefined || uri.length === 0) return false
+    try {
+      const result = await new SourceIndexService(context).installLocalArchive(uri)
+      if (!isCurrent()) return false
+      if (result.ok) {
+        const installedId = result.id ?? payload.sourceId
+        const source = getInstalledSourcePackage(installedId)
+        if (source !== undefined) appSourcePackageManagerCache.recordInstalledPackage(source)
+        const lookup = this.sourceRegistry.lookup(payload.sourceId)
+        if (lookup.ok && lookup.entry !== undefined) {
+          if (!sourceRuntimeEntryEnabled(lookup.entry)) {
+            setSourcePackageEnabled(context, payload.sourceId, true)
+          }
+          return true
+        }
+      }
+    } catch (error) {
+      DiagnosticLogger.exception('continuation', 'install_source_archive_failed', error as Error)
+    }
+    if (!isCurrent()) return false
+    this.pendingContinuationAfterSourceInstall = {
+      id: task.id,
+      payload,
+    }
+    this.showToast(AppStrings.format('continuation_install_source_failed', payload.sourceName))
+    RouterHelper.openMissingSourceRecovery(payload.sourceId, payload.sourceName)
+    return false
+  }
+
+  private async openContinuedWork(payload: ReaderContinuationPayload): Promise<void> {
+    this.closeContinuationAwayDialog()
+    this.settingsModalShown = false
+    if (this.appPathStack.size() > 0 && !this.isReaderRouteVisible()) {
+      this.appPathStack.clear(false)
+    }
+    appReaderContinuation.setContinuedAway(false)
+    const libraryComic = this.libraryStore.getComic(payload.comicId)
+    if (libraryComic !== undefined && libraryComic.sourceRuntimeId === payload.sourceId) {
+      await this.openReader(libraryComic.id, payload.chapterId, 'resume', undefined, undefined, payload.pageIndex)
+      return
+    }
+    await this.openSourceReader(buildSourceRequestFromContinuation(payload), 'resume', undefined, payload.pageIndex)
   }
 
   private reloadReaderSessionStore(reason: string): void {
@@ -2404,7 +2903,8 @@ struct Index {
   }
 
   private observeReadingPages(comicId: string, chapterId: string, pages: number[]): void {
-    if (!this.readerSessionPersistenceReady || comicId !== this.readerSessionConfig.comicId ||
+    if (this.continuationRuntime.continuedAway || !this.readerSessionPersistenceReady ||
+      comicId !== this.readerSessionConfig.comicId ||
       chapterId !== this.readerSessionConfig.chapterId ||
       this.incognito.isSourceEnabled(this.readerSessionConfig.sourceRuntimeId)) return
     this.syncReadingSessionActivity()
@@ -2413,7 +2913,8 @@ struct Index {
 
   private persistReaderLabObserved(position: ReaderObservedPosition,
     column: 'odd_left' | 'even_left'): void {
-    if (!this.readerSessionPersistenceReady || position.anchor.unit.scope !== 'koma-local') return
+    if (this.continuationRuntime.continuedAway || !this.readerSessionPersistenceReady ||
+      position.anchor.unit.scope !== 'koma-local') return
     const anchor = position.anchor
     const current = this.readerSessionConfig
     // The active route only reads the exact page ID and page count here.
@@ -2467,6 +2968,7 @@ struct Index {
     this.readerProgressRevision += 1
     this.refreshLibrarySnapshot()
     this.loadLibraryChapterUpdateHistory(getContext(this) as common.UIAbilityContext)
+    this.syncReaderContinuationState()
   }
 
   private refreshMihonImport(): void {
@@ -2505,6 +3007,14 @@ struct Index {
     this.mihonSourceVersionsLoaded = true
     this.mihonSourceVersions = versions
     if (changed.length > 0) this.queueMihonMatching(changed, firstLoad)
+    const pending = this.pendingContinuationAfterSourceInstall
+    if (pending !== undefined) {
+      const lookup = this.sourceRegistry.lookup(pending.payload.sourceId)
+      if (lookup.ok && lookup.entry !== undefined && sourceRuntimeEntryEnabled(lookup.entry)) {
+        this.pendingContinuationAfterSourceInstall = undefined
+        void this.openContinuedWork(pending.payload)
+      }
+    }
   }
 
   private loadLibraryChapterUpdateHistory(context: common.UIAbilityContext): void {
@@ -3430,12 +3940,15 @@ struct Index {
     })
     this.catalogSearchContents.clear()
     if (this.readerSessionPersistenceReady) this.readerSessionStore.flush()
+    this.closeContinuationAwayDialog()
+    appReaderContinuation.publishActiveReading(undefined)
     this.automaticDownloads?.dispose()
     this.automaticDownloads = undefined
   }
 
   aboutToAppear(): void {
     this.handleReaderLabLaunch()
+    appReaderContinuation.attachSourceHandlers((): void => { this.handleSourceContinuedAway() })
     RouterHelper.setAppPathStack(this.appPathStack)
     RouterHelper.setReaderOpener(() => {
       this.openExternalReaderSession()
@@ -3506,6 +4019,8 @@ struct Index {
       }
     }
     this.afterStartupFrame((): void => {
+      this.continuationReadyForRestore = true
+      this.tryStartPendingContinuationTask()
       void sourcePackagesReady.then((ready: boolean): void => {
         if (ready) appSourcePackageManagerCache.revalidateInBackground(context)
       })
@@ -3586,6 +4101,7 @@ struct Index {
     KomaReaderLabPage({
         request: this.sharedReaderRequest,
         productionEntry: true,
+        inputLocked: this.continuationRuntime.continuedAway,
         routeTransition: this.readerRouteTransition,
         closeRequestId: this.readerCloseRequestId,
         entryStage: this.readerEntryStage,
@@ -3602,9 +4118,11 @@ struct Index {
             ? this.readerPageIndex : this.readReaderLabInitialPage(work, unit),
         persistObserved: (position: ReaderObservedPosition, column: 'odd_left' | 'even_left'): void => {
           this.persistReaderLabObserved(position, column)
-          if (position.anchor.unit.work === this.readerSessionConfig.comicId &&
+          if (!this.continuationRuntime.continuedAway &&
+            position.anchor.unit.work === this.readerSessionConfig.comicId &&
             position.anchor.unit.unit === this.readerSessionConfig.chapterId) {
             this.readerPageIndex = position.anchor.sourceIndexHint
+            this.syncReaderContinuationState()
           }
         },
         flushObserved: (): void => { if (this.readerSessionPersistenceReady) this.readerSessionStore.flush() },
@@ -5088,9 +5606,15 @@ struct Index {
           this.readerOrdinaryNavTransition(from, to, operation))
         .mode(NavigationMode.Stack)
         .accessibilityLevel(this.showPrivateRouteLock() ? 'no-hide-descendants' : 'auto')
+        .onAppear(() => {
+          this.rootNavigationMounted = true
+          this.tryStartPendingContinuationTask()
+        })
         .onNavBarStateChange((visible: boolean) => {
           this.rootNavigation.visible = visible
           if (visible) {
+            if (!this.rootNavigationMounted) this.rootNavigationMounted = true
+            this.tryStartPendingContinuationTask()
             this.publishDeferredReaderBackgroundPresentation()
             const comicId = this.pendingMihonResume
             this.pendingMihonResume = undefined

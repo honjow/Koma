@@ -1,4 +1,5 @@
 import { SourceBrowsePreferencesStore } from './SourceBrowsePreferencesStore'
+import { ContinuationPreferencesStore } from './ContinuationPreferencesStore'
 import { AppearancePreferencesStore } from './AppearancePreferencesStore'
 import { LibraryFilterStore } from './LibraryFilterStore'
 import { legacyLibraryGridPreferences } from './LibraryGridPreferences'
@@ -40,6 +41,7 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
   'koma_library_automation_v1': ['automation.policy'],
   'koma_app_preferences_v1': ['app.language'],
   'koma_source_browse_preferences_v1': ['sourceBrowse.hideInLibrary'],
+  'koma_continuation_preferences_v1': ['continuation.enabled', 'continuation.autoInstallMissingSource'],
   // Keep accepting the alert style in older backups. The system now owns sound and vibration.
   'koma_download_notifications_v1': ['download.notifications.enabled', 'download.notifications.sound'],
   'koma_appearance_preferences_v1': [
@@ -74,7 +76,7 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
 export const APPLICATION_SETTINGS_BACKUP_STORES: string[] = Object.keys(PORTABLE_FIELDS)
 
 function checkPortableValue(name: string, key: string, value: ApplicationSettingValue): void {
-  if (name === 'koma_source_browse_preferences_v1') {
+  if (name === 'koma_source_browse_preferences_v1' || name === 'koma_continuation_preferences_v1') {
     if (typeof value !== 'boolean') throw new Error('backup_application_settings_invalid')
   } else if (migratedBackupPreference(name, key) !== undefined) {
     decodePreferenceRecordMap(value)
@@ -294,6 +296,7 @@ export async function reloadApplicationSettingsRuntime(context: common.UIAbility
   await LanguageSettings.restore(context)
   await new AppearancePreferencesStore(context).load()
   await new SourceBrowsePreferencesStore(context).load()
+  await new ContinuationPreferencesStore(context).load()
   await new LibraryFilterStore(context).load()
   invalidateLibraryAutomationPolicyCache()
   await restoreReaderRemoteImageCache(context)

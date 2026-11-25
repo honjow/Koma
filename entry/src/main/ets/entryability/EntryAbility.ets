@@ -12,6 +12,8 @@ import { IncognitoPreferencesStore } from '../model/IncognitoPreferencesStore'
 import { LibraryFilterStore } from '../model/LibraryFilterStore'
 import { restoreReaderRemoteImageCache } from '../model/ReaderPageSourceAdapter'
 import { UIAbility, Want, AbilityConstant, Configuration, bundleManager } from '@kit.AbilityKit'
+import { appReaderContinuation } from '../continuation/ReaderContinuationService'
+import { ContinuationPreferencesStore } from '../model/ContinuationPreferencesStore'
 import { captureReaderLabWant, updateReaderLabForeground } from '@reader-kit/ui'
 import { KeyboardAvoidMode, window } from '@kit.ArkUI'
 import {
@@ -76,13 +78,15 @@ export default class EntryAbility extends UIAbility {
   private startupReady: boolean = false
   private startupPromise: Promise<void> = Promise.resolve()
   private startupWindowStage?: window.WindowStage
+  private entryContentLoaded: boolean = false
+  private windowConfiguredStage?: window.WindowStage
   private syncForegroundGeneration: number = 0
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     DiagnosticLogger.configure(false)
     DiagnosticLogger.initializePersistentSink(this.context)
+    appReaderContinuation.attachContext(this.context)
     captureReaderLabWant(want, this.context.applicationInfo.debug)
     captureKomaDeviceVerificationIsolation(want, this.context.applicationInfo.debug)
-    void launchParam
     AppStrings.init(this.context)
     this.startupPromise = this.prepareStartup(want).catch((error: Error): void => {
       DiagnosticLogger.exception('app', 'startup_cause', error)
@@ -90,6 +94,7 @@ export default class EntryAbility extends UIAbility {
       DiagnosticLogger.error('app', 'startup_failed', '[BackupRecovery] step=startup_failed code=backup_recovery_pending')
     })
     this.handleTrackerBrowserCallback(want, true)
+    this.handleContinuationLaunch(want, launchParam)
   }
 
   private async prepareStartup(want: Want): Promise<void> {
@@ -147,6 +152,9 @@ export default class EntryAbility extends UIAbility {
       new AppearancePreferencesStore(this.context).load().catch((_error: Error): void => {
         DiagnosticLogger.warn('app', 'startup_load_failed', '[Appearance] startup_load_failed retained_previous_runtime=true')
       }),
+      new ContinuationPreferencesStore(this.context).load().catch((_error: Error): void => {
+        DiagnosticLogger.warn('app', 'startup_load_failed', '[Continuation] startup_load_failed retained_previous_runtime=true')
+      }),
       new IncognitoPreferencesStore(this.context).load().catch((_error: Error): void => {
         DiagnosticLogger.warn('app', 'startup_load_failed', '[Incognito] startup_load_failed retained_previous_runtime=true')
       }),
@@ -160,6 +168,7 @@ export default class EntryAbility extends UIAbility {
     bootstrapSourceRuntimeAppRegistry(this.context)
     this.openLaunchRouteFromWant(want)
     maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
+    appReaderContinuation.syncMissionContinueState()
     this.startupReady = true
   }
 
@@ -187,15 +196,33 @@ export default class EntryAbility extends UIAbility {
   }
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    appReaderContinuation.attachContext(this.context)
     captureReaderLabWant(want, this.context.applicationInfo.debug)
     captureKomaDeviceVerificationIsolation(want, this.context.applicationInfo.debug)
-    void launchParam
     this.handleTrackerBrowserCallback(want, false)
+    if (this.handleContinuationLaunch(want, launchParam)) return
     void this.startupPromise.then((): void => {
       if (!this.startupReady) return
       this.openLaunchRouteFromWant(want)
       maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
     })
+  }
+
+  async onContinue(wantParam: Record<string, Object>): Promise<AbilityConstant.OnContinueResult> {
+    await this.startupPromise
+    return appReaderContinuation.handleOnContinue(this.context, wantParam)
+  }
+
+  private handleContinuationLaunch(want: Want, launchParam: AbilityConstant.LaunchParam): boolean {
+    if (launchParam.launchReason !== AbilityConstant.LaunchReason.CONTINUATION) return false
+    appReaderContinuation.setRestoreGateOpen(false)
+    appReaderContinuation.beginTargetRestore(this.context, want)
+    try {
+      this.context.restoreWindowStage(new LocalStorage())
+    } catch (error) {
+      DiagnosticLogger.exception('continuation', 'restore_window_stage_failed', error as Error)
+    }
+    return true
   }
 
   private handleTrackerBrowserCallback(want: Want, coldStart: boolean): void {
@@ -220,7 +247,9 @@ export default class EntryAbility extends UIAbility {
     })
   }
 
-  onWindowStageCreate(windowStage: window.WindowStage): void {
+  private configureMainWindow(windowStage: window.WindowStage): void {
+    if (this.windowConfiguredStage === windowStage) return
+    this.windowConfiguredStage = windowStage
     try {
       const win = windowStage.getMainWindowSync()
       void connectLibraryPrivacyState().attach(win, windowStage)
@@ -239,7 +268,23 @@ export default class EntryAbility extends UIAbility {
       void error
       DiagnosticLogger.error('app', 'configure_window_failed', '[EntryAbility] step=configure_window_failed code=window_configure_failed')
     }
+  }
 
+  onWindowStageCreate(windowStage: window.WindowStage): void {
+    this.configureMainWindow(windowStage)
+    this.startupWindowStage = windowStage
+    void this.loadEntryContent(windowStage)
+  }
+
+  onWindowStageRestore(windowStage: window.WindowStage): void {
+    // Hot-start continuation reuses the active UIContent when WindowStage is
+    // unchanged; otherwise loadEntryContent replaces UIContent before opening the gate.
+    if (this.entryContentLoaded && this.startupWindowStage === windowStage) {
+      this.configureMainWindow(windowStage)
+      appReaderContinuation.setRestoreGateOpen(true)
+      return
+    }
+    this.configureMainWindow(windowStage)
     this.startupWindowStage = windowStage
     void this.loadEntryContent(windowStage)
   }
@@ -274,10 +319,12 @@ export default class EntryAbility extends UIAbility {
         DiagnosticLogger.error('app', 'load_content_failed', '[EntryAbility] step=load_content_failed code=load_content_failed')
         return
       }
+      this.entryContentLoaded = true
       bindReaderThemeWindow(this.context)
       this.applySavedThemeMode()
       this.configureAvoidAreas(windowStage)
       this.bindLayoutWindow(windowStage.getMainWindowSync())
+      appReaderContinuation.setRestoreGateOpen(true)
       void new BackupService(this.context).ensureDefaultAutomaticBackupDirectory(komaContentStorageUri())
         .catch((error: Error): void => {
           DiagnosticLogger.exception('backup', 'automatic_default_directory_failed', error)
@@ -326,6 +373,7 @@ export default class EntryAbility extends UIAbility {
 
   onDestroy(): void {
     this.syncForegroundGeneration++
+    appReaderContinuation.dispose()
     DiagnosticLogger.info('app', 'destroy', '')
     DiagnosticLogger.closePersistentSink()
     this.unbindLayoutWindow()
@@ -334,6 +382,8 @@ export default class EntryAbility extends UIAbility {
 
   onWindowStageDestroy(): void {
     this.startupWindowStage = undefined
+    this.windowConfiguredStage = undefined
+    this.entryContentLoaded = false
     connectLibraryPrivacyState().detach()
     this.unbindLayoutWindow()
     unbindReaderThemeWindow()

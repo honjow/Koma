@@ -1,6 +1,8 @@
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { appHuaweiCloudSync } from '../deviceSync/HuaweiCloudSync'
 import { connectIncognitoState, IncognitoState } from '../state/IncognitoState'
+import { ContinuationState, connectContinuationState } from '../state/ContinuationState'
+import { ContinuationPreferencesStore } from '../model/ContinuationPreferencesStore'
 import { IncognitoPreferences, IncognitoPreferencesStore } from '../model/IncognitoPreferencesStore'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderDisplaySettingsContent } from '../components/ReaderDisplaySettingsContent'
@@ -366,6 +368,8 @@ function createSettingsSections(): SettingsSection[] {
       key: 'advanced', titleKey: 'settings_pane_advanced_title',
       rows: [
         { key: 'double-back-to-exit', titleKey: 'navigation_back_guard', detailKey: '' },
+        { key: 'continuation-enabled', titleKey: 'settings_continuation_enabled_title', detailKey: 'settings_continuation_enabled_detail' },
+        { key: 'continuation-auto-install-source', titleKey: 'settings_continuation_auto_install_title', detailKey: 'settings_continuation_auto_install_detail' },
         { key: 'diagnostics', titleKey: 'diagnostics_title', detailKey: 'diagnostics_detail' },
       ],
     },
@@ -568,6 +572,7 @@ export struct SettingsPage {
   @Local private settingsSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private incognito: IncognitoState = connectIncognitoState()
   @Local private sourceBrowseState: SourceBrowseState = connectSourceBrowseState()
+  @Local private continuationState: ContinuationState = connectContinuationState()
   private positionedSearchTarget: boolean = false
   @Event onOpenKomgaSettings: () => void = () => {}
   @Event onOpenKavitaSettings: () => void = () => {}
@@ -954,7 +959,21 @@ export struct SettingsPage {
       return groups.map((section: SettingsSection): SettingsSection => ({ key: section.key, titleKey: section.titleKey,
         rows: section.rows.filter((row: SettingsRow): boolean => !READER_PAGED_ROW_KEYS.includes(row.key)) }))
     }
-    if (pane === 'advanced' || pane === 'translation') return this.sectionsByKeys([pane])
+    if (pane === 'advanced') {
+      return [
+        {
+          key: 'advanced',
+          titleKey: 'settings_pane_advanced_title',
+          rows: this.rowsByKeys(['double-back-to-exit', 'diagnostics']),
+        },
+        {
+          key: 'continuation',
+          titleKey: 'settings_section_continuation',
+          rows: this.rowsByKeys(['continuation-enabled', 'continuation-auto-install-source']),
+        },
+      ]
+    }
+    if (pane === 'translation') return this.sectionsByKeys([pane])
     if (pane === 'services') {
       return [
         {
@@ -2366,6 +2385,7 @@ export struct SettingsPage {
 
   private isSwitchRow(row: SettingsRow): boolean {
     return row.key === 'source-hide-in-library' || row.key === 'auto-hide-bottom-bar' || row.key === 'show-resume-mini-bar' || row.key === 'double-back-to-exit' ||
+      row.key === 'continuation-enabled' || row.key === 'continuation-auto-install-source' ||
       row.key === 'library-background-update' || row.key === 'library-auto-update' ||
       row.key === 'library-badges' || row.key === 'library-continue-reading-card' ||
       row.key === 'cache-auto-clean' ||
@@ -2386,6 +2406,8 @@ export struct SettingsPage {
 
   private switchRowValue(row: SettingsRow): boolean {
     if (row.key === 'source-hide-in-library') return this.sourceBrowseState.hideInLibrary
+    if (row.key === 'continuation-enabled') return this.continuationState.enabled
+    if (row.key === 'continuation-auto-install-source') return this.continuationState.autoInstallMissingSource
     if (row.key === 'auto-hide-bottom-bar') return this.appearanceState.autoHideBottomBar
     if (row.key === 'show-resume-mini-bar') return this.appearanceState.showResumeMiniBar
     if (row.key === 'double-back-to-exit') return this.appearanceState.doubleBackToExit
@@ -2440,6 +2462,20 @@ export struct SettingsPage {
       void new SourceBrowsePreferencesStore(this.context()).saveHideInLibrary(value).catch((error: Error): void => {
         DiagnosticLogger.exception('settings_page', 'save_source_hide_in_library_failed', error)
         this.showToast(s('source_hide_in_library_save_failed'))
+      })
+      return
+    }
+    if (row.key === 'continuation-enabled') {
+      void new ContinuationPreferencesStore(this.context()).saveEnabled(value).catch((error: Error): void => {
+        DiagnosticLogger.exception('settings_page', 'save_continuation_enabled_failed', error)
+        this.showToast(s('settings_continuation_save_failed'))
+      })
+      return
+    }
+    if (row.key === 'continuation-auto-install-source') {
+      void new ContinuationPreferencesStore(this.context()).saveAutoInstallMissingSource(value).catch((error: Error): void => {
+        DiagnosticLogger.exception('settings_page', 'save_continuation_auto_install_failed', error)
+        this.showToast(s('settings_continuation_save_failed'))
       })
       return
     }
@@ -2796,6 +2832,7 @@ export struct SettingsPage {
           ? s('settings_download_notification_system_hint') :
           row.key === 'download-notifications' ? s('settings_row_download_notifications_detail') :
           row.key === 'auto-hide-bottom-bar' || row.key === 'show-resume-mini-bar' ||
+          row.key === 'continuation-enabled' || row.key === 'continuation-auto-install-source' ||
           row.key === 'library-continue-reading-card' ? this.rowBaseDetail(row) :
           row.key === 'library-background-update' && !this.libraryUpdatePreferences.autoCheckEnabled
             ? s('library_background_update_paused') : '',
@@ -2803,7 +2840,8 @@ export struct SettingsPage {
         hasSwitch: true,
         checked: this.switchRowValue(row),
         isEnabled: (row.key !== 'reader-volume-key-behavior' || this.readerVolumeKeyNavigationEnabled) &&
-          (row.key !== 'library-background-update' || this.libraryUpdatePreferences.autoCheckEnabled),
+          (row.key !== 'library-background-update' || this.libraryUpdatePreferences.autoCheckEnabled) &&
+          (row.key !== 'continuation-auto-install-source' || this.continuationState.enabled),
         switchAction: (isOn: boolean) => {
           this.setSwitchRowValue(row, isOn)
         },

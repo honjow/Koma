@@ -7388,7 +7388,7 @@
     },
     {
       "name": "settings_pane_advanced_detail",
-      "value": "診断とトラブルシューティング"
+      "value": "アプリ連携、操作と診断"
     },
     {
       "name": "settings_pane_advanced_title",
@@ -9861,6 +9861,29 @@
     {"name": "source_in_library", "value": "本棚に追加済み"},
     {"name": "source_all_in_library", "value": "本棚の作品は非表示です"},
     {"name": "source_all_in_library_hint", "value": "設定 · サービス · ソースで非表示を解除できます"},
-    {"name": "library_list_not_started", "value": "未読"}
+    {"name": "library_list_not_started", "value": "未読"},
+    {"name": "settings_section_continuation", "value": "アプリ連携（引き継ぎ）"},
+    {"name": "settings_continuation_enabled_title", "value": "閲覧の引き継ぎ"},
+    {"name": "settings_continuation_enabled_detail", "value": "同じHuawei IDでサインインした近くの端末でソース作品の続きを読めます"},
+    {"name": "settings_continuation_auto_install_title", "value": "未導入ソースを自動インストール"},
+    {"name": "settings_continuation_auto_install_detail", "value": "引き継ぎ先にソースがない場合、送信元のソースを確認なしで自動インストールして開きます"},
+    {"name": "settings_continuation_save_failed", "value": "引き継ぎ設定を保存できませんでした"},
+    {"name": "continuation_version_mismatch", "value": "相手端末のアプリバージョンが古いため、更新してからやり直してください"},
+    {"name": "continuation_source_away_title", "value": "他の端末で閲覧を継続中"},
+    {"name": "continuation_source_away_message", "value": "この作品の閲覧は他の端末に引き継がれました。この端末で再開すると最新位置を取得します。"},
+    {"name": "continuation_resume_here", "value": "この端末で続ける"},
+    {"name": "continuation_close_reader", "value": "リーダーを閉じる"},
+    {"name": "continuation_install_source_title", "value": "引き継ぎ元のソースをインストール"},
+    {"name": "continuation_install_source_message", "value": "この端末にはソース「%1$s」（%2$s）がありません。送信元のソースをインストールして「%3$s」の続きを読みますか？"},
+    {"name": "continuation_install_and_continue", "value": "インストールして続行"},
+    {"name": "continuation_auto_installing_source", "value": "ソース「%s」をインストール中"},
+    {"name": "continuation_install_source_failed", "value": "ソース「%s」をインストールできませんでした。ソース管理から探すか手動で読み込んでください"},
+    {"name": "continuation_enable_source_title", "value": "ソース「%s」を有効化"},
+    {"name": "continuation_enable_source_message", "value": "ソース「%s」は無効になっています。有効にして続きを読みますか？"},
+    {"name": "continuation_enable_and_continue", "value": "有効にして続行"},
+    {"name": "continuation_privacy_required", "value": "非公開作品の引き継ぎを開くには認証が必要です"},
+    {"name": "continuation_restore_failed", "value": "引き継ぎの復元に失敗しました"},
+    {"name": "continuation_chapter_unavailable", "value": "引き継いだチャプターを開けませんでした。詳細ページに保存位置を保持しています"},
+    {"name": "continuation_local_work_unsupported", "value": "ローカル作品は端末間の引き継ぎに対応していません"}
   ]
 }
