@@ -122,6 +122,10 @@ interface SourceDetailsContentParams {
   source: InstalledSourcePackage
 }
 
+interface CatalogSourceInfoParams {
+  entry: SourceIndexEntry
+}
+
 interface SourceDiagnosticsSettingCounts {
   total: number
   editable: number
@@ -239,6 +243,8 @@ export struct SourcePackageManagerPage {
   @Local private sourceSheetShown: boolean = false
   @Local private sourceSheetSourceId: string = ''
   @Local private sourceSheetRetainedSource: InstalledSourcePackage | undefined = undefined
+  @Local private catalogSourceInfoShown: boolean = false
+  @Local private catalogSourceInfo: SourceIndexEntry | undefined = undefined
   @Local private sourceSettingsSheetShown: boolean = false
   private settingsAuthenticationChanged: boolean = false
   @Local private settingsDescriptorSnapshot: Record<string, SourceSettingDescriptor[]> = {}
@@ -2128,7 +2134,7 @@ export struct SourcePackageManagerPage {
     return this.sourceIndexTrustSummary(entry).capabilitySummaryLabel
   }
 
-  private sourceContentRatingLabel(source: InstalledSourcePackage): string {
+  private sourceContentRatingLabel(source: InstalledSourcePackage | SourceIndexEntry): string {
     if (source.nsfw) {
       return '18+'
     }
@@ -2175,7 +2181,7 @@ export struct SourcePackageManagerPage {
       source.contentRating.length > 0 || source.minAppVersion.length > 0
   }
 
-  private packagePresentationText(source: InstalledSourcePackage, role: string, literal: string): string {
+  private packagePresentationText(source: InstalledSourcePackage | SourceIndexEntry, role: string, literal: string): string {
     return resolveSourcePresentationText(literal, source.presentation, role, this.languageState.effectiveLocale)
   }
 
@@ -2272,7 +2278,7 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private RemoteIndexCard(entry: SourceIndexEntry) {
+  private RemoteIndexCard(entry: SourceIndexEntry, showInfo: boolean = false) {
     ConciseListRow({
       title: this.indexDisplayName(entry),
       subtitle: this.indexVersionText(entry) + (sourceLanguageName(entry.lang).length > 0 ? ' · ' + sourceLanguageName(entry.lang) : ''),
@@ -2284,6 +2290,13 @@ export struct SourcePackageManagerPage {
       prefixPaddingLeft: ThemeConstants.SPACE_MD,
       prefixPaddingRight: ThemeConstants.SPACE_SM,
       showChevron: false,
+      action: showInfo ? (): void => {
+        // Read the selected catalog record directly. Opening the sheet does
+        // not download or load the source package.
+        this.getUIContext().getFocusController().clearFocus()
+        this.catalogSourceInfo = entry
+        this.catalogSourceInfoShown = true
+      } : undefined,
       actionButtonText: this.hasUpdate(entry) || !this.isSourceInstalled(entry.id)
         ? this.packageActionLabel(entry.id, this.hasUpdate(entry)) : '',
       actionButtonEnabled: !this.packageInstallAdmissionBlocked() && !this.packageInstallPending(entry.id),
@@ -2293,6 +2306,60 @@ export struct SourcePackageManagerPage {
       },
       trailingText: this.isSourceInstalled(entry.id) && !this.hasUpdate(entry) ? t('source_pkg_installed') : '',
     })
+  }
+
+  @Builder
+  private CatalogSourceInfoFields(params: CatalogSourceInfoParams) {
+    ListItem() {
+      GroupedListSection({ inModal: true, title: t('source_pkg_information_section') }) {
+        if (this.packagePresentationText(params.entry, 'description', params.entry.description).trim().length > 0) {
+          ConciseListRow({
+            title: t('common_description'),
+            subtitle: this.packagePresentationText(params.entry, 'description', params.entry.description),
+            subtitleMaxLines: 2147483647,
+            showChevron: false,
+          })
+          ListDivider()
+        }
+        if (this.packagePresentationText(params.entry, 'author', params.entry.author).trim().length > 0) {
+          ConciseListRow({
+            title: t('source_pkg_author'),
+            subtitle: this.packagePresentationText(params.entry, 'author', params.entry.author),
+            showChevron: false,
+          })
+          ListDivider()
+        }
+        ConciseListRow({
+          title: t('source_pkg_content_rating'),
+          subtitle: this.sourceContentRatingLabel(params.entry),
+          showChevron: false,
+        })
+        if (params.entry.minAppVersion.length > 0) {
+          ListDivider()
+          ConciseListRow({
+            title: t('source_pkg_min_app_version'),
+            subtitle: params.entry.minAppVersion,
+            showChevron: false,
+          })
+        }
+      }
+    }
+  }
+
+  @Builder
+  private CatalogSourceInfoSheet() {
+    if (this.catalogSourceInfo !== undefined) {
+      KomaModalScaffold({
+        title: this.indexDisplayName(this.catalogSourceInfo),
+        subtitle: this.indexVersionText(this.catalogSourceInfo) + ' · ' +
+          (sourceLanguageName(this.catalogSourceInfo.lang) || t('source_catalog_language_unknown')),
+        onClose: (): void => { this.catalogSourceInfoShown = false },
+      }) {
+        // Retain the selected record through the native dismissal animation,
+        // including when a background refresh removes the catalog row.
+        this.CatalogSourceInfoFields({ entry: this.catalogSourceInfo! })
+      }
+    }
   }
 
   @Builder
@@ -2795,11 +2862,11 @@ export struct SourcePackageManagerPage {
             if (this.usesWideSourceRows) {
               ForEach(this.pairFirstItems(this.missingInLanguage(language)), (entry: SourceIndexEntry, row: number) => {
                 WidePairRow({
-                  first: () => { this.RemoteIndexCard(this.missingInLanguage(language)[row * 2]) },
+                  first: () => { this.RemoteIndexCard(this.missingInLanguage(language)[row * 2], true) },
                   second: () => {
                     const entries = this.missingInLanguage(language)
                     if (row * 2 + 1 < entries.length) {
-                      this.RemoteIndexCard(entries[row * 2 + 1])
+                      this.RemoteIndexCard(entries[row * 2 + 1], true)
                     }
                   },
                 })
@@ -2808,7 +2875,7 @@ export struct SourcePackageManagerPage {
                 this.pairKey(this.missingInLanguage(language), row, (item: SourceIndexEntry): string[] => this.indexEntrySignature(item)))
             } else {
               ForEach(this.missingInLanguage(language), (entry: SourceIndexEntry) => {
-                this.RemoteIndexCard(entry)
+                this.RemoteIndexCard(entry, true)
                 if (entry.id !== this.lastMissingSourceId(language)) { ListDivider() }
               }, (entry: SourceIndexEntry) => JSON.stringify([entry.id, entry.version, entry.icon, entry.nsfw]))
             }
@@ -2941,6 +3008,16 @@ export struct SourcePackageManagerPage {
         .height('100%')
         .hitTestBehavior(HitTestMode.None)
         .bindSheet($$this.sourceSheetShown, this.SourceDetailsSheetContent, komaSheetOptions(this.sourceDetailsSheetOptions()))
+        Column() {}
+          .width('100%')
+          .height('100%')
+          .hitTestBehavior(HitTestMode.None)
+          .bindSheet($$this.catalogSourceInfoShown, this.CatalogSourceInfoSheet, komaSheetOptions({
+            detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+            enableOutsideInteractive: false,
+            scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+            enableFloatingDragBar: true,
+          }))
         Column() {
         }
         .width('100%')

@@ -2780,15 +2780,15 @@
       "title": "书源管理分组顺序与语言分类",
       "kind": "done",
       "priority": "用户反馈",
-      "status": "237 已验三分段、滚动位置与可安装搜索",
+      "status": "237 已验三分段、搜索与安装前书源资料",
       "stage": "237 真机",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-08",
       "reportedAtSource": "本轮用户反馈，原始消息时刻未核实。",
-      "result": "顶部提供已安装、可安装和图片插件。待更新留在已安装分段，可安装直接按语言展示。去掉重复的已安装小标题，不重复展示可安装标题。237 已核三段切换、可安装返回原滚动位置，以及从列表中段搜索花火漫画能看到安装按钮。",
+      "result": "顶部提供已安装、可安装和图片插件，待更新留在已安装，可安装按语言分组。237 已核三段切换、滚动位置和搜索；点可安装书源的名称或图标，从订阅索引查看完整简介和资料，关闭后可回到原搜索结果。",
       "remaining": "",
-      "updatedAt": "2026-11-26T02:38:23+08:00",
+      "updatedAt": "2026-11-26T02:49:54+08:00",
       "closedAt": "2026-11-08T08:27:47+08:00",
       "evidencePaths": [
         ".hvigor/outputs/reader-stall-source-refresh-20261108/manager-top.png",
@@ -13767,6 +13767,14 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-manager-uninstalled-info-237-20261126",
+      "at": "2026-11-26T02:49:54+08:00",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "title": "可安装书源资料半模态已在 237 验证",
+      "detail": "从普通可安装列表点击花火漫画名称，显示订阅的完整简介、中文、v0.1.0、作者、18+ 及最低 Koma 1.5.5。按关闭后行仍可安装。搜索花火，再点图标，清除键盘焦点但保留关键词；下拉关闭回原搜索结果和安装按钮。保留同签候选并返回书架，原 10000ms 超时已读回，租约已释放。本次没有执行实际安装。",
+      "evidence": ".hvigor/outputs/source-manager-sections-20261126/device237__VDE-AL00/unfolded/portrait-1320x2120/manager/source-info/info.png"
+    },
     {
       "id": "source-manager-available-segment-237-20261126",
       "at": "2026-11-26T02:38:23+08:00",
