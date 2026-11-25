@@ -96,8 +96,11 @@ export function decodeReaderContinuationPayload(raw: Object | undefined): Reader
   const mangaId = normalizedString(parsed['mangaId'])
   const chapterId = normalizedString(parsed['chapterId'])
   const title = normalizedString(parsed['title'])
-  if (sourceId.length === 0 || mangaId.length === 0 || chapterId.length === 0 || title.length === 0) return undefined
-  const comicId = optionalNormalizedString(parsed['comicId']) ?? sourceLibraryComicId(sourceId, mangaId)
+  if (sourceId.length === 0 || sourceId.startsWith('mihon:') ||
+    mangaId.length === 0 || chapterId.length === 0 || title.length === 0) return undefined
+  const comicId = sourceLibraryComicId(sourceId, mangaId)
+  const sentComicId = optionalNormalizedString(parsed['comicId'])
+  if (sentComicId !== undefined && sentComicId !== comicId) return undefined
   const sourceName = optionalNormalizedString(parsed['sourceName']) ?? sourceId
   const formatRaw = parsed['readingFormat']
   const readingFormat: ReaderSeriesFormat | undefined =

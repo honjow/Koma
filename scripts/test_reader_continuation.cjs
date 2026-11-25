@@ -11,6 +11,7 @@ function fixture() {
   const dataObjects = []
   const deleted = []
   let beforeSave = async () => {}
+  let uptime = 0
   let failFlush = false
   const preference = {
     has: async key => values.has(key),
@@ -45,6 +46,7 @@ function fixture() {
               return states.get(key)
             },
           },
+          window: {},
         }
       }
       if (name === '@kit.ArkData') return {
@@ -76,7 +78,20 @@ function fixture() {
         wantConstant: { Params: { SUPPORT_CONTINUE_PAGE_STACK_KEY: 'stack', SUPPORT_CONTINUE_SOURCE_EXIT_KEY: 'exit' } },
       }
       if (name === '@kit.ArkTS') return {}
-      if (name === '@kit.CoreFileKit') return { fileIo: { unlinkSync: path => deleted.push(path) } }
+      if (name === '@kit.BasicServicesKit') return {
+        commonEventManager: {
+          Support: {},
+          async createSubscriber() { return {} },
+          async subscribeToEvent() {},
+          unsubscribe() {},
+        },
+        systemDateTime: { TimeType: {}, getUptime: () => uptime },
+      }
+      if (name === '@kit.UserAuthenticationKit' || name === '@kit.CryptoArchitectureKit') return {}
+      if (name === '@kit.CoreFileKit') return {
+        fileIo: { unlinkSync: path => deleted.push(path) },
+        fileUri: { getUriFromPath: path => 'file://koma' + path },
+      }
       if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { info() {}, warn() {}, exception() {} } }
       if (name === '../theme/KomaPopupOptions') return {}
       if (name === '../sourceRuntime/SourcePackageShare') return { canShareInstalledSourcePackage: () => false }
@@ -103,9 +118,11 @@ function fixture() {
       setMissionContinueState(_state, callback) { callback() },
     },
     service: () => load('continuation/ReaderContinuationService').appReaderContinuation,
+    privacy: () => new (load('state/LibraryPrivacyState').LibraryPrivacyState)(),
     dataObjects,
     deleted,
     beforeSave(callback) { beforeSave = callback },
+    advanceTime(ms) { uptime += ms },
     failNextFlush() { failFlush = true },
   }
 }
@@ -221,6 +238,7 @@ test('payload roundtrip, version check, page clamping, and source request builde
   assert.equal(isContinuationTargetVersionCompatible(28, 28), true)
   assert.equal(isContinuationTargetVersionCompatible(undefined, 28), true)
   assert.equal(decodeReaderContinuationPayload('{"schemaVersion":99}'), undefined)
+  assert.equal(decodeReaderContinuationPayload(raw.replace('zh.test:m1', 'other:m1')), undefined)
 })
 
 const outgoing = {
@@ -269,4 +287,34 @@ test('the receiver waits for its window, discards superseded tasks and ignores o
   assert.equal(service.isCurrentRestore(transferred.id), false)
   service.cleanupDistributedTempFile('/continuation-test/distributed/../private.db')
   assert.deepEqual(f.deleted, [firstFile])
+})
+
+test('a transferred private work stays protected after the device locks or its local grant expires', async () => {
+  const f = fixture()
+  const privacy = f.privacy()
+  const protections = []
+  await privacy.attach({
+    async setWindowPrivacyMode(value) { protections.push(value) },
+  }, { on() {}, off() {} })
+  privacy.verify = async () => 0
+
+  assert.equal(await privacy.activateContinuationPrivacy(f.context, 'private-a', () => true), 0)
+  assert.equal(privacy.privateContinuation('private-a'), true)
+  assert.equal(privacy.visibleContinuation('private-a'), true)
+  privacy.onBackground()
+  f.advanceTime(31_000)
+  privacy.onForeground()
+  assert.equal(privacy.privateContinuation('private-a'), true)
+  assert.equal(privacy.visibleContinuation('private-a'), false)
+  assert.equal(protections.at(-1), true)
+
+  assert.equal(await privacy.activateContinuationPrivacy(f.context, 'private-b', () => true), 0)
+  assert.equal(privacy.visibleContinuation('private-b'), true)
+  assert.equal(privacy.visibleContinuation('private-a'), false)
+  privacy.releaseContinuationPrivacy('private-b')
+  assert.equal(privacy.privateContinuation('private-b'), false)
+  assert.equal(protections.at(-1), true)
+  privacy.releaseContinuationPrivacy('private-a')
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(protections.at(-1), false)
 })

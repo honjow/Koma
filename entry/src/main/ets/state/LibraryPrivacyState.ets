@@ -37,7 +37,9 @@ export class LibraryPrivacyState {
   @Trace authenticating: boolean = false
   @Trace presenting: boolean = true
   @Trace foregroundReauthRevision: number = 0
-  @Trace continuationProtected: boolean = false
+  @Trace continuationPrivacyRevision: number = 0
+  private continuationWorks: Set<string> = new Set<string>()
+  private unlockedContinuationWorks: Set<string> = new Set<string>()
   private generation: number = 0
   private backgroundSince: number = -1
   private windowPaused: boolean = false
@@ -78,6 +80,10 @@ export class LibraryPrivacyState {
   }
 
   detach(): void {
+    if (this.continuationWorks.size > 0) {
+      this.continuationWorks.clear()
+      this.continuationPrivacyRevision += 1
+    }
     this.leaveCategory()
     try {
       this.windowStage?.off('windowStageEvent', this.onStageEvent)
@@ -138,9 +144,9 @@ export class LibraryPrivacyState {
   lock(): void {
     this.invalidateRequest()
     this.unlocked = false
-    if (this.continuationProtected) {
-      this.continuationProtected = false
-      if (this.categoryId.length === 0) void this.protectWindow(false)
+    if (this.unlockedContinuationWorks.size > 0) {
+      this.unlockedContinuationWorks.clear()
+      this.continuationPrivacyRevision += 1
     }
   }
 
@@ -148,39 +154,47 @@ export class LibraryPrivacyState {
     this.lock()
     if (this.categoryId.length === 0) return
     this.categoryId = ''
-    void this.protectWindow(false)
+    if (this.continuationWorks.size === 0) void this.protectWindow(false)
+  }
+
+  privateContinuation(workId: string): boolean {
+    void this.continuationPrivacyRevision
+    return this.continuationWorks.has(workId)
+  }
+
+  visibleContinuation(workId: string): boolean {
+    void this.continuationPrivacyRevision
+    return this.presenting && this.unlockedContinuationWorks.has(workId)
   }
 
   async activateContinuationPrivacy(
     context: common.UIAbilityContext,
+    workId: string,
     isCurrent: () => boolean,
-    categoryId?: string,
-    hasLocalCategory: boolean = false,
   ): Promise<LibraryPrivacyAuthResult> {
+    if (this.visibleContinuation(workId)) return LibraryPrivacyAuthResult.SUCCESS
     if (this.backgroundSince >= 0) return LibraryPrivacyAuthResult.CANCELED
     const generation = this.generation
     const result = await this.verify(context)
     if (result !== LibraryPrivacyAuthResult.SUCCESS) return result
     if (!isCurrent() || this.generation !== generation || this.backgroundSince >= 0) return LibraryPrivacyAuthResult.CANCELED
-    const ready = await this.protectWindow(true)
+    const ready = this.lockSubscription !== undefined && await this.protectWindow(true)
     if (!isCurrent() || this.generation !== generation || this.backgroundSince >= 0) {
-      if (this.categoryId.length === 0 && !this.continuationProtected && ready) void this.protectWindow(false)
+      if (this.categoryId.length === 0 && this.continuationWorks.size === 0 && ready) void this.protectWindow(false)
       return LibraryPrivacyAuthResult.CANCELED
     }
     if (!ready) return LibraryPrivacyAuthResult.UNAVAILABLE
-    if (categoryId !== undefined && categoryId.length > 0 && hasLocalCategory) {
-      this.categoryId = categoryId
-      this.unlocked = true
-    } else {
-      this.continuationProtected = true
-    }
+    this.continuationWorks.add(workId)
+    this.unlockedContinuationWorks.add(workId)
+    this.continuationPrivacyRevision += 1
     return LibraryPrivacyAuthResult.SUCCESS
   }
 
-  releaseContinuationPrivacy(): void {
-    if (!this.continuationProtected) return
-    this.continuationProtected = false
-    if (this.categoryId.length === 0) void this.protectWindow(false)
+  releaseContinuationPrivacy(workId: string): void {
+    if (!this.continuationWorks.delete(workId)) return
+    this.unlockedContinuationWorks.delete(workId)
+    this.continuationPrivacyRevision += 1
+    if (this.categoryId.length === 0 && this.continuationWorks.size === 0) void this.protectWindow(false)
   }
 
   async openCategory(context: common.UIAbilityContext, id: string, isCurrent: () => boolean): Promise<LibraryPrivacyAuthResult> {
@@ -192,7 +206,7 @@ export class LibraryPrivacyState {
     // Enable system snapshot protection before private content can enter the window.
     const ready = this.lockSubscription !== undefined && await this.protectWindow(true)
     if (this.generation !== generation || !isCurrent() || this.backgroundSince >= 0) {
-      if (this.categoryId.length === 0 && ready) void this.protectWindow(false)
+      if (this.categoryId.length === 0 && this.continuationWorks.size === 0 && ready) void this.protectWindow(false)
       return LibraryPrivacyAuthResult.CANCELED
     }
     if (!ready) return LibraryPrivacyAuthResult.UNAVAILABLE

@@ -645,13 +645,15 @@ export class SourceIndexService {
     return appSourcePackageInstallTasks.run(entry.id, () => this.installPackageNow(indexUrl, entry, requireSaved))
   }
 
-  async installLocalArchive(uri: string): Promise<SourcePackageInstallResult> {
+  async installLocalArchive(uri: string, expectedSourceId?: string,
+    isCurrent?: () => boolean): Promise<SourcePackageInstallResult> {
     // The archive's source ID is unknown until validation. Give this request a
     // private identity without a file URI; run it as an exclusive barrier so
     // it cannot race an online installation of the same source.
     const taskId = 'local-archive:' + (++localArchiveTaskSequence)
     const result = await appSourcePackageInstallTasks.run(taskId, async (): Promise<SourceIndexInstallResult> => {
-      const install = await installFromArchive(this.context, uri)
+      if (isCurrent !== undefined && !isCurrent()) return { ok: false, reasonCode: 'import_canceled' }
+      const install = await installFromArchive(this.context, uri, expectedSourceId, isCurrent)
       return { ok: install.ok, reasonCode: install.reasonCode, install }
     }, false, true)
     return result.install ?? { ok: false, reasonCode: result.reasonCode ?? 'import_failed' }

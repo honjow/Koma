@@ -750,7 +750,7 @@ export struct KomaReaderLabPage {
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated',
     'readerMode.eyeGazePageTurnEnabled', 'readerSettingsSheetShown', 'authenticationShown',
-    'chapterPickerShown', 'commentsShown', 'session')
+    'chapterPickerShown', 'commentsShown', 'session', 'inputLocked')
   private syncEyeGazePageTurn(): void {
     if (this.gazeAdmitted()) {
       void this.gazePageTurn.setActive(true, this.getUIContext().getHostContext() as common.UIAbilityContext)

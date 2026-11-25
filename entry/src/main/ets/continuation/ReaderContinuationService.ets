@@ -142,12 +142,15 @@ export class ReaderContinuationService {
     return id === this.nextRestoreId
   }
 
-  cleanupDistributedTempFile(path: string | undefined): void {
-    if (path === undefined) return
+  private isContinuationPackagePath(path: string): boolean {
     const directory = this.context?.distributedFilesDir
-    if (directory === undefined || directory.length === 0 ||
-      !path.startsWith(directory + '/') ||
-      !/^koma-continue-[0-9a-f-]+\.koma$/.test(path.slice(directory.length + 1))) return
+    return directory !== undefined && directory.length > 0 &&
+      path.startsWith(directory + '/') &&
+      /^koma-continue-[0-9a-f-]+\.koma$/.test(path.slice(directory.length + 1))
+  }
+
+  cleanupDistributedTempFile(path: string | undefined): void {
+    if (path === undefined || !this.isContinuationPackagePath(path)) return
     try {
       fileIo.unlinkSync(path)
     } catch (_error) {
@@ -310,7 +313,7 @@ export class ReaderContinuationService {
         this.setContinuedAway(false)
       }
       DiagnosticLogger.info('continuation', 'source_continue_agreed',
-        `source=${snapshot.sourceId} page=${snapshot.pageIndex} hasAsset=${stagedAsset !== undefined}`)
+        `source=${payload.sourceId} page=${payload.pageIndex} hasAsset=${stagedAsset !== undefined}`)
       return AbilityConstant.OnContinueResult.AGREE
     } catch (error) {
       DiagnosticLogger.exception('continuation', 'source_continue_failed', error as Error)
@@ -348,10 +351,9 @@ export class ReaderContinuationService {
         handled = true
         const payload = decodeReaderContinuationPayload(dataObject['payloadJson'] as Object | undefined)
         const restoredAsset = dataObject['sourcePackage'] as commonType.Asset | undefined
-        const assetUri = restoredAsset && typeof restoredAsset.uri === 'string' &&
-          restoredAsset.uri.length > 0 ? restoredAsset.uri : undefined
         const assetPath = restoredAsset && typeof restoredAsset.path === 'string' &&
-          restoredAsset.path.length > 0 ? restoredAsset.path : undefined
+          this.isContinuationPackagePath(restoredAsset.path) ? restoredAsset.path : undefined
+        const assetUri = assetPath !== undefined ? fileUri.getUriFromPath(assetPath) : undefined
         this.releaseTargetDistributedObject()
         if (payload === undefined) {
           this.cleanupDistributedTempFile(assetPath)

@@ -1392,7 +1392,8 @@ async function registerSourcePackageFromBytes(
   }
 }
 
-export async function installFromArchive(context: common.UIAbilityContext, uri: string): Promise<SourcePackageInstallResult> {
+export async function installFromArchive(context: common.UIAbilityContext, uri: string,
+  expectedSourceId?: string, isCurrent?: () => boolean): Promise<SourcePackageInstallResult> {
   return BackupRestoreActivity.runWrite(async (): Promise<SourcePackageInstallResult> => {
     DiagnosticLogger.info('source_package', 'import_start', '[SourceManager] step=import_start')
     ensureDirSync(appSourceRoot(context))
@@ -1406,7 +1407,8 @@ export async function installFromArchive(context: common.UIAbilityContext, uri: 
       // The picker has already copied the package into our sandbox. Reading
       // the full archive must not block the source-management UI.
       const archiveBytes = await readImportBytes(archivePath)
-      return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, undefined, packageDir)
+      return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, expectedSourceId, packageDir,
+        undefined, isCurrent)
     } catch (_error) {
       try {
         await removeAppSourcePackageDir(context, packageDir)
