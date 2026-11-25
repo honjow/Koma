@@ -86,6 +86,29 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "READER_HARMONY_APP_CONTINUATION_REVIEW",
+      "number": 367,
+      "title": "鸿蒙跨设备阅读接续复查",
+      "kind": "pending_verification",
+      "priority": "用户当前需求",
+      "owner": "Koma 阅读器宿主",
+      "reportedAt": null,
+      "reportedDate": "2026-11-25",
+      "reportedAtSource": "用户要求复查近期新增的接续功能。",
+      "updatedAt": "2026-11-25T23:49:14+08:00",
+      "status": "已修复并完成本地验证，双机接续待确认",
+      "result": "修复接收对象覆盖附件、旧回调继续恢复、关闭源设备阅读器回写旧进度、加载失败将页码压成第 1 页，以及补装书源绕过隐私检查。目标端没有私密分类时，阅读记录保留在本次会话，不进入公开历史。",
+      "remainingActions": [
+        "用同一华为账号下的两台测试设备经系统 Dock 实测冷、热启动，同章同页，以及补装书源和锁屏保护。"
+      ],
+      "evidence": [
+        "d06709fe 原始实现；13d0c427 和 a540b9f7 修复",
+        ".hvigor/outputs/reader-app-continuation-review/build.log",
+        ".hvigor/outputs/reader-app-continuation-review/tests.log",
+        ".hvigor/outputs/reader-app-continuation-review/backup-settings.log"
+      ]
+    },
+    {
       "id": "READER_HORIZONTAL_CONTINUOUS_ENTRY_20261125",
       "number": 366,
       "title": "横向连续阅读与入场加载提示",
@@ -13742,6 +13765,13 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-app-continuation-review-20261125",
+      "at": "2026-11-25T23:49:14+08:00",
+      "itemId": "READER_HARMONY_APP_CONTINUATION_REVIEW",
+      "title": "提交接续传输、落页和隐私修复",
+      "detail": "发行配置的签名 HAP 构建成功，39 项接续和设备同步回归通过，应用设置备份恢复通过。每次接续只采用当前章节和已显示页码，轮换会话销毁旧回调，书源包安装按预期书源 ID 校验。已发行 1.6.2 与当前候选同为 code 28，仅版本判断无法区分。双机系统 Dock 行为仍待真机。"
+    },
     {
       "id": "cover-expand-rounded-edges-and-list-slot-237-20261125",
       "at": "2026-11-25T17:36:35+08:00",
