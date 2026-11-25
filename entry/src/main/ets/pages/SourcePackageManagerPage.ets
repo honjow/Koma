@@ -28,7 +28,7 @@ import { canShareInstalledSourcePackage, prepareInstalledSourcePackageShare } fr
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { SourcePackageListItem } from '../components/SourcePackageListItem'
 import { ConciseListRow, SourceIdentityIconState } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { WidePairDivider, WidePairRow, usesWideTwoColumnLayout } from '../components/ui/WideTwoColumn'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -174,9 +174,18 @@ export struct SourcePackageManagerPage {
 
   @Monitor('chrome.requestId')
   private onCatalogAction(): void {
-    if (!this.settingsRouteActive || this.initialSettingsSourceId.length > 0 || this.chrome.section !== 'sources') return
+    if (!this.settingsRouteActive || this.initialSettingsSourceId.length > 0 || this.chrome.section === 'plugins') return
     if (this.chrome.action === 'filters') this.catalogFiltersShown = true
     else void this.importPackage()
+  }
+
+  @Monitor('chrome.search.queryChangeSeq', 'chrome.search.querySubmitSeq')
+  private revealCatalogSearchResults(): void {
+    if (!this.chrome.searchExpanded || this.chrome.search.query.trim().length === 0) return
+    // A short result set must be visible even when the retained list was
+    // scrolled past its first group before search opened.
+    const scroller = this.chrome.section === 'available' ? this.chrome.availableScroller : this.chrome.scroller
+    scroller.scrollEdge(Edge.Top)
   }
 
   @Computed
@@ -864,22 +873,26 @@ export struct SourcePackageManagerPage {
     const filters: SourceCatalogFilters = { languages: this.catalogFilters.languages, rating: this.catalogFilters.rating }
     const matches = (entry: SourceIndexEntry): boolean => sourceMatchesCatalogFilters(entry.lang, entry.nsfw, entry.contentRating, filters)
     const locale = this.languageState.effectiveLocale
-    const matchesName = (id: string, name: string, localizedNames?: Record<string, string>, presentation?: SourcePresentation): boolean =>
-      this.chrome.search.query.trim().length === 0 ||
-      sourceMatchesCatalogSearch(this.chrome.search.query, resolveSourceLocalizedName(name, localizedNames, locale, presentation), name, localizedNames, id, presentation)
+    const query = this.chrome.search.query.trim()
+    const installedQuery = this.chrome.section === 'sources' ? query : ''
+    const availableQuery = this.chrome.section === 'available' ? query : ''
+    const matchesName = (value: string, id: string, name: string, localizedNames?: Record<string, string>,
+      presentation?: SourcePresentation): boolean =>
+      value.length === 0 || sourceMatchesCatalogSearch(value, resolveSourceLocalizedName(name, localizedNames, locale, presentation),
+        name, localizedNames, id, presentation)
     const allUpdates = this.availablePackageUpdates().filter((candidate: SourcePackageUpdateCandidate): boolean => matches(candidate.entry))
     const updating = new Set<string>(allUpdates.map((candidate: SourcePackageUpdateCandidate): string => candidate.entry.id))
     const updates = allUpdates.filter((candidate: SourcePackageUpdateCandidate): boolean => {
       const entry = candidate.entry
       const installed = this.installedPackage(entry.id)
-      return matchesName(entry.id, entry.name, entry.localizedNames, entry.presentation) || (installed !== undefined &&
-        matchesName(installed.id, installed.name, installed.localizedNames, installed.presentation))
+      return matchesName(installedQuery, entry.id, entry.name, entry.localizedNames, entry.presentation) || (installed !== undefined &&
+        matchesName(installedQuery, installed.id, installed.name, installed.localizedNames, installed.presentation))
     })
     return { updates, missing: this.missingIndexEntries().filter((entry: SourceIndexEntry): boolean =>
-      matches(entry) && matchesName(entry.id, entry.name, entry.localizedNames, entry.presentation)),
+      matches(entry) && matchesName(availableQuery, entry.id, entry.name, entry.localizedNames, entry.presentation)),
       installed: this.packages.filter((source: InstalledSourcePackage): boolean => !updating.has(source.id) &&
         sourceMatchesCatalogFilters(source.lang, source.nsfw, source.contentRating, filters) &&
-        matchesName(source.id, source.name, source.localizedNames, source.presentation)) }
+        matchesName(installedQuery, source.id, source.name, source.localizedNames, source.presentation)) }
   }
 
   @Computed
@@ -2702,7 +2715,7 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private PackageListGroups() {
+  private InstalledPackageGroups() {
     // Read the live groups here instead of receiving them as an argument.
     // @Builder parameters pass by value unless a single object literal is
     // used; reading through `this` keeps removals, installs and filters
@@ -2746,7 +2759,7 @@ export struct SourcePackageManagerPage {
     }
     if (this.listGroups.installed.length > 0) {
       ListItem() {
-        GroupedListSection({ inModal: this.inModal, title: t('source_pkg_installed_heading') }) {
+        GroupedListSection({ inModal: this.inModal }) {
           if (this.usesWideSourceRows) {
             ForEach(this.pairFirstItems(this.listGroups.installed), (source: InstalledSourcePackage, row: number) => {
               WidePairRow({
@@ -2769,8 +2782,11 @@ export struct SourcePackageManagerPage {
         }
       }
     }
+  }
+
+  @Builder
+  private AvailablePackageGroups() {
     if (this.listGroups.missing.length > 0) {
-      ListItem() { SectionHeader({ title: t('source_pkg_uninstalled_heading') }) }
       ForEach(this.missingLanguages, (language: string) => {
         ListItem() {
           // Like Browse, keep the language key stable and read the live members
@@ -2839,43 +2855,75 @@ export struct SourcePackageManagerPage {
     }
   }
 
+  @Builder
+  private EmptyPackageList(available: boolean) {
+    ListItem() {
+      if (available && this.missingIndexPackages.length === 0 &&
+        (this.managerCache.updateCheckBusy || this.updateCheckBusy || this.indexFetchBusy)) {
+        Text(t('source_pkg_index_loading'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .width('100%')
+          .textAlign(TextAlign.Center)
+          .padding(ThemeConstants.SPACE_LG)
+      } else if (available && this.missingIndexPackages.length === 0 &&
+        Object.keys(this.sourceIndexFailures).length > 0) {
+        KomaEmptyState({ icon: $r('sys.symbol.arrow_clockwise'), title: t('device_sync_error_catalog_unavailable'),
+          message: t('device_sync_try_catalog'), showAction: false })
+      } else if (this.chrome.section === (available ? 'available' : 'sources') && this.chrome.search.query.trim().length > 0) {
+        KomaEmptyState({ icon: $r('sys.symbol.magnifyingglass'), title: t('source_catalog_search_no_matches'),
+          message: t('source_catalog_search_hint'), showAction: false })
+      } else if (this.catalogFilters.active && (available ? this.missingIndexPackages.length > 0 : this.packages.length > 0)) {
+        KomaEmptyState({ icon: $r('sys.symbol.funnel'), title: t('source_catalog_no_matches'),
+          message: t('source_catalog_no_matches_hint'), showAction: false })
+      } else if (available) {
+        KomaEmptyState({ icon: $r('sys.symbol.arrow_down_circle'), title: t('source_pkg_available_empty'),
+          message: t('source_pkg_available_empty_hint'), showAction: false })
+      } else {
+        this.EmptyCard()
+      }
+    }
+  }
+
+  @Builder
+  private SourcePackageList(available: boolean) {
+    PullRefreshListScaffold({
+      horizontalPadding: this.inModal ? 0 : ThemeConstants.SPACE_MD,
+      reserveTitleBar: !this.inModal,
+      reserveSystemSafeArea: !this.inModal,
+      surfaceColor: this.inModal ? Color.Transparent : ThemeConstants.BG_SUB,
+      scroller: available ? this.chrome.availableScroller : this.chrome.scroller,
+      pinnedOverlayHeight: this.initialSettingsSourceId.length === 0 ? SOURCE_MANAGER_SECTIONS_HEIGHT : 0,
+      listSpace: ThemeConstants.SPACE_MD,
+      bottomPadding: ThemeConstants.SPACE_XL,
+      onRefresh: async (): Promise<void> => { await this.checkInstalledUpdates() },
+    }) {
+      if (this.recoverySourceId.length > 0) {
+        this.RecoverySourceGroup()
+      } else if (available) {
+        this.AvailablePackageGroups()
+        if (this.listGroups.missing.length === 0) this.EmptyPackageList(true)
+      } else {
+        this.InstalledPackageGroups()
+        if (this.listGroups.updates.length + this.listGroups.installed.length === 0) this.EmptyPackageList(false)
+      }
+    }
+  }
+
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
         Column() {
-          PullRefreshListScaffold({
-            horizontalPadding: this.inModal ? 0 : ThemeConstants.SPACE_MD,
-            reserveTitleBar: !this.inModal,
-            reserveSystemSafeArea: !this.inModal,
-            surfaceColor: this.inModal ? Color.Transparent : ThemeConstants.BG_SUB,
-            scroller: this.chrome.scroller,
-            pinnedOverlayHeight: this.initialSettingsSourceId.length === 0 ? SOURCE_MANAGER_SECTIONS_HEIGHT : 0,
-            listSpace: ThemeConstants.SPACE_MD,
-            bottomPadding: ThemeConstants.SPACE_XL,
-            onRefresh: async (): Promise<void> => { await this.checkInstalledUpdates() },
-          }) {
-            if (this.recoverySourceId.length > 0) {
-              this.RecoverySourceGroup()
-            } else {
-              this.PackageListGroups()
-            }
-            if (this.recoverySourceId.length === 0 &&
-              this.listGroups.updates.length + this.listGroups.missing.length + this.listGroups.installed.length === 0) {
-              ListItem() {
-                if (this.chrome.search.query.trim().length > 0) {
-                  KomaEmptyState({ icon: $r('sys.symbol.magnifyingglass'), title: t('source_catalog_search_no_matches'),
-                    message: t('source_catalog_search_hint'), showAction: false })
-                } else if (this.catalogFilters.active) {
-                  KomaEmptyState({ icon: $r('sys.symbol.funnel'), title: t('source_catalog_no_matches'),
-                    message: t('source_catalog_no_matches_hint'), showAction: false })
-                } else if (this.packages.length === 0) { this.EmptyCard() }
-              }
-            }
-          }
+          this.SourcePackageList(false)
         }
         .visibility(this.chrome.section === 'sources' ? Visibility.Visible : Visibility.Hidden)
-        // Keep each mounted list and its scroll position when switching sections;
-        // only visiting Plugins initializes its existing global management view.
+        // Retain each list's scroll position after its first visit.
+        if (this.chrome.availableVisited && this.initialSettingsSourceId.length === 0 && this.recoverySourceId.length === 0) {
+          Column() {
+            this.SourcePackageList(true)
+          }
+          .visibility(this.chrome.section === 'available' ? Visibility.Visible : Visibility.Hidden)
+        }
         if (this.chrome.pluginsVisited && this.initialSettingsSourceId.length === 0) {
           ImagePluginsPage({ pinnedOverlayHeight: SOURCE_MANAGER_SECTIONS_HEIGHT, embedded: this.inModal })
             .visibility(this.chrome.section === 'plugins' ? Visibility.Visible : Visibility.Hidden)

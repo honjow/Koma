@@ -12,7 +12,7 @@ import { ImagePluginsPage } from './ImagePluginsPage'
 import { ImageRuleStore } from '../model/ImageRuleStore'
 import { AppearanceState, connectAppearanceState } from '../state/AppearanceState'
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
-import { SourceCatalogSectionsBuilder, SOURCE_MANAGER_SECTIONS_HEIGHT } from '../components/SourceCatalogSections'
+import { SourceCatalogSectionsBuilder, SourceCatalogSectionsParams, SOURCE_MANAGER_SECTIONS_HEIGHT } from '../components/SourceCatalogSections'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { LibraryUpdatesPage } from './LibraryUpdatesPage'
@@ -476,7 +476,7 @@ struct Index {
   @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
   @Local private localSourceImport: SourcePackageLocalImport = appSourcePackageLocalImport
   private defaultSourceManagerChrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
-  private sourceManagerSectionContents: Map<SourceCatalogPageChrome, ComponentContent<SourceCatalogPageChrome>> = new Map()
+  private sourceManagerSectionContents: Map<SourceCatalogPageChrome, ComponentContent<SourceCatalogSectionsParams>> = new Map()
   private catalogSearchContents: Map<SourceCatalogPageChrome, ComponentContent<SourceCatalogPageChrome>> = new Map()
   private catalogHeaderActions?: ComponentContent<SourceCatalogHeaderActionsParams>
 
@@ -533,11 +533,11 @@ struct Index {
     } else chrome.openSearch()
   }
 
-  private sourceManagerSectionContent(chrome: SourceCatalogPageChrome): ComponentContent<SourceCatalogPageChrome> {
+  private sourceManagerSectionContent(chrome: SourceCatalogPageChrome, recovery: boolean): ComponentContent<SourceCatalogSectionsParams> {
     const existing = this.sourceManagerSectionContents.get(chrome)
     if (existing !== undefined && !existing.isDisposed()) return existing
-    const content = new ComponentContent<SourceCatalogPageChrome>(this.getUIContext(),
-      wrapBuilder<[SourceCatalogPageChrome]>(SourceCatalogSectionsBuilder), chrome)
+    const content = new ComponentContent<SourceCatalogSectionsParams>(this.getUIContext(),
+      wrapBuilder<[SourceCatalogSectionsParams]>(SourceCatalogSectionsBuilder), { chrome, recovery })
     this.sourceManagerSectionContents.set(chrome, content)
     return content
   }
@@ -560,7 +560,7 @@ struct Index {
     if ((param?.settingsSourceId.length ?? 0) > 0) return options
     const chrome = this.sourceManagerChrome(param)
     const content = options['content'] as Record<string, Object>
-    content['bottomBuilder'] = { 'builderComponent': this.sourceManagerSectionContent(chrome),
+    content['bottomBuilder'] = { 'builderComponent': this.sourceManagerSectionContent(chrome, (param?.recoverySourceId?.length ?? 0) > 0),
       'height': SOURCE_MANAGER_SECTIONS_HEIGHT,
       'showType': BottomBuilderShowType.DIRECTLY_SHOW } as Record<string, Object>
     if (chrome.section === 'plugins') {
@@ -4844,7 +4844,8 @@ struct Index {
         hideStatusBar: false,
         mode: HideMode.SCROLL_UP,
       })
-      .bindToScrollable([this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined).scroller])
+      .bindToScrollable([this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined).scroller,
+        this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined).availableScroller])
       .onBackPressed((): boolean => {
         const chrome = this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined)
         if (!chrome.searchExpanded) return false

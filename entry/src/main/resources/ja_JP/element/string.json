@@ -6943,6 +6943,26 @@
       "value": "信頼: %s"
     },
     {
+      "name": "source_pkg_tab_installed",
+      "value": "インストール済み"
+    },
+    {
+      "name": "source_pkg_tab_available",
+      "value": "追加可能"
+    },
+    {
+      "name": "source_pkg_tab_plugins",
+      "value": "プラグイン"
+    },
+    {
+      "name": "source_pkg_available_empty",
+      "value": "追加できるソースはありません"
+    },
+    {
+      "name": "source_pkg_available_empty_hint",
+      "value": "下に引いて更新するか、別の購読先を追加してください。"
+    },
+    {
       "name": "source_pkg_uninstalled_heading",
       "value": "インストール可能なソース"
     },

@@ -9,9 +9,15 @@ import { AppearanceState, connectAppearanceState } from '../state/AppearanceStat
 
 export const SOURCE_MANAGER_SECTIONS_HEIGHT: number = 64
 
+export interface SourceCatalogSectionsParams {
+  chrome: SourceCatalogPageChrome
+  recovery: boolean
+}
+
 @ComponentV2
 struct SourceCatalogSections {
   @Require @Param chrome: SourceCatalogPageChrome
+  @Param recovery: boolean = false
 
   @Local private sourceCache: SourcePackageManagerCache = appSourcePackageManagerCache
   @Local private imageRuleState: ImageRuleState = connectImageRuleState()
@@ -20,6 +26,14 @@ struct SourceCatalogSections {
   private sourceUpdateCount(): number {
     void this.sourceCache.revision
     return this.sourceCache.updateCount
+  }
+
+  private installedLabel(): string {
+    return AppStrings.get(this.recovery ? 'settings_row_sources_title' : 'source_pkg_tab_installed')
+  }
+
+  private pluginsLabel(): string {
+    return AppStrings.get(this.recovery ? 'image_plugins_title' : 'source_pkg_tab_plugins')
   }
 
 
@@ -46,22 +60,23 @@ struct SourceCatalogSections {
       // selection and scroll position remain owned by chrome and the page.
       ForEach([this.appearanceState.colorMode], (_mode: number) => {
         KomaSegmentedControl({
-          labels: [AppStrings.get('settings_row_sources_title'), AppStrings.get('image_plugins_title')],
-          selectedIndex: this.chrome.section === 'sources' ? 0 : 1,
+          labels: this.recovery ? [this.installedLabel(), this.pluginsLabel()] :
+            [this.installedLabel(), AppStrings.get('source_pkg_tab_available'), this.pluginsLabel()],
+          selectedIndex: this.chrome.section === 'sources' ? 0 : this.recovery || this.chrome.section === 'available' ? 1 : 2,
           select: (index: number): void => {
-            if (index !== 0 && this.chrome.searchExpanded) this.getUIContext().getFocusController().clearFocus()
             // Keep HDS actions outside the segmented control's selection animation.
             this.getUIContext().animateToImmediately({ duration: 0 }, (): void => {
-              this.chrome.selectSection(index === 0 ? 'sources' : 'plugins')
+              this.chrome.selectSection(index === 0 ? 'sources' : index === 1 && !this.recovery ? 'available' : 'plugins')
             })
           },
         })
       }, (mode: number): string => mode.toString())
       // The native segments still handle selection and animation.
       Row() {
-        SourceCatalogSegmentBadge({ label: AppStrings.get('settings_row_sources_title'),
+        SourceCatalogSegmentBadge({ label: this.installedLabel(),
           count: this.sourceUpdateCount(), selected: this.chrome.section === 'sources' })
-        SourceCatalogSegmentBadge({ label: AppStrings.get('image_plugins_title'),
+        if (!this.recovery) SourceCatalogSegmentBadge({ label: AppStrings.get('source_pkg_tab_available') })
+        SourceCatalogSegmentBadge({ label: this.pluginsLabel(),
           count: this.imageRuleState.updateCount, selected: this.chrome.section === 'plugins' })
       }
       .width('100%')
@@ -111,6 +126,6 @@ struct SourceCatalogSegmentBadge {
 }
 
 @Builder
-export function SourceCatalogSectionsBuilder(chrome: SourceCatalogPageChrome) {
-  SourceCatalogSections({ chrome })
+export function SourceCatalogSectionsBuilder(params: SourceCatalogSectionsParams) {
+  SourceCatalogSections({ chrome: params.chrome, recovery: params.recovery })
 }

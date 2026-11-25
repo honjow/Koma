@@ -1,11 +1,14 @@
 import { SearchRouteChromeState } from './SearchRouteChromeState'
 
 export type SourceCatalogPageAction = 'filters' | 'addSubscription' | 'import'
+export type SourceCatalogSection = 'sources' | 'available' | 'plugins'
 
 @ObservedV2
 export class SourceCatalogPageChrome {
   readonly scroller: Scroller = new Scroller()
-  @Trace section: 'sources' | 'plugins' = 'sources'
+  readonly availableScroller: Scroller = new Scroller()
+  @Trace section: SourceCatalogSection = 'sources'
+  @Trace availableVisited: boolean = false
   @Trace pluginsVisited: boolean = false
   @Trace requestId: number = 0
   @Trace searchExpanded: boolean = false
@@ -16,9 +19,15 @@ export class SourceCatalogPageChrome {
   readonly search: SearchRouteChromeState = new SearchRouteChromeState(false)
   searchTransitionId: number = 0
   action: SourceCatalogPageAction = 'filters'
-  selectSection(section: 'sources' | 'plugins'): void {
-    if (section !== 'sources') { this.searchTransitionId += 1; this.closeSearch(); this.searchVisible = false; this.searchHeight = 0; this.searchAnimating = false }
+  selectSection(section: SourceCatalogSection): void {
+    if (section === this.section) return
+    this.searchTransitionId += 1
+    this.closeSearch()
+    this.searchVisible = false
+    this.searchHeight = 0
+    this.searchAnimating = false
     this.section = section
+    if (section === 'available') this.availableVisited = true
     if (section === 'plugins') this.pluginsVisited = true
   }
   openSearch(): void { this.searchExpanded = true; this.searchVisible = true }

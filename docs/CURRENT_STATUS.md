@@ -2780,15 +2780,15 @@
       "title": "书源管理分组顺序与语言分类",
       "kind": "done",
       "priority": "用户反馈",
-      "status": "197 已验",
-      "stage": "197 真机",
+      "status": "237 已验三分段、滚动位置与可安装搜索",
+      "stage": "237 真机",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-08",
       "reportedAtSource": "本轮用户反馈，原始消息时刻未核实。",
-      "result": "可更新在前，接着是已安装。可安装在末尾，按语言分组。实机显示多语言与中文。",
+      "result": "顶部提供已安装、可安装和图片插件。待更新留在已安装分段，可安装直接按语言展示。去掉重复的已安装小标题，不重复展示可安装标题。237 已核三段切换、可安装返回原滚动位置，以及从列表中段搜索花火漫画能看到安装按钮。",
       "remaining": "",
-      "updatedAt": "2026-11-08T08:27:47+08:00",
+      "updatedAt": "2026-11-26T02:38:23+08:00",
       "closedAt": "2026-11-08T08:27:47+08:00",
       "evidencePaths": [
         ".hvigor/outputs/reader-stall-source-refresh-20261108/manager-top.png",
@@ -13767,6 +13767,22 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-manager-available-segment-237-20261126",
+      "at": "2026-11-26T02:38:23+08:00",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "title": "237 核对三分段与去除重复小标题",
+      "detail": "从浏览页进入书源管理，已安装直接显示列表，可安装显示语言分组及安装按钮，图片插件保留原入口。可安装切到已安装再切回保留原滚动位置。从列表中段搜索花火漫画显示唯一匹配及安装按钮，关闭回原分段。返回书架，读回原 10000ms 超时并释放租约。未安装简介已确认随索引提供，展示交互待用户讨论，本轮未实现。",
+      "evidence": ".hvigor/outputs/source-manager-sections-20261126/device237__VDE-AL00/unfolded/portrait-1320x2120/manager"
+    },
+    {
+      "id": "source-browse-summary-audit-expansion-20261126",
+      "at": "2026-11-26T02:38:23+08:00",
+      "itemId": "SOURCE_BROWSE_LIST_INFO",
+      "title": "盘点已有摘要并补齐三个候选源",
+      "detail": "已盘点 10 个显式 listInfo 源及 Komiic、拷贝漫画等旧字段回退实例。包子漫画 0.1.34 增加作者和题材，漫画柜 0.1.18 增加常规浏览卡片最新章，嗶哩漫畫 0.1.15 增加同卡作者。使用保存的真实 HTML 回放三个打包后的 WASM，46 张包子卡片中 45 张有摘要，漫画柜 42 张及嗶哩热门、最近更新各 50 张均有摘要。旧宿主响应相同，新宿主只增加 listInfo，使用相同的单次列表请求。三个候选未在真机访问站点、未发布。",
+      "evidence": ".hvigor/outputs/source-manager-sections-20261126"
+    },
     {
       "id": "reader-app-continuation-197-237-20261126",
       "at": "2026-11-26T00:04:53+08:00",

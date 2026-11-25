@@ -6943,6 +6943,26 @@
       "value": "신뢰: %s"
     },
     {
+      "name": "source_pkg_tab_installed",
+      "value": "설치됨"
+    },
+    {
+      "name": "source_pkg_tab_available",
+      "value": "설치 가능"
+    },
+    {
+      "name": "source_pkg_tab_plugins",
+      "value": "플러그인"
+    },
+    {
+      "name": "source_pkg_available_empty",
+      "value": "설치할 수 있는 소스가 없습니다"
+    },
+    {
+      "name": "source_pkg_available_empty_hint",
+      "value": "아래로 당겨 새로고침하거나 다른 구독을 추가하세요."
+    },
+    {
       "name": "source_pkg_uninstalled_heading",
       "value": "설치 가능한 소스"
     },
