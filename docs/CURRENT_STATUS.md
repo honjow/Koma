@@ -8827,23 +8827,33 @@
     {
       "id": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
       "number": 160,
-      "title": "包子《大奉打更人》正文无法加载",
+      "title": "包子《大奉打更人》《一人之下》正文无法加载",
       "priority": "P1（具名正文不可读）",
-      "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
+      "owner": "本会话检查图片选路、书源修复和真机证据；Planck 独占 197 执行",
       "dependencies": [],
       "relatedItems": [
         "BAOZIMH_BROWSE_FAILURE",
         "SOURCE_RUNTIME_ERRORS"
       ],
-      "kind": "done",
-      "status": "237自然未缓存正文路径具名通过",
-      "result": "修复已交付；237同一作品自然未缓存第9页六图成功并返回第3页，按具名范围关闭。",
+      "kind": "active",
+      "status": "197 复现并回验两部作品首图，书源 0.1.35 已本地提交",
+      "result": "修复已交付；237同一作品自然未缓存第9页六图成功并返回第3页，按具名范围关闭。 11 月 26 日用户反馈《大奉打更人》《一人之下》阅读器正文加载失败。197 同一默认镜像，旧图片选路页表正常，首屏 s1.baozicdn.com 图请求反复失败。源 0.1.35 改用上游直连，HTTP 404 复用 App 现有回退；197 两部首屏三图分别从 s1.baozimh.com 返回 HTTP 200 并显示实图，两部均翻至第 2 页，另抽测《大奉打更人》最新章第 1、2 页。最终包只调整最低 Koma 1.4.2，WASM 字节及网站策略与 197 候选等同。",
       "evidencePoints": [
         "直接产物索引：open-001-failure-002/library.json；koma-log-20261025-053239.txt；failure.png；failure.json；baozi-image-worker-cache197-session-653/cache-coverage.json；page9-original-observed.png；original-page3-restored.png",
-        "96a2123已推及精确CI成功；237同001自然冷页9六图HTTP200并返回3页。依据用户本轮“验证过了就过了，不要总是想要具体设备复测”，不将原机复测设为关闭门槛。"
+        "96a2123已推及精确CI成功；237同001自然冷页9六图HTTP200并返回3页。依据用户本轮“验证过了就过了，不要总是想要具体设备复测”，不将原机复测设为关闭门槛。",
+        ".hvigor/outputs/source-summary-197-20261126/dafeng-reader/screen.png",
+        ".hvigor/outputs/source-summary-197-20261126/dafeng-135/screen.png",
+        ".hvigor/outputs/source-summary-197-20261126/dafeng-135-page2/screen.png",
+        ".hvigor/outputs/source-summary-197-20261126/dafeng-latest/screen.png",
+        ".hvigor/outputs/source-summary-197-20261126/yiren-reader/screen.png",
+        ".hvigor/outputs/source-summary-197-20261126/yiren-135-page2/screen.png",
+        ".hvigor/outputs/baozi-popular-load-20261126/route-candidate-replay.json",
+        ".hvigor/outputs/baozi-popular-load-20261126/route-final-manifest-verified.json"
       ],
-      "remainingActions": [],
-      "remaining": "",
+      "remainingActions": [
+        "记录 197 其余实测样本及正式发布状态。"
+      ],
+      "remaining": "本地已交付候选，0.1.35 尚未上线。其它镜像和真实 404 回退尚未在 197 触发。",
       "boundaries": [
         "允许差异仅source图片选路与Host请求方法；保ID/章节/页数/进度，Reader布局不动。",
         "不写死rsa、不绕TLS、不新增UI或Cookie权限；五CDN仅按站点声明有界选择，每章一次，不盲目多路下载。",
@@ -8869,7 +8879,10 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 166607,
-      "stage": "具名范围已交付"
+      "stage": "具名手机候选回验通过，等待正式发布记录",
+      "progressPhase": "verification",
+      "updatedAt": "2026-11-26T03:20:40+08:00",
+      "reopenedAt": "2026-11-26T03:20:40+08:00"
     },
     {
       "id": "SOURCE_BROWSE_HOME_STRUCTURE",
@@ -13077,20 +13090,20 @@
       "title": "书源浏览列表缺少摘要信息",
       "priority": "P2",
       "kind": "active",
-      "progressPhase": "verified",
-      "status": "237已核统一内距；两源摘要已正式发布，App本地提交暂不发布",
-      "owner": "本会话：App与接口；Volta：源SDK及试点已交付；Darwin：237最终内距验收",
+      "progressPhase": "verification",
+      "status": "13 个书源补充列表摘要，197 已验证包子、哔哩和快看",
+      "owner": "本会话整合、真机证据复核与本地交付；Terra 子代理分语言调查及 197 验证",
       "reportedAt": "2026-11-23T10:44:10+08:00",
       "reportedAtSource": "用户本会话要求列表利用封面右侧空间展示书源自定标签、最新章节等有效信息，标题适度缩小；精确消息时间未提供。",
-      "updatedAt": "2026-11-23T11:58:11+08:00",
+      "updatedAt": "2026-11-26T03:20:40+08:00",
       "relatedItems": [
         "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT"
       ],
-      "result": "App可选listInfo/普通Browse解析及统一文字排版已本地提交；标题14fp靠上、摘要组靠下，去掉重复上下内距后与左侧同为8vp。237已装ac2d4d148c43候选，热门与最近更新普通列表实际封面、标题、作者/状态显示及一致内距由主代理亲审；该机长标题实际仍一行，197既有两行无重叠与真实题材验收分别保留。龙禁漫0.1.4、Komiic0.1.24正式发布，最低App仍1.4.2/1.3.0，119源ID不变；正式两包校验、元数据/图标与4份真实原件完整解析响应及calls均已核对。",
-      "remaining": "App1.6.1按用户决定只本地，不推送或发布；设备owner完成本场景原偏好恢复后接同用户授权的包子《开局一座山》调查，最终电源与租约恢复随设备会话收尾记录。",
+      "result": "App可选listInfo/普通Browse解析及统一文字排版已本地提交；标题14fp靠上、摘要组靠下，去掉重复上下内距后与左侧同为8vp。237已装ac2d4d148c43候选，热门与最近更新普通列表实际封面、标题、作者/状态显示及一致内距由主代理亲审；该机长标题实际仍一行，197既有两行无重叠与真实题材验收分别保留。龙禁漫0.1.4、Komiic0.1.24正式发布，最低App仍1.4.2/1.3.0，119源ID不变；正式两包校验、元数据/图标与4份真实原件完整解析响应及calls均已核对。 本轮按正式订阅的 133 个唯一 ID 登记逐源证据。包子漫画、漫画柜、嗶哩漫畫、Tapas、MANGA Plus Creators 英文、WEBTOON 英文及繁中、瓜子漫画、科技大觀園、漫画社、嬉皮漫画、快看漫画、動漫戲說补充摘要。候选均打包，并用真实列表响应回放，旧宿主的响应和请求保持一致。197 普通列表已见包子的作者与题材，以及哔哩和快看的作者。漫画柜同版本已导入，普通浏览连接超时。197 已返回原设置页并释租。",
+      "remaining": "继续复核可在现场打开的候选及尚缺合适原站列表证据的源。正式订阅未变更。",
       "remainingActions": [
-        "App发布时沿用已验证本地改动；本会话不自行推送或发布App。",
-        "237设备最终恢复释租随当前包子调查会话完成；不把仍有效的设备租约记为已释放。"
+        "需按语言分表核实缺证的浏览或搜索入口，优先复用可定位到实际同卡数据的真实响应。",
+        "197 普通列表与候选 WASM 的回放分别记录，无法连接的站点按实际失败保存。"
       ],
       "boundaries": [
         "源只提供纯文本内容和顺序，App统一排版；不接入任意样式或执行动作。",
@@ -13101,9 +13114,13 @@
         ".hvigor/outputs/source-list-info-20261123/final-result.json",
         ".hvigor/outputs/source-list-info-20261123/parent-insets-review.json",
         ".hvigor/outputs/source-list-info-20261123/candidate.json",
-        ".hvigor/outputs/published-source-order-audit-20261123/list-info-sdk-pilot/publication/publication-report.json"
+        ".hvigor/outputs/published-source-order-audit-20261123/list-info-sdk-pilot/publication/publication-report.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/catalog-audit-summary.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/zh-evidence-worklist.tsv",
+        ".hvigor/outputs/source-summary-expansion-20261126/hant-all-review/sources-26.tsv",
+        ".hvigor/outputs/source-summary-197-20261126/baozi-list/layout.json"
       ],
-      "stage": "本地App已验，两源已发布；App等待用户发版决定"
+      "stage": "候选在独立源仓本地提交，验证范围分别记录"
     },
     {
       "id": "DOWNLOAD_CHAPTER_READING_ORDER",
@@ -13767,6 +13784,38 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "baozi-upstream-full-behavior-audit-20261126",
+      "at": "2026-11-26T03:37:28+08:00",
+      "itemId": "BAOZI_DEFAULT_MIRROR_AND_VERIFICATION_CONTEXT",
+      "title": "逐项核对包子漫画完整上游行为",
+      "detail": "Keiyoushi main bac637ac333a0 下的九个 Kotlin 文件和源声明已核对。章节入口、目录解析、文字搜索、镜像地址和设置值已对齐，默认台湾镜像按用户决定保留。确认动态筛选、源内粘贴链接、最新章更新时间、缺图重定向、全分片直连与客户端 2 次/秒等差异。0.1.35 修复现场复现的 s1 正文图片失败。源内链接与筛选差异已通过实际包复核。站点验证及横幅移植范围按清单记录。",
+      "evidence": ".hvigor/outputs/baozi-popular-load-20261126/upstream-audit/parity.md"
+    },
+    {
+      "id": "source-browse-summary-expansion-terra-197-20261126",
+      "at": "2026-11-26T03:37:28+08:00",
+      "itemId": "SOURCE_BROWSE_LIST_INFO",
+      "title": "扩大列表摘要至 13 个候选源，并用 197 核对三个普通列表",
+      "detail": "按正式订阅 133 个 ID 分组登记。13 个候选完成打包，真实站点响应回放确认原调用次数和旧宿主输出仍一致。197 包子有作者和题材、哔哩和快看有作者。漫画柜连接超时，其它候选保留真实响应回放证据。197 已回原设置页、恢复超时 120 秒并释租；网格偏好已执行恢复，未逐个重新读回。候选均在独立源仓本地提交。",
+      "evidence": ".hvigor/outputs/source-summary-expansion-20261126/catalog-audit-summary.json"
+    },
+    {
+      "id": "baozi-reader-default-image-origin-197-20261126",
+      "at": "2026-11-26T03:20:40+08:00",
+      "itemId": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
+      "title": "197 复现热门两部作品的正文图片失败并回验图片直连",
+      "detail": "0.1.34 保持默认 tw.webmota.com，从热门进入两部作品后普通开始阅读。章节分别取得 10、17 页，首次与重试的图片请求均在 s1.baozicdn.com 失败。0.1.35 改用上游 s1.baozimh.com 直连，保留原页表及真实 404 一次回退。197 两部首次出图的前三个请求均为 HTTP 200，第 1、2 页均显示实图；《大奉打更人》另测最新章 1、2/16 页。最低 App 1.4.2 由 release tag 确认；不需要新版 App，未发布源包。",
+      "evidence": ".hvigor/outputs/source-summary-197-20261126"
+    },
+    {
+      "id": "baozi-popular-dafeng-yiren-mirrors-20261126",
+      "at": "2026-11-26T03:03:36+08:00",
+      "itemId": "BAOZI_DEFAULT_MIRROR_AND_VERIFICATION_CONTEXT",
+      "title": "对照《大奉打更人》《一人之下》的详情、目录与阅读请求",
+      "detail": "用户从热门打开两作遇到加载问题，未确认镜像与失败阶段。本机直接访问默认 tw.webmota.com 跳转 cn.webmota.com，取得两套完整作品页，正式 0.1.33 WASM 回放详情成功、目录 705/826 章。197 从普通列表打开这两作，记录所选镜像 tw.webmota.com，两部详情与完整目录正常。tw.baozimh.com 在本机触发 Cloudflare 403；www.baozimh.com 跳转 cn.bzmgcn.com 后返回 403 或 TLS 连接失败。两作的首章与最新章共四次 AppCN 请求在本机均收到带 cf-mitigated 的 403；正式 WASM 正确返回 challenge_required。197 只验了详情和目录，未用本机请求代替设备阅读结论，也未修改镜像。 用户随后明确是阅读器中加载失败。197 实际两作均取得正文页表，失败发生在 s1.baozicdn.com 图片请求，未触发网页挑战。该次阅读链修复归入 #160；本机镜像探测与该次真机正文故障分别保存。",
+      "evidence": ".hvigor/outputs/baozi-popular-load-20261126/replay-summary.json"
+    },
     {
       "id": "source-manager-uninstalled-info-237-20261126",
       "at": "2026-11-26T02:49:54+08:00",
