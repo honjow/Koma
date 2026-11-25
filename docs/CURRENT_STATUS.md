@@ -95,17 +95,19 @@
       "reportedAt": null,
       "reportedDate": "2026-11-25",
       "reportedAtSource": "用户要求复查近期新增的接续功能。",
-      "updatedAt": "2026-11-25T23:49:14+08:00",
-      "status": "已修复并完成本地验证，双机接续待确认",
-      "result": "修复接收对象覆盖附件、旧回调继续恢复、关闭源设备阅读器回写旧进度、加载失败将页码压成第 1 页，以及补装书源绕过隐私检查。目标端没有私密分类时，阅读记录保留在本次会话，不进入公开历史。",
+      "updatedAt": "2026-11-26T00:04:53+08:00",
+      "status": "197 和 237 双向冷、热接续通过",
+      "result": "修复接收对象覆盖附件、旧回调继续恢复、关闭源设备阅读器回写旧进度、加载失败将页码压成第 1 页，以及补装书源绕过隐私检查。目标端没有私密分类时，阅读记录保留在本次会话，不进入公开历史。 237→197 冷启动打开第 43 话第 2 页；197→237 热启动打开同话第 3 页；源设备退出、本机继续和接收端书架进度均核对。",
       "remainingActions": [
-        "用同一华为账号下的两台测试设备经系统 Dock 实测冷、热启动，同章同页，以及补装书源和锁屏保护。"
+        "双机用的是两端已安装的书源。缺源时随附包安装、私密作品系统认证和锁屏的设备流程仍待覆盖。"
       ],
       "evidence": [
         "d06709fe 原始实现；13d0c427 和 a540b9f7 修复",
         ".hvigor/outputs/reader-app-continuation-review/build.log",
         ".hvigor/outputs/reader-app-continuation-review/tests.log",
-        ".hvigor/outputs/reader-app-continuation-review/backup-settings.log"
+        ".hvigor/outputs/reader-app-continuation-review/backup-settings.log",
+        ".hvigor/outputs/reader-app-continuation-review/build-device.log",
+        ".hvigor/outputs/reader-app-continuation-review/summary.json"
       ]
     },
     {
@@ -13765,6 +13767,14 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-app-continuation-197-237-20261126",
+      "at": "2026-11-26T00:04:53+08:00",
+      "itemId": "READER_HARMONY_APP_CONTINUATION_REVIEW",
+      "title": "197 和 237 双向验证系统 Dock 接续",
+      "detail": "开发签名候选覆盖安装。237→197 冷启动打开《The New Gate》第 43 话第 2/33 页，237 点击退出后书架仍为第 2 页；反向 197→237 热启动保持同一个进程，显示同章第 3/33 页。197 点在本机继续阅读恢复第 3 页，237 正常退出后书架显示第 3 页。两台退出阅读器，恢复原休眠、10000ms 超时并释租。197 两种同步关闭，237 原开关保留。首次误用应用市场签名，安装被系统拒绝，随后使用开发签名完成。",
+      "evidence": ".hvigor/outputs/reader-app-continuation-review/summary.json"
+    },
     {
       "id": "reader-app-continuation-review-20261125",
       "at": "2026-11-25T23:49:14+08:00",
