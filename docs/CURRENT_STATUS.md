@@ -13094,19 +13094,19 @@
       "priority": "P2",
       "kind": "active",
       "progressPhase": "verification",
-      "status": "包子、哔哩、快看的列表摘要已发布",
+      "status": "12 个源的列表摘要已发布，漫画柜连接超时",
       "owner": "本会话整合、真机证据复核与本地交付；Terra 子代理分语言调查及 197 验证",
       "reportedAt": "2026-11-23T10:44:10+08:00",
       "reportedAtSource": "用户本会话要求列表利用封面右侧空间展示书源自定标签、最新章节等有效信息，标题适度缩小；精确消息时间未提供。",
-      "updatedAt": "2026-11-26T04:22:29+08:00",
+      "updatedAt": "2026-11-26T04:55:37+08:00",
       "relatedItems": [
         "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT"
       ],
-      "result": "App可选listInfo/普通Browse解析及统一文字排版已本地提交；标题14fp靠上、摘要组靠下，去掉重复上下内距后与左侧同为8vp。237已装ac2d4d148c43候选，热门与最近更新普通列表实际封面、标题、作者/状态显示及一致内距由主代理亲审；该机长标题实际仍一行，197既有两行无重叠与真实题材验收分别保留。龙禁漫0.1.4、Komiic0.1.24正式发布，最低App仍1.4.2/1.3.0，119源ID不变；正式两包校验、元数据/图标与4份真实原件完整解析响应及calls均已核对。 本轮按正式订阅的 133 个唯一 ID 登记逐源证据。包子漫画、漫画柜、嗶哩漫畫、Tapas、MANGA Plus Creators 英文、WEBTOON 英文及繁中、瓜子漫画、科技大觀園、漫画社、嬉皮漫画、快看漫画、動漫戲說补充摘要。候选均打包，并用真实列表响应回放，旧宿主的响应和请求保持一致。197 普通列表已见包子的作者与题材，以及哔哩和快看的作者。漫画柜同版本已导入，普通浏览连接超时。197 已返回原设置页并释租。 237 安装间距候选前后使用同一个包子 0.1.35 热门列表，四张两行摘要卡片标题至第一行由 95px 缩到 12px，标题与封面坐标相同。 包子漫画 0.1.36、哔哩漫画 0.1.15、快看漫画 0.1.12 已进入正式订阅。哔哩和快看新包沿用最低 App 版本；四份真实响应在候选包和正式包中的解析、请求一致。正式索引其余 131 个条目不变。",
-      "remaining": "漫画柜 197 重试仍连接超时，本机热门和最近更新均未完成 TLS 连接。其余九个候选继续真机核对。",
+      "result": "App可选listInfo/普通Browse解析及统一文字排版已本地提交；标题14fp靠上、摘要组靠下，去掉重复上下内距后与左侧同为8vp。237已装ac2d4d148c43候选，热门与最近更新普通列表实际封面、标题、作者/状态显示及一致内距由主代理亲审；该机长标题实际仍一行，197既有两行无重叠与真实题材验收分别保留。龙禁漫0.1.4、Komiic0.1.24正式发布，最低App仍1.4.2/1.3.0，119源ID不变；正式两包校验、元数据/图标与4份真实原件完整解析响应及calls均已核对。 本轮按正式订阅的 133 个唯一 ID 登记逐源证据。包子漫画、漫画柜、嗶哩漫畫、Tapas、MANGA Plus Creators 英文、WEBTOON 英文及繁中、瓜子漫画、科技大觀園、漫画社、嬉皮漫画、快看漫画、動漫戲說补充摘要。候选均打包，并用真实列表响应回放，旧宿主的响应和请求保持一致。197 普通列表已见包子的作者与题材，以及哔哩和快看的作者。漫画柜同版本已导入，普通浏览连接超时。197 已返回原设置页并释租。 237 安装间距候选前后使用同一个包子 0.1.35 热门列表，四张两行摘要卡片标题至第一行由 95px 缩到 12px，标题与封面坐标相同。 包子漫画 0.1.36、哔哩漫画 0.1.15、快看漫画 0.1.12 已进入正式订阅。哔哩和快看新包沿用最低 App 版本；四份真实响应在候选包和正式包中的解析、请求一致。正式索引其余 131 个条目不变。 13 个候选中，12 个的普通列表已在 197 看到实际摘要，正式订阅已发布 包子漫画 0.1.36、哔哩漫画 0.1.15、快看漫画 0.1.12、瓜子漫画 0.1.11、漫画社 0.1.16、嬉皮漫画 0.1.4、WEBTOON 繁中 0.1.15、動漫戲說 0.1.4、科技大觀園 0.1.3、Tapas 0.1.4、MANGA Plus Creators 0.1.9、WEBTOON 英文 0.1.11。其余 121 个条目与本轮发布前相同。列表摘要在支持它的 Koma 1.6.1 及以上显示。",
+      "remaining": "漫画柜 0.1.18 连续两次在 197 超时，本机热门和最近更新也无法完成连接，正式订阅仍为 0.1.17。原有逐源字段调查仍按语言分表保留。",
       "remainingActions": [
-        "197 逐源核对剩余候选的普通列表，在验证通过后发布。",
-        "漫画柜待能取得实际列表后验证摘要；继续按语言分表核实其他待审书源的同卡数据。"
+        "漫画柜连接恢复后，核对普通列表的最新章摘要，验证通过再发布 0.1.18。",
+        "对其余待调查的书源，以实际同一列表卡片里的字段为准继续核对。"
       ],
       "boundaries": [
         "源只提供纯文本内容和顺序，App统一排版；不接入任意样式或执行动作。",
@@ -13125,9 +13125,17 @@
         ".hvigor/outputs/source-summary-expansion-20261126/publication-bili-kuaikan/public-verification.json",
         ".hvigor/outputs/source-summary-expansion-20261126/publication-bili-kuaikan/public-wasm-replay.json",
         ".hvigor/outputs/source-summary-197-20261126/terra-gui-list/layout.json",
-        "https://github.com/honjow/koma-sources/releases/tag/sources-f56cb5368c252eb1655d86866900215b2577679d"
+        "https://github.com/honjow/koma-sources/releases/tag/sources-f56cb5368c252eb1655d86866900215b2577679d",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-summary.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-guazi/public-verification.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-manhuashe/public-verification.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-xipi-webtoon-acgn/public-verification.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-final-four/public-verification.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/online-list-recheck/wasm-results.json",
+        ".hvigor/outputs/source-summary-197-20261126/terra-final-cleanup/run-metadata.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-aa1baa0ccfc89c4a6aa0f3e26ec8f0bb11cddde2"
       ],
-      "stage": "核实其余候选在普通列表中的显示"
+      "stage": "通过验证的候选已发布，漫画柜等待访问恢复"
     },
     {
       "id": "DOWNLOAD_CHAPTER_READING_ORDER",
@@ -13791,6 +13799,25 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-summary-publication-final-20261126",
+      "at": "2026-11-26T04:55:37+08:00",
+      "itemId": "SOURCE_BROWSE_LIST_INFO",
+      "title": "12 个列表摘要候选验收并发布，漫画柜仍超时",
+      "detail": "新补测的瓜子、漫画社、嬉皮、繁中和英文 WEBTOON、動漫戲說、科技大觀園、Tapas、MANGA Plus Creators 在 197 实际显示了书源提供的摘要。正式包校验和与最低 App 版本已读回，并使用真实页面复核摘要。漫画柜正式版本保持 0.1.17。本次提交已同步到独立书源仓库。197 已返回测试前页面，恢复原屏幕超时并释放租约。",
+      "evidence": [
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-summary.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-bili-kuaikan/public-verification.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-guazi/public-verification.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-manhuashe/public-verification.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-xipi-webtoon-acgn/public-verification.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-final-four/public-verification.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/online-list-recheck/wasm-results.json",
+        ".hvigor/outputs/source-summary-197-20261126/terra-gui-list/layout.json",
+        ".hvigor/outputs/source-summary-197-20261126/terra-final-cleanup/run-metadata.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-aa1baa0ccfc89c4a6aa0f3e26ec8f0bb11cddde2"
+      ]
+    },
     {
       "id": "source-summary-publication-initial-20261126",
       "at": "2026-11-26T04:22:29+08:00",
