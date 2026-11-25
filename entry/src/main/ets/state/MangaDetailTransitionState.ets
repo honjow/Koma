@@ -48,6 +48,8 @@ class SuspendedMangaDetailTransitionContext {
   collapsedTranslateX: number = 0
   collapsedTranslateY: number = 0
   collapsedRadius: number = 0
+  sourceSurfaceRadius: number = 0
+  sourceSurfaceBackground?: ResourceColor = undefined
   sourceCoverX: number = 0
   sourceCoverY: number = 0
   sourceCoverWidth: number = 0
@@ -118,7 +120,9 @@ export class MangaDetailTransitionState {
   @Trace scaleY: number = 1
   @Trace translateX: number = 0
   @Trace translateY: number = 0
-  @Trace radius: number = 0
+  @Trace radius: number | BorderRadiuses = 0
+  @Trace sourceSurfaceRadius: number = 0
+  @Trace sourceSurfaceBackground?: ResourceColor = undefined
   @Trace cardOpacity: number = 0
   @Trace contentOpacity: number = 1
   @Trace chromeVisible: boolean = true
@@ -209,6 +213,8 @@ export class MangaDetailTransitionState {
       context.collapsedTranslateX = this.collapsedTranslateX
       context.collapsedTranslateY = this.collapsedTranslateY
       context.collapsedRadius = this.collapsedRadius
+      context.sourceSurfaceRadius = this.sourceSurfaceRadius
+      context.sourceSurfaceBackground = this.sourceSurfaceBackground
       context.sourceCoverX = this.sourceCoverX
       context.sourceCoverY = this.sourceCoverY
       context.sourceCoverWidth = this.sourceCoverWidth
@@ -318,6 +324,8 @@ export class MangaDetailTransitionState {
     this.collapsedTranslateX = context.collapsedTranslateX
     this.collapsedTranslateY = context.collapsedTranslateY
     this.collapsedRadius = context.collapsedRadius
+    this.sourceSurfaceRadius = context.sourceSurfaceRadius
+    this.sourceSurfaceBackground = context.sourceSurfaceBackground
     this.sourceCoverX = context.sourceCoverX
     this.sourceCoverY = context.sourceCoverY
     this.sourceCoverWidth = context.sourceCoverWidth
@@ -389,6 +397,8 @@ export class MangaDetailTransitionState {
     coverRadius: number,
     coverSnapshot: image.PixelMap | undefined,
     coverUrl: string,
+    sourceSurfaceRadius: number,
+    sourceSurfaceBackground?: ResourceColor,
   ): void {
     this.mode = mode
     this.sourceComponentId = preserveSourceCoverBackground ? '' : componentId
@@ -406,6 +416,10 @@ export class MangaDetailTransitionState {
     this.sourceCoverWidth = coverWidth
     this.sourceCoverHeight = coverHeight
     this.sourceCoverRadius = coverRadius
+    // #359: the outer surface lands on the grid cover or the list row. The
+    // separately moving cover keeps its own corner radius inside a list row.
+    this.sourceSurfaceRadius = sourceSurfaceRadius
+    this.sourceSurfaceBackground = sourceSurfaceBackground
     this.flightCoverX = coverX
     this.flightCoverY = coverY
     this.flightCoverWidth = coverWidth
@@ -424,7 +438,7 @@ export class MangaDetailTransitionState {
       this.clipY = y
       this.clipWidth = width
       this.clipHeight = height
-      this.radius = coverRadius
+      this.radius = sourceSurfaceRadius
       this.cardOpacity = 1
     }
     this.phase = MangaDetailTransitionPhase.PREPARING
@@ -472,6 +486,7 @@ export class MangaDetailTransitionState {
     snapshot: image.PixelMap,
     rootWidth: number,
     rootHeight: number,
+    screenRadius: number | BorderRadiuses,
   ): boolean {
     if (
       !this.eligible ||
@@ -493,7 +508,7 @@ export class MangaDetailTransitionState {
     this.clipY = 0
     this.clipWidth = rootWidth
     this.clipHeight = rootHeight
-    this.radius = 0
+    this.radius = screenRadius
     this.independentPopSurfaceActive = true
     if (previous !== undefined) {
       previous.release().catch((_error: Error) => {})
@@ -657,7 +672,7 @@ export class MangaDetailTransitionState {
       this.scaleY = 1
       this.translateX = 0
       this.translateY = 0
-      this.radius = this.collapsedRadius
+      this.radius = this.sourceSurfaceRadius
       this.cardOpacity = 1
       // The captured source-card remainder owns title/metadata/tags at the start. Fade the settled
       // detail content in only as that remainder leaves so the expanding clip never reveals both text
@@ -835,7 +850,6 @@ export class MangaDetailTransitionState {
     this.clearCoverTarget()
     this.coverFadePopFallback = true
     this.fallbackCoverOpacity = 0
-    this.radius = 0
     this.cardOpacity = 0
     this.contentOpacity = 1
     this.chromeVisible = true
@@ -845,15 +859,13 @@ export class MangaDetailTransitionState {
     this.clipHeight = this.rootHeight
   }
 
-  expandWindow(): void {
+  expandWindow(screenRadius: number | BorderRadiuses = 0): void {
     if (this.isCoverExpand()) {
       this.clipX = 0
       this.clipY = 0
       this.clipWidth = this.rootWidth
       this.clipHeight = this.rootHeight
-      // Keep the surface visibly rounded throughout the expansion. At full coverage the corners lie
-      // on the viewport edge; markPushSettled removes the radius after the animation completes.
-      this.radius = this.collapsedRadius
+      this.radius = screenRadius
       if (this.targetCoverReady) {
         this.flightCoverX = this.targetCoverX
         this.flightCoverY = this.targetCoverY
@@ -914,7 +926,7 @@ export class MangaDetailTransitionState {
       this.clipY = this.handoffY
       this.clipWidth = this.handoffWidth
       this.clipHeight = this.handoffHeight
-      this.radius = this.collapsedRadius
+      this.radius = this.sourceSurfaceRadius
       this.flightCoverX = this.sourceCoverX
       this.flightCoverY = this.sourceCoverY
       this.flightCoverWidth = this.sourceCoverWidth
@@ -946,13 +958,13 @@ export class MangaDetailTransitionState {
     this.crossfadeToDetail()
   }
 
-  beginPop(): void {
+  beginPop(screenRadius: number | BorderRadiuses = 0): void {
     if (this.isCoverExpand()) {
       this.clipX = 0
       this.clipY = 0
       this.clipWidth = this.rootWidth
       this.clipHeight = this.rootHeight
-      this.radius = 0
+      this.radius = screenRadius
       if (this.targetCoverReady) {
         this.flightCoverX = this.targetCoverX
         this.flightCoverY = this.targetCoverY
@@ -1065,6 +1077,8 @@ export class MangaDetailTransitionState {
     this.collapsedTranslateX = 0
     this.collapsedTranslateY = 0
     this.collapsedRadius = 0
+    this.sourceSurfaceRadius = 0
+    this.sourceSurfaceBackground = undefined
     this.sourceCoverX = 0
     this.sourceCoverY = 0
     this.sourceCoverWidth = 0

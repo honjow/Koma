@@ -22,20 +22,41 @@ function fixture() {
   }
   const { MangaDetailTransitionState, MangaDetailTransitionPhase: Phase } = load('state/MangaDetailTransitionState')
   const state = new MangaDetailTransitionState()
-  function prepare(token, mode) {
+  function prepare(token, mode, surfaceRadius = 12) {
     const resources = Array.from({ length: 3 }, () => ({ releases: 0, release() {
       this.releases++
       return Promise.resolve()
     } }))
     assert.equal(state.beginRouteContext(), true)
     state.beginSourceHandoff(mode, `card-${token}`, `cover-${token}`, 'source-list', false,
-      `target-${token}`, 10, 30, 100, 150, resources[1], 10, 30, 100, 130, 12, resources[2], 'cover-uri')
+      `target-${token}`, 10, 30, 100, 150, resources[1], 10, 30, 100, 130, 12, resources[2], 'cover-uri', surfaceRadius)
     state.prepare(String(token), 0.25, 0.25, 10, 30, 12, 400, 800, resources[0])
     state.bindRouteDestination(`destination-${token}`)
     return resources
   }
   return { state, Phase, prepare }
 }
+
+test('cover expansion matches the source surface and each display corner in both directions', () => {
+  const { state, prepare } = fixture()
+  const displayRadius = { topLeft: 32, topRight: 28, bottomLeft: 29, bottomRight: 34 }
+  for (const sourceRadius of [12, 20]) {
+    prepare(1, 'coverExpand', sourceRadius)
+    assert.equal(state.radius, sourceRadius)
+    assert.equal(state.flightCoverRadius, 12)
+    state.setCoverTarget(15, 25, 104, 150, 8, 400, 800)
+    state.expandWindow(displayRadius)
+    assert.deepEqual(state.radius, displayRadius)
+    assert.equal(state.flightCoverRadius, 8)
+    state.markPushSettled(true)
+    state.beginPop(displayRadius)
+    assert.deepEqual(state.radius, displayRadius)
+    state.collapseWindow(24)
+    assert.equal(state.radius, sourceRadius)
+    assert.equal(state.flightCoverRadius, 12)
+    state.markPopSettled(true)
+  }
+})
 
 // NextE's route contract: nested transitions move ownership; a child failure restores the parent.
 test('changed detail artwork replaces the POP image only for its route and preserves nested ownership', () => {

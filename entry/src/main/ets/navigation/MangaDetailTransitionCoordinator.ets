@@ -2,7 +2,7 @@ import { RouteName } from '../common/Constants'
 import { MangaDetailRouteParam, RouterHelper } from '../common/RouterHelper'
 import { MangaDetailTransitionCoverSource, sameTransitionCover } from '../state/MangaDetailTransitionCoverSource'
 import { image } from '@kit.ImageKit'
-import { FrameCallback, UIUtils, curves } from '@kit.ArkUI'
+import { FrameCallback, UIUtils, curves, display, window } from '@kit.ArkUI'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   connectMangaDetailTransition,
@@ -84,6 +84,11 @@ const MANGA_DETAIL_CLOSE_CARD_ENTRY_END_TIME: number = mangaDetailTimeAtProgress
 
 export const MANGA_DETAIL_ROOT_ID = 'koma-root-navigation'
 
+interface MangaDetailSourceSurfaceStyle {
+  radius: number
+  background: ResourceColor
+}
+
 class MangaDetailCaptureFrameCallback extends FrameCallback {
   private action: () => void
 
@@ -117,6 +122,33 @@ export class MangaDetailTransitionCoordinator {
   private static opening: boolean = false
   private static openingPreparation: number = 0
   private static popPreparationToken: number = 0
+
+  private static screenCornerRadii(uiContext: UIContext): number | BorderRadiuses {
+    try {
+      const windowName = uiContext.getWindowName()
+      if (windowName === undefined) return 0
+      const properties = window.findWindow(windowName).getWindowProperties()
+      const screen = properties.displayId === undefined ? display.getDefaultDisplaySync() :
+        display.getDisplayByIdSync(properties.displayId)
+      // Physical screen corners apply only when the window covers the display.
+      if (properties.windowRect.width !== screen.width || properties.windowRect.height !== screen.height) return 0
+      const corners = screen.getRoundedCorner()
+      const radii: BorderRadiuses = { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 }
+      for (const corner of corners) {
+        const radius = uiContext.px2vp(corner.radius)
+        switch (corner.type) {
+          case display.CornerType.TOP_LEFT: radii.topLeft = radius; break
+          case display.CornerType.TOP_RIGHT: radii.topRight = radius; break
+          case display.CornerType.BOTTOM_LEFT: radii.bottomLeft = radius; break
+          case display.CornerType.BOTTOM_RIGHT: radii.bottomRight = radius; break
+        }
+      }
+      return radii
+    } catch (_error) {
+      // Some physical displays do not report their rounding.
+      return 0
+    }
+  }
 
   static syncDetailCoverTarget(uiContext: UIContext): boolean {
     const transition = connectMangaDetailTransition()
@@ -180,7 +212,7 @@ export class MangaDetailTransitionCoordinator {
     }
   }
 
-  static async prepareIndependentPopSurface(uiContext: UIContext): Promise<boolean> {
+  static async prepareIndependentPopSurface(uiContext: UIContext, screenRadius: number | BorderRadiuses): Promise<boolean> {
     const transition = connectMangaDetailTransition()
     const token: number = transition.routeToken
     let snapshot: image.PixelMap | undefined = undefined
@@ -193,7 +225,8 @@ export class MangaDetailTransitionCoordinator {
       }
       snapshot = await uiContext.getComponentSnapshot()
         .get(MANGA_DETAIL_ROOT_ID, { waitUntilRenderFinished: true })
-      if (!transition.owns(token) || !transition.prepareIndependentPopSurface(snapshot, rootWidth, rootHeight)) {
+      if (!transition.owns(token) ||
+        !transition.prepareIndependentPopSurface(snapshot, rootWidth, rootHeight, screenRadius)) {
         snapshot.release().catch((_error: Error) => {})
         return false
       }
@@ -533,6 +566,7 @@ export class MangaDetailTransitionCoordinator {
     coverSource: MangaDetailTransitionCoverSource | undefined = undefined,
     sourceIsCurrent: () => boolean = (): boolean => true,
     refreshSourceLayout?: () => MangaDetailReturnLayout,
+    sourceSurfaceStyle?: MangaDetailSourceSurfaceStyle,
   ): Promise<void> {
     if (MangaDetailTransitionCoordinator.opening) return
     const transition = connectMangaDetailTransition()
@@ -621,7 +655,8 @@ export class MangaDetailTransitionCoordinator {
       UIUtils.applySync((): void => {
         transition.beginSourceHandoff(selectedMode, componentId, sourceCoverComponentId, sourceSurfaceComponentId,
           preserveBackground, `${componentId}-detail-cover`, x, y, w, h, card!, cx, cy, cw, ch,
-          ThemeConstants.RADIUS_COVER, cover, coverSource?.uri ?? '')
+          ThemeConstants.RADIUS_COVER, cover, coverSource?.uri ?? '',
+          sourceSurfaceStyle?.radius ?? ThemeConstants.RADIUS_COVER, sourceSurfaceStyle?.background)
       })
       card = undefined; cover = undefined
       await frame()
@@ -814,6 +849,7 @@ export class MangaDetailTransitionCoordinator {
             UIUtils.applySync((): void => { transition.useSeamlessFallback() })
           }
           const coverExpand: boolean = transition.isCoverExpand()
+          const screenRadius = coverExpand ? MangaDetailTransitionCoordinator.screenCornerRadii(uiContext) : 0
           // Remove the preparation-only copy synchronously outside the animation transaction.
           // Otherwise ArkUI gives the removed If node an implicit exit across the whole flight.
           UIUtils.applySync((): void => { transition.animationStarted = true })
@@ -827,7 +863,7 @@ export class MangaDetailTransitionCoordinator {
             },
           }, (): void => {
             UIUtils.applySync((): void => {
-              transition.expandWindow()
+              transition.expandWindow(screenRadius)
             })
           })
           if (!coverExpand) {
@@ -909,16 +945,17 @@ export class MangaDetailTransitionCoordinator {
             })
           }
         }
+        const screenRadius = transition.isCoverExpand() ? MangaDetailTransitionCoordinator.screenCornerRadii(uiContext) : 0
         const startPopAnimation: () => void = (): void => {
           if (!current()) { finishProxy(); return }
-          UIUtils.applySync((): void => { transition.beginPop() })
+          UIUtils.applySync((): void => { transition.beginPop(screenRadius) })
           animatePopSurface((): void => {
             finishOnFrame(false)
           })
         }
         const startIndependentPopAnimation = (): void => {
           if (!current()) { finishProxy(); return }
-          UIUtils.applySync((): void => { transition.beginPop() })
+          UIUtils.applySync((): void => { transition.beginPop(screenRadius) })
           const animate = (): void => {
             if (!current()) return
             animatePopSurface((): void => {
@@ -933,7 +970,8 @@ export class MangaDetailTransitionCoordinator {
         const preparePopAnimation = async (sourceLayoutChanged: boolean, afterPopLayout: boolean): Promise<void> => {
           if (sourceLayoutChanged || MangaDetailTransitionCoordinator.sourceGeometryNeedsRefresh(uiContext)) {
             const useIndependentPopSurface: boolean = transition.isCoverExpand()
-            if (useIndependentPopSurface && !await MangaDetailTransitionCoordinator.prepareIndependentPopSurface(uiContext)) {
+            if (useIndependentPopSurface &&
+              !await MangaDetailTransitionCoordinator.prepareIndependentPopSurface(uiContext, screenRadius)) {
               if (current()) transition.finishRouteContext()
               finishProxy()
               return

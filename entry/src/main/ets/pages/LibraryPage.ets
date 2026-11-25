@@ -1652,7 +1652,8 @@ export struct LibraryPage {
         (): boolean => this.active && this.rootNavigation.visible && !this.selectionMode &&
           this.viewMode === viewMode && this.filterPreferencesMutationRevision === filterRevision &&
           this.displayedRevision === displayedRevision && this.displayedCards.some((comic: ComicCoverInfo): boolean => comic.id === comicId),
-        (): MangaDetailReturnLayout => this.prepareDetailReturnLayout(comicId, viewMode, displayedRevision))
+        (): MangaDetailReturnLayout => this.prepareDetailReturnLayout(comicId, viewMode, displayedRevision),
+        viewMode === 'list' ? { radius: ThemeConstants.LIST_ROW_RADIUS, background: ThemeConstants.CARD } : undefined)
     }
   }
 

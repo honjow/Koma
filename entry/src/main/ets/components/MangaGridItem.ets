@@ -64,7 +64,8 @@ export struct MangaGridItem {
       void MangaDetailTransitionCoordinator.open(this.getUIContext(), this.detailCardId(), (): void => {
         this.onMangaTap(manga)
       }, this.detailTransitionScope, `${this.detailCardId()}-cover`, source,
-        (): boolean => this.transitionSourceIsCurrent() && this.manga.id === manga.id && this.manga.sourceId === manga.sourceId)
+        (): boolean => this.transitionSourceIsCurrent() && this.manga.id === manga.id && this.manga.sourceId === manga.sourceId,
+        undefined, this.listLayout ? { radius: ThemeConstants.LIST_ROW_RADIUS, background: ThemeConstants.CARD } : undefined)
     }
   }
 

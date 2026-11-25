@@ -4792,7 +4792,10 @@ struct Index {
       x: this.detailTransition.handoffX,
       y: this.detailTransition.handoffY,
     })
-    .borderRadius(ThemeConstants.RADIUS_CARD)
+    // The cropped cover slot on a list row should reveal that row's background
+    // while the flying cover is still on its way back.
+    .backgroundColor(this.detailTransition.sourceSurfaceBackground ?? Color.Transparent)
+    .borderRadius(this.detailTransition.sourceSurfaceRadius)
     .clip(true)
     .opacity(this.detailTransition.cardOpacity)
     .zIndex(2)
@@ -5172,7 +5175,7 @@ struct Index {
               x: this.detailTransition.handoffX,
               y: this.detailTransition.handoffY,
             })
-            .borderRadius(ThemeConstants.RADIUS_CARD)
+            .borderRadius(this.detailTransition.sourceSurfaceRadius)
             .clip(true)
             .opacity(this.detailTransition.cardOpacity)
             .zIndex(2)
