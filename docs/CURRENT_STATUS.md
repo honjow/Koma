@@ -8836,8 +8836,8 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "active",
-      "status": "包子 0.1.36 两条图片线路及旧书架续读已真机回验",
-      "result": "修复已交付；237同一作品自然未缓存第9页六图成功并返回第3页，按具名范围关闭。 11 月 26 日用户反馈《大奉打更人》《一人之下》阅读器正文加载失败。197 同一默认镜像，旧图片选路页表正常，首屏 s1.baozicdn.com 图请求反复失败。源 0.1.35 改用上游直连，HTTP 404 复用 App 现有回退；197 两部首屏三图分别从 s1.baozimh.com 返回 HTTP 200 并显示实图，两部均翻至第 2 页，另抽测《大奉打更人》最新章第 1、2 页。最终包只调整最低 Koma 1.4.2，WASM 字节及网站策略与 197 候选等同。 237 最终包在续读《大奉打更人》001 话时，收到页表后命中单章 SQL 写错列名。更正为已经存在的 settings_fingerprint 后，原书架从第 3/24 页正常显示正文。 237 继续验证 002 妖物作祟，旧包第二分片反复失败。源 0.1.36 同样改为 s2 直连并声明已存在的 404 回退。真机预载响应恢复，同章进入第 1/22 页显示实图。",
+      "status": "包子 0.1.36 已发布，197 与 237 真机验证；App 保存修复已本地提交",
+      "result": "修复已交付；237同一作品自然未缓存第9页六图成功并返回第3页，按具名范围关闭。 11 月 26 日用户反馈《大奉打更人》《一人之下》阅读器正文加载失败。197 同一默认镜像，旧图片选路页表正常，首屏 s1.baozicdn.com 图请求反复失败。源 0.1.35 改用上游直连，HTTP 404 复用 App 现有回退；197 两部首屏三图分别从 s1.baozimh.com 返回 HTTP 200 并显示实图，两部均翻至第 2 页，另抽测《大奉打更人》最新章第 1、2 页。最终包只调整最低 Koma 1.4.2，WASM 字节及网站策略与 197 候选等同。 237 最终包在续读《大奉打更人》001 话时，收到页表后命中单章 SQL 写错列名。更正为已经存在的 settings_fingerprint 后，原书架从第 3/24 页正常显示正文。 237 继续验证 002 妖物作祟，旧包第二分片反复失败。源 0.1.36 同样改为 s2 直连并声明已存在的 404 回退。真机预载响应恢复，同章进入第 1/22 页显示实图。 正式订阅已读回 0.1.36，最低 Koma 1.4.2。公开索引、包校验和、manifest 及实际 WASM 两条图片线路已核对。",
       "evidencePoints": [
         "直接产物索引：open-001-failure-002/library.json；koma-log-20261025-053239.txt；failure.png；failure.json；baozi-image-worker-cache197-session-653/cache-coverage.json；page9-original-observed.png；original-page3-restored.png",
         "96a2123已推及精确CI成功；237同001自然冷页9六图HTTP200并返回3页。依据用户本轮“验证过了就过了，不要总是想要具体设备复测”，不将原机复测设为关闭门槛。",
@@ -8849,12 +8849,14 @@
         ".hvigor/outputs/source-summary-197-20261126/yiren-135-page2/screen.png",
         ".hvigor/outputs/baozi-popular-load-20261126/route-candidate-replay.json",
         ".hvigor/outputs/baozi-popular-load-20261126/route-final-manifest-verified.json",
-        ".hvigor/outputs/baozi-popular-load-20261126/native-237-fixed-routes.json"
+        ".hvigor/outputs/baozi-popular-load-20261126/native-237-fixed-routes.json",
+        ".hvigor/outputs/baozi-popular-load-20261126/release-0.1.36/public-verification.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-8b59c162b196a5f23d686dc0d5d69f177de852c4"
       ],
       "remainingActions": [
-        "线上版本更新后核对公开书源包与 App 的实际发布状态。"
+        "在 App 更新交付时核实公开版本是否包含单章保存修复。"
       ],
-      "remaining": "书源 0.1.36 与 App 单章保存修复已本地提交。其它分片及真实缺图重定向回退不算真机覆盖。",
+      "remaining": "237 复验过的 App 单章保存修复仍在本地提交。其它分片与真实缺图重定向回退保留既有验证边界。",
       "boundaries": [
         "允许差异仅source图片选路与Host请求方法；保ID/章节/页数/进度，Reader布局不动。",
         "不写死rsa、不绕TLS、不新增UI或Cookie权限；五CDN仅按站点声明有界选择，每章一次，不盲目多路下载。",
@@ -8880,9 +8882,9 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 166607,
-      "stage": "197 与 237 具名正文已复核，候选本地提交",
+      "stage": "书源正式可更新，App 独立修复已本地提交",
       "progressPhase": "verified",
-      "updatedAt": "2026-11-26T03:57:34+08:00",
+      "updatedAt": "2026-11-26T04:08:59+08:00",
       "reopenedAt": "2026-11-26T03:20:40+08:00"
     },
     {
@@ -13785,6 +13787,14 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "baozi-source-036-published-20261126",
+      "at": "2026-11-26T04:07:41+08:00",
+      "itemId": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
+      "title": "包子漫画 0.1.36 已进入正式订阅",
+      "detail": "独立源仓 master 只交付包子更新，精确发布流水线 45691077897 成功。正式订阅从 0.1.33 更新至 0.1.36，最低 Koma 1.4.2。正式索引仍含 133 个书源，包子是唯一版本和元数据改动。公开包哈希与索引一致，图标字节和其它 132 个书源包的哈希保持。实际 WASM 正文线路与真机候选行为一致。App 单章保存修复和列表间距仍在本地提交。",
+      "evidence": ".hvigor/outputs/baozi-popular-load-20261126/release-0.1.36/public-verification.json"
+    },
     {
       "id": "baozi-s2-actual-chapter-237-20261126",
       "at": "2026-11-26T03:57:34+08:00",
