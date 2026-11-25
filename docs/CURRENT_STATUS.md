@@ -13349,11 +13349,12 @@
       "reportedAt": null,
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户本会话反馈“目前的书源简介太敷衍了”，原消息精确时刻未核实。",
-      "updatedAt": "2026-11-23T20:39:02+08:00",
-      "status": "86个源的简介更新已发布，优酷新版随App验证后承接",
-      "result": "已保留32个已有有效介绍，并完成其余87个源的简介与简繁英资料整改；其中86个已正式发布。公开索引仍保留原119个源，更新简介与多语言资料均已回读核对。Komiic、包子及优酷公开包已下载校验并执行实际WASM；Komiic公开构建与237候选在既有语言、设置、栏目和筛选请求中结果一致。优酷新版依赖尚未正式发布的App，当前完整保留原可用旧版入口和原包，不阻塞其它简介更新。",
+      "updatedAt": "2026-11-26T05:57:13+08:00",
+      "status": "46 个源的简介已按原站内容重写并发布",
+      "result": "已保留32个已有有效介绍，并完成其余87个源的简介与简繁英资料整改；其中86个已正式发布。公开索引仍保留原119个源，更新简介与多语言资料均已回读核对。Komiic、包子及优酷公开包已下载校验并执行实际WASM；Komiic公开构建与237候选在既有语言、设置、栏目和筛选请求中结果一致。优酷新版依赖尚未正式发布的App，当前完整保留原可用旧版入口和原包，不阻塞其它简介更新。 用户再次指出简介模板化、像在介绍插件功能。复查当前 133 个公开条目，重写了 46 个有明确原站事实可核的简介，使用站点定位、主要内容、代表作品或真实阅读门槛。更新简中、繁中、英文与旧版固定简介。正式订阅与包内文案均已读回。",
       "remainingActions": [
-        "正式App承接优酷新版能力后，验证并解除其发布保留；不提前覆盖当前可用旧包。"
+        "正式App承接优酷新版能力后，验证并解除其发布保留；不提前覆盖当前可用旧包。",
+        "喜漫与旧漫蛙当前缺少可确认的公开目录，保留原文案。取得可信的原站目录后，再补充可区分的站点信息。"
       ],
       "evidence": [
         ".hvigor/outputs/source-descriptions-20261123/published-index-receipt.json",
@@ -13371,7 +13372,11 @@
         ".hvigor/outputs/source-descriptions-20261123/public-release-b9fcd8d/index-readback.json",
         ".hvigor/outputs/source-descriptions-20261123/public-release-b9fcd8d/package-readback.json",
         ".hvigor/outputs/source-descriptions-20261123/public-release-b9fcd8d/komiic-execution-parity/report.md",
-        "https://github.com/honjow/koma-sources/releases/tag/sources-b9fcd8dbe67f9a231ba38ed3482bc60c1be92838"
+        "https://github.com/honjow/koma-sources/releases/tag/sources-b9fcd8dbe67f9a231ba38ed3482bc60c1be92838",
+        ".hvigor/outputs/source-descriptions-site-copy-20261126/copy-plan.json",
+        ".hvigor/outputs/source-descriptions-site-copy-20261126/local-readback.json",
+        ".hvigor/outputs/source-descriptions-site-copy-20261126/public-readback.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-a6334fa34576f22b5d8bcc3a3abafdd428769041"
       ],
       "progressPhase": "verification"
     },
@@ -13799,6 +13804,20 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-description-site-characteristics-20261126",
+      "at": "2026-11-26T05:57:13+08:00",
+      "itemId": "SOURCE_DESCRIPTION_QUALITY",
+      "kind": "implementation",
+      "title": "按原站定位重写并发布 46 个书源简介",
+      "detail": "现有介绍有重复站名、罗列插件功能、泛化题材和残留验收备注的问题。用官网资料、原站真实列表或已核结果重写。CCC 明确台湾原创与纸本出版合作，MANGA Plus Creators 介绍英文投稿和月奖，台湾漫读说明繁中卷册与试阅。制作规范加上换站名后是否仍然通用的检查。只改简介、翻译与包版本。45 个首批候选及补充的 18 漫画均完成正式成包核对，公开索引中其余 87 条无变化。",
+      "evidence": [
+        ".hvigor/outputs/source-descriptions-site-copy-20261126/copy-plan.json",
+        ".hvigor/outputs/source-descriptions-site-copy-20261126/local-readback.json",
+        ".hvigor/outputs/source-descriptions-site-copy-20261126/public-readback.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-a6334fa34576f22b5d8bcc3a3abafdd428769041"
+      ]
+    },
     {
       "id": "source-summary-publication-final-20261126",
       "at": "2026-11-26T04:55:37+08:00",
