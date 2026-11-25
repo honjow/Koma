@@ -95,6 +95,25 @@ export class BackupRestoreActivity {
     return pending
   }
 
+  private static ensureDeviceSyncCanWait(): void {
+    if (BackupRestoreActivity.hasPendingRecovery()) throw new Error('sync_local_recovery_required')
+    if (BackupRestoreActivity.isRestoring()) throw new Error('sync_local_busy')
+  }
+
+  static async waitForDeviceSyncIdle(stillAllowed?: () => boolean): Promise<void> {
+    while (stillAllowed === undefined || stillAllowed()) {
+      BackupRestoreActivity.ensureDeviceSyncCanWait()
+      if (BackupRestoreActivity.writers === 0 && BackupRestoreActivity.deviceSyncCommit === undefined) return
+      if (BackupRestoreActivity.waitForIdle === undefined) {
+        BackupRestoreActivity.waitForIdle = new Promise<void>((resolve: () => void): void => {
+          BackupRestoreActivity.resolveIdle = resolve
+        })
+      }
+      await BackupRestoreActivity.waitForIdle
+    }
+    throw new Error('sync_local_busy')
+  }
+
   static async runDeviceSyncCommit<T>(write: () => Promise<T>): Promise<T> {
     if (BackupRestoreActivity.hasPendingRecovery()) throw new Error('sync_local_recovery_required')
     if (BackupRestoreActivity.isRestoring() || BackupRestoreActivity.writers > 0 ||
@@ -107,6 +126,16 @@ export class BackupRestoreActivity {
       BackupRestoreActivity.deviceSyncCommit = undefined
       finish()
       BackupRestoreActivity.notifyIdle()
+    }
+  }
+
+  static async runDeviceSyncCommitWhenIdle<T>(write: () => Promise<T>, stillAllowed?: () => boolean): Promise<T> {
+    while (true) {
+      await BackupRestoreActivity.waitForDeviceSyncIdle(stillAllowed)
+      BackupRestoreActivity.ensureDeviceSyncCanWait()
+      if (BackupRestoreActivity.writers === 0 && BackupRestoreActivity.deviceSyncCommit === undefined) {
+        return await BackupRestoreActivity.runDeviceSyncCommit(write)
+      }
     }
   }
 

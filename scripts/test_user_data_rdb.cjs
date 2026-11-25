@@ -500,6 +500,16 @@ test('cloud publication drains late and partially successful changes without ano
           assert.equal(sync.sync(), receiving)
           assert.throws(() => BackupRestoreActivity.beginRestore(), /backup_restore_busy/)
           await assert.rejects(BackupRestoreActivity.runDeviceSyncCommit(async () => {}), /sync_local_busy/)
+          let delayedResolved = false
+          const delayedCommit = BackupRestoreActivity.runDeviceSyncCommitWhenIdle(async () => {
+            delayedResolved = true
+            return 'delayed'
+          })
+          await new Promise(resolve => setImmediate(resolve))
+          assert.equal(delayedResolved, false)
+          completeNative({ schedule: 2, code })
+          await receiving
+          assert.equal(await delayedCommit, 'delayed')
         } finally {
           completeNative({ schedule: 2, code })
           await receiving

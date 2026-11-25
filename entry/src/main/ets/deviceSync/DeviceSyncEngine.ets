@@ -74,6 +74,8 @@ export interface SyncReadingWorkConflict {
   local: SyncReadingWorkProgress
   remote: SyncReadingWorkProgress
   facts: SyncFact[]
+  snapshotRevision?: string
+  snapshotLocal?: SyncReadingWorkProgress
 }
 
 export interface SyncReadingWorkResult {
@@ -1077,7 +1079,18 @@ export class DeviceSyncEngine {
     // Once local time wins, a differing position is ambiguous: it may be a
     // deliberate reread or a stale save made before this remote was pulled.
     if (differs && (pending.length > 0 || concurrent || (local.date >= remote.date && (remoteUnseen || saved !== undefined)))) {
-      return { applied: false, conflict: { source, work, local, remote, facts: remoteFacts } }
+      const space = this.active()?.space
+      let snapshotRevision: string | undefined
+      let snapshotLocal: SyncReadingWorkProgress | undefined
+      if (space !== undefined) {
+        const snapshot = await this.owner.snapshot('reading', true, guard, space, false)
+        const snapshotValues = byLocalValue(snapshot.values)
+        snapshotRevision = snapshot.revision
+        snapshotLocal = syncReadingProgressFromValues(source, work,
+          (key: string): string | undefined => snapshotValues.get(key))
+      }
+      return { applied: false, conflict: { source, work, local, remote, facts: remoteFacts,
+        snapshotRevision, snapshotLocal } }
     }
     if (differs) {
       await this.applyReadingFocus(remoteFacts, guard)
@@ -1176,12 +1189,14 @@ export class DeviceSyncEngine {
       edits.push({ key: syncKey(['position', conflict.source, conflict.work, chosen.chapter]),
         kind: 'set', value: JSON.stringify(chosen.position) })
     }
-    await this.applyReadingFocus(conflict.facts, guard, edits, conflict.local)
+    await this.applyReadingFocus(conflict.facts, guard, edits, conflict.local, conflict.snapshotRevision,
+      conflict.snapshotLocal)
   }
 
   /** Apply the chosen location and record the resolving edit in the same receipt. */
   private async applyReadingFocus(facts: SyncFact[], guard: SyncRequestGuard,
-    choice: DeviceSyncLocalEdit[] = [], expectedLocal?: SyncReadingWorkProgress): Promise<void> {
+    choice: DeviceSyncLocalEdit[] = [], expectedLocal?: SyncReadingWorkProgress,
+    expectedRevision?: string, expectedSnapshot?: SyncReadingWorkProgress): Promise<void> {
     guard()
     if (facts.length === 0) return
     const active = this.active()
@@ -1189,13 +1204,14 @@ export class DeviceSyncEngine {
     const current = active.groups.find((group: SyncGroupState): boolean => group.id === 'reading')
     if (current === undefined) return
     const merged = mergeSyncFacts(current.facts, facts)
-    const local = await this.owner.snapshot('reading', false, guard, active.space, false)
+    const local = await this.owner.snapshot('reading', true, guard, active.space, false)
     const localValues = byLocalValue(local.values)
-    if (expectedLocal !== undefined) {
+    if (expectedLocal !== undefined && (expectedRevision === undefined || local.revision !== expectedRevision)) {
+      const anchor = expectedSnapshot ?? expectedLocal
       const parts = syncKeyParts(choice[0].key)
       const now = syncReadingProgressFromValues(parts[1], parts[2], (key: string): string | undefined => localValues.get(key))
-      if (now === undefined || now.chapter !== expectedLocal.chapter || now.page !== expectedLocal.page ||
-        now.date > expectedLocal.date) throw new Error('sync_local_changed')
+      if (now === undefined || now.chapter !== anchor.chapter || now.page !== anchor.page ||
+        now.date > anchor.date) throw new Error('sync_local_changed')
     }
     const focusKeys = new Set<string>(facts.map((fact: SyncFact): string => fact.key))
     const changes: SyncLocalValue[] = []

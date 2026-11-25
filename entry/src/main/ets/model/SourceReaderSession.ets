@@ -167,3 +167,27 @@ export function sourceReaderSessionRequestFromHistory(
   }
   return request
 }
+
+export function mergeSourceReaderResumeRequest(
+  latest: SourceReaderSessionRequest,
+  fallback?: SourceReaderSessionRequest,
+): SourceReaderSessionRequest {
+  const merged = cloneSourceReaderSessionRequest(latest)
+  if (fallback === undefined) {
+    return merged
+  }
+  if (merged.mangaUrl === undefined && fallback.mangaUrl !== undefined) merged.mangaUrl = fallback.mangaUrl
+  if (merged.coverUri === undefined && fallback.coverUri !== undefined) merged.coverUri = fallback.coverUri
+  if (merged.sourceName === undefined && fallback.sourceName !== undefined) merged.sourceName = fallback.sourceName
+  if (merged.readingFormat === undefined && fallback.readingFormat !== undefined) merged.readingFormat = fallback.readingFormat
+  if (merged.chapterId === fallback.chapterId && fallback.chapterIds?.includes(merged.chapterId) &&
+    fallback.chapterIds.length >= merged.chapterIds.length) {
+    merged.chapterIds = fallback.chapterIds.slice()
+    merged.chapterTitles = fallback.chapterTitles?.slice()
+    if (fallback.chaptersResolved && fallback.chapters !== undefined) {
+      merged.chapters = fallback.chapters.slice()
+      merged.chaptersResolved = true
+    }
+  }
+  return merged
+}

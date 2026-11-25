@@ -318,3 +318,103 @@ test('a transferred private work stays protected after the device locks or its l
   await new Promise(resolve => setImmediate(resolve))
   assert.equal(protections.at(-1), false)
 })
+
+test('continuation resume avoids rewinding to stale page-1 cloud state and notifies sync on away', async () => {
+  const dataSource = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/deviceSync/DeviceSyncData.ets'), 'utf8')
+  const factsSource = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/deviceSync/DeviceSyncFacts.ets'), 'utf8')
+  const sessionSource = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/SourceReaderSession.ets'), 'utf8')
+  const compileTs = (code, deps) => {
+    const out = ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS } }).outputText
+    const mod = { exports: {} }
+    new Function('require', 'exports', 'module', out)(name => deps[name] ?? {}, mod.exports, mod)
+    return mod.exports
+  }
+  const data = compileTs(dataSource, {
+    './DeviceSyncFacts': compileTs(factsSource, {}),
+    './DeviceSyncWire': { isSyncDigest: () => false, syncDigest: s => s },
+    './DeviceSyncCaseFold': { syncDefaultCaseFold: s => s.toLowerCase() },
+    '../model/LibrarySmartCategory': {},
+  })
+  const sourceSession = compileTs(sessionSource, { './ReaderChapterSequence': {} })
+
+  const localPage3 = { chapter: 'ch1', page: 2, total: 20, date: 200 }
+  const staleRemotePage1 = { chapter: 'ch1', page: 0, total: 20, date: 100 }
+  const newerRemotePage6 = { chapter: 'ch1', page: 5, total: 20, date: 350 }
+  const newerRemoteRereadPage1 = { chapter: 'ch1', page: 0, total: 20, date: 350 }
+  const newerRemoteChapter2 = { chapter: 'ch2', page: 0, total: 18, date: 350 }
+
+  assert.equal(data.continuationResumeResolution(localPage3, staleRemotePage1), 'local')
+  assert.equal(data.continuationResumeResolution(localPage3, newerRemotePage6), 'remote')
+  assert.equal(data.continuationResumeResolution(localPage3, newerRemoteRereadPage1), 'ask')
+  assert.equal(data.continuationResumeResolution(localPage3, newerRemoteChapter2), 'remote')
+
+  const merged = sourceSession.mergeSourceReaderResumeRequest(
+    { comicId: 's:w', sourceId: 's', mangaId: 'w', title: 'T', chapterId: 'ch1', chapterIds: ['ch1'], chaptersResolved: false },
+    { comicId: 's:w', sourceId: 's', mangaId: 'w', title: 'T', mangaUrl: '/manga/w', sourceName: 'Src',
+      chapterId: 'ch1', chapterIds: ['ch1', 'ch2'], chapters: [{ id: 'ch1', title: '1' }, { id: 'ch2', title: '2' }], chaptersResolved: true },
+  )
+  assert.equal(merged.mangaUrl, '/manga/w')
+  assert.deepEqual(merged.chapterIds, ['ch1', 'ch2'])
+  assert.equal(merged.chaptersResolved, true)
+
+  const indexSource = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/pages/Index.ets'), 'utf8')
+  const syntax = ts.createSourceFile('Index.ts', indexSource.replace(/\bstruct /g, 'class '), ts.ScriptTarget.Latest, true)
+  const cls = syntax.statements.find(node => ts.isClassDeclaration(node) &&
+    node.members.some(row => row.name?.text === 'handleSourceContinuedAway'))
+  const methods = ['handleSourceContinuedAway', 'resumeReaderAfterContinuationAway']
+    .map(name => cls.members.find(row => row.name?.text === name).getText(syntax))
+    .join('\n')
+  const ui = ts.transpileModule('class AwayFlow {' + methods + '}', {
+    compilerOptions: { target: ts.ScriptTarget.ES2020 },
+  }).outputText
+
+  const calls = []
+  const AwayFlow = new Function('appDeviceSync', 'appReaderContinuation', 'continuationResumeResolution',
+    'sourceReaderSessionRequestForChapter', ui + '\nreturn AwayFlow')(
+    {
+      readingContinuedAway: () => calls.push('readingContinuedAway'),
+      retainBlockedReading: () => calls.push('retainBlockedReading'),
+      waitForReadingSync: async () => ({
+        source: 's', work: 'w', facts: [],
+        local: localPage3, remote: staleRemotePage1,
+      }),
+      resolveReadingResumeConflict: async (_c, useRemote) => calls.push(`resolve:${useRemote}`),
+      beginReadingChapter: () => calls.push('beginReadingChapter'),
+    },
+    { setContinuedAway: value => calls.push(`continuedAway:${value}`) },
+    data.continuationResumeResolution,
+    sourceSession.sourceReaderSessionRequestForChapter,
+  )
+  const host = new AwayFlow()
+  let progress = { comicId: 's:w', chapterId: 'ch1', pageIndex: 2 }
+  Object.assign(host, {
+    readerOpen: true,
+    readerClosing: false,
+    readerOpenEpoch: 1,
+    readerPageIndex: 2,
+    readerSessionPersistenceReady: true,
+    continuationRuntime: { continuedAway: true },
+    readerSessionConfig: { comicId: 's:w', chapterId: 'ch1', chapterIds: ['ch1'], sourceRuntimeId: 's', title: 'T' },
+    activeSourceReaderRequest: { comicId: 's:w', sourceId: 's', mangaId: 'w', title: 'T', chapterId: 'ch1', chapterIds: ['ch1'] },
+    incognito: { enabled: false, isSourceEnabled: () => false },
+    readingStatisticsRecorder: { setActive: () => {} },
+    readerSessionStore: { flush: () => true, getProgress: () => progress },
+    isReaderRouteVisible: () => true,
+    privateContinuationSession: () => false,
+    syncReaderContinuationState: () => {},
+    syncReadingSessionActivity: () => {},
+    showContinuationAwayDialog: () => {},
+    closeContinuationAwayDialog: () => {},
+    openSourceReader: async (_req, _i, _o, page) => calls.push(`openSource:${page}`),
+    showReadingResumeConflict: () => calls.push('askDialog'),
+  })
+
+  host.handleSourceContinuedAway()
+  assert.ok(calls.includes('readingContinuedAway'))
+
+  calls.length = 0
+  await host.resumeReaderAfterContinuationAway()
+  assert.ok(calls.includes('resolve:false'))
+  assert.equal(calls.some(c => c.startsWith('openSource:')), false)
+  assert.ok(calls.includes('beginReadingChapter'))
+})

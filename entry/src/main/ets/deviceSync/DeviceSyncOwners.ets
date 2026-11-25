@@ -1054,11 +1054,12 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   async commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], prepareCursor: (id: string) => Promise<SyncPreparedReceipt>,
     acceptedRemoval: string = '', stillAllowed?: () => boolean): Promise<void> {
     await this.recoverPendingLocalRollback()
+    await BackupRestoreActivity.waitForDeviceSyncIdle(stillAllowed)
     const reader = appReaderSessionStore(this.context.filesDir)
     if (!await reader.flushAsync()) throw new Error('sync_local_busy')
     const readerRevision = reader.currentDeviceSyncRevision()
     try {
-    await BackupRestoreActivity.runDeviceSyncCommit(async (): Promise<void> => {
+    await BackupRestoreActivity.runDeviceSyncCommitWhenIdle(async (): Promise<void> => {
       const fileNames = [LIBRARY_STORE_PERSISTENCE_FILE_NAME, READER_PROGRESS_PERSISTENCE_FILE_NAME, this.projectionName]
       const readingRevision = expected.find((row: SyncOwnerRevision): boolean => row.group === 'reading')?.revision
       const expectedShelf = expected.find((row: SyncOwnerRevision): boolean => row.group === 'shelf')?.revision

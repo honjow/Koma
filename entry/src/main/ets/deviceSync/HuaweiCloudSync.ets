@@ -56,6 +56,7 @@ class HuaweiCloudSync {
   private needsPublication: boolean = false
   private foreground: boolean = false
   private restoring: boolean = false
+  private reviewHolds: number = 0
   private generation: number = 0
   private timer: number = -1
   private deadline: number = 0
@@ -105,6 +106,31 @@ class HuaweiCloudSync {
     if (!value) {
       this.schedulePublication()
       this.schedule(2500)
+    }
+  }
+
+  holdReview(): () => void {
+    this.reviewHolds++
+    this.cancelTimer()
+    let held = true
+    return (): void => {
+      if (!held) return
+      held = false
+      if (this.reviewHolds > 0) this.reviewHolds--
+      if (this.reviewHolds !== 0) return
+      this.schedulePublication()
+      this.schedule(1500)
+    }
+  }
+
+  async waitForIdle(): Promise<void> {
+    while (this.current !== undefined || this.publication !== undefined) {
+      if (this.current !== undefined) {
+        try { await this.current } catch (_error) {}
+      }
+      if (this.publication !== undefined) {
+        try { await this.publication } catch (_error) {}
+      }
     }
   }
 
@@ -207,7 +233,8 @@ class HuaweiCloudSync {
   }
 
   private schedule(delay: number): void {
-    if (this.view.verificationOnly || !this.foreground || !this.view.enabled || this.restoring || this.selection().length === 0) return
+    if (this.reviewHolds > 0 || this.view.verificationOnly || !this.foreground || !this.view.enabled || this.restoring ||
+      this.selection().length === 0) return
     const deadline = Date.now() + delay
     if (this.timer >= 0 && this.deadline <= deadline) return
     this.cancelTimer()

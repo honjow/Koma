@@ -336,10 +336,12 @@ class DeviceSyncRuntime {
     // Keep an explicit review stable without interrupting an in-flight write.
     this.openReviews++
     this.cancelTimer()
+    const releaseCloud = appHuaweiCloudSync.holdReview()
     let held = true
     return (): void => {
       if (!held) return
       held = false
+      releaseCloud()
       this.openReviews--
       if (this.openReviews !== 0) return
       this.recoverForeground()
@@ -506,6 +508,11 @@ class DeviceSyncRuntime {
     if (this.view.selected.includes('reading')) this.schedule(0)
   }
 
+  readingContinuedAway(): void {
+    this.retainBlockedReading()
+    if (this.view.selected.includes('reading')) this.schedule(0)
+  }
+
   historyOpened(): void { this.schedule(0) }
 
   bookshelfOpened(): void {
@@ -534,11 +541,17 @@ class DeviceSyncRuntime {
       await this.recordPositions()
       const reader = this.context === undefined ? undefined : appReaderSessionStore(this.context.filesDir)
       const progress = reader?.getProgress(request.comicId)
+      const chapterProgress = progress === undefined ? undefined :
+        reader?.getChapterProgress(request.comicId, progress.chapterId)
       const position = progress === undefined ? undefined :
-        syncReadingPosition(progress.pageIndex, progress.totalPages, progress.updatedAt)
+        syncReadingPosition(progress.pageIndex, progress.totalPages, progress.updatedAt) ??
+        (chapterProgress === undefined ? undefined :
+          syncReadingPosition(chapterProgress.pageIndex, chapterProgress.totalPages,
+            Math.max(progress.updatedAt, chapterProgress.updatedAt)))
       let saved: SyncReadingWorkProgress | undefined
       if (progress !== undefined) {
-        const recent = syncReadingRecent(request.sourceId, progress.chapterId, progress.updatedAt, request.title,
+        const recentDate = Math.max(progress.updatedAt, position?.date ?? 0)
+        const recent = syncReadingRecent(request.sourceId, progress.chapterId, recentDate, request.title,
           request.sourceName ?? request.sourceId, request.chapterTitles?.[request.chapterIds.indexOf(progress.chapterId)] ?? '',
           position?.page, request.mangaUrl)
         saved = { recent, position, chapter: progress.chapterId, page: position?.page ?? 0,
@@ -551,6 +564,9 @@ class DeviceSyncRuntime {
         timer = setTimeout((): void => { expired = true; resolve(undefined) }, 2000)
       })])
       if (result?.conflict !== undefined) {
+        // Cancel any scheduled background sync queued by recordPositions()/flushAsync()
+        // before the conflict dialog grabs holdAutomaticForReview().
+        this.cancelTimer()
         return result.conflict
       }
     } catch (error) {
@@ -562,6 +578,10 @@ class DeviceSyncRuntime {
   }
 
   async resolveReadingResumeConflict(conflict: SyncReadingWorkConflict, useRemote: boolean): Promise<void> {
+    await Promise.all([this.waitForCurrentTransfer(), appHuaweiCloudSync.waitForIdle()])
+    while (this.view.busy && this.taskDone !== undefined) {
+      try { await this.taskDone } catch (_error) { break }
+    }
     await this.task(async (): Promise<void> => {
       const engine = this.needed()
       await engine.resolveReadingWork(conflict, useRemote, engine.requestGuard())

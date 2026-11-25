@@ -5,7 +5,7 @@ import { connectMangaDetailTransition, MangaDetailTransitionState, MangaDetailTr
 import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { SyncGroup } from '../deviceSync/DeviceSyncFacts'
 import { SyncReadingWorkConflict } from '../deviceSync/DeviceSyncEngine'
-import { SyncReadingWorkProgress } from '../deviceSync/DeviceSyncData'
+import { continuationResumeResolution, SyncReadingWorkProgress } from '../deviceSync/DeviceSyncData'
 import { DeviceSyncConnectionPage, DeviceSyncHuaweiCloudPage, DeviceSyncOverviewPage, DeviceSyncReviewPage, DeviceSyncReviewReason,
   DeviceSyncWebDavChrome, DeviceSyncWebDavPage } from './DeviceSyncPages'
 import { ImagePluginsPage } from './ImagePluginsPage'
@@ -245,6 +245,7 @@ import {
   SourceReadHistoryEntry,
   SourceReaderSessionRequest,
   cloneSourceReaderSessionRequest,
+  mergeSourceReaderResumeRequest,
   sourceReadHistoryEntryFromRequest,
   sourceReaderSessionRequestFromHistory,
   sourceReaderSessionRequestForChapter,
@@ -2274,10 +2275,22 @@ struct Index {
     try {
       await appDeviceSync.resolveReadingResumeConflict(conflict, useRemote)
       const history = this.readerSessionStore.getSourceHistoryForResume(request.comicId)
-      const latest = history === undefined ? undefined : sourceReaderSessionRequestFromHistory(history)
-      if (latest?.chapterId !== chosen.chapter) throw new Error('sync_reading_choice_not_applied')
-      DiagnosticLogger.info('device-sync', 'reading-choice-applied', `useRemote=${useRemote}`)
-      await this.openSourceReader(latest)
+      const rawLatest = history === undefined ? undefined : sourceReaderSessionRequestFromHistory(history)
+      if (rawLatest !== undefined) {
+        if (rawLatest.chapterId !== chosen.chapter) throw new Error('sync_reading_choice_not_applied')
+        const latest = mergeSourceReaderResumeRequest(rawLatest, request)
+        DiagnosticLogger.info('device-sync', 'reading-choice-applied', `useRemote=${useRemote}`)
+        await this.openSourceReader(latest)
+        return
+      }
+      if (this.libraryStore.getComicSummary(request.comicId) !== undefined) {
+        const progress = this.readerSessionStore.getProgress(request.comicId)
+        if (progress !== undefined && progress.chapterId !== chosen.chapter) throw new Error('sync_reading_choice_not_applied')
+        DiagnosticLogger.info('device-sync', 'reading-choice-applied', `useRemote=${useRemote} library=true`)
+        await this.openReader(request.comicId, chosen.chapter)
+        return
+      }
+      throw new Error('sync_reading_choice_not_applied')
     } catch (error) {
       DiagnosticLogger.exception('device-sync', 'reading-choice-failed', error as Error)
       this.showToast(AppStrings.get('device_sync_progress_resolve_failed'))
@@ -2515,7 +2528,13 @@ struct Index {
       return
     }
     this.readingStatisticsRecorder.setActive(false)
-    if (this.readerSessionPersistenceReady) this.readerSessionStore.flush()
+    const committed = this.readerSessionPersistenceReady && this.readerSessionStore.flush()
+    const sourceIncognito = this.incognito.isSourceEnabled(this.readerSessionConfig.sourceRuntimeId) ||
+      this.privateContinuationSession(this.readerSessionConfig.comicId)
+    if (!sourceIncognito) {
+      if (committed) appDeviceSync.readingContinuedAway()
+      else appDeviceSync.retainBlockedReading()
+    }
     this.syncReaderContinuationState()
     this.showContinuationAwayDialog()
   }
@@ -2615,6 +2634,9 @@ struct Index {
     const syncMangaId = sourceRequest?.mangaId ?? comic?.remoteResourceId ?? ''
     let syncedChapterId: string | undefined
     let syncedPageIndex: number | undefined
+    let askConflict: SyncReadingWorkConflict | undefined
+    let askRequest: SourceReaderSessionRequest | undefined
+    let refreshedSession: SourceReaderSessionRequest | undefined
     try {
       if (syncSourceId.length > 0 && syncMangaId.length > 0 && !this.incognito.enabled &&
         !this.privateContinuationSession(config.comicId) &&
@@ -2633,10 +2655,17 @@ struct Index {
           }
         const conflict = await appDeviceSync.waitForReadingSync(syncRequest)
         if (conflict !== undefined) {
-          await appDeviceSync.resolveReadingResumeConflict(conflict, true)
+          const decision = continuationResumeResolution(conflict.local, conflict.remote)
+          if (decision === 'ask') {
+            askConflict = conflict
+            askRequest = syncRequest
+          } else {
+            await appDeviceSync.resolveReadingResumeConflict(conflict, decision === 'remote')
+            refreshedSession = syncRequest
+          }
         }
         const latest = this.readerSessionStore.getProgress(config.comicId)
-        if (latest !== undefined &&
+        if (askConflict === undefined && latest !== undefined &&
           (latest.chapterId !== config.chapterId || latest.pageIndex !== this.readerPageIndex)) {
           syncedChapterId = latest.chapterId
           syncedPageIndex = latest.pageIndex
@@ -2648,6 +2677,12 @@ struct Index {
     this.closeContinuationAwayDialog()
     appReaderContinuation.setContinuedAway(false)
     if (!this.readerOpen || this.readerClosing) return
+    if (askConflict !== undefined && askRequest !== undefined) {
+      this.syncReadingSessionActivity()
+      this.syncReaderContinuationState()
+      this.showReadingResumeConflict(askConflict, askRequest)
+      return
+    }
     if (syncedChapterId !== undefined && syncedPageIndex !== undefined) {
       if (sourceRequest !== undefined && sourceRequest.comicId === config.comicId) {
         const nextRequest = sourceReaderSessionRequestForChapter(sourceRequest, syncedChapterId) ?? {
@@ -2670,6 +2705,8 @@ struct Index {
       } else {
         await this.openReader(config.comicId, syncedChapterId, 'resume', undefined, undefined, syncedPageIndex)
       }
+    } else if (refreshedSession !== undefined) {
+      appDeviceSync.beginReadingChapter(refreshedSession)
     }
     this.syncReadingSessionActivity()
     this.syncReaderContinuationState()

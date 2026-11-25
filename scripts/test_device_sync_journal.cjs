@@ -1281,16 +1281,19 @@ test('keeping local restores the saved chapter while an obsolete choice leaves a
     compilerOptions: { target: ts.ScriptTarget.ES2020 },
   }).outputText
   const failures = []
-  const Resume = new Function('appDeviceSync', 'sourceReaderSessionRequestFromHistory', 'DiagnosticLogger',
-    'AppStrings', ui + '\nreturn Resume')(
+  const sourceSession = compile('../model/SourceReaderSession', { './ReaderChapterSequence': {} })
+  const Resume = new Function('appDeviceSync', 'sourceReaderSessionRequestFromHistory',
+    'mergeSourceReaderResumeRequest', 'DiagnosticLogger', 'AppStrings', ui + '\nreturn Resume')(
     { resolveReadingResumeConflict: (conflict, useRemote) =>
       local.engine.resolveReadingWork(conflict, useRemote, local.engine.requestGuard()) },
-    compile('../model/SourceReaderSession', { './ReaderChapterSequence': {} }).sourceReaderSessionRequestFromHistory,
+    sourceSession.sourceReaderSessionRequestFromHistory,
+    sourceSession.mergeSourceReaderResumeRequest,
     { info: noop, exception: (_category, _event, error) => failures.push(error.message) }, { get: key => key })
   const opened = []
   const hints = []
   const page = new Resume()
   Object.assign(page, { readerSessionStore: local.reader, openSourceReader: async request => opened.push(request.chapterId),
+    libraryStore: { getComicSummary: () => undefined },
     showToast: message => hints.push(message) })
   await page.resolveReadingResumeConflict(conflict, false, { comicId })
   assert.deepEqual(opened, ['chapter-66'])
@@ -1302,6 +1305,73 @@ test('keeping local restores the saved chapter while an obsolete choice leaves a
   assert.deepEqual(failures, ['sync_local_changed'])
   assert.deepEqual(hints, ['device_sync_progress_resolve_failed'])
   assert.equal(local.coldReader().getProgress(comicId).chapterId, 'chapter-67')
+})
+
+test('resolving a same-page conflict with newer known timestamp works for both local and remote choices', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.SharedWebDav)
+  const local = await readingDevice(fixture, A, new Map(), true)
+  const remote = await readingDevice(fixture, B, new Map(), true)
+  const source = 'zh.test'
+  const work = 'same-page-conflict'
+  const comicId = source + ':' + work
+  const setupDevice = async device => {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['reading'])).token, [])
+    device.reader.saveSourceHistory({ comicId, sourceId: source, mangaId: work, title: 'SamePage',
+      sourceName: 'Public', chapterId: 'chapter-1', chapterTitle: 'Ch 1' })
+  }
+  await setupDevice(local)
+  await setupDevice(remote)
+
+  remote.reader.saveProgress({ comicId, chapterId: 'chapter-1', pageIndex: 0, totalPages: 20, updatedAt: 500,
+    progressRatio: 1 / 20, completed: false }, 'Ch 1')
+  assert.equal(remote.reader.flush(), true)
+  await remote.engine.syncNow()
+
+  local.reader.saveProgress({ comicId, chapterId: 'chapter-1', pageIndex: 2, totalPages: 20, updatedAt: 400,
+    progressRatio: 3 / 20, completed: false }, 'Ch 1')
+  assert.equal(local.reader.flush(), true)
+  const date = local.coldReader().getProgress(comicId).updatedAt
+  const saved = {
+    recent: data.syncReadingRecent(source, 'chapter-1', date, 'SamePage', 'Public', 'Ch 1', 2),
+    position: data.syncReadingPosition(2, 20, date),
+    chapter: 'chapter-1', page: 2, total: 20, date,
+  }
+  const { conflict } = await local.engine.syncReadingWork(source, work, saved)
+  assert.ok(conflict)
+  assert.equal(conflict.local.page, 2)
+  assert.equal(conflict.remote.page, 0)
+
+  // Both Keep Local and Use Remote must resolve cleanly even when expectedLocal.date
+  // is skewed compared to the projected snapshot timestamp (and even with pending flush).
+  const skewedConflict = {
+    ...conflict,
+    local: { ...conflict.local, date: date - 50 },
+  }
+  await local.engine.resolveReadingWork(skewedConflict, false, local.engine.requestGuard())
+  assert.equal(local.coldReader().getProgress(comicId).pageIndex, 2)
+
+  // A subsequent real local page turn must still be protected by sync_local_changed.
+  local.reader.saveProgress({ comicId, chapterId: 'chapter-1', pageIndex: 4, totalPages: 20, updatedAt: 900,
+    progressRatio: 5 / 20, completed: false }, 'Ch 1')
+  assert.equal(local.reader.flush(), true)
+  await assert.rejects(
+    () => local.engine.resolveReadingWork(skewedConflict, true, local.engine.requestGuard()),
+    /sync_local_changed/,
+  )
+  assert.equal(local.coldReader().getProgress(comicId).pageIndex, 4)
+
+  // Re-syncing for the new page and choosing Use Remote switches cleanly to page 0.
+  const latestDate = local.coldReader().getProgress(comicId).updatedAt
+  const { conflict: conflict2 } = await local.engine.syncReadingWork(source, work, {
+    recent: data.syncReadingRecent(source, 'chapter-1', latestDate, 'SamePage', 'Public', 'Ch 1', 4),
+    position: data.syncReadingPosition(4, 20, latestDate),
+    chapter: 'chapter-1', page: 4, total: 20, date: latestDate,
+  })
+  assert.ok(conflict2)
+  await local.engine.resolveReadingWork(conflict2, true, local.engine.requestGuard())
+  assert.equal(local.coldReader().getProgress(comicId).pageIndex, 0)
 })
 
 test('the next manual sync completes an interrupted local rollback and preserves a later Reader save', async () => {

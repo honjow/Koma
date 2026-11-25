@@ -315,6 +315,16 @@ export function hasNewerCompleteRemoteReading(local: SyncReadingWorkProgress, re
     position.date === remote.recent.date && remote.recent.savedPage === position.page
 }
 
+export type ContinuationResumeDecision = 'remote' | 'local' | 'ask'
+
+/** Decide how continuation resume reconciles a conflict without rewinding to an older cloud page. */
+export function continuationResumeResolution(local: SyncReadingWorkProgress,
+  remote: SyncReadingWorkProgress): ContinuationResumeDecision {
+  if (remote.date <= local.date) return 'local'
+  if (remote.chapter !== local.chapter || remote.page >= local.page) return 'remote'
+  return 'ask'
+}
+
 function isSourceWork(parts: string[]): boolean {
   return syncReadingIdentity(parts[1], parts[2])
 }
