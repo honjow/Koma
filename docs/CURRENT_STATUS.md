@@ -13094,19 +13094,19 @@
       "priority": "P2",
       "kind": "active",
       "progressPhase": "verification",
-      "status": "237 已核摘要间距，197 已验证包子、哔哩和快看摘要",
+      "status": "包子、哔哩、快看的列表摘要已发布",
       "owner": "本会话整合、真机证据复核与本地交付；Terra 子代理分语言调查及 197 验证",
       "reportedAt": "2026-11-23T10:44:10+08:00",
       "reportedAtSource": "用户本会话要求列表利用封面右侧空间展示书源自定标签、最新章节等有效信息，标题适度缩小；精确消息时间未提供。",
-      "updatedAt": "2026-11-26T03:20:40+08:00",
+      "updatedAt": "2026-11-26T04:22:29+08:00",
       "relatedItems": [
         "PUBLISHED_SOURCE_CHAPTER_ORDER_AUDIT"
       ],
-      "result": "App可选listInfo/普通Browse解析及统一文字排版已本地提交；标题14fp靠上、摘要组靠下，去掉重复上下内距后与左侧同为8vp。237已装ac2d4d148c43候选，热门与最近更新普通列表实际封面、标题、作者/状态显示及一致内距由主代理亲审；该机长标题实际仍一行，197既有两行无重叠与真实题材验收分别保留。龙禁漫0.1.4、Komiic0.1.24正式发布，最低App仍1.4.2/1.3.0，119源ID不变；正式两包校验、元数据/图标与4份真实原件完整解析响应及calls均已核对。 本轮按正式订阅的 133 个唯一 ID 登记逐源证据。包子漫画、漫画柜、嗶哩漫畫、Tapas、MANGA Plus Creators 英文、WEBTOON 英文及繁中、瓜子漫画、科技大觀園、漫画社、嬉皮漫画、快看漫画、動漫戲說补充摘要。候选均打包，并用真实列表响应回放，旧宿主的响应和请求保持一致。197 普通列表已见包子的作者与题材，以及哔哩和快看的作者。漫画柜同版本已导入，普通浏览连接超时。197 已返回原设置页并释租。 237 安装间距候选前后使用同一个包子 0.1.35 热门列表，四张两行摘要卡片标题至第一行由 95px 缩到 12px，标题与封面坐标相同。",
-      "remaining": "继续复核可在现场打开的候选及尚缺合适原站列表证据的源。正式订阅未变更。",
+      "result": "App可选listInfo/普通Browse解析及统一文字排版已本地提交；标题14fp靠上、摘要组靠下，去掉重复上下内距后与左侧同为8vp。237已装ac2d4d148c43候选，热门与最近更新普通列表实际封面、标题、作者/状态显示及一致内距由主代理亲审；该机长标题实际仍一行，197既有两行无重叠与真实题材验收分别保留。龙禁漫0.1.4、Komiic0.1.24正式发布，最低App仍1.4.2/1.3.0，119源ID不变；正式两包校验、元数据/图标与4份真实原件完整解析响应及calls均已核对。 本轮按正式订阅的 133 个唯一 ID 登记逐源证据。包子漫画、漫画柜、嗶哩漫畫、Tapas、MANGA Plus Creators 英文、WEBTOON 英文及繁中、瓜子漫画、科技大觀園、漫画社、嬉皮漫画、快看漫画、動漫戲說补充摘要。候选均打包，并用真实列表响应回放，旧宿主的响应和请求保持一致。197 普通列表已见包子的作者与题材，以及哔哩和快看的作者。漫画柜同版本已导入，普通浏览连接超时。197 已返回原设置页并释租。 237 安装间距候选前后使用同一个包子 0.1.35 热门列表，四张两行摘要卡片标题至第一行由 95px 缩到 12px，标题与封面坐标相同。 包子漫画 0.1.36、哔哩漫画 0.1.15、快看漫画 0.1.12 已进入正式订阅。哔哩和快看新包沿用最低 App 版本；四份真实响应在候选包和正式包中的解析、请求一致。正式索引其余 131 个条目不变。",
+      "remaining": "漫画柜 197 重试仍连接超时，本机热门和最近更新均未完成 TLS 连接。其余九个候选继续真机核对。",
       "remainingActions": [
-        "需按语言分表核实缺证的浏览或搜索入口，优先复用可定位到实际同卡数据的真实响应。",
-        "197 普通列表与候选 WASM 的回放分别记录，无法连接的站点按实际失败保存。"
+        "197 逐源核对剩余候选的普通列表，在验证通过后发布。",
+        "漫画柜待能取得实际列表后验证摘要；继续按语言分表核实其他待审书源的同卡数据。"
       ],
       "boundaries": [
         "源只提供纯文本内容和顺序，App统一排版；不接入任意样式或执行动作。",
@@ -13121,9 +13121,13 @@
         ".hvigor/outputs/source-summary-expansion-20261126/catalog-audit-summary.json",
         ".hvigor/outputs/source-summary-expansion-20261126/zh-evidence-worklist.tsv",
         ".hvigor/outputs/source-summary-expansion-20261126/hant-all-review/sources-26.tsv",
-        ".hvigor/outputs/source-summary-197-20261126/baozi-list/layout.json"
+        ".hvigor/outputs/source-summary-197-20261126/baozi-list/layout.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-bili-kuaikan/public-verification.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-bili-kuaikan/public-wasm-replay.json",
+        ".hvigor/outputs/source-summary-197-20261126/terra-gui-list/layout.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-f56cb5368c252eb1655d86866900215b2577679d"
       ],
-      "stage": "候选在独立源仓本地提交，验证范围分别记录"
+      "stage": "核实其余候选在普通列表中的显示"
     },
     {
       "id": "DOWNLOAD_CHAPTER_READING_ORDER",
@@ -13787,6 +13791,19 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-summary-publication-initial-20261126",
+      "at": "2026-11-26T04:22:29+08:00",
+      "itemId": "SOURCE_BROWSE_LIST_INFO",
+      "title": "哔哩和快看列表摘要已发布，漫画柜重试仍超时",
+      "detail": "197 已验作者摘要。独立源仓 f56cb53、CI 45693308833；公开索引与两正式包的 SHA256、身份、最低 App 版本均已核，另用两次哔哩列表、快看热门和搜索的真实响应核对正式 WASM 与设备候选输出。漫画柜 0.1.18 在 197 普通列表重试连接超时；本机热门及最近更新均 TLS 超时。",
+      "evidence": [
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-bili-kuaikan/public-verification.json",
+        ".hvigor/outputs/source-summary-expansion-20261126/publication-bili-kuaikan/public-wasm-replay.json",
+        ".hvigor/outputs/source-summary-197-20261126/terra-gui-list/layout.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-f56cb5368c252eb1655d86866900215b2577679d"
+      ]
+    },
     {
       "id": "baozi-source-036-published-20261126",
       "at": "2026-11-26T04:07:41+08:00",
