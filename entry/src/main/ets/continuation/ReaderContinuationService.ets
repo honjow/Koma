@@ -24,22 +24,11 @@ const CONTINUATION_FILE_STALE_MS: number = 10 * 60 * 1000
 
 class ContinuationTransferObject {
   payloadJson: string | undefined
-  sourcePackage: commonType.Asset
+  sourcePackage: commonType.Asset | undefined
 
-  constructor(payloadJson: string | undefined, sourcePackage: commonType.Asset) {
+  constructor(payloadJson: string | undefined, sourcePackage: commonType.Asset | undefined) {
     this.payloadJson = payloadJson
     this.sourcePackage = sourcePackage
-  }
-}
-
-function emptyAsset(): commonType.Asset {
-  return {
-    name: '',
-    uri: '',
-    path: '',
-    createTime: '',
-    modifyTime: '',
-    size: '',
   }
 }
 
@@ -82,19 +71,21 @@ export class ReaderContinuationService {
   private context?: common.UIAbilityContext
   private activeSnapshot?: ReaderContinuationSnapshot
   private currentContinueActive?: boolean
+  private missionStateRequest: number = 0
+  private sourceTransferPending: boolean = false
   private sourceDistributedObject?: distributedDataObject.DataObject
   private targetDistributedObject?: distributedDataObject.DataObject
   private pendingRestore?: RestoredContinuationTask
   private nextRestoreId: number = 1
   private onContinuedAwayHandler?: () => void
-  private activeRestoreWaiters: Set<() => void> = new Set()
   private restoreGateOpen: boolean = true
 
   attachContext(context: common.UIAbilityContext): void {
+    if (this.context !== context) this.currentContinueActive = undefined
     this.context = context
   }
 
-  attachSourceHandlers(onContinuedAway: () => void): void {
+  attachSourceHandlers(onContinuedAway?: () => void): void {
     this.onContinuedAwayHandler = onContinuedAway
   }
 
@@ -110,14 +101,17 @@ export class ReaderContinuationService {
     const enabled = connectContinuationState().enabled && this.activeSnapshot !== undefined && !runtime.continuedAway
     if (this.currentContinueActive === enabled) return
     this.currentContinueActive = enabled
+    const request = ++this.missionStateRequest
     const nextState = enabled ? AbilityConstant.ContinueState.ACTIVE : AbilityConstant.ContinueState.INACTIVE
     try {
       context.setMissionContinueState(nextState, (err: BusinessError): void => {
         if (err && err.code !== 0) {
+          if (this.context === context && this.missionStateRequest === request) this.currentContinueActive = undefined
           DiagnosticLogger.warn('continuation', 'set_state_failed', 'code=' + err.code + ' msg=' + err.message)
         }
       })
     } catch (error) {
+      this.currentContinueActive = undefined
       DiagnosticLogger.warn('continuation', 'set_state_exception', (error as Error).message)
     }
   }
@@ -133,20 +127,27 @@ export class ReaderContinuationService {
   setRestoreGateOpen(open: boolean): void {
     this.restoreGateOpen = open
     if (open && this.pendingRestore !== undefined) {
-      const runtime = connectReaderContinuationRuntimeState()
-      runtime.continuedAway = false
-      runtime.pendingTaskId = this.pendingRestore.id
+      connectReaderContinuationRuntimeState().pendingTaskId = this.pendingRestore.id
     }
   }
 
   consumePendingRestore(): RestoredContinuationTask | undefined {
+    if (!this.restoreGateOpen) return undefined
     const task = this.pendingRestore
     this.pendingRestore = undefined
     return task
   }
 
+  isCurrentRestore(id: number): boolean {
+    return id === this.nextRestoreId
+  }
+
   cleanupDistributedTempFile(path: string | undefined): void {
-    if (path === undefined || path.length === 0) return
+    if (path === undefined) return
+    const directory = this.context?.distributedFilesDir
+    if (directory === undefined || directory.length === 0 ||
+      !path.startsWith(directory + '/') ||
+      !/^koma-continue-[0-9a-f-]+\.koma$/.test(path.slice(directory.length + 1))) return
     try {
       fileIo.unlinkSync(path)
     } catch (_error) {
@@ -192,12 +193,13 @@ export class ReaderContinuationService {
     if (distributedDir === undefined || distributedDir.length === 0) return undefined
     this.cleanupStaleSourceFiles(distributedDir)
     let sharePath: string | undefined
+    let targetPath: string | undefined
     try {
       const share = await prepareInstalledSourcePackageShare(context, sourceId)
       const sourcePath = new fileUri.FileUri(share.uri).path
       sharePath = sourcePath
       const targetName = CONTINUATION_FILE_PREFIX + util.generateRandomUUID() + '.koma'
-      const targetPath = distributedDir + '/' + targetName
+      targetPath = distributedDir + '/' + targetName
       await fileIo.copyFile(sourcePath, targetPath)
       const stat = await fileIo.stat(targetPath)
       return {
@@ -209,6 +211,7 @@ export class ReaderContinuationService {
         size: stat.size.toString(),
       }
     } catch (error) {
+      this.cleanupDistributedTempFile(targetPath)
       DiagnosticLogger.warn('continuation', 'stage_source_package_failed', (error as Error).message)
       return undefined
     } finally {
@@ -235,7 +238,7 @@ export class ReaderContinuationService {
     this.attachContext(context)
     const runtime = connectReaderContinuationRuntimeState()
     const snapshot = this.activeSnapshot
-    if (!connectContinuationState().enabled || snapshot === undefined || runtime.continuedAway) {
+    if (!connectContinuationState().enabled || snapshot === undefined || runtime.continuedAway || this.sourceTransferPending) {
       return AbilityConstant.OnContinueResult.REJECT
     }
     if (!isContinuationTargetVersionCompatible(wantParam['version'])) {
@@ -243,6 +246,8 @@ export class ReaderContinuationService {
       return AbilityConstant.OnContinueResult.MISMATCH
     }
     const targetDevice = typeof wantParam['targetDevice'] === 'string' ? wantParam['targetDevice'] as string : ''
+    if (targetDevice.length === 0) return AbilityConstant.OnContinueResult.REJECT
+    this.sourceTransferPending = true
     const installedSource = getInstalledSourcePackage(snapshot.sourceId)
     const payload: ReaderContinuationPayload = {
       schemaVersion: CONTINUATION_SCHEMA_VERSION,
@@ -268,41 +273,72 @@ export class ReaderContinuationService {
       payload.sourceVersion = installedSource.version
     }
 
+    let stagedAsset: commonType.Asset | undefined
+    let agreed = false
+    const eligible = (): ReaderContinuationSnapshot | undefined => {
+      const current = this.activeSnapshot
+      return this.context === context && connectContinuationState().enabled && !runtime.continuedAway &&
+        current?.comicId === snapshot.comicId && current.chapterId === snapshot.chapterId &&
+        current.sourceId === snapshot.sourceId && current.mangaId === snapshot.mangaId &&
+        current.requiresPrivacyAuth === snapshot.requiresPrivacyAuth &&
+        current.privateCategoryId === snapshot.privateCategoryId ? current : undefined
+    }
     try {
       this.releaseSourceDistributedObject()
       const sessionId = distributedDataObject.genSessionId()
-      const stagedAsset = await this.stageSourcePackageForContinuation(context, snapshot.sourceId)
-      const transfer = new ContinuationTransferObject(encodeReaderContinuationPayload(payload), stagedAsset ?? emptyAsset())
+      stagedAsset = await this.stageSourcePackageForContinuation(context, snapshot.sourceId)
+      const current = eligible()
+      if (current === undefined) return AbilityConstant.OnContinueResult.REJECT
+      payload.pageIndex = current.pageIndex
+      payload.totalPages = current.totalPages
+      payload.timestamp = Date.now()
+      const transfer = new ContinuationTransferObject(encodeReaderContinuationPayload(payload), stagedAsset)
       const dataObject = distributedDataObject.create(context, transfer)
       this.sourceDistributedObject = dataObject
       await dataObject.setSessionId(sessionId)
       await dataObject.save(targetDevice)
+      if (eligible() === undefined) return AbilityConstant.OnContinueResult.REJECT
       wantParam[CONTINUATION_SESSION_ID_PARAM] = sessionId
       wantParam[wantConstant.Params.SUPPORT_CONTINUE_PAGE_STACK_KEY] = false
       wantParam[wantConstant.Params.SUPPORT_CONTINUE_SOURCE_EXIT_KEY] = false
       this.setContinuedAway(true)
-      this.onContinuedAwayHandler?.()
+      agreed = true
+      try {
+        this.onContinuedAwayHandler?.()
+      } catch (error) {
+        DiagnosticLogger.exception('continuation', 'source_continue_notice_failed', error as Error)
+        this.setContinuedAway(false)
+      }
       DiagnosticLogger.info('continuation', 'source_continue_agreed',
         `source=${snapshot.sourceId} page=${snapshot.pageIndex} hasAsset=${stagedAsset !== undefined}`)
       return AbilityConstant.OnContinueResult.AGREE
     } catch (error) {
-      this.releaseSourceDistributedObject()
       DiagnosticLogger.exception('continuation', 'source_continue_failed', error as Error)
       return AbilityConstant.OnContinueResult.REJECT
+    } finally {
+      this.sourceTransferPending = false
+      if (!agreed) {
+        this.releaseSourceDistributedObject()
+        this.cleanupDistributedTempFile(stagedAsset?.path)
+      }
     }
   }
 
   beginTargetRestore(context: common.UIAbilityContext, want: Want): void {
     this.attachContext(context)
+    this.releaseTargetDistributedObject()
+    this.cleanupDistributedTempFile(this.pendingRestore?.sourcePackagePath)
+    this.pendingRestore = undefined
+    const restoreToken = ++this.nextRestoreId
     const rawSessionId = want.parameters?.[CONTINUATION_SESSION_ID_PARAM]
     const sessionId = typeof rawSessionId === 'string' ? rawSessionId.trim() : ''
     if (sessionId.length === 0) {
       DiagnosticLogger.warn('continuation', 'target_missing_session', '')
       return
     }
-    this.releaseTargetDistributedObject()
-    const restoreToken = ++this.nextRestoreId
-    const blank = new ContinuationTransferObject(undefined, emptyAsset())
+    // The receiver must leave every property undefined until the distributed
+    // object is activated, otherwise its initial values can overwrite the sender.
+    const blank = new ContinuationTransferObject(undefined, undefined)
     try {
       const dataObject = distributedDataObject.create(context, blank)
       this.targetDistributedObject = dataObject
@@ -312,11 +348,10 @@ export class ReaderContinuationService {
         handled = true
         const payload = decodeReaderContinuationPayload(dataObject['payloadJson'] as Object | undefined)
         const restoredAsset = dataObject['sourcePackage'] as commonType.Asset | undefined
-        const assetUri = restoredAsset !== undefined && typeof restoredAsset.uri === 'string' &&
+        const assetUri = restoredAsset && typeof restoredAsset.uri === 'string' &&
           restoredAsset.uri.length > 0 ? restoredAsset.uri : undefined
-        const assetPath = restoredAsset !== undefined && typeof restoredAsset.path === 'string' &&
-          restoredAsset.path.length > 0 ? restoredAsset.path :
-          (assetUri !== undefined ? new fileUri.FileUri(assetUri).path : undefined)
+        const assetPath = restoredAsset && typeof restoredAsset.path === 'string' &&
+          restoredAsset.path.length > 0 ? restoredAsset.path : undefined
         this.releaseTargetDistributedObject()
         if (payload === undefined) {
           this.cleanupDistributedTempFile(assetPath)
@@ -329,19 +364,17 @@ export class ReaderContinuationService {
           sourcePackageUri: assetUri,
           sourcePackagePath: assetPath,
         }
-        if (this.restoreGateOpen) {
-          const runtime = connectReaderContinuationRuntimeState()
-          runtime.continuedAway = false
-          runtime.pendingTaskId = restoreToken
-        }
+        if (this.restoreGateOpen) this.setRestoreGateOpen(true)
         DiagnosticLogger.info('continuation', 'target_restored',
           `source=${payload.sourceId} page=${payload.pageIndex} hasAsset=${assetUri !== undefined} gateOpen=${this.restoreGateOpen}`)
       })
       void dataObject.setSessionId(sessionId).catch((error: BusinessError): void => {
+        if (this.targetDistributedObject === dataObject) this.releaseTargetDistributedObject()
         DiagnosticLogger.warn('continuation', 'target_set_session_failed',
           'code=' + error.code + ' msg=' + error.message)
       })
     } catch (error) {
+      this.releaseTargetDistributedObject()
       DiagnosticLogger.exception('continuation', 'target_restore_failed', error as Error)
     }
   }
@@ -367,7 +400,14 @@ export class ReaderContinuationService {
   dispose(): void {
     this.releaseSourceDistributedObject()
     this.releaseTargetDistributedObject()
-    this.activeRestoreWaiters.clear()
+    this.cleanupDistributedTempFile(this.pendingRestore?.sourcePackagePath)
+    this.pendingRestore = undefined
+    this.nextRestoreId += 1
+    this.activeSnapshot = undefined
+    this.context = undefined
+    this.currentContinueActive = undefined
+    this.onContinuedAwayHandler = undefined
+    connectReaderContinuationRuntimeState().continuedAway = false
   }
 }
 

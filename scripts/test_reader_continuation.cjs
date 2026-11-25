@@ -8,6 +8,9 @@ function fixture() {
   const modules = new Map()
   const states = new Map()
   const values = new Map()
+  const dataObjects = []
+  const deleted = []
+  let beforeSave = async () => {}
   let failFlush = false
   const preference = {
     has: async key => values.has(key),
@@ -44,7 +47,40 @@ function fixture() {
           },
         }
       }
-      if (name === '@kit.ArkData') return { preferences: { getPreferences: async () => preference } }
+      if (name === '@kit.ArkData') return {
+        preferences: { getPreferences: async () => preference },
+        distributedDataObject: {
+          genSessionId: () => 'generated-session',
+          create(context, data) {
+            const object = Object.assign(data, {
+              on(_event, listener) { this.listener = listener },
+              off() { this.listener = undefined },
+              async setSessionId(id) { this.sessionId = id },
+              async save() { await beforeSave() },
+              deliver(payloadJson, sourcePackage) {
+                this.payloadJson = payloadJson
+                this.sourcePackage = sourcePackage
+                this.listener?.(this.sessionId, 'device', 'restored')
+              },
+            })
+            dataObjects.push(object)
+            return object
+          },
+        },
+      }
+      if (name === '@kit.AbilityKit') return {
+        AbilityConstant: {
+          ContinueState: { ACTIVE: 1, INACTIVE: 0 },
+          OnContinueResult: { AGREE: 0, REJECT: 1, MISMATCH: 2 },
+        },
+        wantConstant: { Params: { SUPPORT_CONTINUE_PAGE_STACK_KEY: 'stack', SUPPORT_CONTINUE_SOURCE_EXIT_KEY: 'exit' } },
+      }
+      if (name === '@kit.ArkTS') return {}
+      if (name === '@kit.CoreFileKit') return { fileIo: { unlinkSync: path => deleted.push(path) } }
+      if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { info() {}, warn() {}, exception() {} } }
+      if (name === '../theme/KomaPopupOptions') return {}
+      if (name === '../sourceRuntime/SourcePackageShare') return { canShareInstalledSourcePackage: () => false }
+      if (name === '../sourceRuntime/SourceRuntimeAppRegistry') return { getInstalledSourcePackage: () => undefined }
       if (name === '../i18n/AppStrings') return { AppStrings: { get: key => key } }
       if (name.startsWith('.')) {
         return load(path.posix.normalize(path.posix.join(path.posix.dirname(file), name)))
@@ -61,7 +97,15 @@ function fixture() {
     Store,
     values,
     payloadMod,
-    context: { filesDir: '/continuation-test' },
+    context: {
+      filesDir: '/continuation-test',
+      distributedFilesDir: '/continuation-test/distributed',
+      setMissionContinueState(_state, callback) { callback() },
+    },
+    service: () => load('continuation/ReaderContinuationService').appReaderContinuation,
+    dataObjects,
+    deleted,
+    beforeSave(callback) { beforeSave = callback },
     failNextFlush() { failFlush = true },
   }
 }
@@ -177,4 +221,52 @@ test('payload roundtrip, version check, page clamping, and source request builde
   assert.equal(isContinuationTargetVersionCompatible(28, 28), true)
   assert.equal(isContinuationTargetVersionCompatible(undefined, 28), true)
   assert.equal(decodeReaderContinuationPayload('{"schemaVersion":99}'), undefined)
+})
+
+const outgoing = {
+  sourceId: 'zh.test', sourceName: 'Source', comicId: 'zh.test:work', mangaId: 'work', title: 'Work',
+  chapterId: 'chapter', pageIndex: 8, totalPages: 20, requiresPrivacyAuth: false,
+}
+
+test('closing or locking the reader during system save rejects an outdated transfer', async () => {
+  const f = fixture()
+  const service = f.service()
+  service.publishActiveReading(outgoing)
+  f.beforeSave(async () => service.publishActiveReading(undefined))
+  const want = { version: 28, targetDevice: 'target' }
+  assert.equal(await service.handleOnContinue(f.context, want), 1)
+  assert.equal(want['koma.continuation.sessionId'], undefined)
+  assert.equal(f.dataObjects[0].sessionId, '')
+
+  service.publishActiveReading(outgoing)
+  f.beforeSave(async () => {})
+  assert.equal(await service.handleOnContinue(f.context, want), 0)
+  assert.equal(want['koma.continuation.sessionId'], 'generated-session')
+  assert.equal(JSON.parse(f.dataObjects[1].payloadJson).pageIndex, 8)
+})
+
+test('the receiver waits for its window, discards superseded tasks and ignores old callbacks', () => {
+  const f = fixture()
+  const service = f.service()
+  const raw = JSON.stringify({ ...outgoing, schemaVersion: 1 })
+  const firstFile = '/continuation-test/distributed/koma-continue-1234.koma'
+  service.setRestoreGateOpen(false)
+  service.beginTargetRestore(f.context, { parameters: { 'koma.continuation.sessionId': 'first' } })
+  const oldListener = f.dataObjects[0].listener
+  assert.equal(f.dataObjects[0].sourcePackage, undefined)
+  f.dataObjects[0].deliver(raw, { uri: 'file://koma' + firstFile, path: firstFile })
+  assert.equal(service.consumePendingRestore(), undefined)
+  service.beginTargetRestore(f.context, { parameters: { 'koma.continuation.sessionId': 'second' } })
+  assert.deepEqual(f.deleted, [firstFile])
+  oldListener('first', 'device', 'restored')
+  service.setRestoreGateOpen(true)
+  assert.equal(service.consumePendingRestore(), undefined)
+  f.dataObjects[1].deliver(raw, undefined)
+  const transferred = service.consumePendingRestore()
+  assert.equal(transferred.payload.pageIndex, 8)
+  assert.equal(service.isCurrentRestore(transferred.id), true)
+  service.beginTargetRestore(f.context, { parameters: {} })
+  assert.equal(service.isCurrentRestore(transferred.id), false)
+  service.cleanupDistributedTempFile('/continuation-test/distributed/../private.db')
+  assert.deepEqual(f.deleted, [firstFile])
 })
