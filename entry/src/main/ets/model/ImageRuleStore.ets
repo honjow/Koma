@@ -92,6 +92,63 @@ export function subscriptionDocumentKind(payload: string): string {
  * an address keeps installations; no subscription gate or automatic upgrade runs.
  * The current ownership and migration contract is in docs/subscription-image-rules.md.
  */
+function clonePluginSettingsMap(settings: Record<string, SettingsFieldValues>): Record<string, SettingsFieldValues> {
+  const copy: Record<string, SettingsFieldValues> = {}
+  Object.keys(settings).forEach((key: string): void => {
+    const row: SettingsFieldValues = {}
+    const source = settings[key]
+    Object.keys(source).forEach((fieldKey: string): void => {
+      const value = source[fieldKey]
+      row[fieldKey] = Array.isArray(value) ? value.slice() : value
+    })
+    copy[key] = row
+  })
+  return copy
+}
+
+function cloneImagePluginCollection(source: ImagePluginCollection): ImagePluginCollection {
+  return {
+    origin: source.origin,
+    name: source.name,
+    packs: source.packs.slice(),
+    plugins: source.plugins.slice(),
+    disabledRules: source.disabledRules.slice(),
+    pluginSettings: clonePluginSettingsMap(source.pluginSettings),
+    conflicts: source.conflicts?.slice(),
+  }
+}
+
+function cloneImageRuleSubscription(source: ImageRuleSubscription): ImageRuleSubscription {
+  const manifestHashes = source.manifestHashes === undefined ? undefined : ((): Record<string, string> => {
+    const copy: Record<string, string> = {}
+    Object.keys(source.manifestHashes!).forEach((key: string): void => { copy[key] = source.manifestHashes![key] })
+    return copy
+  })()
+  return {
+    url: source.url,
+    name: source.name,
+    customName: source.customName,
+    description: source.description,
+    website: source.website,
+    updatedAt: source.updatedAt,
+    revision: source.revision,
+    lastError: source.lastError,
+    disabled: source.disabled,
+    lastDownloadAt: source.lastDownloadAt,
+    manifestHashes,
+    packs: source.packs.slice(),
+    catalog: source.catalog?.slice(),
+  }
+}
+
+function cloneImageRuleConfiguration(config: ImageRuleConfiguration): ImageRuleConfiguration {
+  return {
+    schemaVersion: config.schemaVersion,
+    subscriptions: config.subscriptions.map(cloneImageRuleSubscription),
+    installations: config.installations.map(cloneImagePluginCollection),
+  }
+}
+
 export class ImageRuleStore {
   private static instances: Map<string, ImageRuleStore> = new Map()
   private ready: Promise<void>
@@ -160,29 +217,29 @@ export class ImageRuleStore {
   }
   async installed(): Promise<ImagePluginCollection[]> {
     await this.ready; this.assertReadable()
-    return JSON.parse(JSON.stringify(this.configuration.installations)) as ImagePluginCollection[]
+    return this.configuration.installations.map(cloneImagePluginCollection)
   }
   async pinned(): Promise<ImageRuleSnapshot> {
     await this.ready
-    const installations = JSON.parse(JSON.stringify(this.configuration.installations)) as ImagePluginCollection[]
+    const installations = this.configuration.installations
     return { schemaVersion: 1, records: installations.map((source: ImagePluginCollection): ImageRuleRecord => ({
       origin: source.origin, revision: '',
       plugins: source.plugins.filter((plugin: ImageProcessingPlugin): boolean => !source.disabledRules.includes(imageRuleKey(plugin.id, plugin.id))),
-      pluginSettings: source.pluginSettings,
+      pluginSettings: clonePluginSettingsMap(source.pluginSettings),
       packs: source.packs.map((pack: ImageRulePack): ImageRulePack => ({ schemaVersion: pack.schemaVersion,
         id: pack.id, version: pack.version, meta: pack.meta,
         rules: pack.rules.filter((rule: ImageBannerRule): boolean => !source.disabledRules.includes(imageRuleKey(pack.id, rule.id))) })) })) }
   }
   async exportSnapshot(): Promise<ImageRuleConfiguration> {
     await this.ready; this.assertReadable()
-    return JSON.parse(JSON.stringify(this.configuration)) as ImageRuleConfiguration
+    return cloneImageRuleConfiguration(this.configuration)
   }
   async reload(): Promise<void> { this.generation += 1; this.ready = this.load(); await this.ready }
   private change(operation: (draft: ImageRuleConfiguration) => void, userChange: boolean = true, allowRecovery: boolean = false): Promise<void> {
     const write = this.writes.then(async (): Promise<void> => {
       await this.ready
       if (!allowRecovery) this.assertReadable()
-      const draft = JSON.parse(JSON.stringify(this.configuration)) as ImageRuleConfiguration
+      const draft = cloneImageRuleConfiguration(this.configuration)
       operation(draft)
       const next = validateImageRuleConfiguration(draft)
       const payload = JSON.stringify(next)
@@ -375,7 +432,22 @@ export class ImageRuleStore {
       }
     }
     if (bytes === undefined) throw failure ?? new Error('image_plugin_request_cancelled')
-    const plugin = JSON.parse(JSON.stringify(used.plugin)) as ImageProcessingPlugin
+    const plugin: ImageProcessingPlugin = {
+      schemaVersion: used.plugin.schemaVersion,
+      id: used.plugin.id,
+      version: used.plugin.version,
+      meta: used.plugin.meta,
+      parameters: used.plugin.parameters,
+      application: used.plugin.application,
+      settings: used.plugin.settings?.slice(),
+      output: used.plugin.output,
+      processor: {
+        abi: used.plugin.processor.abi,
+        path: used.plugin.processor.path,
+        sha256: used.plugin.processor.sha256,
+        moduleBase64: used.plugin.processor.moduleBase64,
+      },
+    }
     plugin.processor.moduleBase64 = await taskpool.execute<[ArrayBuffer, string], string>(validateImageProcessorModule, bytes, plugin.processor.sha256)
     await BackupRestoreActivity.runWrite(() => this.change((draft: ImageRuleConfiguration): void => {
       const catalog = draft.subscriptions.find((s: ImageRuleSubscription): boolean => s.url === used.subscription.url)

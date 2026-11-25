@@ -1,6 +1,8 @@
 import { relationalStore } from '@kit.ArkData'
 import type { PersistedCategoryDisplayStrategy, PersistedChapter, PersistedComic, PersistedLibraryCategory,
   PersistedLibraryStoreDocument, PersistedPage } from './LibraryPersistence'
+import type { LibraryShelfSourceFacet } from './LibraryStore'
+import type { ComicSourceKind } from './ComicModels'
 import type { LibrarySmartCategory } from './LibrarySmartCategory'
 import type { SyncLocalShelfMove } from '../deviceSync/DeviceSyncSignals'
 import type { MihonImportRecord, MihonImportWork } from './MihonBackupReader'
@@ -162,7 +164,7 @@ class ShelfWorkRows {
   private readonly lines: ShelfPageLine[] = []
   private readonly balloons: ShelfPageBalloon[] = []
 
-  constructor(works: PersistedComic[], existingOrder?: number) {
+  constructor(works: PersistedComic[], existingOrder?: number, includeCatalog: boolean = true) {
     const ids = new Set<string>()
     works.forEach((work: PersistedComic, order: number): void => {
       if (ids.has(work.id)) throw new Error('library_duplicate_work')
@@ -178,6 +180,7 @@ class ShelfWorkRows {
       })
       const members = shared === undefined ? this.localMembers : this.members
       members.push(...membershipRows(work.id, work.categoryIds))
+      if (!includeCatalog) return
       const chapters = new Map<string, number>()
       work.chapters.forEach((chapter: PersistedChapter, index: number): void => {
         // Older snapshots may repeat a chapter ID. The occurrence within
@@ -380,6 +383,57 @@ export class LibraryRdbStorage {
     const placeholders = kinds.map((): string => '?').join(', ')
     return readWorks(this.store, undefined, false, { where: 'comic_id IN (SELECT comic_id FROM shelf_works_all ' +
       'WHERE source_kind IN (' + placeholders + '))', args: kinds })
+  }
+
+  readWorkSummariesBySource(sourceId: string): PersistedComic[] {
+    return readWorks(this.store, undefined, false, { where: 'comic_id IN (SELECT comic_id FROM shelf_works_all ' +
+      'WHERE source_runtime_id = ?)', args: [sourceId] })
+  }
+
+  readCategoryUsageCounts(): Map<string, number> {
+    const counts = new Map<string, number>()
+    const result = this.store.querySqlSync(
+      'SELECT category_id, COUNT(DISTINCT comic_id) FROM shelf_memberships_all GROUP BY category_id')
+    try {
+      while (result.goToNextRow()) counts.set(result.getString(0), result.getLong(1))
+    } finally {
+      result.close()
+    }
+    return counts
+  }
+
+  readSourceFacets(): LibraryShelfSourceFacet[] {
+    return collectLocalRows(this.store.querySqlSync(
+      'SELECT DISTINCT source_kind, remote_server_id, source_runtime_id, content_rating FROM shelf_works_all'),
+      (row: relationalStore.ResultSet): LibraryShelfSourceFacet => ({
+        sourceKind: (textColumn(row, 0) ?? 'private_library') as ComicSourceKind,
+        remoteServerId: textColumn(row, 1),
+        sourceRuntimeId: textColumn(row, 2),
+        contentRating: textColumn(row, 3),
+      }))
+  }
+
+  readChapterIdsByComics(comicIds: string[]): Map<string, string[]> {
+    const result = new Map<string, string[]>()
+    const ids = Array.from(new Set(comicIds))
+    for (let start = 0; start < ids.length; start += 200) {
+      const batch = ids.slice(start, start + 200)
+      const slots = batch.map((): string => '?').join(', ')
+      const rows = this.store.querySqlSync(
+        'SELECT comic_id, chapter_id FROM shelf_chapters WHERE comic_id IN (' + slots + ') ORDER BY list_order', batch)
+      try {
+        while (rows.goToNextRow()) {
+          const comicId = rows.getString(0)
+          const chapterId = rows.getString(1)
+          const list = result.get(comicId)
+          if (list === undefined) result.set(comicId, [chapterId])
+          else list.push(chapterId)
+        }
+      } finally {
+        rows.close()
+      }
+    }
+    return result
   }
 
   readWorkSummariesByIdentity(owner: string, work: string, remote: boolean): PersistedComic[] {
@@ -659,13 +713,55 @@ export class LibraryRdbStorage {
     }
   }
 
-  saveExistingWorks(comics: PersistedComic[]): void {
+  saveExistingWorks(comics: PersistedComic[], replaceCatalog: boolean = true): void {
     writeUserRecords(this.store, (): void => {
       for (const comic of comics) {
-        new ShelfWorkRows([comic], this.existingWorkOrder(comic.id)).replace(this.store, comic.id)
+        new ShelfWorkRows([comic], this.existingWorkOrder(comic.id), replaceCatalog).replace(this.store, comic.id, replaceCatalog)
       }
     })
     this.writeRevision += 1
+  }
+
+  saveChapterPages(comicId: string, chapter: PersistedChapter, comicPageCount: number, updatedAt: number): boolean {
+    const result = this.store.querySqlSync(
+      'SELECT chapter_occurrence FROM shelf_chapters WHERE comic_id = ? AND chapter_id = ? ORDER BY list_order LIMIT 1',
+      [comicId, chapter.id])
+    let occurrence: number | undefined
+    try {
+      if (result.goToNextRow()) occurrence = result.getLong(0)
+    } finally {
+      result.close()
+    }
+    if (occurrence === undefined) return false
+    const chapterOccurrence = occurrence
+    const pageRows: ShelfPageRow[] = []
+    const lines: ShelfPageLine[] = []
+    const balloons: ShelfPageBalloon[] = []
+    const pageOccurrences = new Map<string, number>()
+    chapter.pages.forEach((page: PersistedPage, position: number): void => {
+      const row: ShelfPageRow = { ownerId: comicId, ownerChapterId: chapter.id, chapterOccurrence,
+        page, occurrence: allocateOccurrence(pageOccurrences, page.id), order: position }
+      pageRows.push(row)
+      appendPageContent(row, lines, balloons)
+    })
+    writeUserRecords(this.store, (): void => {
+      this.store.executeSync(
+        'UPDATE shelf_chapters SET source_settings_fingerprint = ?, page_count = ?, updated_at = ? ' +
+        'WHERE comic_id = ? AND chapter_id = ? AND chapter_occurrence = ?',
+        [chapter.sourceSettingsFingerprint ?? null, chapter.pageCount, chapter.updatedAt, comicId, chapter.id, chapterOccurrence])
+      const filter = 'comic_id = ? AND chapter_id = ? AND chapter_occurrence = ?'
+      const filterArgs: (string | number)[] = [comicId, chapter.id, chapterOccurrence]
+      this.store.executeSync('DELETE FROM shelf_page_text_lines WHERE ' + filter, filterArgs)
+      this.store.executeSync('DELETE FROM shelf_page_text_balloons WHERE ' + filter, filterArgs)
+      this.store.executeSync('DELETE FROM shelf_pages WHERE ' + filter, filterArgs)
+      shelfPages.putMany(this.store, pageRows)
+      shelfPageLines.putMany(this.store, lines)
+      shelfPageBalloons.putMany(this.store, balloons)
+      this.store.executeSync('UPDATE shelf_work_details SET page_count = ?, updated_at = ? WHERE comic_id = ?',
+        [comicPageCount, updatedAt, comicId])
+    })
+    this.writeRevision += 1
+    return true
   }
 
   /** Folder imports can add and refresh works in one atomic batch. Existing

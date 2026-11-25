@@ -67,12 +67,23 @@ export interface LibraryListOptions {
   readerSessionStore?: ReaderSessionStore
 }
 
+export interface LibraryShelfSourceFacet {
+  sourceKind: ComicSourceKind
+  remoteServerId?: string
+  sourceRuntimeId?: string
+  contentRating?: string
+}
+
 export interface LibraryWorkSummaryReader {
   work: (id: ComicId) => Comic | undefined
   category: (id: LibraryCategoryFilter) => Comic[]
   kinds: (kinds: ComicSourceKind[]) => Comic[]
+  source?: (sourceId: string) => Comic[]
   identity: (owner: string, work: string, remote: boolean) => Comic[]
   hasWorks: () => boolean
+  categoryCounts?: () => Map<string, number>
+  sourceFacets?: () => LibraryShelfSourceFacet[]
+  chapterIdsBatch?: (comicIds: ComicId[]) => Map<ComicId, ChapterId[]>
 }
 
 export interface LibraryStore {
@@ -92,11 +103,15 @@ export interface LibraryStore {
   listComicSummaries(sortByTitle?: boolean): Comic[]
   listShelfSummaries(category: LibraryCategoryFilter): Comic[]
   listComicSummariesByKind(kinds: ComicSourceKind[]): Comic[]
+  listSourceComicSummaries(sourceId: string): Comic[]
+  listCategoryUsageCounts(): Map<string, number>
+  listSourceFacets(): LibraryShelfSourceFacet[]
   shelfProgress(comic: Comic, progress?: ReadingProgress): ReadingProgress | undefined
   deferWorkSummaries(category: LibraryCategoryFilter, source: LibraryWorkSummaryReader): void
   readComicChapter(comicId: ComicId, chapterId: ChapterId): Chapter | undefined
   readComicChapterTitle(comicId: ComicId, chapterId?: ChapterId): string | undefined
   listComicChapterIds(comicId: ComicId): ChapterId[]
+  listComicsChapterIds(comicIds: ComicId[]): Map<ComicId, ChapterId[]>
   deferCatalogs(read: (comic: Comic, chapterId?: ChapterId) => Chapter[],
     title: (comicId: ComicId, chapterId?: ChapterId) => string | undefined, ids: (comicId: ComicId) => ChapterId[]): void
   getComic(comicId: ComicId): Comic | undefined
@@ -334,6 +349,48 @@ export class InMemoryLibraryStore implements LibraryStore {
     return this.listKnownComicSummaries().filter((comic: Comic): boolean => kinds.includes(comic.sourceKind))
   }
 
+  listSourceComicSummaries(sourceId: string): Comic[] {
+    if (this.workSummaries !== undefined) {
+      if (this.workSummaries.source !== undefined) {
+        const rows = this.workSummaries.source(sourceId)
+        for (const row of rows) {
+          if (!this.comics.has(row.id) && !this.removedSummaries.has(row.id)) this.comics.set(row.id, row)
+        }
+      } else {
+        this.loadShelfWorks('all')
+      }
+    }
+    return this.listKnownComicSummaries().filter((comic: Comic): boolean => comic.sourceRuntimeId === sourceId)
+  }
+
+  listCategoryUsageCounts(): Map<string, number> {
+    const rdbCounts = this.workSummaries?.categoryCounts?.()
+    if (rdbCounts !== undefined) return rdbCounts
+    const counts = new Map<string, number>()
+    this.listComicSummaries(false).forEach((comic: Comic): void => {
+      if (comic.categoryIds === undefined) return
+      new Set<string>(comic.categoryIds).forEach((categoryId: string): void => {
+        counts.set(categoryId, (counts.get(categoryId) ?? 0) + 1)
+      })
+    })
+    return counts
+  }
+
+  listSourceFacets(): LibraryShelfSourceFacet[] {
+    const rdbFacets = this.workSummaries?.sourceFacets?.()
+    if (rdbFacets !== undefined) return rdbFacets
+    const facets: LibraryShelfSourceFacet[] = []
+    this.listComicSummaries(false).forEach((comic: Comic): void => {
+      facets.push({
+        sourceKind: comic.sourceKind,
+        remoteServerId: comic.remoteServerId,
+        sourceRuntimeId: comic.sourceRuntimeId,
+        contentRating: comic.sourceMetadata?.contentRating,
+      })
+    })
+    return facets
+  }
+
   readComicChapter(comicId: ComicId, chapterId: ChapterId): Chapter | undefined {
     const comic = this.getComicSummary(comicId)
     if (comic === undefined) return undefined
@@ -353,6 +410,30 @@ export class InMemoryLibraryStore implements LibraryStore {
     if (comic === undefined) return []
     if (comic.chapterCatalogDeferred === true && this.readChapterIds !== undefined) return this.readChapterIds(comicId)
     return comic.chapters.map((chapter: Chapter): ChapterId => chapter.id)
+  }
+
+  listComicsChapterIds(comicIds: ComicId[]): Map<ComicId, ChapterId[]> {
+    const result = new Map<ComicId, ChapterId[]>()
+    if (comicIds.length === 0) return result
+    const deferredIds: ComicId[] = []
+    for (const id of new Set<ComicId>(comicIds)) {
+      const comic = this.getComicSummary(id)
+      if (comic === undefined) continue
+      if (comic.chapterCatalogDeferred === true) {
+        deferredIds.push(id)
+      } else {
+        result.set(id, comic.chapters.map((chapter: Chapter): ChapterId => chapter.id))
+      }
+    }
+    if (deferredIds.length === 0) return result
+    const batchReader = this.workSummaries?.chapterIdsBatch
+    if (batchReader !== undefined) {
+      const fetched = batchReader(deferredIds)
+      for (const id of deferredIds) result.set(id, fetched.get(id) ?? [])
+      return result
+    }
+    for (const id of deferredIds) result.set(id, this.readChapterIds?.(id) ?? [])
+    return result
   }
 
   shelfProgress(comic: Comic, progress?: ReadingProgress): ReadingProgress | undefined {

@@ -158,6 +158,7 @@ import {
   Comic,
   ComicId,
   ComicSourceKind,
+  copyComicShell,
   ReadingDirection,
   Page,
   ReadingProgress,
@@ -1477,11 +1478,11 @@ struct Index {
     const comic = this.libraryStore.getComic(request.comicId)
     if (request.chaptersResolved !== true || request.chapters === undefined || comic === undefined ||
       comic.sourceRuntimeId !== request.sourceId || comic.remoteResourceId !== request.mangaId) return
-    const next = JSON.parse(JSON.stringify(comic)) as Comic
+    const next = copyComicShell(comic)
     if (!setCompleteSourceChapterCatalog(next, request.chapters.map((item: ReaderChapterDescriptor): string => item.id), Date.now())) return
     const persistence = this.ensureLibraryPersistenceService()
     if (persistence === undefined) return
-    upsertComicAndPersistLibraryStore(this.libraryStore, persistence, next)
+    upsertComicAndPersistLibraryStore(this.libraryStore, persistence, next, false)
     this.refreshLibrarySnapshot()
   }
 

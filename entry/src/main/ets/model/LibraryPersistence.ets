@@ -28,6 +28,8 @@ import {
   copyLocalImportOrigin,
   copyComicPersonalFields,
   assignComicSourceCover,
+  copyChapter,
+  copyComicShell,
   copyComicUpdateSchedule,
   SourceMangaMetadata,
   copySourceMangaMetadata,
@@ -54,6 +56,7 @@ import {
   LibraryCategoryDisplayStrategy,
   LibrarySortBy,
   LibrarySortDirection,
+  LibraryShelfSourceFacet,
   LibraryStore,
 } from './LibraryStore'
 import {
@@ -387,7 +390,7 @@ function hydratePage(row: PersistedPage): Page {
   return page
 }
 
-function persistChapter(chapter: Chapter): PersistedChapter {
+export function persistChapter(chapter: Chapter): PersistedChapter {
   const row: PersistedChapter = {
     id: chapter.id,
     comicId: chapter.comicId,
@@ -455,8 +458,8 @@ function hydrateChapter(row: PersistedChapter, isMihonPlaceholder: boolean): Cha
   return chapter
 }
 
-export function persistComic(comic: Comic): PersistedComic {
-  if (comic.chapterCatalogDeferred === true) throw new Error('library_catalog_not_loaded')
+export function persistComic(comic: Comic, includeCatalog: boolean = true): PersistedComic {
+  if (includeCatalog && comic.chapterCatalogDeferred === true) throw new Error('library_catalog_not_loaded')
   const row: PersistedComic = {
     personalNotes: comic.personalNotes, customCoverUri: comic.customCoverUri, sourceCoverUri: comic.sourceCoverUri,
     enhancedCoverUri: comic.enhancedCoverUri, enhancedCoverModel: comic.enhancedCoverModel,
@@ -467,7 +470,7 @@ export function persistComic(comic: Comic): PersistedComic {
     sourcePath: comic.sourcePath,
     sortTitle: comic.sortTitle,
     preferredDirection: comic.preferredDirection,
-    chapters: comic.chapters.map((chapter: Chapter) => persistChapter(chapter)),
+    chapters: includeCatalog ? comic.chapters.map((chapter: Chapter) => persistChapter(chapter)) : [],
     chapterCount: comic.chapterCount,
     pageCount: comic.pageCount,
     createdAt: comic.createdAt,
@@ -994,7 +997,7 @@ export interface LibraryStorePersistenceAdapter {
   save(payload: string): void
   loadForRestore?(): PersistedLibraryStoreDocument | string | undefined
   loadWorksForRestore?(comicIds: ComicId[]): PersistedComic[] | undefined
-  saveExistingWorks?(comics: PersistedComic[]): boolean
+  saveExistingWorks?(comics: PersistedComic[], replaceCatalog?: boolean): boolean
   saveMemberships?(edits: LibraryMembershipEdit[]): boolean
 }
 
@@ -1061,11 +1064,11 @@ export class AppFilesLibraryStorePersistenceAdapter implements LibraryStorePersi
     signalDeviceSyncChange('shelf')
   }
 
-  saveExistingWorks(comics: PersistedComic[]): boolean {
+  saveExistingWorks(comics: PersistedComic[], replaceCatalog: boolean = true): boolean {
     const database = this.libraryDirectory === undefined ? undefined : liveLibraryStorage.get(this.libraryDirectory)
     if (database === undefined) return false
     if (BackupRestoreActivity.hasPendingRecovery()) throw new Error('sync_local_busy')
-    database.saveExistingWorks(comics)
+    database.saveExistingWorks(comics, replaceCatalog)
     signalDeviceSyncChange('shelf')
     return true
   }
@@ -1117,9 +1120,13 @@ export class LibraryStorePersistenceService {
       },
       category: (id: LibraryCategoryFilter): Comic[] => database.readWorkSummaries(id).map(summarize),
       kinds: (kinds: ComicSourceKind[]): Comic[] => database.readWorkSummariesByKind(kinds).map(summarize),
+      source: (sourceId: string): Comic[] => database.readWorkSummariesBySource(sourceId).map(summarize),
       identity: (owner: string, work: string, remote: boolean): Comic[] =>
         database.readWorkSummariesByIdentity(owner, work, remote).map(summarize),
       hasWorks: (): boolean => database.hasWorks(),
+      categoryCounts: (): Map<string, number> => database.readCategoryUsageCounts(),
+      sourceFacets: (): LibraryShelfSourceFacet[] => database.readSourceFacets(),
+      chapterIdsBatch: (comicIds: ComicId[]): Map<ComicId, ChapterId[]> => database.readChapterIdsByComics(comicIds),
     })
     this.libraryStore.restoreMihonImportWorks((): MihonImportWork[] => database.readMihonImportWorks(),
       (id?: string): MihonImportRecord[] => database.readMihonImports(id))
@@ -1139,15 +1146,23 @@ export class LibraryStorePersistenceService {
   }
 
   /** Ordinary edits require a scoped writer. Whole-library encoding belongs to backup export only. */
-  persistExistingWorks(comics: Comic[]): void {
-    const rows = comics.map((comic: Comic): PersistedComic => persistComic(comic))
+  persistExistingWorks(comics: Comic[], replaceCatalog: boolean = true): void {
+    const rows = comics.map((comic: Comic): PersistedComic => persistComic(comic, replaceCatalog))
     const database = this.databaseForEdits()
     if (database !== undefined) {
-      database.saveExistingWorks(rows)
+      database.saveExistingWorks(rows, replaceCatalog)
       signalDeviceSyncChange('shelf')
       return
     }
-    if (this.adapter.saveExistingWorks?.(rows) !== true) throw new Error('library_scoped_persistence_unavailable')
+    if (this.adapter.saveExistingWorks?.(rows, replaceCatalog) !== true) throw new Error('library_scoped_persistence_unavailable')
+  }
+
+  persistChapterPages(comicId: ComicId, chapter: Chapter, comicPageCount: number, updatedAt: number): boolean {
+    const database = this.databaseForEdits()
+    if (database === undefined) return false
+    const committed = database.saveChapterPages(comicId, persistChapter(chapter), comicPageCount, updatedAt)
+    if (committed) signalDeviceSyncChange('shelf')
+    return committed
   }
 
   databaseForEdits(): LibraryRdbStorage | undefined {
@@ -1208,7 +1223,8 @@ export function isRemovableShelfComic(comic: Comic | undefined): boolean {
 export function upsertComicAndPersistLibraryStore(
   libraryStore: LibraryStore,
   persistenceService: LibraryStorePersistenceService,
-  comic: Comic
+  comic: Comic,
+  replaceCatalog: boolean = true
 ): void {
   const previousComic = libraryStore.getComic(comic.id)
   // The RDB keeps the existing row's storage order. A refreshed title or
@@ -1216,7 +1232,7 @@ export function upsertComicAndPersistLibraryStore(
   if (previousComic !== undefined) {
     libraryStore.upsertComic(comic)
     try {
-      persistenceService.persistExistingWorks([comic])
+      persistenceService.persistExistingWorks([comic], replaceCatalog)
     } catch (error) {
       libraryStore.upsertComic(previousComic)
       throw error as Error
@@ -1244,6 +1260,84 @@ export function upsertComicAndPersistLibraryStore(
   }
 }
 
+export function upsertComicChapterPagesAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  comic: Comic,
+  chapter: Chapter
+): void {
+  const previousComic = libraryStore.getComic(comic.id)
+  if (previousComic === undefined) {
+    upsertComicAndPersistLibraryStore(libraryStore, persistenceService, comic, true)
+    return
+  }
+  libraryStore.upsertComic(comic)
+  try {
+    if (!persistenceService.persistChapterPages(comic.id, chapter, comic.pageCount, comic.updatedAt)) {
+      persistenceService.persistExistingWorks([comic], true)
+    }
+  } catch (error) {
+    libraryStore.upsertComic(previousComic)
+    throw error as Error
+  }
+}
+
+function sameOptionalStringList(left: string[] | undefined, right: string[] | undefined): boolean {
+  if (left === right) return true
+  if (left === undefined || right === undefined || left.length !== right.length) return false
+  for (let i = 0; i < left.length; i++) if (left[i] !== right[i]) return false
+  return true
+}
+
+function sameChapterShellAndCount(left: Chapter, right: Chapter): boolean {
+  if (left === right) return true
+  return left.id === right.id && left.comicId === right.comicId && left.title === right.title &&
+    left.index === right.index && left.chapterNumber === right.chapterNumber &&
+    left.volumeNumber === right.volumeNumber && left.readingOrder === right.readingOrder &&
+    left.readingGroup === right.readingGroup && left.readingVariantGroup === right.readingVariantGroup &&
+    left.readingVariantSequence === right.readingVariantSequence &&
+    left.continuationEligible === right.continuationEligible && left.scanlator === right.scanlator &&
+    left.language === right.language && left.dateUpload === right.dateUpload &&
+    left.sourcePath === right.sourcePath && left.sortKey === right.sortKey &&
+    left.sourceSettingsFingerprint === right.sourceSettingsFingerprint &&
+    left.pageCount === right.pageCount && left.createdAt === right.createdAt &&
+    left.updatedAt === right.updatedAt && left.pages === right.pages
+}
+
+interface SourceCatalogDiff {
+  same: boolean
+  catalogChanged: boolean
+}
+
+function sameSourceCatalogAndMetadata(left: Comic, right: Comic): SourceCatalogDiff {
+  let catalogChanged = left.chapters.length !== right.chapters.length
+  if (!catalogChanged) {
+    for (let i = 0; i < left.chapters.length; i++) {
+      if (!sameChapterShellAndCount(left.chapters[i], right.chapters[i])) {
+        catalogChanged = true
+        break
+      }
+    }
+  }
+  if (catalogChanged) return { same: false, catalogChanged: true }
+  const lm = left.sourceMetadata
+  const rm = right.sourceMetadata
+  const sameMeta = (lm === rm) || (lm !== undefined && rm !== undefined &&
+    lm.sourceName === rm.sourceName && lm.contentRating === rm.contentRating && lm.artist === rm.artist &&
+    lm.status === rm.status && lm.webUrl === rm.webUrl && lm.settingsFingerprint === rm.settingsFingerprint &&
+    lm.chapterCatalogUpdatedAt === rm.chapterCatalogUpdatedAt &&
+    sameOptionalStringList(lm.tags, rm.tags) &&
+    sameOptionalStringList(lm.excludedChapterIds, rm.excludedChapterIds) &&
+    sameOptionalStringList(lm.sharedChapterIds, rm.sharedChapterIds))
+  const sameWork = left.title === right.title && left.sortTitle === right.sortTitle &&
+    left.subtitle === right.subtitle && left.author === right.author &&
+    left.coverUri === right.coverUri && left.customCoverUri === right.customCoverUri &&
+    left.sourceCoverUri === right.sourceCoverUri && left.enhancedCoverUri === right.enhancedCoverUri &&
+    left.enhancedCoverModel === right.enhancedCoverModel && left.chapterCount === right.chapterCount &&
+    left.pageCount === right.pageCount && sameMeta
+  return { same: sameWork, catalogChanged: false }
+}
+
 /** Save the last known public name before uninstalling a source. The library
  * remains the owner; one transaction preserves chapters, downloads and progress.
  * Old backups without this field still load without inventing a source name. */
@@ -1259,12 +1353,12 @@ export function retainLibrarySourceNameAndPersist(
     .map((comic: Comic): Comic => libraryStore.getComic(comic.id) as Comic)
   if (changed.length === 0) return false
   const next = changed.map((comic: Comic): Comic => {
-    const next = JSON.parse(JSON.stringify(comic)) as Comic
+    const next = copyComicShell(comic)
     next.sourceMetadata = next.sourceMetadata ?? {}
     next.sourceMetadata.sourceName = name
     return next
   })
-  persistence.persistExistingWorks(next)
+  persistence.persistExistingWorks(next, false)
   next.forEach((comic: Comic): void => { libraryStore.upsertComic(comic) })
   return true
 }
@@ -1286,9 +1380,9 @@ export function refreshSourceComicCoverAndPersistLibraryStore(
     return false
   }
   // Clone the latest owner value, not the detail snapshot: chapter/progress/category fields stay intact.
-  const next = JSON.parse(JSON.stringify(previous)) as Comic
+  const next = copyComicShell(previous)
   assignComicSourceCover(next, cover)
-  upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)
+  upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next, false)
   return true
 }
 
@@ -1313,15 +1407,16 @@ export function refreshSourceMangaDetailAndPersistLibraryStore(
     previous.sourceRuntimeId !== sourceId || previous.remoteResourceId !== mangaId) return false
   const next = updatedSourceMangaDetail(previous, detail, chapters, chaptersResolved, excludedChapterIds,
     settingsFingerprint)
-  if (JSON.stringify(next) === JSON.stringify(previous)) return false
-  upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)
+  const diff = sameSourceCatalogAndMetadata(next, previous)
+  if (diff.same) return false
+  upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next, diff.catalogChanged)
   return true
 }
 
 /** Also used by the Mihon worker to write a freshly linked catalog in its existing transaction. */
 export function updatedSourceMangaDetail(previous: Comic, detail: MangaDetail, chapters: MangaChapterItem[],
   chaptersResolved: boolean, excludedChapterIds: string[], settingsFingerprint: string): Comic {
-  const next = JSON.parse(JSON.stringify(previous)) as Comic
+  const next = copyComicShell(previous, chaptersResolved ? 'clone_chapters' : 'reuse')
   if (detail.title.trim().length > 0) {
     next.title = detail.title
     next.sortTitle = normalizeSortKey(detail.title)
@@ -1336,7 +1431,7 @@ export function updatedSourceMangaDetail(previous: Comic, detail: MangaDetail, c
     status: detail.status !== undefined && detail.status !== 'unknown' ? detail.status : previous.sourceMetadata?.status,
     tags: detail.tags?.slice(),
     webUrl: detail.webUrl,
-    excludedChapterIds: chaptersResolved ? excludedChapterIds.slice() : previous.sourceMetadata?.excludedChapterIds,
+    excludedChapterIds: chaptersResolved ? excludedChapterIds.slice() : previous.sourceMetadata?.excludedChapterIds?.slice(),
     settingsFingerprint: chaptersResolved ? settingsFingerprint : previous.sourceMetadata?.settingsFingerprint,
     sharedChapterIds: previous.sourceMetadata?.sharedChapterIds?.slice(),
     chapterCatalogUpdatedAt: previous.sourceMetadata?.chapterCatalogUpdatedAt,
@@ -1373,9 +1468,9 @@ export function refreshSourceChapterMetadataAndPersistLibraryStore(
   const previous = libraryStore.getComic(comicId)
   if (previous === undefined || previous.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY ||
     previous.sourceRuntimeId !== sourceId || previous.remoteResourceId !== mangaId || chapters.length === 0) return false
-  const next = JSON.parse(JSON.stringify(previous)) as Comic
+  const next = copyComicShell(previous, 'clone_chapters')
   if (!enrichSourceChapterMetadata(next, chapters)) return false
-  upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)
+  upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next, true)
   return true
 }
 
@@ -1493,7 +1588,7 @@ export function updateLocalLibraryMetadataAndPersistLibraryStore(
     next.coverUri = undefined
   }
 
-  persistenceService.persistExistingWorks([next])
+  persistenceService.persistExistingWorks([next], false)
   libraryStore.upsertComic(next)
   return next
 }

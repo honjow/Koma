@@ -1,7 +1,10 @@
 import type { relationalStore } from '@kit.ArkData'
 import { hasUserDataMigration, markUserDataMigration } from './UserDataDatabase'
 import { booleanValue, collectLocalRows, LocalColumnValue } from './LocalDataRows'
-import { readLibraryUpdateReport, REPORT_JOB_KEY, REPORT_RESULT_KEY, writeLibraryUpdateReport } from './LibraryUpdateReportRows'
+import { readLibraryUpdateJobRow, readLibraryUpdateReport, readLibraryUpdateSummaryRow, REPORT_JOB_KEY,
+  REPORT_RESULT_KEY, writeLibraryUpdateJobRow, writeLibraryUpdateReport,
+  writeLibraryUpdateSummaryRow } from './LibraryUpdateReportRows'
+import type { PersistedLibraryUpdateJobSnapshot, PersistedLibraryUpdateSummary } from './LibraryUpdateResultStore'
 import { UserKeyedRecords, UserRecordValues, writeUserRecords } from './UserKeyedRecords'
 import { isDeviceLocalReaderPageMode, READER_GLOBAL_DOMAIN, readReaderPreferenceColumns, readerPreferenceWrites } from './ReaderPreferenceColumns'
 
@@ -126,6 +129,51 @@ export class PreferenceColumnRows {
 
   private ensureCollection(): void {
     this.store.executeSync('INSERT OR IGNORE INTO typed_preference_collections (domain) VALUES (?)', [this.domain])
+  }
+
+  ensureCollectionInTransaction(): void {
+    this.ensureCollection()
+  }
+
+  minOrderedRank(fallback: number = 0): number {
+    const layout = this.layout
+    if (layout?.ordered !== true) return fallback
+    const rows = this.store.querySqlSync('SELECT COALESCE(MIN(list_order), ?) FROM ' + layout.table, [fallback])
+    try {
+      return rows.goToNextRow() ? rows.getLong(0) : fallback
+    } finally {
+      rows.close()
+    }
+  }
+
+  removeOrderedWhere(predicate: string, args: LocalColumnValue[]): number {
+    const layout = this.layout
+    if (layout === undefined) return 0
+    let removed = 0
+    writeUserRecords(this.store, (): void => {
+      const countRows = this.store.querySqlSync('SELECT COUNT(*) FROM ' + layout.table + ' WHERE ' + predicate, args)
+      try {
+        if (countRows.goToNextRow()) removed = countRows.getLong(0)
+      } finally {
+        countRows.close()
+      }
+      if (removed > 0) this.store.executeSync('DELETE FROM ' + layout.table + ' WHERE ' + predicate, args)
+    })
+    return removed
+  }
+
+  readStructuredReport(key: string): Object | undefined {
+    if (this.domain !== 'preferences/koma_library_update_results_v1/') return undefined
+    if (key === REPORT_JOB_KEY) return readLibraryUpdateJobRow(this.store)
+    if (key === REPORT_RESULT_KEY) return readLibraryUpdateSummaryRow(this.store)
+    return undefined
+  }
+
+  writeStructuredReportInTransaction(key: string, value: Object | undefined): void {
+    if (this.domain !== 'preferences/koma_library_update_results_v1/') return
+    if (value !== undefined) this.ensureCollection()
+    if (key === REPORT_JOB_KEY) writeLibraryUpdateJobRow(this.store, value as PersistedLibraryUpdateJobSnapshot | undefined)
+    else if (key === REPORT_RESULT_KEY) writeLibraryUpdateSummaryRow(this.store, value as PersistedLibraryUpdateSummary | undefined)
   }
 
   private rows(key?: string): EncodedPreference[] {
@@ -405,6 +453,14 @@ export class PreferenceColumnRows {
 
   replace(values: UserRecordValues | undefined): void {
     writeUserRecords(this.store, (): void => this.replaceInTransaction(values))
+  }
+
+  putEntries(entries: UserRecordValues, deletedKeys: string[] = []): void {
+    writeUserRecords(this.store, (): void => {
+      if (entries.size > 0) this.ensureCollection()
+      deletedKeys.forEach((key: string): void => this.putInTransaction(key, undefined))
+      entries.forEach((value: string, key: string): void => this.putInTransaction(key, value))
+    })
   }
 
   replaceInTransaction(values: UserRecordValues | undefined): void {

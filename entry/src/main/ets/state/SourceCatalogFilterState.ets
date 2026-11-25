@@ -51,6 +51,7 @@ export class SourceCatalogFilterState {
   private generation: number = 0
   private edit: number = 0
   private persisted: SourceCatalogPresentationPreferences = { rating: 'all' }
+  private pinOrders: Map<string, number> = new Map<string, number>()
 
   prepare(context: common.Context): Promise<void> {
     this.context = context
@@ -62,6 +63,8 @@ export class SourceCatalogFilterState {
         const recent = readRecentSourceIds(await store.get(RECENT_SOURCE_IDS_KEY, '[]') as string)
         if (generation === this.generation) {
           this.persisted = value
+          this.pinOrders.clear()
+          ;(value.pinnedSourceIds ?? []).forEach((id: string, index: number): void => { this.pinOrders.set(id, index) })
           if (edit === this.edit) this.publish(value)
           this.recentSourceIds = recent
           this.loaded = true
@@ -115,7 +118,7 @@ export class SourceCatalogFilterState {
     if (id.length === 0 || this.pinnedSourceIds.includes(id) === pinned) return Promise.resolve()
     const next = this.pinnedSourceIds.filter((key: string): boolean => key !== id)
     if (pinned) next.unshift(id)
-    return this.savePresentation({ languages: this.languages, rating: this.rating, pinnedSourceIds: next })
+    return this.savePresentation({ languages: this.languages, rating: this.rating, pinnedSourceIds: next }, id, pinned)
   }
 
   // Shortcut order lives on this device, separately from portable pins and filters.
@@ -146,7 +149,7 @@ export class SourceCatalogFilterState {
     return run
   }
 
-  private savePresentation(value: SourceCatalogPresentationPreferences): Promise<void> {
+  private savePresentation(value: SourceCatalogPresentationPreferences, changedPinId?: string, changedPinState?: boolean): Promise<void> {
     const next = normalizedFilters(value)
     const context = this.context
     if (context === undefined) return Promise.reject(new Error('source_filter_not_ready'))
@@ -160,7 +163,29 @@ export class SourceCatalogFilterState {
       await preparation
       if (generation !== this.generation) return
       return BackupRestoreActivity.runWrite(async (): Promise<void> => {
-        await catalogFilterRecords.restoreBackupValue(context, JSON.stringify(next))
+        if (typeof catalogFilterRecords.updateEntries === 'function') {
+          const updates = new Map<string, string>()
+          const deleted: string[] = []
+          if (changedPinId !== undefined) {
+            if (changedPinState === true) {
+              let minOrder = 0
+              this.pinOrders.forEach((order: number): void => { if (order <= minOrder) minOrder = order - 1 })
+              this.pinOrders.set(changedPinId, minOrder)
+              updates.set('pin/' + changedPinId, String(minOrder))
+              updates.set('pinnedSourceIds', '[]')
+            } else {
+              this.pinOrders.delete(changedPinId)
+              deleted.push('pin/' + changedPinId)
+            }
+          } else {
+            updates.set('rating', JSON.stringify(next.rating))
+            if (next.languages === undefined) deleted.push('languages')
+            else updates.set('languages', JSON.stringify(next.languages))
+          }
+          await catalogFilterRecords.updateEntries(context, updates, deleted)
+        } else {
+          await catalogFilterRecords.restoreBackupValue(context, JSON.stringify(next))
+        }
         if (generation === this.generation) this.persisted = next
       })
     }).catch((error: Error): void => {

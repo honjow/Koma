@@ -3,7 +3,7 @@ import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
 import { taskpool, buffer, util } from '@kit.ArkTS'
-import { Comic, sameComicIdentity } from './ComicModels'
+import { Comic, copyComicShell, sameComicIdentity } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import { LibraryStorePersistenceService, upsertComicAndPersistLibraryStore } from './LibraryPersistence'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
@@ -38,7 +38,7 @@ export function saveComicPersonalization(library: LibraryStore, persistence: Lib
   if (BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_busy')
   const current = library.getComic(baseline.id)
   if (current === undefined || !sameComicIdentity(baseline, current)) throw new Error('comic_changed')
-  const next = JSON.parse(JSON.stringify(current)) as Comic
+  const next = copyComicShell(current)
   if (notes !== undefined) next.personalNotes = notes.length === 0 ? undefined : notes
   if (resetCover || customCover !== undefined) {
     next.enhancedCoverUri = undefined
@@ -54,7 +54,7 @@ export function saveComicPersonalization(library: LibraryStore, persistence: Lib
     next.coverUri = customCover
   }
   next.updatedAt = Date.now()
-  upsertComicAndPersistLibraryStore(library, persistence, next)
+  upsertComicAndPersistLibraryStore(library, persistence, next, false)
 }
 
 export function saveComicCoverEnhancement(library: LibraryStore, persistence: LibraryStorePersistenceService,
@@ -68,10 +68,10 @@ export function saveComicCoverEnhancement(library: LibraryStore, persistence: Li
     current.enhancedCoverUri !== baseline.enhancedCoverUri) {
     throw new Error('comic_cover_changed')
   }
-  const next = JSON.parse(JSON.stringify(current)) as Comic
+  const next = copyComicShell(current)
   next.enhancedCoverUri = cover
   next.enhancedCoverModel = model
-  upsertComicAndPersistLibraryStore(library, persistence, next)
+  upsertComicAndPersistLibraryStore(library, persistence, next, false)
   return next
 }
 

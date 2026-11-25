@@ -492,4 +492,13 @@ export class ReaderRdbStorage {
     return collectLocalRows(this.store.querySqlSync('SELECT comic_id FROM reader_current_positions_all'),
       (row: relationalStore.ResultSet): string => row.getString(0))
   }
+
+  allHistoryComicIds(): string[] {
+    return collectLocalRows(this.store.querySqlSync(
+      'SELECT comic_id FROM reader_current_positions_all UNION ' +
+      'SELECT comic_id FROM reader_source_history_all UNION ' +
+      'SELECT comic_id FROM reader_remote_history UNION ' +
+      'SELECT DISTINCT comic_id FROM reader_sessions'),
+      (row: relationalStore.ResultSet): string => row.getString(0))
+  }
 }

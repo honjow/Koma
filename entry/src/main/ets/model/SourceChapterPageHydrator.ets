@@ -12,6 +12,8 @@ import {
   Chapter,
   Comic,
   Page,
+  copyChapter,
+  copyComicShell,
   sameComicIdentity,
   setCompleteSourceChapterCatalog,
 } from './ComicModels'
@@ -19,6 +21,7 @@ import { LibraryStore } from './LibraryStore'
 import {
   LibraryStorePersistenceService,
   upsertComicAndPersistLibraryStore,
+  upsertComicChapterPagesAndPersistLibraryStore,
 } from './LibraryPersistence'
 import {
   SourceRuntimeRegistry,
@@ -482,14 +485,14 @@ export class SourceChapterPageHydrator {
       createdAt: now,
       updatedAt: now,
     }
-    const updated = JSON.parse(JSON.stringify(latest)) as Comic
+    const updated = copyComicShell(latest, 'shallow')
     updated.chapters = updated.chapters.concat([chapter])
     updated.chapterCount = updated.sourceMetadata?.sharedChapterIds?.length ?? updated.chapters.length
     updated.updatedAt = now
     if (this.libraryPersistenceService === undefined) {
       this.libraryStore.upsertComic(updated)
     } else {
-      upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, updated)
+      upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, updated, true)
     }
     this.onLibraryChanged?.()
     return true
@@ -514,12 +517,13 @@ export class SourceChapterPageHydrator {
       latest.sourceRuntimeId !== sourceId || sourceMangaIdFromComic(latest, sourceId) !== mangaId) return undefined
     const resolved = reconcileSourceChapterIdentity(latest, mangaId, catalog.chapters, undefined,
       lookup.entry.websitePolicy?.chapterIdentity)
-    const updated = JSON.parse(JSON.stringify(latest)) as Comic
+    const updated = copyComicShell(latest, 'clone_chapters')
     const catalogChanged = setCompleteSourceChapterCatalog(updated,
       resolved.chapters.map((item: MangaChapterItem): string => item.id), Date.now())
-    if (enrichSourceChapterMetadata(updated, resolved.chapters) || catalogChanged) {
+    const metadataEnriched = enrichSourceChapterMetadata(updated, resolved.chapters)
+    if (metadataEnriched || catalogChanged) {
       if (this.libraryPersistenceService === undefined) this.libraryStore.upsertComic(updated)
-      else upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, updated)
+      else upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, updated, metadataEnriched)
       this.onLibraryChanged?.()
     }
     return continuationChapterIds(chapterReadingChaptersFor(comicId, resolved.chapters, chapterId),
@@ -546,8 +550,8 @@ export class SourceChapterPageHydrator {
     if (resolvedSourceId === undefined || resolvedSourceId.trim().length === 0) {
       return { hydrated: false, pageCount: 0, reasonCode: 'source_missing' }
     }
-    const baselineComic = JSON.parse(JSON.stringify(comic)) as Comic
-    const baselineChapter = JSON.parse(JSON.stringify(chapter)) as Chapter
+    const baselineComic = copyComicShell(comic)
+    const baselineChapter = copyChapter(chapter)
     const resolution = await resolveSourceChapterPages(this.sourceRegistry, {
       comicId: comic.id,
       sourceId: resolvedSourceId,
@@ -578,7 +582,7 @@ export class SourceChapterPageHydrator {
       return { hydrated: false, pageCount: 0, reasonCode: 'chapter_missing' }
     }
     // A newer page plan already committed while this request was resolving owns the chapter.
-    if (JSON.stringify(currentChapter.pages) !== JSON.stringify(chapter.pages) ||
+    if (!sameHydratorPages(currentChapter.pages, chapter.pages) ||
       currentChapter.sourceSettingsFingerprint !== chapter.sourceSettingsFingerprint) {
       return {
         hydrated: currentChapter.pages.length > 0,
@@ -586,22 +590,41 @@ export class SourceChapterPageHydrator {
         reasonCode: currentChapter.pages.length > 0 ? undefined : 'pages_missing',
       }
     }
-    const next = JSON.parse(JSON.stringify(current)) as Comic
-    const nextChapter = next.chapters.find((item: Chapter): boolean => item.id === chapter.id) as Chapter
+    const chapterIndex = current.chapters.findIndex((item: Chapter): boolean => item.id === chapter.id)
+    if (chapterIndex < 0) {
+      return { hydrated: false, pageCount: 0, reasonCode: 'chapter_missing' }
+    }
+    const next = copyComicShell(current, 'shallow')
+    const nextChapter = copyChapter(currentChapter, false)
     nextChapter.pages = pages
     nextChapter.sourceSettingsFingerprint = fingerprint
     nextChapter.pageCount = pages.length
     nextChapter.updatedAt = Date.now()
+    next.chapters[chapterIndex] = nextChapter
     next.pageCount = next.chapters.reduce((total: number, item: Chapter): number => total + item.pageCount, 0)
     next.updatedAt = nextChapter.updatedAt
     if (this.libraryPersistenceService === undefined) {
       this.libraryStore.upsertComic(next)
     } else {
-      upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, next)
+      upsertComicChapterPagesAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, next, nextChapter)
     }
     if (this.onLibraryChanged !== undefined) {
       this.onLibraryChanged()
     }
     return { hydrated: true, pageCount: pages.length }
   }
+}
+
+function sameHydratorPages(left: Page[], right: Page[]): boolean {
+  if (left === right) return true
+  if (left.length !== right.length) return false
+  for (let i = 0; i < left.length; i++) {
+    const a = left[i]
+    const b = right[i]
+    if (a === b) continue
+    if (a.id !== b.id || a.uri !== b.uri || a.fileName !== b.fileName || a.index !== b.index ||
+      a.width !== b.width || a.height !== b.height || a.byteSize !== b.byteSize ||
+      JSON.stringify(a) !== JSON.stringify(b)) return false
+  }
+  return true
 }

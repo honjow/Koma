@@ -77,8 +77,10 @@ import {
   MangaChapterDownloadStatus,
   MangaDetail,
   MangaStatus,
+  copyMangaDetail,
   parseMangaChapterFromSourceItem,
   parseMangaDetailFromSourceItem,
+  sameMangaDetail,
 } from '../model/MangaDetailModels'
 import { SourceMangaDetailSnapshot, sourceMangaDetailSnapshotCache } from '../model/SourceMangaDetailSnapshotCache'
 import { sourceMangaDetailSnapshotPersistence } from '../model/SourceMangaDetailSnapshotPersistence'
@@ -90,6 +92,7 @@ import {
   Comic,
   comicDisplayCover,
   ComicSourceKind,
+  copyComicShell,
   CustomLibraryCategory,
   ReadingDirection,
   ReadingProgress,
@@ -1749,7 +1752,7 @@ export struct MangaDetailPage {
     const previousDetail = this.manga
     // An unchanged refresh should not rebind the detail header and title actions.
     if (previousDetail === undefined ||
-      JSON.stringify(UIUtils.getTarget(previousDetail)) !== JSON.stringify(nextDetail)) this.manga = nextDetail
+      !sameMangaDetail(UIUtils.getTarget(previousDetail), nextDetail)) this.manga = nextDetail
     const nextChapters = this.decorateChapterStates(displayedChapters)
     // Equal background results must not rerun the list's sort/filter and
     // selection reconciliation just because the source returned new objects.
@@ -3847,7 +3850,7 @@ export struct MangaDetailPage {
   private openCoverEnhancement(): void {
     const comic = this.libraryStore?.getComic(this.currentComicId())
     if (comic === undefined || this.coverEnhancementShown) return
-    this.coverEnhancementComic = JSON.parse(JSON.stringify(comic)) as Comic
+    this.coverEnhancementComic = copyComicShell(comic)
     this.coverEnhancementArtwork = this.baseCoverForEnhancement(comic)
     this.coverEnhancementShown = true
   }
@@ -3858,7 +3861,7 @@ export struct MangaDetailPage {
       this.libraryPersistenceService === undefined) return false
     try {
       saveComicCoverEnhancement(this.libraryStore, this.libraryPersistenceService, baseline, cover, model)
-      if (this.manga !== undefined) this.manga = JSON.parse(JSON.stringify(this.manga)) as MangaDetail
+      if (this.manga !== undefined) this.manga = copyMangaDetail(this.manga)
       this.syncTitleActions()
       this.onLibraryChanged()
       DiagnosticLogger.info('cover-enhancement', cover === undefined ? 'undone' : 'applied', 'model=' + (model ?? ''))
@@ -3916,7 +3919,7 @@ export struct MangaDetailPage {
       const updated = this.libraryStore.getComic(comic.id)!
       this.personalNotes = updated.personalNotes ?? ''
       if (this.manga !== undefined) {
-        const detail = JSON.parse(JSON.stringify(this.manga)) as MangaDetail
+        const detail = copyMangaDetail(this.manga)
         detail.coverUrl = updated.coverUri
         this.manga = detail
       }

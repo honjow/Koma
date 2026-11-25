@@ -689,6 +689,15 @@ export abstract class ReaderSessionStore {
     }))
   }
 
+  listAllHistoryComicIds(): ComicId[] {
+    const ids = new Set<ComicId>()
+    this.listProgress().forEach((row: ReadingProgress): void => { ids.add(row.comicId) })
+    this.listSourceHistory().forEach((row: SourceReadHistoryEntry): void => { ids.add(row.comicId) })
+    this.listRemoteHistory().forEach((row: RemoteReadHistoryEntry): void => { ids.add(row.comicId) })
+    this.listReadingSessions().forEach((row: ReadingSessionRecord): void => { ids.add(row.comicId) })
+    return Array.from(ids)
+  }
+
   snapshotReadingState(): ReaderSessionReadingSnapshot {
     return {
       progress: this.listProgress(),
@@ -1270,6 +1279,12 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     return this.deviceSyncRevision
   }
 
+  listAllHistoryComicIds(): ComicId[] {
+    const database = this.adapter.activityDatabase?.()
+    if (database !== undefined) return database.allHistoryComicIds()
+    return super.listAllHistoryComicIds()
+  }
+
   prepareShelfReadingFacts(comics: Comic[]): boolean {
     const database = this.adapter.activityDatabase?.()
     if (database === undefined) return false
@@ -1751,8 +1766,16 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
         copySourceReadHistoryEntry(entry) as SourceReadHistoryEntry),
       remoteHistory: current.remoteHistory?.map((entry: RemoteReadHistoryEntry): RemoteReadHistoryEntry =>
         copyRemoteReadHistoryEntry(entry) as RemoteReadHistoryEntry),
-      chapters: current.chapters.map((row: ChapterReadingState): ChapterReadingState =>
-        JSON.parse(JSON.stringify(row)) as ChapterReadingState),
+      chapters: current.chapters.map((row: ChapterReadingState): ChapterReadingState => ({
+        comicId: row.comicId,
+        chapterId: row.chapterId,
+        isRead: row.isRead,
+        bookmarked: row.bookmarked,
+        updatedAt: row.updatedAt,
+        position: row.position === undefined ? undefined : copyReadingProgress(row.position),
+        sourceIdentity: row.sourceIdentity === undefined ? undefined :
+          { source: row.sourceIdentity.source, work: row.sourceIdentity.work },
+      })),
       readingSessions: current.readingSessions?.map((row: ReadingSessionRecord): ReadingSessionRecord => ({
         comicId: row.comicId, chapterId: row.chapterId, startedAt: row.startedAt, endedAt: row.endedAt, pagesRead: row.pagesRead })),
     }

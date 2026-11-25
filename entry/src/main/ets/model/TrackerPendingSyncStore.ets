@@ -7,6 +7,11 @@ import { MigratedPreferenceRecords, orderedPreferenceRecords } from './MigratedP
 
 export const TRACKER_PENDING_SYNC_STORE_NAME: string = 'koma_tracker_pending_sync_v1'
 export const TRACKER_PENDING_PROGRESS_QUEUE_KEY: string = 'tracker.pendingProgressQueue'
+interface OrderedTrackerPendingRecord {
+  order?: number
+  value?: TrackerPendingProgressSyncEntry
+}
+
 const pendingRecords = new MigratedPreferenceRecords(TRACKER_PENDING_SYNC_STORE_NAME, TRACKER_PENDING_PROGRESS_QUEUE_KEY,
   [], orderedPreferenceRecords(['providerId', 'comicId', 'chapterId']))
 
@@ -259,6 +264,23 @@ export class TrackerPendingSyncStore {
     })
     if (requested === undefined) return Promise.reject(new Error('tracker_pending_invalid_entry'))
     return this.mutate(async (): Promise<TrackerPendingProgressSyncEntry> => {
+      const records = await pendingRecords.prepare(this.context)
+      if (typeof records?.get === 'function' && typeof records?.put === 'function' &&
+        typeof records?.minOrderedRank === 'function') {
+        const key = JSON.stringify([requested.providerId, requested.comicId, requested.chapterId])
+        const existingRaw = records.get(key)
+        if (existingRaw !== undefined) {
+          const existing = JSON.parse(existingRaw) as OrderedTrackerPendingRecord
+          if (existing?.value !== undefined) {
+            requested.attempts = (existing.value.attempts ?? 0) + 1
+            requested.firstQueuedAt = existing.value.firstQueuedAt ?? now
+          }
+        }
+        const rank = records.minOrderedRank(0) - 1
+        const nextRow: OrderedTrackerPendingRecord = { order: rank, value: requested }
+        records.put(key, JSON.stringify(nextRow))
+        return requested
+      }
       const current = await this.readPendingProgress()
       const existing = current.find((entry: TrackerPendingProgressSyncEntry): boolean =>
         entry.providerId === requested.providerId && entry.comicId === requested.comicId &&
@@ -283,27 +305,55 @@ export class TrackerPendingSyncStore {
     })
   }
 
+  private removeOrderedSql(predicate: string, args: Array<string | number | null>,
+    fallbackMatch: (entry: TrackerPendingProgressSyncEntry) => boolean): Promise<number> {
+    return this.mutate(async (): Promise<number> => {
+      const records = await pendingRecords.prepare(this.context)
+      if (typeof records?.removeOrderedWhere === 'function') {
+        return records.removeOrderedWhere(predicate, args)
+      }
+      const current = await this.readPendingProgress()
+      const next = current.filter((entry: TrackerPendingProgressSyncEntry): boolean => !fallbackMatch(entry))
+      if (next.length !== current.length) await this.persistPendingProgress(next)
+      return current.length - next.length
+    })
+  }
+
   removeProgress(providerId: TrackerProviderId, comicId: ComicId, chapterId: ChapterId): Promise<number> {
-    return this.removeMatching((entry: TrackerPendingProgressSyncEntry): boolean =>
-      entry.providerId === providerId && entry.comicId === comicId && entry.chapterId === chapterId)
+    return this.removeOrderedSql('provider_id = ? AND comic_id = ? AND chapter_id = ?',
+      [providerId, comicId, chapterId],
+      (entry: TrackerPendingProgressSyncEntry): boolean =>
+        entry.providerId === providerId && entry.comicId === comicId && entry.chapterId === chapterId)
   }
 
   removeProgressThrough(providerId: TrackerProviderId, comicId: ComicId, count: number): Promise<number> {
-    return this.removeMatching((entry: TrackerPendingProgressSyncEntry): boolean =>
-      entry.providerId === providerId && entry.comicId === comicId && entry.providerProgress <= count)
+    return this.removeOrderedSql('provider_id = ? AND comic_id = ? AND provider_progress <= ?',
+      [providerId, comicId, count],
+      (entry: TrackerPendingProgressSyncEntry): boolean =>
+        entry.providerId === providerId && entry.comicId === comicId && entry.providerProgress <= count)
   }
 
   removeProgressForComic(providerId: TrackerProviderId, comicId: ComicId): Promise<number> {
-    return this.removeMatching((entry: TrackerPendingProgressSyncEntry): boolean =>
-      entry.providerId === providerId && entry.comicId === comicId)
+    return this.removeOrderedSql('provider_id = ? AND comic_id = ?',
+      [providerId, comicId],
+      (entry: TrackerPendingProgressSyncEntry): boolean =>
+        entry.providerId === providerId && entry.comicId === comicId)
   }
 
   removeProgressForProvider(providerId: TrackerProviderId): Promise<number> {
-    return this.removeMatching((entry: TrackerPendingProgressSyncEntry): boolean => entry.providerId === providerId)
+    return this.removeOrderedSql('provider_id = ?', [providerId],
+      (entry: TrackerPendingProgressSyncEntry): boolean => entry.providerId === providerId)
   }
 
   clear(): Promise<void> {
-    return this.mutate(async (): Promise<void> => { await this.persistPendingProgress([]) })
+    return this.mutate(async (): Promise<void> => {
+      const records = await pendingRecords.prepare(this.context)
+      if (typeof records?.removeOrderedWhere === 'function') {
+        records.removeOrderedWhere('1 = 1', [])
+        return
+      }
+      await this.persistPendingProgress([])
+    })
   }
 
 }

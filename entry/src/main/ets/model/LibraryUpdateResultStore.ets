@@ -5,6 +5,8 @@ import { common, wantAgent } from '@kit.AbilityKit'
 import { MigratedPreferenceRecords, orderedPreferenceRecords, LegacyPreferenceValue,
   PreferenceRecordCodec } from './MigratedPreferenceRecords'
 import { openUserDataDatabase } from './UserDataDatabase'
+import { readLibraryUpdateJobRow, readLibraryUpdateSummaryRow, writeLibraryUpdateJobRow,
+  writeLibraryUpdateSummaryRow } from './LibraryUpdateReportRows'
 import { UserRecordValues, writeUserRecords } from './UserKeyedRecords'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { notificationManager } from '@kit.NotificationKit'
@@ -418,13 +420,13 @@ async function createLibraryUpdateWantAgent(): Promise<WantAgent> {
   })
 }
 
-export function serializeLibraryUpdateSummary(summary: LibraryUpdateSummary): string {
+export function persistLibraryUpdateSummary(summary: LibraryUpdateSummary): PersistedLibraryUpdateSummary {
   const results = summary.results
     .map((result: LibraryUpdateComicResult): PersistedLibraryUpdateResult => persistLibraryUpdateResult(result))
   const providerSummaries = (summary.providerSummaries.length > 0 ? summary.providerSummaries : summarizeLibraryUpdateProviders(summary.results))
     .map((providerSummary: LibraryUpdateProviderSummary): PersistedLibraryUpdateProviderSummary =>
       persistLibraryUpdateProviderSummary(providerSummary))
-  const persisted: PersistedLibraryUpdateSummary = {
+  return {
     checkedAt: isValidCheckedAt(summary.checkedAt) ? summary.checkedAt : Date.now(),
     totalCount: normalizeCount(summary.totalCount),
     updatedCount: normalizeCount(summary.updatedCount),
@@ -434,7 +436,10 @@ export function serializeLibraryUpdateSummary(summary: LibraryUpdateSummary): st
     providerSummaries,
     results,
   }
-  return JSON.stringify(persisted)
+}
+
+export function serializeLibraryUpdateSummary(summary: LibraryUpdateSummary): string {
+  return JSON.stringify(persistLibraryUpdateSummary(summary))
 }
 
 function isRecord(value: Object | null): boolean {
@@ -553,7 +558,14 @@ function hydrateLibraryUpdateProviderSummary(value: Object): LibraryUpdateProvid
 
 export function hydrateLibraryUpdateSummaryFromJson(jsonText: string): LibraryUpdateSummary | undefined {
   try {
-    const parsed = JSON.parse(jsonText) as Object
+    return hydrateLibraryUpdateSummaryObject(JSON.parse(jsonText) as Object)
+  } catch (_error) {
+    return undefined
+  }
+}
+
+export function hydrateLibraryUpdateSummaryObject(parsed: Object): LibraryUpdateSummary | undefined {
+  try {
     if (!isRecord(parsed)) {
       return undefined
     }
@@ -680,7 +692,7 @@ export function completedLibraryUpdateJobSnapshot(
   return createLibraryUpdateJobSnapshot(state, summary.checkedAt, summary, failureCode, nextDueAt, startedAt)
 }
 
-export function serializeLibraryUpdateJobSnapshot(snapshot: LibraryUpdateJobSnapshot): string {
+export function persistLibraryUpdateJobSnapshot(snapshot: LibraryUpdateJobSnapshot): PersistedLibraryUpdateJobSnapshot {
   const persisted: PersistedLibraryUpdateJobSnapshot = {
     state: snapshot.state,
     updatedAt: isValidCheckedAt(snapshot.updatedAt) ? snapshot.updatedAt : Date.now(),
@@ -701,14 +713,25 @@ export function serializeLibraryUpdateJobSnapshot(snapshot: LibraryUpdateJobSnap
     persisted.failureCode = redactLibraryUpdateFailureCode(snapshot.failureCode)
   }
   if (snapshot.summary !== undefined) {
-    persisted.summary = JSON.parse(serializeLibraryUpdateSummary(snapshot.summary)) as PersistedLibraryUpdateSummary
+    persisted.summary = persistLibraryUpdateSummary(snapshot.summary)
   }
-  return JSON.stringify(persisted)
+  return persisted
+}
+
+export function serializeLibraryUpdateJobSnapshot(snapshot: LibraryUpdateJobSnapshot): string {
+  return JSON.stringify(persistLibraryUpdateJobSnapshot(snapshot))
 }
 
 export function hydrateLibraryUpdateJobSnapshotFromJson(jsonText: string): LibraryUpdateJobSnapshot | undefined {
   try {
-    const parsed = JSON.parse(jsonText) as Object
+    return hydrateLibraryUpdateJobSnapshotObject(JSON.parse(jsonText) as Object)
+  } catch (_error) {
+    return undefined
+  }
+}
+
+export function hydrateLibraryUpdateJobSnapshotObject(parsed: Object): LibraryUpdateJobSnapshot | undefined {
+  try {
     if (!isRecord(parsed)) {
       return undefined
     }
@@ -752,8 +775,8 @@ export function hydrateLibraryUpdateJobSnapshotFromJson(jsonText: string): Libra
       snapshot.failureCode = redactLibraryUpdateFailureCode(failureCode)
     }
     const summaryObject = record['summary']
-    if (isRecord(summaryObject as Object | null)) {
-      const summary = hydrateLibraryUpdateSummaryFromJson(JSON.stringify(summaryObject))
+    if (summaryObject !== undefined && summaryObject !== null && isRecord(summaryObject as Object | null)) {
+      const summary = hydrateLibraryUpdateSummaryObject(summaryObject as Object)
       if (summary === undefined) {
         return undefined
       }
@@ -845,7 +868,11 @@ export class LibraryUpdateResultStore {
 
   async load(): Promise<LibraryUpdateSummary | undefined> {
     try {
-      const value = (await updateFields.prepare(this.context)).get(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY)
+      const fields = await updateFields.prepare(this.context)
+      const direct = typeof fields.readStructuredReport === 'function' ?
+        fields.readStructuredReport(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY) : undefined
+      if (direct !== undefined) return hydrateLibraryUpdateSummaryObject(direct)
+      const value = fields.get(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY)
       return value === undefined ? undefined : hydrateLibraryUpdateSummaryFromJson(JSON.parse(value) as string)
     } catch (_error) {
       return undefined
@@ -901,9 +928,15 @@ export class LibraryUpdateResultStore {
         const records = updateArrayCodec.decode(JSON.stringify(updates))
         if (records !== undefined) inserted = chapters.prependNewOrderedRecords(records)
       }
-      fields.putInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, JSON.stringify(serializeLibraryUpdateSummary(summary)))
-      fields.putInTransaction(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY,
-        JSON.stringify(serializeLibraryUpdateJobSnapshot(snapshot ?? completedLibraryUpdateJobSnapshot(summary))))
+      if (typeof fields.writeStructuredReportInTransaction === 'function') {
+        fields.writeStructuredReportInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, persistLibraryUpdateSummary(summary))
+        fields.writeStructuredReportInTransaction(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY,
+          persistLibraryUpdateJobSnapshot(snapshot ?? completedLibraryUpdateJobSnapshot(summary)))
+      } else {
+        fields.putInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, JSON.stringify(serializeLibraryUpdateSummary(summary)))
+        fields.putInTransaction(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY,
+          JSON.stringify(serializeLibraryUpdateJobSnapshot(snapshot ?? completedLibraryUpdateJobSnapshot(summary))))
+      }
     })
     if (inserted !== undefined && inserted.size > 0) {
       const cached = cachedLibraryChapterUpdates()
@@ -914,7 +947,11 @@ export class LibraryUpdateResultStore {
 
   async loadJobSnapshot(): Promise<LibraryUpdateJobSnapshot | undefined> {
     try {
-      const value = (await updateFields.prepare(this.context)).get(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY)
+      const fields = await updateFields.prepare(this.context)
+      const direct = typeof fields.readStructuredReport === 'function' ?
+        fields.readStructuredReport(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY) : undefined
+      if (direct !== undefined) return hydrateLibraryUpdateJobSnapshotObject(direct)
+      const value = fields.get(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY)
       return value === undefined ? undefined : hydrateLibraryUpdateJobSnapshotFromJson(JSON.parse(value) as string)
     } catch (_error) {
       return undefined
@@ -925,12 +962,21 @@ export class LibraryUpdateResultStore {
     const database = await openUserDataDatabase(this.context)
     const store = await updateFields.prepare(this.context)
     writeUserRecords(database, (): void => {
-      if (snapshot.summary !== undefined && snapshot.summary.checkedAt === snapshot.updatedAt) {
-        store.putInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, JSON.stringify(serializeLibraryUpdateSummary(snapshot.summary)))
-      } else if (snapshot.state === 'failed' || snapshot.state === 'backed-off') {
-        store.putInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, undefined)
+      if (typeof store.writeStructuredReportInTransaction === 'function') {
+        if (snapshot.summary !== undefined && snapshot.summary.checkedAt === snapshot.updatedAt) {
+          store.writeStructuredReportInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, persistLibraryUpdateSummary(snapshot.summary))
+        } else if (snapshot.state === 'failed' || snapshot.state === 'backed-off') {
+          store.writeStructuredReportInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, undefined)
+        }
+        store.writeStructuredReportInTransaction(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, persistLibraryUpdateJobSnapshot(snapshot))
+      } else {
+        if (snapshot.summary !== undefined && snapshot.summary.checkedAt === snapshot.updatedAt) {
+          store.putInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, JSON.stringify(serializeLibraryUpdateSummary(snapshot.summary)))
+        } else if (snapshot.state === 'failed' || snapshot.state === 'backed-off') {
+          store.putInTransaction(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, undefined)
+        }
+        store.putInTransaction(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, JSON.stringify(serializeLibraryUpdateJobSnapshot(snapshot)))
       }
-      store.putInTransaction(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, JSON.stringify(serializeLibraryUpdateJobSnapshot(snapshot)))
     })
   }
 

@@ -887,15 +887,25 @@ export class OfflineDownloadStore {
   }
 
   /** Protect migration references, including manifests absent from the queue.
-   * Reads directory/manifest metadata only; no page reads or integrity calculations. */
+   * Reads directory/manifest metadata only for the target work; no page reads or full-root scan. */
   storedChapterIds(comicId: ComicId): string[] | undefined {
     try {
       const ids: string[] = []
-      const owners = fs.listFileSync(this.rootDir)
-      for (const owner of owners) {
+      const seen = new Set<string>()
+      const candidateDirs: string[] = []
+      const addCandidate = (dirName: string | undefined): void => {
+        if (dirName === undefined || dirName.length === 0 || candidateDirs.includes(dirName)) return
+        candidateDirs.push(dirName)
+      }
+      addCandidate(this.directoryIndex.comics[comicId]?.directory)
+      if (candidateDirs.length === 0) {
+        addCandidate(loadDownloadDirectoryIndex(this.indexDir)?.comics[comicId]?.directory)
+      }
+      addCandidate(createOfflineDownloadStableHash(comicId))
+      for (const owner of candidateDirs) {
         const ownerPath = joinOfflineDownloadPath(this.rootDir, owner)
         assertSafeOfflineDownloadRoot(this.filesDir, ownerPath)
-        if (!fs.statSync(ownerPath).isDirectory()) continue
+        if (!fs.accessSync(ownerPath) || !fs.statSync(ownerPath).isDirectory()) continue
         const chapters = fs.listFileSync(ownerPath)
         for (const chapter of chapters) {
           if (chapter.startsWith('.')) continue
@@ -907,7 +917,10 @@ export class OfflineDownloadStore {
           const path = candidates.find((candidate: string): boolean => fs.accessSync(candidate))
           if (path === undefined) continue
           const manifest = safeParseManifest(fs.readTextSync(path, { encoding: 'utf-8' }))
-          if (manifest.comicId === comicId) ids.push(manifest.chapterId)
+          if (manifest.comicId === comicId && !seen.has(manifest.chapterId)) {
+            seen.add(manifest.chapterId)
+            ids.push(manifest.chapterId)
+          }
         }
       }
       return ids
@@ -980,7 +993,7 @@ export class OfflineDownloadStore {
     if (existing !== undefined) return existing
     const index = loadOrScanDownloadDirectoryIndex(this.rootDir, this.indexDir)
     const ensured = ensureDownloadDirectory(this.rootDir, index, identity)
-    if (ensured.indexChanged) saveDownloadDirectoryIndex(this.indexDir, index)
+    if (ensured.indexChanged) saveDownloadDirectoryIndex(this.indexDir, index, this.rootDir)
     this.directoryIndex = index
     return ensured.chapterDir
   }
@@ -1089,7 +1102,7 @@ export class OfflineDownloadStore {
         const cover = joinOfflineDownloadPath(this.comicDir(comicId), DOWNLOAD_METADATA_DIR_NAME + '/cover')
         if (await pathExists(cover)) await fs.unlink(cover).catch(() => {})
       }
-      saveDownloadDirectoryIndex(this.indexDir, this.directoryIndex)
+      saveDownloadDirectoryIndex(this.indexDir, this.directoryIndex, this.rootDir)
     }
   }
 
@@ -1105,7 +1118,7 @@ export class OfflineDownloadStore {
       if (key !== comicId) comics[key] = this.directoryIndex.comics[key]
     })
     this.directoryIndex.comics = comics
-    saveDownloadDirectoryIndex(this.indexDir, this.directoryIndex)
+    saveDownloadDirectoryIndex(this.indexDir, this.directoryIndex, this.rootDir)
   }
 
   private latestDirectoryIndex(): DownloadDirectoryIndexFile {

@@ -10,6 +10,7 @@ import {
   ComicSourceKind,
   Page,
   normalizeSortKey,
+  copyComicShell,
   copySourceMangaMetadata,
   copyComicPersonalFields,
   assignComicSourceCover,
@@ -593,7 +594,7 @@ export class LibraryUpdateService {
           result.status === 'updated')
         if (schedule.nextCheckAt !== current.updateSchedule?.nextCheckAt ||
           schedule.intervalDays !== current.updateSchedule?.intervalDays) {
-          const next = JSON.parse(JSON.stringify(current)) as Comic
+          const next = copyComicShell(current)
           next.updateSchedule = schedule
           this.libraryStore.upsertComic(next)
           result.metadataChanged = true
@@ -698,7 +699,7 @@ export class LibraryUpdateService {
         () => this.protectedChapterIds?.(liveComic), entry.websitePolicy?.chapterIdentity)
       const remoteChapters = identity.chapters
       const identityChanged = identity.removedDuplicateIds.length > 0
-      const currentComic = identityChanged ? JSON.parse(JSON.stringify(liveComic)) as Comic : liveComic
+      const currentComic = identityChanged ? copyComicShell(liveComic, 'shallow') : liveComic
       if (identityChanged) {
         currentComic.chapters = identity.storedChapters
         currentComic.chapterCount = identity.storedChapters.length
@@ -711,7 +712,7 @@ export class LibraryUpdateService {
       const addedChapterCount = new Set<string>(remoteIds.filter(
         (chapterId: string): boolean => !localIds.has(chapterId))).size
       if (addedChapterCount === 0 || firstCatalog) {
-        const nextComic = JSON.parse(JSON.stringify(currentComic)) as Comic
+        const nextComic = copyComicShell(currentComic, 'clone_chapters')
         const now = Date.now()
         const storedIds = new Set<string>(nextComic.chapters.map((chapter: Chapter): string => chapter.id))
         const directoryMissing = remoteIds.some((id: string): boolean => !storedIds.has(id))

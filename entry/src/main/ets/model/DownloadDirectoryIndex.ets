@@ -161,6 +161,86 @@ function normalizeIndex(value: DownloadDirectoryIndexFile | undefined): Download
   return result
 }
 
+interface CachedDownloadDirectoryIndex {
+  indexIno: number | bigint
+  indexModifiedAt: number | bigint
+  rootExists: boolean
+  rootModifiedAt?: number | bigint
+  index: DownloadDirectoryIndexFile
+}
+
+const cachedDirectoryIndices: Map<string, CachedDownloadDirectoryIndex> = new Map<string, CachedDownloadDirectoryIndex>()
+
+function cloneDownloadDirectoryIndex(source: DownloadDirectoryIndexFile): DownloadDirectoryIndexFile {
+  const comics: Record<string, DownloadComicIndexEntry> = {}
+  Object.keys(source.comics).forEach((comicId: string): void => {
+    const comic = source.comics[comicId]
+    const chapters: Record<string, DownloadChapterIndexEntry> = {}
+    Object.keys(comic.chapters).forEach((chapterId: string): void => {
+      const chapter = comic.chapters[chapterId]
+      chapters[chapterId] = { directory: chapter.directory, title: chapter.title }
+    })
+    comics[comicId] = {
+      directory: comic.directory,
+      title: comic.title,
+      sourceId: comic.sourceId,
+      sourceName: comic.sourceName,
+      chapters,
+    }
+  })
+  return { schemaVersion: source.schemaVersion, comics }
+}
+
+function cachedIndexKey(rootDir: string, indexDir: string): string {
+  return `${normalize(rootDir)}\u0000${normalize(indexDir)}`
+}
+
+function readCachedDirectoryIndex(rootDir: string, indexDir: string): DownloadDirectoryIndexFile | undefined {
+  const path = downloadIndexPath(indexDir)
+  if (!fs.accessSync(path)) return undefined
+  let indexStat: fs.Stat
+  let rootExists = false
+  let rootStat: fs.Stat | undefined
+  try {
+    indexStat = fs.statSync(path)
+    if (indexStat.mtimeNs === undefined) return undefined
+    rootExists = isDirectory(rootDir)
+    if (rootExists) {
+      rootStat = fs.statSync(rootDir)
+      if (rootStat.mtimeNs === undefined) return undefined
+    }
+  } catch (_error) {
+    return undefined
+  }
+  const cached = cachedDirectoryIndices.get(cachedIndexKey(rootDir, indexDir))
+  if (cached === undefined || cached.indexIno !== indexStat.ino ||
+    cached.indexModifiedAt !== indexStat.mtimeNs || cached.rootExists !== rootExists ||
+    cached.rootModifiedAt !== rootStat?.mtimeNs) {
+    return undefined
+  }
+  return cloneDownloadDirectoryIndex(cached.index)
+}
+
+function updateCachedDirectoryIndex(rootDir: string, indexDir: string, index: DownloadDirectoryIndexFile): void {
+  const path = downloadIndexPath(indexDir)
+  try {
+    if (!fs.accessSync(path)) return
+    const indexStat = fs.statSync(path)
+    if (indexStat.mtimeNs === undefined) return
+    const rootExists = isDirectory(rootDir)
+    const rootStat = rootExists ? fs.statSync(rootDir) : undefined
+    if (rootStat !== undefined && rootStat.mtimeNs === undefined) return
+    cachedDirectoryIndices.set(cachedIndexKey(rootDir, indexDir), {
+      indexIno: indexStat.ino,
+      indexModifiedAt: indexStat.mtimeNs,
+      rootExists,
+      rootModifiedAt: rootStat?.mtimeNs,
+      index: cloneDownloadDirectoryIndex(index),
+    })
+  } catch (_error) {
+  }
+}
+
 export function loadDownloadDirectoryIndex(indexDir: string): DownloadDirectoryIndexFile | undefined {
   const path = downloadIndexPath(indexDir)
   if (!fs.accessSync(path)) return undefined
@@ -171,9 +251,11 @@ export function loadDownloadDirectoryIndex(indexDir: string): DownloadDirectoryI
   }
 }
 
-export function saveDownloadDirectoryIndex(indexDir: string, index: DownloadDirectoryIndexFile): void {
+export function saveDownloadDirectoryIndex(indexDir: string, index: DownloadDirectoryIndexFile,
+  rootDir?: string): void {
   ensureDirectory(indexDir)
   writeAppTextFile(downloadIndexPath(indexDir), JSON.stringify(index))
+  if (rootDir !== undefined) updateCachedDirectoryIndex(rootDir, indexDir, index)
 }
 
 function readManifestIdentity(path: string): DownloadDirectoryIdentity | undefined {
@@ -258,11 +340,16 @@ function rootNeedsDirectoryScan(rootDir: string, index: DownloadDirectoryIndexFi
 }
 
 export function loadOrScanDownloadDirectoryIndex(rootDir: string, indexDir: string): DownloadDirectoryIndexFile {
-  const cached = loadDownloadDirectoryIndex(indexDir)
   const legacyPath = downloadIndexPath(rootDir)
   const legacyExists = fs.accessSync(legacyPath)
   const legacyTempExists = fs.accessSync(legacyPath + '.tmp')
+  if (!legacyExists && !legacyTempExists) {
+    const fastCached = readCachedDirectoryIndex(rootDir, indexDir)
+    if (fastCached !== undefined) return fastCached
+  }
+  const cached = loadDownloadDirectoryIndex(indexDir)
   if (cached !== undefined && !legacyExists && !legacyTempExists && !rootNeedsDirectoryScan(rootDir, cached)) {
+    updateCachedDirectoryIndex(rootDir, indexDir, cached)
     return cached
   }
   const loaded = cached ?? (legacyExists ? loadDownloadDirectoryIndex(rootDir) : undefined)
@@ -311,7 +398,9 @@ export function loadOrScanDownloadDirectoryIndex(rootDir: string, indexDir: stri
   // The public file was a cache. Keep it until the replacement in app storage
   // has been committed, so interruption during upgrade can retry safely.
   if (cached === undefined || JSON.stringify(cached) !== JSON.stringify(merged)) {
-    saveDownloadDirectoryIndex(indexDir, merged)
+    saveDownloadDirectoryIndex(indexDir, merged, rootDir)
+  } else {
+    updateCachedDirectoryIndex(rootDir, indexDir, merged)
   }
   for (const path of [legacyPath, legacyPath + '.tmp']) {
     try {

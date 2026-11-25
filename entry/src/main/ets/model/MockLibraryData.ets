@@ -441,7 +441,7 @@ export function createLibraryViewModelFromStores(
   sessionStore?: ReaderSessionStore,
   presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
 ): LibraryViewModel {
-  return createLibraryViewModelFromComics(libraryStore.listComics(), sessionStore, presentationByComicId)
+  return createLibraryViewModelFromComics(libraryStore.listComicSummaries(), sessionStore, presentationByComicId)
 }
 
 export function createLibraryViewModel(sessionStore?: ReaderSessionStore): LibraryViewModel {

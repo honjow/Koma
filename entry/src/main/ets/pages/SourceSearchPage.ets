@@ -77,7 +77,7 @@ export struct SourceSearchPage {
   @Computed
   private get shelvedKeys(): Set<string> {
     void this.libraryRevision
-    return sourceLibraryKeys(this.libraryStore?.listComicSummaries(false) ?? [])
+    return sourceLibraryKeys(this.libraryStore?.listSourceComicSummaries(this.source.sourceId) ?? [])
   }
 
   @Param viewModel: BrowseViewModel = new BrowseViewModel()

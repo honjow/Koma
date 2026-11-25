@@ -1,7 +1,7 @@
 import { util } from '@kit.ArkTS'
-import { Comic, CustomLibraryCategory, LEGACY_LIBRARY_CATEGORIES, LegacyLibraryCategory,
+import { Comic, ComicSourceKind, CustomLibraryCategory, LEGACY_LIBRARY_CATEGORIES, LegacyLibraryCategory,
   LIBRARY_CATEGORY_NAME_MAX_LENGTH } from '../model/ComicModels'
-import { LibraryStore } from '../model/LibraryStore'
+import { LibraryShelfSourceFacet, LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService, replaceSmartCategoriesAndPersistLibraryStore } from '../model/LibraryPersistence'
 import { LibrarySmartCategory, LibrarySmartFilter, LibrarySmartFilterMethod, LIBRARY_SMART_FILTER_METHODS,
   copyLibrarySmartCategory, comicSmartSourceKey, comicSmartContentRating } from '../model/LibrarySmartCategory'
@@ -110,16 +110,19 @@ export struct LibrarySmartCategorySection {
       })
     } else if (method === 'contentRating') {
       choices.set('unknown', s('library_smart_unknown_rating'))
-      this.libraryStore?.listComicSummaries().forEach((comic: Comic): void => {
-        const value = comicSmartContentRating(comic)
+      this.libraryStore?.listSourceFacets().forEach((facet: LibraryShelfSourceFacet): void => {
+        const value = facet.contentRating?.trim().toLowerCase() || 'unknown'
         if (value !== 'unknown') choices.set(value, value)
       })
     } else {
-      this.libraryStore?.listComicSummaries().forEach((comic: Comic): void => {
-        const key = comicSmartSourceKey(comic)
-        const title = comic.sourceRuntimeId ? sourceDisplayName(comic.sourceRuntimeId, comic.sourceRuntimeId) :
-          key === 'local' ? s('library_source_local') : comic.sourceKind === 'private_library' ? s('library_source_private') :
-            s(`route_${comic.sourceKind.split('_')[0]}_title`)
+      this.libraryStore?.listSourceFacets().forEach((facet: LibraryShelfSourceFacet): void => {
+        const key = facet.sourceRuntimeId ? `source:${facet.sourceRuntimeId}` :
+          facet.remoteServerId ? `server:${facet.remoteServerId}` :
+            facet.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || facet.sourceKind === ComicSourceKind.LOCAL_FOLDER ?
+              'local' : facet.sourceKind
+        const title = facet.sourceRuntimeId ? sourceDisplayName(facet.sourceRuntimeId, facet.sourceRuntimeId) :
+          key === 'local' ? s('library_source_local') : facet.sourceKind === 'private_library' ? s('library_source_private') :
+            s(`route_${facet.sourceKind.split('_')[0]}_title`)
         choices.set(key, title)
       })
     }

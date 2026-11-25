@@ -94,14 +94,15 @@ export struct SourceBrowsePage {
   @Computed
   private get shelvedKeys(): Set<string> {
     void this.libraryRevision
-    return sourceLibraryKeys(this.libraryStore?.listComicSummaries(false) ?? [])
+    return sourceLibraryKeys(this.libraryStore?.listSourceComicSummaries(this.source.sourceId) ?? [])
   }
 
   @Computed
   private get shelvedCovers(): Map<string, string> {
     void this.libraryRevision
     const covers = new Map<string, string>()
-    this.libraryStore?.listComicSummaries(false).forEach((comic: Comic): void => {
+    const comics = this.libraryStore?.listSourceComicSummaries(this.source.sourceId) ?? []
+    comics.forEach((comic: Comic): void => {
       if (comic.sourceRuntimeId && comic.remoteResourceId) {
         const cover = comicDisplayCover(comic)
         if (cover !== undefined) covers.set(sourceLibraryKey(comic.sourceRuntimeId, comic.remoteResourceId), cover)

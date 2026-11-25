@@ -407,7 +407,7 @@ export class CrossSearchService {
     comics.forEach((comic: Comic): void => { byId.set(comic.id, comic) })
     const currentPrivateIds = privateLibraryCategoryIds(libraryStore.listCustomCategories())
     const visible = matches.filter((match: LocalLibrarySearchMatch): boolean =>
-      showLibraryComic(libraryStore.getComic(match.comicId), currentPrivateIds))
+      showLibraryComic(libraryStore.getComicSummary(match.comicId), currentPrivateIds))
     const items = this.sortSearchResultItems(plan.rankingText, visible.map((match: LocalLibrarySearchMatch): CrossSearchResultItem => {
       const comic = byId.get(match.comicId)!
       return { id: `local:${comic.id}`, title: comic.title, subtitle: match.subtitle,

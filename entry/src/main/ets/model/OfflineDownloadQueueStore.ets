@@ -245,6 +245,10 @@ class OfflineQueueRdbStorage {
     this.previous = new UserKeyedRecords(database, 'offline-queue/' + relativePath)
   }
 
+  queueIdValue(): string {
+    return this.queueId
+  }
+
   isMigrated(): boolean {
     if (!this.migrated) this.migrated = hasUserDataMigration(this.database, this.marker)
     return this.migrated
@@ -794,6 +798,11 @@ export class OfflineDownloadQueueStore {
 
   runtimeKey(): string {
     return this.runtimeKeyValue
+  }
+
+  rdbQueueId(): string | undefined {
+    const storage = this.database()
+    return storage !== undefined && storage.isMigrated() ? storage.queueIdValue() : undefined
   }
 
   fromManifest(

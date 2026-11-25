@@ -26,6 +26,47 @@ export interface MangaDetail {
   webUrl?: string
 }
 
+export function copyMangaDetail(detail: MangaDetail): MangaDetail {
+  return {
+    contentRating: detail.contentRating,
+    id: detail.id,
+    title: detail.title,
+    author: detail.author,
+    artist: detail.artist,
+    description: detail.description,
+    coverUrl: detail.coverUrl,
+    status: detail.status,
+    tags: detail.tags?.slice(),
+    relatedManga: detail.relatedManga?.slice(),
+    sourceId: detail.sourceId,
+    sourceImageId: detail.sourceImageId,
+    sourceName: detail.sourceName,
+    chapterCount: detail.chapterCount,
+    isInLibrary: detail.isInLibrary,
+    url: detail.url,
+    webUrl: detail.webUrl,
+  }
+}
+
+export function sameMangaDetail(a: MangaDetail, b: MangaDetail): boolean {
+  if (a === b) return true
+  if (a.contentRating !== b.contentRating || a.id !== b.id || a.title !== b.title ||
+    a.author !== b.author || a.artist !== b.artist || a.description !== b.description ||
+    a.coverUrl !== b.coverUrl || a.status !== b.status || a.sourceId !== b.sourceId ||
+    a.sourceImageId !== b.sourceImageId || a.sourceName !== b.sourceName ||
+    a.chapterCount !== b.chapterCount || a.isInLibrary !== b.isInLibrary ||
+    a.url !== b.url || a.webUrl !== b.webUrl) return false
+  const aTags = a.tags ?? []
+  const bTags = b.tags ?? []
+  if ((a.tags === undefined) !== (b.tags === undefined) || aTags.length !== bTags.length) return false
+  for (let i = 0; i < aTags.length; i++) if (aTags[i] !== bTags[i]) return false
+  const aRel = a.relatedManga ?? []
+  const bRel = b.relatedManga ?? []
+  if ((a.relatedManga === undefined) !== (b.relatedManga === undefined) || aRel.length !== bRel.length) return false
+  if (aRel.length > 0 && JSON.stringify(aRel) !== JSON.stringify(bRel)) return false
+  return true
+}
+
 export enum MangaStatus {
   ONGOING = 'ongoing',
   COMPLETED = 'completed',

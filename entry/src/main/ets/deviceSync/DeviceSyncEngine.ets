@@ -437,6 +437,12 @@ export class DeviceSyncEngine {
 
   requestGuard(): SyncRequestGuard { return this.transferGuard(this.generation) }
 
+  private updateStateDeferred(change: (state: SyncLocalDocument) => void): void {
+    const storage = this.storage as DeviceSyncStorage
+    if (typeof storage.updateDeferred === 'function') storage.updateDeferred(change)
+    else this.storage.update(change)
+  }
+
   // UI error ownership only: this guard grants no permission to send requests.
   stateGuard(): SyncRequestGuard { return this.guard(this.generation) }
 
@@ -444,7 +450,7 @@ export class DeviceSyncEngine {
     const pending = this.storage.load().pendingConfiguration
     if (pending !== undefined) {
       if (pending.enabled === value) return
-      this.storage.update((state: SyncLocalDocument): void => {
+      this.updateStateDeferred((state: SyncLocalDocument): void => {
         if (state.pendingConfiguration !== undefined) state.pendingConfiguration.enabled = value
       })
       this.generation++
@@ -454,7 +460,7 @@ export class DeviceSyncEngine {
     if (this.active() === undefined) {
       const configuration = this.configuration()
       if (configuration === undefined || this.isEnabled() === value) return
-      this.storage.update((state: SyncLocalDocument): void => {
+      this.updateStateDeferred((state: SyncLocalDocument): void => {
         state.pendingConfiguration = { credential: configuration.credential, endpointIdentity: configuration.endpointIdentity,
           selected: configuration.selected.slice(), automatic: configuration.automatic, enabled: value }
       })
@@ -463,7 +469,7 @@ export class DeviceSyncEngine {
       return
     }
     if (this.isEnabled() === value) return
-    this.storage.update((state: SyncLocalDocument): void => {
+    this.updateStateDeferred((state: SyncLocalDocument): void => {
       if (state.active !== undefined) state.active.enabled = value
     })
     // Stop transfer callbacks, not local observation: paused deletes and unread
@@ -632,7 +638,7 @@ export class DeviceSyncEngine {
 
   private async retireProbe(credential: string): Promise<void> {
     await clearSyncCredential(credential)
-    this.storage.update((state: SyncLocalDocument): void => {
+    this.updateStateDeferred((state: SyncLocalDocument): void => {
       state.probes = state.probes.filter((row: SyncProbeRecord): boolean => row.credential !== credential)
     })
   }
@@ -1147,7 +1153,7 @@ export class DeviceSyncEngine {
   mergeReadingFocusFacts(facts: SyncFact[]): void {
     if (facts.length === 0) return
     const space = this.active()?.space
-    this.storage.update((state: SyncLocalDocument): void => {
+    this.updateStateDeferred((state: SyncLocalDocument): void => {
       const active = state.active
       if (active === undefined || active.space !== space) return
       const current = active.groups.find((group: SyncGroupState): boolean => group.id === 'reading')
@@ -2079,7 +2085,7 @@ export class DeviceSyncEngine {
 
   private rememberRetired(ref: string): void {
     if (this.storage.load().retiredCredentials?.includes(ref)) return
-    this.storage.update((state: SyncLocalDocument): void => {
+    this.updateStateDeferred((state: SyncLocalDocument): void => {
       state.retiredCredentials = (state.retiredCredentials ?? []).concat(ref)
     })
   }
@@ -2090,7 +2096,7 @@ export class DeviceSyncEngine {
       (state.intent?.connection.credential === ref && !state.intent.detached) ||
       state.probes.some((row: SyncProbeRecord): boolean => row.credential === ref)) return
     await clearSyncCredential(ref)
-    this.storage.update((value: SyncLocalDocument): void => {
+    this.updateStateDeferred((value: SyncLocalDocument): void => {
       value.retiredCredentials = value.retiredCredentials?.filter((item: string): boolean => item !== ref)
     })
   }
@@ -2098,13 +2104,13 @@ export class DeviceSyncEngine {
   setAutomatic(value: boolean): void {
     const current = this.storage.load()
     if (current.pendingConfiguration !== undefined) {
-      this.storage.update((state: SyncLocalDocument): void => {
+      this.updateStateDeferred((state: SyncLocalDocument): void => {
         if (state.pendingConfiguration !== undefined) state.pendingConfiguration.automatic = value
       })
       return
     }
     if (current.active === undefined || current.active.automatic === value) return
-    this.storage.update((state: SyncLocalDocument): void => { if (state.active !== undefined) state.active.automatic = value })
+    this.updateStateDeferred((state: SyncLocalDocument): void => { if (state.active !== undefined) state.active.automatic = value })
   }
 
   setSelection(input: SyncGroup[]): void {
@@ -2113,7 +2119,7 @@ export class DeviceSyncEngine {
     const before = this.selection()
     if (selected.join(',') === before.join(',')) return
     const configuration = this.configuration()
-    this.storage.update((state: SyncLocalDocument): void => {
+    this.updateStateDeferred((state: SyncLocalDocument): void => {
       state.syncContents = selected.slice()
       if (configuration !== undefined) this.adjustIntentSelection(state, configuration.endpointIdentity, selected)
       const pending = state.pendingConfiguration
@@ -2220,7 +2226,7 @@ export class DeviceSyncEngine {
   recordEdits(group: SyncGroup, actions: DeviceSyncLocalEdit[], receipt?: SyncReadingReceipt): SyncVersion | undefined {
     const change = this.prepareEdits(this.storage.load(), group, actions, receipt)
     if (change === undefined) return undefined
-    this.storage.update(change.apply)
+    this.updateStateDeferred(change.apply)
     return change.version
   }
 

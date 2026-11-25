@@ -155,6 +155,11 @@ export class MigratedPreferenceRecords {
     (await this.prepare(context)).replace(this.codec.decode(value))
   }
 
+  async updateEntries(context: common.Context, entries: UserRecordValues, deletedKeys: string[] = []): Promise<void> {
+    const records = await this.prepare(context)
+    records.putEntries(entries, deletedKeys)
+  }
+
   async recoverMigratedValue(context: common.Context, value: LegacyPreferenceValue | undefined): Promise<boolean> {
     const records = await this.open(context)
     if (!records.isMigrated() && records.usesPreviousDatabase()) records.migrate(undefined)

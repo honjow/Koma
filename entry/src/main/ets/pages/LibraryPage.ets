@@ -786,10 +786,11 @@ export struct LibraryPage {
         existing.push(entry)
         entriesByComicId.set(entry.comicId, existing)
       })
+      const chapterIdsByComic = this.libraryStore.listComicsChapterIds(Array.from(entriesByComicId.keys()))
       comics.forEach((comic: Comic) => {
         const chapterEntries = entriesByComicId.get(comic.id)
         if (chapterEntries === undefined) return
-        const chapterIds = new Set<string>(this.libraryStore.listComicChapterIds(comic.id)
+        const chapterIds = new Set<string>((chapterIdsByComic.get(comic.id) ?? [])
           .filter((id: string): boolean => id.trim().length > 0))
         if (chapterIds.size === 0) {
           return
@@ -1478,11 +1479,18 @@ export struct LibraryPage {
   private privateServerFilterOptions(): LibraryServerSourceFilterOption[] {
     const seenFilters: string[] = []
     const options: LibraryServerSourceFilterOption[] = []
-    this.libraryStore.listComicSummaries().forEach((comic: Comic) => {
-      if (!this.isPrivateLibraryComic(comic) || comic.remoteServerId === undefined) {
+    this.libraryStore.listSourceFacets().forEach((facet) => {
+      if ((facet.sourceRuntimeId !== undefined && facet.sourceRuntimeId.trim().length > 0) ||
+        facet.remoteServerId === undefined) {
         return
       }
-      const serverId = comic.remoteServerId.trim()
+      const isPrivateServer = facet.sourceKind === ComicSourceKind.PRIVATE_LIBRARY ||
+        facet.sourceKind === ComicSourceKind.KOMGA_REMOTE ||
+        facet.sourceKind === ComicSourceKind.KAVITA_REMOTE ||
+        facet.sourceKind === ComicSourceKind.OPDS_REMOTE ||
+        facet.sourceKind === ComicSourceKind.WEBDAV_REMOTE
+      if (!isPrivateServer) return
+      const serverId = facet.remoteServerId.trim()
       if (serverId.length === 0) {
         return
       }
@@ -1493,7 +1501,7 @@ export struct LibraryPage {
       seenFilters.push(filter)
       options.push({
         filter,
-        title: this.privateServerFilterTitle(comic),
+        title: this.privateServerFilterTitleForKind(facet.sourceKind),
       })
     })
     return options
@@ -1503,11 +1511,11 @@ export struct LibraryPage {
     const summaries = this.sourceRegistry.listInstalledSourceSummaries()
     const seenFilters: string[] = []
     const options: LibraryServerSourceFilterOption[] = []
-    this.libraryStore.listComicSummaries().forEach((comic: Comic) => {
-      if (!this.isSourcePackageComic(comic) || comic.sourceRuntimeId === undefined) {
+    this.libraryStore.listSourceFacets().forEach((facet) => {
+      if (facet.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY || facet.sourceRuntimeId === undefined) {
         return
       }
-      const sourceId = comic.sourceRuntimeId.trim()
+      const sourceId = facet.sourceRuntimeId.trim()
       if (sourceId.length === 0) {
         return
       }
@@ -1528,16 +1536,20 @@ export struct LibraryPage {
   }
 
   private privateServerFilterTitle(comic: Comic): string {
-    if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE) {
+    return this.privateServerFilterTitleForKind(comic.sourceKind)
+  }
+
+  private privateServerFilterTitleForKind(sourceKind: ComicSourceKind): string {
+    if (sourceKind === ComicSourceKind.KOMGA_REMOTE) {
       return s('library_source_server').replace('%s', s('route_komga_title'))
     }
-    if (comic.sourceKind === ComicSourceKind.KAVITA_REMOTE) {
+    if (sourceKind === ComicSourceKind.KAVITA_REMOTE) {
       return s('library_source_server').replace('%s', s('route_kavita_title'))
     }
-    if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
+    if (sourceKind === ComicSourceKind.OPDS_REMOTE) {
       return s('library_source_server').replace('%s', s('route_opds_title'))
     }
-    if (comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE) {
+    if (sourceKind === ComicSourceKind.WEBDAV_REMOTE) {
       return s('library_source_server').replace('%s', s('route_webdav_title'))
     }
     return s('library_source_private_server')

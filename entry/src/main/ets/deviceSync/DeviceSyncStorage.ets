@@ -368,6 +368,28 @@ export class DeviceSyncStorage {
     this.save(state)
   }
 
+  /** Publish lightweight control/sync state updates immediately in memory while
+   * deferring full-document JSON encoding and atomic disk replacement off the UI thread. */
+  updateDeferred(change: (state: SyncLocalDocument) => void): void {
+    const state = this.copy(this.load())
+    change(state)
+    this.current = state
+    const write = this.backgroundWrite.then((): Promise<void> => this.flushDeferredTarget(state))
+    this.backgroundWrite = write.catch((): void => {})
+  }
+
+  private async flushDeferredTarget(target: SyncLocalDocument): Promise<void> {
+    if (this.current !== target) return
+    const stagedPath = this.path + '.background'
+    try {
+      if (!(await this.stageDocument(stagedPath, target, target, (): void => {}))) return
+      if (this.current !== target) return
+      fs.renameSync(stagedPath, this.path)
+    } finally {
+      await this.discardStage(stagedPath)
+    }
+  }
+
   /** Prepare the receipt before the owner enters its synchronous file phase.
    * Only publishing it after the owner writes can authorize journal recovery. */
   async prepareReceipt(change: (state: SyncLocalDocument) => void,

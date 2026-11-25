@@ -1,4 +1,5 @@
 import { komaToastOptions } from '../theme/KomaPopupOptions'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
@@ -11,6 +12,7 @@ import { komaContentStorageBase, komaRuntimeStorageKey } from '../model/KomaCont
 import { OfflineDownloadStatus } from '../model/OfflineDownloadStore'
 import { ReadingStatistics, ReadingLibraryStatistics, ReadingStatisticsPeriod, ReadingSessionRecord,
   ReadingDayStatistics, summarizeReadingSessions, summarizeReadingLibrary, readingCalendarDays } from '../model/ReadingStatistics'
+import { loadReadingStatisticsFromRdb, ReadingStatisticsSnapshot } from '../model/ReadingStatisticsRdb'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -31,18 +33,48 @@ export struct ReadingStatisticsPage {
   @Local private calendar: ReadingDayStatistics[] = []
   private records: ReadingSessionRecord[] = []
   private calendarScroller: Scroller = new Scroller()
+  private pageActive: boolean = false
 
   aboutToAppear(): void {
+    this.pageActive = true
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    const queueStore = new OfflineDownloadQueueStore(komaContentStorageBase(context), komaRuntimeStorageKey(context))
+    const queueId = queueStore.rdbQueueId()
+    void this.loadStatistics(context, queueStore, queueId)
+  }
+
+  aboutToDisappear(): void {
+    this.pageActive = false
+  }
+
+  private async loadStatistics(
+    context: common.UIAbilityContext,
+    queueStore: OfflineDownloadQueueStore,
+    queueId?: string
+  ): Promise<void> {
+    const rdbSnapshot: ReadingStatisticsSnapshot | undefined = await loadReadingStatisticsFromRdb(context, queueId)
+    if (!this.pageActive) return
+    if (rdbSnapshot !== undefined) {
+      this.records = rdbSnapshot.records
+      this.libraryStatistics = rdbSnapshot.libraryStatistics
+      this.refreshPeriod()
+      return
+    }
     this.records = this.sessionStore?.listReadingSessions() ?? []
     const downloaded = new Set<string>()
-    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
-    new OfflineDownloadQueueStore(komaContentStorageBase(context), komaRuntimeStorageKey(context)).load()
-      .forEach((entry: OfflineDownloadQueueEntry): void => {
-      if (entry.status === OfflineDownloadStatus.DOWNLOADED) downloaded.add(JSON.stringify([entry.comicId, entry.chapterId]))
-    })
+    try {
+      queueStore.load().forEach((entry: OfflineDownloadQueueEntry): void => {
+        if (entry.status === OfflineDownloadStatus.DOWNLOADED) downloaded.add(JSON.stringify([entry.comicId, entry.chapterId]))
+      })
+    } catch (error) {
+      DiagnosticLogger.exception('reading_statistics', 'fallback_queue_load_failed', error as Error)
+    }
     if (this.sessionStore !== undefined) this.libraryStatistics = summarizeReadingLibrary(
       this.libraryStore?.listComicSummaries() ?? [], this.sessionStore, downloaded,
       (comicId: string): string[] => this.libraryStore?.listComicChapterIds(comicId) ?? [])
+    DiagnosticLogger.info('reading_statistics', 'fallback_applied',
+      `hasLibrary=${this.libraryStore !== undefined} hasSession=${this.sessionStore !== undefined}` +
+      ` books=${this.libraryStatistics.books} sessions=${this.records.length}`)
     this.refreshPeriod()
   }
 
@@ -91,11 +123,6 @@ export struct ReadingStatisticsPage {
           .onClick((): void => { this.selectedDate = timestamp; this.menuKey = ''; this.refreshPeriod() })
       })
     }
-  }
-
-  @Builder
-  private ValueRow(title: string, value: string) {
-    ConciseListRow({ title, trailingText: value, showChevron: false })
   }
 
   private calendarRows(): number[] { return Array.from({ length: 7 }, (_: Object, index: number): number => index) }
@@ -159,34 +186,34 @@ export struct ReadingStatisticsPage {
     }
     ListItem() {
       GroupedListSection({ title: s('reading_statistics_reading') }) {
-        this.ValueRow(s('reading_statistics_duration'), this.duration(this.statistics.durationMs))
+        ConciseListRow({ title: s('reading_statistics_duration'), trailingText: this.duration(this.statistics.durationMs), showChevron: false })
         ListDivider()
-        this.ValueRow(s('reading_statistics_pages'), `${this.statistics.pagesRead}`)
+        ConciseListRow({ title: s('reading_statistics_pages'), trailingText: `${this.statistics.pagesRead}`, showChevron: false })
         ListDivider()
-        this.ValueRow(s('reading_statistics_books'), `${this.statistics.booksRead}`)
+        ConciseListRow({ title: s('reading_statistics_books'), trailingText: `${this.statistics.booksRead}`, showChevron: false })
       }
     }
     ListItem() {
       GroupedListSection({ title: s('reading_statistics_streaks') }) {
-        this.ValueRow(s('reading_statistics_current_streak'), AppStrings.format('reading_statistics_days_value', this.statistics.currentStreak))
+        ConciseListRow({ title: s('reading_statistics_current_streak'), trailingText: AppStrings.format('reading_statistics_days_value', this.statistics.currentStreak), showChevron: false })
         ListDivider()
-        this.ValueRow(s('reading_statistics_longest_streak'), AppStrings.format('reading_statistics_days_value', this.statistics.longestStreak))
+        ConciseListRow({ title: s('reading_statistics_longest_streak'), trailingText: AppStrings.format('reading_statistics_days_value', this.statistics.longestStreak), showChevron: false })
       }
     }
     ListItem() { GroupedListSection({ title: s('reading_statistics_daily') }) { this.ReadingCalendar() } }
     ListItem() {
       GroupedListSection({ title: s('reading_statistics_library') }) {
-        this.ValueRow(s('reading_statistics_total_books'), `${this.libraryStatistics.books}`)
+        ConciseListRow({ title: s('reading_statistics_total_books'), trailingText: `${this.libraryStatistics.books}`, showChevron: false })
         ListDivider()
-        this.ValueRow(s('reading_statistics_started_books'), `${this.libraryStatistics.startedBooks}`)
+        ConciseListRow({ title: s('reading_statistics_started_books'), trailingText: `${this.libraryStatistics.startedBooks}`, showChevron: false })
         ListDivider()
-        this.ValueRow(s('reading_statistics_completed_books'), `${this.libraryStatistics.completedBooks}`)
+        ConciseListRow({ title: s('reading_statistics_completed_books'), trailingText: `${this.libraryStatistics.completedBooks}`, showChevron: false })
         ListDivider()
-        this.ValueRow(s('reading_statistics_total_chapters'), `${this.libraryStatistics.chapters}`)
+        ConciseListRow({ title: s('reading_statistics_total_chapters'), trailingText: `${this.libraryStatistics.chapters}`, showChevron: false })
         ListDivider()
-        this.ValueRow(s('reading_statistics_read_chapters'), `${this.libraryStatistics.readChapters}`)
+        ConciseListRow({ title: s('reading_statistics_read_chapters'), trailingText: `${this.libraryStatistics.readChapters}`, showChevron: false })
         ListDivider()
-        this.ValueRow(s('reading_statistics_downloaded_chapters'), `${this.libraryStatistics.downloadedChapters}`)
+        ConciseListRow({ title: s('reading_statistics_downloaded_chapters'), trailingText: `${this.libraryStatistics.downloadedChapters}`, showChevron: false })
       }
     }
   }

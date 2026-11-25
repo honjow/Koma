@@ -70,6 +70,31 @@ function readJob(store: relationalStore.RdbStore): PersistedLibraryUpdateJobSnap
   return job
 }
 
+export function readLibraryUpdateSummaryRow(store: relationalStore.RdbStore): PersistedLibraryUpdateSummary | undefined {
+  return readSummary(store, 'latest')
+}
+
+export function readLibraryUpdateJobRow(store: relationalStore.RdbStore): PersistedLibraryUpdateJobSnapshot | undefined {
+  return readJob(store)
+}
+
+export function writeLibraryUpdateSummaryRow(store: relationalStore.RdbStore, summary: PersistedLibraryUpdateSummary | undefined): void {
+  clearReport(store, 'latest')
+  if (summary !== undefined) insertSummary(store, 'latest', summary)
+}
+
+export function writeLibraryUpdateJobRow(store: relationalStore.RdbStore, job: PersistedLibraryUpdateJobSnapshot | undefined): void {
+  clearReport(store, 'job')
+  clearReport(store, 'job_summary')
+  store.executeSync('DELETE FROM library_update_job')
+  if (job === undefined) return
+  store.executeSync('INSERT INTO library_update_job (id, state, updated_at, started_at, finished_at, next_due_at, failure_code) ' +
+    'VALUES (1, ?, ?, ?, ?, ?, ?)',
+    [job.state, job.updatedAt, job.startedAt ?? null, job.finishedAt ?? null, job.nextDueAt ?? null, job.failureCode ?? null])
+  insertProviders(store, 'job', job.providerSummaries ?? [])
+  if (job.summary !== undefined) insertSummary(store, 'job_summary', job.summary)
+}
+
 export function readLibraryUpdateReport(store: relationalStore.RdbStore, key: string): string | undefined {
   const value = key === REPORT_JOB_KEY ? readJob(store) : readSummary(store, 'latest')
   return value === undefined ? undefined : JSON.stringify(JSON.stringify(value))
@@ -111,18 +136,8 @@ function insertSummary(store: relationalStore.RdbStore, kind: string, summary: P
 export function writeLibraryUpdateReport(store: relationalStore.RdbStore, key: string, value: string | undefined): void {
   const raw = value === undefined ? undefined : JSON.parse(value) as string
   if (key === REPORT_RESULT_KEY) {
-    clearReport(store, 'latest')
-    if (raw !== undefined && raw !== '') insertSummary(store, 'latest', JSON.parse(raw) as PersistedLibraryUpdateSummary)
+    writeLibraryUpdateSummaryRow(store, raw === undefined || raw === '' ? undefined : JSON.parse(raw) as PersistedLibraryUpdateSummary)
     return
   }
-  clearReport(store, 'job')
-  clearReport(store, 'job_summary')
-  store.executeSync('DELETE FROM library_update_job')
-  if (raw === undefined || raw === '') return
-  const job = JSON.parse(raw) as PersistedLibraryUpdateJobSnapshot
-  store.executeSync('INSERT INTO library_update_job (id, state, updated_at, started_at, finished_at, next_due_at, failure_code) ' +
-    'VALUES (1, ?, ?, ?, ?, ?, ?)',
-    [job.state, job.updatedAt, job.startedAt ?? null, job.finishedAt ?? null, job.nextDueAt ?? null, job.failureCode ?? null])
-  insertProviders(store, 'job', job.providerSummaries ?? [])
-  if (job.summary !== undefined) insertSummary(store, 'job_summary', job.summary)
+  writeLibraryUpdateJobRow(store, raw === undefined || raw === '' ? undefined : JSON.parse(raw) as PersistedLibraryUpdateJobSnapshot)
 }

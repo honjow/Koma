@@ -21,6 +21,8 @@ export class SourceSettingObservationStore {
   private revisions: Map<string, number> = new Map<string, number>()
   private removing: Set<string> = new Set<string>()
   private document: SourceSettingObservationSources | undefined = undefined
+  private loadedSources: Set<string> = new Set<string>()
+  private allSourcesLoaded: boolean = false
   private readFailed: boolean = false
   private pending: Promise<void> = Promise.resolve()
 
@@ -45,6 +47,8 @@ export class SourceSettingObservationStore {
   invalidateCachedDocument(): void {
     this.scope += 1
     this.document = undefined
+    this.loadedSources.clear()
+    this.allSourcesLoaded = false
     this.readFailed = false
     this.revisions.clear()
   }
@@ -60,7 +64,7 @@ export class SourceSettingObservationStore {
   }
 
   private async readDocument(): Promise<SourceSettingObservationSources> {
-    if (this.document !== undefined) return this.document
+    if (this.allSourcesLoaded && this.document !== undefined) return this.document
     if (this.readFailed) throw new Error('source_setting_observations_invalid')
     if (this.path.length === 0) return {}
     const scope = this.scope
@@ -76,7 +80,31 @@ export class SourceSettingObservationStore {
     }
     if (scope !== this.scope) throw new Error('source_setting_observations_stale')
     this.document = sources
+    this.allSourcesLoaded = true
     return this.document
+  }
+
+  private async readSourceDocument(sourceId: string): Promise<SourceSettingObservationSources> {
+    if (this.allSourcesLoaded && this.document !== undefined) return this.document
+    if (this.readFailed) throw new Error('source_setting_observations_invalid')
+    if (this.path.length === 0) return {}
+    if (this.loadedSources.has(sourceId) && this.document !== undefined) return this.document
+    const records = sourceObservationPersistence.database(this.path)
+    if (records === undefined) return this.readDocument()
+    const scope = this.scope
+    let row: SourceSettingObservations | undefined
+    try {
+      row = sourceObservationPersistence.readSource(records, sourceId)
+    } catch (error) {
+      if (scope === this.scope) this.readFailed = true
+      throw error as Error
+    }
+    if (scope !== this.scope) throw new Error('source_setting_observations_stale')
+    const current = this.document ?? {}
+    if (row !== undefined) current[sourceId] = row
+    this.document = current
+    this.loadedSources.add(sourceId)
+    return current
   }
 
   private async writeDocument(sources: SourceSettingObservationSources, sourceId?: string): Promise<void> {
@@ -84,10 +112,13 @@ export class SourceSettingObservationStore {
     const scope = this.scope
     const records = sourceObservationPersistence.database(this.path)
     if (records === undefined) await taskpool.execute(writeSourceSettingObservationFile, this.path, sources)
-    else if (sourceId === undefined) sourceObservationPersistence.replace(records, sources)
-    else {
+    else if (sourceId === undefined) {
+      sourceObservationPersistence.replace(records, sources)
+      this.allSourcesLoaded = true
+    } else {
       const value = sources[sourceId]
       records.put(sourceId, value)
+      this.loadedSources.add(sourceId)
     }
     if (scope !== this.scope) throw new Error('source_setting_observations_stale')
     this.document = sources
@@ -100,7 +131,7 @@ export class SourceSettingObservationStore {
 
   loadForSource(sourceId: string): Promise<SourceSettingObservations> {
     return this.enqueue(async (): Promise<SourceSettingObservations> => {
-      await this.readDocument()
+      await this.readSourceDocument(sourceId)
       return this.snapshotForSource(sourceId)
     })
   }
@@ -112,7 +143,7 @@ export class SourceSettingObservationStore {
     return this.enqueue(async (): Promise<void> => {
       if (!current()) return
       await BackupRestoreActivity.runWrite(async (): Promise<void> => {
-        const document = await this.readDocument()
+        const document = await this.readSourceDocument(sourceId)
         if (!current()) return
         const old = document[sourceId] ?? {}
         const next = mergedSourceSettingObservations(old, incoming)
@@ -148,7 +179,7 @@ export class SourceSettingObservationStore {
     this.revisions.set(sourceId, (this.revisions.get(sourceId) ?? 0) + 1)
     return this.enqueue(async (): Promise<T> => {
       try {
-        const original = await this.readDocument()
+        const original = await this.readSourceDocument(sourceId)
         const next: SourceSettingObservationSources = {}
         Object.keys(original).forEach((id: string): void => { if (id !== sourceId) next[id] = original[id] })
         if (original[sourceId] !== undefined) await this.writeDocument(next, sourceId)

@@ -221,6 +221,78 @@ export function copyComicUpdateSchedule(source: Comic, target: Comic): void {
   }
 }
 
+export function copyChapter(chapter: Chapter, copyPageArray: boolean = false): Chapter {
+  return {
+    id: chapter.id,
+    comicId: chapter.comicId,
+    title: chapter.title,
+    index: chapter.index,
+    chapterNumber: chapter.chapterNumber,
+    volumeNumber: chapter.volumeNumber,
+    readingOrder: chapter.readingOrder,
+    readingGroup: chapter.readingGroup,
+    readingVariantGroup: chapter.readingVariantGroup,
+    readingVariantSequence: chapter.readingVariantSequence,
+    continuationEligible: chapter.continuationEligible,
+    scanlator: chapter.scanlator,
+    language: chapter.language,
+    dateUpload: chapter.dateUpload,
+    sourcePath: chapter.sourcePath,
+    sortKey: chapter.sortKey,
+    pages: copyPageArray ? chapter.pages.slice() : chapter.pages,
+    sourceSettingsFingerprint: chapter.sourceSettingsFingerprint,
+    pageCount: chapter.pageCount,
+    createdAt: chapter.createdAt,
+    updatedAt: chapter.updatedAt,
+  }
+}
+
+export function copyComicShell(
+  comic: Comic,
+  chapterMode: 'reuse' | 'shallow' | 'clone_chapters' = 'reuse'
+): Comic {
+  const localMeta: LocalLibraryStoredMetadata | undefined = comic.localMetadata === undefined ? undefined : {
+    titleOverride: comic.localMetadata.titleOverride,
+    authors: comic.localMetadata.authors?.slice(),
+    status: comic.localMetadata.status,
+    coverOverridePath: comic.localMetadata.coverOverridePath,
+  }
+  const next: Comic = {
+    id: comic.id,
+    title: comic.title,
+    subtitle: comic.subtitle,
+    author: comic.author,
+    categoryIds: comic.categoryIds?.slice(),
+    sourceKind: comic.sourceKind,
+    sourcePath: comic.sourcePath,
+    sourceRuntimeId: comic.sourceRuntimeId,
+    remoteServerId: comic.remoteServerId,
+    remoteResourceId: comic.remoteResourceId,
+    coverUri: comic.coverUri,
+    personalNotes: comic.personalNotes,
+    customCoverUri: comic.customCoverUri,
+    sourceCoverUri: comic.sourceCoverUri,
+    enhancedCoverUri: comic.enhancedCoverUri,
+    enhancedCoverModel: comic.enhancedCoverModel,
+    localMetadata: localMeta,
+    localImportOrigin: comic.localImportOrigin === undefined ? undefined : copyLocalImportOrigin(comic.localImportOrigin),
+    sourceMetadata: comic.sourceMetadata === undefined ? undefined : copySourceMangaMetadata(comic.sourceMetadata),
+    sortTitle: comic.sortTitle,
+    preferredDirection: comic.preferredDirection,
+    chapterCatalogDeferred: comic.chapterCatalogDeferred,
+    chapters: chapterMode === 'reuse' ? comic.chapters :
+      chapterMode === 'shallow' ? comic.chapters.slice() :
+        comic.chapters.map((chapter: Chapter): Chapter => copyChapter(chapter, false)),
+    chapterCount: comic.chapterCount,
+    pageCount: comic.pageCount,
+    createdAt: comic.createdAt,
+    updatedAt: comic.updatedAt,
+    lastImportedAt: comic.lastImportedAt,
+  }
+  copyComicUpdateSchedule(comic, next)
+  return next
+}
+
 export function sameComicIdentity(baseline: Comic, current: Comic): boolean {
   return baseline.id === current.id && baseline.createdAt === current.createdAt &&
     baseline.sourceKind === current.sourceKind && baseline.sourcePath === current.sourcePath &&

@@ -233,15 +233,7 @@ export struct LibraryCategoryManagementPage {
     // every build. Rebuild this projection only when the page refreshes its
     // categories or the shelf changes.
     void this.categories
-    const counts = new Map<string, number>()
-    if (this.libraryStore === undefined) return counts
-    this.libraryStore.listComicSummaries().forEach((comic: Comic): void => {
-      if (comic.categoryIds === undefined) return
-      new Set<string>(comic.categoryIds).forEach((categoryId: string): void => {
-        counts.set(categoryId, (counts.get(categoryId) ?? 0) + 1)
-      })
-    })
-    return counts
+    return this.libraryStore?.listCategoryUsageCounts() ?? new Map<string, number>()
   }
 
   private categoryUsageCount(categoryId: string): number {
