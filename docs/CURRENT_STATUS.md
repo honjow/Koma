@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-27T01:00:57+08:00",
+  "updatedAt": "2026-11-27T01:52:25+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "DOWNLOAD_START_LATENCY_FULL_READ_20261124",
   "activity": "197 在 376 行队列上核到冷启动首点下载的初始化与入队合计约 9 ms，全量读写路径已改为按目标行处理。",
@@ -13864,6 +13864,21 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "list-header-menu-capsule-trial-20261127",
+      "at": "2026-11-27T01:52:25+08:00",
+      "itemId": "DETAIL_CHAPTER_LIST_ACTIONS",
+      "kind": "validation",
+      "title": "章节和下载管理的菜单外框试用胶囊",
+      "detail": "通过共享 KomaMenuChip 更改圆角。197 竖屏同一作品章节表头及下载管理状态按钮完成改前改后截图对照。确认章节原排序依据和排列方向菜单可打开，下载管理从全部切换为已下载并恢复全部。样本章节未显示可选语言或分组。下载管理对应 #278。原文件管理页、10 秒超时和休眠已恢复并释租，保留候选。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/koma-menu-pill-197/menu-shape-comparison.png",
+        ".hvigor/outputs/user-flow-audit/koma-menu-pill-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-chapter-sort/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-menu-pill-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-status-downloaded/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-menu-pill-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-status-restored/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-menu-pill-197/lease-final.json"
+      ]
+    },
     {
       "id": "source-manager-entry-timing-197-20261127",
       "at": "2026-11-27T01:18:12+08:00",

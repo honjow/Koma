@@ -22,7 +22,8 @@ export struct KomaMenuChip {
     .height(ThemeConstants.ACTION_CHIP_HEIGHT)
     .constraintSize({ maxWidth: this.maxWidth })
     .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-    .borderRadius(ThemeConstants.RADIUS_SM)
+    // List-header menus share the capsule outline; height and menu behavior belong to the existing control and callers.
+    .borderRadius(ThemeConstants.RADIUS_ROUND)
     .backgroundColor($r('sys.color.comp_background_tertiary'))
     .alignItems(VerticalAlign.Center)
     .justifyContent(FlexAlign.Center)
