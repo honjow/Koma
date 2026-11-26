@@ -86,6 +86,32 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "SOURCE_MANAGER_ENTRY_PERFORMANCE",
+      "number": 368,
+      "title": "降低书源管理页入场开销",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "status": "197 已核两个入口，首帧耗时减少约八成",
+      "stage": "197 真机",
+      "reportedAt": null,
+      "reportedDate": "2026-11-27",
+      "reportedAtSource": "用户反馈在 197 从浏览和设置进入书源管理都偏卡。",
+      "updatedAt": "2026-11-27T01:18:12+08:00",
+      "closedAt": "2026-11-27T01:18:12+08:00",
+      "result": "197 同一台设备与同一批 100 个已安装书源，每个入口各测三次。首个导航帧中位数从浏览入口 481.95 降到 103.23 毫秒，从设置入口 459.81 降到 93.30 毫秒。设置入口首帧创建行数 100→11。真机核了可安装资料、切分段保留滚动位置及已安装搜索。目录回归 50 项通过。197 回装已验的 1.6.3 候选并恢复原下载目录、屏幕超时和休眠。",
+      "remaining": "",
+      "evidencePaths": [
+        ".hvigor/outputs/source-manager-entry-20261127/build.log",
+        ".hvigor/outputs/source-manager-entry-20261127/catalog-test.log",
+        ".hvigor/outputs/source-manager-entry-20261127/entry-metrics.json",
+        ".hvigor/outputs/source-manager-entry-20261127/197/candidate-offer-details/layout.json",
+        ".hvigor/outputs/source-manager-entry-20261127/197/candidate-return-installed/layout.json",
+        ".hvigor/outputs/source-manager-entry-20261127/197/candidate-search-result/layout.json",
+        ".hvigor/outputs/source-manager-entry-20261127/197/restore-tested-candidate/run-metadata.json"
+      ]
+    },
+    {
       "id": "READER_HARMONY_APP_CONTINUATION_REVIEW",
       "number": 367,
       "title": "鸿蒙跨设备阅读接续复查",
@@ -13838,6 +13864,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-manager-entry-timing-197-20261127",
+      "at": "2026-11-27T01:18:12+08:00",
+      "itemId": "SOURCE_MANAGER_ENTRY_PERFORMANCE",
+      "kind": "verification",
+      "title": "197 验证书源管理按需建行，两个入口均减少首帧耗时",
+      "detail": "197 起初已装入含按需建行的另一个构建，剔除该组作为优化前基线的误用。正式对照改用同为 1.6.3 code29、已核包内确为旧列表实现的签名包。每个入口温态各测三次，候选首帧仍为约 93–103 毫秒。",
+      "evidence": ".hvigor/outputs/source-manager-entry-20261127/entry-metrics.json"
+    },
     {
       "id": "custom-accent-preview-verify-20261127",
       "at": "2026-11-27T01:00:57+08:00",

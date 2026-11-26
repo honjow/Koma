@@ -10,7 +10,7 @@ import { groupSourcesByLanguage, SourceCatalogFilters, sourceCatalogLanguage, So
   sourceMatchesCatalogFilters, sourceMatchesCatalogSearch } from '../model/SourceCatalogPresentation'
 import { appSourcePackageLocalImport, SourcePackageLocalImport } from '../sourceRuntime/SourcePackageLocalImport'
 import { SourcePackageManagerCache, appSourcePackageManagerCache, SourcePackageUpdateStatus, SourcePackageUpdateCandidate, SourcePackageUpdateState } from '../viewmodel/SourcePackageManagerCache'
-import { KomaSheetOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
+import { KomaSheetOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial, komaModalCardSurface } from '../theme/KomaPopupOptions'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceSettingsSheetContent as SourceSettingsForm, sourceSettingsDraft } from '../components/SourceSettingsSheetContent'
 import { sourceHasAuthentication } from '../sourceRuntime/SourceAuthenticationService'
@@ -28,7 +28,7 @@ import { canShareInstalledSourcePackage, prepareInstalledSourcePackageShare } fr
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { SourcePackageListItem } from '../components/SourcePackageListItem'
 import { ConciseListRow, SourceIdentityIconState } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
+import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { WidePairDivider, WidePairRow, usesWideTwoColumnLayout } from '../components/ui/WideTwoColumn'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -90,8 +90,28 @@ type SourceManagerPendingAction = 'none' | 'open_browse' | 'open_search' | 'open
 
 interface SourcePackageListGroups {
   updates: SourcePackageUpdateCandidate[]
-  missing: SourceIndexEntry[]
   installed: InstalledSourcePackage[]
+}
+
+interface SourceManagerCard {
+  id: string
+  installed?: InstalledSourcePackage
+  update?: SourcePackageUpdateCandidate
+  offer?: SourceIndexEntry
+}
+
+interface SourceManagerCardParams {
+  card: SourceManagerCard
+}
+
+interface SourceManagerRow {
+  key: string
+  title?: string
+  updateHeader?: boolean
+  cards: SourceManagerCard[]
+  leadingSpace: number
+  first: boolean
+  last: boolean
 }
 
 interface SourceSettingsValidationStatus {
@@ -152,29 +172,7 @@ export struct SourcePackageManagerPage {
     return usesWideTwoColumnLayout(this.managerSafeArea.windowWidthVp)
   }
 
-  private pairFirstItems<T>(items: T[]): T[] {
-    return items.filter((_item: T, index: number): boolean => index % 2 === 0)
-  }
-
-  // A merged row rebuilds when either member changes, so the key covers the
-  // whole pair with the same content fields single rows already key on.
-  private pairKey<T>(items: T[], row: number, signature: (item: T) => string[]): string {
-    return JSON.stringify(items.slice(row * 2, row * 2 + 2).map((item: T): string[] => signature(item)))
-  }
-
-  private updateCandidateSignature(candidate: SourcePackageUpdateCandidate): string[] {
-    const installed = this.installedPackage(candidate.entry.id)
-    return [candidate.entry.id, candidate.entry.version, installed?.version ?? '',
-      String(installed?.enabled === true), String(candidate.entry.nsfw)]
-  }
-
-  private installedSignature(source: InstalledSourcePackage): string[] {
-    return [source.id, source.version, String(source.enabled), String(source.nsfw), String(source.icon ?? ''), source.name, source.lang]
-  }
-
-  private indexEntrySignature(entry: SourceIndexEntry): string[] {
-    return [entry.id, entry.version, String(entry.icon ?? ''), String(entry.nsfw)]
-  }
+  @Consumer('koma.modal.groupedCards') private modalGroupedCards: boolean = false
 
   @Monitor('chrome.requestId')
   private onCatalogAction(): void {
@@ -268,7 +266,6 @@ export struct SourcePackageManagerPage {
       this.sourceIndexUrlEdited = false
       this.restoreDisplayCache()
     }
-    this.refreshSavedSettingsCounts()
     this.settingsRouteActive = true
     if (this.initialSettingsSourceId.length > 0) void this.openRequestedSourceSettings()
   }
@@ -540,10 +537,6 @@ export struct SourcePackageManagerPage {
     return resolveSourceLocalizedName(entry.name, entry.localizedNames, this.languageState.effectiveLocale, entry.presentation)
   }
 
-  private installedSourceIds(): string[] {
-    return this.packages.map((pkg: InstalledSourcePackage): string => pkg.id)
-  }
-
   @Computed
   private get installedPackagesById(): Map<string, InstalledSourcePackage> {
     const installed: Map<string, InstalledSourcePackage> = new Map()
@@ -603,6 +596,8 @@ export struct SourcePackageManagerPage {
   }
 
   private openSourceSheet(source: InstalledSourcePackage): void {
+    // A details sheet needs only the selected source's saved settings.
+    this.refreshSavedSettingsCounts(source.id)
     this.pendingSourceSheetAction = 'none'
     this.pendingSourceSheetSourceId = ''
     this.sourceSheetRetainedSource = source
@@ -778,7 +773,7 @@ export struct SourcePackageManagerPage {
 
 
   private isSourceInstalled(entryId: string): boolean {
-    return this.installedSourceIds().indexOf(entryId) >= 0
+    return this.installedPackage(entryId) !== undefined
   }
 
   private compareVersion(left: string, right: string): number {
@@ -881,7 +876,6 @@ export struct SourcePackageManagerPage {
     const locale = this.languageState.effectiveLocale
     const query = this.chrome.search.query.trim()
     const installedQuery = this.chrome.section === 'sources' ? query : ''
-    const availableQuery = this.chrome.section === 'available' ? query : ''
     const matchesName = (value: string, id: string, name: string, localizedNames?: Record<string, string>,
       presentation?: SourcePresentation): boolean =>
       value.length === 0 || sourceMatchesCatalogSearch(value, resolveSourceLocalizedName(name, localizedNames, locale, presentation),
@@ -894,8 +888,7 @@ export struct SourcePackageManagerPage {
       return matchesName(installedQuery, entry.id, entry.name, entry.localizedNames, entry.presentation) || (installed !== undefined &&
         matchesName(installedQuery, installed.id, installed.name, installed.localizedNames, installed.presentation))
     })
-    return { updates, missing: this.missingIndexEntries().filter((entry: SourceIndexEntry): boolean =>
-      matches(entry) && matchesName(availableQuery, entry.id, entry.name, entry.localizedNames, entry.presentation)),
+    return { updates,
       installed: this.packages.filter((source: InstalledSourcePackage): boolean => !updating.has(source.id) &&
         sourceMatchesCatalogFilters(source.lang, source.nsfw, source.contentRating, filters) &&
         matchesName(installedQuery, source.id, source.name, source.localizedNames, source.presentation)) }
@@ -906,38 +899,57 @@ export struct SourcePackageManagerPage {
     return this.packageListGroups()
   }
 
-  // Position belongs to the live group projection, never to row identity.
-  // These primitive computed values update the divider without remounting its row.
+  // The unvisited Available tab does not project or mount its rows.
   @Computed
-  private get lastUpdateSourceId(): string {
-    const rows = this.listGroups.updates
-    return rows.length > 0 ? rows[rows.length - 1].entry.id : ''
-  }
-
-  @Computed
-  private get missingLanguageGroups(): SourceLanguageGroup<SourceIndexEntry>[] {
-    return groupSourcesByLanguage(this.listGroups.missing, (entry: SourceIndexEntry): string => entry.lang)
-  }
-
-  @Computed
-  private get missingLanguages(): string[] {
-    return this.missingLanguageGroups.map((group: SourceLanguageGroup<SourceIndexEntry>): string => group.language)
-  }
-
-  private missingInLanguage(language: string): SourceIndexEntry[] {
-    return this.missingLanguageGroups.find((group: SourceLanguageGroup<SourceIndexEntry>): boolean =>
-      group.language === language)?.items ?? []
-  }
-
-  private lastMissingSourceId(language: string): string {
-    const rows = this.missingInLanguage(language)
-    return rows.length > 0 ? rows[rows.length - 1].id : ''
+  private get availableManagerRows(): SourceManagerRow[] {
+    const filters: SourceCatalogFilters = { languages: this.catalogFilters.languages, rating: this.catalogFilters.rating }
+    const query = this.chrome.section === 'available' ? this.chrome.search.query.trim() : ''
+    const locale = this.languageState.effectiveLocale
+    const entries = this.missingIndexEntries().filter((entry: SourceIndexEntry): boolean =>
+      sourceMatchesCatalogFilters(entry.lang, entry.nsfw, entry.contentRating, filters) &&
+      (query.length === 0 || sourceMatchesCatalogSearch(query,
+        resolveSourceLocalizedName(entry.name, entry.localizedNames, locale, entry.presentation),
+        entry.name, entry.localizedNames, entry.id, entry.presentation)))
+    const rows: SourceManagerRow[] = []
+    groupSourcesByLanguage(entries, (entry: SourceIndexEntry): string => entry.lang)
+      .forEach((group: SourceLanguageGroup<SourceIndexEntry>): void => {
+        const cards = group.items.map((offer: SourceIndexEntry): SourceManagerCard => ({ id: offer.id, offer }))
+        this.appendManagerRows(rows, 'available:' + group.language, cards,
+          sourceLanguageName(group.language) || t('source_catalog_language_unknown'))
+      })
+    return rows
   }
 
   @Computed
-  private get lastInstalledSourceId(): string {
-    const rows = this.listGroups.installed
-    return rows.length > 0 ? rows[rows.length - 1].id : ''
+  private get installedManagerRows(): SourceManagerRow[] {
+    const rows: SourceManagerRow[] = []
+    const updates: SourceManagerCard[] = []
+    this.listGroups.updates.forEach((update: SourcePackageUpdateCandidate): void => {
+      const installed = this.installedPackage(update.entry.id)
+      if (installed !== undefined) updates.push({ id: installed.id, installed, update })
+    })
+    this.appendManagerRows(rows, 'updates', updates, t('source_pkg_update_available'), true)
+    this.appendManagerRows(rows, 'installed', this.listGroups.installed.map(
+      (installed: InstalledSourcePackage): SourceManagerCard => ({ id: installed.id, installed })))
+    return rows
+  }
+
+  private appendManagerRows(rows: SourceManagerRow[], section: string, cards: SourceManagerCard[],
+    title?: string, updateHeader: boolean = false): void {
+    if (cards.length === 0) return
+    const sectionSpace = rows.length === 0 ? 0 : ThemeConstants.SPACE_MD
+    if (title !== undefined) {
+      rows.push({ key: section + ':header', title, updateHeader, cards: [],
+        leadingSpace: sectionSpace, first: false, last: false })
+    }
+    const step = this.usesWideSourceRows ? 2 : 1
+    for (let index = 0; index < cards.length; index += step) {
+      const pair = cards.slice(index, index + step)
+      const first = index === 0
+      rows.push({ key: section + ':' + pair.map((card: SourceManagerCard): string => card.id).join('|'),
+        cards: pair, first, last: index + step >= cards.length,
+        leadingSpace: first ? (title === undefined ? sectionSpace : ThemeConstants.SPACE_XS) : 0 })
+    }
   }
 
   @Computed
@@ -1005,13 +1017,16 @@ export struct SourcePackageManagerPage {
     this.packageUpdateStatuses = this.packageUpdateStatuses.filter((item: SourcePackageUpdateStatus): boolean => item.sourceId !== sourceId)
   }
 
-  private refreshSavedSettingsCounts(): void {
+  private refreshSavedSettingsCounts(sourceId?: string): void {
     try {
-      const saved = appSourceSettingsStore.exportAll()
       const counts: Record<string, number> = {}
-      Object.keys(saved).forEach((sourceId: string) => {
-        counts[sourceId] = Object.keys(saved[sourceId]).length
-      })
+      if (sourceId === undefined) {
+        const saved = appSourceSettingsStore.exportAll()
+        Object.keys(saved).forEach((id: string): void => { counts[id] = Object.keys(saved[id]).length })
+      } else {
+        Object.keys(this.savedSettingCounts).forEach((id: string): void => { counts[id] = this.savedSettingCounts[id] })
+        counts[sourceId] = Object.keys(appSourceSettingsStore.loadForSource(sourceId)).length
+      }
       this.savedSettingCounts = counts
       this.savedSettingsReadFailed = false
     } catch (_error) {
@@ -2278,33 +2293,33 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private RemoteIndexCard(entry: SourceIndexEntry, showInfo: boolean = false) {
+  private RemoteIndexCard(params: CatalogSourceInfoParams) {
     ConciseListRow({
-      title: this.indexDisplayName(entry),
-      subtitle: this.indexVersionText(entry) + (sourceLanguageName(entry.lang).length > 0 ? ' · ' + sourceLanguageName(entry.lang) : ''),
+      title: this.indexDisplayName(params.entry),
+      subtitle: this.indexVersionText(params.entry) + (sourceLanguageName(params.entry.lang).length > 0 ? ' · ' + sourceLanguageName(params.entry.lang) : ''),
       subtitleMaxLines: 1,
-      subtitleContentRating: entry.nsfw,
+      subtitleContentRating: params.entry.nsfw,
       hasSourceIdentityPrefix: true,
-      sourceIdentityIconState: this.indexIconStates[entry.id],
+      sourceIdentityIconState: this.indexIconStates[params.entry.id],
       sourceIdentityFallbackColor: ThemeConstants.SOURCE_WASM_COLOR,
       prefixPaddingLeft: ThemeConstants.SPACE_MD,
       prefixPaddingRight: ThemeConstants.SPACE_SM,
       showChevron: false,
-      action: showInfo ? (): void => {
+      action: this.recoverySourceId.length === 0 ? (): void => {
         // Read the selected catalog record directly. Opening the sheet does
         // not download or load the source package.
         this.getUIContext().getFocusController().clearFocus()
-        this.catalogSourceInfo = entry
+        this.catalogSourceInfo = params.entry
         this.catalogSourceInfoShown = true
       } : undefined,
-      actionButtonText: this.hasUpdate(entry) || !this.isSourceInstalled(entry.id)
-        ? this.packageActionLabel(entry.id, this.hasUpdate(entry)) : '',
-      actionButtonEnabled: !this.packageInstallAdmissionBlocked() && !this.packageInstallPending(entry.id),
-      actionButtonProgress: this.packageInstallTasks.stateFor(entry.id).downloadProgress,
+      actionButtonText: this.hasUpdate(params.entry) || !this.isSourceInstalled(params.entry.id)
+        ? this.packageActionLabel(params.entry.id, this.hasUpdate(params.entry)) : '',
+      actionButtonEnabled: !this.packageInstallAdmissionBlocked() && !this.packageInstallPending(params.entry.id),
+      actionButtonProgress: this.packageInstallTasks.stateFor(params.entry.id).downloadProgress,
       actionButtonAction: () => {
-        void this.installIndexEntry(entry, this.hasUpdate(entry))
+        void this.installIndexEntry(params.entry, this.hasUpdate(params.entry))
       },
-      trailingText: this.isSourceInstalled(entry.id) && !this.hasUpdate(entry) ? t('source_pkg_installed') : '',
+      trailingText: this.isSourceInstalled(params.entry.id) && !this.hasUpdate(params.entry) ? t('source_pkg_installed') : '',
     })
   }
 
@@ -2442,18 +2457,18 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private PackageCard(source: InstalledSourcePackage, candidate?: SourcePackageUpdateCandidate) {
+  private PackageCard(params: SourceManagerCardParams) {
     SourcePackageListItem({
-      source,
-      subtitle: candidate === undefined ? this.packageListMetaText(source)
-        : this.indexVersionText(candidate.entry) + (sourceLanguageName(candidate.entry.lang).length > 0 ? ' · ' + sourceLanguageName(candidate.entry.lang) : ''),
-      updateAvailable: candidate !== undefined,
-      updateLabel: candidate !== undefined ? this.updateActionLabel(source.id) : '',
-      updateEnabled: candidate === undefined || (!this.packageInstallAdmissionBlocked() && !this.packageInstallPending(source.id)),
-      updateProgress: candidate === undefined ? 0 : this.packageInstallTasks.stateFor(source.id).downloadProgress,
-      remoteNsfw: candidate?.entry.nsfw ?? false,
+      source: params.card.installed!,
+      subtitle: params.card.update === undefined ? this.packageListMetaText(params.card.installed!)
+        : this.indexVersionText(params.card.update.entry) + (sourceLanguageName(params.card.update.entry.lang).length > 0 ? ' · ' + sourceLanguageName(params.card.update.entry.lang) : ''),
+      updateAvailable: params.card.update !== undefined,
+      updateLabel: params.card.update !== undefined ? this.updateActionLabel(params.card.id) : '',
+      updateEnabled: params.card.update === undefined || (!this.packageInstallAdmissionBlocked() && !this.packageInstallPending(params.card.id)),
+      updateProgress: params.card.update === undefined ? 0 : this.packageInstallTasks.stateFor(params.card.id).downloadProgress,
+      remoteNsfw: params.card.update?.entry.nsfw ?? false,
       onUpdate: (selected: InstalledSourcePackage): void => {
-        if (candidate !== undefined) void this.updateInstalledPackage(selected, candidate)
+        if (params.card.update !== undefined) void this.updateInstalledPackage(selected, params.card.update)
       },
       onOpen: (selected: InstalledSourcePackage): void => { this.openSourceSheet(selected) },
     })
@@ -2782,107 +2797,71 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private InstalledPackageGroups() {
-    // Read the live groups here instead of receiving them as an argument.
-    // @Builder parameters pass by value unless a single object literal is
-    // used; reading through `this` keeps removals, installs and filters
-    // reaching the rows instead of freezing the first-frame list.
-    if (this.listGroups.updates.length > 0) {
-      ListItem() {
-        GroupedListSection({ inModal: this.inModal,
-          title: t('source_pkg_update_available'),
-          actionLabel: t('source_pkg_update_all'),
-          action: () => { void this.updateAllAvailablePackages() },
-        }) {
-          // Merged cells are built inline so the enclosing by-reference group
-          // object stays the only source. Passing an array into another
-          // @Builder would pass by value and freeze removals and updates.
-          if (this.usesWideSourceRows) {
-            ForEach(this.pairFirstItems(this.listGroups.updates), (candidate: SourcePackageUpdateCandidate, row: number) => {
-              WidePairRow({
-                first: () => {
-                  const first = this.listGroups.updates[row * 2]
-                  this.PackageCard(this.installedPackage(first.entry.id)!, first)
-                },
-                second: () => {
-                  if (row * 2 + 1 < this.listGroups.updates.length) {
-                    const second = this.listGroups.updates[row * 2 + 1]
-                    this.PackageCard(this.installedPackage(second.entry.id)!, second)
-                  }
-                },
-              })
-              if (row * 2 + 2 < this.listGroups.updates.length) { WidePairDivider() }
-            }, (candidate: SourcePackageUpdateCandidate, row: number) =>
-              this.pairKey(this.listGroups.updates, row, (item: SourcePackageUpdateCandidate): string[] => this.updateCandidateSignature(item)))
-          } else {
-            ForEach(this.listGroups.updates, (candidate: SourcePackageUpdateCandidate, index: number) => {
-              this.PackageCard(this.installedPackage(candidate.entry.id)!, candidate)
-              if (candidate.entry.id !== this.lastUpdateSourceId) { ListDivider() }
-            }, (candidate: SourcePackageUpdateCandidate, _index: number) => JSON.stringify([candidate.entry.id, candidate.entry.version,
-              this.installedPackage(candidate.entry.id)?.version, this.installedPackage(candidate.entry.id)?.enabled, candidate.entry.nsfw]))
-          }
-        }
-      }
-    }
-    if (this.listGroups.installed.length > 0) {
-      ListItem() {
-        GroupedListSection({ inModal: this.inModal }) {
-          if (this.usesWideSourceRows) {
-            ForEach(this.pairFirstItems(this.listGroups.installed), (source: InstalledSourcePackage, row: number) => {
-              WidePairRow({
-                first: () => { this.PackageCard(this.listGroups.installed[row * 2]) },
-                second: () => {
-                  if (row * 2 + 1 < this.listGroups.installed.length) {
-                    this.PackageCard(this.listGroups.installed[row * 2 + 1])
-                  }
-                },
-              })
-              if (row * 2 + 2 < this.listGroups.installed.length) { WidePairDivider() }
-            }, (source: InstalledSourcePackage, row: number) =>
-              this.pairKey(this.listGroups.installed, row, (item: InstalledSourcePackage): string[] => this.installedSignature(item)))
-          } else {
-            ForEach(this.listGroups.installed, (source: InstalledSourcePackage, index: number) => {
-              this.PackageCard(source)
-              if (source.id !== this.lastInstalledSourceId) { ListDivider() }
-            }, (source: InstalledSourcePackage, _index: number) => JSON.stringify([source.id, source.version, source.enabled, source.nsfw, source.icon, source.name, source.lang]))
-          }
-        }
-      }
+  private ManagerCard(params: SourceManagerCardParams) {
+    if (params.card.offer !== undefined) {
+      this.RemoteIndexCard({ entry: params.card.offer! })
+    } else {
+      this.PackageCard({ card: params.card })
     }
   }
 
   @Builder
-  private AvailablePackageGroups() {
-    if (this.listGroups.missing.length > 0) {
-      ForEach(this.missingLanguages, (language: string) => {
-        ListItem() {
-          // Like Browse, keep the language key stable and read the live members
-          // when an install, filter or search changes the section.
-          GroupedListSection({ inModal: this.inModal, title: sourceLanguageName(language) || t('source_catalog_language_unknown') }) {
+  private ManagerListRow(row: RepeatItem<SourceManagerRow>) {
+    ListItem() {
+      if (row.item.title !== undefined) {
+        Column() {
+          SectionHeader({ title: row.item.title!,
+            actionLabel: row.item.updateHeader ? t('source_pkg_update_all') : undefined,
+            action: (): void => { void this.updateAllAvailablePackages() } })
+        }
+        .width('100%')
+        .padding({ top: row.item.leadingSpace })
+      } else {
+        Column() {
+          Column() {
             if (this.usesWideSourceRows) {
-              ForEach(this.pairFirstItems(this.missingInLanguage(language)), (entry: SourceIndexEntry, row: number) => {
-                WidePairRow({
-                  first: () => { this.RemoteIndexCard(this.missingInLanguage(language)[row * 2], true) },
-                  second: () => {
-                    const entries = this.missingInLanguage(language)
-                    if (row * 2 + 1 < entries.length) {
-                      this.RemoteIndexCard(entries[row * 2 + 1], true)
-                    }
-                  },
-                })
-                if (row * 2 + 2 < this.missingInLanguage(language).length) { WidePairDivider() }
-              }, (entry: SourceIndexEntry, row: number) =>
-                this.pairKey(this.missingInLanguage(language), row, (item: SourceIndexEntry): string[] => this.indexEntrySignature(item)))
+              WidePairRow({
+                first: () => { this.ManagerCard({ card: row.item.cards[0] }) },
+                second: () => {
+                  if (row.item.cards.length > 1) this.ManagerCard({ card: row.item.cards[1] })
+                },
+              })
+              if (!row.item.last) { WidePairDivider() }
             } else {
-              ForEach(this.missingInLanguage(language), (entry: SourceIndexEntry) => {
-                this.RemoteIndexCard(entry, true)
-                if (entry.id !== this.lastMissingSourceId(language)) { ListDivider() }
-              }, (entry: SourceIndexEntry) => JSON.stringify([entry.id, entry.version, entry.icon, entry.nsfw]))
+              this.ManagerCard({ card: row.item.cards[0] })
+              if (!row.item.last) { ListDivider() }
             }
           }
+          .width('100%')
+          .padding({ left: ThemeConstants.LIST_SECTION_INSET, right: ThemeConstants.LIST_SECTION_INSET,
+            top: row.item.first ? ThemeConstants.LIST_SECTION_INSET : 0,
+            bottom: row.item.last ? ThemeConstants.LIST_SECTION_INSET : 0 })
+          .backgroundColor(this.inModal || this.modalGroupedCards ? komaModalCardSurface() : ThemeConstants.CARD)
+          .borderRadius({ topLeft: row.item.first ? ThemeConstants.RADIUS_CARD : 0,
+            topRight: row.item.first ? ThemeConstants.RADIUS_CARD : 0,
+            bottomLeft: row.item.last ? ThemeConstants.RADIUS_CARD : 0,
+            bottomRight: row.item.last ? ThemeConstants.RADIUS_CARD : 0 })
+          .clip(true)
         }
-      }, (language: string) => language)
+        .width('100%')
+        .padding({ top: row.item.leadingSpace })
+      }
     }
+    .transition(TransitionEffect.IDENTITY)
+  }
+
+  @Builder
+  private ManagerRows(available: boolean) {
+    // One virtual range per tab keeps its original Scroller while avoiding a
+    // full HDS row tree on entry. Headers, dividers and paired cells use the
+    // original grouped-card geometry. A recycled row reads its live DTO.
+    ListItemGroup({ space: 0 }) {
+      Repeat<SourceManagerRow>(available ? this.availableManagerRows : this.installedManagerRows)
+        .each((row: RepeatItem<SourceManagerRow>) => { this.ManagerListRow(row) })
+        .key((row: SourceManagerRow): string => row.key)
+        .virtualScroll()
+    }
+    .width('100%')
   }
 
   @Computed
@@ -2904,7 +2883,7 @@ export struct SourcePackageManagerPage {
         } else if (this.recoveryEntries.length > 0) {
           ForEach(this.recoveryEntries, (entry: SourceIndexEntry) => {
             ListDivider()
-            this.RemoteIndexCard(entry)
+            this.RemoteIndexCard({ entry })
           }, (entry: SourceIndexEntry): string => entry.id + '|' + (entry.repositoryUrl ?? ''))
         } else {
           ListDivider()
@@ -2967,12 +2946,10 @@ export struct SourcePackageManagerPage {
     }) {
       if (this.recoverySourceId.length > 0) {
         this.RecoverySourceGroup()
-      } else if (available) {
-        this.AvailablePackageGroups()
-        if (this.listGroups.missing.length === 0) this.EmptyPackageList(true)
+      } else if ((available ? this.availableManagerRows : this.installedManagerRows).length > 0) {
+        this.ManagerRows(available)
       } else {
-        this.InstalledPackageGroups()
-        if (this.listGroups.updates.length + this.listGroups.installed.length === 0) this.EmptyPackageList(false)
+        this.EmptyPackageList(available)
       }
     }
   }

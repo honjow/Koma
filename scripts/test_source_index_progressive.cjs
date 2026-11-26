@@ -237,13 +237,16 @@ test('failed explicit refresh preserves the existing metadata, artwork and insta
 
 function packageManager(packages, indexEntries, packageUpdateStatuses = []) {
   const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', [
-    'installedSourceIds', 'installedPackage', 'compareVersion', 'entryDeclaresPackageIcon',
+    'installedPackage', 'compareVersion', 'entryDeclaresPackageIcon',
     'needsPackageIdentityIconRepair', 'updateAvailableFor', 'hasUpdate', 'missingIndexEntries',
-    'updatableIndexEntries', 'availablePackageUpdates', 'packageListGroups', 'indexVersionText',
+    'updatableIndexEntries', 'availablePackageUpdates', 'packageListGroups', 'indexVersionText', 'appendManagerRows',
   ], { ...globals, compareSourceNames: (left, _id, right) => left.localeCompare(right),
-    resolveSourceLocalizedName: name => name,
+    resolveSourceLocalizedName: name => name, t: key => key,
+    sourceLanguageName: language => language, ThemeConstants: { SPACE_MD: 12, SPACE_XS: 4 },
+    usesWideTwoColumnLayout: width => width >= 584,
     tf: (_key, local, remote) => `local ${local} / remote ${remote}` })
-  Object.assign(manager, { packages, indexEntries, packageUpdateStatuses,
+  Object.assign(manager, { packages, indexEntries: indexEntries.map(item => ({ lang: 'zh', ...item })), packageUpdateStatuses,
+    chrome: new SourceCatalogPageChrome(), managerSafeArea: { windowWidthVp: 400 },
     sourceIndexUrl: 'https://active.test/index.json', indexDisplayName: item => item.name,
     languageState: { effectiveLocale: 'zh' } })
   return manager
@@ -309,11 +312,11 @@ test('browse search composes with catalog filters and resolves each source name 
     compareSourceNames:(left,_leftId,right)=>left.localeCompare(right)})
   page.languageState={effectiveLocale:'zh'}
   page.catalogFilters={languages:['zh-Hans'],rating:'safe'}
-  page.viewModel={sources:[
+  page.installedSources=[
     {sourceId:'one',displayName:'Alpha',localizedNames:{zh:'甲漫画'},language:'zh-CN',nsfw:false,contentRating:'safe',enabled:true},
     {sourceId:'two',displayName:'Beta',language:'zh-CN',nsfw:false,contentRating:'safe',enabled:true},
     {sourceId:'three',displayName:'Hidden',language:'en',nsfw:false,contentRating:'safe',enabled:true},
-  ]}
+  ]
   page.chrome.search.query='甲'
   assert.equal(page.enabledRuntimeSources.map(s=>s.sourceId).join(','),'one')
   assert.equal(resolved,2)
@@ -325,23 +328,33 @@ test('source groups contain each installed identity once; updates precede missin
   const manager = packageManager(packages, [indexed('A','1.1'), indexed('B','1.0'), indexed('C','1.0'), indexed('D','1.0')])
   const groups = manager.packageListGroups()
   assert.equal(groups.updates.map(c => c.entry.id).join(','), 'A')
-  assert.equal(groups.missing.map(e => e.id).join(','), 'D')
+  assert.equal(manager.availableManagerRows.flatMap(row => row.cards).map(card => card.id).join(','), 'D')
   assert.equal(groups.installed.map(e => e.id).join(','), 'B,C')
   assert.equal(groups.installed[1].enabled, false)
   assert.equal(packages.map(e => e.id).join(','), 'A,B,C')
+  const windows = () => manager.installedManagerRows.filter(row => row.cards.length)
+    .map(row => row.cards.map(card => card.id).join(',')).join(';')
+  assert.equal(windows(), 'A;B;C')
+  manager.managerSafeArea.windowWidthVp = 700
+  assert.equal(windows(), 'A;B,C')
 })
 test('source search filters existing groups and restores their original order when cleared', () => {
   const packages=[installed('A','1.0'),installed('B','1.0')]
-  const manager=packageManager(packages,[indexed('A','1.1'),indexed('C','1.0')])
+  const manager=packageManager(packages,[indexed('A','1.1'),indexed('C','1.0'),indexed('D','1.0')])
   manager.chrome.search.query='a'
   let groups=manager.packageListGroups()
   assert.equal(groups.updates.map(c=>c.entry.id).join(','),'A')
-  assert.equal(groups.installed.length,0);assert.equal(groups.missing.length,0)
-  manager.chrome.search.query='C';groups=manager.packageListGroups()
-  assert.equal(groups.missing.map(e=>e.id).join(','),'C');assert.equal(groups.updates.length,0)
+  assert.equal(groups.installed.length,0)
+  // The accepted three-section manager scopes search to the active tab.
+  const offers = () => manager.availableManagerRows.flatMap(row => row.cards).map(card => card.id).join(',')
+  assert.equal(offers(),'C,D')
+  manager.chrome.selectSection('available')
+  manager.chrome.search.query='C'
+  assert.equal(offers(),'C')
+  assert.equal(manager.packageListGroups().updates.map(c=>c.entry.id).join(','),'A')
   manager.chrome.search.query='';groups=manager.packageListGroups()
   assert.equal(groups.updates.map(c=>c.entry.id).join(','),'A')
-  assert.equal(groups.missing.map(e=>e.id).join(','),'C')
+  assert.equal(offers(),'C,D')
   assert.equal(groups.installed.map(e=>e.id).join(','),'B')
 })
 test('checked updates retain their actual repository and ignore a stale update after local installation', () => {
@@ -672,7 +685,7 @@ test('older initial schema load cannot overwrite a newer installed package schem
 
 // The user rejected replaying cache hydration and automatic checks on every
 // destination creation. Exercise the retained production owner before navigation.
-function retainedCache(service, packages = []) {
+function retainedCache(service, packages = [], registry = { revision: 0 }) {
   const source=fs.readFileSync(path.join(root,'viewmodel/SourcePackageManagerCache.ets'),'utf8')
     .replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
   const exports={}
@@ -680,7 +693,8 @@ function retainedCache(service, packages = []) {
     exports,console,JSON,Map,Promise,Date,mergeSourceIndexCatalog,subscriptionIdentity,
     isSourcePackageMinAppVersionSatisfied:()=>true,
     AppStrings:{get:key=>key.startsWith('source_pkg_reason_')?key.slice('source_pkg_reason_'.length):key,format:(key,...values)=>JSON.stringify([key,...values])},
-    listInstalled:()=>packages,resolveSourceLocalizedName:name=>name,compareSourceNames:(a,_id,b)=>a.localeCompare(b),
+    listInstalled:()=>{registry.reads=(registry.reads??0)+1;return packages},connectSourceRuntimeState:()=>registry,
+    resolveSourceLocalizedName:name=>name,compareSourceNames:(a,_id,b)=>a.localeCompare(b),
     SourceIdentityIconState:globals.SourceIdentityIconState,SourceIndexService:class{constructor(){return service}},
   })
   return new exports.SourcePackageManagerCache()
@@ -691,10 +705,12 @@ test('cached repository updates survive failed checks and reconcile installed ve
   const service = { loadSavedUrl: async () => active, loadSavedRepositories: async () => [{ url: other }],
     loadCachedIndex: async url => url === active ? [{ ...entry('A'), version: '2' }] : [{ ...entry('B'), version: '3' }],
     loadIndexIcons: async () => {}, saveUrl: async () => {}, fetchIndex: async () => ({ ok: false, reasonCode: 'network_error' }) }
-  const cache = retainedCache(service, packages), context = { filesDir: 'data' }
+  const registry = { revision: 0 }
+  const cache = retainedCache(service, packages, registry), context = { filesDir: 'data' }
   await cache.prepare(context, 'zh'); assert.equal(cache.updateCount, 2)
   await cache.check(context); assert.equal(cache.updateCount, 2)
   packages[0] = installed('A', '2'); packages.splice(1, 1)
+  registry.revision += 1
   await cache.prepare(context, 'zh'); assert.equal(cache.updateCount, 0)
 })
 test('update checks find a source in another enabled subscription after its old address disappears', async () => {
@@ -754,7 +770,8 @@ test('cache is ready before navigation, revisits retain row/icon inputs and do n
   const service={loadSavedUrl:async()=> 'https://saved.test/index.json',loadSavedRepositories:async()=>[],
     loadCachedIndex:async()=>{reads++;return metadata},loadIndexIcons:async()=>{},
     saveUrl:async()=>{},fetchIndex:async()=>{fetches++;return {ok:true,entries:metadata}}}
-  const cache=retainedCache(service,[installed('B','1')]),context={filesDir:'data'}
+  const registry={revision:0}
+  const cache=retainedCache(service,[installed('B','1')],registry),context={filesDir:'data'}
   await cache.prepare(context,'zh');const rows=cache.indexEntries,icons=cache.indexIconStates,packages=cache.packages
   // Multi-subscription catalogs clone cached DTOs to attach host-owned provenance;
   // the published row and icon identities must still survive all revisits.
@@ -765,6 +782,7 @@ test('cache is ready before navigation, revisits retain row/icon inputs and do n
   cache.revalidateInBackground(context);await new Promise(setImmediate);assert.equal(fetches,1)
   const revision=cache.revision;await cache.prepare(context,'zh');cache.revalidateInBackground(context)
   await new Promise(setImmediate);assert.equal(fetches,1);assert.equal(cache.revision,revision)
+  assert.equal(registry.reads,1)
   assert.equal(cache.indexEntries,rows);assert.equal(cache.indexIconStates,icons)
 })
 test('invalidated hydration cannot publish an old repository over the new cache',async()=>{

@@ -7,6 +7,7 @@ import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
 import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
 import { SourceIdentityIconState } from '../components/ui/ConciseListRow'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectSourceRuntimeState } from '../state/SourceRuntimeState'
 
 function t(name: string): string { return AppStrings.get(name) }
 function tf(name: string, ...args: Array<string | number>): string { return AppStrings.format(name, ...args) }
@@ -51,6 +52,7 @@ export class SourcePackageManagerCache {
   private scope: string = ''
   private generation: number = 0
   private locale: string = ''
+  private installedRevision: number = -1
   private ready: Promise<void> | undefined = undefined
   private automaticStarted: boolean = false
   private checkTail: Promise<void> = Promise.resolve()
@@ -138,6 +140,7 @@ export class SourcePackageManagerCache {
     this.ready = undefined
     this.automaticStarted = false
     this.scope = ''
+    this.installedRevision = -1
   }
 
   async prepare(context: common.UIAbilityContext, locale: string): Promise<void> {
@@ -154,6 +157,21 @@ export class SourcePackageManagerCache {
       this.checkSummaryText = ''
       this.statusText = ''
     }
+    const revision = connectSourceRuntimeState().revision
+    // Registry imports, replacements, removals and enablement publish this
+    // revision. A warm navigation can reuse the same localized projection.
+    if (this.installedRevision !== revision || this.locale !== locale) {
+      this.prepareInstalledPackages(locale)
+      this.installedRevision = revision
+    }
+    const localeChanged = this.locale !== locale
+    this.locale = locale
+    if (localeChanged && this.indexEntries.length > 0) this.showIndexEntries(this.displayedIndexUrl, this.indexEntries, this.indexLoadRevision)
+    if (this.ready === undefined) this.ready = this.hydrate(context)
+    await this.ready
+  }
+
+  private prepareInstalledPackages(locale: string): void {
     const current = listInstalled()
     const names = new Map<string, string>()
     current.forEach((source: InstalledSourcePackage): void => {
@@ -171,11 +189,6 @@ export class SourcePackageManagerCache {
       this.packageUpdateStatuses = this.reconcileUpdates(this.packageUpdateStatuses)
       this.revision += 1
     }
-    const localeChanged = this.locale !== locale
-    this.locale = locale
-    if (localeChanged && this.indexEntries.length > 0) this.showIndexEntries(this.displayedIndexUrl, this.indexEntries, this.indexLoadRevision)
-    if (this.ready === undefined) this.ready = this.hydrate(context)
-    await this.ready
   }
 
   private async hydrate(context: common.UIAbilityContext): Promise<void> {
