@@ -1204,9 +1204,10 @@ export class BackupService {
         try {
           const file = await this.scanLocalBackupFile(fileName, state.files.get(fileName))
           if (file !== undefined) files.set(fileName, file)
-        } catch (_error) {
+        } catch (error) {
           // Public storage may contain a damaged or unrelated JSON file. Keep other backups usable.
           unreadable = true
+          DiagnosticLogger.exception('backup_management_page', 'local_file_scan_failed', error as Error)
           const cached = state.files.get(fileName)
           if (cached !== undefined) files.set(fileName, cached)
         }
