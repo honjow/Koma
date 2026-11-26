@@ -66,6 +66,7 @@ export const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
   'archive_unreadable',
   'download_pending_publish',
   'download_publish_failed',
+  'download_cbz_insufficient_space',
   'cancel_cleanup_failed',
 ]
 

@@ -22,6 +22,7 @@
     {"name": "downloads_convert_cbz_done", "value": "Chapter saved as CBZ"},
     {"name": "downloads_convert_cbz_failed", "value": "Could not finish converting the chapter"},
     {"name": "downloads_publish_failed", "value": "Could not finish saving the chapter"},
+    {"name": "downloads_cbz_insufficient_space", "value": "Not enough storage. Free up space and retry."},
     {"name": "appearance_detail_transition", "value": "Detail transition"},
     {"name": "appearance_detail_transition_hint", "value": "Choose the transition from lists to details"},
     {"name": "appearance_detail_transition_system", "value": "System default"},

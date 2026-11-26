@@ -22,6 +22,7 @@
     {"name": "downloads_convert_cbz_done", "value": "챕터를 CBZ로 저장했습니다"},
     {"name": "downloads_convert_cbz_failed", "value": "챕터 변환을 완료하지 못했습니다"},
     {"name": "downloads_publish_failed", "value": "챕터 저장을 완료하지 못했습니다"},
+    {"name": "downloads_cbz_insufficient_space", "value": "저장 공간이 부족합니다. 공간을 확보한 후 다시 시도하세요."},
     {"name": "appearance_detail_transition", "value": "상세 화면 전환"},
     {"name": "appearance_detail_transition_hint", "value": "목록에서 상세 화면으로 이동할 때의 전환 효과 선택"},
     {"name": "appearance_detail_transition_system", "value": "시스템 기본값"},

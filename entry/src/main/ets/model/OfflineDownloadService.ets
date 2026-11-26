@@ -1,5 +1,6 @@
 import { loadDownloadPageConcurrency, loadDownloadSaveAsCbz } from './DownloadFormatPreferences'
-import { cleanupCompletedDownload, finishOfflineDownload } from './OfflineDownloadCbz'
+import { cleanupCompletedDownload, DOWNLOAD_CBZ_INSUFFICIENT_SPACE, finishOfflineDownload,
+  isDownloadCbzSpaceError } from './OfflineDownloadCbz'
 import { parseComicZipPage } from '../import/ComicZipPage'
 import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
@@ -70,6 +71,12 @@ interface OfflineDownloadPageWriteResult {
 interface OfflineDownloadPageTransfer {
   page: OfflineDownloadedPage
   reused: boolean
+}
+
+interface OfflineDownloadPageCompletion {
+  index: number
+  transfer?: OfflineDownloadPageTransfer
+  error?: Error
 }
 
 @Concurrent
@@ -416,16 +423,17 @@ export class OfflineDownloadService {
       reusableById.set(page.pageId, page)
       reusableByIndex.set(page.pageIndex, page)
     }
-    // Page indexes are produced once in sequence. A repeated source page ID
-    // still replaces its earlier record, as it did in recordPage.
+    // Repeated source page IDs keep the last source index even when a slower
+    // earlier request completes later. Checkpoints retain source page order.
     const savedPages = new Map<string, OfflineDownloadedPage>()
     reusablePages.forEach((page: OfflineDownloadedPage): void => { savedPages.set(page.pageId, page) })
     const recordPage = (page: OfflineDownloadedPage): void => {
-      savedPages.set(page.pageId, page)
+      const previous = savedPages.get(page.pageId)
+      if (previous === undefined || page.pageIndex >= previous.pageIndex) savedPages.set(page.pageId, page)
       manifest.downloadedPageCount = savedPages.size
     }
     const checkpoint = async (): Promise<void> => {
-      manifest.pages = Array.from(savedPages.values())
+      manifest.pages = Array.from(savedPages.values()).sort((left, right): number => left.pageIndex - right.pageIndex)
       manifest = await saveDownloadManifestAsync(this.store, manifest)
     }
     let lastCheckpointAt = Date.now()
@@ -520,33 +528,54 @@ export class OfflineDownloadService {
     }
     try {
       const pageConcurrency = this.requestContext === undefined ? 1 : await loadDownloadPageConcurrency(this.requestContext)
+      const sourceId = JSON.stringify([manifest.sourceKind, manifest.sourceId])
+      const transfers = new Map<number, Promise<OfflineDownloadPageCompletion>>()
       let nextPage = 0
-      while (nextPage < config.totalPages) {
-        const reason = waitReason()
-        if (reason !== undefined) return await saveDeferred(reason)
-        const transfers: Promise<OfflineDownloadPageTransfer | undefined>[] = []
-        // Drain in-flight writes before honoring pause or closing the chapter. Only
-        // the coordinator publishes progress and checkpoints, in page order.
-        while (transfers.length < pageConcurrency && nextPage < config.totalPages) {
-          transfers.push(transferPage(nextPage))
-          nextPage += 1
+      let deferred: OfflineDownloadWaitReason | undefined
+      let transferFailure: Error | undefined
+      const canStartPage = (): boolean => {
+        if (transferFailure !== undefined) return false
+        deferred = deferred ?? waitReason()
+        return deferred === undefined
+      }
+      const fillAvailableSlots = (): void => {
+        while (transfers.size < pageConcurrency && nextPage < config.totalPages &&
+          deferred === undefined && transferFailure === undefined) {
+          const index = nextPage++
+          const pending = OfflineDownloadRuntime.runSourcePage<OfflineDownloadPageTransfer | undefined>(
+            this.store.runtimeKey(), sourceId, pageConcurrency, async () => {
+              // The chapter may have paused while waiting for a shared source slot.
+              return canStartPage() ? transferPage(index) : undefined
+            }).then((transfer): OfflineDownloadPageCompletion => ({ index, transfer }),
+              (error: Error): OfflineDownloadPageCompletion => ({ index, error }))
+          transfers.set(index, pending)
         }
-        const settled = await Promise.allSettled(transfers)
-        for (const result of settled) {
-          if (result.status === 'fulfilled' && result.value !== undefined) {
-            recordPage(result.value.page)
-            if (!result.value.reused) {
+      }
+      fillAvailableSlots()
+      while (transfers.size > 0) {
+        const result = await Promise.race(Array.from(transfers.values()))
+        transfers.delete(result.index)
+        transferFailure = transferFailure ?? result.error
+        // Replace a completed transfer immediately. The coordinator alone
+        // records completed pages and serializes the durable checkpoints.
+        fillAvailableSlots()
+        if (result.transfer !== undefined) {
+          recordPage(result.transfer.page)
+          if (transferFailure === undefined) {
+            if (!result.transfer.reused) {
               BackgroundDownloadOwner.progress(labels?.chapterTitle ?? chapter.title,
                 manifest.downloadedPageCount, manifest.pageCount)
             }
-            await publishPage()
+            try {
+              await publishPage()
+            } catch (error) {
+              transferFailure = error as Error
+            }
           }
         }
-        for (const result of settled) {
-          if (result.status === 'rejected') throw result.reason as Error
-        }
       }
-      const finalWait = waitReason()
+      if (transferFailure !== undefined) throw transferFailure
+      const finalWait = deferred ?? waitReason()
       if (finalWait !== undefined) return await saveDeferred(finalWait)
       await checkpoint()
       const finalValidation = await validateDownloadManifestAsync(this.store, comic.id, chapterId,
@@ -573,7 +602,9 @@ export class OfflineDownloadService {
       // already been replaced. The completed manifest owns recovery.
       if (manifest.status === OfflineDownloadStatus.DOWNLOADED) throw error as Error
       manifest.status = manifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.FAILED
-      manifest.failureReasonCode = finalizing ? 'download_publish_failed' : 'page_fetch_failed'
+      manifest.failureReasonCode = finalizing ?
+        (isDownloadCbzSpaceError(error as Error) ? DOWNLOAD_CBZ_INSUFFICIENT_SPACE : 'download_publish_failed') :
+        'page_fetch_failed'
       await checkpoint()
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       trace.warn('download_failed', `[ReaderOffline] step=download_failed pages=${manifest.downloadedPageCount}/${manifest.pageCount} reason=${manifest.failureReasonCode} ${DiagnosticLogger.errorSummary(error as Error)}`)

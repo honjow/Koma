@@ -1,4 +1,4 @@
-import { listLooseDownloadChapters } from '../model/OfflineDownloadCbz'
+import { DOWNLOAD_CBZ_INSUFFICIENT_SPACE, listLooseDownloadChapters } from '../model/OfflineDownloadCbz'
 import { ChapterArchiveActions, chapterArchiveFailureText } from '../model/ChapterArchiveExport'
 import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -530,6 +530,7 @@ export struct DownloadsPage {
 
   private blockedHelpText(entry: OfflineDownloadQueueEntry): string {
     const reason = this.taskFailureReason(entry)
+    if (reason === DOWNLOAD_CBZ_INSUFFICIENT_SPACE) return s('downloads_cbz_insufficient_space')
     if (reason === 'download_publish_failed') return s('downloads_publish_failed')
     if (reason === 'pages_missing') {
       return s('downloads_blocked_pages_missing')
@@ -1208,6 +1209,11 @@ export struct DownloadsPage {
           } else {
             Text(s('downloads_convert_cbz_group_result').replace('%s', String(this.cbzQueue.status.converted))
               .replace('%s', String(this.cbzQueue.status.failed)))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+          if (this.cbzQueue.status.insufficientSpace > 0) {
+            Text(s('downloads_cbz_insufficient_space'))
               .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
           }

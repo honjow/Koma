@@ -95,7 +95,7 @@ export class OfflineDownloadRuntime {
       comicId,
       promise: BackupRestoreActivity.runWrite(async (): Promise<OfflineChapterDownloadManifest> => {
         if (concurrencyLimit !== undefined) {
-          await OfflineDownloadRuntime.acquireSlot(filesDir, concurrencyLimit)
+          await OfflineDownloadRuntime.acquireSlot(filesDir, (): number => Math.min(3, concurrencyLimit()))
         } else {
           await Promise.resolve()
         }
@@ -113,6 +113,17 @@ export class OfflineDownloadRuntime {
     } finally {
       OfflineDownloadRuntime.executions.delete(key)
       OfflineDownloadRuntime.publish(filesDir, comicId, chapterId)
+    }
+  }
+
+  /** Separate source budgets sit alongside the existing global chapter slots. */
+  static async runSourcePage<T>(filesDir: string, sourceId: string, limit: number, start: () => Promise<T>): Promise<T> {
+    const sourceKey = JSON.stringify([filesDir, sourceId])
+    await OfflineDownloadRuntime.acquireSlot(sourceKey, (): number => limit)
+    try {
+      return await start()
+    } finally {
+      OfflineDownloadRuntime.releaseSlot(sourceKey)
     }
   }
 
@@ -171,7 +182,7 @@ export class OfflineDownloadRuntime {
     if (slots === undefined) return
     while (slots.waiting.length > 0) {
       const next = slots.waiting[0]
-      const limit = Math.max(1, Math.min(3, Math.floor(next.limit())))
+      const limit = Math.max(1, Math.floor(next.limit()))
       if (slots.active >= limit) break
       slots.waiting.shift()
       slots.active += 1

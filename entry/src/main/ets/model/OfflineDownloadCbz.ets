@@ -1,4 +1,5 @@
-import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs, statfs } from '@kit.CoreFileKit'
+import { BusinessError } from '@kit.BasicServicesKit'
 import { taskpool } from '@kit.ArkTS'
 import { ComicZipEntry, nativeComicArchive } from '../import/NativeArchiveExtraction'
 import { downloadImageExtension } from './DownloadImageFormat'
@@ -12,6 +13,34 @@ import { DownloadCbzMigrationWork, OfflineChapterDownloadManifest, OfflineDownlo
   isFlatDownloadPackagePath } from './OfflineDownloadStore'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { saveDownloadManifestAsync, validateDownloadManifestAsync } from './OfflineDownloadManifestWorker'
+
+export const DOWNLOAD_CBZ_INSUFFICIENT_SPACE: string = 'download_cbz_insufficient_space'
+const FILE_IO_NO_SPACE: number = 13900025
+// Allow for ZIP directory records, the chapter manifest and the publish journal.
+const CBZ_METADATA_RESERVE: number = 64 * 1024
+const CBZ_METADATA_PER_PAGE: number = 1024
+let cbzPublications: Promise<void> = Promise.resolve()
+
+export function isDownloadCbzSpaceError(error: Error): boolean {
+  return error?.message === DOWNLOAD_CBZ_INSUFFICIENT_SPACE || error?.message === 'archive_insufficient_space' ||
+    (error as BusinessError)?.code === FILE_IO_NO_SPACE
+}
+
+async function checkCbzSpace(work: string, requiredBytes: number): Promise<void> {
+  let available: number
+  try {
+    available = await statfs.getFreeSize(work)
+  } catch (error) {
+    // Older or externally provided paths may reject the query. The actual
+    // filesystem write still reports ENOSPC and owns the final decision.
+    DiagnosticLogger.exception('downloads', 'download_cbz_space_query_failed', error as Error)
+    return
+  }
+  if (Number.isFinite(available) && available >= 0 && available < requiredBytes) {
+    DiagnosticLogger.warn('downloads', 'download_cbz_insufficient_space', `required=${requiredBytes} available=${available}`)
+    throw new Error(DOWNLOAD_CBZ_INSUFFICIENT_SPACE)
+  }
+}
 
 function baseName(path: string): string {
   return path.substring(path.lastIndexOf('/') + 1)
@@ -76,16 +105,28 @@ async function finishCbz(store: OfflineDownloadStore, manifest: OfflineChapterDo
   }
   const info = '<?xml version="1.0" encoding="UTF-8"?><ComicInfo><Title>' + xml(manifest.chapterTitle ?? '') +
     '</Title><Series>' + xml(manifest.comicTitle ?? '') + '</Series><PageCount>' + pages.length + '</PageCount></ComicInfo>'
-  return publishFlatCbz(store, manifest, pages, (temp: string): Promise<void> =>
+  // The ZIP writer stores images without recompressing them.
+  const payloadBytes = pages.reduce((total, page): number => total + page.size, info.length * 4)
+  return publishFlatCbz(store, manifest, pages, payloadBytes, (temp: string): Promise<void> =>
     nativeComicArchive.writeZip(temp, files, info))
 }
 
-async function publishFlatCbz(store: OfflineDownloadStore, manifest: OfflineChapterDownloadManifest,
-  pages: OfflineDownloadedPage[], write: (temp: string) => Promise<void>): Promise<OfflineDownloadedPage[]> {
+function publishFlatCbz(store: OfflineDownloadStore, manifest: OfflineChapterDownloadManifest,
+  pages: OfflineDownloadedPage[], payloadBytes: number,
+  write: (temp: string) => Promise<void>): Promise<OfflineDownloadedPage[]> {
+  // Downloads and conversion share the same disk budget. Serialize the check
+  // and temporary file write so two packs cannot both spend the same free space.
+  const publication = cbzPublications.then(() => writeFlatCbz(store, manifest, pages, payloadBytes, write))
+  cbzPublications = publication.then((): void => {}, (): void => {})
+  return publication
+}
+
+async function writeFlatCbz(store: OfflineDownloadStore, manifest: OfflineChapterDownloadManifest,
+  pages: OfflineDownloadedPage[], payloadBytes: number,
+  write: (temp: string) => Promise<void>): Promise<OfflineDownloadedPage[]> {
   const chapterDir = store.chapterDir(manifest.comicId, manifest.chapterId)
   const work = store.comicDir(manifest.comicId)
   const metadata = flatDownloadMetadataDirectory(chapterDir)
-  if (!fs.accessSync(metadata)) fs.mkdirSync(metadata, true)
   const journal = metadata + '/publishing'
   if (fs.accessSync(journal)) {
     const name = fs.readTextSync(journal, { encoding: 'utf-8' })
@@ -101,10 +142,12 @@ async function publishFlatCbz(store: OfflineDownloadStore, manifest: OfflineChap
     path = work + '/' + Array.from(stem).slice(0, 50).join('') + ' [' + suffix + '-' + collision + '].cbz'
     collision += 1
   }
-  writeAppTextFile(journal, baseName(path))
   const temp = metadata + '/publishing.cbz.tmp'
   try {
     if (fs.accessSync(temp)) await fs.unlink(temp)
+    await checkCbzSpace(work, payloadBytes + CBZ_METADATA_RESERVE + pages.length * CBZ_METADATA_PER_PAGE)
+    if (!fs.accessSync(metadata)) fs.mkdirSync(metadata, true)
+    writeAppTextFile(journal, baseName(path))
     await write(temp)
     if (!await verifiedCbz(temp, pages)) throw new Error('download_cbz_verify_failed')
     const file = await fs.open(temp, fs.OpenMode.READ_WRITE)
@@ -269,7 +312,9 @@ export async function migrateDownloadedChapterToFlatCbz(store: OfflineDownloadSt
         throw new Error('download_cbz_mixed_formats')
       }
       const pages = manifest.pages.map(copyOfflineDownloadedPage)
-      manifest.pages = await publishFlatCbz(store, manifest, pages, (temp: string): Promise<void> => fs.copyFile(original, temp))
+      const archiveBytes = (await fs.stat(original)).size
+      manifest.pages = await publishFlatCbz(store, manifest, pages, archiveBytes,
+        (temp: string): Promise<void> => fs.copyFile(original, temp))
       const committed = await saveDownloadManifestAsync(store, manifest)
       if (!await cleanupCompletedDownload(store, committed, canRemoveOriginals)) throw new Error('download_cbz_cleanup_pending')
       converted = true
@@ -288,6 +333,7 @@ export async function migrateDownloadedChapterToFlatCbz(store: OfflineDownloadSt
 export interface DownloadCbzConversionResult {
   converted: number
   failed: number
+  insufficientSpace: number
 }
 
 export interface DownloadCbzMigrationOptions {
@@ -312,7 +358,7 @@ export async function convertDownloadedChaptersToCbz(store: OfflineDownloadStore
   onChapterHandled: (processed: number, result: DownloadCbzConversionResult) => void = () => {},
   migration?: DownloadCbzMigrationOptions):
   Promise<DownloadCbzConversionResult> {
-  const result: DownloadCbzConversionResult = { converted: 0, failed: 0 }
+  const result: DownloadCbzConversionResult = { converted: 0, failed: 0, insufficientSpace: 0 }
   let processed = 0
   for (const chapterId of chapterIds) {
     try {
@@ -321,6 +367,7 @@ export async function convertDownloadedChaptersToCbz(store: OfflineDownloadStore
       } else if (await convertDownloadedChapterToCbz(store, comicId, chapterId)) result.converted += 1
     } catch (error) {
       result.failed += 1
+      if (isDownloadCbzSpaceError(error as Error)) result.insufficientSpace += 1
       DiagnosticLogger.exception('downloads', 'download_convert_cbz_failed', error as Error)
     }
     processed += 1

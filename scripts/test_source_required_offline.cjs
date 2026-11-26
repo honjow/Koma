@@ -157,29 +157,51 @@ async function verifyDownloadResume() {
   const chapterConfig = sessionTree.statements.find(node => node.name?.text === 'createReaderSessionConfigFromComic')
   const { createReaderSessionConfigFromComic } = load(chapterConfig.getText(sessionTree), {
     ...models, readerChapterDisplayTitle: chapter => chapter.title,
+    needsSourceCatalogChronology: () => false, chapterReadingMetadataPendingFor: () => false,
     chapterReadingSortFor: () => assert.fail('Download should not read the reader chapter sort'),
   })
   let paused = false
   let pageConcurrency = 1
-  let onChange
+  let saveAsCbz = false
+  let freeBytes = 0
+  let archiveWrites = 0
+  let storedEntries
+  let nativeWriteFails = true
   let preferenceReads = 0
-  const runtime = {
-    subscribe(_key, callback) { onChange = callback; return () => { onChange = undefined } },
-    isPauseRequested: () => false,
-    publishProgress() {},
-  }
+  const { OfflineDownloadRuntime: runtime } = load(fs.readFileSync(base + 'OfflineDownloadRuntime.ets', 'utf8'), {
+    BackupRestoreActivity: { runWrite: async operation => operation() },
+  })
   const tasks = { execute: async (fn, ...args) => fn(...args) }
   const manifests = load(fs.readFileSync(base + 'OfflineDownloadManifestWorker.ets', 'utf8').replace(/@Concurrent\s*/g, ''),
     { ...offline, taskpool: tasks })
   const asyncIo = { ...io, copyFile: fs.promises.copyFile, stat: fs.promises.stat, rename: fs.promises.rename,
+    open: async file => ({ fd: fs.openSync(file, 'r+') }),
+    fsync: async fd => fs.fsyncSync(fd), close: async file => fs.closeSync(file.fd),
     unlink: fs.promises.unlink, rmdir: directory => fs.promises.rm(directory, { recursive: true }) }
   const cbz = load(fs.readFileSync(base + 'OfflineDownloadCbz.ets', 'utf8').replace(/@Concurrent\s*/g, ''),
-    { ...offline, ...manifests, taskpool: tasks, fs: asyncIo, OfflineDownloadRuntime: runtime })
+    { ...offline, ...manifests, ...directoryIndex, ...persistence, taskpool: tasks, fs: asyncIo,
+      ...load(fs.readFileSync(base + 'DownloadImageFormat.ets', 'utf8'), {}), OfflineDownloadRuntime: runtime,
+      DiagnosticLogger: { warn() {}, exception() {} }, statfs: { getFreeSize: async () => freeBytes },
+      nativeComicArchive: {
+        async writeZip(destination, files) {
+          archiveWrites++
+          if (nativeWriteFails) throw Error('archive_insufficient_space')
+          storedEntries = [{ path: 'ComicInfo.xml' }]
+          const contents = []
+          for (let i = 0; i < files.length; i += 2) {
+            const bytes = fs.readFileSync(files[i])
+            contents.push(bytes)
+            storedEntries.push({ path: files[i + 1], size: bytes.length, hash: offline.createOfflineDownloadFileContentHash(files[i]) })
+          }
+          fs.writeFileSync(destination, Buffer.concat(contents))
+        },
+        listZipSync: () => storedEntries,
+      } })
   const { OfflineDownloadService } = load(source, {
-    ...cbz, loadDownloadSaveAsCbz: async () => false, loadDownloadPageConcurrency: async () => pageConcurrency,
+    ...cbz, loadDownloadSaveAsCbz: async () => saveAsCbz, loadDownloadPageConcurrency: async () => pageConcurrency,
     ...offline, ...manifests, fs: io, taskpool: tasks, createReaderSessionConfigFromComic,
-    appSourceRuntimeRegistry: { lookup: () => ({}) },
-    createReaderPageRenderSource: (_config, index) => ({ kind: 'image', uri: '', imageUri: '', index }),
+    appSourceRuntimeRegistry: { lookup: () => ({}) }, sourceDisplayName: (_id, fallback) => fallback,
+    createReaderPageRenderSource: (config, index) => ({ kind: 'image', uri: '', imageUri: '', index, comicId: config.comicId }),
     ReaderPageRenderKind: { SOURCE_TEXT_REQUEST: 'text' }, OfflineDownloadRuntime: runtime,
     DiagnosticLogger: { errorSummary: error => String(error) }, BackgroundDownloadOwner: { progress() {} },
     connection: { getDefaultNetSync: () => ({ netId: 1 }) },
@@ -198,7 +220,7 @@ async function verifyDownloadResume() {
       fs.writeFileSync(target, Buffer.from([1, 2, page.index]))
       if (written.length === 2) {
         paused = true
-        onChange('change')
+        runtime.publish(dir)
       }
       return { size: 3, contentHash: offline.createOfflineDownloadFileContentHash(target) }
     }
@@ -208,7 +230,6 @@ async function verifyDownloadResume() {
     const partial = await service.runChapterDownload(comic, 'chapter', 'session', trace)
     assert.equal(partial.status, 'partial')
     assert.deepEqual(store.loadManifest(comic.id, 'chapter').pages.map(page => page.pageIndex), [0, 1])
-    assert.equal(onChange, undefined)
     paused = false
     preferenceReads = 0
     const completed = await service.runChapterDownload(comic, 'chapter', 'session', trace)
@@ -249,7 +270,7 @@ async function verifyDownloadResume() {
     assert.deepEqual(fetched, [0, 1])
     inFlight.get(1)()
     paused = true
-    onChange('change')
+    runtime.publish(dir)
     inFlight.get(0)()
     const pausedParallel = await firstRun
     assert.equal(pausedParallel.status, 'partial')
@@ -266,6 +287,77 @@ async function verifyDownloadResume() {
     assert.deepEqual(fetched, [0, 1, 2, 3])
     assert.equal(reopened.validateDownloadedChapter(parallel.id, 'chapter').availablePageCount, 4)
     console.log('Two concurrent page transfers are both retained on pause and reused after reopening storage')
+
+    const activePages = new Map()
+    const activeBySource = new Map()
+    const sources = new Map([['first', 'one'], ['same-source', 'one'], ['other-source', 'two']])
+    let releaseAll = false
+    service.writePage = async (page, target) => {
+      if (releaseAll) return finishPage(page.index, target)
+      const sourceId = sources.get(page.comicId)
+      const count = (activeBySource.get(sourceId) ?? 0) + 1
+      assert.ok(count <= 2, 'Chapters share the configured limit within one source')
+      activeBySource.set(sourceId, count)
+      const key = `${page.comicId}:${page.index}`
+      return new Promise(resolve => {
+        activePages.set(key, () => {
+          activePages.delete(key)
+          activeBySource.set(sourceId, activeBySource.get(sourceId) - 1)
+          resolve(finishPage(page.index, target))
+        })
+      })
+    }
+    const start = id => service.runChapterDownload({ ...comic, id, sourceRuntimeId: sources.get(id) }, 'chapter', id, trace)
+    const waitForPage = async key => {
+      const end = Date.now() + 2000
+      while (!activePages.has(key) && Date.now() < end) await new Promise(resolve => setTimeout(resolve, 1))
+      assert.ok(activePages.has(key), `Expected active transfer ${key}`)
+    }
+    const first = start('first')
+    await waitForPage('first:1')
+    activePages.get('first:1')()
+    await waitForPage('first:2')
+    assert.ok(activePages.has('first:0'), 'The next page starts before the slow page finishes')
+    const same = start('same-source')
+    const other = start('other-source')
+    await waitForPage('other-source:1')
+    assert.ok(!activePages.has('same-source:0'), 'A second chapter cannot claim extra slots from the same source')
+    activePages.get('first:2')()
+    await waitForPage('same-source:0')
+    releaseAll = true
+    for (const finish of activePages.values()) finish()
+    assert.deepEqual((await Promise.all([first, same, other])).map(result => result.status), Array(3).fill('downloaded'))
+    console.log('Page slots refill independently, shared by same-source chapters and isolated across sources')
+
+    const loosePages = store.loadManifest(comic.id, 'chapter').pages.map(page => page.localPath)
+    const conversion = await cbz.convertDownloadedChaptersToCbz(store, comic.id, ['chapter'])
+    assert.deepEqual(conversion, { converted: 0, failed: 1, insufficientSpace: 1 })
+    assert.equal(archiveWrites, 0, 'A space shortage must be caught before writing the ZIP')
+    assert.ok(loosePages.every(file => fs.existsSync(file)))
+    assert.equal(store.validateDownloadedChapter(comic.id, 'chapter').status, 'downloaded')
+    freeBytes = 10 * 1024 * 1024
+    const nativeFailure = await cbz.convertDownloadedChaptersToCbz(store, comic.id, ['chapter'])
+    assert.equal(nativeFailure.insufficientSpace, 1, 'Handle ENOSPC that arrives after the space check')
+    assert.equal(archiveWrites, 1)
+    assert.ok(loosePages.every(file => fs.existsSync(file)))
+
+    saveAsCbz = true
+    freeBytes = 0
+    const interrupted = await service.runChapterDownload({ ...comic, id: 'full-volume' }, 'chapter', 'full-volume', trace)
+    assert.equal(interrupted.status, 'partial')
+    assert.equal(interrupted.failureReasonCode, cbz.DOWNLOAD_CBZ_INSUFFICIENT_SPACE)
+    const storageAfterRestart = new offline.OfflineDownloadStore(dir)
+    assert.equal(storageAfterRestart.loadManifest('full-volume', 'chapter').pages.length, 4)
+    freeBytes = 10 * 1024 * 1024
+    nativeWriteFails = false
+    const retry = new OfflineDownloadService(storageAfterRestart, queue, { filesDir: dir })
+    retry.writePage = async () => assert.fail('Space recovery must reuse all completed pages')
+    const recovered = await retry.runChapterDownload({ ...comic, id: 'full-volume' }, 'chapter', 'full-volume', trace)
+    assert.equal(recovered.status, 'downloaded')
+    assert.equal(archiveWrites, 2)
+    assert.equal(new Set(recovered.pages.map(page => page.localPath)).size, 1)
+    assert.ok(fs.existsSync(recovered.pages[0].localPath))
+    console.log('Low space keeps old downloads readable, and a retry packages the saved pages without re-fetching')
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 }
 verifyDownloadResume().catch(error => { console.error(error); process.exitCode = 1 })

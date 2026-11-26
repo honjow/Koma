@@ -4,6 +4,7 @@
 #include <archive_entry.h>
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <fstream>
 #include <iomanip>
 #include <locale.h>
@@ -39,6 +40,7 @@ private:
 void Check(archive *handle, int status)
 {
     if (status < ARCHIVE_OK) {
+        if (archive_errno(handle) == ENOSPC) throw std::runtime_error("archive_insufficient_space");
         const char *message = archive_error_string(handle);
         throw std::runtime_error(message ? message : "ZIP operation failed");
     }
@@ -113,7 +115,9 @@ void WriteHeader(archive *writer, const std::string &name, uint64_t size)
 
 void WriteBlock(archive *writer, const void *data, size_t size)
 {
-    if (archive_write_data(writer, data, size) != static_cast<la_ssize_t>(size))
+    const auto written = archive_write_data(writer, data, size);
+    if (written < 0) Check(writer, static_cast<int>(written));
+    if (written != static_cast<la_ssize_t>(size))
         throw std::runtime_error("Cannot write ZIP entry");
 }
 }

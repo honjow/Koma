@@ -37,13 +37,16 @@ async function main() {
       },
       async convertDownloadedChaptersToCbz(_store, comicId, chapters, onChapterHandled, migration) {
         if (comicId === 'legacy') assert.equal(migration.convertLoose, false)
-        const result = { converted: 0, failed: 0 }
+        const result = { converted: 0, failed: 0, insufficientSpace: 0 }
         for (const [index, chapterId] of chapters.entries()) {
           assert.equal(finishChapter, undefined, 'Only one chapter may be written at a time')
           seen.push([comicId, chapterId])
           const success = await new Promise(resolve => { finishChapter = resolve })
           if (success) result.converted++
-          else result.failed++
+          else {
+            result.failed++
+            if (comicId === 'legacy') result.insufficientSpace++
+          }
           onChapterHandled(index + 1, result)
         }
         return result
@@ -92,6 +95,7 @@ async function main() {
   assert.equal(initialUpgrade.status.migrating, true)
   await finish(false)
   assert.equal(initialUpgrade.status.failed, 1)
+  assert.equal(initialUpgrade.status.insufficientSpace, 1)
   assert.equal(migrationFiles.size, 0, 'A failed upgrade must be retried after restart')
   const recoveredUpgrade = new exports.DownloadCbzConversionQueue()
   await recoveredUpgrade.startUpgradeMigration(context, () => true)

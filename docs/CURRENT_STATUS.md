@@ -3133,10 +3133,11 @@
       "reportedAt": null,
       "reportedAtSource": "本会话用户反馈下载操作不直观、下载长按钮外观变形，以及无缓存详情首次进入停留在源详情加载。精确消息时刻未核实。",
       "firstEvidenceAt": "2026-11-08T03:07:55.825+08:00",
+      "updatedAt": "2026-11-27T00:51:42+08:00",
       "status": "197 单章已验，跨书与 Wi-Fi 队列逻辑已执行核对",
       "stage": "跨书批量、仅 Wi-Fi 和后台继续待核",
-      "result": "下载统一进入持久队列；下载范围、取消、重试、删除与本机已下载分清。原长按钮外层绑定菜单导致宽度失效，已恢复原生按钮锚点。197 蔚蓝档案单章实际下载为 1/1，旧下载 Chibi Son Bra did her best! 从下载管理打开第 2/8 页。详情加载回归及其证据见 #002。",
-      "remaining": "跨书确认及双书实际传输、非 Wi-Fi 等待和系统后台续跑仍待真机；生产队列双书同章 ID 隔离、去重和 Wi-Fi 准入恢复已经用模拟系统接口执行验证。",
+      "result": "下载统一进入持久队列；下载范围、取消、重试、删除与本机已下载分清。原长按钮外层绑定菜单导致宽度失效，已恢复原生按钮锚点。197 蔚蓝档案单章实际下载为 1/1，旧下载 Chibi Son Bra did her best! 从下载管理打开第 2/8 页。详情加载回归及其证据见 #002。图片下载空出名额立即补位，同一书源的章节共享请求上限；封包前检查目标卷空间。197 在只执行两章测试任务的隔离候选上从详情批量下载同源两章，98 页和 114 页均完成，系统文件管理器看到两个同层 CBZ，从下载管理打开其中一章看到正文。",
+      "remaining": "跨书确认及双书实际传输、非 Wi-Fi 等待和系统后台续跑仍待真机；生产队列双书同章 ID 隔离、去重和 Wi-Fi 准入恢复已经用模拟系统接口执行验证。图片即时补位与同源请求上限由本地受控慢页验证；空间不足提示和保留断点、释放空间后重试由本地夹具验证。",
       "relatedItems": [
         "DETAIL_CHAPTER_LIST_ACTIONS",
         "MANGA_DETAIL_LOADING_LAYOUT_SHIFT",
@@ -3144,6 +3145,9 @@
         "SOURCE_GUAZI_EMPTY_CHAPTERS"
       ],
       "evidence": [
+        ".hvigor/outputs/download-source-slots-20261127/checks.log",
+        ".hvigor/outputs/download-source-slots-20261127/device197__ALN-AL80/not-applicable/portrait-1260x2720/acceptance/scope-check-system-files/work-files.json",
+        ".hvigor/outputs/download-source-slots-20261127/device197__ALN-AL80/not-applicable/portrait-1260x2720/acceptance/scope-open-packaged-test-chapter/reader.png",
         ".hvigor/outputs/download-flow-20261108/multiple-books-wifi-logic.log",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T030755516071/run-metadata.json",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T032847904686/screen.png",

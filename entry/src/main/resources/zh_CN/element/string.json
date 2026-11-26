@@ -22,6 +22,7 @@
     {"name": "downloads_convert_cbz_done", "value": "章节已保存为 CBZ"},
     {"name": "downloads_convert_cbz_failed", "value": "章节转换未完成"},
     {"name": "downloads_publish_failed", "value": "章节保存未完成"},
+    {"name": "downloads_cbz_insufficient_space", "value": "存储空间不足，请释放空间后重试。"},
     {"name": "appearance_detail_transition", "value": "详情页转场"},
     {"name": "appearance_detail_transition_hint", "value": "选择列表进入详情页时的转场效果"},
     {"name": "appearance_detail_transition_system", "value": "系统默认"},

@@ -3,7 +3,8 @@ import { AppStorageV2 } from '@kit.ArkUI'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from '../model/KomaContentStorage'
-import { convertDownloadedChaptersToCbz, DownloadCbzMigrationOptions, listFlatCbzMigrationWork } from '../model/OfflineDownloadCbz'
+import { convertDownloadedChaptersToCbz, DownloadCbzConversionResult, DownloadCbzMigrationOptions,
+  listFlatCbzMigrationWork } from '../model/OfflineDownloadCbz'
 import { createOfflineDownloadStableHash, OfflineDownloadStore } from '../model/OfflineDownloadStore'
 import { loadDownloadSaveAsCbz } from '../model/DownloadFormatPreferences'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
@@ -26,6 +27,7 @@ export interface DownloadCbzQueueStatus {
   waiting: number
   converted: number
   failed: number
+  insufficientSpace: number
   migrating: boolean
 }
 
@@ -40,6 +42,7 @@ export class DownloadCbzConversionQueue {
   private processed: number = 0
   private converted: number = 0
   private failed: number = 0
+  private insufficientSpace: number = 0
   private checkedRoots: Set<string> = new Set<string>()
 
   private chapterKey(context: common.UIAbilityContext, comicId: string, chapterId: string): string {
@@ -69,6 +72,7 @@ export class DownloadCbzConversionQueue {
     if (this.active === undefined) {
       this.converted = 0
       this.failed = 0
+      this.insufficientSpace = 0
       void this.drain()
     } else {
       this.publish()
@@ -129,6 +133,7 @@ export class DownloadCbzConversionQueue {
       waiting: this.waiting.reduce((count: number, job: DownloadCbzJob): number => count + job.chapterIds.length, 0),
       converted: this.converted,
       failed: this.failed,
+      insufficientSpace: this.insufficientSpace,
       migrating: this.active?.migration !== undefined,
     }
   }
@@ -143,9 +148,11 @@ export class DownloadCbzConversionQueue {
       try {
         const storage = await ensureKomaContentStorageBase(job.context)
         const store = new OfflineDownloadStore(storage, komaRuntimeStorageKey(job.context))
+        const previousSpaceFailures = this.insufficientSpace
         const result = await convertDownloadedChaptersToCbz(store, job.comicId, job.chapterIds,
-          (processed: number): void => {
+          (processed: number, progress: DownloadCbzConversionResult): void => {
             this.processed = processed
+            this.insufficientSpace = previousSpaceFailures + progress.insufficientSpace
             this.publish()
           }, job.migration)
         this.converted += result.converted

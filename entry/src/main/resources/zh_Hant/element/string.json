@@ -22,6 +22,7 @@
     {"name": "downloads_convert_cbz_done", "value": "章節已儲存為 CBZ"},
     {"name": "downloads_convert_cbz_failed", "value": "章節轉換未完成"},
     {"name": "downloads_publish_failed", "value": "章節儲存未完成"},
+    {"name": "downloads_cbz_insufficient_space", "value": "儲存空間不足，請釋放空間後重試。"},
     {"name": "appearance_detail_transition", "value": "詳情頁轉場"},
     {"name": "appearance_detail_transition_hint", "value": "選擇從列表進入詳情頁時的轉場效果"},
     {"name": "appearance_detail_transition_system", "value": "系統預設"},

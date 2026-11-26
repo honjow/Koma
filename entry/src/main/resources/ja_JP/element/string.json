@@ -22,6 +22,7 @@
     {"name": "downloads_convert_cbz_done", "value": "章を CBZ で保存しました"},
     {"name": "downloads_convert_cbz_failed", "value": "章の変換を完了できませんでした"},
     {"name": "downloads_publish_failed", "value": "章の保存を完了できませんでした"},
+    {"name": "downloads_cbz_insufficient_space", "value": "ストレージの空き容量が不足しています。空き容量を確保して再試行してください。"},
     {"name": "appearance_detail_transition", "value": "詳細トランジション"},
     {"name": "appearance_detail_transition_hint", "value": "一覧から詳細への遷移効果を選択します"},
     {"name": "appearance_detail_transition_system", "value": "システム標準"},
