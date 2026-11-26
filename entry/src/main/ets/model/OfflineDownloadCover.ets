@@ -1,3 +1,4 @@
+import { parseComicZipPage } from '../import/ComicZipPage'
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -118,10 +119,14 @@ export async function resolveDownloadCover(context: common.UIAbilityContext, com
     hiTraceMeter.startTrace('KomaOfflineSavedCover', 0)
     hiTraceMeter.finishTrace('KomaOfflineSavedCover', 0)
   }
+  if (parseComicZipPage(location.path) !== undefined) {
+    return resolveCachedCoverImage(context, { uri: location.path, identity: location.path })
+  }
   if (location.path.length > 0 || offline) return location.path
   const saved = await persistDownloadCover(context, location.workDir, request)
   if (saved.length > 0) return saved
   const fallback = await taskpool.execute(findDownloadCover, storage, context.filesDir, comicId,
     true) as DownloadCoverLocation
-  return fallback.path
+  return parseComicZipPage(fallback.path) === undefined ? fallback.path :
+    resolveCachedCoverImage(context, { uri: fallback.path, identity: fallback.path })
 }

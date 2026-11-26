@@ -1,7 +1,7 @@
 import { SourceTextOverlay } from '../model/SourceTextOverlay'
 import { cloneReaderSessionConfig, ReaderSessionConfig } from '../model/ReaderSessionStore'
 import {
-  OfflineDownloadedChapterStatus, OfflineDownloadedPage, OfflineDownloadManifestValidation,
+  OfflineDownloadedChapterStatus, OfflineDownloadedPage, OfflineDownloadManifestValidation, downloadedPageReference,
 } from '../model/OfflineDownloadStore'
 import { createReaderOfflineMissingUri } from '../model/ReaderPageSourceAdapter'
 
@@ -41,7 +41,7 @@ export function createKomaReaderLabOfflineConfig(
     pageIds.push(page?.pageId ?? `page-${index + 1}`)
     // Structural validation owns identity, safe paths and file checks. A corrupt
     // manifest keeps its page count but must never supply a readable local path.
-    const localPath = hasReaderReadyPages ? (page?.localPath ?? '') : ''
+    const localPath = hasReaderReadyPages && page !== undefined ? downloadedPageReference(page) : ''
     pageUris.push(localPath.length > 0
       ? localPath
       : createReaderOfflineMissingUri(baseConfig.comicId, baseConfig.chapterId, index))

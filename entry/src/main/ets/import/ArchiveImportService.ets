@@ -1,3 +1,4 @@
+import { comicZipPageUri } from './ComicZipPage'
 import { util } from '@kit.ArkTS'
 import {
   Chapter,
@@ -31,6 +32,7 @@ export interface ArchiveImportRequest {
   importedAt?: number
   readingDirection?: ReadingDirection
   extractionDir?: string
+  zipPageArchive?: string
 }
 
 export interface ArchiveImportResult {
@@ -93,7 +95,7 @@ function createPageUri(archivePath: string, entryPath: string, extractionDir: st
   return createArchiveEntryUri(archivePath, entryPath)
 }
 
-function toPage(candidate: ArchiveEntryCandidate, comicId: string, chapterId: string, archivePath: string, extractionDir: string | undefined, index: number): Page {
+function toPage(candidate: ArchiveEntryCandidate, comicId: string, chapterId: string, archivePath: string, extractionDir: string | undefined, index: number, zipPageArchive?: string): Page {
   const fileName = getBaseName(candidate.path)
   return {
     id: `${chapterId}-page-${index + 1}`,
@@ -101,7 +103,8 @@ function toPage(candidate: ArchiveEntryCandidate, comicId: string, chapterId: st
     chapterId,
     index,
     fileName,
-    uri: createPageUri(archivePath, candidate.path, extractionDir),
+    uri: zipPageArchive === undefined ? createPageUri(archivePath, candidate.path, extractionDir) :
+      comicZipPageUri(zipPageArchive, candidate.path),
     sortKey: normalizeSortKey(candidate.path),
     width: candidate.width,
     height: candidate.height,
@@ -130,7 +133,7 @@ export class ArchiveImportService {
     const chapterId = `${comicId}-chapter-1`
     const pages: Page[] = sortedImagePaths.map((path: string, index: number) => {
       const candidate = entryByPath.get(path) as ArchiveEntryCandidate
-      return toPage(candidate, comicId, chapterId, request.archivePath, request.extractionDir, index)
+      return toPage(candidate, comicId, chapterId, request.archivePath, request.extractionDir, index, request.zipPageArchive)
     })
 
     const chapter: Chapter = {

@@ -243,6 +243,7 @@ async function verifyRoundTrip() {
   })
   ports['./MigratedPreferenceRecords'] = evaluate(read('model/MigratedPreferenceRecords.ets'), ports)
   ports['./LibraryGridPreferences'] = evaluate(read('model/LibraryGridPreferences.ets'), ports)
+  ports['./DownloadFormatPreferences'] = evaluate(read('model/DownloadFormatPreferences.ets'), ports)
   const backup = evaluate(read(applicationSettingsModule) + '\nexport { PORTABLE_FIELDS }', ports)
   const count = checkInventory(backup.PORTABLE_FIELDS)
   const valuesForStore = {}
@@ -254,6 +255,8 @@ async function verifyRoundTrip() {
     'navigation.backGuardEnabled': false,
     'appearance.detailTransitionMode': 'coverExpand',
     'download.notifications.enabled': true,
+    'download.saveAsCbz': false,
+    'download.pageConcurrency': 4,
     'download.notifications.sound': 'vibrate',
     'library.gridColumnWidth': 146,
     'library.gridSpacing': 'comfortable',
@@ -350,6 +353,8 @@ async function verifyRoundTrip() {
     { name: 'koma_manga_migration_v1', values: { 'migration.selectedSources': '[1]' }, clearedKeys: [] },
     { name: 'koma_search_history_v1', values: { 'search.results.only': true }, clearedKeys: [] },
     { name: 'koma_download_notifications_v1', values: { 'download.notifications.sound': 'unknown' }, clearedKeys: [] },
+    { name: 'koma_download_format_v1', values: { 'download.saveAsCbz': 'false' }, clearedKeys: [] },
+    { name: 'koma_download_format_v1', values: { 'download.pageConcurrency': 6 }, clearedKeys: [] },
     { name: 'koma_appearance_preferences_v1', values: { 'appearance.detailTransitionMode': 'unknown' }, clearedKeys: [] },
   ]) {
     const countBefore = mutations

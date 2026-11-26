@@ -17,6 +17,9 @@
     "model/AppearancePreferencesStore.ets": [
       "koma_appearance_preferences_v1"
     ],
+    "model/DownloadFormatPreferences.ets": [
+      "koma_download_format_v1"
+    ],
     "model/DownloadNotificationPreferences.ets": [
       "koma_download_notifications_v1"
     ],

@@ -1,3 +1,4 @@
+import { isComicZip } from './ComicZipPage'
 import { util } from '@kit.ArkTS'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { common } from '@kit.AbilityKit'
@@ -430,7 +431,8 @@ export class LocalImportCoordinator {
 
   async preparePickedArchive(request: LocalArchiveImportRequest): Promise<LocalArchiveImportSelection> {
     assertSupportedPickedArchive(request.sourceUri)
-    const storageBase = request.storageBase ?? request.context.filesDir
+    const storageBase = isComicZip(request.sourceUri) ? request.context.filesDir :
+      (request.storageBase ?? request.context.filesDir)
     const paths = createManagedImportPaths(storageBase, request.sourceUri)
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_CACHE_PATHS,
@@ -497,6 +499,7 @@ export class LocalImportCoordinator {
           pageCount: extractionResult.importResult.comic.pageCount,
         })
       } catch (error) {
+        await fs.rmdir(selection.cacheRootDir).catch((): void => {})
         this.reportDebugEvent({
           step: LOCAL_ARCHIVE_DEBUG_STEP_EXTRACTION_FAILED,
           sourceUri: selection.sourceUri,
@@ -546,7 +549,8 @@ export class LocalImportCoordinator {
       step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_STARTED,
     })
     const uris = await pickArchiveUris(context, maxSelectNumber)
-    const storageBase = await ensureKomaContentStorageBase(context)
+    const storageBase = uris.some((uri: string): boolean => !isComicZip(uri)) ?
+      await ensureKomaContentStorageBase(context) : context.filesDir
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_RETURNED,
       uriCount: uris.length,

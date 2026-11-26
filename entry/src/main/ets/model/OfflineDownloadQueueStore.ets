@@ -63,6 +63,9 @@ export const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
   'comic_missing',
   'chapter_missing',
   'page_fetch_failed',
+  'archive_unreadable',
+  'download_pending_publish',
+  'download_publish_failed',
   'cancel_cleanup_failed',
 ]
 

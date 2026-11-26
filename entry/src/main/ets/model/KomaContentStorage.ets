@@ -9,9 +9,12 @@ import {
   OFFLINE_DOWNLOAD_MANIFEST_NAME,
   OFFLINE_DOWNLOAD_LEGACY_MANIFEST_NAME,
   OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
+  copyOfflineDownloadedPage,
   createOfflineDownloadStableHash,
+  downloadStagingDirectory,
 } from './OfflineDownloadStore'
 import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
+import { flatDownloadManifestPath, indexedDownloadChapterNames } from './DownloadDirectoryIndex'
 import { hasPreparedOfflineDownloadLayout, invalidatePreparedOfflineDownloadLayout } from './DownloadLayoutMigration'
 import { prepareOfflineDownloadLayout } from './OfflineDownloadImageMigrationWorker'
 import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -250,7 +253,7 @@ function copyLegacyDownloadTree(legacyBase: string, publicBase: string): LegacyC
       } catch (_error) {}
     }
   }
-  const copyChapter = (sourceChapterDir: string, targetDownloadsDir: string,
+  const copyChapter = (sourceChapterDir: string, sourceArchiveDir: string, targetDownloadsDir: string,
     manifest: OfflineChapterDownloadManifest, tempSuffix: string): number => {
     if (!Array.isArray(manifest.pages) || manifest.comicId.length === 0 || manifest.chapterId.length === 0) {
       throw new Error('content_storage_manifest_invalid')
@@ -265,8 +268,31 @@ function copyLegacyDownloadTree(legacyBase: string, publicBase: string): LegacyC
     ensureDir(tempDir)
     let copiedPages = 0
     try {
+      const copiedArchives = new Set<string>()
+      const staged = downloadStagingDirectory(legacyBase, manifest.comicId, manifest.chapterId)
       const migratedPages: OfflineDownloadedPage[] = manifest.pages.map((page: OfflineDownloadedPage): OfflineDownloadedPage => {
         const sourcePath = normalize(page.localPath)
+        if (page.archiveEntry !== undefined) {
+          const packageName = sourcePath.split('/').pop() ?? ''
+          const sourceArchive = join(sourceArchiveDir, packageName)
+          if (!/\.cbz$/i.test(packageName) || !fs.accessSync(sourceArchive)) {
+            throw new Error('content_storage_archive_missing')
+          }
+          if (!copiedArchives.has(packageName)) {
+            const targetArchive = join(tempDir, packageName)
+            fs.copyFileSync(sourceArchive, targetArchive, 0)
+            if (fs.statSync(sourceArchive).size !== fs.statSync(targetArchive).size) {
+              throw new Error('content_storage_archive_copy_mismatch')
+            }
+            copiedArchives.add(packageName)
+          }
+          copiedPages += 1
+          const copiedPage = copyOfflineDownloadedPage(page)
+          copiedPage.localPath = join(targetChapterDir, packageName)
+          return copiedPage
+        }
+        const stagedFile = sourcePath.split('/').pop() ?? ''
+        if (sourcePath === join(staged, stagedFile) && /^\d+\.[a-z0-9]+$/.test(stagedFile)) return page
         const fileName = normalize(page.fileName ?? sourcePath.split('/').pop() ?? '')
         if (fileName.length === 0 || fileName.includes('/') || fileName === '..') {
           throw new Error('content_storage_page_name_invalid')
@@ -335,14 +361,14 @@ function copyLegacyDownloadTree(legacyBase: string, publicBase: string): LegacyC
     if (owners[ownerIndex].startsWith('.')) continue
     const ownerPath = join(sourceDownloadsDir, owners[ownerIndex])
     if (!fs.statSync(ownerPath).isDirectory()) continue
-    const chapters = fs.listFileSync(ownerPath)
+    const chapters = indexedDownloadChapterNames(ownerPath)
     for (let chapterIndex = 0; chapterIndex < chapters.length; chapterIndex += 1) {
       if (chapters[chapterIndex].startsWith('.')) continue
       const chapterPath = join(ownerPath, chapters[chapterIndex])
-      if (!fs.statSync(chapterPath).isDirectory()) continue
-      const candidates = [join(chapterPath, OFFLINE_DOWNLOAD_LEGACY_MANIFEST_NAME),
+      const flatManifest = flatDownloadManifestPath(chapterPath)
+      const candidates = [flatManifest, join(join(chapterPath, '.koma'), OFFLINE_DOWNLOAD_MANIFEST_NAME),
         join(join(chapterPath, '.koma'), OFFLINE_DOWNLOAD_LEGACY_MANIFEST_NAME),
-        join(join(chapterPath, '.koma'), OFFLINE_DOWNLOAD_MANIFEST_NAME)]
+        join(chapterPath, OFFLINE_DOWNLOAD_LEGACY_MANIFEST_NAME)]
       const manifestPath = candidates.find((candidate: string): boolean => fs.accessSync(candidate))
       if (manifestPath === undefined) {
         summary.failedChapters += 1
@@ -350,7 +376,8 @@ function copyLegacyDownloadTree(legacyBase: string, publicBase: string): LegacyC
       }
       try {
         const manifest = JSON.parse(fs.readTextSync(manifestPath, { encoding: 'utf-8' })) as OfflineChapterDownloadManifest
-        const copied = copyChapter(chapterPath, targetDownloadsDir, manifest,
+        const copied = copyChapter(chapterPath, manifestPath === flatManifest ? ownerPath : chapterPath,
+          targetDownloadsDir, manifest,
           `${Date.now()}-${ownerIndex}-${chapterIndex}`)
         summary.copiedChapters += 1
         summary.copiedPages += copied

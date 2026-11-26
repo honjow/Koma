@@ -1,3 +1,5 @@
+import { DOWNLOAD_PAGE_CONCURRENCY_OPTIONS, loadDownloadPageConcurrency, loadDownloadSaveAsCbz,
+  saveDownloadPageConcurrency, saveDownloadSaveAsCbz } from '../model/DownloadFormatPreferences'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { appHuaweiCloudSync } from '../deviceSync/HuaweiCloudSync'
 import { connectIncognitoState, IncognitoState } from '../state/IncognitoState'
@@ -346,7 +348,10 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'download-system-notification-settings', titleKey: 'settings_download_system_notification_title',
           detailKey: 'settings_download_system_notification_detail' },
         { key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title', detailKey: 'settings_row_download_concurrency_detail' },
+        { key: 'download-page-concurrency', titleKey: 'settings_download_page_concurrency_title',
+          detailKey: 'settings_download_page_concurrency_detail' },
         { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail' },
+        { key: 'download-save-as-cbz', titleKey: 'settings_row_download_cbz_title', detailKey: 'settings_row_download_cbz_detail' },
         { key: 'tracker-auto-sync', titleKey: 'settings_row_tracker_auto_sync_title', detailKey: 'settings_row_tracker_auto_sync_detail' },
         { key: 'tracker-update-strategy', titleKey: 'settings_row_tracker_update_strategy_title', detailKey: 'settings_row_tracker_update_strategy_detail' },
         { key: 'backup-create', titleKey: 'backup_task_create', detailKey: 'backup_task_create_hint' },
@@ -649,8 +654,12 @@ export struct SettingsPage {
   @Local private localLibraryRefreshSummary?: LocalLibraryRefreshSummary = undefined
   @Local private settingsSearchText: string = ''
   @Local private downloadForegroundConcurrencyLimit: number = 1
+  @Local private downloadPageConcurrency: number = 1
+  private downloadPageConcurrencyEpoch: number = 0
   @Local private downloadWifiOnly: boolean = false
   @Local private downloadNotificationStatus: OfflineDownloadNotificationStatus = 'unavailable'
+  @Local private downloadSaveAsCbz: boolean = true
+  private downloadCbzSettingEpoch: number = 0
   @Local private downloadNotificationsEnabled: boolean = true
   private downloadNotificationRefreshEpoch: number = 0
   private libraryFilterMutationRevision: number = 0
@@ -824,6 +833,9 @@ export struct SettingsPage {
     }
     if (row.key === 'download-concurrency') {
       return `${this.downloadForegroundConcurrencyLimit}`
+    }
+    if (row.key === 'download-page-concurrency') {
+      return `${this.downloadPageConcurrency}`
     }
     if (row.key === 'download-wifi-only') {
       return this.downloadWifiOnly ? this.t('common_on') : this.t('common_off')
@@ -1002,7 +1014,9 @@ export struct SettingsPage {
             'download-notifications',
             'download-system-notification-settings',
             'download-concurrency',
+            'download-page-concurrency',
             'download-wifi-only',
+            'download-save-as-cbz',
           ]),
         },
         { key: 'automatic-downloads', titleKey: 'automation_download_group', rows: this.rowsByKeys([
@@ -1350,6 +1364,18 @@ export struct SettingsPage {
   }
 
   private loadDownloadQueuePreferences(): void {
+    const pageEpoch = this.downloadPageConcurrencyEpoch
+    void loadDownloadPageConcurrency(this.context()).then((limit: number): void => {
+      if (pageEpoch === this.downloadPageConcurrencyEpoch) this.downloadPageConcurrency = limit
+    }).catch((error: Error): void => {
+      DiagnosticLogger.exception('downloads', 'download_page_concurrency_load_failed', error)
+    })
+    const epoch = this.downloadCbzSettingEpoch
+    void loadDownloadSaveAsCbz(this.context()).then((enabled: boolean): void => {
+      if (epoch === this.downloadCbzSettingEpoch) this.downloadSaveAsCbz = enabled
+    }).catch((error: Error): void => {
+      DiagnosticLogger.exception('downloads', 'download_format_preferences_load_failed', error)
+    })
     try {
       const preferences = this.offlineDownloadQueueStore().loadPreferences()
       this.downloadForegroundConcurrencyLimit = preferences.foregroundConcurrencyLimit
@@ -2048,6 +2074,20 @@ export struct SettingsPage {
     }
   }
 
+  private async setDownloadPageConcurrency(limit: number): Promise<void> {
+    const epoch = ++this.downloadPageConcurrencyEpoch
+    try {
+      await saveDownloadPageConcurrency(this.context(), limit)
+      if (epoch === this.downloadPageConcurrencyEpoch) this.downloadPageConcurrency = limit
+    } catch (error) {
+      DiagnosticLogger.exception('downloads', 'download_page_concurrency_save_failed', error as Error)
+      if (epoch === this.downloadPageConcurrencyEpoch) {
+        this.loadDownloadQueuePreferences()
+        this.showToast(s('settings_download_concurrency_save_failed'))
+      }
+    }
+  }
+
   private async saveDownloadWifiOnly(wifiOnly: boolean): Promise<void> {
     try {
       const context = this.context()
@@ -2059,6 +2099,17 @@ export struct SettingsPage {
       DiagnosticLogger.warn('settings_page', 'save_download_wifi_only_failed', '[Settings] step=save_download_wifi_only_failed code=' + safeSettingsErrorCode(error as Error))
       this.showToast(s('settings_download_wifi_only_save_failed'))
     }
+  }
+
+  private setDownloadSaveAsCbz(enabled: boolean): void {
+    const epoch = ++this.downloadCbzSettingEpoch
+    this.downloadSaveAsCbz = enabled
+    void saveDownloadSaveAsCbz(this.context(), enabled).catch((error: Error): void => {
+      DiagnosticLogger.exception('downloads', 'download_format_preferences_save_failed', error)
+      if (epoch !== this.downloadCbzSettingEpoch) return
+      this.loadDownloadQueuePreferences()
+      this.showToast(s('settings_download_cbz_save_failed'))
+    })
   }
 
   private setDownloadNotifications(enabled: boolean): void {
@@ -2375,6 +2426,7 @@ export struct SettingsPage {
       row.key === 'reader-page-gap' ||
       row.key === 'reader-wide-image-mode' ||
       row.key === 'download-concurrency' ||
+      row.key === 'download-page-concurrency' ||
       row.key === 'cache-limit' ||
       row.key === 'library-view-mode' ||
       row.key === 'list-density' ||
@@ -2389,7 +2441,7 @@ export struct SettingsPage {
       row.key === 'library-background-update' || row.key === 'library-auto-update' ||
       row.key === 'library-badges' || row.key === 'library-continue-reading-card' ||
       row.key === 'cache-auto-clean' ||
-      row.key === 'download-wifi-only' ||
+      row.key === 'download-wifi-only' || row.key === 'download-save-as-cbz' ||
       row.key === 'download-notifications' ||
       row.key === 'tracker-auto-sync' ||
       row.key === 'reader-show-page-number' ||
@@ -2439,6 +2491,7 @@ export struct SettingsPage {
     if (row.key === 'download-wifi-only') {
       return this.downloadWifiOnly
     }
+    if (row.key === 'download-save-as-cbz') return this.downloadSaveAsCbz
     if (row.key === 'download-notifications') return this.downloadNotificationsEnabled
     if (row.key === 'tracker-auto-sync') {
       return this.trackerAutoSyncEnabled
@@ -2529,6 +2582,8 @@ export struct SettingsPage {
       })
     } else if (row.key === 'download-notifications') {
       this.setDownloadNotifications(value)
+    } else if (row.key === 'download-save-as-cbz') {
+      this.setDownloadSaveAsCbz(value)
     } else if (row.key === 'download-wifi-only') {
       this.saveDownloadWifiOnly(value)
     } else if (row.key === 'tracker-auto-sync') {
@@ -2705,6 +2760,12 @@ export struct SettingsPage {
         ForEach(OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS, (limit: number) => {
           this.SelectionMenuItem(select, `${limit}`, this.downloadForegroundConcurrencyLimit === limit, () => {
             this.saveDownloadForegroundConcurrencyLimit(limit)
+          })
+        }, (limit: number) => `${limit}`)
+      } else if (row.key === 'download-page-concurrency') {
+        ForEach(DOWNLOAD_PAGE_CONCURRENCY_OPTIONS, (limit: number) => {
+          this.SelectionMenuItem(select, `${limit}`, this.downloadPageConcurrency === limit, () => {
+            void this.setDownloadPageConcurrency(limit)
           })
         }, (limit: number) => `${limit}`)
       } else if (row.key === 'cache-limit') {

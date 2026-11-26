@@ -38,6 +38,7 @@ import { komaDialogMaterial, komaMenuOptions, komaSheetOptions, komaToastOptions
 import { firstReaderChapter, readerChapterPickerChapters } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
+import { connectDownloadCbzConversionQueue } from '../state/DownloadCbzConversionQueue'
 import { AutomaticDownloadController } from '../model/AutomaticDownloadController'
 import { ReadDownloadCleanup } from '../model/ReadDownloadCleanup'
 import {
@@ -4111,6 +4112,10 @@ struct Index {
     this.afterStartupFrame((): void => {
       this.continuationReadyForRestore = true
       this.tryStartPendingContinuationTask()
+      if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+        void connectDownloadCbzConversionQueue().startUpgradeMigration(context,
+          (): boolean => !this.readerOpen && !this.readerSessionLoading)
+      }
       void sourcePackagesReady.then((ready: boolean): void => {
         if (ready) appSourcePackageManagerCache.revalidateInBackground(context)
       })

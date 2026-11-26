@@ -1,3 +1,4 @@
+import { comicZipPageFilename, parseComicZipPage, readComicZipPage } from '../import/ComicZipPage'
 import { sourceDnsTarget, sourceImageFallbackUrl } from '../sourceRuntime/SourceWebsitePolicy'
 import { image } from '@kit.ImageKit'
 import { SourceRequiredImageDecode, sourceRequiredImageDecode, SourceRequiredImageDecodeService,
@@ -48,6 +49,7 @@ import {
 import {
   OfflineDownloadedChapterStatus,
   OfflineDownloadStore,
+  downloadedPageReference,
 } from './OfflineDownloadStore'
 import {
   KavitaServerRecord,
@@ -1479,7 +1481,7 @@ interface OfflineReaderPage { path: string; hint?: ImageProcessingHint; processi
 function resolveOfflineReaderPages(config: ReaderSessionConfig): OfflineReaderPage[] {
   if (config.offlinePages !== undefined) {
     return config.offlinePages.map((page): OfflineReaderPage => ({
-      path: page?.localPath ?? '', hint: page?.imageProcessing,
+      path: page === undefined ? '' : downloadedPageReference(page), hint: page?.imageProcessing,
       processingResolved: page?.imageProcessingResolved, processingFingerprint: page?.imageProcessingFingerprint,
       requiredImageDecodeResolved: page?.requiredImageDecodeResolved,
     }))
@@ -1508,7 +1510,7 @@ function resolveOfflineReaderPages(config: ReaderSessionConfig): OfflineReaderPa
     for (let index = 0; index < validation.manifest.pages.length; index += 1) {
       const page = validation.manifest.pages[index]
       if (page.pageIndex >= 0 && page.pageIndex < count && fs.accessSync(page.localPath)) {
-        paths[page.pageIndex] = { path: page.localPath, hint: page.imageProcessing, processingResolved: page.imageProcessingResolved, processingFingerprint: page.imageProcessingFingerprint, requiredImageDecodeResolved: page.requiredImageDecodeResolved }
+        paths[page.pageIndex] = { path: downloadedPageReference(page), hint: page.imageProcessing, processingResolved: page.imageProcessingResolved, processingFingerprint: page.imageProcessingFingerprint, requiredImageDecodeResolved: page.requiredImageDecodeResolved }
       }
     }
   } catch (_err) {
@@ -1535,7 +1537,7 @@ function createReaderPageRenderSourceWithOfflinePath(
   if (offlinePath.length > 0) {
     return {
       kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
-      uri: `file://${offlinePath}`,
+      uri: parseComicZipPage(offlinePath) === undefined ? `file://${offlinePath}` : offlinePath,
       imageUri: offlinePath,
       pageId,
       // Downloaded pages retain their source identity for source-owned derived
@@ -1609,7 +1611,7 @@ export function createReaderPageRenderSource(
   let offlinePath = ''
   if (preferOffline || offlineOnly) {
     offlinePath = config.offlinePages === undefined ? resolveOfflineReaderPage(config, index)
-      : (config.offlinePages[index]?.localPath ?? '')
+      : (config.offlinePages[index] === undefined ? '' : downloadedPageReference(config.offlinePages[index]!))
   }
   const source = createReaderPageRenderSourceWithOfflinePath(config, index, offlinePath, offlineOnly)
   source.comicId = config.comicId
@@ -1745,7 +1747,15 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
       return rendered
     }
     if (source.sourceText !== undefined) return cacheSourceTextPageImage(source.sourceText, forceReload)
-    const prepared = await prepareSourcePagePresentation(source, source.imageUri, context, presentation, forceReload)
+    const zipPage = parseComicZipPage(source.uri)
+    let original = source.imageUri
+    if (zipPage !== undefined) {
+      if (readerImageCacheStore === null) throw new Error('reader_remote_image_cache_unconfigured')
+      original = await readerImageCacheStore.getOrFetch(comicZipPageFilename(zipPage), undefined,
+        () => readComicZipPage(zipPage), source.uri, forceReload)
+      await maintainReaderImageCacheAfterWrite(original)
+    }
+    const prepared = await prepareSourcePagePresentation(source, original, context, presentation, forceReload)
     // Local originals have the same size-publication contract as downloaded
     // HTTP cache entries. A manifest need not already contain dimensions.
     if (onSize !== undefined) void probeReaderImageFileSize(prepared, onSize)
@@ -1878,6 +1888,8 @@ async function fetchOfflineDownloadSource(source: ReaderPageRenderSource, source
 
 export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSource, context?: common.UIAbilityContext): Promise<ArrayBuffer> {
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE || source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
+    const zipPage = parseComicZipPage(source.uri)
+    if (zipPage !== undefined) return readComicZipPage(zipPage)
     // Downloads own the original bytes even when normal presentation has a
     // source-specific derivative. Text pages still use their existing renderer.
     const path = source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE

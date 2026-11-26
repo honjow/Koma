@@ -1,3 +1,4 @@
+import { comicZipPageFilename, parseComicZipPage, readComicZipPage } from '../import/ComicZipPage'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -326,6 +327,13 @@ export async function resolveCachedCoverImage(
   context: common.UIAbilityContext,
   request: CoverImageRequest,
 ): Promise<string> {
+  const page = parseComicZipPage(request.uri)
+  if (page !== undefined) {
+    const cache = cacheStoreFor(context)
+    const path = await cache.getOrFetch(comicZipPageFilename(page), undefined, () => readComicZipPage(page), request.uri)
+    void cache.evictIfOver(COVER_IMAGE_CACHE_MAX_BYTES)
+    return path
+  }
   const resolved = await resolveCoverRequest(context, request)
   if (!isRemoteHttpUri(resolved.url)) {
     return resolved.url

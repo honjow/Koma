@@ -29,7 +29,8 @@ const index = load('DownloadDirectoryIndex', { '@kit.CoreFileKit': { fileIo: io 
 const overlays = load('SourceTextOverlay')
 const models = load('ComicModels', { '../i18n/AppStrings': { AppStrings: { get: x => x } } })
 const storeModule = load('OfflineDownloadStore', { '@kit.CoreFileKit': { fileIo: io }, './SourceTextOverlay': overlays,
-  './AppFileTextPersistence': persistence, './DownloadDirectoryIndex': index, './ComicModels': models })
+  './AppFileTextPersistence': persistence, './DownloadDirectoryIndex': index, './ComicModels': models,
+  '../import/ComicZipPage': {}, '../import/NativeArchiveExtraction': {} })
 const format = load('DownloadImageFormat')
 assert.equal(format.downloadImageExtension(Buffer.from('000000186674797061766966000000006d696631', 'hex')), 'avif')
 assert.equal(format.downloadImageExtension(Buffer.from('00000014667479706d69663100000000', 'hex')), 'heif')
@@ -109,7 +110,7 @@ async function main() {
     '@kit.CoreFileKit': { fileIo: io },
     '@kit.ArkTS': { taskpool: { execute: () => { throw Error('unexpected migration worker') } } },
     './AppFileTextPersistence': persistence, '../diagnostics/DiagnosticLogger': { DiagnosticLogger: logger },
-    './OfflineDownloadStore': storeModule, './OfflineDownloadQueueStore': {},
+    './OfflineDownloadStore': storeModule, './OfflineDownloadQueueStore': {}, './DownloadDirectoryIndex': index,
     './DownloadLayoutMigration': layout, './OfflineDownloadImageMigrationWorker': worker,
     '../sourceRuntime/SourceRuntimeAppRegistry': {},
   })
@@ -120,6 +121,20 @@ async function main() {
   assert.equal(layout.hasPreparedOfflineDownloadLayout(storage + '/other', app), false)
   layout.invalidatePreparedOfflineDownloadLayout(app)
   assert.equal(layout.hasPreparedOfflineDownloadLayout(storage, app), false)
+  const flat = chapter('flat chapter')
+  const visible = store.chapterDir('book', flat.chapterId)
+  const packagePath = path.join(store.comicDir('book'), 'flat chapter.cbz')
+  for (const page of flat.pages) {
+    page.archiveEntry = path.basename(page.localPath)
+    page.localPath = packagePath
+  }
+  store.saveManifest(flat)
+  fs.rmSync(visible, { recursive: true })
+  const rebuilt = index.loadOrScanDownloadDirectoryIndex(path.join(storage, 'downloads'), path.join(tmp, 'index-copy'))
+  assert.equal(rebuilt.comics.book.chapters[flat.chapterId].directory, 'flat chapter')
+  const next = store.createManifest('book', 'another chapter', 1, 'queued', undefined,
+    { comicTitle: 'Test', chapterTitle: 'flat chapter' })
+  assert.equal(path.basename(store.chapterDir('book', next.chapterId)), 'flat chapter (2)')
   console.log('PASS: formats, recovery, collisions and cold startup without chapter or page reads')
 }
 main().finally(() => fs.rmSync(tmp, { recursive: true, force: true })).catch(error => {

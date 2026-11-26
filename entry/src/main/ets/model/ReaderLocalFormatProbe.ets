@@ -1,3 +1,6 @@
+import { parseComicZipPage, readComicZipPage } from '../import/ComicZipPage'
+import { nativeComicArchive } from '../import/NativeArchiveExtraction'
+import { readerImagePixelSize } from '@reader-kit/core'
 import { image } from '@kit.ImageKit'
 import { fileUri } from '@kit.CoreFileKit'
 import { taskpool } from '@kit.ArkTS'
@@ -11,10 +14,10 @@ import {
 const READER_LOCAL_FORMAT_PROBE_LIMIT: number = 6
 
 @Concurrent
-async function readReaderLocalPageSize(path: string): Promise<string> {
+async function readReaderLocalPageSize(path: string, bytes?: ArrayBuffer): Promise<string> {
   let source: image.ImageSource | undefined = undefined
   try {
-    source = image.createImageSource(path)
+    source = bytes === undefined ? image.createImageSource(path) : image.createImageSource(bytes)
     const info = await source.getImageInfo()
     return `${info.size.width},${info.size.height}`
   } finally {
@@ -55,22 +58,37 @@ export async function readerSessionFormatForOpen(config?: ReaderSessionConfig): 
     const width = widths[index] ?? 0
     const height = heights[index] ?? 0
     if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) continue
-    const path = localReaderPagePath(config.pageUris[index] ?? '')
-    if (path.length === 0) continue
-    pending.push(taskpool.execute<[string], string>(readReaderLocalPageSize, path)
-      .then((size: string): void => {
-        const values = size.split(',')
-        const measuredWidth = Number(values[0])
-        const measuredHeight = Number(values[1])
-        if (Number.isFinite(measuredWidth) && measuredWidth > 0 &&
-          Number.isFinite(measuredHeight) && measuredHeight > 0) {
-          widths[index] = measuredWidth
-          heights[index] = measuredHeight
+    const uri = config.pageUris[index] ?? ''
+    const zip = parseComicZipPage(uri)
+    const path = localReaderPagePath(uri)
+    if (zip === undefined && path.length === 0) continue
+    const record = (size: string): void => {
+      const values = size.split(',')
+      const measuredWidth = Number(values[0])
+      const measuredHeight = Number(values[1])
+      if (Number.isFinite(measuredWidth) && measuredWidth > 0 &&
+        Number.isFinite(measuredHeight) && measuredHeight > 0) {
+        widths[index] = measuredWidth
+        heights[index] = measuredHeight
+      }
+    }
+    if (zip !== undefined) {
+      // Bound the live buffers for large compressed webtoon pages.
+      try {
+        const header = await nativeComicArchive.readZipPrefix(zip.archive, zip.entry, 64 * 1024)
+        const size = readerImagePixelSize(new Uint8Array(header))
+        if (size !== undefined && size.width > 0 && size.height > 0) {
+          widths[index] = size.width
+          heights[index] = size.height
+        } else {
+          const bytes = await readComicZipPage(zip)
+          record(await taskpool.execute<[string, ArrayBuffer], string>(readReaderLocalPageSize, '', bytes))
         }
-      })
-      .catch((): void => {}))
+      } catch (_error) {}
+    } else {
+      pending.push(taskpool.execute<[string], string>(readReaderLocalPageSize, path).then(record).catch((): void => {}))
+    }
   }
-  if (pending.length === 0) return undefined
   await Promise.all(pending)
   const probe = cloneReaderSessionConfig(config)
   probe.pageWidths = widths

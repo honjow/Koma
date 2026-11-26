@@ -7,6 +7,7 @@ import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
+import { DOWNLOAD_PAGE_CONCURRENCY_KEY, DOWNLOAD_PAGE_CONCURRENCY_OPTIONS } from './DownloadFormatPreferences'
 import { ensureKomaContentStorageBase, komaRuntimeStorageKey } from './KomaContentStorage'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 import { restoreReaderRemoteImageCache } from './ReaderPageSourceAdapter'
@@ -43,6 +44,7 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
   'koma_source_browse_preferences_v1': ['sourceBrowse.hideInLibrary'],
   'koma_continuation_preferences_v1': ['continuation.enabled', 'continuation.autoInstallMissingSource'],
   // Keep accepting the alert style in older backups. The system now owns sound and vibration.
+  'koma_download_format_v1': ['download.saveAsCbz', DOWNLOAD_PAGE_CONCURRENCY_KEY],
   'koma_download_notifications_v1': ['download.notifications.enabled', 'download.notifications.sound'],
   'koma_appearance_preferences_v1': [
     'appearance.accentColor', 'appearance.accentColorFavorites', 'appearance.autoHideBottomBar', 'navigation.backGuardEnabled',
@@ -76,7 +78,12 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
 export const APPLICATION_SETTINGS_BACKUP_STORES: string[] = Object.keys(PORTABLE_FIELDS)
 
 function checkPortableValue(name: string, key: string, value: ApplicationSettingValue): void {
-  if (name === 'koma_source_browse_preferences_v1' || name === 'koma_continuation_preferences_v1') {
+  if (name === 'koma_download_format_v1' && key === DOWNLOAD_PAGE_CONCURRENCY_KEY) {
+    if (typeof value !== 'number' || !DOWNLOAD_PAGE_CONCURRENCY_OPTIONS.includes(value)) {
+      throw new Error('backup_application_settings_invalid')
+    }
+  } else if (name === 'koma_source_browse_preferences_v1' || name === 'koma_continuation_preferences_v1' ||
+    name === 'koma_download_format_v1') {
     if (typeof value !== 'boolean') throw new Error('backup_application_settings_invalid')
   } else if (migratedBackupPreference(name, key) !== undefined) {
     decodePreferenceRecordMap(value)

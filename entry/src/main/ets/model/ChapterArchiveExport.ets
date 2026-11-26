@@ -1,3 +1,5 @@
+import { comicZipPageUri } from '../import/ComicZipPage'
+import { nativeComicArchive } from '../import/NativeArchiveExtraction'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs, fileUri, picker } from '@kit.CoreFileKit'
 import { taskpool } from '@kit.ArkTS'
@@ -29,7 +31,7 @@ const CHAPTER_ARCHIVE_FORMAT: string = 'chapter_archive_unsupported_image'
 const CHAPTER_ARCHIVE_READ: string = 'chapter_archive_read_failed'
 const CHAPTER_ARCHIVE_TEMP: string = 'chapter_archive_temp_failed'
 const CHAPTER_ARCHIVE_PACK: string = 'chapter_archive_pack_failed'
-interface ArchivePage { path: string; name: string; pageId?: string; sourceId?: string; overlay?: SourceTextOverlay }
+interface ArchivePage { path: string; name: string; archiveEntry?: string; archiveRevision?: string; pageId?: string; sourceId?: string; overlay?: SourceTextOverlay }
 
 export function chapterArchiveFailureText(error: Error): string {
   const code = error.message ?? ''
@@ -73,9 +75,11 @@ export function chapterArchivePagesWorker(filesDir: string, appFilesDir: string,
   const pages: ArchivePage[] = validation.manifest.pages.slice()
     .sort((left, right): number => left.pageIndex - right.pageIndex)
     .map((page, index: number): ArchivePage => {
-      const name = `${String(index + 1).padStart(5, '0')}.${page.sourceTextOverlay === undefined ? imageSuffix(page.localPath) : 'jpg'}`
-      if (page.sourceTextOverlay === undefined) return { path: page.localPath, name }
-      return { path: page.localPath, name, pageId: page.pageId, sourceId: validation.manifest?.sourceId,
+      const suffix = page.sourceTextOverlay !== undefined ? 'jpg' : (page.archiveEntry === undefined ?
+        imageSuffix(page.localPath) : page.archiveEntry.substring(page.archiveEntry.lastIndexOf('.') + 1))
+      const name = `${String(index + 1).padStart(5, '0')}.${suffix}`
+      if (page.sourceTextOverlay === undefined) return { path: page.localPath, name, archiveEntry: page.archiveEntry }
+      return { path: page.localPath, name, archiveEntry: page.archiveEntry, archiveRevision: page.contentHash, pageId: page.pageId, sourceId: validation.manifest?.sourceId,
         overlay: page.sourceTextOverlay }
     })
   return JSON.stringify(pages)
@@ -147,7 +151,9 @@ async function prepareArchive(context: common.UIAbilityContext, comicId: string,
         // A CBZ cannot carry the local overlay descriptor. Export the Reader
         // presentation while retaining original download bytes and hash.
         const sourcePath = page.overlay === undefined ? page.path : await fetchAndCacheReaderRemoteSource({
-          kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE, uri: `file://${page.path}`, imageUri: page.path,
+          kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+          uri: page.archiveEntry === undefined ? `file://${page.path}` : comicZipPageUri(page.path, page.archiveEntry, page.archiveRevision),
+          imageUri: page.path,
           pageId: page.pageId, sourceRuntimeId: page.sourceId, sourceTextOverlay: page.overlay, skipBannerFilter: true,
         }, context)
         pageCount += 1
@@ -156,7 +162,12 @@ async function prepareArchive(context: common.UIAbilityContext, comicId: string,
         copied.push(`${staging}/${name}`)
         stage = CHAPTER_ARCHIVE_TEMP
         try {
-          await fs.copyFile(sourcePath, copied[copied.length - 1])
+          const target = copied[copied.length - 1]
+          if (page.archiveEntry !== undefined && page.overlay === undefined) {
+            await nativeComicArchive.copyZipEntry(page.path, page.archiveEntry, 128 * 1024 * 1024, target)
+          } else {
+            await fs.copyFile(sourcePath, target)
+          }
         } catch (error) {
           if (!fs.accessSync(sourcePath)) stage = CHAPTER_ARCHIVE_READ
           throw error as Error

@@ -1,10 +1,12 @@
 import { hash } from '@kit.CoreFileKit'
 import { util } from '@kit.ArkTS'
+import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { Comic, ComicSourceKind, Page, copyLocalImportOrigin } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService, upsertComicAndPersistLibraryStore } from '../model/LibraryPersistence'
 import { parsePdfPageUri } from './PdfPageService'
+import { parseComicZipPage, readComicZipPage } from './ComicZipPage'
 
 function sameSourceUris(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((uri: string, index: number): boolean => uri === right[index])
@@ -32,9 +34,26 @@ function localPagePath(page: Page): string {
   return decodeURIComponent(page.uri.substring('file://'.length))
 }
 
+async function localImportPageHash(page: Page): Promise<string> {
+  const zip = parseComicZipPage(page.uri)
+  if (zip === undefined) return hash.hash(localPagePath(page), 'sha256')
+  const bytes = await readComicZipPage(zip)
+  const digest = cryptoFramework.createMd('SHA256')
+  await digest.update({ data: new Uint8Array(bytes) })
+  const result = await digest.digest()
+  return Array.from(result.data).map((value: number): string => value.toString(16).padStart(2, '0')).join('')
+}
+
 export async function sameOrderedLocalImportPages(previous: Comic, fresh: Comic): Promise<boolean> {
   if (previous.chapters.length !== fresh.chapters.length) return false
   const hashes = new Map<string, string>()
+  const archiveHash = async (path: string): Promise<string> => {
+    const cached = hashes.get(path)
+    if (cached !== undefined) return cached
+    const digest = await hash.hash(path, 'sha256')
+    hashes.set(path, digest)
+    return digest
+  }
   for (let chapterIndex = 0; chapterIndex < fresh.chapters.length; chapterIndex += 1) {
     const oldPages = previous.chapters[chapterIndex].pages
     const newPages = fresh.chapters[chapterIndex].pages
@@ -44,21 +63,26 @@ export async function sameOrderedLocalImportPages(previous: Comic, fresh: Comic)
       const oldPdf = parsePdfPageUri(oldPages[index].uri)
       if (newPdf !== undefined || oldPdf !== undefined) {
         if (newPdf === undefined || oldPdf === undefined || newPdf.index !== oldPdf.index) return false
-        let newHash = hashes.get(newPdf.path)
-        if (newHash === undefined) { newHash = await hash.hash(newPdf.path, 'sha256'); hashes.set(newPdf.path, newHash) }
-        let oldHash = hashes.get(oldPdf.path)
+        const newHash = await archiveHash(newPdf.path)
         try {
-          if (oldHash === undefined) { oldHash = await hash.hash(oldPdf.path, 'sha256'); hashes.set(oldPdf.path, oldHash) }
+          if (await archiveHash(oldPdf.path) !== newHash) return false
         } catch (_error) { return false }
-        if (oldHash !== newHash) return false
         continue
+      }
+      const newZip = parseComicZipPage(newPages[index].uri)
+      const oldZip = parseComicZipPage(oldPages[index].uri)
+      if (newZip !== undefined && oldZip !== undefined && newZip.entry === oldZip.entry) {
+        const newHash = await archiveHash(newZip.archive)
+        try {
+          if (await archiveHash(oldZip.archive) === newHash) continue
+        } catch (_error) { return false }
       }
       // New content must be readable. Missing old content can only invalidate
       // resume; it is never a reason to discard a valid newly selected copy.
-      const newHash = await hash.hash(localPagePath(newPages[index]), 'sha256')
+      const newHash = await localImportPageHash(newPages[index])
       let oldHash: string
       try {
-        oldHash = await hash.hash(localPagePath(oldPages[index]), 'sha256')
+        oldHash = await localImportPageHash(oldPages[index])
       } catch (_error) {
         return false
       }

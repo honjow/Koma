@@ -1,3 +1,6 @@
+import { loadDownloadPageConcurrency, loadDownloadSaveAsCbz } from './DownloadFormatPreferences'
+import { cleanupCompletedDownload, finishOfflineDownload } from './OfflineDownloadCbz'
+import { parseComicZipPage } from '../import/ComicZipPage'
 import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
 import { SourceRequiredImageDecodeService } from './SourceRequiredImageDecode'
@@ -62,6 +65,11 @@ interface OfflineDownloadPageWriteResult {
   contentHash: string
   localPath?: string
   requiredImageDecodeResolved?: boolean
+}
+
+interface OfflineDownloadPageTransfer {
+  page: OfflineDownloadedPage
+  reused: boolean
 }
 
 @Concurrent
@@ -376,27 +384,31 @@ export class OfflineDownloadService {
       existingValidation.manifest.failureReasonCode = undefined
       const manifest = await saveDownloadManifestAsync(this.store, applyManifestLabels(existingValidation.manifest, comic, chapter, labels))
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+      await cleanupCompletedDownload(this.store, manifest)
       this.saveWorkCover(comic)
       trace.info('download_reused', `[ReaderOffline] step=download_reused pages=${existingValidation.availablePageCount}/${existingValidation.pageCount}`)
       return manifest
     }
+    const pagesByIndex = new Map<number, Page>()
+    for (let index = pages.length - 1; index >= 0; index -= 1) {
+      pagesByIndex.set(pages[index].index, pages[index])
+    }
     const reusablePages = existingValidation.status === OfflineDownloadedChapterStatus.PARTIAL && existingValidation.manifest !== undefined ?
-      existingValidation.manifest.pages :
-      []
+      existingValidation.manifest.pages.filter((page: OfflineDownloadedPage): boolean =>
+        page.archiveEntry === undefined && page.pageIndex >= 0 && page.pageIndex < pages.length &&
+        ((pagesByIndex.get(page.pageIndex) ?? pages[page.pageIndex])?.id ?? `page-${page.pageIndex + 1}`) === page.pageId &&
+        fs.accessSync(page.localPath)) : []
     let manifest = this.store.createManifest(
       comic.id,
       chapterId,
       pages.length,
       OfflineDownloadStatus.DOWNLOADING,
       manifestIdentityFromComic(comic),
-      manifestLabelsFromDownload(comic, chapter, labels)
+      manifestLabelsFromDownload(comic, chapter, labels),
+      reusablePages
     )
     this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
     const config = createReaderSessionConfigFromComic(comic, chapterId, preparedPages, false)
-    const pagesByIndex = new Map<number, Page>()
-    for (let index = pages.length - 1; index >= 0; index -= 1) {
-      pagesByIndex.set(pages[index].index, pages[index])
-    }
     const reusableById = new Map<string, OfflineDownloadedPage>()
     const reusableByIndex = new Map<number, OfflineDownloadedPage>()
     for (let index = reusablePages.length - 1; index >= 0; index -= 1) {
@@ -407,6 +419,7 @@ export class OfflineDownloadService {
     // Page indexes are produced once in sequence. A repeated source page ID
     // still replaces its earlier record, as it did in recordPage.
     const savedPages = new Map<string, OfflineDownloadedPage>()
+    reusablePages.forEach((page: OfflineDownloadedPage): void => { savedPages.set(page.pageId, page) })
     const recordPage = (page: OfflineDownloadedPage): void => {
       savedPages.set(page.pageId, page)
       manifest.downloadedPageCount = savedPages.size
@@ -431,6 +444,7 @@ export class OfflineDownloadService {
       }
     }
     let pageFetchFailed = false
+    let finalizing = false
     let pagePreferences: OfflineDownloadQueuePreferences | undefined
     const unsubscribeQueue = OfflineDownloadRuntime.subscribe(this.store.runtimeKey(), (signal) => {
       if (signal === 'change') pagePreferences = undefined
@@ -449,78 +463,96 @@ export class OfflineDownloadService {
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       return manifest
     }
-    try {
-      for (let index = 0; index < config.totalPages; index += 1) {
-        const reason = waitReason()
-        if (reason !== undefined) return await saveDeferred(reason)
-        const page = pagesByIndex.get(index) ?? pages[index]
-        const pageId = page?.id ?? `page-${index + 1}`
-        const reusablePage = pageId.trim().length > 0 ? reusableById.get(pageId) : reusableByIndex.get(index)
-        if (reusablePage !== undefined && fs.accessSync(reusablePage.localPath)) {
-          recordPage({
-            pageId,
-            pageIndex: index,
-            fileName: reusablePage.fileName,
-            width: page?.width ?? reusablePage.width,
-            height: page?.height ?? reusablePage.height,
-            localPath: reusablePage.localPath,
-            size: reusablePage.size,
-            contentHash: reusablePage.contentHash,
-            imageProcessing: reusablePage.imageProcessing,
-            imageProcessingResolved: reusablePage.imageProcessingResolved,
-            imageProcessingFingerprint: reusablePage.imageProcessingFingerprint,
-            sourceOriginalUri: reusablePage.sourceOriginalUri,
-            sourceTextOverlay: page === undefined ? reusablePage.sourceTextOverlay : page.sourceTextOverlay,
-            requiredImageDecodeResolved: reusablePage.requiredImageDecodeResolved,
-            updatedAt: reusablePage.updatedAt,
-          })
-          await publishPage()
-          continue
-        }
-        const source = createReaderPageRenderSource(config, index, { preferOffline: false })
-        const extension = source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST ? 'png' :
-          extensionFromUri(source.uri.length > 0 ? source.uri : source.imageUri)
-        let localPath = this.store.pageFilePath(comic.id, chapterId, pageId, index, extension)
-        let writtenPage: OfflineDownloadPageWriteResult
-        try {
-          writtenPage = await this.writePage(source, localPath)
-          localPath = writtenPage.localPath ?? localPath
-        } catch (error) {
-          void error
-          pageFetchFailed = true
-          trace.warn('download_page_failed', `[ReaderOffline] step=download_page_failed page=${index} reason=page_fetch_failed ${DiagnosticLogger.errorSummary(error as Error)}`)
-          continue
-        }
-        const row: OfflineDownloadedPage = {
+    const transferPage = async (index: number): Promise<OfflineDownloadPageTransfer | undefined> => {
+      const page = pagesByIndex.get(index) ?? pages[index]
+      const pageId = page?.id ?? `page-${index + 1}`
+      const reusablePage = pageId.trim().length > 0 ? reusableById.get(pageId) : reusableByIndex.get(index)
+      if (reusablePage !== undefined && fs.accessSync(reusablePage.localPath)) {
+        return { reused: true, page: {
           pageId,
           pageIndex: index,
-          width: page?.width,
-          height: page?.height,
-          localPath,
-          size: writtenPage.size,
-          contentHash: writtenPage.contentHash,
-          imageProcessing: source.imageProcessing,
-          imageProcessingResolved: source.imageProcessingResolved,
-          imageProcessingFingerprint: source.imageProcessingFingerprint,
-          sourceOriginalUri: publicSourceWorkUri(comic.sourceRuntimeId, page?.uri),
-          sourceTextOverlay: page?.sourceTextOverlay,
-          requiredImageDecodeResolved: writtenPage.requiredImageDecodeResolved,
-          updatedAt: Date.now(),
+          fileName: reusablePage.fileName,
+          width: page?.width ?? reusablePage.width,
+          height: page?.height ?? reusablePage.height,
+          localPath: reusablePage.localPath,
+          size: reusablePage.size,
+          contentHash: reusablePage.contentHash,
+          imageProcessing: reusablePage.imageProcessing,
+          imageProcessingResolved: reusablePage.imageProcessingResolved,
+          imageProcessingFingerprint: reusablePage.imageProcessingFingerprint,
+          sourceOriginalUri: reusablePage.sourceOriginalUri,
+          sourceTextOverlay: page === undefined ? reusablePage.sourceTextOverlay : page.sourceTextOverlay,
+          requiredImageDecodeResolved: reusablePage.requiredImageDecodeResolved,
+          updatedAt: reusablePage.updatedAt,
+        } }
+      }
+      const source = createReaderPageRenderSource(config, index, { preferOffline: false })
+      const extension = source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST ? 'png' :
+        extensionFromUri(source.uri.length > 0 ? source.uri : source.imageUri)
+      let localPath = this.store.stagingPagePath(comic.id, chapterId, index, extension)
+      let writtenPage: OfflineDownloadPageWriteResult
+      try {
+        writtenPage = await this.writePage(source, localPath)
+        localPath = writtenPage.localPath ?? localPath
+      } catch (error) {
+        void error
+        pageFetchFailed = true
+        trace.warn('download_page_failed', `[ReaderOffline] step=download_page_failed page=${index} reason=page_fetch_failed ${DiagnosticLogger.errorSummary(error as Error)}`)
+        return undefined
+      }
+      const row: OfflineDownloadedPage = {
+        pageId,
+        pageIndex: index,
+        width: page?.width,
+        height: page?.height,
+        localPath,
+        size: writtenPage.size,
+        contentHash: writtenPage.contentHash,
+        imageProcessing: source.imageProcessing,
+        imageProcessingResolved: source.imageProcessingResolved,
+        imageProcessingFingerprint: source.imageProcessingFingerprint,
+        sourceOriginalUri: publicSourceWorkUri(comic.sourceRuntimeId, page?.uri),
+        sourceTextOverlay: page?.sourceTextOverlay,
+        requiredImageDecodeResolved: writtenPage.requiredImageDecodeResolved,
+        updatedAt: Date.now(),
+      }
+      return { page: row, reused: false }
+    }
+    try {
+      const pageConcurrency = this.requestContext === undefined ? 1 : await loadDownloadPageConcurrency(this.requestContext)
+      let nextPage = 0
+      while (nextPage < config.totalPages) {
+        const reason = waitReason()
+        if (reason !== undefined) return await saveDeferred(reason)
+        const transfers: Promise<OfflineDownloadPageTransfer | undefined>[] = []
+        // Drain in-flight writes before honoring pause or closing the chapter. Only
+        // the coordinator publishes progress and checkpoints, in page order.
+        while (transfers.length < pageConcurrency && nextPage < config.totalPages) {
+          transfers.push(transferPage(nextPage))
+          nextPage += 1
         }
-        recordPage(row)
-        BackgroundDownloadOwner.progress(labels?.chapterTitle ?? chapter.title, manifest.downloadedPageCount, manifest.pageCount)
-        await publishPage()
+        const settled = await Promise.allSettled(transfers)
+        for (const result of settled) {
+          if (result.status === 'fulfilled' && result.value !== undefined) {
+            recordPage(result.value.page)
+            if (!result.value.reused) {
+              BackgroundDownloadOwner.progress(labels?.chapterTitle ?? chapter.title,
+                manifest.downloadedPageCount, manifest.pageCount)
+            }
+            await publishPage()
+          }
+        }
+        for (const result of settled) {
+          if (result.status === 'rejected') throw result.reason as Error
+        }
       }
       const finalWait = waitReason()
       if (finalWait !== undefined) return await saveDeferred(finalWait)
-      manifest.status = OfflineDownloadStatus.DOWNLOADED
       await checkpoint()
-      const finalValidation = await validateDownloadManifestAsync(this.store, comic.id, chapterId, { validateContentHash: false },
-        this.store.chapterDir(comic.id, chapterId))
-      if (finalValidation.status !== OfflineDownloadedChapterStatus.DOWNLOADED ||
-        finalValidation.pageCount <= 0 ||
-        finalValidation.availablePageCount !== finalValidation.pageCount ||
-        finalValidation.missingPageCount !== 0) {
+      const finalValidation = await validateDownloadManifestAsync(this.store, comic.id, chapterId,
+        { validateContentHash: false, includeInterrupted: true }, this.store.chapterDir(comic.id, chapterId))
+      if (finalValidation.status === OfflineDownloadedChapterStatus.CORRUPT ||
+        finalValidation.pageCount <= 0 || finalValidation.availablePageCount !== finalValidation.pageCount) {
         manifest.status = finalValidation.availablePageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.FAILED
         manifest.failureReasonCode = pageFetchFailed ? 'page_fetch_failed' : (finalValidation.reasonCode ?? 'manifest_validation_failed')
         await checkpoint()
@@ -528,17 +560,23 @@ export class OfflineDownloadService {
         trace.warn('download_final_validation_failed', `[ReaderOffline] step=download_final_validation_failed pages=${finalValidation.availablePageCount}/${finalValidation.pageCount} reason=${manifest.failureReasonCode}`)
         return manifest
       }
+      finalizing = true
+      const asCbz = this.requestContext === undefined || await loadDownloadSaveAsCbz(this.requestContext)
+      manifest = await finishOfflineDownload(this.store, manifest, asCbz)
+      finalizing = false
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       this.saveWorkCover(comic)
       trace.info('download_done', `[ReaderOffline] step=download_done pages=${manifest.downloadedPageCount}/${manifest.pageCount}`)
       return manifest
     } catch (error) {
-      void error
+      // A later queue failure must never restore a checkpoint whose pages have
+      // already been replaced. The completed manifest owns recovery.
+      if (manifest.status === OfflineDownloadStatus.DOWNLOADED) throw error as Error
       manifest.status = manifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.FAILED
-      manifest.failureReasonCode = 'page_fetch_failed'
+      manifest.failureReasonCode = finalizing ? 'download_publish_failed' : 'page_fetch_failed'
       await checkpoint()
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-      trace.warn('download_failed', `[ReaderOffline] step=download_failed pages=${manifest.downloadedPageCount}/${manifest.pageCount} reason=page_fetch_failed ${DiagnosticLogger.errorSummary(error as Error)}`)
+      trace.warn('download_failed', `[ReaderOffline] step=download_failed pages=${manifest.downloadedPageCount}/${manifest.pageCount} reason=${manifest.failureReasonCode} ${DiagnosticLogger.errorSummary(error as Error)}`)
       return manifest
     } finally {
       unsubscribeQueue()
@@ -552,7 +590,8 @@ export class OfflineDownloadService {
         const path = await cacheSourceTextPageImage(source.sourceText)
         return copyLocalFile(path, localPath)
       }
-      if (source.requiredImageDecode === undefined || source.requiredImageDecodeResolved === true) {
+      if (parseComicZipPage(source.uri) === undefined &&
+        (source.requiredImageDecode === undefined || source.requiredImageDecodeResolved === true)) {
         const copied = await copyLocalFile(source.imageUri, localPath)
         if (source.requiredImageDecodeResolved === true) copied.requiredImageDecodeResolved = true
         return copied

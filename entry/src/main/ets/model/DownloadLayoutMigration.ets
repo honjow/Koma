@@ -7,11 +7,13 @@ import {
   downloadComicDirectoryName,
   downloadManifestPath,
   downloadPageFileName,
+  flatDownloadManifestPath,
   legacyDownloadManifestPath,
   loadOrScanDownloadDirectoryIndex,
   previousDownloadManifestPath,
   sanitizeDownloadSegment,
   saveDownloadDirectoryIndex,
+  uniqueDownloadChapterDirectory,
   uniqueDownloadDirectory,
 } from './DownloadDirectoryIndex'
 
@@ -41,6 +43,7 @@ interface LayoutManifestPage {
   pageIndex: number
   fileName?: string
   localPath: string
+  archiveEntry?: string
 }
 
 interface LayoutManifest {
@@ -123,6 +126,16 @@ function normalizeChapterPages(chapterDir: string, manifest: LayoutManifest): bo
   for (const page of manifest.pages) {
     const previousFileName = page.fileName
     const previousLocalPath = page.localPath
+    if (page.archiveEntry !== undefined) {
+      const name = previousLocalPath.split('/').pop() ?? ''
+      const archive = joinPath(chapterDir, name)
+      if (archive !== previousLocalPath && /\.cbz$/i.test(name) && fs.accessSync(archive)) {
+        page.localPath = archive
+        changed = true
+      }
+      continue
+    }
+    if (previousLocalPath.includes('/.koma-download-parts/')) continue
     let source = page.localPath
     const sourceName = page.fileName ?? source.split('/').pop() ?? ''
     if (!fs.accessSync(source)) {
@@ -193,7 +206,9 @@ export function normalizeDownloadLayout(rootDir: string, indexDir: string,
     const comicAlreadyNamed = comicReadable && (comic.directory === requestedComicName ||
       comic.directory.startsWith(requestedComicName + ' ('))
     let targetComicName = comic.directory
-    if (!comicAlreadyNamed) {
+    const hasFlatChapters = Object.values(comic.chapters).some(chapter =>
+      fs.accessSync(flatDownloadManifestPath(joinPath(currentComicDir, chapter.directory))))
+    if (!comicAlreadyNamed && !hasFlatChapters) {
       targetComicName = uniqueDownloadDirectory(rootDir, requestedComicName)
       comic.directory = targetComicName
       ensureDirectory(joinPath(rootDir, targetComicName))
@@ -204,20 +219,21 @@ export function normalizeDownloadLayout(rootDir: string, indexDir: string,
     for (const chapterId of chapterIds) {
       const chapter = comic.chapters[chapterId]
       const sourceChapterDir = joinPath(currentComicDir, chapter.directory)
+      if (fs.accessSync(flatDownloadManifestPath(sourceChapterDir))) continue
       if (!isDirectory(sourceChapterDir)) continue
       const chapterReadable = !isLegacyHashDirectory(chapter.directory)
       let targetChapterName = chapter.directory
       if (!comicReadable || !chapterReadable) {
         const requested = sanitizeDownloadSegment(chapter.title, '章节')
-        targetChapterName = uniqueDownloadDirectory(targetComicDir, requested)
+        targetChapterName = uniqueDownloadChapterDirectory(targetComicDir, requested)
         chapter.directory = targetChapterName
         indexChanged = true
       }
       const targetChapterDir = joinPath(targetComicDir, targetChapterName)
       if (sourceChapterDir !== targetChapterDir) {
         ensureDirectory(targetComicDir)
-        if (fs.accessSync(targetChapterDir)) {
-          targetChapterName = uniqueDownloadDirectory(targetComicDir,
+        if (fs.accessSync(targetChapterDir) || fs.accessSync(flatDownloadManifestPath(targetChapterDir))) {
+          targetChapterName = uniqueDownloadChapterDirectory(targetComicDir,
             sanitizeDownloadSegment(chapter.title, '章节'))
           chapter.directory = targetChapterName
           indexChanged = true

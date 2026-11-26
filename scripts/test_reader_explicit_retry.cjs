@@ -82,7 +82,9 @@ test('the source reader opens a complete local chapter before asking the provide
     exports: configExports,
     require: name => ({
       '../model/ReaderSessionStore': { cloneReaderSessionConfig: structuredClone },
-      '../model/OfflineDownloadStore': { OfflineDownloadedChapterStatus: statuses },
+      '../model/OfflineDownloadStore': {
+        OfflineDownloadedChapterStatus: statuses, downloadedPageReference: page => page.localPath,
+      },
       '../model/ReaderPageSourceAdapter': { createReaderOfflineMissingUri: (_work, _chapter, index) => `missing:${index}` },
     })[name],
   })

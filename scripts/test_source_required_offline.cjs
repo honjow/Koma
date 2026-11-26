@@ -104,6 +104,7 @@ async function verifyDownload() {
   const kinds={LOCAL_FILE_IMAGE:'local',REMOTE_URL_IMAGE:'remote',SOURCE_TEXT_REQUEST:'text'}
   let decoded=0
   const values={ReaderPageRenderKind:kinds,cacheSourceTextPageImage:async()=>'/text',
+    parseComicZipPage: () => undefined,
     ...format,
     copyLocalFile:async(_from,to)=>({localPath:to}),
     fetchReaderRemoteSourceBytes:async src=>{ if(src.descriptorHint) src.requiredImageDecode=hint;return Uint8Array.from([1]).buffer },
@@ -159,6 +160,7 @@ async function verifyDownloadResume() {
     chapterReadingSortFor: () => assert.fail('Download should not read the reader chapter sort'),
   })
   let paused = false
+  let pageConcurrency = 1
   let onChange
   let preferenceReads = 0
   const runtime = {
@@ -169,7 +171,12 @@ async function verifyDownloadResume() {
   const tasks = { execute: async (fn, ...args) => fn(...args) }
   const manifests = load(fs.readFileSync(base + 'OfflineDownloadManifestWorker.ets', 'utf8').replace(/@Concurrent\s*/g, ''),
     { ...offline, taskpool: tasks })
+  const asyncIo = { ...io, copyFile: fs.promises.copyFile, stat: fs.promises.stat, rename: fs.promises.rename,
+    unlink: fs.promises.unlink, rmdir: directory => fs.promises.rm(directory, { recursive: true }) }
+  const cbz = load(fs.readFileSync(base + 'OfflineDownloadCbz.ets', 'utf8').replace(/@Concurrent\s*/g, ''),
+    { ...offline, ...manifests, taskpool: tasks, fs: asyncIo, OfflineDownloadRuntime: runtime })
   const { OfflineDownloadService } = load(source, {
+    ...cbz, loadDownloadSaveAsCbz: async () => false, loadDownloadPageConcurrency: async () => pageConcurrency,
     ...offline, ...manifests, fs: io, taskpool: tasks, createReaderSessionConfigFromComic,
     appSourceRuntimeRegistry: { lookup: () => ({}) },
     createReaderPageRenderSource: (_config, index) => ({ kind: 'image', uri: '', imageUri: '', index }),
@@ -184,7 +191,7 @@ async function verifyDownloadResume() {
       loadPreferences: () => { preferenceReads++; return { isPaused: paused, wifiOnly: false } },
       fromManifest: value => value, upsert() {},
     }
-    const service = new OfflineDownloadService(store, queue)
+    const service = new OfflineDownloadService(store, queue, { filesDir: dir })
     const written = []
     service.writePage = async (page, target) => {
       written.push(page.index)
@@ -209,6 +216,56 @@ async function verifyDownloadResume() {
     assert.equal(preferenceReads, 3, 'Preferences are reused across page transfers')
     assert.deepEqual(written, [0, 1, 2, 3])
     assert.equal(store.validateDownloadedChapter(comic.id, 'chapter').availablePageCount, 4)
+
+    pageConcurrency = 2
+    // Hold one page open while the other finishes and the user pauses. The
+    // checkpoint must retain both in-flight pages before the next run starts.
+    const parallel = { ...comic, id: 'parallel' }
+    const inFlight = new Map()
+    const fetched = []
+    let notifyFirstPair
+    const firstPair = new Promise(resolve => { notifyFirstPair = resolve })
+    const finishPage = (index, target) => {
+      fs.writeFileSync(target, Buffer.from([3, 2, index]))
+      return { size: 3, contentHash: offline.createOfflineDownloadFileContentHash(target) }
+    }
+    service.writePage = async (page, target) => {
+      fetched.push(page.index)
+      return new Promise(resolve => {
+        inFlight.set(page.index, () => resolve(finishPage(page.index, target)))
+        if (inFlight.size === 2) notifyFirstPair()
+      })
+    }
+    const firstRun = service.runChapterDownload(parallel, 'chapter', 'session', trace)
+    let deadline
+    const timedOut = new Promise((_, reject) => {
+      deadline = setTimeout(() => reject(new Error('Expected two concurrent transfers')), 2000)
+    })
+    try {
+      await Promise.race([firstPair, firstRun.then(() => assert.fail('Expected two concurrent transfers')), timedOut])
+    } finally {
+      clearTimeout(deadline)
+    }
+    assert.deepEqual(fetched, [0, 1])
+    inFlight.get(1)()
+    paused = true
+    onChange('change')
+    inFlight.get(0)()
+    const pausedParallel = await firstRun
+    assert.equal(pausedParallel.status, 'partial')
+    assert.deepEqual(fetched, [0, 1])
+    const reopened = new offline.OfflineDownloadStore(dir)
+    assert.deepEqual(reopened.loadManifest(parallel.id, 'chapter').pages.map(page => page.pageIndex), [0, 1])
+    paused = false
+    const restarted = new OfflineDownloadService(reopened, queue, { filesDir: dir })
+    restarted.writePage = async (page, target) => {
+      fetched.push(page.index)
+      return finishPage(page.index, target)
+    }
+    assert.equal((await restarted.runChapterDownload(parallel, 'chapter', 'session', trace)).status, 'downloaded')
+    assert.deepEqual(fetched, [0, 1, 2, 3])
+    assert.equal(reopened.validateDownloadedChapter(parallel.id, 'chapter').availablePageCount, 4)
+    console.log('Two concurrent page transfers are both retained on pause and reused after reopening storage')
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 }
 verifyDownloadResume().catch(error => { console.error(error); process.exitCode = 1 })

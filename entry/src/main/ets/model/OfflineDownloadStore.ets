@@ -1,3 +1,5 @@
+import { comicZipPageUri } from '../import/ComicZipPage'
+import { ComicZipEntry, nativeComicArchive } from '../import/NativeArchiveExtraction'
 import { ImageProcessingHint } from './ImageBannerRules'
 import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
 import { writeAppTextFile } from './AppFileTextPersistence'
@@ -17,6 +19,9 @@ import {
   downloadPageFileName,
   ensureDownloadDirectory,
   existingDownloadDirectory,
+  flatDownloadManifestPath,
+  flatDownloadMetadataDirectory,
+  indexedDownloadChapterNames,
   legacyDownloadManifestPath,
   loadDownloadDirectoryIndex,
   loadOrScanDownloadDirectoryIndex,
@@ -68,6 +73,7 @@ export interface OfflineDownloadedPage {
   width?: number
   height?: number
   localPath: string
+  archiveEntry?: string
   size: number
   contentHash?: string
   /** Public processing hint plus source settings/install identity; never request headers or credentials. */
@@ -80,6 +86,17 @@ export interface OfflineDownloadedPage {
   /** The persisted file is canonical already; do not apply the source decode again. */
   requiredImageDecodeResolved?: boolean
   updatedAt: number
+}
+
+export function copyOfflineDownloadedPage(page: OfflineDownloadedPage): OfflineDownloadedPage {
+  return {
+    pageId: page.pageId, pageIndex: page.pageIndex, fileName: page.fileName,
+    width: page.width, height: page.height, localPath: page.localPath, archiveEntry: page.archiveEntry,
+    size: page.size, contentHash: page.contentHash, imageProcessing: page.imageProcessing,
+    imageProcessingResolved: page.imageProcessingResolved, imageProcessingFingerprint: page.imageProcessingFingerprint,
+    sourceOriginalUri: page.sourceOriginalUri, sourceTextOverlay: page.sourceTextOverlay,
+    requiredImageDecodeResolved: page.requiredImageDecodeResolved, updatedAt: page.updatedAt,
+  }
 }
 
 export interface OfflineChapterDownloadManifest {
@@ -125,6 +142,12 @@ export interface OfflineChapterManifestLabels {
   sourceName?: string
 }
 
+export function isCompletedLooseDownload(manifest: OfflineChapterDownloadManifest): boolean {
+  return manifest.status === OfflineDownloadStatus.DOWNLOADED && manifest.pageCount > 0 &&
+    manifest.pages.length === manifest.pageCount &&
+    manifest.pages.every((page: OfflineDownloadedPage): boolean => page.archiveEntry === undefined)
+}
+
 export interface OfflineDownloadManifestValidation {
   comicId: ComicId
   chapterId: string
@@ -149,6 +172,12 @@ export interface OfflineDownloadManifestScanResult {
   validations: OfflineDownloadManifestValidation[]
   scannedManifestCount: number
   skippedManifestCount: number
+}
+
+export interface DownloadCbzMigrationWork {
+  comicId: string
+  title: string
+  chapterIds: string[]
 }
 
 function compareDeepestPathFirst(left: string, right: string): number {
@@ -215,6 +244,39 @@ export function createOfflineDownloadStableHash(value: string): string {
 export function offlineDownloadIndexDirectory(filesDir: string, appFilesDir: string): string {
   return joinOfflineDownloadPath(appFilesDir, '.koma-download-index/' +
     createOfflineDownloadStableHash(trimTrailingSlash(filesDir)))
+}
+
+function downloadStagingComicDirectory(appFilesDir: string, comicId: ComicId): string {
+  return joinOfflineDownloadPath(appFilesDir, '.koma-download-parts/' +
+    createOfflineDownloadStableHash(comicId))
+}
+
+export function downloadStagingDirectory(appFilesDir: string, comicId: ComicId, chapterId: string): string {
+  return joinOfflineDownloadPath(downloadStagingComicDirectory(appFilesDir, comicId),
+    createOfflineDownloadStableHash(chapterId))
+}
+
+function isStagedPage(path: string, staging: string): boolean {
+  return path.startsWith(staging + '/') && path === staging + '/' + pathBaseName(path) &&
+    /^\d+\.[a-z0-9]+$/.test(pathBaseName(path))
+}
+
+export function isFlatDownloadPackagePath(chapterDir: string, path: string): boolean {
+  const work = chapterDir.substring(0, chapterDir.lastIndexOf('/'))
+  return path === work + '/' + pathBaseName(path) && /\.cbz$/i.test(path)
+}
+
+function isChapterPagePath(filesDir: string, chapterDir: string, staging: string, page: OfflineDownloadedPage): boolean {
+  if (page.archiveEntry === undefined && isStagedPage(page.localPath, staging)) return true
+  assertSafeOfflineDownloadRoot(filesDir, page.localPath)
+  if (page.archiveEntry === undefined) return page.localPath.startsWith(chapterDir + '/')
+  return (isFlatDownloadPackagePath(chapterDir, page.localPath) ||
+    page.localPath === chapterDir + '/' + pathBaseName(page.localPath)) &&
+    /\.cbz$/i.test(page.localPath) && /^\d+\.[a-z0-9]+$/.test(page.archiveEntry)
+}
+
+export function downloadedPageReference(page: OfflineDownloadedPage): string {
+  return page.archiveEntry === undefined ? page.localPath : comicZipPageUri(page.localPath, page.archiveEntry, page.contentHash)
 }
 
 export function createOfflineDownloadStableByteHash(bytes: Uint8Array): string {
@@ -312,6 +374,7 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
       (page.width !== undefined && typeof page.width !== 'number') ||
       (page.height !== undefined && typeof page.height !== 'number') ||
       typeof page.localPath !== 'string' ||
+      (page.archiveEntry !== undefined && typeof page.archiveEntry !== 'string') ||
       typeof page.size !== 'number' ||
       (page.contentHash !== undefined && typeof page.contentHash !== 'string') ||
       (page.imageProcessing !== undefined && (typeof page.imageProcessing.kind !== 'string' || typeof page.imageProcessing.mode !== 'string')) ||
@@ -345,6 +408,7 @@ function manifestIntegrityPayload(manifest: OfflineChapterDownloadManifest): str
     // Old manifests retain their exact hash. New canonical pages protect the
     // marker so removing it cannot cause an offline second decode.
     if (page.requiredImageDecodeResolved === true) fields.push('required-decode-resolved-v1')
+    if (page.archiveEntry !== undefined) fields.push('cbz', pathBaseName(page.localPath), page.archiveEntry)
     return fields.join(':')
   })
   return [
@@ -385,39 +449,36 @@ function downloadManifestEntryRank(entry: string): number {
   return slash >= 0 && pathBaseName(entry.substring(0, slash)) === '.koma' ? 1 : 2
 }
 
-function findDownloadManifestPath(chapterDir: string): string | undefined {
+function findLegacyManifestPath(chapterDir: string): string | undefined {
   const candidates: string[] = [downloadManifestPath(chapterDir), previousDownloadManifestPath(chapterDir),
     legacyDownloadManifestPath(chapterDir)]
   return candidates.find((path: string): boolean => fs.accessSync(path))
 }
 
+function findDownloadManifestPath(chapterDir: string): string | undefined {
+  const flat = flatDownloadManifestPath(chapterDir)
+  return fs.accessSync(flat) ? flat : findLegacyManifestPath(chapterDir)
+}
+
 export function persistDownloadManifest(filesDir: string, chapterDir: string,
-  manifest: OfflineChapterDownloadManifest): OfflineChapterDownloadManifest {
+  manifest: OfflineChapterDownloadManifest, appFilesDir: string = filesDir): OfflineChapterDownloadManifest {
   assertSafeOfflineDownloadRoot(filesDir, chapterDir)
+  const staging = downloadStagingDirectory(appFilesDir, manifest.comicId, manifest.chapterId)
   const pages = manifest.pages.slice().sort((left: OfflineDownloadedPage, right: OfflineDownloadedPage): number => {
     return left.pageIndex - right.pageIndex
   }).map((page: OfflineDownloadedPage): OfflineDownloadedPage => {
-    assertSafeOfflineDownloadRoot(filesDir, page.localPath)
-    if (!page.localPath.startsWith(`${chapterDir}/`)) {
+    if (!isChapterPagePath(filesDir, chapterDir, staging, page)) {
       throw new Error('offline download page path is outside chapter dir')
     }
-    return {
-      pageId: page.pageId,
-      pageIndex: Math.max(0, Math.floor(page.pageIndex)),
-      fileName: page.fileName ?? pathBaseName(page.localPath),
-      width: normalizeOptionalPageDimension(page.width),
-      height: normalizeOptionalPageDimension(page.height),
-      localPath: page.localPath,
-      size: Math.max(0, Math.floor(page.size)),
-      contentHash: page.contentHash?.trim(),
-      imageProcessing: page.imageProcessing,
-      imageProcessingResolved: page.imageProcessingResolved,
-      imageProcessingFingerprint: page.imageProcessingFingerprint,
-      sourceOriginalUri: page.sourceOriginalUri,
-      sourceTextOverlay: page.sourceTextOverlay === undefined ? undefined : sourceTextOverlay(page.sourceTextOverlay),
-      requiredImageDecodeResolved: page.requiredImageDecodeResolved,
-      updatedAt: page.updatedAt,
-    }
+    const normalized = copyOfflineDownloadedPage(page)
+    normalized.pageIndex = Math.max(0, Math.floor(page.pageIndex))
+    normalized.fileName = page.fileName ?? page.archiveEntry ?? pathBaseName(page.localPath)
+    normalized.width = normalizeOptionalPageDimension(page.width)
+    normalized.height = normalizeOptionalPageDimension(page.height)
+    normalized.size = Math.max(0, Math.floor(page.size))
+    normalized.contentHash = page.contentHash?.trim()
+    normalized.sourceTextOverlay = page.sourceTextOverlay === undefined ? undefined : sourceTextOverlay(page.sourceTextOverlay)
+    return normalized
   })
   const normalized: OfflineChapterDownloadManifest = {
     schemaVersion: OFFLINE_DOWNLOAD_SCHEMA_VERSION,
@@ -439,10 +500,15 @@ export function persistDownloadManifest(filesDir: string, chapterDir: string,
     failureReasonCode: manifest.failureReasonCode,
   }
   normalized.integrityHash = createManifestIntegrityHash(normalized)
-  ensureDirSync(joinOfflineDownloadPath(chapterDir, DOWNLOAD_METADATA_DIR_NAME))
-  writeAppTextFile(downloadManifestPath(chapterDir), JSON.stringify(normalized))
-  const legacyPath = legacyDownloadManifestPath(chapterDir)
-  try { if (fs.accessSync(legacyPath)) fs.unlinkSync(legacyPath) } catch (_error) {}
+  const flat = pages.length > 0 && manifest.status === OfflineDownloadStatus.DOWNLOADED && pages.every(
+    (page: OfflineDownloadedPage): boolean => page.archiveEntry !== undefined && isFlatDownloadPackagePath(chapterDir, page.localPath))
+  const destination = flat ? flatDownloadManifestPath(chapterDir) : downloadManifestPath(chapterDir)
+  ensureDirSync(destination.substring(0, destination.lastIndexOf('/')))
+  writeAppTextFile(destination, JSON.stringify(normalized))
+  if (!flat) {
+    const legacyPath = legacyDownloadManifestPath(chapterDir)
+    try { if (fs.accessSync(legacyPath)) fs.unlinkSync(legacyPath) } catch (_error) {}
+  }
   return normalized
 }
 
@@ -468,6 +534,23 @@ export class OfflineDownloadStore {
 
   runtimeKey(): string {
     return this.runtimeKeyValue
+  }
+
+  legacyCbzMigrationPlan(convertLoose: boolean): DownloadCbzMigrationWork[] {
+    const jobs: DownloadCbzMigrationWork[] = []
+    for (const comicId of Object.keys(this.directoryIndex.comics)) {
+      const comic = this.directoryIndex.comics[comicId]
+      const chapterIds = Object.keys(comic.chapters).filter((chapterId: string): boolean => {
+        const legacy = this.loadLegacyManifest(comicId, chapterId)
+        if (legacy !== undefined && fs.accessSync(flatDownloadManifestPath(this.chapterDir(comicId, chapterId)))) return true
+        if (legacy === undefined || legacy.status !== OfflineDownloadStatus.DOWNLOADED || legacy.pageCount === 0 ||
+          legacy.pages.length !== legacy.pageCount) return false
+        return legacy.pages.every((page: OfflineDownloadedPage): boolean => page.archiveEntry !== undefined) ||
+          (convertLoose && isCompletedLooseDownload(legacy))
+      })
+      if (chapterIds.length > 0) jobs.push({ comicId, title: comic.title, chapterIds })
+    }
+    return jobs
   }
 
   chapterDir(comicId: ComicId, chapterId: string): string {
@@ -496,15 +579,17 @@ export class OfflineDownloadStore {
       const manifest = this.loadManifest(comicId, chapterId)
       if (manifest?.comicId !== comicId || manifest.chapterId !== chapterId) continue
       const page = manifest.pages.find((candidate: OfflineDownloadedPage): boolean =>
-        candidate.localPath.startsWith(chapterDir + '/') &&
+        (candidate.localPath.startsWith(chapterDir + '/') ||
+          (candidate.archiveEntry !== undefined && isFlatDownloadPackagePath(chapterDir, candidate.localPath))) &&
         !hasTraversalSegment(candidate.localPath) && fs.accessSync(candidate.localPath))
-      if (page !== undefined) return page.localPath
+      if (page !== undefined) return downloadedPageReference(page)
     }
     return ''
   }
 
   manifestPath(comicId: ComicId, chapterId: string): string {
-    return downloadManifestPath(this.chapterDir(comicId, chapterId))
+    const dir = this.chapterDir(comicId, chapterId)
+    return findDownloadManifestPath(dir) ?? downloadManifestPath(dir)
   }
 
   /** Statuses for every chapter this work already has on disk, resolved from the
@@ -531,8 +616,28 @@ export class OfflineDownloadStore {
     return path
   }
 
+  stagingDirectory(comicId: ComicId, chapterId: string): string {
+    return downloadStagingDirectory(this.runtimeKeyValue, comicId, chapterId)
+  }
+
+  stagingPagePath(comicId: ComicId, chapterId: string, pageIndex: number, extension: string): string {
+    const directory = this.stagingDirectory(comicId, chapterId)
+    ensureDirSync(directory)
+    return joinOfflineDownloadPath(directory, downloadPageFileName(pageIndex, normalizeExtension(extension)))
+  }
+
   loadManifest(comicId: ComicId, chapterId: string): OfflineChapterDownloadManifest | undefined {
-    const path = findDownloadManifestPath(this.chapterDir(comicId, chapterId))
+    const directory = this.chapterDir(comicId, chapterId)
+    const flat = flatDownloadManifestPath(directory)
+    return (fs.accessSync(flat) ? this.readManifest(flat) : undefined) ??
+      this.readManifest(findLegacyManifestPath(directory))
+  }
+
+  loadLegacyManifest(comicId: ComicId, chapterId: string): OfflineChapterDownloadManifest | undefined {
+    return this.readManifest(findLegacyManifestPath(this.chapterDir(comicId, chapterId)))
+  }
+
+  private readManifest(path?: string): OfflineChapterDownloadManifest | undefined {
     if (path === undefined) return undefined
     try {
       return safeParseManifest(fs.readTextSync(path, { encoding: 'utf-8' }))
@@ -547,15 +652,28 @@ export class OfflineDownloadStore {
     options?: OfflineDownloadValidationOptions
   ): OfflineDownloadManifestValidation {
     return OfflineDownloadStore.validateChapterDirectory(this.filesDir, this.chapterDir(comicId, chapterId),
-      comicId, chapterId, options)
+      comicId, chapterId, options, this.runtimeKeyValue)
   }
 
   /** A validation worker uses the already resolved chapter, without opening
    * the entire content root and reading its directory index again. */
   static validateChapterDirectory(filesDir: string, chapterDir: string, comicId: ComicId, chapterId: string,
-    options?: OfflineDownloadValidationOptions): OfflineDownloadManifestValidation {
+    options?: OfflineDownloadValidationOptions, appFilesDir: string = filesDir): OfflineDownloadManifestValidation {
     assertSafeOfflineDownloadRoot(filesDir, chapterDir)
-    const path = findDownloadManifestPath(chapterDir)
+    const flat = flatDownloadManifestPath(chapterDir)
+    const legacy = findLegacyManifestPath(chapterDir)
+    if (!fs.accessSync(flat)) {
+      return OfflineDownloadStore.validateChapterManifest(filesDir, chapterDir, comicId, chapterId, legacy, options, appFilesDir)
+    }
+    const committed = OfflineDownloadStore.validateChapterManifest(filesDir, chapterDir, comicId, chapterId, flat, options, appFilesDir)
+    if (committed.status === OfflineDownloadedChapterStatus.DOWNLOADED || legacy === undefined) return committed
+    const fallback = OfflineDownloadStore.validateChapterManifest(filesDir, chapterDir, comicId, chapterId, legacy, options, appFilesDir)
+    return fallback.status === OfflineDownloadedChapterStatus.DOWNLOADED ? fallback : committed
+  }
+
+  private static validateChapterManifest(filesDir: string, chapterDir: string, comicId: ComicId, chapterId: string,
+    path: string | undefined, options: OfflineDownloadValidationOptions | undefined,
+    appFilesDir: string): OfflineDownloadManifestValidation {
     if (path === undefined) {
       return {
         comicId,
@@ -669,35 +787,21 @@ export class OfflineDownloadStore {
       }
     }
     let availablePageCount = 0
+    let hasStagedPages = false
+    const staging = downloadStagingDirectory(appFilesDir, comicId, chapterId)
     const seenIndexes = new Set<number>()
-    for (let index = 0; index < manifest.pages.length; index += 1) {
-      const page = manifest.pages[index]
+    const archives = new Map<string, Map<string, ComicZipEntry>>()
+    const invalidPage = (reasonCode: string): OfflineDownloadManifestValidation => ({
+      comicId, chapterId, status: OfflineDownloadedChapterStatus.CORRUPT, manifest, pageCount, availablePageCount,
+      missingPageCount: Math.max(0, pageCount - availablePageCount), reasonCode,
+    })
+    for (const page of manifest.pages) {
       try {
-        assertSafeOfflineDownloadRoot(filesDir, page.localPath)
+        if (!isChapterPagePath(filesDir, chapterDir, staging, page)) return invalidPage('outside_chapter_dir')
       } catch (_err) {
-        return {
-          comicId,
-          chapterId,
-          status: OfflineDownloadedChapterStatus.CORRUPT,
-          manifest,
-          pageCount: manifest.pageCount,
-          availablePageCount,
-          missingPageCount: Math.max(0, manifest.pageCount - availablePageCount),
-          reasonCode: 'unsafe_page_path',
-        }
+        return invalidPage('unsafe_page_path')
       }
-      if (!page.localPath.startsWith(`${chapterDir}/`) || hasTraversalSegment(pathBaseName(page.localPath))) {
-        return {
-          comicId,
-          chapterId,
-          status: OfflineDownloadedChapterStatus.CORRUPT,
-          manifest,
-          pageCount: manifest.pageCount,
-          availablePageCount,
-          missingPageCount: Math.max(0, manifest.pageCount - availablePageCount),
-          reasonCode: 'outside_chapter_dir',
-        }
-      }
+      if (isStagedPage(page.localPath, staging)) hasStagedPages = true
       if (page.pageIndex < 0 || page.pageIndex >= manifest.pageCount || seenIndexes.has(page.pageIndex)) {
         return {
           comicId,
@@ -713,6 +817,28 @@ export class OfflineDownloadStore {
       seenIndexes.add(page.pageIndex)
       if (options?.skipPageFiles === true) {
         availablePageCount += 1
+        continue
+      }
+      if (page.archiveEntry !== undefined) {
+        if (!fs.accessSync(page.localPath)) continue
+        try {
+          let entries = archives.get(page.localPath)
+          if (entries === undefined) {
+            entries = new Map<string, ComicZipEntry>()
+            for (const entry of nativeComicArchive.listZipSync(page.localPath, options?.validateContentHash !== false)) {
+              entries.set(entry.path, entry)
+            }
+            archives.set(page.localPath, entries)
+          }
+          const entry = entries.get(page.archiveEntry)
+          if (entry === undefined) return invalidPage('page_file_missing')
+          if (entry.size !== page.size) return invalidPage('page_size_mismatch')
+          if (options?.validateContentHash !== false && (page.contentHash ?? '').length > 0 &&
+            page.contentHash !== entry.hash) return invalidPage('page_hash_mismatch')
+          availablePageCount += 1
+        } catch (_error) {
+          return invalidPage('archive_unreadable')
+        }
         continue
       }
       if (fs.accessSync(page.localPath)) {
@@ -762,12 +888,12 @@ export class OfflineDownloadStore {
     return {
       comicId,
       chapterId,
-      status: missingPageCount === 0 ? OfflineDownloadedChapterStatus.DOWNLOADED : OfflineDownloadedChapterStatus.PARTIAL,
+      status: missingPageCount === 0 && !hasStagedPages ? OfflineDownloadedChapterStatus.DOWNLOADED : OfflineDownloadedChapterStatus.PARTIAL,
       manifest,
       pageCount: manifest.pageCount,
       availablePageCount,
       missingPageCount,
-      reasonCode: missingPageCount === 0 ? undefined : 'page_file_missing',
+      reasonCode: missingPageCount > 0 ? 'page_file_missing' : (hasStagedPages ? 'download_pending_publish' : undefined),
     }
   }
 
@@ -906,15 +1032,11 @@ export class OfflineDownloadStore {
         const ownerPath = joinOfflineDownloadPath(this.rootDir, owner)
         assertSafeOfflineDownloadRoot(this.filesDir, ownerPath)
         if (!fs.accessSync(ownerPath) || !fs.statSync(ownerPath).isDirectory()) continue
-        const chapters = fs.listFileSync(ownerPath)
+        const chapters = indexedDownloadChapterNames(ownerPath)
         for (const chapter of chapters) {
-          if (chapter.startsWith('.')) continue
           const chapterPath = joinOfflineDownloadPath(ownerPath, chapter)
           assertSafeOfflineDownloadRoot(this.filesDir, chapterPath)
-          if (!fs.statSync(chapterPath).isDirectory()) continue
-          const candidates: string[] = [downloadManifestPath(chapterPath), previousDownloadManifestPath(chapterPath),
-            legacyDownloadManifestPath(chapterPath)]
-          const path = candidates.find((candidate: string): boolean => fs.accessSync(candidate))
+          const path = findDownloadManifestPath(chapterPath)
           if (path === undefined) continue
           const manifest = safeParseManifest(fs.readTextSync(path, { encoding: 'utf-8' }))
           if (manifest.comicId === comicId && !seen.has(manifest.chapterId)) {
@@ -999,13 +1121,13 @@ export class OfflineDownloadStore {
   }
 
   saveManifest(manifest: OfflineChapterDownloadManifest): OfflineChapterDownloadManifest {
-    return persistDownloadManifest(this.filesDir, this.writableChapterDirectory(manifest), manifest)
+    return persistDownloadManifest(this.filesDir, this.writableChapterDirectory(manifest), manifest, this.runtimeKeyValue)
   }
 
   persistManifestWith(manifest: OfflineChapterDownloadManifest,
-    writer: (filesDir: string, chapterDir: string, manifest: OfflineChapterDownloadManifest) =>
+    writer: (filesDir: string, chapterDir: string, manifest: OfflineChapterDownloadManifest, appFilesDir: string) =>
       Promise<OfflineChapterDownloadManifest>): Promise<OfflineChapterDownloadManifest> {
-    return writer(this.filesDir, this.writableChapterDirectory(manifest), manifest)
+    return writer(this.filesDir, this.writableChapterDirectory(manifest), manifest, this.runtimeKeyValue)
   }
 
   createManifest(
@@ -1014,7 +1136,8 @@ export class OfflineDownloadStore {
     pageCount: number,
     status: OfflineDownloadStatus,
     identity?: OfflineChapterManifestIdentity,
-    labels?: OfflineChapterManifestLabels
+    labels?: OfflineChapterManifestLabels,
+    pages: OfflineDownloadedPage[] = []
   ): OfflineChapterDownloadManifest {
     return this.saveManifest({
       schemaVersion: OFFLINE_DOWNLOAD_SCHEMA_VERSION,
@@ -1028,10 +1151,10 @@ export class OfflineDownloadStore {
       chapterId,
       chapterTitle: labels?.chapterTitle,
       pageCount,
-      downloadedPageCount: 0,
+      downloadedPageCount: pages.length,
       status,
       updatedAt: Date.now(),
-      pages: [],
+      pages,
       integrityHash: '',
     })
   }
@@ -1081,15 +1204,25 @@ export class OfflineDownloadStore {
     if (page === undefined) {
       return undefined
     }
-    assertSafeOfflineDownloadRoot(this.filesDir, page.localPath)
-    return fs.accessSync(page.localPath) ? page.localPath : undefined
+    return fs.accessSync(page.localPath) ? downloadedPageReference(page) : undefined
   }
 
   async deleteChapterDownload(comicId: ComicId, chapterId: string): Promise<void> {
     this.directoryIndex = this.latestDirectoryIndex()
     const chapterDir = this.chapterDir(comicId, chapterId)
     assertSafeOfflineDownloadRoot(this.filesDir, chapterDir)
+    const flat = this.readManifest(flatDownloadManifestPath(chapterDir))
+    const archive = flat?.pages[0]?.localPath ?? ''
+    if (flat !== undefined && flat.comicId === comicId && flat.chapterId === chapterId &&
+      hasValidOfflineManifestIntegrity(flat) && isFlatDownloadPackagePath(chapterDir, archive) &&
+      flat.pages.every((page: OfflineDownloadedPage): boolean => page.archiveEntry !== undefined && page.localPath === archive)) {
+      assertSafeOfflineDownloadRoot(this.filesDir, archive)
+      if (await pathExists(archive)) await fs.unlink(archive)
+    }
+    await this.deleteDownloadDir(flatDownloadMetadataDirectory(chapterDir))
     await this.deleteDownloadDir(chapterDir)
+    const staging = this.stagingDirectory(comicId, chapterId)
+    if (await pathExists(staging)) await fs.rmdir(staging)
     this.directoryIndex = this.latestDirectoryIndex()
     const comic = this.directoryIndex.comics[comicId]
     if (comic !== undefined && comic.chapters[chapterId] !== undefined && this.chapterDir(comicId, chapterId) === chapterDir) {
@@ -1111,6 +1244,8 @@ export class OfflineDownloadStore {
     const comicDir = this.comicDir(comicId)
     assertSafeOfflineDownloadRoot(this.filesDir, comicDir)
     await this.deleteDownloadDir(comicDir)
+    const staging = downloadStagingComicDirectory(this.runtimeKeyValue, comicId)
+    if (await pathExists(staging)) await fs.rmdir(staging)
     this.directoryIndex = this.latestDirectoryIndex()
     if (this.directoryIndex.comics[comicId] === undefined || this.comicDir(comicId) !== comicDir) return
     const comics: Record<string, DownloadComicIndexEntry> = {}

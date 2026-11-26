@@ -17,10 +17,19 @@ function load(file, ports = {}) {
 }
 const models = load('model/ComicModels')
 const pdf = load('import/PdfPageService', { '@kit.ArkTS': {}, '@kit.PDFKit': {}, '@kit.ImageKit': {} })
+const zipPage = load('import/ComicZipPage', {
+  '@kit.ArkTS': {}, './ImageSortUtils': load('import/ImageSortUtils'), './NativeArchiveExtraction': { nativeComicArchive: {
+    readZipEntry: async (_path, entry) => Uint8Array.from(Buffer.from(entry)).buffer,
+  } },
+})
 const api = load('import/LocalImportCommitService', {
-  '@kit.CoreFileKit': { hash: { hash: async path => path.split('/').pop() } },
+  '@kit.CoreFileKit': { hash: { hash: async path => Buffer.from(path.split('/').pop()).toString('hex') } },
+  '@kit.CryptoArchitectureKit': { cryptoFramework: { createMd() {
+    let data
+    return { update: async blob => { data = blob.data }, digest: async () => ({ data }) }
+  } } },
   '@kit.ArkTS': { util: { generateRandomUUID: () => 'new-id' } },
-  '../model/ComicModels': models, '../model/BackupRestoreActivity': {}, '../model/LibraryPersistence': {}, './PdfPageService': pdf,
+  '../model/ComicModels': models, '../model/BackupRestoreActivity': {}, '../model/LibraryPersistence': {}, './PdfPageService': pdf, './ComicZipPage': zipPage,
 })
 function comic(id, root) {
   const chapters = ['one', 'two', 'three'].map((name, index) => ({ id: `${id}-${name}`, comicId:id,
@@ -79,4 +88,18 @@ test('a changed chapter is not mistaken for the same archive contents', async ()
   const old = comic('old','/old'), fresh = comic('fresh','/new')
   fresh.chapters[1].pages[0].uri = 'file:///new/changed.jpg'
   assert.equal(await api.sameOrderedLocalImportPages(old,fresh),false)
+})
+
+test('ZIP reimport preserves page IDs when replacing an older extracted copy', async () => {
+  const old = comic('old', '/old'), fresh = comic('fresh', '/new')
+  for (const chapter of fresh.chapters) {
+    const page = chapter.pages[0]
+    page.uri = zipPage.comicZipPageUri('/new/archive.zip', page.uri.split('/').pop())
+  }
+  assert.equal(await api.sameOrderedLocalImportPages(old, fresh), true)
+  const edited = comic('edited', '/old')
+  edited.chapters[1].pages[0].uri = 'file:///old/replaced.jpg'
+  assert.equal(await api.sameOrderedLocalImportPages(edited, fresh), false)
+  const merged = api.mergeLocalImport(old, fresh, true)
+  assert.deepEqual(merged.chapters.map(chapter => chapter.pages[0].id), ['old-one-p', 'old-two-p', 'old-three-p'])
 })

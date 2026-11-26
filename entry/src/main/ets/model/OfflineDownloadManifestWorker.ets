@@ -10,15 +10,15 @@ import {
 
 @Concurrent
 function writeDownloadManifest(filesDir: string, chapterDir: string,
-  manifest: OfflineChapterDownloadManifest): OfflineChapterDownloadManifest {
-  return persistDownloadManifest(filesDir, chapterDir, manifest)
+  manifest: OfflineChapterDownloadManifest, appFilesDir: string): OfflineChapterDownloadManifest {
+  return persistDownloadManifest(filesDir, chapterDir, manifest, appFilesDir)
 }
 
 @Concurrent
 function validateOfflineDownload(filesDir: string, runtimeKey: string, comicId: ComicId,
   chapterId: string, options: OfflineDownloadValidationOptions, writtenChapterDir: string): OfflineDownloadManifestValidation {
   if (writtenChapterDir.length > 0) {
-    return OfflineDownloadStore.validateChapterDirectory(filesDir, writtenChapterDir, comicId, chapterId, options)
+    return OfflineDownloadStore.validateChapterDirectory(filesDir, writtenChapterDir, comicId, chapterId, options, runtimeKey)
   }
   // Before writing, another batch may already have saved or resumed this
   // chapter. Resolve the latest directory mapping before reusing its pages.
@@ -29,8 +29,8 @@ function validateOfflineDownload(filesDir: string, runtimeKey: string, comicId: 
 export function saveDownloadManifestAsync(store: OfflineDownloadStore,
   manifest: OfflineChapterDownloadManifest): Promise<OfflineChapterDownloadManifest> {
   return store.persistManifestWith(manifest, async (filesDir: string, chapterDir: string,
-    normalized: OfflineChapterDownloadManifest): Promise<OfflineChapterDownloadManifest> => {
-    return await taskpool.execute(writeDownloadManifest, filesDir, chapterDir, normalized) as OfflineChapterDownloadManifest
+    normalized: OfflineChapterDownloadManifest, appFilesDir: string): Promise<OfflineChapterDownloadManifest> => {
+    return await taskpool.execute(writeDownloadManifest, filesDir, chapterDir, normalized, appFilesDir) as OfflineChapterDownloadManifest
   })
 }
 

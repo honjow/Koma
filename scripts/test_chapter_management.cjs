@@ -48,7 +48,8 @@ const sourceLibraryComic = load('SourceLibraryComic', {
   './ComicModels': comicModels, '../i18n/AppStrings': { AppStrings: { get: key => key } },
 })
 const downloads = load('OfflineDownloadStore', { './SourceTextOverlay': overlays, './AppFileTextPersistence': persistence,
-  '@kit.CoreFileKit': { fileIo: io }, './DownloadDirectoryIndex': directoryIndex, './ComicModels': comicModels })
+  '@kit.CoreFileKit': { fileIo: io }, './DownloadDirectoryIndex': directoryIndex, './ComicModels': comicModels,
+  '../import/ComicZipPage': {}, '../import/NativeArchiveExtraction': {} })
 const runtime = load('OfflineDownloadRuntime', { './BackupRestoreActivity': activity })
 const queues = load('OfflineDownloadQueueStore', {
   './BackupRestoreActivity': activity, './AppFileTextPersistence': persistence,
@@ -296,6 +297,7 @@ async function main() {
       '@kit.ShareKit': {}, '@kit.ArkData': {}, './OfflineDownloadStore': downloads, '../i18n/AppStrings': {},
       '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn: () => {} } },
       './KomaContentStorage': { ensureKomaContentStorageBase: async () => storageDir },
+      '../import/ComicZipPage': {}, '../import/NativeArchiveExtraction': {},
     })
     const plan = JSON.parse(archive.chapterArchivePagesWorker(storageDir, appFilesDir, 'a', '1'))
     assert.deepEqual(plan.map(p => p.name), ['00001.png', '00002.jpg'])

@@ -1,3 +1,4 @@
+import { listLooseDownloadChapters } from '../model/OfflineDownloadCbz'
 import { ChapterArchiveActions, chapterArchiveFailureText } from '../model/ChapterArchiveExport'
 import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -13,14 +14,17 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { LibraryStore } from '../model/LibraryStore'
 import { downloadBlockedReason, OfflineDownloadService, OfflineDownloadWaitReason, publicSourceWorkUri } from '../model/OfflineDownloadService'
 import { DownloadsChrome } from '../state/DownloadsChrome'
+import { connectDownloadCbzConversionQueue, DownloadCbzConversionQueue } from '../state/DownloadCbzConversionQueue'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { sourceRuntimeEntryEnabled } from '../sourceRuntime/SourceRuntimeRegistry'
-import { Chapter } from '../model/ComicModels'
+import { Chapter, Comic } from '../model/ComicModels'
 import { OfflineDownloadPageProgress, OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
 import {
   OfflineDownloadManifestValidation,
   OfflineDownloadedChapterStatus,
   OfflineDownloadStatus,
+  OfflineDownloadStore,
 } from '../model/OfflineDownloadStore'
 import { validateStoredDownloadManifestAsync } from '../model/OfflineDownloadManifestWorker'
 import {
@@ -55,7 +59,7 @@ function s(name: string): string {
 }
 
 const DOWNLOAD_LIST_TRANSITION_MS: number = 220
-const DOWNLOAD_GROUP_COVER_INSET: number = ThemeConstants.SPACE_SM
+const DOWNLOAD_CARD_COVER_INSET: number = ThemeConstants.SPACE_SM
 
 function filterRowTransition(): TransitionEffect {
   // A removed row must release its pixels before another row appears in the same slot.
@@ -100,6 +104,41 @@ class DownloadChapterRowState {
 }
 
 @ComponentV2
+struct DownloadCardCover {
+  @Param comicId: string = ''
+  @Param comic?: Comic = undefined
+  @Param completed: boolean = false
+
+  build() {
+    Stack({ alignContent: Alignment.Center }) {
+      SymbolGlyph($r('sys.symbol.book'))
+        .fontSize(ThemeConstants.FONT_SIZE_H2)
+        .fontColor([ThemeConstants.TEXT_TERTIARY])
+      if (this.completed || (this.comic?.coverUri ?? '').length > 0) {
+        CachedCoverImage({
+          uri: this.comic?.coverUri ?? '',
+          coverOwnerId: this.comicId,
+          downloadedComicId: this.completed ? this.comicId : '',
+          objectFit: ImageFit.Cover,
+          sourceRuntimeId: this.comic?.sourceRuntimeId ?? '',
+          sourceImageId: this.comic?.remoteResourceId ?? this.comicId,
+          sourceKind: this.comic?.sourceKind,
+          remoteServerId: this.comic?.remoteServerId ?? '',
+          sourceMangaUrl: this.comic?.sourcePath ?? '',
+          decodeMaxEdge: 192,
+        })
+      }
+    }
+    .width(ThemeConstants.LIST_COVER_WIDTH + ThemeConstants.SPACE_MD)
+    .height(ThemeConstants.LIST_COVER_HEIGHT + ThemeConstants.SPACE_LG)
+    // Both cards use equal top, left, and bottom insets for the cover.
+    .borderRadius(ThemeConstants.RADIUS_CARD - DOWNLOAD_CARD_COVER_INSET)
+    .clip(true)
+    .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
+  }
+}
+
+@ComponentV2
 export struct DownloadsPage {
   @Param libraryStore?: LibraryStore = undefined
   @Param chrome: DownloadsChrome = new DownloadsChrome()
@@ -119,6 +158,11 @@ export struct DownloadsPage {
   @Local private filter: DownloadQueueFilter = DownloadQueueFilter.ALL
   @Local private recoveryText: string = ''
   @Local private actionMenuKey: string = ''
+  @Local private convertibleChapterIds: string[] = []
+  @Local private cbzQueue: DownloadCbzConversionQueue = connectDownloadCbzConversionQueue()
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private cbzStatusHeight: number = 0
+  private actionMenuRequest: number = 0
   private unsubscribeQueue: (() => void) | undefined = undefined
   private queueVisible: boolean = false
   private openDownloadRequest: number = 0
@@ -241,12 +285,16 @@ export struct DownloadsPage {
   }
 
   private chapterArchives: ChapterArchiveActions = new ChapterArchiveActions()
-  @Local private chapterArchiveBusy: boolean = false
+  @Local private chapterExportBusy: boolean = false
 
   private async exportChapter(key: string, share: boolean): Promise<void> {
     const entry = this.entryForKey(key)
-    if (entry === undefined || this.chapterArchiveBusy) return
-    this.chapterArchiveBusy = true
+    if (entry === undefined || this.chapterExportBusy) return
+    if (this.cbzQueue.isConverting(entry.comicId, entry.chapterId)) {
+      this.showToast(s('downloads_convert_cbz_export_wait'))
+      return
+    }
+    this.chapterExportBusy = true
     try {
       await this.chapterArchives.perform(this.context(), entry.comicId, entry.chapterId,
         entry.comicTitle ?? this.libraryStore?.getComic(entry.comicId)?.title ?? '', entry.chapterTitle ?? entry.chapterId,
@@ -254,7 +302,31 @@ export struct DownloadsPage {
     } catch (error) {
       DiagnosticLogger.exception('downloads', 'archive_export_failed', error as Error)
       if (this.queueVisible) this.showToast(chapterArchiveFailureText(error as Error))
-    } finally { this.chapterArchiveBusy = false }
+    } finally { this.chapterExportBusy = false }
+  }
+
+  private confirmConvertChapter(key: string): void {
+    const entry = this.entryForKey(key)
+    if (entry === undefined || !this.canRead(entry) || !this.convertibleChapterIds.includes(entry.chapterId)) return
+    const title = entry.comicTitle ?? this.libraryStore?.getComic(entry.comicId)?.title ?? this.rowTitle(entry)
+    this.confirmConvertDownloads(entry.comicId, title, [entry.chapterId], false)
+  }
+
+  private confirmConvertDownloads(comicId: string, title: string, chapterIds: string[], group: boolean): void {
+    if (chapterIds.length === 0) return
+    this.getUIContext().showAlertDialog({
+      systemMaterial: komaDialogMaterial(), title: s(group ? 'downloads_convert_cbz_group' : 'downloads_convert_cbz'),
+      message: group ? s('downloads_convert_cbz_group_confirm').replace('%s', String(chapterIds.length)) :
+        s('downloads_convert_cbz_confirm'),
+      autoCancel: true,
+      primaryButton: { value: s('common_cancel'), action: () => {} },
+      secondaryButton: { value: s('common_confirm'), action: () => {
+        this.closeActionMenu()
+        const accepted = this.cbzQueue.enqueue(this.context(), comicId, title, chapterIds)
+        this.showToast(accepted > 0 ? s('downloads_convert_cbz_queued').replace('%s', String(accepted)) :
+          s('downloads_convert_cbz_already_queued'))
+      } },
+    })
   }
 
   private entryForKey(key: string): OfflineDownloadQueueEntry | undefined {
@@ -458,6 +530,7 @@ export struct DownloadsPage {
 
   private blockedHelpText(entry: OfflineDownloadQueueEntry): string {
     const reason = this.taskFailureReason(entry)
+    if (reason === 'download_publish_failed') return s('downloads_publish_failed')
     if (reason === 'pages_missing') {
       return s('downloads_blocked_pages_missing')
     }
@@ -947,11 +1020,31 @@ export struct DownloadsPage {
       void this.openDownloadedChapter(entry)
       return
     }
-    this.actionMenuKey = `row:${this.rowKey(entry)}`
+    void this.showDownloadActions(`row:${this.rowKey(entry)}`)
   }
 
   private closeActionMenu(): void {
+    this.actionMenuRequest += 1
     this.actionMenuKey = ''
+  }
+
+  private async showDownloadActions(key: string, comicId: string = '', chapterIds: string[] = []): Promise<void> {
+    const request = ++this.actionMenuRequest
+    let looseChapters: string[] = []
+    if (chapterIds.length > 0) {
+      try {
+        const context = this.context()
+        looseChapters = await listLooseDownloadChapters(komaContentStorageBase(context),
+          komaRuntimeStorageKey(context), comicId, chapterIds)
+        looseChapters = looseChapters.filter((chapterId: string): boolean =>
+          !this.cbzQueue.isScheduled(context, comicId, chapterId))
+      } catch (error) {
+        DiagnosticLogger.exception('downloads', 'download_format_lookup_failed', error as Error)
+      }
+    }
+    if (!this.queueVisible || request !== this.actionMenuRequest) return
+    this.convertibleChapterIds = looseChapters
+    this.actionMenuKey = key
   }
 
   @Builder
@@ -1042,6 +1135,7 @@ export struct DownloadsPage {
 
   aboutToDisappear(): void {
     this.queueVisible = false
+    this.closeActionMenu()
     this.openDownloadRequest += 1
     this.chapterRows.clear()
     this.queueRowIndexes.clear()
@@ -1061,6 +1155,81 @@ export struct DownloadsPage {
       if (!this.queueVisible || this.queueScrolling) return
       this.refreshQueueTasks()
     }, 200)
+  }
+
+  @Builder
+  private CbzConversionStatus() {
+    if (this.cbzQueue.status !== undefined) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        if (this.cbzQueue.status.running) {
+          DownloadCardCover({
+            comicId: this.cbzQueue.status.comicId,
+            comic: this.libraryStore?.getComic(this.cbzQueue.status.comicId),
+            completed: true,
+          })
+        }
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          Row({ space: ThemeConstants.SPACE_SM }) {
+            Text(s(this.cbzQueue.status.running ?
+              (this.cbzQueue.status.migrating ? 'downloads_cbz_migration_processing' : 'downloads_convert_cbz_processing') :
+              'downloads_convert_cbz_finished'))
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+              .layoutWeight(1)
+            if (!this.cbzQueue.status.running) {
+              KomaIconButton({
+                accessibilityLabel: s('common_close'),
+                icon: $r('sys.symbol.xmark'),
+                controlSize: ThemeConstants.TOUCH_TARGET_SM,
+                iconSize: ThemeConstants.FONT_SIZE_BODY,
+                action: () => { this.cbzQueue.dismissResult() },
+              })
+            }
+          }
+          .width('100%')
+          if (this.cbzQueue.status.running) {
+            Text(this.cbzQueue.status.title)
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text(s('downloads_convert_cbz_progress').replace('%s', String(this.cbzQueue.status.processed))
+              .replace('%s', String(this.cbzQueue.status.total)) + (this.cbzQueue.status.waiting === 0 ? '' :
+              ' · ' + s('downloads_convert_cbz_waiting').replace('%s', String(this.cbzQueue.status.waiting))))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+            Progress({ value: this.cbzQueue.status.processed, total: this.cbzQueue.status.total,
+              type: ProgressType.Linear })
+              .width('100%')
+              .height(3)
+              .color(ThemeConstants.BRAND_PRIMARY)
+              .backgroundColor(ThemeConstants.SOFT_TINT)
+          } else {
+            Text(s('downloads_convert_cbz_group_result').replace('%s', String(this.cbzQueue.status.converted))
+              .replace('%s', String(this.cbzQueue.status.failed)))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      .padding(this.cbzQueue.status.running ? {
+        left: DOWNLOAD_CARD_COVER_INSET, right: ThemeConstants.SPACE_MD,
+        top: DOWNLOAD_CARD_COVER_INSET, bottom: DOWNLOAD_CARD_COVER_INSET,
+      } : { left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD,
+        top: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_MD })
+      .backgroundColor(ThemeConstants.CARD)
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .shadow(ShadowStyle.OUTER_DEFAULT_MD)
+      .id('downloads-cbz-conversion-status')
+      .onAreaChange((_previous: Area, area: Area): void => {
+        this.cbzStatusHeight = Number(area.height)
+      })
+    }
   }
 
   @Builder
@@ -1105,7 +1274,7 @@ export struct DownloadsPage {
           active: this.hasActiveFilter(),
         })
           .onClick(() => {
-            this.actionMenuKey = 'filter'
+            void this.showDownloadActions('filter')
           })
           .bindMenu(this.actionMenuKey === 'filter', this.FilterMenu(), komaMenuOptions({
             placement: Placement.BottomLeft,
@@ -1190,10 +1359,14 @@ export struct DownloadsPage {
           MenuItem({ content: s('downloads_retry_chapter') }).onClick(() => { this.retryDownloads([this.entryForKey(row.item.chapterKey!)!]) })
         }
         if (this.canRead(this.entryForKey(row.item.chapterKey!)!)) {
-          MenuItem({ content: s('chapter_export_cbz') }).enabled(!this.chapterArchiveBusy)
+          MenuItem({ content: s('chapter_export_cbz') }).enabled(!this.chapterExportBusy)
             .onClick(() => { void this.exportChapter(row.item.chapterKey!, false) })
-          MenuItem({ content: s('chapter_share_cbz') }).enabled(!this.chapterArchiveBusy)
+          MenuItem({ content: s('chapter_share_cbz') }).enabled(!this.chapterExportBusy)
             .onClick(() => { void this.exportChapter(row.item.chapterKey!, true) })
+          if (this.convertibleChapterIds.includes(this.entryForKey(row.item.chapterKey!)!.chapterId)) {
+            MenuItem({ content: s('downloads_convert_cbz') })
+              .onClick(() => { this.confirmConvertChapter(row.item.chapterKey!) })
+          }
           MenuItem({ content: s('downloads_delete_completed') })
             .onClick(() => { this.confirmDelete([this.entryForKey(row.item.chapterKey!)!], s('downloads_delete_completed')) })
         } else if (this.canCancel(this.entryForKey(row.item.chapterKey!)!)) {
@@ -1290,6 +1463,10 @@ export struct DownloadsPage {
   }
 
   private openWorkArchive(group: DownloadComicGroup): void {
+    if (this.cbzQueue.isConverting(group.comicId)) {
+      this.showToast(s('downloads_convert_cbz_export_wait'))
+      return
+    }
     this.archiveGroup = { comicId: group.comicId, title: group.title, entries: this.fullGroup(group.comicId, true) }
     this.archiveShown = this.archiveGroup.entries.length > 0
   }
@@ -1311,6 +1488,11 @@ export struct DownloadsPage {
       }
       if (row.item.completed) {
         MenuItem({ content: s('chapter_export_cbz') }).onClick(() => { this.openWorkArchive(row.item.group!) })
+        if (this.convertibleChapterIds.length > 0) {
+          MenuItem({ content: s('downloads_convert_cbz_group') }).onClick(() => {
+            this.confirmConvertDownloads(row.item.group!.comicId, row.item.group!.title, this.convertibleChapterIds.slice(), true)
+          })
+        }
         MenuItem({ content: s('downloads_delete_group') }).onClick(() => {
           this.confirmDelete(this.fullGroup(row.item.group!.comicId, true), s('downloads_delete_group'))
         })
@@ -1344,33 +1526,6 @@ export struct DownloadsPage {
         }
       }
     }
-  }
-
-  @Builder
-  private DownloadCover(row: RepeatItem<DownloadListRow>) {
-    Stack({ alignContent: Alignment.Center }) {
-      SymbolGlyph($r('sys.symbol.book'))
-        .fontSize(ThemeConstants.FONT_SIZE_H2)
-        .fontColor([ThemeConstants.TEXT_TERTIARY])
-      if (row.item.completed || (this.libraryStore?.getComic(row.item.group!.comicId)?.coverUri ?? '').length > 0) {
-        CachedCoverImage({
-          uri: this.libraryStore?.getComic(row.item.group!.comicId)?.coverUri ?? '',
-          downloadedComicId: row.item.completed ? row.item.group!.comicId : '',
-          objectFit: ImageFit.Cover,
-          sourceRuntimeId: this.libraryStore?.getComic(row.item.group!.comicId)?.sourceRuntimeId ?? '',
-          sourceImageId: this.libraryStore?.getComic(row.item.group!.comicId)?.remoteResourceId ?? row.item.group!.comicId,
-          sourceKind: this.libraryStore?.getComic(row.item.group!.comicId)?.sourceKind,
-          remoteServerId: this.libraryStore?.getComic(row.item.group!.comicId)?.remoteServerId ?? '',
-          sourceMangaUrl: this.libraryStore?.getComic(row.item.group!.comicId)?.sourcePath ?? '',
-          decodeMaxEdge: 192,
-        })
-      }
-    }
-    .width(ThemeConstants.LIST_COVER_WIDTH + ThemeConstants.SPACE_MD)
-    .height(ThemeConstants.LIST_COVER_HEIGHT + ThemeConstants.SPACE_LG)
-    .borderRadius(ThemeConstants.RADIUS_CARD - DOWNLOAD_GROUP_COVER_INSET)
-    .clip(true)
-    .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
   }
 
   @Builder
@@ -1434,7 +1589,10 @@ export struct DownloadsPage {
             iconSize: ThemeConstants.FONT_SIZE_H3,
             accentColor: ThemeConstants.TEXT_SECONDARY,
             action: () => {
-              this.actionMenuKey = `row:${row.item.chapterKey!}`
+              const entry = this.entryForKey(row.item.chapterKey!)
+              if (entry === undefined) return
+              void this.showDownloadActions(`row:${row.item.chapterKey!}`, entry.comicId,
+                this.canRead(entry) ? [entry.chapterId] : [])
             },
           })
             .bindMenu(this.actionMenuKey === `row:${row.item.chapterKey!}`, this.DownloadRowMenu(row), komaMenuOptions({
@@ -1462,7 +1620,11 @@ export struct DownloadsPage {
   private DownloadGroupHeader(row: RepeatItem<DownloadListRow>) {
     Row({ space: ThemeConstants.SPACE_SM }) {
       Row({ space: ThemeConstants.SPACE_MD }) {
-        this.DownloadCover(row)
+        DownloadCardCover({
+          comicId: row.item.group!.comicId,
+          comic: this.libraryStore?.getComic(row.item.group!.comicId),
+          completed: row.item.completed,
+        })
         Column({ space: ThemeConstants.SPACE_XS }) {
           Text(row.item.group!.title)
             .fontSize(ThemeConstants.FONT_SIZE_TITLE)
@@ -1492,7 +1654,12 @@ export struct DownloadsPage {
           kind: 'ghost',
           controlSize: ThemeConstants.TOUCH_TARGET_SM,
           iconSize: ThemeConstants.FONT_SIZE_H3,
-          action: () => { this.actionMenuKey = this.groupKey(row.item.group!, row.item.completed) },
+          action: () => {
+            const group = row.item.group!
+            const chapterIds = row.item.completed ? this.fullGroup(group.comicId, true)
+              .map((entry: OfflineDownloadQueueEntry): string => entry.chapterId) : []
+            void this.showDownloadActions(this.groupKey(group, row.item.completed), group.comicId, chapterIds)
+          },
         })
           .bindMenu(this.actionMenuKey === this.groupKey(row.item.group!, row.item.completed), this.GroupMenu(row),
             komaMenuOptions({ placement: Placement.BottomRight, onDisappear: () => {
@@ -1502,8 +1669,8 @@ export struct DownloadsPage {
     }
     .width('100%')
     // Equal insets keep the cover's left corners concentric with the card.
-    .padding({ left: DOWNLOAD_GROUP_COVER_INSET, right: ThemeConstants.SPACE_LG,
-      top: DOWNLOAD_GROUP_COVER_INSET, bottom: DOWNLOAD_GROUP_COVER_INSET })
+    .padding({ left: DOWNLOAD_CARD_COVER_INSET, right: ThemeConstants.SPACE_LG,
+      top: DOWNLOAD_CARD_COVER_INSET, bottom: DOWNLOAD_CARD_COVER_INSET })
     .alignItems(VerticalAlign.Center)
   }
 
@@ -1595,10 +1762,11 @@ export struct DownloadsPage {
   }
 
   build() {
-    Column() {
+    Stack({ alignContent: Alignment.Bottom }) {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
-        bottomPadding: ThemeConstants.SPACE_XL,
+        bottomPadding: ThemeConstants.SPACE_XL + (this.cbzQueue.status === undefined ? 0 :
+          this.cbzStatusHeight + ThemeConstants.SPACE_MD),
         onScrollStart: () => { this.queueScrolling = true },
         onScrollStop: () => {
           this.queueScrolling = false
@@ -1631,6 +1799,14 @@ export struct DownloadsPage {
             }
           }
         }
+      }
+      if (this.cbzQueue.status !== undefined) {
+        Column() {
+          this.CbzConversionStatus()
+        }
+        .width('100%')
+        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD,
+          bottom: this.safeArea.bottomAvoidHeight + ThemeConstants.SPACE_MD })
       }
     }
     .width('100%')

@@ -1,7 +1,7 @@
-import { zlib } from '@kit.BasicServicesKit'
 import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
 import { Chapter, Page, ReadingDirection, normalizeSortKey } from '../model/ComicModels'
-import { extractNativeComicArchive } from './NativeArchiveExtraction'
+import { ComicZipEntry, extractNativeComicArchive, nativeComicArchive } from './NativeArchiveExtraction'
+import { isComicZip, readComicZipInfo } from './ComicZipPage'
 import { readOrderedEpubImages } from './EpubArchiveReader'
 import { inspectPdf, pdfPageUri, renderPdfPage } from './PdfPageService'
 import { ArchiveImageChapter, archiveImageChapters } from './ArchiveImageChapters'
@@ -97,7 +97,7 @@ function assertNoTraversalPath(path: string, label: string): void {
 function assertZipSandboxPath(path: string): void {
   assertNoTraversalPath(path, 'sandboxZipPath')
   if (!path.toLocaleLowerCase().endsWith('.zip')) {
-    throw new Error(`sandboxZipPath must end with .zip for zlib.decompressFile: ${path}`)
+    throw new Error(`sandboxZipPath must end with .zip: ${path}`)
   }
 }
 
@@ -172,7 +172,8 @@ export class ArchiveExtractionService {
     if (request.cleanOutputDir !== false) {
       await removeDirectoryIfPresent(request.extractionDir)
     }
-    await fs.mkdir(request.extractionDir, true)
+    const indexedZip = isComicZip(request.archivePath)
+    if (!indexedZip) await fs.mkdir(request.extractionDir, true)
 
     assertNotCancelled(request.cancelToken)
     if (/\.pdf$/i.test(request.archivePath)) {
@@ -195,17 +196,25 @@ export class ArchiveExtractionService {
       return { archivePath: request.archivePath, sandboxZipPath: request.sandboxZipPath,
         extractionDir: request.extractionDir, entries, importResult }
     }
-    // Preserve the accepted ZIP/CBZ route. New formats decode on native async workers.
-    if (/\.(?:zip|cbz)$/i.test(request.archivePath)) {
-      await zlib.decompressFile(request.sandboxZipPath, request.extractionDir)
+    // A ZIP/CBZ page holds an archive entry reference. Only retained child
+    // archives need a seekable file of their own to preserve nested chapters.
+    let zipFiles: ComicZipEntry[] = []
+    if (indexedZip) {
+      zipFiles = (await nativeComicArchive.listZip(request.sandboxZipPath)).filter(
+        (entry: ComicZipEntry): boolean => isSafeArchiveEntryPath(entry.path))
     } else {
       await extractNativeComicArchive(request.sandboxZipPath, request.extractionDir)
     }
     assertNotCancelled(request.cancelToken)
 
-    const entries = await this.listImageEntries(request.extractionDir)
+    const entries: ArchiveEntryCandidate[] = indexedZip ? zipFiles.filter(
+      (entry: ComicZipEntry): boolean => isSupportedImagePath(entry.path)).map(
+      (entry: ComicZipEntry): ArchiveEntryCandidate => ({ path: entry.path, byteSize: entry.size })) :
+      await this.listImageEntries(request.extractionDir)
     const nested = request.expandNestedArchives === false || /\.epub$/i.test(request.archivePath) ? [] :
-      await this.listNestedArchives(request.extractionDir)
+      (indexedZip ? zipFiles.map((entry: ComicZipEntry): string => entry.path)
+        .filter((path: string): boolean => isSupportedArchivePath(path)).sort(compareNaturalPath) :
+        await this.listNestedArchives(request.extractionDir))
     if (entries.length === 0 && nested.length === 0) {
       throw new Error(`Archive contains no supported image pages: ${request.archivePath}`)
     }
@@ -214,13 +223,15 @@ export class ArchiveExtractionService {
       archivePath: request.archivePath,
       entries,
       extractionDir: request.extractionDir,
+      zipPageArchive: indexedZip ? request.sandboxZipPath : undefined,
       comicId: request.comicId,
       title: request.title,
       importedAt: request.importedAt,
       readingDirection: request.readingDirection,
     })
     try {
-      const metadata = parseLocalLibrarySidecarMetadata(await fs.readText(`${request.extractionDir}/ComicInfo.xml`))
+      const metadata = parseLocalLibrarySidecarMetadata(indexedZip ? await readComicZipInfo(request.sandboxZipPath) :
+        await fs.readText(`${request.extractionDir}/ComicInfo.xml`))
       if (metadata.status === 'ok' && (metadata.metadata?.authors?.length ?? 0) > 0) {
         importResult.comic.author = metadata.metadata?.authors?.join('、')
       }
@@ -233,7 +244,7 @@ export class ArchiveExtractionService {
       // Optional metadata is not required to read the archive.
     }
 
-    const imageGroups = request.expandNestedArchives === false || !/\.zip$/i.test(request.archivePath) ? [] :
+    const imageGroups = request.expandNestedArchives === false || !/\.zip$/i.test(request.archivePath.replace(/%2e/ig, '.')) ? [] :
       archiveImageChapters(entries.map((entry: ArchiveEntryCandidate): string => entry.path))
     if (nested.length > 0 || imageGroups.length > 0) {
       const comic = importResult.comic
@@ -243,6 +254,7 @@ export class ArchiveExtractionService {
         imageGroups.forEach((group: ArchiveImageChapter): void => {
           const selected = new Set<string>(group.paths)
           const groupResult = buildComicFromArchive({ archivePath: request.archivePath, extractionDir: request.extractionDir,
+            zipPageArchive: indexedZip ? request.sandboxZipPath : undefined,
             comicId: comic.id, title: group.title, importedAt: request.importedAt, readingDirection: request.readingDirection,
             entries: entries.filter((entry: ArchiveEntryCandidate): boolean => selected.has(entry.path)) })
           chapters.push(groupResult.comic.chapters[0])
@@ -262,7 +274,11 @@ export class ArchiveExtractionService {
         const childRoot = `${request.extractionDir}.chapters/${index}`
         await fs.mkdir(childRoot, true)
         const copyPath = `${childRoot}/archive.zip`
-        await copyNestedArchive(createExtractedPagePath(request.extractionDir, childPath), copyPath)
+        if (indexedZip) {
+          await nativeComicArchive.copyZipEntry(request.sandboxZipPath, childPath, 8 * 1024 * 1024 * 1024, copyPath)
+        } else {
+          await copyNestedArchive(createExtractedPagePath(request.extractionDir, childPath), copyPath)
+        }
         const child = await this.extractArchive({
           archivePath: `${request.archivePath}#${childPath}`, sandboxZipPath: copyPath,
           extractionDir: `${childRoot}/extract`, title: stripExtension(getBaseName(childPath)),
