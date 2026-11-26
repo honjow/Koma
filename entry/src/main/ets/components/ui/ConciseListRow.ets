@@ -16,7 +16,7 @@ import {
 import { ColorMetrics, ImageModifier, LengthMetrics, ProgressButtonV2, ProgressButtonV2Color,
   SymbolGlyphModifier, TextModifier } from '@kit.ArkUI'
 import { connectLanguageState } from '../../state/LanguageState'
-import { AppearanceState, connectAppearanceState, effectiveAppearanceAccent } from '../../state/AppearanceState'
+import { AppearanceState, connectAppearanceState } from '../../state/AppearanceState'
 import { ThemeConstants } from '../../theme/ThemeConstants'
 
 @ObservedV2
@@ -122,13 +122,13 @@ export struct ConciseListRow {
     this.syncSwitchSuffix()
   }
 
-  @Monitor('hasSwitch', 'checked', 'isEnabled', 'switchAppearanceState.accentColor', 'switchAppearanceState.previewAccentColor')
+  @Monitor('hasSwitch', 'checked', 'isEnabled', 'switchAppearanceState.accentColor')
   private syncSwitchSuffix(): void {
     if (!this.hasSwitch) {
       this.switchSuffixItem = undefined
       return
     }
-    const accent = effectiveAppearanceAccent(this.switchAppearanceState)
+    const accent = this.switchAppearanceState.accentColor
     // CURRENT_STATUS #361: a native onChange already owns its new value.
     // Acknowledge the parent's echo without invalidating the HDS builder.
     // Only a genuine external change/rollback, enable or accent change reseeds it.

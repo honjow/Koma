@@ -230,7 +230,7 @@ export struct AppColorPicker {
         .backgroundColor(ThemeConstants.CARD)
         .padding(this.favoriteSelectionGap(index))
         .borderWidth(this.favoriteSelectionBorderWidth(index))
-        .borderColor(ThemeConstants.BRAND_PRIMARY)
+        .borderColor(this.color)
       } else if (index === this.appearance.accentColorFavorites.length) {
         Column()
           .width('100%')

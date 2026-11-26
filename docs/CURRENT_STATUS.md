@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-25T17:36:35+08:00",
+  "updatedAt": "2026-11-27T01:00:57+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "DOWNLOAD_START_LATENCY_FULL_READ_20261124",
   "activity": "197 在 376 行队列上核到冷启动首点下载的初始化与入队合计约 9 ms，全量读写路径已改为按目标行处理。",
@@ -13755,6 +13755,36 @@
       ],
       "stage": "4 个物理像素容差经用户验收"
     }
+,
+    {
+      "id": "CUSTOM_ACCENT_SHEET_PREVIEW_ISOLATION",
+      "number": 369,
+      "title": "拖动自定义主题色滑块时全应用反复换色",
+      "kind": "accepted",
+      "progressPhase": "completed",
+      "priority": "用户当前反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-27",
+      "reportedAtSource": "用户本会话反馈取色滑块卡顿，要求点勾后才在整个应用生效。",
+      "registeredAt": "2026-11-27T00:52:55+08:00",
+      "updatedAt": "2026-11-27T01:00:57+08:00",
+      "status": "197 实测拖动、取消和确认通过",
+      "result": "原实现每次选色写入全局预览字段，主题色消费者和原生开关配置随拖动更新。现取色器只更新面板草稿，点勾且保存成功才发布全局颜色。197 用 1.6.3 code29 同签 Release 候选录屏连续来回拖动色相、饱和度和亮度，草稿由 #256E5D 变为 #1B20B3，设置里的主题仍是翠绿。关闭后主题色样和已开启的 HDS 开关底色仍为 #256E5D，重开初始色同样为 #256E5D。选择已有红色收藏后点勾，设置色样和开关底色一起变为 #F44336。已恢复原翠绿、原文件管理页、10 秒超时和休眠并释租。保留候选包。",
+      "remainingActions": [],
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/build.log",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/slider-motion/slider-motion.mp4",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/cancel-slider/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/picker-reopen/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/confirm-custom/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-original-accent/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-file-manager/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-power/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/lease-final.json"
+      ],
+      "closedAt": "2026-11-27T01:00:57+08:00"
+    }
   ],
   "source": {
     "status": "书源设置与搜索逐项核验中",
@@ -13808,6 +13838,36 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "custom-accent-preview-verify-20261127",
+      "at": "2026-11-27T01:00:57+08:00",
+      "itemId": "CUSTOM_ACCENT_SHEET_PREVIEW_ISOLATION",
+      "kind": "validation",
+      "title": "197 实测拖动、取消和确认通过",
+      "detail": "原实现每次选色写入全局预览字段，主题色消费者和原生开关配置随拖动更新。现取色器只更新面板草稿，点勾且保存成功才发布全局颜色。197 用 1.6.3 code29 同签 Release 候选录屏连续来回拖动色相、饱和度和亮度，草稿由 #256E5D 变为 #1B20B3，设置里的主题仍是翠绿。关闭后主题色样和已开启的 HDS 开关底色仍为 #256E5D，重开初始色同样为 #256E5D。选择已有红色收藏后点勾，设置色样和开关底色一起变为 #F44336。已恢复原翠绿、原文件管理页、10 秒超时和休眠并释租。保留候选包。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/build.log",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/slider-motion/slider-motion.mp4",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/cancel-slider/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/picker-reopen/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/confirm-custom/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-original-accent/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-file-manager/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-power/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/lease-final.json"
+      ]
+    },
+    {
+      "id": "custom-accent-preview-register-20261127",
+      "at": "2026-11-27T00:52:55+08:00",
+      "itemId": "CUSTOM_ACCENT_SHEET_PREVIEW_ISOLATION",
+      "kind": "implementation",
+      "title": "将主题色草稿留在取色半模态",
+      "detail": "原实现每次选色写入全局预览字段，主题色消费者和原生开关配置随拖动更新。现取色器保留草稿，点勾保存成功后才发布全局外观，关闭后重开以已保存颜色为起点。沿用网格、滑块、HEX 和收藏色。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/koma-accent-confirm-197/build.log"
+      ]
+    },
     {
       "id": "source-description-site-characteristics-20261126",
       "at": "2026-11-26T05:57:13+08:00",

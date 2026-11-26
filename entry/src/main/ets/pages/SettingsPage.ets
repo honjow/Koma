@@ -14,7 +14,7 @@ import { FormTitleActionState } from '../state/FormTitleActionState'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { LibraryAutomationSettingRow, LIBRARY_AUTOMATION_SETTING_KEYS } from '../components/LibraryAutomationSettingRow'
 import { LibraryAutomationPreferences, defaultLibraryAutomationPreferences } from '../model/LibraryAutomationPolicy'
-import { AppearanceState, connectAppearanceState, effectiveAppearanceAccent, isCustomAppearanceAccentColor, MangaDetailTransitionMode } from '../state/AppearanceState'
+import { AppearanceState, connectAppearanceState, isCustomAppearanceAccentColor, MangaDetailTransitionMode } from '../state/AppearanceState'
 import { AppColorPicker } from '../components/AppColorPicker'
 import { AppIconPicker, AppIconPreview } from '../components/AppIconPicker'
 import { AppIconSettings, AppIconState, connectAppIconState } from '../model/AppIconSettings'
@@ -773,7 +773,7 @@ export struct SettingsPage {
       return getReaderThemeModeLabel(this.themeMode)
     }
     if (row.key === 'theme-color') {
-      return getAppearanceAccentColorLabel(effectiveAppearanceAccent(this.appearanceState))
+      return getAppearanceAccentColorLabel(this.appearanceState.accentColor)
     }
     if (row.key === 'detail-transition') return this.detailTransitionModeLabel(this.appearanceState.detailTransitionMode)
     if (row.key === 'language') {
@@ -1665,8 +1665,8 @@ export struct SettingsPage {
           disabled: this.accentPickerSaving,
           colorChange: (color: string) => {
             if (!this.accentPickerShown || this.accentPickerSaving) return
+            // Keep previews in this sheet. Publishing a draft would refresh global theme consumers on every slider tick.
             this.draftAccentColor = color
-            this.appearanceState.previewAccentColor = color
           },
           favoriteChange: (color: string, add: boolean) => {
             void this.appearancePreferencesStore().changeAccentFavorite(color, add).catch(() => {
@@ -2641,7 +2641,7 @@ export struct SettingsPage {
       ConciseListRow({
         title: this.rowTitle(row),
         trailingText: this.rowDetail(row),
-        trailingSwatchColor: getAppearanceAccentColorValue(effectiveAppearanceAccent(this.appearanceState)),
+        trailingSwatchColor: getAppearanceAccentColorValue(this.appearanceState.accentColor),
         trailingMaxLines: this.rowDetailMaxLines(row),
         trailingDropdown: true,
         showChevron: true,
@@ -2656,7 +2656,6 @@ export struct SettingsPage {
     .bindSheet($$this.accentPickerShown, this.AccentPickerSheet(), komaModalSheetOptions({
       detents: [SheetSize.LARGE],
       enableOutsideInteractive: false,
-      onDisappear: () => { this.appearanceState.previewAccentColor = '' },
     }))
   }
 

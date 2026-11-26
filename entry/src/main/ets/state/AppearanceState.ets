@@ -24,9 +24,8 @@ export function normalizeAppearanceDetailTransitionMode(mode: string): string {
 @ObservedV2
 export class AppearanceState {
   @Trace detailTransitionMode: string = DEFAULT_DETAIL_TRANSITION_MODE
+  // The theme shared by the app is published by the preferences store after a successful save.
   @Trace accentColor: string = 'emerald'
-  // The picker owns this transient override until its sheet disappears. The store publishes confirmed colors separately.
-  @Trace previewAccentColor: string = ''
   @Trace accentColorFavorites: string[] = DEFAULT_APPEARANCE_COLOR_FAVORITES.slice()
   @Trace autoHideBottomBar: boolean = true
   @Trace showResumeMiniBar: boolean = true
@@ -40,10 +39,6 @@ export function connectAppearanceState(): AppearanceState {
 
 export function isCustomAppearanceAccentColor(value: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(value)
-}
-
-export function effectiveAppearanceAccent(state: AppearanceState): string {
-  return state.previewAccentColor || state.accentColor
 }
 
 // Existing presets keep their stored IDs. Emerald resolves to the host's light/dark resource.
