@@ -31,14 +31,14 @@ export function findPreviousLocalImport(libraryStore: LibraryStore, fresh: Comic
   return matches[0] === undefined ? undefined : libraryStore.getComic(matches[0].id)
 }
 
-function localPagePath(page: Page): string {
-  if (!page.uri.startsWith('file://')) throw new Error('Local import page is not a sandbox file')
-  return decodeURIComponent(page.uri.substring('file://'.length))
+function localPagePath(uri: string): string {
+  if (!uri.startsWith('file://')) throw new Error('Local import page is not a sandbox file')
+  return decodeURIComponent(uri.substring('file://'.length))
 }
 
-async function localImportPageHash(page: Page): Promise<string> {
-  const zip = parseComicZipPage(page.uri)
-  if (zip === undefined) return hash.hash(localPagePath(page), 'sha256')
+export async function localImportImageHash(uri: string): Promise<string> {
+  const zip = parseComicZipPage(uri)
+  if (zip === undefined) return hash.hash(localPagePath(uri), 'sha256')
   const bytes = await readComicZipPage(zip)
   const digest = cryptoFramework.createMd('SHA256')
   await digest.update({ data: new Uint8Array(bytes) })
@@ -78,10 +78,10 @@ export async function matchLocalImportChapters(previous: Comic, fresh: Comic): P
       }
       // New content must be readable. Missing old content can only invalidate
       // resume; it is never a reason to discard a valid newly selected copy.
-      const newHash = await localImportPageHash(newPages[index])
+      const newHash = await localImportImageHash(newPages[index].uri)
       let oldHash: string
       try {
-        oldHash = await localImportPageHash(oldPages[index])
+        oldHash = await localImportImageHash(oldPages[index].uri)
       } catch (_error) {
         return false
       }
@@ -201,8 +201,15 @@ export class LocalImportCommitService {
     this.persistenceService = persistenceService
   }
 
+  runExclusive<T>(write: () => Promise<T>): Promise<T> {
+    const previous = this.pending
+    const result = BackupRestoreActivity.runWrite((): Promise<T> => previous.then(write))
+    this.pending = result.then((): void => {}, (_error: Error): void => {})
+    return result
+  }
+
   commit(fresh: Comic): Promise<void> {
-    const result = BackupRestoreActivity.runWrite(() => this.pending.then(async (): Promise<void> => {
+    return this.runExclusive(async (): Promise<void> => {
       const previous = findPreviousLocalImport(this.libraryStore, fresh)
       if (previous === undefined && this.libraryStore.getComic(fresh.id) !== undefined) {
         throw new Error('Local import identity collision')
@@ -216,8 +223,6 @@ export class LocalImportCommitService {
       }
       const merged = mergeLocalImport(latest, fresh, matches)
       upsertComicAndPersistLibraryStore(this.libraryStore, this.persistenceService, merged)
-    }))
-    this.pending = result.catch((_error: Error): void => {})
-    return result
+    })
   }
 }

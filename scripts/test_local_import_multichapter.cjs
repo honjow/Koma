@@ -155,3 +155,206 @@ test('ZIP reimport preserves page IDs when replacing an older extracted copy', a
   const merged = api.mergeLocalImport(old, fresh, sameOrder())
   assert.deepEqual(merged.chapters.map(chapter => chapter.pages[0].id), ['old-one-p', 'old-two-p', 'old-three-p'])
 })
+
+const { execFileSync } = require('node:child_process')
+const { createHash, randomUUID } = require('node:crypto')
+const os = require('node:os')
+const realHash = async file => createHash('sha256').update(await fs.promises.readFile(file)).digest('hex')
+const fileUri = file => 'file://' + file.split('/').map(encodeURIComponent).join('/')
+const zipOutput = (command, archive, entry) => execFileSync('python3', ['-c',
+  'import sys, zipfile; z = zipfile.ZipFile(sys.argv[1]); ' + command, archive, entry ?? ''], { stdio: ['ignore', 'pipe', 'pipe'] })
+const readEntry = (archive, entry) => Uint8Array.from(zipOutput('sys.stdout.buffer.write(z.read(sys.argv[2]))', archive, entry)).buffer
+const zipNative = {
+  listZip: async archive => zipOutput('print("\\n".join(z.namelist()))', archive).toString().trim().split('\n')
+    .map(path => ({ path, size: 1 })),
+  readZipEntry: async (archive, entry) => readEntry(archive, entry),
+  copyZipEntry: async (archive, entry, limit, target) => fs.promises.writeFile(target, new Uint8Array(readEntry(archive, entry))),
+}
+const migrationZip = load('import/ComicZipPage', {
+  '@kit.ArkTS': { util: { TextDecoder: { create: () => new TextDecoder() } } },
+  './ImageSortUtils': load('import/ImageSortUtils'),
+  './NativeArchiveExtraction': { nativeComicArchive: zipNative },
+})
+const imageSort = load('import/ImageSortUtils')
+const nodeFiles = {
+  lstat: async file => fs.promises.lstat(file).catch(error => {
+    if (error.code === 'ENOENT') error.code = 13900002
+    throw error
+  }),
+  copyFile: fs.promises.copyFile,
+  listFile: async file => fs.promises.readdir(file),
+  readText: async file => fs.promises.readFile(file, 'utf8'),
+  mkdir: async (file, recursive) => fs.promises.mkdir(file, { recursive }),
+  rmdir: async file => fs.promises.rm(file, { recursive: true }),
+  unlink: fs.promises.unlink,
+  open: async file => ({ fd: await fs.promises.open(file, 'r+') }),
+  close: async file => file.fd.close(),
+  fsync: async fd => fd.sync(),
+  OpenMode: { READ_WRITE: 2 },
+}
+const realImports = load('import/LocalImportCommitService', {
+  '@kit.CoreFileKit': { hash: { hash: realHash } },
+  '@kit.CryptoArchitectureKit': { cryptoFramework: { createMd() {
+    const digest = createHash('sha256')
+    return { update: async blob => digest.update(blob.data), digest: async () => ({ data: new Uint8Array(digest.digest()) }) }
+  } } },
+  '@kit.ArkTS': { util: { generateRandomUUID: randomUUID } },
+  '../model/ComicModels': models,
+  '../model/BackupRestoreActivity': load('model/BackupRestoreActivity'),
+  '../model/LibraryPersistence': {},
+  './PdfPageService': pdf,
+  './ComicZipPage': migrationZip,
+  './ImageSortUtils': imageSort,
+})
+const archiveExtraction = load('import/ArchiveExtractionService', {
+  '@kit.CoreFileKit': { fileIo: nodeFiles },
+  '../model/ComicModels': models,
+  './NativeArchiveExtraction': { nativeComicArchive: zipNative },
+  './ComicZipPage': migrationZip,
+  './EpubArchiveReader': {},
+  './PdfPageService': pdf,
+  './ArchiveImageChapters': load('import/ArchiveImageChapters', {
+    './ImageSortUtils': imageSort,
+    '../model/LocalLibraryFolderContract': { scanLocalLibraryFolderEntries: () => ({ series: [] }) },
+  }),
+  '../model/LocalLibraryMetadataService': { parseLocalLibrarySidecarMetadata: () => ({ status: 'missing' }) },
+  './ArchiveImportService': load('import/ArchiveImportService', {
+    '@kit.ArkTS': { util: { generateRandomUUID: randomUUID } },
+    '../model/ComicModels': models, './ImageSortUtils': imageSort, './ComicZipPage': migrationZip,
+  }),
+  './ImageSortUtils': imageSort,
+})
+const migration = load('import/LegacyZipImportMigration', {
+  '@kit.CoreFileKit': { fileIo: nodeFiles, hash: { hash: realHash } },
+  '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { exception: (_tag, code, error) => diagnostic.push([code, error.message]) } },
+  '../model/AppFileTextPersistence': { writeAppTextFile: fs.writeFileSync },
+  '../model/BackupRestoreActivity': load('model/BackupRestoreActivity'),
+  '../model/ComicModels': models,
+  '../model/KomaContentStorage': { komaContentStorageBase: context => context.publicDir },
+  '../model/LocalLibraryFolderContract': { localLibraryFolderRootUriFromComic: comic => comic.folderRoot },
+  './ArchiveExtractionService': archiveExtraction,
+  './ComicZipPage': migrationZip,
+  './LocalImportCoordinator': {
+    createManagedImportPaths(filesDir) {
+      const rootDir = path.join(filesDir, 'import', 'v1-' + randomUUID())
+      return { rootDir, archiveZipPath: path.join(rootDir, 'archive.zip'), extractionDir: path.join(rootDir, 'extract') }
+    },
+    async createManagedImportRoot(filesDir, rootDir) {
+      await fs.promises.mkdir(path.join(filesDir, 'import'), { recursive: true })
+      await fs.promises.mkdir(rootDir)
+    },
+  },
+  './LocalImportCommitService': realImports,
+  './PdfPageService': pdf,
+})
+const diagnostic = []
+
+function legacyFixture(t) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'koma-zip-upgrade-'))
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  const context = { filesDir: path.join(dir, 'files'), cacheDir: path.join(dir, 'cache'), publicDir: path.join(dir, 'Download/Koma') }
+  fs.mkdirSync(context.filesDir)
+  const oldRoot = path.join(context.publicDir, 'import', 'v1-' + randomUUID())
+  const extracted = path.join(oldRoot, 'extract')
+  const child = path.join(oldRoot, 'extract.chapters/0/extract')
+  fs.mkdirSync(extracted, { recursive: true })
+  fs.mkdirSync(child, { recursive: true })
+  const source = path.join(dir, '用户的原包.zip')
+  const outerPage = path.join(extracted, '第 1 页.jpg')
+  const childPage = path.join(child, '第 2 页.jpg')
+  const cover = path.join(extracted, 'cover.jpg')
+  execFileSync('python3', ['-c', [
+    'import io, pathlib, sys, zipfile',
+    'archive, outer, child, cover = map(pathlib.Path, sys.argv[1:])',
+    'inner = io.BytesIO()',
+    'with zipfile.ZipFile(inner, "w", zipfile.ZIP_DEFLATED) as nested: nested.writestr(child.name, b"chapter-two")',
+    'with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as book:',
+    '    book.writestr(outer.name, b"chapter-one")',
+    '    book.writestr(cover.name, b"cover")',
+    '    book.writestr("第二章.cbz", inner.getvalue())',
+    'outer.write_bytes(b"chapter-one")',
+    'child.write_bytes(b"chapter-two")',
+    'cover.write_bytes(b"cover")',
+  ].join('\n'), source, outerPage, childPage, cover])
+  const originalBytes = fs.readFileSync(source)
+  fs.copyFileSync(source, path.join(oldRoot, 'archive.zip'))
+  const old = comic('old-book', extracted)
+  // Keep an intentionally persisted order which differs from a fresh import.
+  old.sourcePath = fileUri(source)
+  old.localImportOrigin.sourceUris = [old.sourcePath]
+  old.chapters = old.chapters.slice(0, 2)
+  old.chapters[0].sourcePath = old.sourcePath + '#第二章.cbz'
+  old.chapters[0].pages[0].uri = fileUri(childPage)
+  old.chapters[1].sourcePath = old.sourcePath
+  old.chapters[1].pages[0].uri = fileUri(outerPage)
+  old.coverUri = fileUri(cover)
+  old.personalNotes = 'Keep note'
+  old.categoryIds = ['library-category']
+  const works = new Map([[old.id, old]])
+  const library = {
+    getComic: id => works.get(id),
+    upsertComic: value => works.set(value.id, value),
+    listComicSummaries: () => [...works.values()],
+    listComicSummariesByKind: kinds => [...works.values()].filter(comic => kinds.includes(comic.sourceKind)),
+  }
+  const storage = { value: old, fail: false, persistExistingWorks([value]) {
+    if (this.fail) throw new Error('write failed')
+    this.value = structuredClone(value)
+  } }
+  const make = () => new migration.LegacyZipImportMigration(library, storage,
+    new realImports.LocalImportCommitService(library, storage))
+  return { context, oldRoot, source, originalBytes, old, outerPage, works, storage, make }
+}
+
+test('upgrade restores nested ZIP pages and the cover in place in the catalog, then clears only old app files', async t => {
+  const fixture = legacyFixture(t)
+  const { context, oldRoot, source, originalBytes, old, storage, make } = fixture
+  fs.writeFileSync(path.join(oldRoot, 'user-note.txt'), 'Keep this file')
+  let allowCleanup = true
+  diagnostic.length = 0
+  await make().run(context, () => allowCleanup, () => { allowCleanup = false })
+  assert.equal(fs.existsSync(path.join(oldRoot, 'extract')), true)
+  assert.deepEqual(storage.value.chapters.map(ch => [ch.id, ch.pages[0].id]),
+    old.chapters.map(ch => [ch.id, ch.pages[0].id]), JSON.stringify(diagnostic))
+  assert.equal(storage.value.personalNotes, old.personalNotes)
+  assert.deepEqual(storage.value.categoryIds, old.categoryIds)
+  const zip = uri => migrationZip.parseComicZipPage(uri)
+  const newCover = zip(storage.value.coverUri)
+  assert.ok(newCover.archive.startsWith(context.filesDir + '/import/'), JSON.stringify(diagnostic))
+  assert.deepEqual(fs.readFileSync(newCover.archive), originalBytes)
+  assert.equal(Buffer.from(readEntry(newCover.archive, newCover.entry)).toString(), 'cover')
+  assert.deepEqual(storage.value.chapters.map(ch => {
+    const { archive, entry } = zip(ch.pages[0].uri)
+    return Buffer.from(readEntry(archive, entry)).toString()
+  }), ['chapter-two', 'chapter-one'])
+  // Reload only the durable catalog, as on a new process after publication.
+  fixture.works.set(old.id, structuredClone(storage.value))
+  await make().run(context, () => true, () => assert.fail('The already migrated catalog must not be written again'))
+  assert.deepEqual(fs.readdirSync(oldRoot), ['user-note.txt'])
+  assert.deepEqual(fs.readFileSync(source), originalBytes)
+})
+
+test('missing archives, failed persistence and mismatched pages leave the readable old import intact', async t => {
+  const { context, oldRoot, outerPage, old, storage, make } = legacyFixture(t)
+  const idle = () => true
+  const retained = path.join(oldRoot, 'archive.zip')
+  const bytes = fs.readFileSync(retained)
+  fs.unlinkSync(retained)
+  await make().run(context, idle, () => assert.fail('A missing original must not publish'))
+  assert.equal(storage.value, old)
+  assert.ok(fs.existsSync(outerPage))
+  fs.writeFileSync(retained, bytes)
+  storage.fail = true
+  await make().run(context, idle, () => assert.fail('A failed commit must not publish'))
+  assert.equal(storage.value, old)
+  assert.ok(fs.existsSync(outerPage))
+  storage.fail = false
+  fs.writeFileSync(outerPage, 'changed page')
+  await make().run(context, idle, () => assert.fail('A content mismatch must not publish'))
+  assert.equal(fs.readFileSync(outerPage, 'utf8'), 'changed page')
+  assert.deepEqual(fs.readdirSync(path.join(context.filesDir, 'import')), [])
+  fs.writeFileSync(outerPage, 'chapter-one')
+  await make().run(context, idle, () => {})
+  assert.notEqual(storage.value, old, JSON.stringify(diagnostic))
+  assert.equal(fs.existsSync(oldRoot), false)
+})

@@ -398,7 +398,7 @@ export async function copyPickedImageUriToSandbox(sourceUri: string, sandboxPath
   }
 }
 
-function createManagedImportPaths(filesDir: string, sourceUri?: string): ArchiveExtractionCachePaths {
+export function createManagedImportPaths(filesDir: string, sourceUri?: string): ArchiveExtractionCachePaths {
   const rootDir = joinImportCachePath(joinImportCachePath(filesDir, 'import'), `v1-${util.generateRandomUUID()}`)
   assertSafeComputedArchiveImportCacheRoot(filesDir, rootDir)
   return {
@@ -409,7 +409,7 @@ function createManagedImportPaths(filesDir: string, sourceUri?: string): Archive
   }
 }
 
-async function createManagedImportRoot(filesDir: string, rootDir: string): Promise<void> {
+export async function createManagedImportRoot(filesDir: string, rootDir: string): Promise<void> {
   const parentDir = joinImportCachePath(filesDir, 'import')
   try {
     await fs.mkdir(parentDir, true)

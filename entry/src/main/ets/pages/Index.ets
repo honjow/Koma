@@ -109,6 +109,7 @@ import { KomaMenuController, KomaMenuAction, KomaMenuGroup, komaTitleMoreIcon } 
 import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
 import { LocalImportCoordinator, LOCAL_IMPORT_PDF_PASSWORD_REQUIRED } from '../import/LocalImportCoordinator'
 import { LocalImportCommitService } from '../import/LocalImportCommitService'
+import { LegacyZipImportMigration } from '../import/LegacyZipImportMigration'
 import { MangaDetailPage } from './MangaDetailPage'
 import { MangaWebPage } from './MangaWebPage'
 import { resolveSourceChapterList, SourceChapterListResult } from '../model/SourceChapterListResolver'
@@ -3639,15 +3640,37 @@ struct Index {
   }
 
   private localImportCommitService?: LocalImportCommitService
+  private legacyZipImportMigration?: LegacyZipImportMigration
+
+  private ensureLocalImportCommitService(persistence: LibraryStorePersistenceService): LocalImportCommitService {
+    if (this.localImportCommitService === undefined) {
+      this.localImportCommitService = new LocalImportCommitService(this.libraryStore, persistence)
+    }
+    return this.localImportCommitService
+  }
+
+  @Monitor('readerOpen', 'readerClosing', 'readerRouteVisible', 'readerSessionLoading', 'appForegroundState.active')
+  private runLegacyZipImportMigration(): void {
+    if (!this.libraryUpdateReady || shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) return
+    const idle = (): boolean => this.appForegroundState.active && !this.readerOpen && !this.readerClosing &&
+      !this.readerRouteVisible && !this.readerSessionLoading
+    if (!idle()) return
+    const persistence = this.ensureLibraryPersistenceService()
+    if (persistence === undefined) return
+    if (this.legacyZipImportMigration === undefined) {
+      this.legacyZipImportMigration = new LegacyZipImportMigration(this.libraryStore, persistence,
+        this.ensureLocalImportCommitService(persistence))
+    }
+    void this.legacyZipImportMigration.run(getContext(this) as common.UIAbilityContext, idle, (): void => {
+      this.refreshLibrarySnapshot()
+    })
+  }
 
   private async handleArchiveImportSucceeded(comic: Comic): Promise<void> {
     const persistenceService = this.ensureLibraryPersistenceService()
     if (persistenceService === undefined) throw new Error('Local import persistence unavailable')
-    if (this.localImportCommitService === undefined) {
-      this.localImportCommitService = new LocalImportCommitService(this.libraryStore, persistenceService)
-    }
     try {
-      await this.localImportCommitService.commit(comic)
+      await this.ensureLocalImportCommitService(persistenceService).commit(comic)
     } catch (error) {
       DiagnosticLogger.exception('index', 'persist_imported_comic_failed', error as Error)
       throw error as Error
@@ -4087,6 +4110,7 @@ struct Index {
               this.refreshLibrarySnapshot()
               this.afterStartupFrame((): void => {
                 this.libraryUpdateReady = true
+                this.runLegacyZipImportMigration()
                 this.retryMihonAfterSourceChange()
                 if (!this.appForegroundState.active) this.resumeAutomaticDownloadQueue()
                 this.runForegroundLibraryUpdate()
@@ -4135,6 +4159,7 @@ struct Index {
             })
           this.refreshLibrarySnapshot()
           this.refreshReadingPresentation()
+          this.runLegacyZipImportMigration()
           return
         }
         if (attempt < 2) this.retryPublicContentStorage(attempt + 1)

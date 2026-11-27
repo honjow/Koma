@@ -1627,7 +1627,7 @@
     { "name": "source_pkg_reason_empty_package", "value": "Source is empty" },
     { "name": "source_pkg_reason_checksum_mismatch", "value": "Source checksum mismatch" },
     { "name": "source_pkg_reason_network_not_allowed", "value": "Source requested disallowed network or install capabilities" },
-    { "name": "source_pkg_reason_unsafe_archive_entry", "value": "Source contains unsafe file paths" },
+    { "name": "source_pkg_reason_unsafe_archive_entry", "value": "This source package has an unsupported structure. Download the original .koma file from its release page and import it as-is." },
     {"name": "source_pkg_reason_invalid_archive", "value": "The source package is not a valid ZIP archive"},
     {"name": "source_pkg_reason_missing_icon", "value": "Source is missing its required icon file"},
     { "name": "source_pkg_reason_invalid_icon", "value": "Source icon is invalid or cannot be decoded" },

@@ -6411,7 +6411,7 @@
     },
     {
       "name": "source_pkg_reason_unsafe_archive_entry",
-      "value": "ソースに危険なファイルパスが含まれています"
+      "value": "ソースパッケージの構成に対応していません。配布元から元の .koma ファイルをダウンロードし、そのままインポートしてください。"
     },
     {
       "name": "source_pkg_reason_invalid_archive",

@@ -6411,7 +6411,7 @@
     },
     {
       "name": "source_pkg_reason_unsafe_archive_entry",
-      "value": "소스에 안전하지 않은 파일 경로가 포함되어 있습니다"
+      "value": "지원하지 않는 소스 패키지 구조입니다. 배포 페이지에서 원본 .koma 파일을 다시 다운로드한 뒤 그대로 가져오세요."
     },
     {
       "name": "source_pkg_reason_invalid_archive",
