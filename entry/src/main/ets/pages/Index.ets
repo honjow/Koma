@@ -5423,8 +5423,9 @@ struct Index {
   }
 
   @Builder
-  private MangaDetailSourceSurfaceSnapshot(zIndex: number) {
+  private MangaDetailSourceSurfaceSnapshot() {
     if (this.detailTransition.sourceSnapshot !== undefined) {
+      // Keep the material and its contents in the same source surface so gradients stay continuous.
       Image(this.detailTransition.sourceSnapshot)
         .width(this.detailTransition.sourceSnapshotWidth)
         .height(this.detailTransition.sourceSnapshotHeight)
@@ -5434,7 +5435,12 @@ struct Index {
           x: this.detailTransition.sourceSnapshotX,
           y: this.detailTransition.sourceSnapshotY,
         })
-        .zIndex(zIndex)
+        .scale({
+          x: this.detailTransition.sourceSurfaceScale,
+          y: this.detailTransition.sourceSurfaceScale,
+          centerX: this.detailTransition.rootWidth / 2 - this.detailTransition.sourceSnapshotX,
+          centerY: this.detailTransition.rootHeight / 2 - this.detailTransition.sourceSnapshotY,
+        })
         .hitTestBehavior(HitTestMode.None)
         .transition(TransitionEffect.IDENTITY)
     }
@@ -5471,11 +5477,7 @@ struct Index {
           this.detailTransition.phase === MangaDetailTransitionPhase.OPENING ||
           this.detailTransition.phase === MangaDetailTransitionPhase.CLOSING ||
           this.detailTransition.phase === MangaDetailTransitionPhase.POST_POP_HANDOFF)) {
-        Image(this.detailTransition.sourceSnapshot)
-          .width(this.detailTransition.sourceSnapshotWidth).height(this.detailTransition.sourceSnapshotHeight)
-          .position({ x: this.detailTransition.sourceSnapshotX, y: this.detailTransition.sourceSnapshotY }).objectFit(ImageFit.Fill).syncLoad(true)
-          .hitTestBehavior(HitTestMode.None)
-          .transition(TransitionEffect.IDENTITY)
+        this.MangaDetailSourceSurfaceSnapshot()
       }
       if (this.languageState.effectiveLocale.length >= 0) {
         Stack({ alignContent: Alignment.TopStart }) {
@@ -5734,6 +5736,13 @@ struct Index {
         .position({ x: this.coverExpandSurfaceActive() ? this.detailTransition.clipX : 0,
           y: this.coverExpandSurfaceActive() ? this.detailTransition.clipY : 0 })
         .backgroundColor(ThemeConstants.BG_SUB)
+        // Independent POP has finished navigation underneath its separate detail snapshot. The live
+        // shelf can now restore its scale without moving the detail or the already measured landing.
+        .scale({
+          x: this.detailTransition.independentPopSurfaceActive ? this.detailTransition.sourceSurfaceScale : 1,
+          y: this.detailTransition.independentPopSurfaceActive ? this.detailTransition.sourceSurfaceScale : 1,
+          centerX: '50%', centerY: '50%',
+        })
         .shadow(ShadowStyle.OUTER_DEFAULT_MD)
         .borderRadius(this.coverExpandSurfaceActive() ? this.detailTransition.radius : 0)
         .clip(this.coverExpandSurfaceActive())
@@ -5749,6 +5758,9 @@ struct Index {
               x: -this.detailTransition.clipX,
               y: -this.detailTransition.clipY,
             })
+            // Match the live detail content fade. The opaque shell and the independent cover
+            // still follow the original path, but chapter text cannot outlive their handoff.
+            .opacity(this.detailTransition.contentOpacity)
             .hitTestBehavior(HitTestMode.None)
             .transition(TransitionEffect.IDENTITY)
         }

@@ -20,7 +20,8 @@ function fixture() {
     }, exports, () => {}, () => {})
     return exports
   }
-  const { MangaDetailTransitionState, MangaDetailTransitionPhase: Phase } = load('state/MangaDetailTransitionState')
+  const { MangaDetailTransitionState, MangaDetailTransitionPhase: Phase, MANGA_DETAIL_SOURCE_SURFACE_SCALE } =
+    load('state/MangaDetailTransitionState')
   const state = new MangaDetailTransitionState()
   function prepare(token, mode, surfaceRadius = 12) {
     const resources = Array.from({ length: 3 }, () => ({ releases: 0, release() {
@@ -34,7 +35,7 @@ function fixture() {
     state.bindRouteDestination(`destination-${token}`)
     return resources
   }
-  return { state, Phase, prepare }
+  return { state, Phase, prepare, sourceScale: MANGA_DETAIL_SOURCE_SURFACE_SCALE }
 }
 
 test('cover expansion matches the source surface and each display corner in both directions', () => {
@@ -56,6 +57,28 @@ test('cover expansion matches the source surface and each display corner in both
     assert.equal(state.flightCoverRadius, 12)
     state.markPopSettled(true)
   }
+})
+
+test('the backdrop animates only on its owning transition and recovers after a cancelled return', () => {
+  const { state, prepare, sourceScale } = fixture()
+  prepare(1, 'seamless')
+  state.animationStarted = true
+  state.sourceSurfaceScale = sourceScale
+  assert.equal(state.seamlessSourceScale('source-list'), sourceScale)
+  assert.equal(state.seamlessSourceScale('another-list'), 1)
+  state.markPushSettled(true)
+  assert.equal(state.seamlessSourceScale('source-list'), 1)
+  state.beginPop()
+  state.sourceSurfaceScale = sourceScale
+  assert.equal(state.seamlessSourceScale('source-list'), sourceScale)
+  state.markPopSettled(false)
+  assert.equal(state.sourceSurfaceScale, 1)
+  assert.equal(state.seamlessSourceScale('source-list'), 1)
+  state.reset()
+
+  prepare(2, 'coverExpand')
+  state.sourceSurfaceScale = sourceScale
+  assert.equal(state.seamlessSourceScale('source-list'), 1)
 })
 
 // NextE's route contract: nested transitions move ownership; a child failure restores the parent.

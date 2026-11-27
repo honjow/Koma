@@ -1,4 +1,5 @@
 import { MangaDetailTransitionCoordinator } from '../navigation/MangaDetailTransitionCoordinator'
+import { connectMangaDetailTransition, MangaDetailTransitionState } from '../state/MangaDetailTransitionState'
 import { HdsNavigationMenuItemOptions } from '@kit.UIDesignKit'
 import { SourceSearchPresetSheetHost } from '../components/SourceSearchPresetSheetHost'
 import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
@@ -73,6 +74,7 @@ interface SourceBrowseGridProjection {
 @ComponentV2
 export struct SourceBrowsePage {
   private detailTransitionScope: string = MangaDetailTransitionCoordinator.allocateScope('browse')
+  @Local private detailTransition: MangaDetailTransitionState = connectMangaDetailTransition()
   @Param source: SourceRuntimeRegistryInstalledSourceSummary = {
     sourceId: '',
     displayName: '',
@@ -983,6 +985,11 @@ export struct SourceBrowsePage {
       .width('100%')
       .height('100%')
       .id(this.detailTransitionScope)
+      .scale({
+        x: this.detailTransition.seamlessSourceScale(this.detailTransitionScope),
+        y: this.detailTransition.seamlessSourceScale(this.detailTransitionScope),
+        centerX: '50%', centerY: '50%',
+      })
       .bindSheet($$this.filtersShown, this.SourceFiltersSheet,
         komaSheetOptions(sourceFilterSheetOptions(() => { this.finishFiltersDismiss() })))
     }

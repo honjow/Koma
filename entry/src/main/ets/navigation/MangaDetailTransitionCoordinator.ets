@@ -6,6 +6,7 @@ import { FrameCallback, UIUtils, curves, display, window } from '@kit.ArkUI'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   connectMangaDetailTransition,
+  MANGA_DETAIL_SOURCE_SURFACE_SCALE,
   MangaDetailReturnLayout,
   MangaDetailTransitionPhase,
 } from '../state/MangaDetailTransitionState'
@@ -863,6 +864,8 @@ export class MangaDetailTransitionCoordinator {
             },
           }, (): void => {
             UIUtils.applySync((): void => {
+              // The full source surface and foreground geometry share one render transaction.
+              transition.sourceSurfaceScale = MANGA_DETAIL_SOURCE_SURFACE_SCALE
               transition.expandWindow(screenRadius)
             })
           })
@@ -910,6 +913,9 @@ export class MangaDetailTransitionCoordinator {
             // slot, so the four-slice card remainder cannot restore the cover by itself.
             UIUtils.applySync((): void => { transition.useCoverFadePopFallback() })
           }
+          // With a reordered shelf the snapshot in front still covers the live page here. Measure
+          // first, then scale that live page under it so the first reveal already matches the motion.
+          UIUtils.applySync((): void => { transition.sourceSurfaceScale = MANGA_DETAIL_SOURCE_SURFACE_SCALE })
           const coverExpand: boolean = transition.isCoverExpand()
           uiContext.animateTo({
             duration: MANGA_DETAIL_TRANSITION_DURATION_MS,
@@ -920,7 +926,10 @@ export class MangaDetailTransitionCoordinator {
               }
             },
           }, (): void => {
-            UIUtils.applySync((): void => { transition.collapseWindow(ThemeConstants.RADIUS_CARD) })
+            UIUtils.applySync((): void => {
+              transition.sourceSurfaceScale = 1
+              transition.collapseWindow(ThemeConstants.RADIUS_CARD)
+            })
           })
           if (!coverExpand) {
             uiContext.animateTo({

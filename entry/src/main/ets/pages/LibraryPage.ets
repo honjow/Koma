@@ -3001,6 +3001,11 @@ export struct LibraryPage {
     .height('100%')
     .backgroundColor(ThemeConstants.BG_SUB)
     .id(this.detailTransitionScope)
+    .scale({
+      x: this.detailTransition.seamlessSourceScale(this.detailTransitionScope),
+      y: this.detailTransition.seamlessSourceScale(this.detailTransitionScope),
+      centerX: '50%', centerY: '50%',
+    })
     .bindSheet($$this.categoryEditorShown, this.CategoryEditor, libraryCategoryPickerSheetOptions())
     .onAreaChange((_old: Area, next: Area) => {
       this.containerWidth = next.width as number

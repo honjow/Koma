@@ -19,6 +19,8 @@ export enum MangaDetailReturnLayout {
   SOURCE_NOT_VISIBLE,
 }
 
+export const MANGA_DETAIL_SOURCE_SURFACE_SCALE: number = 0.94
+
 /**
  * Stable OPEN-state payload retained while a deeper list -> detail transition owns the render proxy.
  * PixelMaps move into this context instead of being copied or released; the parent route receives the
@@ -145,6 +147,8 @@ export class MangaDetailTransitionState {
   // Recapture replaces these images while the original overlay nodes remain mounted.
   // The image sources must update together with the new landing geometry.
   @Trace sourceSnapshot: image.PixelMap | undefined = undefined
+  // Only the outgoing page uses this scale. Card/cover rectangles stay in unscaled window coordinates.
+  @Trace sourceSurfaceScale: number = 1
   detailSnapshot: image.PixelMap | undefined = undefined
   @Trace cardSnapshot: image.PixelMap | undefined = undefined
   coverSnapshot: image.PixelMap | undefined = undefined
@@ -714,6 +718,17 @@ export class MangaDetailTransitionState {
     return this.mode === MangaDetailTransitionMode.COVER_EXPAND
   }
 
+  seamlessSourceScale(componentId: string): number {
+    // HDS can keep the outgoing page live in the seamless transition. Match its source scope
+    // and apply the scale only after preparation, so capture and landing use the unscaled layout.
+    if (this.eligible && this.mode === MangaDetailTransitionMode.SEAMLESS &&
+      this.sourceSurfaceComponentId === componentId &&
+      (this.phase === MangaDetailTransitionPhase.OPENING || this.phase === MangaDetailTransitionPhase.CLOSING)) {
+      return this.sourceSurfaceScale
+    }
+    return 1
+  }
+
   coverFlightVisible(): boolean {
     return this.isCoverExpand() &&
       !this.coverFadePopFallback &&
@@ -950,6 +965,7 @@ export class MangaDetailTransitionState {
       return
     }
     this.phase = MangaDetailTransitionPhase.OPEN
+    this.sourceSurfaceScale = 1
     if (this.isCoverExpand()) {
       this.radius = 0
       this.cardOpacity = 0
@@ -1008,6 +1024,7 @@ export class MangaDetailTransitionState {
       return
     }
     this.phase = MangaDetailTransitionPhase.OPEN
+    this.sourceSurfaceScale = 1
     this.coverFadePopFallback = false
     this.fallbackCoverOpacity = 0
     this.expandWindow()
@@ -1032,6 +1049,7 @@ export class MangaDetailTransitionState {
     this.preparationToken = 0
     this.eligible = false
     this.animationStarted = false
+    this.sourceSurfaceScale = 1
     this.phase = MangaDetailTransitionPhase.IDLE
     this.mode = MangaDetailTransitionMode.SEAMLESS
     this.galleryId = ''
