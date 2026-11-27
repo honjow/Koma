@@ -489,7 +489,10 @@ export class LibraryRdbStorage {
 
   private readDocument(catalog: boolean, includeMihonOriginals: boolean,
     incompleteSmartCategoryIds?: string[], query?: ShelfWorkQuery): LibraryShelfSyncDocument | undefined {
-    const header = shelfCollections.read(this.store)[0]
+    // Older first folder imports committed works without this row. The flags
+    // describe optional collections and do not determine whether works exist.
+    const header = shelfCollections.read(this.store)[0] ??
+      (this.hasWorks() ? shelfCollectionRow({ schemaVersion: 1, comics: [] }) : undefined)
     if (header === undefined) return undefined
     const smart = header.smart || incompleteSmartCategoryIds !== undefined ?
       readSmartCategories(this.store, incompleteSmartCategoryIds) : undefined
@@ -767,7 +770,11 @@ export class LibraryRdbStorage {
   /** Folder imports can add and refresh works in one atomic batch. Existing
    * order and all unrelated rows remain owned by their original records. */
   saveImportedWorks(comics: PersistedComic[]): void {
+    if (comics.length === 0) return
     writeUserRecords(this.store, (): void => {
+      if (shelfCollections.read(this.store).length === 0) {
+        shelfCollections.put(this.store, shelfCollectionRow({ schemaVersion: 1, comics: [] }))
+      }
       const nextOrder = this.store.querySqlSync('SELECT COALESCE(MAX(list_order), -1) + 1 FROM shelf_work_details')
       let order = 0
       try {

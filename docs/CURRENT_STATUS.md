@@ -219,7 +219,7 @@
       "reportedDate": "2026-11-23",
       "reportedAtSource": "用户转述有用户导入文件夹后 App 闪退，现场没有日志；精确消息时刻未核实。",
       "status": "已确认的导入及全量访问风险修正已补交；原现场闪退原因待日志",
-      "updatedAt": "2026-11-24T02:12:46+08:00",
+      "updatedAt": "2026-11-27T22:41:06+08:00",
       "result": "本地生产函数回放：原实现从已有100本延迟目录的书架导入一本单页作品，会读取原100本目录并准备写入101本、2001章、20001页；修后无关目录读取0次，只保存本次1本1章1页。同一事务只提交新增或变化的作品，提交后发布内存并沿用同步通知；保留顺序、分类和阅读状态，首次导入与重扫的提交失败均不发布内存，重试成功。43项相关回归、本地重扫回归及最终debug构建通过。197 普通书架菜单→导入→文件夹实际导入独立复制的图片样本，封面实显、2章共4页；普通详情检查本地库返回1根目录无新增或变更，最终包冷启动后同一作品与2章4页仍在且无重复，重扫再验通过。最初样本写入被系统权限拒绝的空目录返回不计验收。临时作品、Koma内本轮查询和复制目录已清理，原样本未改，原日漫分类及未读数倒序已核；恢复原桌面、SLEEP/10000ms并读回，租约已释放。保留最终候选包；原时点尚未提交，现已补交。 继续执行用户要求的全量读写收口：此前确认的17个入口改为摘要、指定作品或指定章节范围；备份预览只读ID，普通同步改关系表投影和逐记录版本摘要，Mihon批量在同一事务提交本次作品、原记录、阅读及追踪候选，检查点改原生数据库镜像。完整JSON编码集中到备份导出，旧输入与已落盘恢复日志解码保留。修后同数据真实SQLite回放中，本地元数据和源名从读写6本缩为1本；远程历史、源历史删除、阅读迁移和EPUB归一化均未生成完整阅读快照，未改无关作品的阅读位置和会话。82项域回归及98项同步回归、备份设置普通/旧恢复兼容检查通过；最终debug包构建通过并在201覆盖安装与冷启动，原书架、未读数及续读终态保持。 2026-11-24工作区核查：原界面修改会话中遗漏的43个关联文件已补交5305ac49；197导入、201冷启及原域回归/同步/备份记录已核，不把当前未知闪退写成已复现或已关闭。",
       "remaining": "用户现场的具体进程终止原因仍无日志，真实小型目录验证和已确认风险修正不等同复现该次闪退。超大目录整理/同步写库、封面总并发风险尚无现场因果证据；未降低画质或改变既定样式。App已本地提交，按原约定不推送或发布。",
       "evidence": [
@@ -14317,6 +14317,22 @@
         ".hvigor/outputs/local-folder-import-audit-20261123/cover-inflight-audit.json",
         ".hvigor/outputs/local-folder-import-audit-20261123/audit-result.json",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/folder-import-audit/"
+      ]
+    },
+    {
+      "id": "local-import-shelf-empty-audit-20261127",
+      "at": "2026-11-27T22:27:27+08:00",
+      "itemId": "LOCAL_FOLDER_IMPORT_CRASH_AUDIT_20261123",
+      "kind": "verification",
+      "title": "复查本地导入后书架变空，修正两条读取路径",
+      "detail": "用户于 2026-11-27 转述本地图书导入后书架变空，无可用现场日志。SQLite 回放复现两条独立路径：首次文件夹导入只写作品，旧代码重开时因缺少集合状态行而跳过读取；归档文件名主体只有空格，空排序键导致整架校验中断。修复后现有记录可直接读回，新导入在同一事务落盘，旧作品、分类和页 ID 保持。故障注入确认落盘失败不会发布临时作品。默认产品调试构建通过。宽回归中三项下载用例缺少本机原生归档依赖，修改前的脚本同样报错。201 用开发签名的 1.6.3（29）覆盖安装，从书架普通入口分别导入独立文件夹和主体为三个空格的 CBZ。结束进程再启动后，两本作品的 ID 与封面保持，原续读仍为第 8 页、42%。仅移出两本临时作品并移除输入文件，恢复原全部分类、最近阅读排序和浏览页签，安装前后的九张可见旧卡及顺序一致。读回原休眠和 10000ms 超时，已释租并保留候选。空库缺集合状态由 SQLite 回放覆盖，本轮未清空 201 数据。两处缺陷均会让已存作品不可见，现场归因仍未知。",
+      "evidence": [
+        ".hvigor/outputs/local-import-shelf-20261127/focused.log",
+        ".hvigor/outputs/local-import-shelf-20261127/regression.log",
+        ".hvigor/outputs/local-import-shelf-20261127/build.log",
+        ".hvigor/outputs/local-import-shelf-20261127/201-cold-imported-cards.png",
+        ".hvigor/outputs/local-import-shelf-20261127/device201__LMR-AL00/not-applicable/portrait-1276x2848/local-import-shelf/21-cold-shelf/run-metadata.json",
+        ".hvigor/outputs/local-import-shelf-20261127/device201__LMR-AL00/not-applicable/portrait-1276x2848/local-import-shelf/29-final-device-state/run-metadata.json"
       ]
     },
     {

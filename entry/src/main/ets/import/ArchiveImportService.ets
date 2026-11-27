@@ -6,6 +6,7 @@ import {
   ComicSourceKind,
   Page,
   ReadingDirection,
+  localImportTitle,
   normalizeSortKey,
 } from '../model/ComicModels'
 import {
@@ -129,7 +130,7 @@ export class ArchiveImportService {
 
     const now = request.importedAt === undefined ? Date.now() : request.importedAt
     const comicId = request.comicId === undefined ? createArchiveId(request.archivePath) : request.comicId
-    const title = request.title === undefined ? defaultArchiveTitle(request.archivePath) : request.title
+    const title = localImportTitle(request.title ?? defaultArchiveTitle(request.archivePath), request.archivePath)
     const chapterId = `${comicId}-chapter-1`
     const pages: Page[] = sortedImagePaths.map((path: string, index: number) => {
       const candidate = entryByPath.get(path) as ArchiveEntryCandidate

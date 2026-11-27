@@ -389,6 +389,17 @@ export function normalizeSortKey(value: string): string {
   return value.trim().toLocaleLowerCase()
 }
 
+/** A filename with a blank stem is still a valid local book. */
+export function localImportTitle(title: string, path: string): string {
+  if (title.trim().length > 0) return title
+  const fileName = path.replace(/\\/g, '/').split('/').pop() ?? ''
+  let decodedName = fileName
+  if (path.startsWith('file://')) {
+    try { decodedName = decodeURIComponent(fileName) } catch (_error) {}
+  }
+  return decodedName.trim() || 'Untitled'
+}
+
 export function normalizeCategoryIds(categoryIds?: string[]): string[] {
   if (categoryIds === undefined) {
     return []

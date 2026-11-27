@@ -5,6 +5,7 @@ import {
   ComicSourceKind,
   Page,
   ReadingDirection,
+  localImportTitle,
   normalizeSortKey,
 } from '../model/ComicModels'
 import {
@@ -143,7 +144,8 @@ export class LocalImageImportService {
     }
 
     const now = request.importedAt === undefined ? Date.now() : request.importedAt
-    const title = request.title === undefined ? stripExtension(getBaseName(request.sourcePath)) : request.title
+    const title = localImportTitle(request.title ?? stripExtension(getBaseName(request.sourcePath)),
+      orderedImages[0].candidate.sourceUri)
     const comicId = request.comicId === undefined ? createLocalImageComicId(request.sourcePath) : request.comicId
     const chapterId = `${comicId}-chapter-1`
     const pages: Page[] = orderedImages.map((item: OrderedLocalImageImportCandidate, index: number) => {

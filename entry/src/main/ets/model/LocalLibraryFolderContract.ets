@@ -15,6 +15,7 @@ import {
   ComicSourceKind,
   Page,
   ReadingDirection,
+  localImportTitle,
 } from './ComicModels'
 import {
   LocalLibraryMetadataSeriesInput,
@@ -646,7 +647,7 @@ function createChapter(candidate: ChapterCandidate, seriesId: string, index: num
   const chapter: LocalLibraryFolderChapter = {
     id: chapterId,
     seriesId,
-    title,
+    title: localImportTitle(title, candidate.chapterPath),
     kind: candidate.kind,
     relativePath: candidate.chapterPath,
     index,

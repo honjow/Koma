@@ -187,10 +187,8 @@ import {
 import {
   LocalLibraryFolderScanResult,
   buildKnownLocalLibraryFolderSeriesFromComics,
-  buildComicsFromLocalLibraryFolderScan,
   localLibraryFolderRootUriFromComic,
   localLibraryFolderRootUrisFromComics,
-  bindLocalLibraryFolderScanIdentity,
 } from '../model/LocalLibraryFolderContract'
 import {
   activateLocalLibraryFolderAccess,
@@ -3651,7 +3649,7 @@ struct Index {
     try {
       await this.localImportCommitService.commit(comic)
     } catch (error) {
-      DiagnosticLogger.error('index', 'persist_imported_comic_failed', '[Library] step=persist_imported_comic_failed code=library_persist_failed')
+      DiagnosticLogger.exception('index', 'persist_imported_comic_failed', error as Error)
       throw error as Error
     }
     this.refreshLibrarySnapshot()
@@ -3660,6 +3658,7 @@ struct Index {
 
   private handleLocalFolderImportSucceeded(scanResult: LocalLibraryFolderScanResult, rootUri: string): LocalFolderImportPersistResult {
     const persistenceService = this.ensureLibraryPersistenceService()
+    if (persistenceService === undefined) throw new Error('Local import persistence unavailable')
     let importedCount = 0
     let checkedCount = scanResult.series.length
     let addedCount = 0
@@ -3667,51 +3666,41 @@ struct Index {
     let missingCount = 0
     let metadataChangedCount = 0
     let rejectedEntryCount = 0
-    if (persistenceService === undefined) {
-      const boundScan = bindLocalLibraryFolderScanIdentity(scanResult, rootUri, localLibraryFolderComicsForRoot(this.libraryStore, rootUri))
-      const comics = buildComicsFromLocalLibraryFolderScan(boundScan, rootUri)
-      comics.forEach((comic: Comic) => {
-        this.libraryStore.upsertComic(comic)
-      })
-      importedCount = comics.length
-      rejectedEntryCount = scanResult.rejectedEntries.length
-    } else {
-      try {
-        const previousKnownSeries = buildKnownLocalLibraryFolderSeriesFromComics(localLibraryFolderComicsForRoot(this.libraryStore, rootUri), rootUri)
-        if (previousKnownSeries.length === 0) {
-          importedCount = upsertLocalLibraryFolderScanAndPersistLibraryStore(
-            this.libraryStore,
-            persistenceService,
-            scanResult,
-            rootUri
-          )
-          rejectedEntryCount = scanResult.rejectedEntries.length
-        } else {
-          const result = upsertLocalLibraryFolderRescanAndPersistLibraryStore(
-            this.libraryStore,
-            persistenceService,
-            previousKnownSeries,
-            scanResult,
-            rootUri
-          )
-          importedCount = result.upsertedCount
-          checkedCount = result.summary.previousSeriesCount
-          addedCount = result.summary.addedCount
-          changedCount = result.summary.changedCount
-          missingCount = result.summary.missingCount
-          metadataChangedCount = result.summary.metadataChangedCount
-          rejectedEntryCount = result.summary.rejectedEntryCount
-          console.info('[Import] step=folder_rescan_persisted added=' + result.summary.addedCount +
-            ' changed=' + result.summary.changedCount +
-            ' metadata_changed=' + result.summary.metadataChangedCount +
-            ' missing=' + result.summary.missingCount +
-            ' rejected=' + result.summary.rejectedEntryCount +
-            ' upserted=' + result.upsertedCount)
-        }
-      } catch (error) {
-        DiagnosticLogger.error('index', 'persist_imported_folder_failed', '[Library] step=persist_imported_folder_failed code=library_persist_failed')
-        throw error as Error
+    try {
+      const previousKnownSeries = buildKnownLocalLibraryFolderSeriesFromComics(localLibraryFolderComicsForRoot(this.libraryStore, rootUri), rootUri)
+      if (previousKnownSeries.length === 0) {
+        importedCount = upsertLocalLibraryFolderScanAndPersistLibraryStore(
+          this.libraryStore,
+          persistenceService,
+          scanResult,
+          rootUri
+        )
+        rejectedEntryCount = scanResult.rejectedEntries.length
+      } else {
+        const result = upsertLocalLibraryFolderRescanAndPersistLibraryStore(
+          this.libraryStore,
+          persistenceService,
+          previousKnownSeries,
+          scanResult,
+          rootUri
+        )
+        importedCount = result.upsertedCount
+        checkedCount = result.summary.previousSeriesCount
+        addedCount = result.summary.addedCount
+        changedCount = result.summary.changedCount
+        missingCount = result.summary.missingCount
+        metadataChangedCount = result.summary.metadataChangedCount
+        rejectedEntryCount = result.summary.rejectedEntryCount
+        console.info('[Import] step=folder_rescan_persisted added=' + result.summary.addedCount +
+          ' changed=' + result.summary.changedCount +
+          ' metadata_changed=' + result.summary.metadataChangedCount +
+          ' missing=' + result.summary.missingCount +
+          ' rejected=' + result.summary.rejectedEntryCount +
+          ' upserted=' + result.upsertedCount)
       }
+    } catch (error) {
+      DiagnosticLogger.exception('index', 'persist_imported_folder_failed', error as Error)
+      throw error as Error
     }
     if (importedCount > 0) {
       this.refreshLibrarySnapshot()
@@ -4105,8 +4094,7 @@ struct Index {
               })
             })
         } catch (error) {
-          void error
-          DiagnosticLogger.error('index', 'restore_failed', '[Library] step=restore_failed code=library_restore_failed')
+          DiagnosticLogger.exception('index', 'restore_failed', error as Error)
         }
       }
     }

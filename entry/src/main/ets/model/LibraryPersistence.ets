@@ -42,6 +42,7 @@ import {
   ReadingDirection,
   isManualLibraryCategoryId,
   libraryCategoryNameKey,
+  localImportTitle,
   normalizeCategoryIds,
   normalizeLibraryCategoryName,
   normalizeSortKey,
@@ -424,13 +425,14 @@ export function persistChapter(chapter: Chapter): PersistedChapter {
   return row
 }
 
-function hydrateChapter(row: PersistedChapter, isMihonPlaceholder: boolean): Chapter {
-  assertValidPersistedChapter(row, isMihonPlaceholder)
+function hydrateChapter(row: PersistedChapter, isMihonPlaceholder: boolean, local: boolean): Chapter {
+  assertValidPersistedChapter(row, isMihonPlaceholder, local)
   const pages = row.pages.map((page: PersistedPage) => hydratePage(page))
+  const title = local ? localImportTitle(row.title, row.sourcePath) : row.title
   const chapter: Chapter = {
     id: row.id,
     comicId: row.comicId,
-    title: row.title,
+    title,
     index: row.index,
     chapterNumber: row.chapterNumber,
     volumeNumber: row.volumeNumber,
@@ -440,7 +442,7 @@ function hydrateChapter(row: PersistedChapter, isMihonPlaceholder: boolean): Cha
     readingVariantSequence: row.readingVariantSequence,
     continuationEligible: row.continuationEligible,
     sourcePath: row.sourcePath,
-    sortKey: row.sortKey,
+    sortKey: local && row.sortKey.length === 0 ? normalizeSortKey(title) : row.sortKey,
     pages,
     sourceSettingsFingerprint: row.sourceSettingsFingerprint,
     pageCount: row.pageCount,
@@ -515,16 +517,18 @@ export function persistComic(comic: Comic, includeCatalog: boolean = true): Pers
 export function hydrateComic(row: PersistedComic): Comic {
   assertValidPersistedComic(row)
   const isMihonPlaceholder = row.sourceRuntimeId?.startsWith('mihon:') === true
-  const chapters = row.chapters.map((chapter: PersistedChapter) => hydrateChapter(chapter, isMihonPlaceholder))
+  const local = row.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || row.sourceKind === ComicSourceKind.LOCAL_FOLDER
+  const title = local ? localImportTitle(row.title, row.localImportOrigin?.sourceUris[0] ?? row.sourcePath) : row.title
+  const chapters = row.chapters.map((chapter: PersistedChapter) => hydrateChapter(chapter, isMihonPlaceholder, local))
   const comic: Comic = {
     personalNotes: row.personalNotes, customCoverUri: row.customCoverUri, sourceCoverUri: row.sourceCoverUri,
     enhancedCoverUri: row.enhancedCoverUri, enhancedCoverModel: row.enhancedCoverModel,
     updateSchedule: row.updateSchedule,
     id: row.id,
-    title: row.title,
+    title,
     sourceKind: row.sourceKind,
     sourcePath: row.sourcePath,
-    sortTitle: row.sortTitle,
+    sortTitle: local && row.sortTitle.length === 0 ? normalizeSortKey(title) : row.sortTitle,
     preferredDirection: row.preferredDirection,
     chapters,
     chapterCount: row.chapterCount,
@@ -580,8 +584,8 @@ function assertPersistedObject(value: Object | null, label: string): void {
   }
 }
 
-function assertStringField(value: string | undefined, label: string): void {
-  if (typeof value !== 'string' || value.length === 0) {
+function assertStringField(value: string | undefined, label: string, allowEmpty: boolean = false): void {
+  if (typeof value !== 'string' || (!allowEmpty && value.length === 0)) {
     throw new Error(`Invalid library store persistence ${label}: expected non-empty string`)
   }
 }
@@ -666,14 +670,14 @@ function assertValidPersistedPage(row: PersistedPage): void {
   assertOptionalNumberField(row.byteSize, 'page.byteSize')
 }
 
-function assertValidPersistedChapter(row: PersistedChapter, isMihonPlaceholder: boolean): void {
+function assertValidPersistedChapter(row: PersistedChapter, isMihonPlaceholder: boolean, local: boolean): void {
   assertPersistedObject(row as Object, 'chapter')
   assertStringField(row.id, 'chapter.id')
   assertStringField(row.comicId, 'chapter.comicId')
   // An unmatched Mihon chapter can have only its local ID and reading facts.
   // Keep blank metadata as exported, including in a library saved by 1.5.0.
   if (!isMihonPlaceholder || row.title !== '') {
-    assertStringField(row.title, 'chapter.title')
+    assertStringField(row.title, 'chapter.title', local)
   }
   assertNumberField(row.index, 'chapter.index')
   assertOptionalNumberField(row.chapterNumber, 'chapter.chapterNumber')
@@ -691,7 +695,7 @@ function assertValidPersistedChapter(row: PersistedChapter, isMihonPlaceholder: 
   if (!isMihonPlaceholder || row.sourcePath !== '') {
     assertStringField(row.sourcePath, 'chapter.sourcePath')
   }
-  assertStringField(row.sortKey, 'chapter.sortKey')
+  assertStringField(row.sortKey, 'chapter.sortKey', local)
   assertOptionalStringField(row.sourceSettingsFingerprint, 'chapter.sourceSettingsFingerprint')
   if (!Array.isArray(row.pages)) {
     throw new Error('Invalid library store persistence chapter.pages: expected array')
@@ -703,8 +707,11 @@ function assertValidPersistedChapter(row: PersistedChapter, isMihonPlaceholder: 
 
 function assertValidPersistedComic(row: PersistedComic): void {
   assertPersistedObject(row as Object, 'comic')
+  // Older local imports could save a blank filename stem. Hydration supplies
+  // the display title and sort key without changing work or chapter identity.
+  const local = row.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || row.sourceKind === ComicSourceKind.LOCAL_FOLDER
   assertStringField(row.id, 'comic.id')
-  assertStringField(row.title, 'comic.title')
+  assertStringField(row.title, 'comic.title', local)
   assertOptionalStringField(row.subtitle, 'comic.subtitle')
   assertOptionalStringField(row.author, 'comic.author')
   assertOptionalStringArrayField(row.categoryIds, 'comic.categoryIds')
@@ -746,7 +753,7 @@ function assertValidPersistedComic(row: PersistedComic): void {
   if (row.localMetadata !== undefined) {
     normalizeLocalLibraryStoredMetadata(row.localMetadata as Object)
   }
-  assertStringField(row.sortTitle, 'comic.sortTitle')
+  assertStringField(row.sortTitle, 'comic.sortTitle', local)
   assertReadingDirection(row.preferredDirection, 'comic.preferredDirection')
   if (!Array.isArray(row.chapters)) {
     throw new Error('Invalid library store persistence comic.chapters: expected array')
@@ -1106,7 +1113,8 @@ export class LibraryStorePersistenceService {
     hydrateLibraryStoreFromDocument(this.libraryStore, withLegacyLibraryCategories(saved))
     this.libraryStore.deferCatalogs((comic: Comic, chapterId?: ChapterId): Chapter[] =>
       database.readCatalog(comic.id, chapterId).map((row: PersistedChapter): Chapter =>
-        hydrateChapter(row, comic.sourceRuntimeId?.startsWith('mihon:') === true)),
+        hydrateChapter(row, comic.sourceRuntimeId?.startsWith('mihon:') === true,
+          comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER)),
       (id: ComicId, chapterId?: ChapterId): string | undefined => database.readChapterTitle(id, chapterId),
       (id: ComicId): ChapterId[] => database.readChapterIds(id))
     const summarize = (row: PersistedComic): Comic => {

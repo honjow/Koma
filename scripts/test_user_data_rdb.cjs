@@ -20,6 +20,9 @@ function fixture(preferences = new Map(), runtimeImports = new Map(), rdb = crea
     const exports = {}
     new Function('exports', 'require', js)(exports, dependency => {
       if (runtimeImports.has(dependency)) return runtimeImports.get(dependency)
+      if (dependency === '../i18n/AppStrings') return { AppStrings: { get: key => key } }
+      if (dependency === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { info() {}, warn() {}, exception() {} } }
+      if (dependency === './SourceRequiredImageDecode') return {}
       if (dependency === '@kit.ArkData') return {
         relationalStore: rdb.relationalStore,
         preferences: { getPreferences: async (_context, name) => {
@@ -841,6 +844,92 @@ test('local shelf edits keep unrelated catalog rows and atomically save the affe
     shelf.saveLocalEdits({ present: true, works: [] }, ['test-work'])
     assert.equal(shelf.readWork('test-work'), undefined)
     assert.deepEqual(shelf.categoryMemberIds('test'), [])
+  } finally {
+    env.close()
+  }
+})
+
+test('a first folder import remains visible on reopening, including rows saved without a collection header', async () => {
+  const env = fixture(new Map(), new Map([
+    ['@kit.ArkTS', { util: { generateRandomUUID: () => 'folder-fixture' } }],
+  ]))
+  try {
+    const db = await env.load('UserDataDatabase').openUserDataDatabase({ filesDir: '/first-folder-import' })
+    const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
+    const { InMemoryLibraryStore } = env.load('LibraryStore')
+    const persistence = env.load('LibraryPersistence')
+    const shelf = new LibraryRdbStorage(db)
+    await shelf.migrate()
+    const original = new InMemoryLibraryStore()
+    const adapter = { databaseForEdits: () => shelf }
+    const service = new persistence.LibraryStorePersistenceService(original, adapter)
+    const scan = env.load('LocalLibraryFolderContract').scanLocalLibraryFolderEntries([
+      { relativePath: 'Series/Chapter/01.jpg', kind: 'file' },
+    ])
+    const add = () => persistence.upsertLocalLibraryFolderScanAndPersistLibraryStore(
+      original, service, scan, 'file://picked/Library')
+
+    env.failNextCommit()
+    assert.throws(add, /interrupted write/)
+    assert.equal(original.hasComics(), false)
+    assert.equal(shelf.read(), undefined)
+    assert.equal(add(), 1)
+    const id = original.listShelfSummaries('all')[0].id
+    const reopen = () => {
+      const library = new InMemoryLibraryStore()
+      new persistence.LibraryStorePersistenceService(library, adapter).restoreForLaunch()
+      assert.deepEqual(library.listShelfSummaries('all').map(work => work.id), [id])
+      assert.equal(library.getComic(id).chapters[0].pages[0].fileName, '01.jpg')
+    }
+    reopen()
+    const header = db.querySqlSync('SELECT id FROM shelf_collections')
+    try { assert.equal(header.goToNextRow(), true) } finally { header.close() }
+    db.executeSync('DELETE FROM shelf_collections WHERE id = 1')
+    reopen()
+  } finally {
+    env.close()
+  }
+})
+
+test('an archive with a blank filename stem cannot hide the existing shelf after reopening', async () => {
+  const env = fixture(new Map(), new Map([
+    ['./ComicZipPage', {}],
+  ]))
+  try {
+    const db = await env.load('UserDataDatabase').openUserDataDatabase({ filesDir: '/blank-archive-title' })
+    const { LibraryRdbStorage } = env.load('LibraryRdbStorage')
+    const { InMemoryLibraryStore } = env.load('LibraryStore')
+    const { LibraryStorePersistenceService, persistComic, upsertComicAndPersistLibraryStore } = env.load('LibraryPersistence')
+    const { buildComicFromArchive } = env.load('../import/ArchiveImportService')
+    const shelf = new LibraryRdbStorage(db)
+    const adapter = { databaseForEdits: () => shelf }
+    const initial = new InMemoryLibraryStore()
+    const service = new LibraryStorePersistenceService(initial, adapter)
+    await shelf.migrate()
+    const archive = (comicId, file) => buildComicFromArchive({ comicId, archivePath: 'file://picked/' + file,
+      entries: [{ path: '01.jpg' }] }).comic
+    const existing = archive('existing', 'Existing.cbz')
+    const category = { id: 'custom_existing', name: 'Existing category', sortOrder: 0, createdAt: 1, updatedAt: 1 }
+    existing.categoryIds = [category.id]
+    shelf.saveLocalEdits({ present: true, works: [persistComic(existing)], categories: [category] })
+    const fresh = archive('fresh', '%20%20.cbz')
+    upsertComicAndPersistLibraryStore(initial, service, fresh)
+    assert.equal(shelf.readWork(fresh.id).sortTitle, '.cbz')
+    const reopen = () => {
+      const library = new InMemoryLibraryStore()
+      const reopened = new LibraryStorePersistenceService(library, adapter)
+      reopened.restoreForLaunch(category.id)
+      assert.deepEqual(library.listShelfSummaries(category.id).map(work => work.id), ['existing'])
+      reopened.restoreForLaunch()
+      assert.deepEqual(library.listShelfSummaries('all').map(work => work.id), ['existing', 'fresh'])
+      assert.equal(library.getComic(existing.id).title, 'Existing')
+      assert.equal(library.getComic(fresh.id).title, '.cbz')
+      assert.equal(library.getComic(fresh.id).chapters[0].pages[0].id, fresh.chapters[0].pages[0].id)
+    }
+    reopen()
+    db.executeSync("UPDATE shelf_work_details SET title = '  ', sort_title = '' WHERE comic_id = ?", [fresh.id])
+    db.executeSync("UPDATE shelf_chapters SET title = '  ', sort_key = '' WHERE comic_id = ?", [fresh.id])
+    reopen()
   } finally {
     env.close()
   }
