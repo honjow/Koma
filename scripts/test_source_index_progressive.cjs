@@ -81,7 +81,7 @@ test('remounted identity images reuse recent local decodes while unseen and repl
         } })
         return chain
       },
-    }), { sourceIdentityIconUri: uri, decodedSourceIdentityUri: '' })
+    }), { sourceIdentityIconUri: uri, decodedSourceIdentityUri: '', allowSynchronousSourceIconReload: true })
   const decodedSourceIdentityUris = new Set()
   const row = newRow('file://A')
   const image = (uri, owner = row) => { owner.SourceIdentityImage(uri); return rendered.at(-1) }
@@ -89,6 +89,14 @@ test('remounted identity images reuse recent local decodes while unseen and repl
   a.complete({ loadingStatus: 0 }); assert.equal(image('file://A').sync, false)
   a.complete({ loadingStatus: 1 }); assert.equal(image('file://A').sync, true)
   assert.equal(image('file://A', newRow('file://A')).sync, true)
+  const scrollingRow = newRow('file://A')
+  scrollingRow.allowSynchronousSourceIconReload = false
+  const scrollingImage = image('file://A', scrollingRow)
+  scrollingImage.complete({ loadingStatus: 1 })
+  assert.equal(scrollingImage.sync, false)
+  assert.equal(image('file://A', scrollingRow).sync, false)
+  scrollingRow.allowSynchronousSourceIconReload = true
+  assert.equal(image('file://A', scrollingRow).sync, true)
   row.sourceIdentityIconUri = 'file://B'
   const b = image('file://B'); assert.equal(b.sync, false)
   a.complete({ loadingStatus: 1 }); assert.equal(image('file://B').sync, false)
@@ -379,6 +387,7 @@ test('long language groups reveal only the space below the clicked header', () =
   assert.equal(motion.progress, 0.5)
   animator.onFinish()
   assert.equal(motion.rowLimit('zh', false, 177), 0)
+  assert.equal(motion.iconHandoffSection, undefined)
 
   const callbacks = []
   let started = false
@@ -390,6 +399,12 @@ test('long language groups reveal only the space below the clicked header', () =
   assert.equal(started, false)
   callbacks.shift().onFrame()
   assert.equal(started, true)
+  animator.onFinish()
+  assert.equal(motion.iconHandoffSection, 'zh')
+  callbacks.shift().onFrame()
+  assert.equal(motion.iconHandoffSection, 'zh')
+  callbacks.shift().onFrame()
+  assert.equal(motion.iconHandoffSection, undefined)
 })
 test('source search filters existing groups and restores their original order when cleared', () => {
   const packages=[installed('A','1.0'),installed('B','1.0')]

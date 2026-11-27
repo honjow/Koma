@@ -25,6 +25,7 @@ class DisclosureLayoutFrame extends FrameCallback {
 export class ListDisclosureMotion {
   @Trace section: string | undefined = undefined
   @Trace progress: number = 0
+  @Trace iconHandoffSection: string | undefined = undefined
   heightBudget: number = 0
   private animator?: AnimatorResult
   private viewportHeight: number = 0
@@ -76,10 +77,12 @@ export class ListDisclosureMotion {
     if (this.visibleRows === 0) {
       this.animator = undefined
       this.section = undefined
+      this.iconHandoffSection = undefined
       return
     }
     const end = wasExpanded ? 0 : 1
     this.progress = begin
+    this.iconHandoffSection = section
     this.section = section
     const animator = uiContext.createAnimator({
       duration: Math.max(1, Math.round(LIST_DISCLOSURE_MS * Math.abs(end - begin))),
@@ -92,8 +95,21 @@ export class ListDisclosureMotion {
     }
     animator.onFinish = (): void => {
       if (this.animator !== animator) return
-      this.animator = undefined
       this.section = undefined
+      if (wasExpanded) {
+        this.animator = undefined
+        this.iconHandoffSection = undefined
+      } else {
+        // The expanded cards return from the clipped body to the regular list.
+        // Keep their warmed icons until that replacement has had a layout frame.
+        uiContext.postFrameCallback(new DisclosureLayoutFrame((): void => {
+          uiContext.postFrameCallback(new DisclosureLayoutFrame((): void => {
+            if (this.animator !== animator) return
+            this.animator = undefined
+            this.iconHandoffSection = undefined
+          }))
+        }))
+      }
     }
     if (wasExpanded || reversing) {
       animator.play()

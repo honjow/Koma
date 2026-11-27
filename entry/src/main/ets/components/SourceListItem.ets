@@ -27,6 +27,7 @@ export struct SourceListItem {
   @Param showSearchButton: boolean = true
   @Param showPinButton: boolean = false
   @Param pinned: boolean = false
+  @Param allowSynchronousIconReload: boolean = true
   @Param languageBadge: string = 'SRC'
   @Event onActivate: () => void = () => {}
   @Event onSourceTap: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
@@ -96,6 +97,7 @@ export struct SourceListItem {
       subtitleContentRating: this.source.nsfw,
       hasSourceIdentityPrefix: true,
       sourceIdentityIconUri: this.presentationIconUri(),
+      allowSynchronousSourceIconReload: this.allowSynchronousIconReload,
       sourceIdentityFallbackColor: this.accentColor,
       prefixPaddingLeft: ThemeConstants.SPACE_MD,
       prefixPaddingRight: ThemeConstants.SPACE_SM,

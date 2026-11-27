@@ -72,6 +72,7 @@ export struct ConciseListRow {
   @Param hasSourceIdentityPrefix: boolean = false
   @Param sourceIdentityIconUri: string = ''
   @Param sourceIdentityIconState: SourceIdentityIconState | undefined = undefined
+  @Param allowSynchronousSourceIconReload: boolean = true
   @Param sourceIdentityFallbackIcon: Resource = $r('sys.symbol.compass')
   @Param sourceIdentityFallbackColor: ResourceColor = ThemeConstants.SOURCE_WASM_COLOR
   private sourceIdentityPrefixItem: PrefixCustomBuilder | undefined = undefined
@@ -530,7 +531,8 @@ export struct ConciseListRow {
   }
 
   private sourceIdentityCanSyncLoad(uri: string): boolean {
-    return uri.startsWith('file://') && (this.decodedSourceIdentityUri === uri || decodedSourceIdentityUris.has(uri))
+    return this.allowSynchronousSourceIconReload && uri.startsWith('file://') &&
+      (this.decodedSourceIdentityUri === uri || decodedSourceIdentityUris.has(uri))
   }
 
   private sourceIdentityDecoded(uri: string): void {

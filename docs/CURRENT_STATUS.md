@@ -13887,6 +13887,56 @@
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
     {
+      "id": "source-language-flat-list-scroll-200-20261128",
+      "at": "2026-11-28T02:19:05+08:00",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "kind": "validation",
+      "title": "200 实机验证浏览书源列表改为单层预加载",
+      "detail": "把浏览语言标题和卡片直接交给外层 List，去掉导致屏外虚拟行反复预测布局和回收的 ListItemGroup；用原有间距补齐分段及首尾留白，保留异步图标解码、原书源对身份和 350 毫秒收展。200 同机中文 70 源组 350/600 px/s 手势，比较三段完整轻滑及惯性样本。卡片创建 359 降到 94 次，后台图标解码 283 降到 57 次，Repeat 回收空闲任务最长 21.21 降到 3.40 毫秒。最长拖动及惯性呈现间隔分别为 10.24→9.34、17.31→9.14 毫秒，漏拍合计 2→0。连续录屏确认分组随收展移动，快滑往返未见重复、串源或图标错位；输入并提交 92 找到 92 漫画，原书源管理入口仍可进入和返回。签名构建及书源回归测试通过，200 保留修正版，已恢复桌面、10 秒超时、休眠并释租。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/flat-list-compare.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/flat-list-disclosure-ui/flat-list-disclosure-ui.mp4",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/flat-list-disclosure-ui/expansion-detail.jpg",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/flat-list-search-submit/end-layout.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/flat-list-manager-check/end-layout.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/flat-list-restore-power/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/flat-list-lease-final.json"
+      ]
+    },
+    {
+      "id": "source-language-scroll-prefetch-reuse-200-20261128",
+      "at": "2026-11-28T01:57:56+08:00",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "kind": "verification",
+      "title": "200 内屏排除单改预加载、解码尺寸与直接复用",
+      "detail": "在中文 70 源组对照 350、600 px/s 轻滑及惯性，默认预加载的三个完整对照手势创建 247 张 HDS 卡片。两行、带显示的相邻一行分别创建 323、303 张。关闭预加载时，同三个手势仅创建 14 张，但拖动漏 6 拍，超预算帧均有两张新卡片同时创建。直接开启 Repeat 原生复用能把卡片创建降到 4 次，但仍有长帧，并在收展后发生错组、错序、重复书源。改成按引用绑定且按 URI 换图后录屏仍复现同类错误。只按显示尺寸解码有 1024×1024 降至 128×128 的样本，残余长帧仍出现。试验均撤回，保留首轮异步解码及现有收展行为。200 恢复首轮同签包、原桌面和 10 秒超时并休眠、释租。剩余偶发顿挫仍开放。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/prefetch-compare.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/repeat-reuse-ui/repeat-reuse-ui.mp4",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/bound-repeat-ui/bound-repeat-ui.mp4",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/icon-fit-only-slow/scroll-metrics.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/remaining-restore-app/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/remaining-restore-power/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/remaining-lease-released.json"
+      ]
+    },
+    {
+      "id": "source-language-scroll-icon-decode-200-20261128",
+      "at": "2026-11-28T01:25:03+08:00",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "kind": "validation",
+      "title": "200 内屏复现并修复浏览书源双列慢滑掉帧",
+      "detail": "200 内屏通过普通浏览入口，在中文 70 源组的相近位置对照同签前版和修正版。每版保留三段完整轻滑及惯性样本。普通滚动改用异步图标解码，滚动中的主线程图标解码从 184 次降至 0 次，拖动与惯性最长呈现间隔分别从 18.73、16.69 毫秒降至 9.44、9.17 毫秒。书源管理已安装中文 73 源组四段完整样本最长间隔为 9.38、8.97 毫秒，前后均未见明显掉拍。浏览组保留 350 毫秒收展及图标交接，录屏确认后续分组连续移动，抽查双列首两行未见文字可见时图标闪白。已恢复 200 的桌面、10 秒超时和睡眠状态，清理远端临时文件并释放租约。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/compare.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/200-candidate-manager/scroll-metrics.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/browse-disclosure-icons/browse-disclosure-icons.mp4",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/browse-disclosure-icons/icon-frame-check.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/restore-power-cleanup/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-scroll-decode-20261128/device200__HOP-AL10/unfolded/portrait-1828x2584/lease-final.json"
+      ]
+    },
+    {
       "id": "app-material-defaults-api26-20261128",
       "at": "2026-11-28T01:04:17+08:00",
       "itemId": "APP_POPUP_SYSTEM_MATERIAL",

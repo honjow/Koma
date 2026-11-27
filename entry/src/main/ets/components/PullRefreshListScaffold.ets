@@ -19,6 +19,8 @@ export struct PullRefreshListScaffold {
   @Param scroller: Scroller = new Scroller()
   @Param controller: PullRefreshController = new PullRefreshController()
   @Param listSpace: number = ThemeConstants.SPACE_SM - 2
+  // Flat lists can keep their outer gaps while spacing their own sections.
+  @Param contentBoundarySpacing: number = 0
   @Param horizontalPadding: number = ThemeConstants.SPACE_MD
   @Param topPadding: number = 0
   // Unlike ordinary topPadding, this is the total content boundary of a
@@ -90,6 +92,7 @@ export struct PullRefreshListScaffold {
                 (this.reserveSystemSafeArea ? this.safeArea.topAvoidHeight : 0) +
                   this.titleBarPadding() +
                   this.topPadding +
+                  this.contentBoundarySpacing +
                   this.pinnedOverlayReserve(),
               )
             }
@@ -104,6 +107,7 @@ export struct PullRefreshListScaffold {
               Blank().height(
                 (this.reserveSystemSafeArea ? this.safeArea.bottomAvoidHeight : 0) +
                   this.bottomPadding +
+                  this.contentBoundarySpacing +
                   this.floatingTabTailPadding +
                   this.keyboardPadding(),
               )
@@ -193,7 +197,7 @@ export struct PullRefreshListScaffold {
     if (this.pinnedOverlayHeight <= 0) {
       return 0
     }
-    return Math.max(0, this.pinnedOverlayHeight - this.listSpace)
+    return Math.max(0, this.pinnedOverlayHeight - this.listSpace - this.contentBoundarySpacing)
   }
 
   private resolvedIndicatorTop(): number {

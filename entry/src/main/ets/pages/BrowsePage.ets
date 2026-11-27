@@ -156,6 +156,8 @@ export struct BrowsePage {
   private get languageRows(): BrowseLanguageRow[] {
     const rows: BrowseLanguageRow[] = []
     const step = this.usesWideSourceRows ? 2 : 1
+    const hasLeadingSection = this.recentRuntimeSources.length > 0 || this.pinnedRuntimeSources.length > 0 ||
+      this.configuredPrivateSourceEntries.length > 0
     Object.keys(this.sourcesByLanguage).forEach((language: string): void => {
       const sources = this.sourcesByLanguage[language]
       const visibleCount = this.languageMotion.rowLimit(language,
@@ -163,7 +165,8 @@ export struct BrowsePage {
         Math.ceil(sources.length / step))
       const disclosureRows: BrowseLanguageRow[] | undefined = this.languageMotion.section === language ? [] : undefined
       rows.push({ key: 'language:' + language, language, count: sources.length, sources: [],
-        index: 0, first: false, last: false, leadingSpace: rows.length === 0 ? 0 : ThemeConstants.SPACE_SM,
+        index: 0, first: false, last: false,
+        leadingSpace: hasLeadingSection || rows.length > 0 ? ThemeConstants.SPACE_SM : 0,
         disclosureRows })
       const cardRows = disclosureRows ?? rows
       for (let index = 0; index < visibleCount; index++) {
@@ -365,13 +368,19 @@ export struct BrowsePage {
         this.PrivateSourceRows()
       }
     }
+    .padding({ top: this.recentRuntimeSources.length > 0 || this.pinnedRuntimeSources.length > 0 ?
+      ThemeConstants.SPACE_SM : 0 })
   }
 
   @Builder
-  private RuntimeSourceRow(source: SourceRuntimeRegistryInstalledSourceSummary) {
+  private RuntimeSourceRow(source: SourceRuntimeRegistryInstalledSourceSummary, disclosureLanguage?: string) {
     SourceListItem({ source, subtitle: `v${source.version}`, languageBadge: '',
       accentColor: ThemeConstants.SOURCE_WASM_COLOR, showSearchButton: false, showPinButton: this.catalogFilters.loaded,
       pinned: this.catalogFilters.pinnedSourceIds.includes(source.sourceId),
+      // Warm icons can still miss ArkUI's decoded cache when virtual rows are
+      // recreated. Keep decoding off the UI thread during ordinary scrolling.
+      allowSynchronousIconReload: disclosureLanguage !== undefined &&
+        this.languageMotion.iconHandoffSection === disclosureLanguage,
       onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary): void => { this.openSource(selected) },
       onPinToggle: (id: string): void => { this.toggleSourcePin(id) } })
   }
@@ -383,9 +392,10 @@ export struct BrowsePage {
   }
 
   @Builder
-  private SingleRuntimeSourceRow(source: SourceRuntimeRegistryInstalledSourceSummary, showDivider: boolean) {
+  private SingleRuntimeSourceRow(source: SourceRuntimeRegistryInstalledSourceSummary, showDivider: boolean,
+    disclosureLanguage?: string) {
     Column() {
-      this.RuntimeSourceRow(source)
+      this.RuntimeSourceRow(source, disclosureLanguage)
       if (showDivider) {
         ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
       }
@@ -513,7 +523,9 @@ export struct BrowsePage {
       GroupedListSection({ title: s('browse_pinned_sources_heading') }) {
         this.PinnedSourceRows()
       }
-    }.transition(TransitionEffect.IDENTITY)
+    }
+    .padding({ top: this.recentRuntimeSources.length > 0 ? ThemeConstants.SPACE_SM : 0 })
+    .transition(TransitionEffect.IDENTITY)
   }
 
   @Builder
@@ -522,14 +534,14 @@ export struct BrowsePage {
       GroupedListRowSurface({ first: row.item.first, last: row.item.last }) {
         if (this.usesWideSourceRows) {
           WidePairRow({
-            first: () => { this.RuntimeSourceRow(row.item.sources[0]) },
+            first: () => { this.RuntimeSourceRow(row.item.sources[0], row.item.language) },
             second: () => {
-              if (row.item.sources.length > 1) this.RuntimeSourceRow(row.item.sources[1])
+              if (row.item.sources.length > 1) this.RuntimeSourceRow(row.item.sources[1], row.item.language)
             },
           })
           if (!row.item.last) WidePairDivider({ leftMargin: ThemeConstants.SPACE_XL })
         } else {
-          this.SingleRuntimeSourceRow(row.item.sources[0], !row.item.last)
+          this.SingleRuntimeSourceRow(row.item.sources[0], !row.item.last, row.item.language)
         }
       }
     }
@@ -549,33 +561,34 @@ export struct BrowsePage {
 
   @Builder
   private RuntimeSourceListItems() {
-    ListItemGroup({ space: 0 }) {
-      Repeat<BrowseLanguageRow>(this.languageRows)
-        .each((row: RepeatItem<BrowseLanguageRow>) => {
-          ListItem() {
-            if (row.item.sources.length === 0) {
-              Column() {
-                SectionHeader({ title: `${sourceLanguageName(row.item.language) || s('source_catalog_language_unknown')} (${row.item.count})`,
-                  expanded: this.catalogFilters.languageGroupExpanded(row.item.language, this.chrome.search.query),
-                  onToggle: (bottom?: number): void => { this.toggleLanguageGroup(row.item.language, row.item.count, bottom) } })
-                if (row.item.disclosureRows !== undefined) {
-                  ListDisclosureContent({ progress: this.languageMotion.progress, heightBudget: this.languageMotion.heightBudget,
-                    content: () => { this.LanguageDisclosureRows(row) } })
-                  .width('100%')
-                  .clip(true)
-                }
+    // Let the outer List own row prefetch. A surrounding ListItemGroup can
+    // repeatedly create and evict the same offscreen Repeat children.
+    Repeat<BrowseLanguageRow>(this.languageRows)
+      .each((row: RepeatItem<BrowseLanguageRow>) => {
+        ListItem() {
+          if (row.item.sources.length === 0) {
+            Column() {
+              SectionHeader({ title: `${sourceLanguageName(row.item.language) || s('source_catalog_language_unknown')} (${row.item.count})`,
+                expanded: this.catalogFilters.languageGroupExpanded(row.item.language, this.chrome.search.query),
+                onToggle: (bottom?: number): void => { this.toggleLanguageGroup(row.item.language, row.item.count, bottom) } })
+              if (row.item.disclosureRows !== undefined) {
+                ListDisclosureContent({ progress: this.languageMotion.progress, heightBudget: this.languageMotion.heightBudget,
+                  content: () => { this.LanguageDisclosureRows(row) } })
+                .width('100%')
+                .clip(true)
               }
-              .width('100%')
-              .padding({ top: row.item.leadingSpace })
-            } else {
-              this.LanguageCardRow(row)
             }
+            .width('100%')
+            .padding({ top: row.item.leadingSpace })
+          } else {
+            this.LanguageCardRow(row)
           }
-          .transition(TransitionEffect.IDENTITY)
-        })
-        .key((row: BrowseLanguageRow): string => row.key)
-        .virtualScroll({ reusable: false })
-    }
+        }
+        .transition(TransitionEffect.IDENTITY)
+      })
+      .key((row: BrowseLanguageRow): string => row.key)
+      // Keep node contents tied to their source pair after a group changes.
+      .virtualScroll({ reusable: false })
   }
 
   // The page owns the published row array so one state write updates the
@@ -690,7 +703,8 @@ export struct BrowsePage {
       onDidScroll: this.onRootScroll,
       onListAreaChange: (area: Area): void => { this.languageMotion.setViewport(area) },
       pinnedOverlayHeight: this.chrome.searchHeight,
-      listSpace: ThemeConstants.SPACE_SM,
+      listSpace: 0,
+      contentBoundarySpacing: ThemeConstants.SPACE_SM,
       bottomPadding: ThemeConstants.SPACE_XL,
       floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
       onRefresh: async () => {
