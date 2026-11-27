@@ -37,9 +37,9 @@ namespace {
 constexpr uint32_t kKomaMagic = 0x4B4F4D41u;
 // Independent calls share one runtime and allocator. Size the shared pool at
 // the old 8 MiB single-call budget times the limit; it is not partitioned.
-constexpr uint32_t kMaxConcurrentSourceCalls = 4;
-// Preserve four source slots; two image workers have their own admission and
-// module budgets rather than waiting behind source HTTP requests.
+constexpr uint32_t kMaxConcurrentSourceCalls = 6;
+// Keep the source limit aligned with SourceRuntimeWorkerClient. Image workers
+// have their own admission and module budgets.
 constexpr uint32_t kMaxConcurrentImageCalls = 2;
 constexpr uint32_t kMaxConcurrentLocalCoverCalls = 2;
 constexpr uint32_t kRuntimeHeapBytes =

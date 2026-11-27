@@ -7,6 +7,7 @@ import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import { executeSourceRequestInWorker } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
+import { configureSourceRequestPolicy } from '../sourceRuntime/SourceRequestPolicy'
 
 interface SourceMangaDetailData {
   manga?: Record<string, Object>
@@ -35,8 +36,9 @@ export interface SourceMangaDetailResponse {
 
 export async function fetchSourceMangaDetail(entry: SourceRuntimeRegistryEntry, mangaId: string,
   mangaUrl: string | undefined, settings: SourceSettingsRecord, requestPurpose: string): Promise<SourceMangaDetailResponse> {
+  configureSourceRequestPolicy(entry.requestLimits, settings)
   const payload: SourceMangaDetailRequest = { type: 'request', version: 1,
-    requestId: `${requestPurpose}-detail-${Date.now()}`, sourceId: entry.sourceId, operation: 'get_manga',
+    requestId: `${requestPurpose}-detail-${entry.sourceId}-${Date.now()}`, sourceId: entry.sourceId, operation: 'get_manga',
     args: { mangaId, mangaUrl }, settings, hostHints: { network: true } }
   const request = sourceRequestWithHostFeatures(JSON.stringify(payload))
   const bytes = new Uint8Array(entry.wasmBytes.byteLength)
@@ -48,5 +50,8 @@ export async function fetchSourceMangaDetail(entry: SourceRuntimeRegistryEntry, 
   const data = response.data as SourceMangaDetailData | undefined
   const item = data?.manga ?? data?.item ?? data?.items?.[0]
   if (item === undefined) throw new SourceRuntimeError({ ok: false, reasonCode: 'invalid_response' })
-  return { detail: parseMangaDetailFromSourceItem(entry.sourceId, item), chapterContext: data?.chapterContext }
+  const context = data?.chapterContext
+  return { detail: parseMangaDetailFromSourceItem(entry.sourceId, item),
+    chapterContext: context !== undefined && context !== null && typeof context === 'object' && !Array.isArray(context)
+      ? context : undefined }
 }

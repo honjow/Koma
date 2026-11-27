@@ -86,6 +86,28 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "LIBRARY_UPDATE_PROVIDER_CONCURRENCY",
+      "number": 370,
+      "title": "书架检查更新按来源并行",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-27",
+      "reportedAtSource": "用户反馈书架检查更新串行，耗时偏长。",
+      "updatedAt": "2026-11-28T00:02:29+08:00",
+      "status": "237 书架实际验证五路并行和短时间重复检查",
+      "result": "前台书库检查同时处理最多五个来源，书多的先启动，同一来源逐本检查。详情可向同次目录请求交付已有数据，资料刷新关闭时复用五分钟内已确认且与书架一致的连载状态。237 相同 85 本连续两轮手动检查，涉及 20 个源，两轮均观察到五个源重叠。首轮 52.279 秒，复查 43.290 秒，详情操作从 82 降至 39，目录操作均为 82。首轮有 1 本发现更新，复查没有重复登记，两轮日志各有 4 本检查失败。237 已恢复书源管理页、原超时与休眠并释租，保留候选包。",
+      "remaining": "两轮使用同一候选，耗时不是旧包和新包的对照。真实源的详情目录上下文复用以源自身返回为准，宿主传递和失败回退已用本地受控用例验证。",
+      "evidence": [
+        ".hvigor/outputs/library-update-parallel/baseline-concurrency.log",
+        ".hvigor/outputs/library-update-parallel/tests.log",
+        ".hvigor/outputs/library-update-parallel-v2/build.log",
+        ".hvigor/outputs/library-update-parallel-v2/tests.log",
+        ".hvigor/outputs/library-update-parallel-v2/device237-update-metrics.json"
+      ]
+    },
+    {
       "id": "SOURCE_MANAGER_ENTRY_PERFORMANCE",
       "number": 368,
       "title": "降低书源管理页入场开销",
@@ -13864,6 +13886,34 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-update-provider-five-and-detail-reuse-20261128",
+      "at": "2026-11-28T00:00:52+08:00",
+      "itemId": "LIBRARY_UPDATE_PROVIDER_CONCURRENCY",
+      "kind": "validation",
+      "title": "237 核对五路并行与重复检查减少详情请求",
+      "detail": "对照 Mihon v0.21.3 先启动作品多的来源。Koma 调度允许五个书源或远端服务，ArkTS 和原生工作池另留一个执行名额。用现有详情目录上下文；只在状态有明确成功证据、作品和安装及设置匹配的有效期内省去详情。237 从书架铃铛进入更新页，通过刷新按钮检查两次。85 本、20 个书源，每次最多五路重叠，详情操作 82→39，章节操作 82→82。",
+      "evidence": [
+        ".hvigor/outputs/library-update-parallel-v2/build.log",
+        ".hvigor/outputs/library-update-parallel-v2/device237-update-metrics.json",
+        ".hvigor/outputs/library-update-parallel-v2/device237__VDE-AL00/unfolded/portrait-1320x2120/library-shelf-update/check/run-metadata.json",
+        ".hvigor/outputs/library-update-parallel-v2/device237__VDE-AL00/unfolded/portrait-1320x2120/library-shelf-update/recheck/run-metadata.json",
+        ".hvigor/outputs/library-update-parallel-v2/device237__VDE-AL00/unfolded/portrait-1320x2120/library-shelf-update/restore/run-metadata.json"
+      ]
+    },
+    {
+      "id": "library-update-provider-concurrency-20261127",
+      "at": "2026-11-27T23:40:07+08:00",
+      "itemId": "LIBRARY_UPDATE_PROVIDER_CONCURRENCY",
+      "kind": "validation",
+      "title": "本地核对跨来源并行和书架写回",
+      "detail": "同一组受控请求在旧实现只启动首个来源，新版同时启动三个。首源尚未返回时，其他来源完成并接手等待任务。核对同源顺序、单源失败、跳过移除及迁移的作品、保留检查期间编辑与新增章节 ID。调度异常时确认等待在途检查退出并恢复其变更。Debug HAP 构建成功。",
+      "evidence": [
+        ".hvigor/outputs/library-update-parallel/baseline-concurrency.log",
+        ".hvigor/outputs/library-update-parallel/tests.log",
+        ".hvigor/outputs/library-update-parallel/build.log"
+      ]
+    },
     {
       "id": "local-epub-cover-fix-20261127",
       "at": "2026-11-27T17:20:29+08:00",

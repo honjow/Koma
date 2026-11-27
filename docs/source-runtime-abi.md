@@ -251,7 +251,7 @@ RPC 成功返回 `ok:true`，失败只返回 `ok:false,error:{code}`。`nowMs` �
 
 `source_setting_positive_integer_v1` 支持文本设置的 `validation: {kind:"positive_integer", message:"..."}`。沿 WNACG 已采用的 Kotlin `toIntOrNull() >= 1` 保存合同：仅值 1–2147483647，允许前导 `+`、前导零和 UTF-16 BMP 十进制数字，不 trim、不接受浮点、空串、零、负数、溢出或补充平面数字。保留原文本；默认值和 getter 的无效值回退仍归源，不以回退代替拒绝保存。沿现表单错误态/禁用保存及持久化写前校验，不修改旧无此声明字段。
 
-`source_detail_chapter_context_v1` 仅由详情页本次 `get_manga` 和随后的目录请求声明。源可在成功详情的 `data.chapterContext` 返回非敏感 JSON 对象，宿主仅在同一仍有效的详情事务中将其原样传入 `get_chapters` 的 `args.chapterContext`，分页共用；不写缓存或日志，不跨刷新、源包或设置变更、其他作品或精确章恢复使用。源须核对上下文的版本和作品身份，缺失或不完整时沿原请求路径处理；旧宿主不声明该特性。
+`source_detail_chapter_context_v1` 允许详情页、书架检查等调用方在同一次作品读取中共享详情和目录数据。源可在成功详情的 `data.chapterContext` 返回非敏感 JSON 对象，宿主仅在同一仍有效的事务中将其原样传入随后的 `get_chapters` 的 `args.chapterContext`，分页共用；不写缓存或日志，不跨刷新、源包或设置变更、其他作品或精确章恢复使用。源须核对上下文的版本和作品身份，缺失或不完整时沿原请求路径处理；旧宿主不声明该特性。
 
 `source_http_challenge_cause_v1` 由宿主为带操作生命周期的读请求声明，包括受跟踪的统一搜索、单源搜索、浏览、详情及阅读页表。源在单个 GET 中设置 `wantChallengeRequestId: true` 后，宿主仅为该源允许的网页 origin 上返回 401、403 或 503 的实际请求附加短 `challengeRequestId`。只有源最终由该次响应产生 challenge/auth 错误时，才可将同一个 ID 放在 `error.challengeRequestId`；不得推测其他请求的 ID。宿主按 ID、源和本次页面请求身份匹配原 GET，验证后的响应仅由该次请求的重试消费；多条不同失败 GET 缺乏明确 ID 时不能猜测。验证页在加载前选择系统 WebView UA。成功后会话保存实际 Web UA，后续获准的同源原生请求随 Cookie 一起复用该 UA。取消或请求失效清除关联。旧源不使用此字段，保留单个候选的既有兼容行为，旧宿主不声明该特性。
 

@@ -22,7 +22,8 @@ interface PendingSourceWorkerOperation {
   reject: (reason: Object) => void
 }
 
-const SOURCE_OPERATION_CONCURRENCY: number = 4
+// Five library sources plus a slot for an interactive source. Keep the native limit in sync.
+const SOURCE_OPERATION_CONCURRENCY: number = 6
 const activeSources: Set<string> = new Set<string>()
 const pendingOperations: PendingSourceWorkerOperation[] = []
 let activeOperations: number = 0

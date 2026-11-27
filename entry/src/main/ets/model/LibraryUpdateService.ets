@@ -22,8 +22,8 @@ import { LibraryStore } from './LibraryStore'
 import { LibraryStorePersistenceService } from './LibraryPersistence'
 import { MangaChapterItem, MangaDetail, MangaStatus } from './MangaDetailModels'
 import { resolveSourceChapterList } from './SourceChapterListResolver'
-import { fetchSourceMangaDetail } from './SourceMangaDetailRequest'
-import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
+import { fetchSourceMangaDetail, SourceMangaDetailResponse } from './SourceMangaDetailRequest'
+import { appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
@@ -110,6 +110,23 @@ export interface LibraryUpdateSummary {
   providerSummaries: LibraryUpdateProviderSummary[]
   results: LibraryUpdateComicResult[]
 }
+
+// Leave capacity in the shared source worker pool for interactive requests.
+const LIBRARY_UPDATE_PROVIDER_CONCURRENCY: number = 5
+
+interface LibraryPublicationCheck {
+  mangaId: string
+  mangaUrl: string
+  settingsRevision: string
+  status: MangaStatus
+  checkedAt: number
+}
+
+const LIBRARY_PUBLICATION_REUSE_MS: number = 5 * 60 * 1000
+const LIBRARY_PUBLICATION_REUSE_LIMIT: number = 4096
+// A network-confirmed status can avoid a second detail request on a quick repeat.
+// Never cache the detail payload or its chapter context across checks.
+const recentPublicationChecks = new WeakMap<SourceRuntimeRegistryEntry, Map<string, LibraryPublicationCheck>>()
 
 function sourceMangaIdFromComic(comic: Comic): string | undefined {
   const sourceRuntimeId = comic.sourceRuntimeId
@@ -537,32 +554,73 @@ export class LibraryUpdateService {
       const checkedAt = Date.now()
       const comics = this.libraryStore.listComicSummaries()
       const results: LibraryUpdateComicResult[] = []
-      const modified: Comic[] = []
+      const modified = new Map<number, Comic>()
       const updated = new Map<string, LibraryUpdateComicResult>()
       console.info(`[LibraryUpdate] step=start total=${comics.length}`)
-      for (const comic of comics) {
-        const before = this.includeComic !== undefined && !this.includeComic(comic) ? comic :
-          this.libraryStore.getComic(comic.id) ?? comic
-        const result = await this.checkComic(before)
-        if (result.status === 'updated' || result.metadataChanged === true) {
-          modified.push(before)
+
+      // The runtime admits one operation per source. Group whole book checks
+      // so one busy source cannot occupy the batch's other slots. Remote
+      // libraries share one configured server per provider, including legacy IDs.
+      const byProvider = new Map<string, number[]>()
+      comics.forEach((comic: Comic, index: number): void => {
+        const provider = providerKindForComic(comic)
+        const key = provider === 'source_runtime' ? `source:${comic.sourceRuntimeId}` : provider
+        const group = byProvider.get(key)
+        if (group === undefined) byProvider.set(key, [index])
+        else group.push(index)
+      })
+      const groups = Array.from(byProvider.values()).sort((left: number[], right: number[]): number =>
+        right.length - left.length)
+      let nextGroup = 0
+      let interrupted = false
+      const worker = async (): Promise<void> => {
+        try {
+          while (!interrupted && nextGroup < groups.length) {
+            const group = groups[nextGroup++]
+            for (const index of group) {
+              if (interrupted) return
+              const comic = comics[index]
+              const before = this.includeComic !== undefined && !this.includeComic(comic) ? comic :
+                this.libraryStore.getComic(comic.id)
+              if (before === undefined || !sameComicIdentity(comic, before)) {
+                // A queued book may have left the shelf or moved to another source.
+                results[index] = this.skippedResult(comic, comic.chapterCount, AppStrings.get('library_update_no_new_chapters'))
+                continue
+              }
+              const result = await this.checkComic(before)
+              if (result.status === 'updated' || result.metadataChanged === true) modified.set(index, before)
+              if (result.status === 'updated') updated.set(before.id, result)
+              results[index] = result
+            }
+          }
+        } catch (error) {
+          interrupted = true
+          throw error as Error
         }
-        if (result.status === 'updated') updated.set(before.id, result)
-        results.push(result)
       }
-      if (modified.length > 0 && this.persistenceService !== undefined) {
+      const workers: Promise<void>[] = []
+      for (let index = 0; index < LIBRARY_UPDATE_PROVIDER_CONCURRENCY && index < groups.length; index += 1) {
+        workers.push(worker())
+      }
+      // Keep the restore barrier held until all admitted checks have settled.
+      const completed = await Promise.allSettled(workers)
+      const failure = completed.find(result => result.status === 'rejected')
+      if (modified.size > 0 && this.persistenceService !== undefined) {
         // The check can take several requests. Commit only changed works
         // using their current values, including any saved user edits.
         const current: Comic[] = []
         const before: Comic[] = []
-        modified.forEach((comic: Comic): void => {
+        for (let index = 0; index < comics.length; index += 1) {
+          const comic = modified.get(index)
+          if (comic === undefined) continue
           const live = this.libraryStore.getComic(comic.id)
           if (live !== undefined && sameComicIdentity(comic, live)) {
             current.push(live)
             before.push(comic)
           }
-        })
+        }
         try {
+          if (failure?.status === 'rejected') throw failure.reason as Error
           if (current.length > 0) this.persistenceService.persistExistingWorks(current)
         } catch (error) {
           this.persistenceService.restoreFailedWorkUpdates(before)
@@ -578,6 +636,7 @@ export class LibraryUpdateService {
           }
         }
       }
+      if (failure?.status === 'rejected') throw failure.reason as Error
       const summary = summarizeResults(checkedAt, results)
       console.info(`[LibraryUpdate] step=done total=${summary.totalCount} updated=${summary.updatedCount} unchanged=${summary.unchangedCount} skipped=${summary.skippedCount} failed=${summary.failedCount}`)
       return summary
@@ -682,13 +741,14 @@ export class LibraryUpdateService {
     try {
       const entry = lookup.entry
       const settingsRevision = appSourceSettingsStore.revisionForSource(entry.sourceId)
-      const fetchedChapters = await this.fetchSourceRuntimeChapters(entry, mangaId, comic.sourcePath)
-      const detail = await this.fetchSourceRuntimeDetail(entry, mangaId, comic.sourcePath,
-        appSourceSettingsStore.loadForSource(entry.sourceId))
-      if (this.sourceRegistry.lookup(sourceRuntimeId).entry !== entry || !sourceRuntimeEntryEnabled(entry) ||
-        appSourceSettingsStore.revisionForSource(entry.sourceId) !== settingsRevision) {
-        throw new Error('source_chapters_cancelled')
-      }
+      const isCurrent = (): boolean => this.sourceRegistry.lookup(sourceRuntimeId).entry === entry &&
+        sourceRuntimeEntryEnabled(entry) && appSourceSettingsStore.revisionForSource(entry.sourceId) === settingsRevision
+      // A source may already have the chapter catalog in its detail response.
+      const work = await this.fetchSourceRuntimeDetail(entry, mangaId, comic, settingsRevision)
+      if (!isCurrent()) throw new Error('source_chapters_cancelled')
+      const fetchedChapters = await this.fetchSourceRuntimeChapters(entry, mangaId, comic.sourcePath, isCurrent, work?.chapterContext)
+      if (!isCurrent()) throw new Error('source_chapters_cancelled')
+      const detail = work?.detail
       // A network check can overlap a removal or a user edit. Merge into the
       // live shelf entry and never recreate a removed or migrated favorite.
       const liveComic = this.libraryStore.getComic(comic.id)
@@ -768,9 +828,33 @@ export class LibraryUpdateService {
   }
 
   private async fetchSourceRuntimeDetail(entry: SourceRuntimeRegistryEntry, mangaId: string,
-    mangaUrl: string, settings: SourceSettingsRecord): Promise<MangaDetail | undefined> {
+    comic: Comic, settingsRevision: string): Promise<SourceMangaDetailResponse | undefined> {
+    const checks = recentPublicationChecks.get(entry)
+    const cached = checks?.get(comic.id)
+    const canReuseStatus = !this.refreshWorkInfo && entry.authentication === undefined
+    if (canReuseStatus && cached !== undefined && cached.mangaId === mangaId &&
+      cached.mangaUrl === comic.sourcePath && cached.settingsRevision === settingsRevision &&
+      cached.status === comic.sourceMetadata?.status) {
+      const age = Date.now() - cached.checkedAt
+      if (age >= 0 && age < LIBRARY_PUBLICATION_REUSE_MS) return undefined
+    }
     try {
-      return (await fetchSourceMangaDetail(entry, mangaId, mangaUrl, settings, 'library-update')).detail
+      const settings = appSourceSettingsStore.loadForSource(entry.sourceId)
+      const work = await fetchSourceMangaDetail(entry, mangaId, comic.sourcePath, settings, 'library-update')
+      const status = work.detail.status
+      if (entry.authentication === undefined && status !== undefined && status !== MangaStatus.UNKNOWN &&
+        appSourceSettingsStore.revisionForSource(entry.sourceId) === settingsRevision) {
+        const currentChecks = recentPublicationChecks.get(entry) ?? new Map<string, LibraryPublicationCheck>()
+        currentChecks.delete(comic.id)
+        if (currentChecks.size >= LIBRARY_PUBLICATION_REUSE_LIMIT) {
+          const oldest = currentChecks.keys().next()
+          if (!oldest.done) currentChecks.delete(oldest.value)
+        }
+        currentChecks.set(comic.id, { mangaId, mangaUrl: comic.sourcePath, settingsRevision,
+          status, checkedAt: Date.now() })
+        recentPublicationChecks.set(entry, currentChecks)
+      }
+      return work
     } catch (_error) {
       // A failed optional detail request must not block valid chapter updates.
       DiagnosticLogger.debug('library_update', 'source_detail_unavailable', 'metadata_preserved=true')
@@ -778,8 +862,9 @@ export class LibraryUpdateService {
     }
   }
 
-  private async fetchSourceRuntimeChapters(entry: SourceRuntimeRegistryEntry, mangaId: string, mangaUrl?: string): Promise<MangaChapterItem[]> {
-    const catalog = await resolveSourceChapterList(entry, mangaId, mangaUrl)
+  private async fetchSourceRuntimeChapters(entry: SourceRuntimeRegistryEntry, mangaId: string, mangaUrl: string,
+    isCurrent: () => boolean, chapterContext?: Record<string, Object>): Promise<MangaChapterItem[]> {
+    const catalog = await resolveSourceChapterList(entry, mangaId, mangaUrl, isCurrent, chapterContext)
     if (!catalog.resolved) {
       throw new Error(catalog.reasonCode ?? 'source_chapters_incomplete')
     }
