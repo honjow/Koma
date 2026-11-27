@@ -2,6 +2,7 @@ import { util } from '@kit.ArkTS'
 import {
   compareNaturalPath,
   getBaseName,
+  isEpubArchivePath,
   isSupportedArchivePath,
   isSupportedImagePath,
   normalizeSortKey,
@@ -78,10 +79,26 @@ export interface LocalLibraryFolderSeries {
   title: string
   relativePath: string
   sidecarMetadata?: LocalLibrarySidecarMetadata
+  epubCoverUri?: string
   chapters: LocalLibraryFolderChapter[]
   chapterCount: number
   pageCount: number
   sortKey: string
+}
+
+export const FOLDER_EPUB_COVER_DIRECTORY: string = 'folder-epub-covers'
+
+export function folderEpubCoverUri(uri: string | undefined): string | undefined {
+  if (uri === undefined || !uri.startsWith('file://')) return undefined
+  const segments = uri.split('/')
+  return segments[segments.length - 2] === FOLDER_EPUB_COVER_DIRECTORY &&
+    /^[a-f0-9]{64}\.[a-z0-9]+$/i.test(segments[segments.length - 1]) ? uri : undefined
+}
+
+export function folderEpubCoverChapter(series: LocalLibraryFolderSeries): LocalLibraryFolderChapter | undefined {
+  if (series.sidecarMetadata?.coverPath || series.pageCount > 0) return undefined
+  return series.chapters.find((chapter: LocalLibraryFolderChapter): boolean =>
+    chapter.kind === 'archive' && isEpubArchivePath(chapter.relativePath))
 }
 
 export interface LocalLibraryFolderRejectedEntry {
@@ -416,7 +433,7 @@ export function buildComicFromLocalLibraryFolderSeries(
     sidecar: series.sidecarMetadata,
     derived: createDerivedLocalLibraryMetadata(metadataSeries),
   })
-  let coverUri = chapters.find((chapter: Chapter): boolean => chapter.pages.length > 0)?.pages[0].uri
+  let coverUri = chapters.find((chapter: Chapter): boolean => chapter.pages.length > 0)?.pages[0].uri ?? series.epubCoverUri
   if (resolvedMetadata.coverReference !== undefined && resolvedMetadata.coverReferenceSource === 'valid_sidecar') {
     coverUri = localLibraryFolderUri(options.rootUri, resolveLocalLibrarySeriesCoverReference(metadataSeries, resolvedMetadata.coverReference))
   }
@@ -472,6 +489,11 @@ export function bindLocalLibraryFolderScanIdentity(
   })
   const series = scanResult.series.map((fresh: LocalLibraryFolderSeries): LocalLibraryFolderSeries => {
     const previous = knownByPath.get(fresh.relativePath)
+    const epubChapter = folderEpubCoverChapter(fresh)
+    // An isolated cover read failure must not erase the previous cover for an
+    // unchanged archive path. A new first archive starts with its own asset.
+    const previousEpubCover = previous !== undefined && epubChapter !== undefined &&
+      folderEpubCoverChapter(previous)?.relativePath === epubChapter.relativePath ? previous.epubCoverUri : undefined
     const seriesId = previous?.id ?? `${LOCAL_LIBRARY_FOLDER_ID_PREFIX}-series-${util.generateRandomUUID()}`
     const chapters = fresh.chapters.map((chapter: LocalLibraryFolderChapter): LocalLibraryFolderChapter => {
       const oldChapter = previous?.chapters.find((known: LocalLibraryFolderChapter): boolean => {
@@ -512,6 +534,7 @@ export function bindLocalLibraryFolderScanIdentity(
       title: fresh.title,
       relativePath: fresh.relativePath,
       sidecarMetadata: fresh.sidecarMetadata,
+      epubCoverUri: fresh.epubCoverUri ?? previousEpubCover,
       chapters,
       chapterCount: fresh.chapterCount,
       pageCount: fresh.pageCount,
@@ -607,6 +630,7 @@ export function buildKnownLocalLibraryFolderSeriesFromComics(comics: Comic[], ro
         coverPath: comic.localMetadata.coverOverridePath,
       }
     }
+    series.epubCoverUri = folderEpubCoverUri(comic.customCoverUri ? comic.sourceCoverUri : comic.coverUri)
     seriesList.push(series)
   })
   return seriesList.sort((left: LocalLibraryFolderSeries, right: LocalLibraryFolderSeries): number => compareNaturalPath(left.relativePath, right.relativePath))

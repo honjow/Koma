@@ -14,6 +14,7 @@ struct ArchiveWork {
     napi_async_work work = nullptr;
     napi_deferred deferred = nullptr;
     Action action = Action::List;
+    int32_t sourceFd = -1;
     std::string source, destination, path, metadata, error;
     uint64_t limit = 0;
     std::vector<std::pair<std::string, std::string>> files;
@@ -57,7 +58,14 @@ void ParseArguments(napi_env env, napi_callback_info info, ArchiveWork &request)
     napi_value args[4];
     napi_get_cb_info(env, info, &count, args, nullptr, nullptr);
     if (count == 0) throw std::runtime_error("Archive path is required");
-    request.source = StringArgument(env, args[0]);
+    napi_valuetype sourceType;
+    napi_typeof(env, args[0], &sourceType);
+    if (request.action == Action::Read && sourceType == napi_number) {
+        if (napi_get_value_int32(env, args[0], &request.sourceFd) != napi_ok || request.sourceFd < 0)
+            throw std::runtime_error("Invalid ZIP descriptor");
+    } else {
+        request.source = StringArgument(env, args[0]);
+    }
     switch (request.action) {
         case Action::Extract:
             if (count != 2) throw std::runtime_error("Extraction destination is required");
@@ -110,7 +118,7 @@ void Execute(napi_env, void *data)
             case Action::Prefix:
             case Action::Copy:
                 request.bytes = ReadComicZipEntry(request.source, request.path, request.limit, request.destination,
-                    request.action == Action::Prefix);
+                    request.action == Action::Prefix, request.sourceFd);
                 break;
             case Action::Write:
                 WriteComicZip(request.source, request.files, request.metadata);

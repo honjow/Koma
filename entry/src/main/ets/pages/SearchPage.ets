@@ -25,7 +25,7 @@ import {
   isCrossSearchQueryMeaningful,
 } from '../model/CrossSearchService'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { ComicSourceKind } from '../model/ComicModels'
+import { ComicSourceKind, comicDisplayCover } from '../model/ComicModels'
 import { KomgaSeriesRouteParam } from './KomgaSeriesPage'
 import { KavitaBrowseRouteParam } from './KavitaBrowsePage'
 import { OpdsBrowseRouteParam } from './OpdsBrowsePage'
@@ -1071,9 +1071,12 @@ export struct SearchPage {
     return searchStateUserText(section.state, section.diagnosticCode)
   }
 
-  private resultCard(item: CrossSearchResultItem): SourceManga {
+  private resultCard(item: CrossSearchResultItem, _libraryRevision: number): SourceManga {
+    // A local cover can be repaired on the detail route while these results
+    // stay mounted. Read the current summary without rerunning the search.
+    const stored = item.localComicId === undefined ? undefined : this.libraryStore.getComicSummary(item.localComicId)
     return { id: item.id, sourceId: item.sourceId ?? '', title: item.title,
-      coverUrl: item.coverUri, url: item.sourceMangaUrl }
+      coverUrl: stored === undefined ? item.coverUri : comicDisplayCover(stored), url: item.sourceMangaUrl }
   }
 
   private resultCoverOptions(item: CrossSearchResultItem): MangaGridCoverOptions {
@@ -1100,7 +1103,7 @@ export struct SearchPage {
         .each((result: RepeatItem<CrossSearchResultItem>) => {
           ListItem() {
             MangaGridItem({
-              manga: this.resultCard(result.item),
+              manga: this.resultCard(result.item, this.libraryRevision),
               reserveTitleSpace: true,
               subtitle: this.resultSubtitle(row.section, result.item),
               deferOffscreenCover: true,

@@ -20,7 +20,7 @@
   "title": "Koma 当前工作",
   "state": "Koma 1.5.6 已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-27T01:52:25+08:00",
+  "updatedAt": "2026-11-27T16:43:15+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "DOWNLOAD_START_LATENCY_FULL_READ_20261124",
   "activity": "197 在 376 行队列上核到冷启动首点下载的初始化与入队合计约 9 ms，全量读写路径已改为按目标行处理。",
@@ -13864,6 +13864,33 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "local-epub-cover-fix-20261127",
+      "at": "2026-11-27T17:20:29+08:00",
+      "itemId": "LOCAL_READING_REAL_CBZ_20261112",
+      "kind": "validation",
+      "title": "按 EPUB 封面声明导入与补封面",
+      "detail": "实现 EPUB 3 cover-image、EPUB 2 cover meta 与 guide，坏图按其余声明和正文可解码图依次回退，保留 spine 页序。文件夹只提取封面必要条目，作品旧记录可按本修复。重导保留自选封面、笔记和正文页 ID。197 基线直接导入 EPUB 3 把绿首图当封面。升级打开原记录后变为红色声明封面，重启后搜索仍为红。修复包分别经系统文件选择器导入 EPUB 2、经系统目录选择器导入 EPUB 2 guide 封面，入库时即显示各自封面，打开阅读器均为绿色正文第 1/2 页。替换文件夹样本的封面后，详情检查本地库报告变更 1 本，详情和原搜索结果都从橙色更新为紫色。纯矢量 SVG 解码未做真机覆盖，混排文字 EPUB 另见原工作单。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/koma-epub-cover-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/old-search-results/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-epub-cover-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/candidate-existing-detail-open/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-epub-cover-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/cleanup-old-search/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-epub-cover-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-new-epub-before-detail/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-epub-cover-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-epub2-reader/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-epub-cover-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-folder-search-retry/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-epub-cover-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-folder-reader/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-epub-cover-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/folder-rescan-detail-updated/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/koma-epub-cover-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/folder-rescan-search-updated/run-metadata.json"
+      ]
+    },
+    {
+      "id": "local-epub-cover-investigation-20261127",
+      "at": "2026-11-27T16:43:15+08:00",
+      "itemId": "LOCAL_READING_REAL_CBZ_20261112",
+      "kind": "checkpoint",
+      "title": "核查 EPUB 单文件与文件夹导入的封面读取",
+      "detail": "对照 v1.6.3 与当前源码，单文件导入只取 OPF 线性阅读顺序的第一张支持图片，没有读取 EPUB 3 cover-image 或 EPUB 2 常见的 cover meta。宿主样本验证两种标记均被忽略；无正文图片的样本无法按图片 EPUB 导入。另复现仅含 EPUB、没有封面旁车配置或散图的文件夹成功登记章节但封面为空，阅读时的临时提取不回写书架。用户报告的原文件及导入方式未确认，本轮为调查。"
+    },
     {
       "id": "list-header-menu-capsule-trial-20261127",
       "at": "2026-11-27T01:52:25+08:00",

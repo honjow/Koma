@@ -81,6 +81,30 @@ test('folder discovery recognizes the same archive formats the reader opens', ()
   assert.ok(comic.chapters.every(models.isDeferredFolderArchiveChapter))
 })
 
+test('EPUB cover declarations do not insert auxiliary cover pages into reading order', () => {
+  function element(name, attributes, children = []) {
+    return { _name: name, _attributes: attributes, _elements: children }
+  }
+  const document = element('package', {}, [
+    element('metadata', {}, [element('meta', { name: 'cover', content: 'legacy' })]),
+    element('manifest', {}, [
+      element('item', { id: 'modern', href: '../art/front%20page.png', 'media-type': 'image/png',
+        properties: 'cover-image scripted' }),
+      element('item', { id: 'legacy', href: 'legacy.png', 'media-type': 'image/png' }),
+      element('item', { id: 'body', href: 'body.xhtml', 'media-type': 'application/xhtml+xml' }),
+    ]),
+    element('spine', {}, [element('itemref', { idref: 'modern', linear: 'no' }), element('itemref', { idref: 'body' })]),
+    element('guide', {}, [element('reference', { type: 'cover', href: 'art.xhtml#cover' })]),
+  ])
+  const parser = load('import/EpubReadingOrder', {
+    '@kit.ArkTS': { convertxml: { ConvertXML: class { fastConvertToJSObject() { return document } } } },
+    '@kit.CoreFileKit': {}, './ImageSortUtils': sort,
+  })
+  const result = parser.parseEpubPackage('', 'OEBPS/package.opf')
+  assert.deepEqual(result.covers.map(entry => entry.path), ['art/front page.png', 'OEBPS/legacy.png', 'OEBPS/art.xhtml'])
+  assert.deepEqual(result.readingOrder.map(entry => entry.path), ['OEBPS/body.xhtml'])
+})
+
 test('nested archive chapters retain page order and expose exact reader offsets', () => {
   const pages = ids => ids.map(id => ({ id }))
   const opened = folderArchive.flattenFolderArchiveChapters([

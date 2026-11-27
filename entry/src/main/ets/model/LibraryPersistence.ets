@@ -68,6 +68,7 @@ import {
   LocalLibraryFolderSeries,
   bindLocalLibraryFolderScanIdentity,
   buildComicsFromLocalLibraryFolderScan,
+  folderEpubCoverUri,
   localLibraryFolderRootUriFromComic,
   localLibraryFolderUri,
 } from './LocalLibraryFolderContract'
@@ -1701,6 +1702,10 @@ function mergeLocalLibraryRescanComic(previous: Comic | undefined, fresh: Comic)
     merged.sourceMetadata = copySourceMangaMetadata(sourceMetadata)
   }
   copyComicPersonalFields(previous, merged)
+  if (fresh.coverUri !== undefined && folderEpubCoverUri(fresh.coverUri) !== undefined &&
+    previous.localMetadata?.coverOverridePath === undefined) {
+    assignComicSourceCover(merged, fresh.coverUri)
+  }
   copyComicUpdateSchedule(previous, merged)
   return merged
 }

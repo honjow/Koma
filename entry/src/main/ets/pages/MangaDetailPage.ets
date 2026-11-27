@@ -43,6 +43,8 @@ import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { ComicCoverEnhancementSheet, coverEnhancementPreviewHeight, coverEnhancementSheetHeight } from '../components/ComicCoverEnhancementSheet'
 import { CachedCoverImage } from '../components/CachedCoverImage'
 import { ChapterArchiveActions, chapterArchiveFailureText } from '../model/ChapterArchiveExport'
+import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
+import { repairLocalEpubCover } from '../import/EpubArchiveReader'
 import { selectComicCover, saveComicPersonalization, discardUncommittedComicCover, saveComicCoverEnhancement } from '../model/ComicPersonalization'
 import { ColorMetrics, ComponentContent, FrameCallback, LengthMetrics, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
@@ -90,6 +92,7 @@ import { ReaderChapterDescriptor, cloneReaderChapterDescriptor, filterChapterMet
 import {
   Chapter,
   Comic,
+  assignComicSourceCover,
   comicDisplayCover,
   ComicSourceKind,
   copyComicShell,
@@ -1123,6 +1126,36 @@ export struct MangaDetailPage {
       return
     }
     this.loadLocalOrMissingManga(mangaId)
+    if (mangaId !== undefined) await this.refreshLocalEpubCover(mangaId)
+  }
+
+  private async refreshLocalEpubCover(comicId: string): Promise<void> {
+    const library = this.libraryStore
+    const persistence = this.libraryPersistenceService
+    const comic = library?.getComic(comicId)
+    if (comic === undefined || library === undefined || persistence === undefined ||
+      (comic.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE && comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER)) return
+    const context = getContext(this) as common.UIAbilityContext
+    try {
+      await BackupRestoreActivity.runWrite(async (): Promise<void> => {
+        const cover = await repairLocalEpubCover(comic, context.filesDir)
+        const latest = library.getComic(comicId)
+        if (cover === undefined || latest === undefined || latest.sourcePath !== comic.sourcePath ||
+          latest.chapters[0]?.sourcePath !== comic.chapters[0]?.sourcePath ||
+          latest.chapters[0]?.pages[0]?.uri !== comic.chapters[0]?.pages[0]?.uri ||
+          latest.localMetadata?.coverOverridePath !== comic.localMetadata?.coverOverridePath) return
+        const previousCover = comic.customCoverUri ? comic.sourceCoverUri : comic.coverUri
+        const latestCover = latest.customCoverUri ? latest.sourceCoverUri : latest.coverUri
+        if (latestCover === cover || latestCover !== previousCover) return
+        const next = copyComicShell(latest)
+        assignComicSourceCover(next, cover)
+        persistence.persistExistingWorks([next], false)
+        library.upsertComic(next)
+        this.onLibraryChanged()
+      })
+    } catch (_error) {
+      DiagnosticLogger.warn('local_import', 'epub_cover_repair', '[LocalImport] epub_cover_repair_failed')
+    }
   }
 
   private beginSourceDetailRequest(sourceId: string, mangaId: string): number {

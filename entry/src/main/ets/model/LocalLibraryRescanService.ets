@@ -111,6 +111,7 @@ function seriesSignature(series: LocalLibraryFolderSeries): string {
   return [
     series.relativePath,
     sidecarMetadataSignature(series),
+    series.epubCoverUri ?? '',
     series.chapterCount.toString(),
     series.pageCount.toString(),
     chapters,

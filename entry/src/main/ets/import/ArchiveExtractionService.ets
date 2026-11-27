@@ -2,7 +2,7 @@ import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
 import { Chapter, Page, ReadingDirection, normalizeSortKey } from '../model/ComicModels'
 import { ComicZipEntry, extractNativeComicArchive, nativeComicArchive } from './NativeArchiveExtraction'
 import { isComicZip, readComicZipInfo } from './ComicZipPage'
-import { readOrderedEpubImages } from './EpubArchiveReader'
+import { findExtractedEpubCover, readOrderedEpubImages } from './EpubArchiveReader'
 import { inspectPdf, pdfPageUri, renderPdfPage } from './PdfPageService'
 import { ArchiveImageChapter, archiveImageChapters } from './ArchiveImageChapters'
 import { parseLocalLibrarySidecarMetadata } from '../model/LocalLibraryMetadataService'
@@ -13,6 +13,7 @@ import {
 } from './ArchiveImportService'
 import {
   getBaseName,
+  isEpubArchivePath,
   isSafeArchiveEntryPath,
   isSupportedArchivePath,
   isSupportedImagePath,
@@ -43,6 +44,7 @@ export interface ArchiveExtractionRequest {
   cancelToken?: ArchiveExtractionCancelToken
   /** Folder scanning already owns its chapter boundaries. */
   expandNestedArchives?: boolean
+  skipEpubCover?: boolean
 }
 
 export interface ArchiveExtractionResult {
@@ -211,15 +213,17 @@ export class ArchiveExtractionService {
       (entry: ComicZipEntry): boolean => isSupportedImagePath(entry.path)).map(
       (entry: ComicZipEntry): ArchiveEntryCandidate => ({ path: entry.path, byteSize: entry.size })) :
       await this.listImageEntries(request.extractionDir)
-    const nested = request.expandNestedArchives === false || /\.epub$/i.test(request.archivePath) ? [] :
+    const isEpub = isEpubArchivePath(request.archivePath)
+    const nested = request.expandNestedArchives === false || isEpub ? [] :
       (indexedZip ? zipFiles.map((entry: ComicZipEntry): string => entry.path)
         .filter((path: string): boolean => isSupportedArchivePath(path)).sort(compareNaturalPath) :
         await this.listNestedArchives(request.extractionDir))
     if (entries.length === 0 && nested.length === 0) {
       throw new Error(`Archive contains no supported image pages: ${request.archivePath}`)
     }
+    const epubPaths = isEpub ? await readOrderedEpubImages(request.extractionDir) : undefined
     const importResult = buildComicFromArchive({
-      orderedImagePaths: /\.epub$/i.test(request.archivePath) ? await readOrderedEpubImages(request.extractionDir) : undefined,
+      orderedImagePaths: epubPaths,
       archivePath: request.archivePath,
       entries,
       extractionDir: request.extractionDir,
@@ -229,6 +233,9 @@ export class ArchiveExtractionService {
       importedAt: request.importedAt,
       readingDirection: request.readingDirection,
     })
+    if (epubPaths !== undefined && request.skipEpubCover !== true) {
+      importResult.comic.coverUri = await findExtractedEpubCover(request.extractionDir, epubPaths)
+    }
     try {
       const metadata = parseLocalLibrarySidecarMetadata(indexedZip ? await readComicZipInfo(request.sandboxZipPath) :
         await fs.readText(`${request.extractionDir}/ComicInfo.xml`))

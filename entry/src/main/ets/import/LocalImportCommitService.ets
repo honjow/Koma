@@ -2,11 +2,13 @@ import { hash } from '@kit.CoreFileKit'
 import { util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
-import { Comic, ComicSourceKind, Page, copyLocalImportOrigin } from '../model/ComicModels'
+import { Comic, ComicSourceKind, Page, copyLocalImportOrigin, copyComicPersonalFields,
+  assignComicSourceCover } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService, upsertComicAndPersistLibraryStore } from '../model/LibraryPersistence'
 import { parsePdfPageUri } from './PdfPageService'
 import { parseComicZipPage, readComicZipPage } from './ComicZipPage'
+import { isEpubArchivePath } from './ImageSortUtils'
 
 function sameSourceUris(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((uri: string, index: number): boolean => uri === right[index])
@@ -123,6 +125,13 @@ export function mergeLocalImport(previous: Comic | undefined, fresh: Comic, same
   fresh.categoryIds = previous.categoryIds?.slice()
   fresh.localMetadata = previous.localMetadata
   fresh.preferredDirection = previous.preferredDirection
+
+  if (fresh.sourceKind === ComicSourceKind.LOCAL_ARCHIVE && isEpubArchivePath(fresh.localImportOrigin.sourceUris[0] ?? '')) {
+    const epubCover = fresh.coverUri
+    copyComicPersonalFields(previous, fresh)
+    if (epubCover !== undefined) assignComicSourceCover(fresh, epubCover)
+    return fresh
+  }
 
   if (previous.coverUri !== undefined) {
     const firstPdf = parsePdfPageUri(previous.chapters[0]?.pages[0]?.uri ?? '')

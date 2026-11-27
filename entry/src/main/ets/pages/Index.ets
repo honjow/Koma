@@ -3783,7 +3783,8 @@ struct Index {
       return result
     }
     for (const rootUri of rootUris) {
-      const runtimeResult = await this.localImportCoordinator.rescanPersistedFolder(rootUri)
+      const runtimeResult = await this.localImportCoordinator.rescanPersistedFolder(rootUri,
+        (getContext(this) as common.UIAbilityContext).filesDir)
       if (runtimeResult.status === 'reselect_required') {
         result.reselectRequiredCount += 1
         continue

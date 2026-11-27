@@ -1,4 +1,5 @@
 import { isComicZip } from './ComicZipPage'
+import { saveFolderEpubCover } from './EpubArchiveReader'
 import { util } from '@kit.ArkTS'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { common } from '@kit.AbilityKit'
@@ -12,6 +13,7 @@ import {
 } from './ArchiveExtractionService'
 import {
   getBaseName,
+  isEpubArchivePath,
   isSupportedArchivePath,
   isSupportedImagePath,
   stripExtension,
@@ -24,6 +26,7 @@ import {
 import {
   LocalLibraryFolderEntry,
   LocalLibraryFolderScanResult,
+  folderEpubCoverChapter,
   scanLocalLibraryFolderEntries,
 } from '../model/LocalLibraryFolderContract'
 import {
@@ -337,7 +340,7 @@ function readPickedFolderTextIfNeeded(entryUri: string, relativePath: string, by
   }
 }
 
-export async function scanPickedFolderUri(rootUri: string): Promise<LocalLibraryFolderScanResult> {
+export async function scanPickedFolderUri(rootUri: string, filesDir?: string): Promise<LocalLibraryFolderScanResult> {
   const listFileOptions: ListFileOptions = {
     recursion: true,
     listNum: 0,
@@ -366,7 +369,19 @@ export async function scanPickedFolderUri(rootUri: string): Promise<LocalLibrary
       throw new Error(LOCAL_IMPORT_ERROR_FOLDER_SCAN_FAILED)
     }
   }
-  return scanLocalLibraryFolderEntries(entries, createPickedFolderRootName(rootUri))
+  const scan = scanLocalLibraryFolderEntries(entries, createPickedFolderRootName(rootUri))
+  if (filesDir !== undefined) {
+    for (const series of scan.series) {
+      // Prefer the folder's explicit cover and loose-page fallback. Only the
+      // first EPUB can supply the automatic cover for a series of archives.
+      const chapter = folderEpubCoverChapter(series)
+      if (chapter !== undefined) {
+        series.epubCoverUri = await saveFolderEpubCover(joinPickedFolderUri(rootUri, chapter.relativePath), filesDir)
+          .catch((): undefined => undefined)
+      }
+    }
+  }
+  return scan
 }
 
 export async function copyPickedImageUriToSandbox(sourceUri: string, sandboxPath: string): Promise<void> {
@@ -514,7 +529,7 @@ export class LocalImportCoordinator {
       }
 
       extractionResult.importResult.comic.localImportOrigin = { kind: 'archive', sourceUris: [request.sourceUri] }
-      if (/\.epub$/i.test(request.sourceUri)) extractionResult.importResult.comic.localImportOrigin.epubOrderRevision = 1
+      if (isEpubArchivePath(request.sourceUri)) extractionResult.importResult.comic.localImportOrigin.epubOrderRevision = 1
 
       this.reportDebugEvent({
         step: LOCAL_ARCHIVE_DEBUG_STEP_IMPORT_SUCCEEDED,
@@ -755,7 +770,7 @@ export class LocalImportCoordinator {
           })
           continue
         }
-        const scanResult = await scanPickedFolderUri(rootUri)
+        const scanResult = await scanPickedFolderUri(rootUri, context.filesDir)
         results.push({
           status: 'succeeded',
           rootUri,
@@ -772,7 +787,7 @@ export class LocalImportCoordinator {
     return results
   }
 
-  async rescanPersistedFolder(rootUri: string): Promise<LocalFolderRuntimeRescanResult> {
+  async rescanPersistedFolder(rootUri: string, filesDir: string): Promise<LocalFolderRuntimeRescanResult> {
     const access = await activateLocalLibraryFolderAccess(rootUri)
     if (access.status === 'not_persisted') {
       return { status: 'reselect_required' }
@@ -786,7 +801,7 @@ export class LocalImportCoordinator {
     try {
       return {
         status: 'succeeded',
-        scanResult: await scanPickedFolderUri(rootUri),
+        scanResult: await scanPickedFolderUri(rootUri, filesDir),
       }
     } catch (_error) {
       return {

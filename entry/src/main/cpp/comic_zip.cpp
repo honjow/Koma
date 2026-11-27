@@ -12,6 +12,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <unordered_set>
+#include <unistd.h>
 
 namespace {
 using Archive = std::unique_ptr<archive, int (*)(archive *)>;
@@ -46,12 +47,18 @@ void Check(archive *handle, int status)
     }
 }
 
-Archive OpenZip(const std::string &path)
+Archive OpenZip(const std::string &path, int sourceFd = -1)
 {
     Archive reader(archive_read_new(), archive_read_free);
     if (!reader) throw std::runtime_error("Cannot allocate ZIP reader");
     Check(reader.get(), archive_read_support_format_zip_seekable(reader.get()));
-    Check(reader.get(), archive_read_open_filename(reader.get(), path.c_str(), BLOCK_SIZE));
+    if (sourceFd >= 0) {
+        if (lseek(sourceFd, 0, SEEK_SET) < 0) throw std::runtime_error("Cannot seek ZIP descriptor");
+        // archive_read_open_fd borrows the picker descriptor; its owner keeps it open.
+        Check(reader.get(), archive_read_open_fd(reader.get(), sourceFd, BLOCK_SIZE));
+    } else {
+        Check(reader.get(), archive_read_open_filename(reader.get(), path.c_str(), BLOCK_SIZE));
+    }
     return reader;
 }
 
@@ -145,10 +152,10 @@ std::vector<ComicZipEntry> ListComicZip(const std::string &source, bool hash)
 }
 
 std::vector<uint8_t> ReadComicZipEntry(const std::string &source, const std::string &path, uint64_t limit,
-    const std::string &destination, bool prefixOnly)
+    const std::string &destination, bool prefixOnly, int sourceFd)
 {
     const Utf8Locale locale;
-    auto reader = OpenZip(source);
+    auto reader = OpenZip(source, sourceFd);
     archive_entry *entry;
     size_t count = 0;
     for (int status; (status = archive_read_next_header(reader.get(), &entry)) != ARCHIVE_EOF;) {

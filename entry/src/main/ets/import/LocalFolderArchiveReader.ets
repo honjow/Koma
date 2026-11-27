@@ -46,6 +46,7 @@ export async function openLocalFolderArchive(cacheDir: string, sourceUri: string
       sandboxZipPath,
       extractionDir: `${rootDir}/extract`,
       cleanOutputDir: false,
+      skipEpubCover: true,
     })
     const opened = flattenFolderArchiveChapters(result.importResult.comic.chapters)
     opened.rootDir = rootDir

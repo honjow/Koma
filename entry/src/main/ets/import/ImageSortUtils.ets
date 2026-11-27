@@ -48,6 +48,10 @@ export function isSupportedArchivePath(path: string): boolean {
   return SUPPORTED_ARCHIVE_EXTENSIONS.indexOf(extension) >= 0
 }
 
+export function isEpubArchivePath(path: string): boolean {
+  return /\.epub$/i.test(path.replace(/%2e/ig, '.'))
+}
+
 export function isSupportedImagePath(path: string): boolean {
   const extension = getExtension(path)
   return SUPPORTED_IMAGE_EXTENSIONS.indexOf(extension) >= 0

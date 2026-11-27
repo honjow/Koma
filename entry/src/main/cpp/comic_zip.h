@@ -12,6 +12,6 @@ struct ComicZipEntry {
 
 std::vector<ComicZipEntry> ListComicZip(const std::string &source, bool hash);
 std::vector<uint8_t> ReadComicZipEntry(const std::string &source, const std::string &path, uint64_t limit,
-    const std::string &destination = {}, bool prefixOnly = false);
+    const std::string &destination = {}, bool prefixOnly = false, int sourceFd = -1);
 void WriteComicZip(const std::string &destination,
     const std::vector<std::pair<std::string, std::string>> &files, const std::string &metadata);

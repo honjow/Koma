@@ -29,7 +29,8 @@ const api = load('import/LocalImportCommitService', {
     return { update: async blob => { data = blob.data }, digest: async () => ({ data }) }
   } } },
   '@kit.ArkTS': { util: { generateRandomUUID: () => 'new-id' } },
-  '../model/ComicModels': models, '../model/BackupRestoreActivity': {}, '../model/LibraryPersistence': {}, './PdfPageService': pdf, './ComicZipPage': zipPage,
+  '../model/ComicModels': models, '../model/BackupRestoreActivity': {}, '../model/LibraryPersistence': {},
+  './PdfPageService': pdf, './ComicZipPage': zipPage, './ImageSortUtils': load('import/ImageSortUtils'),
 })
 function comic(id, root) {
   const chapters = ['one', 'two', 'three'].map((name, index) => ({ id: `${id}-${name}`, comicId:id,
@@ -83,6 +84,24 @@ test('PDF reimport replaces its generated cover but retains a custom cover', () 
   custom.coverUri = 'file:///custom.jpg'; custom.customCoverUri = custom.coverUri
   newer.coverUri = 'file:///new/extract/cover.jpg'
   assert.equal(api.mergeLocalImport(custom, newer, true).coverUri, custom.coverUri)
+})
+
+test('EPUB reimport updates the automatic cover and keeps a personal cover and page identity', () => {
+  const old = comic('old', '/old')
+  const fresh = comic('fresh', '/new')
+  fresh.localImportOrigin.sourceUris = ['file://book.epub']
+  const expectedCover = 'file:///new/cover.png'
+  fresh.coverUri = expectedCover
+  old.coverUri = old.chapters[0].pages[0].uri
+  assert.equal(api.mergeLocalImport(old, structuredClone(fresh), true).coverUri, expectedCover)
+  old.customCoverUri = 'file:///personal.png'
+  old.coverUri = old.customCoverUri
+  old.personalNotes = 'Keep this note'
+  const merged = api.mergeLocalImport(old, fresh, true)
+  assert.equal(merged.coverUri, old.customCoverUri)
+  assert.equal(merged.sourceCoverUri, expectedCover)
+  assert.equal(merged.personalNotes, old.personalNotes)
+  assert.equal(merged.chapters[0].pages[0].id, old.chapters[0].pages[0].id)
 })
 test('a changed chapter is not mistaken for the same archive contents', async () => {
   const old = comic('old','/old'), fresh = comic('fresh','/new')
