@@ -73,7 +73,8 @@
       "appearance.showResumeMiniBar"
     ],
     "state/SourceCatalogFilterState.ets": [
-      "browse.recentSourceIds"
+      "browse.recentSourceIds",
+      "catalog.collapsedLanguages"
     ],
     "diagnostics/DiagnosticsSettings.ets": [
       "enabled",
