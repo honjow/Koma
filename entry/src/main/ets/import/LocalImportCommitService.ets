@@ -38,7 +38,8 @@ function localPagePath(uri: string): string {
 
 export async function localImportImageHash(uri: string): Promise<string> {
   const zip = parseComicZipPage(uri)
-  if (zip === undefined) return hash.hash(localPagePath(uri), 'sha256')
+  // CoreFileKit returns uppercase hex, while CryptoArchitectureKit supplies raw bytes.
+  if (zip === undefined) return (await hash.hash(localPagePath(uri), 'sha256')).toLowerCase()
   const bytes = await readComicZipPage(zip)
   const digest = cryptoFramework.createMd('SHA256')
   await digest.update({ data: new Uint8Array(bytes) })

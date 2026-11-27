@@ -2027,10 +2027,10 @@
       "reportedDate": "2026-11-12",
       "reportedAtSource": "用户转述 CBZ 打不开并要求使用现成文件测试；原反馈发生时间未知。",
       "registeredAt": "2026-11-12T09:55:57+08:00",
-      "updatedAt": "2026-11-28T03:26:21+08:00",
-      "status": "ZIP／CBZ 旧导入自动迁移已实现，待真机升级验收",
-      "result": "197 公开 CBZ、CB7、RAR5 CBR、CBT 和漫画 ZIP 已核首页。用户 ZIP 含封面及 3 个 CBZ，直接导入后分别打开 68、55、43 页，重导保留进度和作者；从文件夹导入同一原始 ZIP，内部三章显示为阅读器目录，第二章 69/166 的实际图片及冷启动续读已核。文件夹内现成 CB7 和 CBR 均显示正文。W3C Haruko 定版漫画 EPUB 已核第 1、12 页画面。公开参考 CBZ 书签可跳页；用户漫画原图派生的图片章节文件夹 CBZ 可跳至第二章。公开 EPUB 的旧页序 175 页：第 175 页升级到同图第 88/88 页，无法映射的第 90 页保留第 90/175 页，详情返回后页数正确。 197 搜索首轮 5.55 秒仍返回导入书，确认原 5 秒网络超时丢弃结果并修复；新增 W3C 图片直列 spine EPUB 共 9 页，已实际打开。 本轮整本 CBZ 导出与重导目录、HEIC 样本显示，以及用户 ZIP 的简介和标签已在 197 验证。 旧 ZIP／CBZ 单文件导入首屏后复用 Koma 留存的原包，核对正文与封面后提交新路径，沿用作品、章节和页 ID。本地真实归档回放覆盖嵌套 CBZ、页序、落盘失败和重启恢复清理。调试构建通过。",
-      "remaining": "W3C Sous le vent 混排 EPUB 含文字和 SVG，197 仅导入两张插图而漏正文；完整文字排版阅读需讨论。图片章节文件夹尚无未经改造的真实压缩包验证；复杂编码、加密和损坏文件未覆盖。197 一次选择 EPUB 后进程退出，重试同文件成功，退出原因未明。197 本轮导出到旧测试目录遇到目标授权失败，另选 Download 保存成功，旧目录失败原因未确证；HEIF 后缀与其他设备解码能力未实测。 旧解压作品的真机升级与系统文件管理器清理尚未验收。",
+      "updatedAt": "2026-11-28T04:07:43+08:00",
+      "status": "197 已验证两份旧 ZIP／CBZ 自动迁移，修复哈希大小写",
+      "result": "197 公开 CBZ、CB7、RAR5 CBR、CBT 和漫画 ZIP 已核首页。用户 ZIP 含封面及 3 个 CBZ，直接导入后分别打开 68、55、43 页，重导保留进度和作者；从文件夹导入同一原始 ZIP，内部三章显示为阅读器目录，第二章 69/166 的实际图片及冷启动续读已核。文件夹内现成 CB7 和 CBR 均显示正文。W3C Haruko 定版漫画 EPUB 已核第 1、12 页画面。公开参考 CBZ 书签可跳页；用户漫画原图派生的图片章节文件夹 CBZ 可跳至第二章。公开 EPUB 的旧页序 175 页：第 175 页升级到同图第 88/88 页，无法映射的第 90 页保留第 90/175 页，详情返回后页数正确。 197 搜索首轮 5.55 秒仍返回导入书，确认原 5 秒网络超时丢弃结果并修复；新增 W3C 图片直列 spine EPUB 共 9 页，已实际打开。 本轮整本 CBZ 导出与重导目录、HEIC 样本显示，以及用户 ZIP 的简介和标签已在 197 验证。 旧 ZIP／CBZ 单文件导入首屏后复用 Koma 留存的原包，核对正文与封面后提交新路径，沿用作品、章节和页 ID。本地真实归档回放覆盖嵌套 CBZ、页序、落盘失败和重启恢复清理。调试构建通过。 197 实测发现文件 SHA-256 返回大写，归档页哈希使用小写，原候选误判同图不一致而保留旧数据。统一格式后同签覆盖冷启动，平铺 ZIP 与 CBZ 的封面和第 2 页续读正确，作品、章节、页 ID 与原包 SHA-256 一致，旧公开目录和散图均已消失。",
+      "remaining": "W3C Sous le vent 混排 EPUB 含文字和 SVG，197 仅导入两张插图而漏正文；完整文字排版阅读需讨论。图片章节文件夹尚无未经改造的真实压缩包验证；复杂编码、加密和损坏文件未覆盖。197 一次选择 EPUB 后进程退出，重试同文件成功，退出原因未明。197 本轮导出到旧测试目录遇到目标授权失败，另选 Download 保存成功，旧目录失败原因未确证；HEIF 后缀与其他设备解码能力未实测。 旧归档迁移真机样本限平铺 ZIP 和 CBZ。嵌套 ZIP 样本在旧导入时未入库，升级迁移仍无真机覆盖。公开目录按原文件路径核对。",
       "relatedItems": [
         "LOCAL_ARCHIVE"
       ],
@@ -13919,6 +13919,35 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "197-old-zip-cbz-hash-case-and-upgrade-validation-20261128",
+      "at": "2026-11-28T04:07:43+08:00",
+      "itemId": "LOCAL_READING_REAL_CBZ_20261112",
+      "kind": "verification",
+      "title": "197 真机复现并修复旧归档迁移误判",
+      "detail": "普通书架入口用同签夹具包生成两份旧记录，实际候选 9edb5c4f 在真机冷启动保留旧路径、未清理原数据。真实散图哈希为大写而归档条目摘要为小写，本机按真机格式复现失败，规整后回归通过。修复候选在两份旧记录各保存第 2 页后从冷启动触发迁移，原页和封面可读、旧散图及原公开导入目录不存在、同一作品章节和页 ID 保持。已读回两个私有归档且 SHA-256 与旧包一致。旧状态和新状态用只读探针取证，迁移与阅读走无探针的修复候选。 CBZ 从第 2 页翻到第 3 页；ZIP 三张缩略图均解码，点击第三张后工具栏从 2/3 变为 3/3，截图确认正文换到第 3 页。另一次 ZIP 连续滚动到末页时常驻页码停在 2/3，保留该观察。 两本试验作品、可见测试历史及匹配 SHA-256 的私有归档目录已清理，读回原书架续读卡与 10000ms 休眠状态，设备保留修复候选。",
+      "evidence": [
+        ".hvigor/outputs/legacy-zip-import-migration/197-uppercase-hash-regression-before.log",
+        ".hvigor/outputs/legacy-zip-import-migration/197-uppercase-hash-regression-after.log",
+        ".hvigor/outputs/legacy-zip-import-migration/device197/17-scoped-observer-and-exact-candidate/before-archive-data.json",
+        ".hvigor/outputs/legacy-zip-import-migration/device197/18-after-migration-verified-files-and-zip-reader/after-archive-data.json",
+        ".hvigor/outputs/legacy-zip-import-migration/device197/21-fixed-archive-files-and-zip-thumbnail/fixed-after-archive-data.json",
+        ".hvigor/outputs/legacy-zip-import-migration/device197/20-remove-test-rows-and-restore-197/zip-third-page-after-thumbnail.png",
+        ".hvigor/outputs/legacy-zip-import-migration/device197/22-only-remaining-fixture-cleanup/run-metadata.json"
+      ]
+    },
+    {
+      "id": "source-archive-layout-import-message-device197-20261128",
+      "at": "2026-11-28T03:39:53+08:00",
+      "itemId": "ERROR_MESSAGE_PHASE_AUDIT",
+      "kind": "verification",
+      "title": "197 真机核对书源包结构错误提示",
+      "detail": "同签 1.6.4（30）候选。普通浏览、书源管理、更多、本地导入，系统文件选择器从 Download 选择带普通额外成员的 .koma 后确认。UI 布局读回可见 Toast「导入失败：书源包的内部结构不符合要求。请从原发布页重新下载 .koma 文件，直接导入原包。」已返回原书架并恢复 10 秒超时和休眠。",
+      "evidence": [
+        ".hvigor/outputs/legacy-zip-import-migration/device197/10-source-warning-ordinary/run-metadata.json",
+        ".hvigor/outputs/legacy-zip-import-migration/device197/10-source-warning-ordinary/source-real-message1.json"
+      ]
+    },
     {
       "id": "source-archive-layout-import-message-20261128",
       "at": "2026-11-28T03:30:00+08:00",

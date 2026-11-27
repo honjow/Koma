@@ -159,7 +159,8 @@ test('ZIP reimport preserves page IDs when replacing an older extracted copy', a
 const { execFileSync } = require('node:child_process')
 const { createHash, randomUUID } = require('node:crypto')
 const os = require('node:os')
-const realHash = async file => createHash('sha256').update(await fs.promises.readFile(file)).digest('hex')
+// HarmonyOS file hash returns uppercase hex, while the ZIP entry digest uses lowercase hex.
+const realHash = async file => createHash('sha256').update(await fs.promises.readFile(file)).digest('hex').toUpperCase()
 const fileUri = file => 'file://' + file.split('/').map(encodeURIComponent).join('/')
 const zipOutput = (command, archive, entry) => execFileSync('python3', ['-c',
   'import sys, zipfile; z = zipfile.ZipFile(sys.argv[1]); ' + command, archive, entry ?? ''], { stdio: ['ignore', 'pipe', 'pipe'] })
