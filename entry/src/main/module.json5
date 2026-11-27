@@ -3,6 +3,11 @@
     "name": "entry",
     "type": "entry",
     "mainElement": "EntryAbility",
+    // Opt supported ArkUI components into their default immersive material on API 26.
+    // The existing HDS material configuration also covers HarmonyOS 6.1.
+    "metadata": [
+      { "name": "ohos.arkui.UIMaterial.state", "value": "enable" }
+    ],
     "extensionAbilities": [
       { "name": "KomaMaintenanceAbility", "srcEntry": "./ets/maintenance/KomaMaintenanceAbility.ets", "type": "workScheduler", "exported": false }
     ],

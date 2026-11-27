@@ -12,6 +12,7 @@ function load(available, uiMaterial) {
   }).outputText
   new Function('exports', 'require', 'Color', js)(exports, name => {
     if (name === '@kit.ArkUI') return { uiMaterial }
+    if (name === './ThemeConstants') return { ThemeConstants: {} }
     if (name === '@kit.BasicServicesKit') return { deviceInfo: { apiAvailable: version => {
       assert.equal(version, '26.0.0')
       return available

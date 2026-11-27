@@ -13887,6 +13887,21 @@
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
     {
+      "id": "app-material-defaults-api26-20261128",
+      "at": "2026-11-28T01:04:17+08:00",
+      "itemId": "APP_POPUP_SYSTEM_MATERIAL",
+      "kind": "investigation",
+      "title": "试用应用级沉浸光感并核对 6.1 兼容边界",
+      "detail": "参考 KHenTai 在 entry module 的 ohos.arkui.UIMaterial.state=enable。该项目最低版本也是 26，不能用于判断 6.1。华为 ArkUI MaterialState 起始 API 26，enable 扩大默认材质范围，显式组件材质优先。Koma 保留 HDS 6.1 的 systemMaterialEffect 及原生 ArkUI API 26 保护。SDK 26.0.0 同签 HAP 构建并读回，最低 60100023、目标 260000026，metadata 已装入 entry。两项公共弹层兼容回退测试通过。构建时 197 另有活动租约。用户随后反馈实测无问题，设备和系统版本未注明。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/app-immersive-material-20261128/manifest-readback.json",
+        ".hvigor/outputs/user-flow-audit/app-immersive-material-20261128/build.log",
+        "https://github.com/Mobius-0105/KHenTai/blob/main/entry/src/main/module.json5#L18-L21",
+        "https://developer.huawei.com/consumer/cn/doc/harmonyos-references/arkts-apis-uimaterial#materialstate",
+        "https://developer.huawei.com/consumer/cn/doc/harmonyos-references/ui-design-hdsmaterial/"
+      ]
+    },
+    {
       "id": "source-language-icons-350-20261128",
       "at": "2026-11-28T00:18:28.544393+08:00",
       "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
