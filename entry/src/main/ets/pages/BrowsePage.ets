@@ -11,7 +11,8 @@ import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
 import { SourceListItem } from '../components/SourceListItem'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
-import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
+import { GroupedListRowSurface, GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
+import { ListDisclosureContent, ListDisclosureMotion } from '../components/ui/ListDisclosureContent'
 import { WidePairDivider, WidePairRow, usesWideTwoColumnLayout } from '../components/ui/WideTwoColumn'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -45,10 +46,23 @@ interface PrivateBrowseSourceEntry {
   color: ResourceColor
 }
 
+interface BrowseLanguageRow {
+  key: string
+  language: string
+  count: number
+  sources: SourceRuntimeRegistryInstalledSourceSummary[]
+  index: number
+  first: boolean
+  last: boolean
+  leadingSpace: number
+  disclosureRows?: BrowseLanguageRow[]
+}
+
 @ComponentV2
 export struct BrowsePage {
   @Param chrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
   @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
+  @Local private languageMotion: ListDisclosureMotion = new ListDisclosureMotion()
   @Local private filtersShown: boolean = false
   @Local private browseSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
 
@@ -139,12 +153,40 @@ export struct BrowsePage {
   }
 
   @Computed
-  private get sourceGroupLanguages(): string[] {
-    return Object.keys(this.sourcesByLanguage)
+  private get languageRows(): BrowseLanguageRow[] {
+    const rows: BrowseLanguageRow[] = []
+    const step = this.usesWideSourceRows ? 2 : 1
+    Object.keys(this.sourcesByLanguage).forEach((language: string): void => {
+      const sources = this.sourcesByLanguage[language]
+      const visibleCount = this.languageMotion.rowLimit(language,
+        this.catalogFilters.languageGroupExpanded(language, this.chrome.search.query) !== false,
+        Math.ceil(sources.length / step))
+      const disclosureRows: BrowseLanguageRow[] | undefined = this.languageMotion.section === language ? [] : undefined
+      rows.push({ key: 'language:' + language, language, count: sources.length, sources: [],
+        index: 0, first: false, last: false, leadingSpace: rows.length === 0 ? 0 : ThemeConstants.SPACE_SM,
+        disclosureRows })
+      const cardRows = disclosureRows ?? rows
+      for (let index = 0; index < visibleCount; index++) {
+        const start = index * step
+        const pair = sources.slice(start, start + step)
+        cardRows.push({ key: language + ':' + this.pairRowKey(pair,
+          (source: SourceRuntimeRegistryInstalledSourceSummary): string[] => this.runtimeSourceSignature(source)),
+          language, count: sources.length, sources: pair, index,
+          first: index === 0, last: start + step >= sources.length,
+          leadingSpace: index === 0 ? ThemeConstants.SPACE_XS : 0 })
+      }
+    })
+    return rows
   }
 
-  private sourcesInLanguage(language: string): SourceRuntimeRegistryInstalledSourceSummary[] {
-    return this.sourcesByLanguage[language] ?? []
+  private toggleLanguageGroup(language: string, count: number, headerBottom?: number): void {
+    const expanded = this.catalogFilters.languageGroupExpanded(language, this.chrome.search.query)
+    if (expanded === undefined) return
+    this.languageMotion.run(this.getUIContext(), language, expanded,
+      Math.ceil(count / (this.usesWideSourceRows ? 2 : 1)), headerBottom)
+    void this.catalogFilters.toggleLanguageGroup(language).catch((): void => {
+      DiagnosticLogger.warn('browse', 'save_language_disclosure', 'Could not save language group state')
+    })
   }
 
   @Builder
@@ -475,41 +517,65 @@ export struct BrowsePage {
   }
 
   @Builder
-  private RuntimeSourceListItems() {
-    ForEach(this.sourceGroupLanguages, (language: string) => {
-      ListItem() {
-        // Keep group identity by language, but read its members from the live
-        // projection. A retained ForEach closure must not keep an old group DTO.
-        GroupedListSection({ title: sourceLanguageName(language) || s('source_catalog_language_unknown'),
-          subtitle: s('browse_installed_sources_count').replace('%s', `${this.sourcesInLanguage(language).length}`) }) {
-          // Inline instead of calling a parameterized @Builder: its arguments
-          // pass by value, so a retained group row would keep drawing the list
-          // it had when the language first appeared and an uninstalled source
-          // would stay behind after the count above it already dropped.
-          if (this.usesWideSourceRows) {
-            ForEach(this.pairRows(this.sourcesInLanguage(language)),
-              (row: SourceRuntimeRegistryInstalledSourceSummary[], index: number) => {
-                WidePairRow({
-                  first: () => { this.RuntimeSourceRow(row[0]) },
-                  second: () => {
-                    if (row.length > 1) this.RuntimeSourceRow(row[1])
-                  },
-                })
-                if (index + 1 < this.pairRows(this.sourcesInLanguage(language)).length) {
-                  WidePairDivider({ leftMargin: ThemeConstants.SPACE_XL })
-                }
-              }, (row: SourceRuntimeRegistryInstalledSourceSummary[]) => this.pairRowKey(
-                row, (source: SourceRuntimeRegistryInstalledSourceSummary): string[] => this.runtimeSourceSignature(source)))
-          } else {
-            ForEach(this.sourcesInLanguage(language),
-              (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
-                this.SingleRuntimeSourceRow(source, index + 1 < this.sourcesInLanguage(language).length)
-              }, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) =>
-                this.singleSourceRowKey(source, index, this.sourcesInLanguage(language).length))
-          }
+  private LanguageCardRow(row: RepeatItem<BrowseLanguageRow>) {
+    Column() {
+      GroupedListRowSurface({ first: row.item.first, last: row.item.last }) {
+        if (this.usesWideSourceRows) {
+          WidePairRow({
+            first: () => { this.RuntimeSourceRow(row.item.sources[0]) },
+            second: () => {
+              if (row.item.sources.length > 1) this.RuntimeSourceRow(row.item.sources[1])
+            },
+          })
+          if (!row.item.last) WidePairDivider({ leftMargin: ThemeConstants.SPACE_XL })
+        } else {
+          this.SingleRuntimeSourceRow(row.item.sources[0], !row.item.last)
         }
-      }.transition(TransitionEffect.IDENTITY)
-    }, (language: string) => language)
+      }
+    }
+    .width('100%')
+    .padding({ top: row.item.leadingSpace })
+    .onSizeChange((_oldSize: SizeOptions, size: SizeOptions): void => {
+      this.languageMotion.rememberHeight(row.item.language, row.item.index, Number(size.height))
+    })
+  }
+
+  @Builder
+  private LanguageDisclosureRows(row: RepeatItem<BrowseLanguageRow>) {
+    Repeat<BrowseLanguageRow>(row.item.disclosureRows ?? [])
+      .each((card: RepeatItem<BrowseLanguageRow>) => { this.LanguageCardRow(card) })
+      .key((card: BrowseLanguageRow): string => card.key)
+  }
+
+  @Builder
+  private RuntimeSourceListItems() {
+    ListItemGroup({ space: 0 }) {
+      Repeat<BrowseLanguageRow>(this.languageRows)
+        .each((row: RepeatItem<BrowseLanguageRow>) => {
+          ListItem() {
+            if (row.item.sources.length === 0) {
+              Column() {
+                SectionHeader({ title: `${sourceLanguageName(row.item.language) || s('source_catalog_language_unknown')} (${row.item.count})`,
+                  expanded: this.catalogFilters.languageGroupExpanded(row.item.language, this.chrome.search.query),
+                  onToggle: (bottom?: number): void => { this.toggleLanguageGroup(row.item.language, row.item.count, bottom) } })
+                if (row.item.disclosureRows !== undefined) {
+                  ListDisclosureContent({ progress: this.languageMotion.progress, heightBudget: this.languageMotion.heightBudget,
+                    content: () => { this.LanguageDisclosureRows(row) } })
+                  .width('100%')
+                  .clip(true)
+                }
+              }
+              .width('100%')
+              .padding({ top: row.item.leadingSpace })
+            } else {
+              this.LanguageCardRow(row)
+            }
+          }
+          .transition(TransitionEffect.IDENTITY)
+        })
+        .key((row: BrowseLanguageRow): string => row.key)
+        .virtualScroll({ reusable: false })
+    }
   }
 
   // The page owns the published row array so one state write updates the
@@ -622,6 +688,7 @@ export struct BrowsePage {
       scroller: this.browseScroller,
       inertialSpring: true,
       onDidScroll: this.onRootScroll,
+      onListAreaChange: (area: Area): void => { this.languageMotion.setViewport(area) },
       pinnedOverlayHeight: this.chrome.searchHeight,
       listSpace: ThemeConstants.SPACE_SM,
       bottomPadding: ThemeConstants.SPACE_XL,

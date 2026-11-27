@@ -13887,6 +13887,39 @@
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
     {
+      "id": "source-language-icons-350-20261128",
+      "at": "2026-11-28T00:18:28.544393+08:00",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "kind": "validation",
+      "title": "书源语言组收展时图标保持连续",
+      "detail": "197 上一版原速录屏确认，收起开始时 3Hentai、92漫画、爱看漫的文字仍可见，图标在第 14、15 帧同时留白，复开完成时 92漫画在第 97 帧再次留白。普通行和动画行重建时丢失各自行内的解码就绪状态。通过有界本地 URI 就绪记录把已解码状态交给新行，保留首次和远程异步加载。350 毫秒收展沿用，后续分组继续随卡片移动。修正版在 197 对竖屏已安装中文大组首次展开、收起及复开，以及横屏可安装、浏览的双栏多语言组核验了 13 个具名图标，样本中没有文字仍可见但图标留白的帧。设备保留修正版，并恢复竖屏已安装中文组、原休眠和 10 秒覆盖值，已释租。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-language-icons-197/icon-check-before.json",
+        ".hvigor/outputs/user-flow-audit/source-language-icons-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/installed-icons-350/installed-icons-350.mp4",
+        ".hvigor/outputs/user-flow-audit/source-language-icons-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/available-icons-350/available-icons-350.mp4",
+        ".hvigor/outputs/user-flow-audit/source-language-icons-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/browse-icons-350/browse-icons-350.mp4",
+        ".hvigor/outputs/user-flow-audit/source-language-icons-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/installed-icons-350/icon-frame-check.json",
+        ".hvigor/outputs/user-flow-audit/source-language-icons-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/available-icons-350/icon-frame-check.json",
+        ".hvigor/outputs/user-flow-audit/source-language-icons-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/browse-icons-350/icon-frame-check.json",
+        ".hvigor/outputs/user-flow-audit/source-language-icons-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-original-power/run-metadata.json"
+      ]
+    },
+    {
+      "id": "source-language-following-groups-350-20261128",
+      "at": "2026-11-28T00:05:10.859318+08:00",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "kind": "validation",
+      "title": "书源收展时后续分组随裁剪边缘移动",
+      "detail": "在原有标题列表项内准备当前可见的卡片，卡片裁剪高度直接参与列表布局。350 毫秒缓入缓出。197 竖屏已安装中文 70 源组和韩语单源组、横屏可安装多语言 6 源组和浏览多语言 5 源组逐帧核对，展开时后续分组逐步下移，收起时逐步上移，双栏配对保持。最终候选保留在 197，恢复竖屏已安装中文组、原 10 秒覆盖值和休眠状态，已释租。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-language-flow-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/installed-350-flow/installed-350-flow.mp4",
+        ".hvigor/outputs/user-flow-audit/source-language-flow-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/available-350-flow/available-350-flow.mp4",
+        ".hvigor/outputs/user-flow-audit/source-language-flow-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/browse-350-flow/browse-350-flow.mp4",
+        ".hvigor/outputs/user-flow-audit/source-language-flow-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-installed-portrait/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-flow-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-original-power/run-metadata.json"
+      ]
+    },
+    {
       "id": "library-update-provider-five-and-detail-reuse-20261128",
       "at": "2026-11-28T00:00:52+08:00",
       "itemId": "LIBRARY_UPDATE_PROVIDER_CONCURRENCY",
@@ -13902,6 +13935,37 @@
       ]
     },
     {
+      "id": "source-language-disclosure-350-197-20261127",
+      "at": "2026-11-27T23:50:52.028888+08:00",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "kind": "validation",
+      "title": "197 试用 350 毫秒的书源组收展",
+      "detail": "共享时长从 260 调到 350 毫秒，缓入缓出与标题下缘锚点保持原样。197 同签安装后，在书源管理已安装页录制中文 70 源组的展开与收起。逐帧可见卡片从标题下方逐渐露出、收起时从底部裁回；展开起步时后续分组会提前离开可见区域。197 保留试用包，中文组展开，默认 120 秒超时恢复并释租。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-language-350-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/chinese-350-motion/recording-manifest.json",
+        ".hvigor/outputs/user-flow-audit/source-language-350-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/chinese-350-motion/chinese-350-motion.mp4",
+        ".hvigor/outputs/user-flow-audit/source-language-350-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-power/run-metadata.json"
+      ]
+    },
+    {
+      "id": "source-language-title-anchored-motion-20261127",
+      "at": "2026-11-27T23:43:41+08:00",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "kind": "validation",
+      "title": "书源组按标题下缘收展，数量改为同行括号",
+      "detail": "旧候选在 197 已安装中文 70 源大组中，标题位于下半屏，箭头开始转动时卡片仍停留，下一组接近瞬间出现。最终候选以标题下缘及实际剩余视口算动画行，展开前先布置屏内卡片，从标题下方逐渐向下揭开，收起则从底部逐渐裁回标题，260 ms 缓入缓出。旧、新录屏标题上沿分别在 y1598、y1593，逐帧可见新包首张卡片在标题下原位、下一组连续移动；横屏浏览多语言 5 种源两列成对露出与收回。标题同一行显示中文 (70)、多语言 (5) 等。197 恢复竖屏已安装中文组和 120 秒默认超时。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-language-anchored-motion-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/before-low-header-chinese/recording-manifest.json",
+        ".hvigor/outputs/user-flow-audit/source-language-anchored-motion-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-portrait-low-anchor/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-anchored-motion-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-portrait-chinese-motion/recording-manifest.json",
+        ".hvigor/outputs/user-flow-audit/source-language-anchored-motion-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-original-chinese/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-anchored-motion-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-power/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-anchored-motion-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/available-wide-anchor/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-anchored-motion-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/final-browse-wide-anchor/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-anchored-motion-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/final-browse-wide-motion/recording-manifest.json"
+      ]
+    },
+    {
       "id": "library-update-provider-concurrency-20261127",
       "at": "2026-11-27T23:40:07+08:00",
       "itemId": "LIBRARY_UPDATE_PROVIDER_CONCURRENCY",
@@ -13912,6 +13976,46 @@
         ".hvigor/outputs/library-update-parallel/baseline-concurrency.log",
         ".hvigor/outputs/library-update-parallel/tests.log",
         ".hvigor/outputs/library-update-parallel/build.log"
+      ]
+    },
+    {
+      "id": "source-language-large-disclosure-20261127",
+      "at": "2026-11-27T23:28:22+08:00",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "kind": "validation",
+      "title": "优化中文大组收展并给可安装分组补齐计数和折叠",
+      "detail": "浏览语言组改为按可见范围加载。收展时仅保留视口附近的组内行，按实际高度裁剪收展边缘，动画结束接回完整分组。书源管理已安装、可安装及可更新的标题显示当前结果数量。可安装独立保存本机折叠状态。197 的同一 70 源已安装中文组，旧包复开出现整段空白，候选复开与收起逐帧可见内容衔接。浏览的 67 源中文组完成竖屏单栏与横屏双栏收展，横屏先后可见相同的首对书源。可安装多语言组显示 5 个源，单栏折叠后切到已安装再返回保持折叠，横屏展开为左右两对和一个左侧尾行。设备恢复原来的已安装中文组、竖屏及 120 秒默认超时。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-language-large-groups-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/before-installed-chinese/recording-manifest.json",
+        ".hvigor/outputs/user-flow-audit/source-language-large-groups-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/after-installed-chinese/recording-manifest.json",
+        ".hvigor/outputs/user-flow-audit/source-language-large-groups-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/installed-chinese-70-anchor/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-large-groups-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/after-browse-chinese/recording-manifest.json",
+        ".hvigor/outputs/user-flow-audit/source-language-large-groups-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/available-collapsed/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-large-groups-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/available-fold-kept/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-large-groups-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-chinese-scroll-anchor/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-large-groups-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-power/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-large-groups-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/available-landscape-motion/recording-manifest.json",
+        ".hvigor/outputs/user-flow-audit/source-language-large-groups-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/available-landscape-reopened/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-large-groups-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/browse-landscape-chinese-motion/recording-manifest.json"
+      ]
+    },
+    {
+      "id": "source-manager-language-disclosure-20261127",
+      "at": "2026-11-27T23:09:05+08:00",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "kind": "validation",
+      "title": "书源管理已安装按语言分组，浏览与管理共用折叠",
+      "detail": "可更新区保留在已安装最前，其余按浏览的语言与本地化名称顺序排列。两页标题右侧可收展，按压态为圆角；本机记住折叠，搜索临时显示命中。197 录制了浏览和已安装在竖屏单栏、横屏双栏的收展。已安装录屏复验下一组随实际高度移动，五个样本保持两个双栏行和一个左侧尾行，反复展开未见混入其他语言或重叠。搜索显示折叠组内 CosplayTele，关闭搜索恢复折叠。最终包重新进入仍读回折叠状态；测试结束恢复原竖屏书源管理、语言组展开、10 秒超时和休眠。样机当时无待更新，置顶和去重使用真实列表投影的宿主测试覆盖。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-language-disclosure-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/final-portrait-browse-motion/recording-manifest.json",
+        ".hvigor/outputs/user-flow-audit/source-language-disclosure-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/tracked-height-portrait-manager-motion/recording-manifest.json",
+        ".hvigor/outputs/user-flow-audit/source-language-disclosure-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/tracked-height-landscape-manager-motion/recording-manifest.json",
+        ".hvigor/outputs/user-flow-audit/source-language-disclosure-197/device197__ALN-AL80/not-applicable/landscape-2720x1260/tracked-height-landscape-browse-motion/recording-manifest.json",
+        ".hvigor/outputs/user-flow-audit/source-language-disclosure-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/manager-search-found-collapsed-source/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-disclosure-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/manager-close-query-restores-collapse/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-disclosure-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-language-original-page-restored/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-disclosure-197/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-language-power-restored/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-language-disclosure-197/rounded-press-final.png"
       ]
     },
     {

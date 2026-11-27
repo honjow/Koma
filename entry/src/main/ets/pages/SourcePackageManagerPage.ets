@@ -28,7 +28,8 @@ import { canShareInstalledSourcePackage, prepareInstalledSourcePackageShare } fr
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { SourcePackageListItem } from '../components/SourcePackageListItem'
 import { ConciseListRow, SourceIdentityIconState } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
+import { GroupedListRowSurface, GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
+import { ListDisclosureContent, ListDisclosureMotion } from '../components/ui/ListDisclosureContent'
 import { WidePairDivider, WidePairRow, usesWideTwoColumnLayout } from '../components/ui/WideTwoColumn'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -108,10 +109,15 @@ interface SourceManagerRow {
   key: string
   title?: string
   updateHeader?: boolean
+  language?: string
+  section: string
+  count: number
+  index: number
   cards: SourceManagerCard[]
   leadingSpace: number
   first: boolean
   last: boolean
+  disclosureRows?: SourceManagerRow[]
 }
 
 interface SourceSettingsValidationStatus {
@@ -161,6 +167,7 @@ export struct SourcePackageManagerPage {
   @Event onOpenSourceCatalog: (action: () => void) => void = (action: () => void): void => { action() }
   @Param chrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
   @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
+  @Local private languageMotion: ListDisclosureMotion = new ListDisclosureMotion()
   @Local private localImport: SourcePackageLocalImport = appSourcePackageLocalImport
   @Local private catalogFiltersShown: boolean = false
   @Local private managerSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
@@ -901,7 +908,7 @@ export struct SourcePackageManagerPage {
 
   // The unvisited Available tab does not project or mount its rows.
   @Computed
-  private get availableManagerRows(): SourceManagerRow[] {
+  private get availableLanguageGroups(): SourceLanguageGroup<SourceIndexEntry>[] {
     const filters: SourceCatalogFilters = { languages: this.catalogFilters.languages, rating: this.catalogFilters.rating }
     const query = this.chrome.section === 'available' ? this.chrome.search.query.trim() : ''
     const locale = this.languageState.effectiveLocale
@@ -910,13 +917,17 @@ export struct SourcePackageManagerPage {
       (query.length === 0 || sourceMatchesCatalogSearch(query,
         resolveSourceLocalizedName(entry.name, entry.localizedNames, locale, entry.presentation),
         entry.name, entry.localizedNames, entry.id, entry.presentation)))
+    return groupSourcesByLanguage(entries, (entry: SourceIndexEntry): string => entry.lang)
+  }
+
+  @Computed
+  private get availableManagerRows(): SourceManagerRow[] {
     const rows: SourceManagerRow[] = []
-    groupSourcesByLanguage(entries, (entry: SourceIndexEntry): string => entry.lang)
-      .forEach((group: SourceLanguageGroup<SourceIndexEntry>): void => {
-        const cards = group.items.map((offer: SourceIndexEntry): SourceManagerCard => ({ id: offer.id, offer }))
-        this.appendManagerRows(rows, 'available:' + group.language, cards,
-          sourceLanguageName(group.language) || t('source_catalog_language_unknown'))
-      })
+    this.availableLanguageGroups.forEach((group: SourceLanguageGroup<SourceIndexEntry>): void => {
+      const cards = group.items.map((offer: SourceIndexEntry): SourceManagerCard => ({ id: offer.id, offer }))
+      this.appendManagerRows(rows, 'available:' + group.language, cards,
+        sourceLanguageName(group.language) || t('source_catalog_language_unknown'), false, group.language, true)
+    })
     return rows
   }
 
@@ -929,26 +940,55 @@ export struct SourcePackageManagerPage {
       if (installed !== undefined) updates.push({ id: installed.id, installed, update })
     })
     this.appendManagerRows(rows, 'updates', updates, t('source_pkg_update_available'), true)
-    this.appendManagerRows(rows, 'installed', this.listGroups.installed.map(
-      (installed: InstalledSourcePackage): SourceManagerCard => ({ id: installed.id, installed })))
+    // Reuse Browse's language buckets. The input already uses the same
+    // localized-name order, and actionable updates stay in their own section.
+    this.installedLanguageGroups.forEach((group: SourceLanguageGroup<InstalledSourcePackage>): void => {
+      const cards = group.items.map((installed: InstalledSourcePackage): SourceManagerCard => ({ id: installed.id, installed }))
+      this.appendManagerRows(rows, 'installed:' + group.language, cards,
+        sourceLanguageName(group.language) || t('source_catalog_language_unknown'), false, group.language)
+    })
     return rows
   }
 
+  @Computed
+  private get installedLanguageGroups(): SourceLanguageGroup<InstalledSourcePackage>[] {
+    return groupSourcesByLanguage(this.listGroups.installed, (source: InstalledSourcePackage): string => source.lang)
+  }
+
+  private managerLanguageExpanded(language: string, available: boolean): boolean | undefined {
+    const query = this.chrome.section === (available ? 'available' : 'sources') ? this.chrome.search.query : ''
+    return this.catalogFilters.languageGroupExpanded(language, query, available)
+  }
+
+  private toggleManagerLanguage(section: string, language: string, available: boolean, count: number, headerBottom?: number): void {
+    const expanded = this.managerLanguageExpanded(language, available)
+    if (expanded === undefined) return
+    this.languageMotion.run(this.getUIContext(), section, expanded,
+      Math.ceil(count / (this.usesWideSourceRows ? 2 : 1)), headerBottom)
+    void this.catalogFilters.toggleLanguageGroup(language, available).catch((): void => {
+      DiagnosticLogger.warn('source_package_manager_page', 'save_language_disclosure', 'Could not save language group state')
+    })
+  }
+
   private appendManagerRows(rows: SourceManagerRow[], section: string, cards: SourceManagerCard[],
-    title?: string, updateHeader: boolean = false): void {
+    title: string, updateHeader: boolean = false, language?: string, available: boolean = false): void {
     if (cards.length === 0) return
     const sectionSpace = rows.length === 0 ? 0 : ThemeConstants.SPACE_MD
-    if (title !== undefined) {
-      rows.push({ key: section + ':header', title, updateHeader, cards: [],
-        leadingSpace: sectionSpace, first: false, last: false })
-    }
+    const disclosureRows: SourceManagerRow[] | undefined = this.languageMotion.section === section ? [] : undefined
+    rows.push({ key: section + ':header', section, title, updateHeader, language,
+      count: cards.length, index: 0, cards: [], leadingSpace: sectionSpace, first: false, last: false, disclosureRows })
+    const cardRows = disclosureRows ?? rows
     const step = this.usesWideSourceRows ? 2 : 1
-    for (let index = 0; index < cards.length; index += step) {
-      const pair = cards.slice(index, index + step)
+    const count = Math.ceil(cards.length / step)
+    const visibleCount = language === undefined ? count : this.languageMotion.rowLimit(section,
+      this.managerLanguageExpanded(language, available) !== false, count)
+    for (let index = 0; index < visibleCount; index++) {
+      const pair = cards.slice(index * step, (index + 1) * step)
       const first = index === 0
-      rows.push({ key: section + ':' + pair.map((card: SourceManagerCard): string => card.id).join('|'),
-        cards: pair, first, last: index + step >= cards.length,
-        leadingSpace: first ? (title === undefined ? sectionSpace : ThemeConstants.SPACE_XS) : 0 })
+      cardRows.push({ key: section + ':' + pair.map((card: SourceManagerCard): string => card.id).join('|'),
+        section, language, count: cards.length, index,
+        cards: pair, first, last: index + 1 >= count,
+        leadingSpace: first ? ThemeConstants.SPACE_XS : 0 })
     }
   }
 
@@ -2806,45 +2846,66 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private ManagerListRow(row: RepeatItem<SourceManagerRow>) {
+  private ManagerCardSurface(row: RepeatItem<SourceManagerRow>) {
+    Column() {
+      GroupedListRowSurface({ first: row.item.first, last: row.item.last,
+        surfaceColor: this.inModal || this.modalGroupedCards ? komaModalCardSurface() : ThemeConstants.CARD }) {
+        if (this.usesWideSourceRows) {
+          WidePairRow({
+            first: () => { this.ManagerCard({ card: row.item.cards[0] }) },
+            second: () => {
+              if (row.item.cards.length > 1) this.ManagerCard({ card: row.item.cards[1] })
+            },
+          })
+          if (!row.item.last) { WidePairDivider() }
+        } else {
+          this.ManagerCard({ card: row.item.cards[0] })
+          if (!row.item.last) { ListDivider() }
+        }
+      }
+    }
+    .width('100%')
+    .padding({ top: row.item.leadingSpace })
+    .onSizeChange((_oldSize: SizeOptions, size: SizeOptions): void => {
+      if (row.item.language !== undefined) {
+        this.languageMotion.rememberHeight(row.item.section, row.item.index, Number(size.height))
+      }
+    })
+  }
+
+  @Builder
+  private ManagerDisclosureRows(row: RepeatItem<SourceManagerRow>) {
+    Repeat<SourceManagerRow>(row.item.disclosureRows ?? [])
+      .each((card: RepeatItem<SourceManagerRow>) => { this.ManagerCardSurface(card) })
+      .key((card: SourceManagerRow): string => card.key)
+  }
+
+  @Builder
+  private ManagerListRow(row: RepeatItem<SourceManagerRow>, available: boolean) {
     ListItem() {
       if (row.item.title !== undefined) {
         Column() {
-          SectionHeader({ title: row.item.title!,
+          SectionHeader({ title: `${row.item.title!} (${row.item.count})`,
             actionLabel: row.item.updateHeader ? t('source_pkg_update_all') : undefined,
-            action: (): void => { void this.updateAllAvailablePackages() } })
+            action: (): void => { void this.updateAllAvailablePackages() },
+            expanded: row.item.language === undefined ? undefined : this.managerLanguageExpanded(row.item.language, available),
+            onToggle: (bottom?: number): void => {
+              const language = row.item.language
+              if (language !== undefined) this.toggleManagerLanguage(row.item.section, language, available, row.item.count, bottom)
+            } })
+          // Grow the existing header item. Inserting virtual rows up front can
+          // evict following groups before the first card has been revealed.
+          if (row.item.disclosureRows !== undefined) {
+            ListDisclosureContent({ progress: this.languageMotion.progress, heightBudget: this.languageMotion.heightBudget,
+              content: () => { this.ManagerDisclosureRows(row) } })
+            .width('100%')
+            .clip(true)
+          }
         }
         .width('100%')
         .padding({ top: row.item.leadingSpace })
       } else {
-        Column() {
-          Column() {
-            if (this.usesWideSourceRows) {
-              WidePairRow({
-                first: () => { this.ManagerCard({ card: row.item.cards[0] }) },
-                second: () => {
-                  if (row.item.cards.length > 1) this.ManagerCard({ card: row.item.cards[1] })
-                },
-              })
-              if (!row.item.last) { WidePairDivider() }
-            } else {
-              this.ManagerCard({ card: row.item.cards[0] })
-              if (!row.item.last) { ListDivider() }
-            }
-          }
-          .width('100%')
-          .padding({ left: ThemeConstants.LIST_SECTION_INSET, right: ThemeConstants.LIST_SECTION_INSET,
-            top: row.item.first ? ThemeConstants.LIST_SECTION_INSET : 0,
-            bottom: row.item.last ? ThemeConstants.LIST_SECTION_INSET : 0 })
-          .backgroundColor(this.inModal || this.modalGroupedCards ? komaModalCardSurface() : ThemeConstants.CARD)
-          .borderRadius({ topLeft: row.item.first ? ThemeConstants.RADIUS_CARD : 0,
-            topRight: row.item.first ? ThemeConstants.RADIUS_CARD : 0,
-            bottomLeft: row.item.last ? ThemeConstants.RADIUS_CARD : 0,
-            bottomRight: row.item.last ? ThemeConstants.RADIUS_CARD : 0 })
-          .clip(true)
-        }
-        .width('100%')
-        .padding({ top: row.item.leadingSpace })
+        this.ManagerCardSurface(row)
       }
     }
     .transition(TransitionEffect.IDENTITY)
@@ -2857,9 +2918,11 @@ export struct SourcePackageManagerPage {
     // original grouped-card geometry. A recycled row reads its live DTO.
     ListItemGroup({ space: 0 }) {
       Repeat<SourceManagerRow>(available ? this.availableManagerRows : this.installedManagerRows)
-        .each((row: RepeatItem<SourceManagerRow>) => { this.ManagerListRow(row) })
+        .each((row: RepeatItem<SourceManagerRow>) => { this.ManagerListRow(row, available) })
         .key((row: SourceManagerRow): string => row.key)
-        .virtualScroll()
+        // Keep lazy construction and keep each offscreen row bound to its
+        // own pair. Rebinding during disclosure can surface stale cards.
+        .virtualScroll({ reusable: false })
     }
     .width('100%')
   }
@@ -2939,6 +3002,9 @@ export struct SourcePackageManagerPage {
       reserveSystemSafeArea: !this.inModal,
       surfaceColor: this.inModal ? Color.Transparent : ThemeConstants.BG_SUB,
       scroller: available ? this.chrome.availableScroller : this.chrome.scroller,
+      onListAreaChange: (area: Area): void => {
+        if (this.chrome.section === (available ? 'available' : 'sources')) this.languageMotion.setViewport(area)
+      },
       pinnedOverlayHeight: this.initialSettingsSourceId.length === 0 ? SOURCE_MANAGER_SECTIONS_HEIGHT : 0,
       listSpace: ThemeConstants.SPACE_MD,
       bottomPadding: ThemeConstants.SPACE_XL,

@@ -6,6 +6,8 @@ import { SourceCatalogFilters, SourceCatalogRating, sourceCatalogLanguage } from
 
 const STORE: string = 'koma_source_catalog_filters_v1'
 const RECENT_SOURCE_IDS_KEY: string = 'browse.recentSourceIds'
+const COLLAPSED_LANGUAGES_KEY: string = 'catalog.collapsedLanguages'
+const AVAILABLE_LANGUAGE_PREFIX: string = 'available/'
 const RECENT_SOURCE_LIMIT: number = 2
 
 interface SourceCatalogPresentationPreferences extends SourceCatalogFilters {
@@ -36,6 +38,25 @@ function readRecentSourceIds(payload: string): string[] {
   return []
 }
 
+function readCollapsedLanguages(payload: string): string[] {
+  try {
+    const languages = JSON.parse(payload) as string[]
+    if (Array.isArray(languages)) {
+      return Array.from(new Set(languages.filter((language: string): boolean => typeof language === 'string')
+        .map((key: string): string => key.startsWith(AVAILABLE_LANGUAGE_PREFIX)
+          ? languageGroupKey(key.slice(AVAILABLE_LANGUAGE_PREFIX.length), true) : languageGroupKey(key, false))))
+    }
+  } catch (_error) {
+    // An unusable collapse preference must not prevent loading filters or pins.
+  }
+  return []
+}
+
+function languageGroupKey(language: string, available: boolean): string {
+  const code = sourceCatalogLanguage(language)
+  return available ? AVAILABLE_LANGUAGE_PREFIX + code : code
+}
+
 // One portable display preference owner for Browse and the package catalog.
 // It does not enable/disable source packages or change global search scope.
 @ObservedV2
@@ -44,12 +65,15 @@ export class SourceCatalogFilterState {
   @Trace rating: SourceCatalogRating = 'all'
   @Trace pinnedSourceIds: string[] = []
   @Trace recentSourceIds: string[] = []
+  @Trace collapsedLanguages: string[] = []
   @Trace loaded: boolean = false
   private ready?: Promise<void>
   private context?: common.Context
   private writes: Promise<void> = Promise.resolve()
   private generation: number = 0
   private edit: number = 0
+  private collapseEdit: number = 0
+  private persistedCollapsedLanguages: string[] = []
   private persisted: SourceCatalogPresentationPreferences = { rating: 'all' }
   private pinOrders: Map<string, number> = new Map<string, number>()
 
@@ -61,12 +85,15 @@ export class SourceCatalogFilterState {
       const loading = preferences.getPreferences(context, STORE).then(async (store: preferences.Preferences): Promise<void> => {
         const value = normalizedFilters(JSON.parse(await catalogFilterRecords.readBackupValue(context) ?? '{}') as SourceCatalogPresentationPreferences)
         const recent = readRecentSourceIds(await store.get(RECENT_SOURCE_IDS_KEY, '[]') as string)
+        const collapsed = readCollapsedLanguages(await store.get(COLLAPSED_LANGUAGES_KEY, '[]') as string)
         if (generation === this.generation) {
           this.persisted = value
           this.pinOrders.clear()
           ;(value.pinnedSourceIds ?? []).forEach((id: string, index: number): void => { this.pinOrders.set(id, index) })
           if (edit === this.edit) this.publish(value)
           this.recentSourceIds = recent
+          this.persistedCollapsedLanguages = collapsed
+          this.collapsedLanguages = collapsed
           this.loaded = true
         }
       }).catch((error: Error): void => {
@@ -87,6 +114,47 @@ export class SourceCatalogFilterState {
   }
 
   get active(): boolean { return this.languages !== undefined || this.rating !== 'all' }
+
+  // Search temporarily shows matching rows in collapsed groups. The saved
+  // disclosure state is device-local and does not change the catalog filter.
+  languageGroupExpanded(language: string, query: string, available: boolean = false): boolean | undefined {
+    if (!this.loaded || query.trim().length > 0) return undefined
+    return !this.collapsedLanguages.includes(languageGroupKey(language, available))
+  }
+
+  toggleLanguageGroup(language: string, available: boolean = false): Promise<void> {
+    const context = this.context
+    if (!this.loaded || context === undefined) return Promise.resolve()
+    const generation = this.generation
+    const edit = ++this.collapseEdit
+    const key = languageGroupKey(language, available)
+    const next = this.collapsedLanguages.includes(key) ?
+      this.collapsedLanguages.filter((code: string): boolean => code !== key) : this.collapsedLanguages.concat(key)
+    this.collapsedLanguages = next
+    const run = this.writes.then(async (): Promise<void> => {
+      await BackupRestoreActivity.runWrite(async (): Promise<void> => {
+        if (generation !== this.generation) return
+        const store = await preferences.getPreferences(context, STORE)
+        await store.put(COLLAPSED_LANGUAGES_KEY, JSON.stringify(next))
+        try {
+          await store.flush()
+        } catch (error) {
+          await store.put(COLLAPSED_LANGUAGES_KEY, JSON.stringify(this.persistedCollapsedLanguages))
+          await store.flush()
+          throw error as Error
+        }
+        if (generation === this.generation) this.persistedCollapsedLanguages = next
+      })
+    }).catch((error: Error): void => {
+      // A later tap may already have published a newer state.
+      if (generation === this.generation && edit === this.collapseEdit) {
+        this.collapsedLanguages = this.persistedCollapsedLanguages
+      }
+      throw error
+    })
+    this.writes = run.catch((): void => {})
+    return run
+  }
 
   // HDS switches also report model-driven changes. A partial selection turns
   // the All switch off; that echo must not become a request to clear the list.

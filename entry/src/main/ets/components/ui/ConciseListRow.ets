@@ -19,6 +19,12 @@ import { connectLanguageState } from '../../state/LanguageState'
 import { AppearanceState, connectAppearanceState } from '../../state/AppearanceState'
 import { ThemeConstants } from '../../theme/ThemeConstants'
 
+const SOURCE_IDENTITY_DECODE_HISTORY_LIMIT: number = 128
+// The normal and animated list items can create different HDS rows for the
+// same icon. Keep readiness by local URI across those mounts. Image still owns
+// the decoded data, and an unseen URI always starts with asynchronous loading.
+const decodedSourceIdentityUris: Set<string> = new Set()
+
 @ObservedV2
 export class SourceIdentityIconState {
   @Trace uri: string = ''
@@ -524,19 +530,24 @@ export struct ConciseListRow {
   }
 
   private sourceIdentityCanSyncLoad(uri: string): boolean {
-    return uri.startsWith('file://') && this.decodedSourceIdentityUri === uri
+    return uri.startsWith('file://') && (this.decodedSourceIdentityUri === uri || decodedSourceIdentityUris.has(uri))
   }
 
   private sourceIdentityDecoded(uri: string): void {
-    if (this.sourceIdentityUri() === uri && this.decodedSourceIdentityUri !== uri) {
-      this.decodedSourceIdentityUri = uri
+    if (this.sourceIdentityUri() !== uri || !uri.startsWith('file://')) return
+    if (this.decodedSourceIdentityUri !== uri) this.decodedSourceIdentityUri = uri
+    decodedSourceIdentityUris.delete(uri)
+    decodedSourceIdentityUris.add(uri)
+    if (decodedSourceIdentityUris.size > SOURCE_IDENTITY_DECODE_HISTORY_LIMIT) {
+      const oldest = decodedSourceIdentityUris.values().next()
+      if (!oldest.done) decodedSourceIdentityUris.delete(oldest.value)
     }
   }
 
   private sourceIdentityDecodeFailed(uri: string): void {
-    if (this.sourceIdentityUri() === uri && this.decodedSourceIdentityUri === uri) {
-      this.decodedSourceIdentityUri = ''
-    }
+    if (this.sourceIdentityUri() !== uri) return
+    if (this.decodedSourceIdentityUri === uri) this.decodedSourceIdentityUri = ''
+    decodedSourceIdentityUris.delete(uri)
   }
 
   @Builder
@@ -546,9 +557,6 @@ export struct ConciseListRow {
       .height('100%')
       .objectFit(ImageFit.Contain)
       .interpolation(ImageInterpolation.Medium)
-      // Only an already decoded local asset may load synchronously when HDS
-      // rebuilds its prefix. First loads/new URIs stay asynchronous; do not
-      // turn the entire source list's initial decode into UI-thread work.
       .syncLoad(this.sourceIdentityCanSyncLoad(uri))
       .onComplete((event) => {
         if (event?.loadingStatus === 1) this.sourceIdentityDecoded(uri)

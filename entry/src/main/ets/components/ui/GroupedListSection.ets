@@ -1,11 +1,16 @@
 import { komaModalCardSurface } from '../../theme/KomaPopupOptions'
 import { ThemeConstants } from '../../theme/ThemeConstants'
+import { LIST_DISCLOSURE_MS } from './ListDisclosureContent'
 
 @ComponentV2
 export struct SectionHeader {
   @Param title: ResourceStr = ''
+  @Param subtitle: ResourceStr | undefined = undefined
   @Param actionLabel: ResourceStr | undefined = undefined
+  @Param expanded: boolean | undefined = undefined
   @Event action: () => void = () => {}
+  @Event onToggle: (headerBottom?: number) => void = () => {}
+  private headerBottom?: number
 
   @Builder
   private TitleContent(weight: number) {
@@ -23,8 +28,35 @@ export struct SectionHeader {
       .layoutWeight(weight)
   }
 
-  build() {
-    if (this.actionLabel !== undefined) {
+  @Builder
+  private Title() {
+    if (this.expanded !== undefined) {
+      Button({ type: ButtonType.Normal, stateEffect: true }) {
+        Row() {
+          this.TitleContent(1)
+          SymbolGlyph($r('sys.symbol.chevron_down'))
+            .fontSize(ThemeConstants.FONT_SIZE_H3)
+            .fontColor([ThemeConstants.TEXT_SECONDARY])
+            .margin({ right: ThemeConstants.SPACE_SM })
+            .rotate({ angle: this.expanded ? 180 : 0 })
+            .animation({ duration: LIST_DISCLOSURE_MS, curve: Curve.EaseInOut })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+      }
+      .width('100%')
+      .constraintSize({ minHeight: ThemeConstants.TOUCH_TARGET_SM })
+      .padding(0)
+      .backgroundColor(Color.Transparent)
+      .borderRadius(ThemeConstants.RADIUS_MD)
+      .clip(true)
+      .onClick((): void => {
+        const toggle = this.onToggle
+        const bottom = this.headerBottom
+        // Let the native button event return before the list relayouts.
+        setTimeout((): void => { toggle(bottom) }, 0)
+      })
+    } else if (this.actionLabel !== undefined) {
       Row() {
         this.TitleContent(1)
         Button(this.actionLabel, {
@@ -42,6 +74,23 @@ export struct SectionHeader {
     } else {
       this.TitleContent(0)
     }
+  }
+
+  build() {
+    Column({ space: ThemeConstants.SPACE_XS }) {
+      this.Title()
+      if (this.subtitle !== undefined) {
+        Text(this.subtitle)
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XS })
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .onAreaChange((_previous: Area, area: Area): void => {
+      if (this.expanded !== undefined) this.headerBottom = Number(area.globalPosition.y) + Number(area.height)
+    })
   }
 }
 
@@ -105,17 +154,7 @@ export struct GroupedListSection {
   build() {
     if (this.title !== undefined) {
       Column({ space: this.headerSpacing }) {
-        Column({ space: ThemeConstants.SPACE_XS }) {
-          SectionHeader({ title: this.title, actionLabel: this.actionLabel, action: this.action })
-          if (this.subtitle !== undefined) {
-            Text(this.subtitle)
-              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-              .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XS })
-          }
-        }
-        .width('100%')
-        .alignItems(HorizontalAlign.Start)
+        SectionHeader({ title: this.title, subtitle: this.subtitle, actionLabel: this.actionLabel, action: this.action })
         this.Surface()
       }
       .width('100%')
@@ -123,6 +162,30 @@ export struct GroupedListSection {
     } else {
       this.Surface()
     }
+  }
+}
+
+@ComponentV2
+export struct GroupedListRowSurface {
+  @BuilderParam content: () => void
+  @Param first: boolean = false
+  @Param last: boolean = false
+  @Param surfaceColor: ResourceColor = ThemeConstants.CARD
+
+  build() {
+    Column() {
+      this.content()
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.LIST_SECTION_INSET, right: ThemeConstants.LIST_SECTION_INSET,
+      top: this.first ? ThemeConstants.LIST_SECTION_INSET : 0,
+      bottom: this.last ? ThemeConstants.LIST_SECTION_INSET : 0 })
+    .backgroundColor(this.surfaceColor)
+    .borderRadius({ topLeft: this.first ? ThemeConstants.RADIUS_CARD : 0,
+      topRight: this.first ? ThemeConstants.RADIUS_CARD : 0,
+      bottomLeft: this.last ? ThemeConstants.RADIUS_CARD : 0,
+      bottomRight: this.last ? ThemeConstants.RADIUS_CARD : 0 })
+    .clip(true)
   }
 }
 

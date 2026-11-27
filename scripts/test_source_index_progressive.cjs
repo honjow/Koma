@@ -25,7 +25,9 @@ function productionModule(file, bindings = {}, names) {
   let source = fs.readFileSync(path.join(root, file), 'utf8')
   if (names) {
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
-    source = tree.statements.filter(n => names.includes(n.name?.getText(tree))).map(n => n.getText(tree)).join('\n')
+    source = tree.statements.filter(n => ts.isVariableStatement(n)
+      ? n.declarationList.declarations.every(declaration => names.includes(declaration.name.getText(tree)))
+      : names.includes(n.name?.getText(tree))).map(n => n.getText(tree)).join('\n')
   }
   source = source.replace(/^import[\s\S]*?from '[^']+'\n/gm, '').replace(/@ObservedV2/g, '').replace(/@Trace /g, '')
   const exports = {}
@@ -34,6 +36,9 @@ function productionModule(file, bindings = {}, names) {
   return exports
 }
 const presentation = productionModule('model/SourceCatalogPresentation.ets')
+const { ListDisclosureMotion } = productionModule('components/ui/ListDisclosureContent.ets',
+  { FrameCallback: class {} },
+  ['LIST_DISCLOSURE_MS', 'SOURCE_ROW_HEIGHT', 'DisclosureLayoutFrame', 'ListDisclosureMotion'])
 const { SourceCatalogPageChrome } = productionModule('state/SourceCatalogPageChrome.ets',
   { ...productionModule('state/SearchRouteChromeState.ets'), Scroller: class {} })
 const localeBindings = productionModule('sourceRuntime/SourceLocale.ets')
@@ -59,10 +64,11 @@ const globals = {
   DiagnosticLogger: { info() {}, error() {}, warn() {} },
 }
 
-test('identity image callbacks retain first-load async and cannot mark a replacement URI decoded', () => {
+test('remounted identity images reuse recent local decodes while unseen and replaced URIs stay async', () => {
   const rendered = []
-  const row = subject('components/ui/ConciseListRow.ets', 'ConciseListRow',
+  const newRow = uri => Object.assign(subject('components/ui/ConciseListRow.ets', 'ConciseListRow',
     ['sourceIdentityUri', 'sourceIdentityCanSyncLoad', 'sourceIdentityDecoded', 'sourceIdentityDecodeFailed', 'SourceIdentityImage'], {
+      decodedSourceIdentityUris, SOURCE_IDENTITY_DECODE_HISTORY_LIMIT: 2,
       Builder() {}, ImageFit: { Contain: 0 }, ImageInterpolation: { Medium: 0 },
       Image(uri) {
         const image = { uri }; rendered.push(image)
@@ -75,18 +81,24 @@ test('identity image callbacks retain first-load async and cannot mark a replace
         } })
         return chain
       },
-    })
-  Object.assign(row, { sourceIdentityIconUri: 'file://A', decodedSourceIdentityUri: '', sourceIdentityOpticalScale: () => 1 })
-  const image = uri => { row.SourceIdentityImage(uri); return rendered.at(-1) }
+    }), { sourceIdentityIconUri: uri, decodedSourceIdentityUri: '' })
+  const decodedSourceIdentityUris = new Set()
+  const row = newRow('file://A')
+  const image = (uri, owner = row) => { owner.SourceIdentityImage(uri); return rendered.at(-1) }
   const a = image('file://A'); assert.equal(a.sync, false)
   a.complete({ loadingStatus: 0 }); assert.equal(image('file://A').sync, false)
   a.complete({ loadingStatus: 1 }); assert.equal(image('file://A').sync, true)
+  assert.equal(image('file://A', newRow('file://A')).sync, true)
   row.sourceIdentityIconUri = 'file://B'
   const b = image('file://B'); assert.equal(b.sync, false)
   a.complete({ loadingStatus: 1 }); assert.equal(image('file://B').sync, false)
   b.complete({ loadingStatus: 1 }); assert.equal(image('file://B').sync, true)
   a.error(); assert.equal(image('file://B').sync, true)
   b.error(); assert.equal(image('file://B').sync, false)
+  assert.equal(image('file://B', newRow('file://B')).sync, false)
+  image('file://C', newRow('file://C')).complete({ loadingStatus: 1 })
+  image('file://D', newRow('file://D')).complete({ loadingStatus: 1 })
+  assert.equal(image('file://A', newRow('file://A')).sync, false)
   row.sourceIdentityIconUri = 'https://remote.test/icon'
   const remote = image(row.sourceIdentityIconUri); remote.complete({ loadingStatus: 1 })
   assert.equal(image(row.sourceIdentityIconUri).sync, false)
@@ -240,6 +252,7 @@ function packageManager(packages, indexEntries, packageUpdateStatuses = []) {
     'installedPackage', 'compareVersion', 'entryDeclaresPackageIcon',
     'needsPackageIdentityIconRepair', 'updateAvailableFor', 'hasUpdate', 'missingIndexEntries',
     'updatableIndexEntries', 'availablePackageUpdates', 'packageListGroups', 'indexVersionText', 'appendManagerRows',
+    'managerLanguageExpanded',
   ], { ...globals, compareSourceNames: (left, _id, right) => left.localeCompare(right),
     resolveSourceLocalizedName: name => name, t: key => key,
     sourceLanguageName: language => language, ThemeConstants: { SPACE_MD: 12, SPACE_XS: 4 },
@@ -247,11 +260,13 @@ function packageManager(packages, indexEntries, packageUpdateStatuses = []) {
     tf: (_key, local, remote) => `local ${local} / remote ${remote}` })
   Object.assign(manager, { packages, indexEntries: indexEntries.map(item => ({ lang: 'zh', ...item })), packageUpdateStatuses,
     chrome: new SourceCatalogPageChrome(), managerSafeArea: { windowWidthVp: 400 },
+    languageMotion: new ListDisclosureMotion(),
     sourceIndexUrl: 'https://active.test/index.json', indexDisplayName: item => item.name,
     languageState: { effectiveLocale: 'zh' } })
+  manager.catalogFilters.languageGroupExpanded = () => true
   return manager
 }
-const installed = (id, version, enabled = true) => ({ id, name: id, version, enabled, icon: 'file://installed.png' })
+const installed = (id, version, enabled = true) => ({ id, name: id, version, enabled, lang: 'zh', icon: 'file://installed.png' })
 const indexed = (id, version) => ({ ...entry(id), version })
 test('source search matches localized and canonical names and source ID', () => {
   const match=presentation.sourceMatchesCatalogSearch
@@ -324,19 +339,57 @@ test('browse search composes with catalog filters and resolves each source name 
   assert.equal(page.enabledRuntimeSources.length,2);assert.equal(resolved,2)
 })
 test('source groups contain each installed identity once; updates precede missing and current packages', () => {
-  const packages = [installed('A', '1.0'), installed('B', '1.0'), installed('C', '2.0', false)]
+  const packages = [installed('A', '1.0'), installed('B', '1.0'), installed('C', '2.0', false),
+    { ...installed('E', '1.0'), lang: 'en' }]
   const manager = packageManager(packages, [indexed('A','1.1'), indexed('B','1.0'), indexed('C','1.0'), indexed('D','1.0')])
   const groups = manager.packageListGroups()
   assert.equal(groups.updates.map(c => c.entry.id).join(','), 'A')
   assert.equal(manager.availableManagerRows.flatMap(row => row.cards).map(card => card.id).join(','), 'D')
-  assert.equal(groups.installed.map(e => e.id).join(','), 'B,C')
+  assert.equal(manager.availableManagerRows[0].count, 1)
+  assert.equal(groups.installed.map(e => e.id).join(','), 'B,C,E')
   assert.equal(groups.installed[1].enabled, false)
-  assert.equal(packages.map(e => e.id).join(','), 'A,B,C')
+  assert.equal(packages.map(e => e.id).join(','), 'A,B,C,E')
   const windows = () => manager.installedManagerRows.filter(row => row.cards.length)
     .map(row => row.cards.map(card => card.id).join(',')).join(';')
-  assert.equal(windows(), 'A;B;C')
+  assert.equal(windows(), 'A;E;B;C')
+  assert.deepEqual(Array.from(manager.installedManagerRows.filter(row => row.title), row => row.title),
+    ['source_pkg_update_available','en','zh'])
   manager.managerSafeArea.windowWidthVp = 700
-  assert.equal(windows(), 'A;B,C')
+  assert.equal(windows(), 'A;E;B,C')
+  manager.catalogFilters.languageGroupExpanded = (language, query) => query.length > 0 || language !== 'zh'
+  assert.equal(windows(), 'A;E')
+  assert.equal(manager.installedManagerRows.at(-1).title, 'zh')
+  assert.equal(manager.installedManagerRows.at(-1).count, 2)
+  assert.equal(manager.availableManagerRows.length, 1)
+  assert.equal(manager.availableManagerRows[0].count, 1)
+  manager.chrome.search.query = 'C'
+  assert.equal(windows(), 'C')
+})
+test('long language groups reveal only the space below the clicked header', () => {
+  const motion = new ListDisclosureMotion()
+  const animator = { play() {}, cancel() {} }
+  motion.setViewport({ width: 390, height: 720, globalPosition: { y: 40 } })
+  motion.rememberHeight('zh', 0, 70)
+  motion.run({ createAnimator: () => animator }, 'zh', true, 177, 580)
+  assert.equal(motion.rowLimit('zh', false, 177), 3)
+  assert.equal(motion.rowLimit('en', true, 177), 177)
+  assert.equal(motion.heightBudget, 180)
+  assert.equal(motion.progress, 1)
+  animator.onFrame(0.5)
+  assert.equal(motion.progress, 0.5)
+  animator.onFinish()
+  assert.equal(motion.rowLimit('zh', false, 177), 0)
+
+  const callbacks = []
+  let started = false
+  animator.play = () => { started = true }
+  motion.run({ createAnimator: () => animator, postFrameCallback: (callback) => callbacks.push(callback) },
+    'zh', false, 177, 580)
+  assert.equal(motion.progress, 0)
+  callbacks.shift().onFrame()
+  assert.equal(started, false)
+  callbacks.shift().onFrame()
+  assert.equal(started, true)
 })
 test('source search filters existing groups and restores their original order when cleared', () => {
   const packages=[installed('A','1.0'),installed('B','1.0')]
@@ -1092,6 +1145,51 @@ test('filter selections compose during slow writes, persist across cold reads an
   fail=true;await assert.rejects(cold.save({languages:[],rating:'adult'}),/disk/)
   assert.deepEqual(Array.from(cold.languages),['en','zh-Hant']);assert.equal(cold.rating,'safe')
   assert.equal(JSON.parse(saved).rating,'safe')
+})
+
+test('language group disclosure persists independently of filters and search temporarily reveals matches', async () => {
+  const saved = new Map()
+  let fail = false
+  const store = {
+    get: async (key, fallback) => saved.get(key) ?? fallback,
+    put: async (key, value) => { saved.set(key, value) },
+    flush: async () => {
+      if (fail) {
+        fail = false
+        throw Error('disk')
+      }
+    },
+  }
+  const bindings = {
+    preferences: { getPreferences: async () => store },
+    catalogFilterRecords: { readBackupValue: async () => '{"rating":"safe","languages":["en","ja"]}' },
+    ...presentation, ...productionModule('model/BackupRestoreActivity.ets'),
+  }
+  const { SourceCatalogFilterState } = productionModule('state/SourceCatalogFilterState.ets', bindings)
+  const state = new SourceCatalogFilterState()
+  await state.prepare({})
+  assert.equal(state.languageGroupExpanded('en', ''), true)
+  const first = state.toggleLanguageGroup('en')
+  const second = state.toggleLanguageGroup('ja')
+  const available = state.toggleLanguageGroup('zh_TW', true)
+  assert.equal(state.languageGroupExpanded('en', ''), false)
+  assert.equal(state.languageGroupExpanded('en', 'test'), undefined)
+  await Promise.all([first, second, available])
+
+  const reopened = new SourceCatalogFilterState()
+  await reopened.prepare({})
+  assert.equal(reopened.languageGroupExpanded('ja', ''), false)
+  assert.equal(reopened.languageGroupExpanded('en', ''), false)
+  assert.equal(reopened.languageGroupExpanded('zh-Hant', '', true), false)
+  assert.equal(reopened.languageGroupExpanded('zh-Hant', ''), true)
+  assert.deepEqual(Array.from(reopened.languages), ['en', 'ja'])
+  assert.equal(reopened.rating, 'safe')
+  fail = true
+  await assert.rejects(reopened.toggleLanguageGroup('en'), /disk/)
+  assert.equal(reopened.languageGroupExpanded('en', ''), false)
+  await reopened.toggleLanguageGroup('en')
+  assert.equal(reopened.languageGroupExpanded('en', ''), true)
+  assert.equal(reopened.languageGroupExpanded('ja', ''), false)
 })
 
 // Regression from the device: model-driven All=false must not clear the selection.
