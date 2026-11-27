@@ -32,9 +32,10 @@ const api = load('import/LocalImportCommitService', {
   '../model/ComicModels': models, '../model/BackupRestoreActivity': {}, '../model/LibraryPersistence': {},
   './PdfPageService': pdf, './ComicZipPage': zipPage, './ImageSortUtils': load('import/ImageSortUtils'),
 })
+const sameOrder = () => new Map([[0, 0], [1, 1], [2, 2]])
 function comic(id, root) {
   const chapters = ['one', 'two', 'three'].map((name, index) => ({ id: `${id}-${name}`, comicId:id,
-    title:name,index,pages:[{ id:`${id}-${name}-p`,comicId:id,chapterId:`${id}-${name}`,index:0,
+    title:name,index,sourcePath:'file://book.zip#'+name,pages:[{ id:`${id}-${name}-p`,comicId:id,chapterId:`${id}-${name}`,index:0,
       uri:`file://${root}/${name}.jpg` }],pageCount:1,createdAt:1 }))
   return { id,title:'Title',sortTitle:'title',sourceKind:models.ComicSourceKind.LOCAL_ARCHIVE,
     localImportOrigin:{kind:'archive',sourceUris:['file://book.zip']},chapters,createdAt:1 }
@@ -43,8 +44,8 @@ test('reimporting the same multi-chapter archive keeps every chapter and page id
   const old = comic('old','/old'), fresh = comic('fresh','/new')
   fresh.author = 'Archive author'
   old.coverUri = old.chapters[1].pages[0].uri
-  assert.equal(await api.sameOrderedLocalImportPages(old,fresh),true)
-  const merged = api.mergeLocalImport(old,fresh,true)
+  assert.deepEqual(await api.matchLocalImportChapters(old, fresh), sameOrder())
+  const merged = api.mergeLocalImport(old,fresh,sameOrder())
   assert.deepEqual(merged.chapters.map(chapter => chapter.id),['old-one','old-two','old-three'])
   assert.deepEqual(merged.chapters.map(chapter => chapter.pages[0].id),['old-one-p','old-two-p','old-three-p'])
   assert.equal(merged.coverUri,'file:///new/two.jpg')
@@ -54,36 +55,36 @@ test('reimporting the same multi-chapter archive keeps every chapter and page id
 test('reimport does not replace a user-edited author', () => {
   const old = comic('old','/old'), fresh = comic('fresh','/new')
   old.author = 'Custom'; fresh.author = 'Archive author'
-  assert.equal(api.mergeLocalImport(old,fresh,true).author,'Custom')
+  assert.equal(api.mergeLocalImport(old,fresh,sameOrder()).author,'Custom')
 })
 test('reimport fills a missing description but preserves an existing one', () => {
   const old = comic('old','/old'), fresh = comic('fresh','/new')
   fresh.subtitle = 'Archive description'
-  assert.equal(api.mergeLocalImport(old,fresh,true).subtitle,'Archive description')
+  assert.equal(api.mergeLocalImport(old,fresh,sameOrder()).subtitle,'Archive description')
   const oldWithDescription = comic('old','/old'), newer = comic('fresh','/new')
   oldWithDescription.subtitle = 'Previously saved'; newer.subtitle = 'Archive description'
-  assert.equal(api.mergeLocalImport(oldWithDescription,newer,true).subtitle,'Previously saved')
+  assert.equal(api.mergeLocalImport(oldWithDescription,newer,sameOrder()).subtitle,'Previously saved')
 })
 test('PDF reimport compares the original document and keeps page identities', async () => {
   const old = comic('old','/old'), fresh = comic('fresh','/new')
   for (const [value, rootPath] of [[old, '/old'], [fresh, '/new']]) {
     value.chapters.forEach((chapter, index) => { chapter.pages[0].uri = pdf.pdfPageUri(rootPath + '/book.pdf', index) })
   }
-  assert.equal(await api.sameOrderedLocalImportPages(old, fresh), true)
-  assert.equal(api.mergeLocalImport(old, fresh, true).chapters[1].pages[0].id, 'old-two-p')
+  assert.deepEqual(await api.matchLocalImportChapters(old, fresh), sameOrder())
+  assert.equal(api.mergeLocalImport(old, fresh, sameOrder()).chapters[1].pages[0].id, 'old-two-p')
   fresh.chapters[1].pages[0].uri = pdf.pdfPageUri('/new/book.pdf', 9)
-  assert.equal(await api.sameOrderedLocalImportPages(old, fresh), false)
+  assert.deepEqual(await api.matchLocalImportChapters(old, fresh), new Map([[0, 0], [2, 2]]))
 })
 test('PDF reimport replaces its generated cover but retains a custom cover', () => {
   const old = comic('old','/old'), fresh = comic('fresh','/new')
   old.chapters[0].pages[0].uri = pdf.pdfPageUri('/old/archive.zip', 0)
   old.coverUri = 'file:///old/extract/cover.jpg'; fresh.coverUri = 'file:///new/extract/cover.jpg'
-  assert.equal(api.mergeLocalImport(old, fresh, true).coverUri, 'file:///new/extract/cover.jpg')
+  assert.equal(api.mergeLocalImport(old, fresh, sameOrder()).coverUri, 'file:///new/extract/cover.jpg')
   const custom = comic('old','/old'), newer = comic('fresh','/new')
   custom.chapters[0].pages[0].uri = pdf.pdfPageUri('/old/archive.zip', 0)
   custom.coverUri = 'file:///custom.jpg'; custom.customCoverUri = custom.coverUri
   newer.coverUri = 'file:///new/extract/cover.jpg'
-  assert.equal(api.mergeLocalImport(custom, newer, true).coverUri, custom.coverUri)
+  assert.equal(api.mergeLocalImport(custom, newer, sameOrder()).coverUri, custom.coverUri)
 })
 
 test('EPUB reimport updates the automatic cover and keeps a personal cover and page identity', () => {
@@ -93,11 +94,11 @@ test('EPUB reimport updates the automatic cover and keeps a personal cover and p
   const expectedCover = 'file:///new/cover.png'
   fresh.coverUri = expectedCover
   old.coverUri = old.chapters[0].pages[0].uri
-  assert.equal(api.mergeLocalImport(old, structuredClone(fresh), true).coverUri, expectedCover)
+  assert.equal(api.mergeLocalImport(old, structuredClone(fresh), sameOrder()).coverUri, expectedCover)
   old.customCoverUri = 'file:///personal.png'
   old.coverUri = old.customCoverUri
   old.personalNotes = 'Keep this note'
-  const merged = api.mergeLocalImport(old, fresh, true)
+  const merged = api.mergeLocalImport(old, fresh, sameOrder())
   assert.equal(merged.coverUri, old.customCoverUri)
   assert.equal(merged.sourceCoverUri, expectedCover)
   assert.equal(merged.personalNotes, old.personalNotes)
@@ -106,7 +107,39 @@ test('EPUB reimport updates the automatic cover and keeps a personal cover and p
 test('a changed chapter is not mistaken for the same archive contents', async () => {
   const old = comic('old','/old'), fresh = comic('fresh','/new')
   fresh.chapters[1].pages[0].uri = 'file:///new/changed.jpg'
-  assert.equal(await api.sameOrderedLocalImportPages(old,fresh),false)
+  assert.deepEqual(await api.matchLocalImportChapters(old, fresh), new Map([[0, 0], [2, 2]]))
+})
+
+test('a CBZ reimport keeps the personal cover, enhancement, and notes', () => {
+  const old = comic('old', '/old'), fresh = comic('fresh', '/new')
+  fresh.localImportOrigin.sourceUris = old.localImportOrigin.sourceUris = ['file://book.cbz']
+  old.customCoverUri = old.coverUri = 'file:///personal-cover.png'
+  old.sourceCoverUri = old.chapters[0].pages[0].uri
+  old.enhancedCoverUri = 'file:///personal-enhanced.png'
+  old.personalNotes = 'Keep this note'
+  fresh.coverUri = fresh.chapters[0].pages[0].uri
+  const merged = api.mergeLocalImport(old, fresh, sameOrder())
+  assert.equal(merged.customCoverUri, old.customCoverUri)
+  assert.equal(merged.enhancedCoverUri, old.enhancedCoverUri)
+  assert.equal(merged.personalNotes, old.personalNotes)
+  assert.equal(merged.sourceCoverUri, 'file:///new/one.jpg')
+})
+
+test('reimporting a changed archive preserves unchanged chapters even when a new chapter shifts them', async () => {
+  const old = comic('old', '/old'), fresh = comic('fresh', '/new')
+  const added = structuredClone(fresh.chapters[0])
+  added.sourcePath = 'file://book.zip#added'
+  added.title = 'new chapter'
+  added.pages[0].uri = 'file:///new/added.jpg'
+  fresh.chapters[1].pages[0].uri = 'file:///new/replaced.jpg'
+  fresh.chapters.unshift(added)
+  const merged = api.mergeLocalImport(old, fresh, await api.matchLocalImportChapters(old, fresh))
+  assert.equal(merged.chapters[1].pages[0].id, 'old-one-p')
+  assert.notEqual(merged.chapters[2].id, 'old-two')
+  assert.equal(merged.chapters[3].pages[0].id, 'old-three-p')
+  const position = { comicId: old.id, chapterId: 'old-three', pageId: 'old-three-p', pageIndex: 0, totalPages: 1 }
+  assert.equal(models.currentComicReadingProgress(merged, position), position)
+  assert.equal(models.currentComicReadingProgress(merged, { ...position, chapterId: 'old-two', pageId: 'old-two-p' }), undefined)
 })
 
 test('ZIP reimport preserves page IDs when replacing an older extracted copy', async () => {
@@ -115,10 +148,10 @@ test('ZIP reimport preserves page IDs when replacing an older extracted copy', a
     const page = chapter.pages[0]
     page.uri = zipPage.comicZipPageUri('/new/archive.zip', page.uri.split('/').pop())
   }
-  assert.equal(await api.sameOrderedLocalImportPages(old, fresh), true)
+  assert.deepEqual(await api.matchLocalImportChapters(old, fresh), sameOrder())
   const edited = comic('edited', '/old')
   edited.chapters[1].pages[0].uri = 'file:///old/replaced.jpg'
-  assert.equal(await api.sameOrderedLocalImportPages(edited, fresh), false)
-  const merged = api.mergeLocalImport(old, fresh, true)
+  assert.deepEqual(await api.matchLocalImportChapters(edited, fresh), new Map([[0, 0], [2, 2]]))
+  const merged = api.mergeLocalImport(old, fresh, sameOrder())
   assert.deepEqual(merged.chapters.map(chapter => chapter.pages[0].id), ['old-one-p', 'old-two-p', 'old-three-p'])
 })

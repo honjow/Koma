@@ -2,7 +2,7 @@ import { hash } from '@kit.CoreFileKit'
 import { util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
-import { Comic, ComicSourceKind, Page, copyLocalImportOrigin, copyComicPersonalFields,
+import { Chapter, Comic, ComicSourceKind, Page, copyLocalImportOrigin, copyComicPersonalFields,
   assignComicSourceCover } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService, upsertComicAndPersistLibraryStore } from '../model/LibraryPersistence'
@@ -46,8 +46,7 @@ async function localImportPageHash(page: Page): Promise<string> {
   return Array.from(result.data).map((value: number): string => value.toString(16).padStart(2, '0')).join('')
 }
 
-export async function sameOrderedLocalImportPages(previous: Comic, fresh: Comic): Promise<boolean> {
-  if (previous.chapters.length !== fresh.chapters.length) return false
+export async function matchLocalImportChapters(previous: Comic, fresh: Comic): Promise<Map<number, number>> {
   const hashes = new Map<string, string>()
   const archiveHash = async (path: string): Promise<string> => {
     const cached = hashes.get(path)
@@ -56,9 +55,7 @@ export async function sameOrderedLocalImportPages(previous: Comic, fresh: Comic)
     hashes.set(path, digest)
     return digest
   }
-  for (let chapterIndex = 0; chapterIndex < fresh.chapters.length; chapterIndex += 1) {
-    const oldPages = previous.chapters[chapterIndex].pages
-    const newPages = fresh.chapters[chapterIndex].pages
+  const samePages = async (oldPages: Page[], newPages: Page[]): Promise<boolean> => {
     if (oldPages.length !== newPages.length) return false
     for (let index = 0; index < newPages.length; index += 1) {
       const newPdf = parsePdfPageUri(newPages[index].uri)
@@ -90,11 +87,52 @@ export async function sameOrderedLocalImportPages(previous: Comic, fresh: Comic)
       }
       if (oldHash !== newHash) return false
     }
+    return true
   }
-  return true
+
+  // A nested archive has its own source path. ZIP folders can share the
+  // outer path, so include the chapter title when matching shifted entries.
+  const key = (chapter: Chapter): string => `${chapter.sourcePath}\n${chapter.title}`
+  const uniqueIndices = (chapters: Chapter[]): Map<string, number> => {
+    const indices = new Map<string, number>()
+    chapters.forEach((chapter: Chapter, index: number): void => {
+      const origin = key(chapter)
+      indices.set(origin, indices.has(origin) ? -1 : index)
+    })
+    return indices
+  }
+  const oldIndices = uniqueIndices(previous.chapters)
+  const newIndices = uniqueIndices(fresh.chapters)
+  const matched = new Map<number, number>()
+  const usedOld = new Set<number>()
+  for (let index = 0; index < fresh.chapters.length; index += 1) {
+    const chapter = fresh.chapters[index]
+    const origin = key(chapter)
+    const oldIndex = oldIndices.get(origin)
+    if (oldIndex === undefined || oldIndex < 0 || newIndices.get(origin) !== index) continue
+    if (await samePages(previous.chapters[oldIndex].pages, chapter.pages)) {
+      matched.set(index, oldIndex)
+      usedOld.add(oldIndex)
+    }
+  }
+  // When the list size is unchanged, also retain byte-identical chapters at
+  // the same position, such as an older import with a different title.
+  if (previous.chapters.length === fresh.chapters.length) {
+    for (let index = 0; index < fresh.chapters.length; index += 1) {
+      if (matched.has(index) || usedOld.has(index)) continue
+      const old = previous.chapters[index]
+      const chapter = fresh.chapters[index]
+      const origin = key(chapter)
+      if (oldIndices.get(origin) === index && newIndices.get(origin) === index) continue
+      if (old.sourcePath === chapter.sourcePath && await samePages(old.pages, chapter.pages)) {
+        matched.set(index, index)
+      }
+    }
+  }
+  return matched
 }
 
-export function mergeLocalImport(previous: Comic | undefined, fresh: Comic, samePages: boolean): Comic {
+export function mergeLocalImport(previous: Comic | undefined, fresh: Comic, matches: Map<number, number>): Comic {
   if (fresh.localImportOrigin === undefined || fresh.chapters.length === 0 ||
     fresh.chapters.some((chapter): boolean => chapter.pages.length === 0) ||
     (fresh.localImportOrigin.kind === 'archive' && fresh.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE) ||
@@ -106,14 +144,15 @@ export function mergeLocalImport(previous: Comic | undefined, fresh: Comic, same
 
   fresh.id = previous.id
   fresh.chapters.forEach((chapter, chapterIndex): void => {
-    const oldChapter = previous.chapters[chapterIndex]
+    const oldIndex = matches.get(chapterIndex)
+    const oldChapter = oldIndex === undefined ? undefined : previous.chapters[oldIndex]
     chapter.comicId = previous.id
-    chapter.id = samePages && oldChapter !== undefined ? oldChapter.id : `${previous.id}-chapter-${util.generateRandomUUID()}`
-    chapter.createdAt = samePages && oldChapter !== undefined ? oldChapter.createdAt : chapter.createdAt
+    chapter.id = oldChapter?.id ?? `${previous.id}-chapter-${util.generateRandomUUID()}`
+    chapter.createdAt = oldChapter?.createdAt ?? chapter.createdAt
     chapter.pages.forEach((page: Page, index: number): void => {
       page.comicId = previous.id
       page.chapterId = chapter.id
-      page.id = samePages ? oldChapter.pages[index].id : `${chapter.id}-page-${index + 1}`
+      page.id = oldChapter?.pages[index].id ?? `${chapter.id}-page-${index + 1}`
     })
   })
   fresh.createdAt = previous.createdAt
@@ -126,29 +165,27 @@ export function mergeLocalImport(previous: Comic | undefined, fresh: Comic, same
   fresh.localMetadata = previous.localMetadata
   fresh.preferredDirection = previous.preferredDirection
 
-  if (fresh.sourceKind === ComicSourceKind.LOCAL_ARCHIVE && isEpubArchivePath(fresh.localImportOrigin.sourceUris[0] ?? '')) {
-    const epubCover = fresh.coverUri
-    copyComicPersonalFields(previous, fresh)
-    if (epubCover !== undefined) assignComicSourceCover(fresh, epubCover)
-    return fresh
-  }
-
-  if (previous.coverUri !== undefined) {
+  const epub = fresh.sourceKind === ComicSourceKind.LOCAL_ARCHIVE && isEpubArchivePath(fresh.localImportOrigin.sourceUris[0] ?? '')
+  const oldCover = previous.customCoverUri ? previous.sourceCoverUri : previous.coverUri
+  if (!epub && oldCover !== undefined) {
     const firstPdf = parsePdfPageUri(previous.chapters[0]?.pages[0]?.uri ?? '')
     const pdfDir = firstPdf?.path.substring(0, firstPdf.path.lastIndexOf('/'))
-    const generatedPdfCover = pdfDir !== undefined && previous.coverUri === `file://${pdfDir}/extract/cover.jpg` &&
-      previous.customCoverUri === undefined
+    const generatedPdfCover = pdfDir !== undefined && oldCover === `file://${pdfDir}/extract/cover.jpg`
     const oldCoverChapter = previous.chapters.findIndex((chapter): boolean =>
-      chapter.pages.some((page: Page): boolean => page.uri === previous.coverUri))
+      chapter.pages.some((page: Page): boolean => page.uri === oldCover))
     const oldCoverIndex = oldCoverChapter < 0 ? -1 : previous.chapters[oldCoverChapter].pages.findIndex(
-      (page: Page): boolean => page.uri === previous.coverUri)
-    if (samePages && oldCoverChapter >= 0 && oldCoverIndex >= 0) {
-      fresh.coverUri = fresh.chapters[oldCoverChapter].pages[oldCoverIndex].uri
-    } else if (!generatedPdfCover && (oldCoverChapter !== 0 || oldCoverIndex !== 0)) {
+      (page: Page): boolean => page.uri === oldCover)
+    const replacement = fresh.chapters.find((_chapter: Chapter, index: number): boolean => matches.get(index) === oldCoverChapter)
+    if (replacement !== undefined && oldCoverIndex >= 0) {
+      fresh.coverUri = replacement.pages[oldCoverIndex].uri
+    } else if (!previous.customCoverUri && !generatedPdfCover && (oldCoverChapter !== 0 || oldCoverIndex !== 0)) {
       // Explicit cover remains reachable in the retained previous generation.
-      fresh.coverUri = previous.coverUri
+      fresh.coverUri = oldCover
     }
   }
+  const sourceCover = fresh.coverUri
+  copyComicPersonalFields(previous, fresh)
+  if (sourceCover !== undefined) assignComicSourceCover(fresh, sourceCover)
   return fresh
 }
 
@@ -170,14 +207,14 @@ export class LocalImportCommitService {
       if (previous === undefined && this.libraryStore.getComic(fresh.id) !== undefined) {
         throw new Error('Local import identity collision')
       }
-      const samePages = previous !== undefined && await sameOrderedLocalImportPages(previous, fresh)
+      const matches = previous === undefined ? new Map<number, number>() : await matchLocalImportChapters(previous, fresh)
       // Metadata can be edited while hashes run. Preserve the latest user row.
       const latest = previous === undefined ? undefined : this.libraryStore.getComic(previous.id)
       if (previous !== undefined && (latest === undefined || latest.chapters.length !== previous.chapters.length ||
         latest.chapters.some((chapter, index): boolean => chapter.id !== previous.chapters[index].id))) {
         throw new Error('Local import changed during commit')
       }
-      const merged = mergeLocalImport(latest, fresh, samePages)
+      const merged = mergeLocalImport(latest, fresh, matches)
       upsertComicAndPersistLibraryStore(this.libraryStore, this.persistenceService, merged)
     }))
     this.pending = result.catch((_error: Error): void => {})
