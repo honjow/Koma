@@ -1,3 +1,6 @@
+import { common } from '@kit.AbilityKit'
+import { komaToastOptions } from '../theme/KomaPopupOptions'
+import { ReaderSettingOption } from './ReaderSettingOption'
 import { HdsNavigationMenuItemOptions, TextStyleMode } from '@kit.UIDesignKit'
 import { ImagePluginsPage } from '../pages/ImagePluginsPage'
 import { SourceSubscriptionsPage } from '../pages/SourceSubscriptionsPage'
@@ -25,6 +28,7 @@ import {
   getReaderPageModeLabel,
   getReaderScreenOrientationLabel,
   ReaderPreferences,
+  ReaderPreferencesStore,
   ReaderSpreadLayoutMode,
   ReaderTapZoneInvert,
   ReaderTapZonePreset,
@@ -46,6 +50,43 @@ import { KomaModalScaffold, komaModalSheetOptions, KOMA_MODAL_TABS_HEADER_HEIGHT
 import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 
+const LAYOUT_SETTINGS: string[] = [
+  'reader_control_mode',
+  'settings_row_reading_direction_title',
+  'reader_spread_layout_title',
+  'reader_column_mode_title',
+  'reader_page_turn_animation_title',
+]
+
+const TAP_ZONES_SETTINGS: string[] = [
+  'settings_row_reader_tap_zone_preset_title',
+  'settings_row_reader_tap_zone_invert_title',
+  'reader_double_tap_zoom_title',
+  'reader_double_tap_interval_title',
+]
+
+const PAGE_GAP_SETTINGS: string[] = [
+  'settings_row_reader_page_gap_title',
+  'settings_row_reader_wide_image_mode_title',
+]
+
+const DISPLAY_SETTINGS: string[] = [
+  'reader_screen_orientation_title',
+  'settings_row_reader_background_title',
+  'reader_image_scaling_quality_title',
+  'reader_show_page_number_title',
+  'reader_fullscreen_title',
+  'settings_row_reader_keep_screen_awake_title',
+]
+
+const NAVIGATION_SETTINGS: string[] = [
+  'reader_auto_page_title',
+  'reader_preload_pages_title',
+  'settings_row_reader_eye_gaze_page_turn_title',
+  'settings_row_reader_volume_key_navigation_title',
+  'settings_row_reader_volume_key_behavior_title',
+]
+
 function s(key: string): string {
   return AppStrings.get(key)
 }
@@ -62,6 +103,7 @@ export struct ReaderSettingsContent {
   @Event onRevealTapZones: () => void = () => {}
   // Status never changes the menu contents or the settings row structure.
   @Param seriesOverrideActive: boolean = false
+  @Param bookSettingsAvailable: boolean = false
   @Param cropControlsAvailable: boolean = false
   @Param enhancementControlsAvailable: boolean = false
   // Reader owns immediate reading controls. Provider/account configuration belongs
@@ -78,16 +120,32 @@ export struct ReaderSettingsContent {
   private modeScroller: Scroller = new Scroller()
   private generalScroller: Scroller = new Scroller()
   private filterScroller: Scroller = new Scroller()
+  private favoriteScroller: Scroller = new Scroller()
+  @Local private favoriteKeys: string[] = []
+  private favoriteStore: ReaderPreferencesStore | null = null
+  private favoriteSheetActive: boolean = false
 
   aboutToAppear(): void {
+    if (this.bookSettingsAvailable) {
+      this.favoriteSheetActive = true
+      const store = new ReaderPreferencesStore(this.getUIContext().getHostContext() as common.UIAbilityContext)
+      this.favoriteStore = store
+      void store.favoriteSettingKeys().then((keys: string[]): void => {
+        if (this.favoriteSheetActive) this.favoriteKeys = keys
+      }).catch((): void => {})
+    }
     void supportsReaderSmartKeyNavigation().then((available: boolean): void => { this.smartKeyAvailable = available })
   }
 
-  aboutToDisappear(): void { this.onFilterPreviewChange(false) }
+  aboutToDisappear(): void {
+    this.favoriteSheetActive = false
+    this.onFilterPreviewChange(false)
+  }
 
   private selectTab(index: number): void {
     this.onTabSelect(index)
-    const scroller = index === 0 ? this.modeScroller : index === 1 ? this.generalScroller : this.filterScroller
+    const scroller = index === 0 ? this.modeScroller : index === 1 ? this.generalScroller :
+      index === 2 ? this.filterScroller : this.favoriteScroller
     this.tabScrolled = scroller.currentOffset().yOffset > 0
     this.publishFilterSheetHeight(index)
     this.onFilterPreviewChange(index === 2)
@@ -105,6 +163,7 @@ export struct ReaderSettingsContent {
   private pluginSubscriptionsChrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
 
   @Event onResetSeriesOverride: () => void = () => {}
+  @Event onEnhancementModelsChanged: () => void = () => {}
 
   private update(next: ReaderPreferences): void {
     this.onPreferencesChange(next)
@@ -118,7 +177,7 @@ export struct ReaderSettingsContent {
       readingDirection: p.readingDirection,
       themeMode: p.themeMode,
       backgroundMode: p.backgroundMode,
-      showProgressControls: true,
+      showProgressControls: p.showProgressControls,
       keepScreenAwake: p.keepScreenAwake,
       fullscreen: p.fullscreen,
       screenOrientation: p.screenOrientation,
@@ -429,6 +488,7 @@ export struct ReaderSettingsContent {
     KomaModalScaffold({ title: s('settings_reader_super_resolution_models'),
       onClose: (): void => { this.modelManagementShown = false } }) {
       ReaderSuperResolutionModelsContent({ inModal: true, preferences: this.preferences,
+        manageFilesOnly: this.bookSettingsAvailable,
         onPreferencesChange: (next: ReaderPreferences): void => { this.update(next) } })
     }
   }
@@ -473,6 +533,156 @@ export struct ReaderSettingsContent {
     }
   }
 
+  private navigationSettingKeys(): string[] {
+    return this.smartKeyAvailable ? NAVIGATION_SETTINGS.concat(['settings_row_reader_smart_key_title']) : NAVIGATION_SETTINGS
+  }
+
+  private toggleFavorite(key: string): void {
+    void this.favoriteStore?.toggleFavoriteSetting(key).then((keys: string[]): void => {
+      if (!this.favoriteSheetActive) return
+      this.favoriteKeys = keys
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({
+        message: s(keys.includes(key) ? 'reader_setting_favorite_added' : 'reader_setting_favorite_removed'),
+      }))
+    }).catch((): void => {
+      if (this.favoriteSheetActive) this.getUIContext().getPromptAction().showToast(komaToastOptions({
+        message: s('reader_setting_favorite_save_failed'),
+      }))
+    })
+  }
+
+  private shownSettingKeys(keys: string[], favoritesOnly: boolean): string[] {
+    return favoritesOnly ? keys.filter((key: string): boolean => this.favoriteKeys.includes(key)) : keys
+  }
+
+  @Builder
+  private PreferenceSection(title: string, keys: string[], favoritesOnly: boolean = false) {
+    if (this.shownSettingKeys(keys, favoritesOnly).length > 0) {
+      GroupedListSection({ title: s(title), headerSpacing: ThemeConstants.SPACE_SM }) {
+        ForEach(this.shownSettingKeys(keys, favoritesOnly), (key: string, index: number) => {
+          if (index > 0) {
+            ListDivider()
+          }
+          ReaderSettingOption({ settingKey: key,
+            onFavorite: this.bookSettingsAvailable ? (setting: string): void => { this.toggleFavorite(setting) } : undefined }) {
+            this.PreferenceRow(key)
+          }
+        }, (key: string, index: number): string => key + ':' + (index === 0 ? 'first' : 'rest'))
+      }
+    }
+  }
+
+  @Builder
+  private PreferenceRow(key: string) {
+    if (key === 'reader_control_mode') {
+      ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderPageModeLabel(this.selectedPageMode()), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
+    } else if (key === 'settings_row_reading_direction_title') {
+      ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: this.effectiveDirectionLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
+    } else if (key === 'reader_spread_layout_title') {
+      ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.preferences.pageMode === 'auto_page' || this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SpreadLayoutMenu(select) } })
+    } else if (key === 'reader_column_mode_title') {
+      ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.preferences.pageMode === 'auto_page' || this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ColumnModeMenu(select) } })
+    } else if (key === 'reader_page_turn_animation_title') {
+      ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, isEnabled: this.readerMode !== ReaderMode.VERTICAL_PAGE, switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
+    } else if (key === 'settings_row_reader_tap_zone_preset_title') {
+      ConciseListRow({ title: s('settings_row_reader_tap_zone_preset_title'), trailingText: getReaderTapZonePresetLabel(this.preferences.tapZonePreset), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapZoneMenu(select) } })
+    } else if (key === 'settings_row_reader_tap_zone_invert_title') {
+      ConciseListRow({ title: s('settings_row_reader_tap_zone_invert_title'), trailingText: getReaderTapZoneInvertLabel(this.preferences.tapZoneInvert), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapInvertMenu(select) } })
+    } else if (key === 'reader_double_tap_zoom_title') {
+      ConciseListRow({ title: s('reader_double_tap_zoom_title'), hasSwitch: true, checked: this.preferences.doubleTapZoomEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('double-tap-zoom', value) } })
+    } else if (key === 'reader_double_tap_interval_title') {
+      ConciseListRow({ title: s('reader_double_tap_interval_title'), trailingText: `${this.preferences.doubleTapIntervalMs} ms`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DoubleTapIntervalMenu(select) } })
+    } else if (key === 'settings_row_reader_page_gap_title') {
+      ConciseListRow({ title: s('settings_row_reader_page_gap_title'), trailingText: getReaderPageGapModeLabel(this.preferences.pageGapMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.GapMenu(select) } })
+    } else if (key === 'settings_row_reader_wide_image_mode_title') {
+      ConciseListRow({ title: s('settings_row_reader_wide_image_mode_title'), trailingText: getReaderWideImageModeLabel(this.preferences.wideImageMode), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.WideMenu(select) } })
+    } else if (key === 'reader_screen_orientation_title') {
+      ConciseListRow({ title: s('reader_screen_orientation_title'),
+      trailingText: getReaderScreenOrientationLabel(this.preferences.screenOrientation), trailingDropdown: true,
+      dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => {
+      this.ScreenOrientationMenu(select)
+      } })
+    } else if (key === 'settings_row_reader_background_title') {
+      ConciseListRow({ title: s('settings_row_reader_background_title'), trailingText: getReaderBackgroundModeLabel(this.preferences.backgroundMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BackgroundMenu(select) } })
+    } else if (key === 'reader_image_scaling_quality_title') {
+      ConciseListRow({ title: s('reader_image_scaling_quality_title'), trailingText: this.scalingQualityLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ScalingQualityMenu(select) } })
+    } else if (key === 'reader_show_page_number_title') {
+      ConciseListRow({ title: s('reader_show_page_number_title'), hasSwitch: true, checked: this.preferences.showPageNumber, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-number', value) } })
+    } else if (key === 'reader_fullscreen_title') {
+      ConciseListRow({ title: s('reader_fullscreen_title'), hasSwitch: true, checked: this.preferences.fullscreen, showChevron: false, switchAction: (value: boolean) => { this.setToggle('fullscreen', value) } })
+    } else if (key === 'settings_row_reader_keep_screen_awake_title') {
+      ConciseListRow({ title: s('settings_row_reader_keep_screen_awake_title'), hasSwitch: true, checked: this.preferences.keepScreenAwake, showChevron: false, switchAction: (value: boolean) => { this.setToggle('awake', value) } })
+    } else if (key === 'reader_auto_page_title') {
+      ConciseListRow({ title: s('reader_auto_page_title'), trailingText: `${this.preferences.autoPageSeconds}s`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutoPageMenu(select) } })
+    } else if (key === 'reader_preload_pages_title') {
+      ConciseListRow({ title: s('reader_preload_pages_title'), trailingText: `${this.preferences.preloadPages}`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PreloadMenu(select) } })
+    } else if (key === 'settings_row_reader_eye_gaze_page_turn_title') {
+      ConciseListRow({ title: s('settings_row_reader_eye_gaze_page_turn_title'), subtitle: s('settings_row_reader_eye_gaze_page_turn_detail'), hasSwitch: true, checked: this.preferences.eyeGazePageTurnEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('eye-gaze', value) } })
+    } else if (key === 'settings_row_reader_volume_key_navigation_title') {
+      ConciseListRow({ title: s('settings_row_reader_volume_key_navigation_title'), hasSwitch: true, checked: this.preferences.volumeKeyNavigationEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('volume', value) } })
+    } else if (key === 'settings_row_reader_volume_key_behavior_title') {
+      ConciseListRow({ title: s('settings_row_reader_volume_key_behavior_title'), hasSwitch: true, checked: this.preferences.volumeKeyBehavior === 'up_next_down_previous', showChevron: false, isEnabled: this.preferences.volumeKeyNavigationEnabled, switchAction: (value: boolean) => { this.setVolumeKeyBehavior(value ? 'up_next_down_previous' : 'up_previous_down_next') } })
+    } else if (key === 'settings_row_reader_smart_key_title') {
+      ConciseListRow({ title: s('settings_row_reader_smart_key_title'), subtitle: s('settings_row_reader_smart_key_detail'), hasSwitch: true, checked: this.preferences.smartKeyPageTurnEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('smart-key', value) } })
+    }
+  }
+
+  @Builder
+  private ImageSettings(category: 'crop' | 'enhancement' | 'plugins', favoritesOnly: boolean = false) {
+    ReaderImageSettingsContent({ preferences: this.preferences, showPlugins: category === 'plugins',
+      bookBannerOptions: category === 'plugins', cropControlsAvailable: category === 'crop' && this.cropControlsAvailable,
+      enhancementControlsAvailable: category === 'enhancement' && this.enhancementControlsAvailable,
+      trackModelChangesOnlyOnUserAction: this.bookSettingsAvailable, modelsRevision: this.modelsRevision,
+      favoriteKeys: favoritesOnly ? this.favoriteKeys : undefined,
+      onFavorite: this.bookSettingsAvailable ? (setting: string): void => { this.toggleFavorite(setting) } : undefined,
+      onPreferencesChange: (next: ReaderPreferences) => { this.update(next) },
+      onOpenModels: (): void => { this.modelManagementShown = true },
+      onOpenPlugins: (): void => { this.imagePluginsShown = true },
+    })
+  }
+
+  @Builder
+  private DisplaySettings(favoritesOnly: boolean = false) {
+    ReaderDisplaySettingsContent({ embedded: true, settings: this.preferences.displaySettings,
+      favoriteKeys: favoritesOnly ? this.favoriteKeys : undefined,
+      previewActive: this.selectedTab === (favoritesOnly ? 3 : 2),
+      onFavorite: this.bookSettingsAvailable ? (setting: string): void => { this.toggleFavorite(setting) } : undefined,
+      onChange: (settings: ReaderDisplaySettings): void => {
+        const next = this.copyPreferences()
+        next.displaySettings = settings
+        this.update(next)
+      },
+    })
+  }
+
+  @Builder
+  private FavoriteSettings() {
+    if (this.favoriteKeys.length === 0) {
+      Text(s('reader_settings_favorites_empty'))
+        .width('100%').textAlign(TextAlign.Center).fontColor(ThemeConstants.TEXT_SECONDARY)
+        .padding({ top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    } else {
+      this.PreferenceSection('settings_reader_group_layout', LAYOUT_SETTINGS, true)
+      this.ImageSettings('crop', true)
+      this.PreferenceSection('settings_reader_group_tap_zones', TAP_ZONES_SETTINGS, true)
+      this.PreferenceSection('settings_row_reader_page_gap_title', PAGE_GAP_SETTINGS, true)
+      this.ImageSettings('enhancement', true)
+      this.PreferenceSection('settings_reader_group_display', DISPLAY_SETTINGS, true)
+      this.PreferenceSection('settings_reader_group_navigation', this.navigationSettingKeys(), true)
+      this.ImageSettings('plugins', true)
+      this.DisplaySettings(true)
+    }
+    GroupedListSection() {
+      ConciseListRow({ title: s('reader_series_override_reset'),
+        subtitle: s(this.seriesOverrideActive ? 'reader_series_override_different' : 'reader_series_override_inherited'),
+        subtitleMaxLines: 2, showChevron: false,
+        action: (): void => {
+          if (this.seriesOverrideActive) this.onResetSeriesOverride()
+        } })
+        .id('reader-use-global-settings')
+    }
+  }
+
   @Builder
   private TabContent(index: number, scroller: Scroller) {
     List({ scroller: scroller }) {
@@ -480,80 +690,19 @@ export struct ReaderSettingsContent {
       ListItem() {
         Column({ space: ThemeConstants.SPACE_SM }) {
           if (index === 0) {
-            GroupedListSection({ title: s('settings_reader_group_layout'), headerSpacing: ThemeConstants.SPACE_SM }) {
-              ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderPageModeLabel(this.selectedPageMode()), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: this.effectiveDirectionLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.preferences.pageMode === 'auto_page' || this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SpreadLayoutMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.preferences.pageMode === 'auto_page' || this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ColumnModeMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, isEnabled: this.readerMode !== ReaderMode.VERTICAL_PAGE, switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
-              ListDivider()
-              ConciseListRow({ title: s('reader_series_override_reset'), subtitle: s(this.seriesOverrideActive ? 'reader_series_override_different' : 'reader_series_override_inherited'), showChevron: false, isEnabled: this.seriesOverrideActive, action: () => { this.onResetSeriesOverride() } })
-            }
-            GroupedListSection({ title: s('settings_reader_group_tap_zones'), headerSpacing: ThemeConstants.SPACE_SM }) {
-              ConciseListRow({ title: s('settings_row_reader_tap_zone_preset_title'), trailingText: getReaderTapZonePresetLabel(this.preferences.tapZonePreset), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapZoneMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('settings_row_reader_tap_zone_invert_title'), trailingText: getReaderTapZoneInvertLabel(this.preferences.tapZoneInvert), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapInvertMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('reader_double_tap_zoom_title'), hasSwitch: true, checked: this.preferences.doubleTapZoomEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('double-tap-zoom', value) } })
-              ListDivider()
-              ConciseListRow({ title: s('reader_double_tap_interval_title'), trailingText: `${this.preferences.doubleTapIntervalMs} ms`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DoubleTapIntervalMenu(select) } })
-            }
-            GroupedListSection({ title: s('settings_row_reader_page_gap_title'), headerSpacing: ThemeConstants.SPACE_SM }) {
-              ConciseListRow({ title: s('settings_row_reader_page_gap_title'), trailingText: getReaderPageGapModeLabel(this.preferences.pageGapMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.GapMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('settings_row_reader_wide_image_mode_title'), trailingText: getReaderWideImageModeLabel(this.preferences.wideImageMode), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.WideMenu(select) } })
-            }
-            ReaderImageSettingsContent({ preferences: this.preferences, showPlugins: false,
-              cropControlsAvailable: this.cropControlsAvailable, enhancementControlsAvailable: false,
-              onPreferencesChange: (next: ReaderPreferences) => { this.update(next) } })
+            this.PreferenceSection('settings_reader_group_layout', LAYOUT_SETTINGS)
+            this.ImageSettings('crop')
+            this.PreferenceSection('settings_reader_group_tap_zones', TAP_ZONES_SETTINGS)
+            this.PreferenceSection('settings_row_reader_page_gap_title', PAGE_GAP_SETTINGS)
           } else if (index === 1) {
-            GroupedListSection({ title: s('settings_reader_group_display'), headerSpacing: ThemeConstants.SPACE_SM }) {
-              ConciseListRow({ title: s('reader_screen_orientation_title'),
-                trailingText: getReaderScreenOrientationLabel(this.preferences.screenOrientation), trailingDropdown: true,
-                dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => {
-                  this.ScreenOrientationMenu(select)
-                } })
-              ListDivider()
-              ConciseListRow({ title: s('settings_row_reader_background_title'), trailingText: getReaderBackgroundModeLabel(this.preferences.backgroundMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BackgroundMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('reader_image_scaling_quality_title'), trailingText: this.scalingQualityLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ScalingQualityMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('reader_show_page_number_title'), hasSwitch: true, checked: this.preferences.showPageNumber, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-number', value) } })
-              ListDivider()
-              ConciseListRow({ title: s('reader_fullscreen_title'), hasSwitch: true, checked: this.preferences.fullscreen, showChevron: false, switchAction: (value: boolean) => { this.setToggle('fullscreen', value) } })
-              ListDivider()
-              ConciseListRow({ title: s('settings_row_reader_keep_screen_awake_title'), hasSwitch: true, checked: this.preferences.keepScreenAwake, showChevron: false, switchAction: (value: boolean) => { this.setToggle('awake', value) } })
-            }
-            GroupedListSection({ title: s('settings_reader_group_navigation'), headerSpacing: ThemeConstants.SPACE_SM }) {
-              ConciseListRow({ title: s('reader_auto_page_title'), trailingText: `${this.preferences.autoPageSeconds}s`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutoPageMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('reader_preload_pages_title'), trailingText: `${this.preferences.preloadPages}`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PreloadMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('settings_row_reader_eye_gaze_page_turn_title'), subtitle: s('settings_row_reader_eye_gaze_page_turn_detail'), hasSwitch: true, checked: this.preferences.eyeGazePageTurnEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('eye-gaze', value) } })
-              ListDivider()
-              ConciseListRow({ title: s('settings_row_reader_volume_key_navigation_title'), hasSwitch: true, checked: this.preferences.volumeKeyNavigationEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('volume', value) } })
-              ListDivider()
-              ConciseListRow({ title: s('settings_row_reader_volume_key_behavior_title'), hasSwitch: true, checked: this.preferences.volumeKeyBehavior === 'up_next_down_previous', showChevron: false, isEnabled: this.preferences.volumeKeyNavigationEnabled, switchAction: (value: boolean) => { this.setVolumeKeyBehavior(value ? 'up_next_down_previous' : 'up_previous_down_next') } })
-              if (this.smartKeyAvailable) {
-                ListDivider()
-                ConciseListRow({ title: s('settings_row_reader_smart_key_title'), subtitle: s('settings_row_reader_smart_key_detail'), hasSwitch: true, checked: this.preferences.smartKeyPageTurnEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('smart-key', value) } })
-              }
-            }
-            ReaderImageSettingsContent({ preferences: this.preferences, bookBannerOptions: true,
-              cropControlsAvailable: false, enhancementControlsAvailable: this.enhancementControlsAvailable,
-              modelsRevision: this.modelsRevision,
-              onPreferencesChange: (next: ReaderPreferences) => { this.update(next) },
-              onOpenPlugins: (): void => { this.imagePluginsShown = true },
-              onOpenModels: () => { this.modelManagementShown = true } })
+            this.ImageSettings('enhancement')
+            this.PreferenceSection('settings_reader_group_display', DISPLAY_SETTINGS)
+            this.PreferenceSection('settings_reader_group_navigation', this.navigationSettingKeys())
+            this.ImageSettings('plugins')
+          } else if (index === 2) {
+            this.DisplaySettings()
           } else {
-            ReaderDisplaySettingsContent({ embedded: true, settings: this.preferences.displaySettings,
-              onChange: (settings: ReaderDisplaySettings): void => {
-                const next = this.copyPreferences(); next.displaySettings = settings; this.update(next)
-              } })
+            this.FavoriteSettings()
           }
           if (index !== 2) {
             Blank().height(this.layout.bottomAvoidHeight + ThemeConstants.SPACE_MD)
@@ -585,12 +734,17 @@ export struct ReaderSettingsContent {
       .visibility(this.selectedTab === index ? Visibility.Visible : Visibility.Hidden)
   }
 
+  private tabLabels(): string[] {
+    const labels = [s('reader_settings_tab_mode'), s('reader_settings_tab_general'), s('reader_settings_tab_filters')]
+    return this.bookSettingsAvailable ? labels.concat([s('reader_settings_tab_favorites')]) : labels
+  }
+
   build() {
     // Tabs retain their own scroll position; child managers remain independent
     // native sheets so dismissing one returns to this same selected tab.
     Stack() {
     KomaModalScaffold({ contentOwnsScrolling: true,
-      tabLabels: [s('reader_settings_tab_mode'), s('reader_settings_tab_general'), s('reader_settings_tab_filters')],
+      tabLabels: this.tabLabels(),
       tabScrolled: this.tabScrolled,
       selectedTab: this.selectedTab, onTabSelect: (index: number): void => { this.selectTab(index) },
       onTabHeaderHeightChange: (height: number): void => {
@@ -603,11 +757,14 @@ export struct ReaderSettingsContent {
         this.TabContent(0, this.modeScroller)
         this.TabContent(1, this.generalScroller)
         this.TabContent(2, this.filterScroller)
+        if (this.bookSettingsAvailable) {
+          this.TabContent(3, this.favoriteScroller)
+        }
       }.width('100%').height('100%')
     }
     Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
       .bindSheet($$this.modelManagementShown, this.ModelManagementSheet, komaModalSheetOptions({ height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE],
-        onDisappear: (): void => { this.modelsRevision += 1 } }))
+        onDisappear: (): void => { this.modelsRevision += 1; this.onEnhancementModelsChanged() } }))
     Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
       .bindSheet($$this.imagePluginsShown, this.ImagePluginsSheet, komaModalSheetOptions({ height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE] }))
     }.width('100%').height('100%')

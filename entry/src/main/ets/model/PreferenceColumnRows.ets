@@ -6,7 +6,8 @@ import { readLibraryUpdateJobRow, readLibraryUpdateReport, readLibraryUpdateSumm
   writeLibraryUpdateSummaryRow } from './LibraryUpdateReportRows'
 import type { PersistedLibraryUpdateJobSnapshot, PersistedLibraryUpdateSummary } from './LibraryUpdateResultStore'
 import { UserKeyedRecords, UserRecordValues, writeUserRecords } from './UserKeyedRecords'
-import { isDeviceLocalReaderPageMode, READER_GLOBAL_DOMAIN, readReaderPreferenceColumns, readerPreferenceWrites } from './ReaderPreferenceColumns'
+import { BOOK_READER_FIELDS, BOOK_READER_PREFERENCES_KEY, isDeviceLocalReaderPageMode, READER_GLOBAL_DOMAIN,
+  readReaderPreferenceColumns, readerPreferenceWrites } from './ReaderPreferenceColumns'
 
 interface PreferenceField {
   name: string
@@ -28,6 +29,8 @@ function field(name: string, column: string, type: string): PreferenceField {
 }
 
 function layoutFor(key: string): PreferenceLayout | undefined {
+  if (key === BOOK_READER_PREFERENCES_KEY) return { table: 'book_reader_preferences', keyColumn: 'comic_id',
+    fields: BOOK_READER_FIELDS.map(item => field(item.key, item.column, item.type)) }
   if (key === 'chapterList.overrides.v1') return { table: 'book_preferences', keyColumn: 'comic_id',
     presenceColumn: 'has_chapter_settings', fields: [
     field('sortBasis', 'sort_basis', 'string'), field('sortDirection', 'sort_direction', 'string'),

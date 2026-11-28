@@ -3,14 +3,14 @@ import { BannerFilterMode, normalizeBannerFilter } from './ImageBannerRules'
 import { ReaderDisplaySettings, normalizeReaderDisplaySettings, parseReaderDisplaySettings, rebaseReaderDisplaySettings } from './ReaderDisplaySettings'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
-import { decodePreferenceRecordMap, readerBannerRecords, readerGlobalRecords, readerModeRecords } from './MigratedPreferenceRecords'
+import { decodePreferenceRecordMap, readerBannerRecords, readerBookRecords, readerFavoriteRecords, readerGlobalRecords, readerModeRecords } from './MigratedPreferenceRecords'
 import { openUserDataDatabase } from './UserDataDatabase'
 import { UserRecordValues, writeUserRecords } from './UserKeyedRecords'
 import { AppStrings } from '../i18n/AppStrings'
 import { ReaderSeriesFormat, ReadingDirection } from './ComicModels'
 import { ReaderModeSnapshot, ReaderModeStateBridge } from '../state/ReaderModeState'
 import { connectAppearanceState } from '../state/AppearanceState'
-import { isDeviceLocalReaderPageMode } from './ReaderPreferenceColumns'
+import { BOOK_READER_DISPLAY_FIELDS, BOOK_READER_MODE_FIELDS, BOOK_READER_PREFERENCE_FIELDS, isDeviceLocalReaderPageMode } from './ReaderPreferenceColumns'
 
 export type ReaderPageMode = 'single_page' | 'double_page' | 'auto_page' | 'continuous_scroll' |
   'horizontal_continuous_scroll' | 'vertical_page'
@@ -93,13 +93,6 @@ export const SERIES_OVERRIDES_KEY: string = 'reader.seriesOverrides.v1'
  * is still not consumed at runtime.
  */
 export const SERIES_MODE_OVERRIDES_KEY: string = 'reader.seriesModeOverrides.v1'
-
-interface ReaderBookPreferenceEdit {
-  key: string
-  changeMode: boolean
-  mode?: ReaderSeriesModeOverride
-  banner?: BannerFilterMode
-}
 
 export interface ReaderSeriesModeOverride {
   pageMode: ReaderPageMode
@@ -1019,25 +1012,68 @@ export class ReaderPreferencesStore {
     return normalized
   }
 
+  private formatDefaults(base: ReaderPreferences, format?: ReaderSeriesFormat): ReaderPreferences {
+    const next = normalizeReaderPreferences(base)
+    if (base.pageMode === DEFAULT_READER_PREFERENCES.pageMode &&
+      base.readingDirection === DEFAULT_READER_PREFERENCES.readingDirection) {
+      if (format === 'webtoon') {
+        next.pageMode = 'continuous_scroll'
+        next.readingDirection = ReadingDirection.WEBTOON
+      } else if (format === 'manga') {
+        next.readingDirection = ReadingDirection.RIGHT_TO_LEFT
+      }
+    }
+    return next
+  }
+
+  private effectiveForComic(base: ReaderPreferences, mode: ReaderSeriesModeOverride | undefined,
+    fields: Record<string, Object>, banner: BannerFilterMode | undefined, format?: ReaderSeriesFormat): ReaderPreferences {
+    // Legacy and incoming mode pairs remain authoritative. Only a matching
+    // local projection carries information about which half still inherits.
+    const useInheritance = mode !== undefined && fields['projectedMode'] === mode.pageMode &&
+      fields['projectedDirection'] === mode.readingDirection
+    const defaults = mode === undefined ? this.formatDefaults(base, format) : base
+    const next = preferencesFromRecord(fields, defaults)
+    next.bannerFilter = base.bannerFilter
+    next.bannerFilterOverride = banner ?? 'global'
+    if (mode !== undefined) {
+      next.pageMode = useInheritance && fields['inheritMode'] === true ? base.pageMode : mode.pageMode
+      next.readingDirection = useInheritance && fields['inheritDirection'] === true ? base.readingDirection :
+        mode.readingDirection
+    }
+    const display = normalizeReaderDisplaySettings(base.displaySettings) as Object as Record<string, Object>
+    for (const field of BOOK_READER_DISPLAY_FIELDS) {
+      const value = fields[field.key]
+      if (typeof value === field.type) display[field.key] = value
+    }
+    next.displaySettings = normalizeReaderDisplaySettings(display as Object as ReaderDisplaySettings)
+    return next
+  }
+
   async loadForComic(comicId: string, format?: ReaderSeriesFormat): Promise<ReaderPreferences> {
     return this.ordered(async (): Promise<ReaderPreferences> => {
+      const key = comicId.trim()
       const base = await this.readPreferences()
-      const override = await this.readSeriesModeOverride(comicId.trim())
-      const effective = normalizeReaderPreferences(applyReaderSeriesModeOverride(base, override))
-      // A format hint chooses an initial view without writing a user override.
-      if (override === undefined && base.pageMode === DEFAULT_READER_PREFERENCES.pageMode &&
-        base.readingDirection === DEFAULT_READER_PREFERENCES.readingDirection) {
-        if (format === 'webtoon') {
-          effective.pageMode = 'continuous_scroll'
-          effective.readingDirection = ReadingDirection.WEBTOON
-        } else if (format === 'manga') {
-          effective.readingDirection = ReadingDirection.RIGHT_TO_LEFT
-        }
-      }
-      effective.bannerFilterOverride = await this.readBannerOverride(comicId.trim()) ?? 'global'
-      publishReaderModeState(effective)
-      return effective
+      const mode = await this.readSeriesModeOverride(key)
+      const fields = await this.readBookFields(key)
+      const banner = await this.readBannerOverride(key)
+      return this.effectiveForComic(base, mode, fields, banner, format)
     })
+  }
+
+  async favoriteSettingKeys(): Promise<string[]> {
+    return this.ordered(async (): Promise<string[]> => {
+      const records = await readerFavoriteRecords.prepare(this.context)
+      return Array.from(records.entries()?.keys() ?? [])
+    })
+  }
+
+  async toggleFavoriteSetting(key: string): Promise<string[]> {
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<string[]> => {
+      const records = await readerFavoriteRecords.prepare(this.context)
+      records.put(key, records.get(key) === undefined ? 'true' : undefined)
+      return Array.from(records.entries()?.keys() ?? [])
+    }))
   }
 
   /** Full replacement is intentional only for reset/import, not a reader UI edit. */
@@ -1062,13 +1098,12 @@ export class ReaderPreferencesStore {
   }
 
   private async persistPreferences(preferences: ReaderPreferences, publish: boolean = true,
-    seriesModeOverrides: string | undefined = undefined, bannerOverrides?: string,
-    bookEdit?: ReaderBookPreferenceEdit): Promise<ReaderPreferences> {
+    seriesModeOverrides: string | undefined = undefined, bannerOverrides?: string): Promise<ReaderPreferences> {
     const normalized = normalizeReaderPreferences(preferences)
     const database = await openUserDataDatabase(this.context)
     const global = await readerGlobalRecords.prepare(this.context)
-    const modes = seriesModeOverrides !== undefined || bookEdit !== undefined ? await readerModeRecords.prepare(this.context) : undefined
-    const banners = bannerOverrides !== undefined || bookEdit !== undefined ? await readerBannerRecords.prepare(this.context) : undefined
+    const modes = seriesModeOverrides !== undefined ? await readerModeRecords.prepare(this.context) : undefined
+    const banners = bannerOverrides !== undefined ? await readerBannerRecords.prepare(this.context) : undefined
     const values: UserRecordValues = new Map()
     values.set('reader.bannerFilter', JSON.stringify(normalizeBannerFilter(normalized.bannerFilter)))
     values.set('reader.pageMode', JSON.stringify(normalized.pageMode))
@@ -1115,11 +1150,6 @@ export class ReaderPreferencesStore {
         global.mergeInTransaction(values)
         if (seriesModeOverrides !== undefined) modes?.replaceInTransaction(decodePreferenceRecordMap(seriesModeOverrides))
         if (bannerOverrides !== undefined) banners?.replaceInTransaction(decodePreferenceRecordMap(bannerOverrides))
-        if (bookEdit !== undefined) {
-          if (bookEdit.changeMode) modes?.putInTransaction(bookEdit.key,
-            bookEdit.mode === undefined ? undefined : JSON.stringify(bookEdit.mode))
-          banners?.putInTransaction(bookEdit.key, bookEdit.banner === undefined ? undefined : JSON.stringify(bookEdit.banner))
-        }
         applyPublishedTheme(normalized.themeMode)
       })
     } catch (error) {
@@ -1132,80 +1162,123 @@ export class ReaderPreferencesStore {
     return normalized
   }
 
+  private async readBookFields(key: string): Promise<Record<string, Object>> {
+    const raw = (await readerBookRecords.prepare(this.context)).get(key)
+    return raw === undefined ? {} : JSON.parse(raw) as Record<string, Object>
+  }
+
+  /** Keep untouched values inherited. A single edit touches only this book's rows. */
   async saveChangesForComic(comicId: string, previous: ReaderPreferences,
-    next: ReaderPreferences): Promise<ReaderPreferences> {
+    next: ReaderPreferences, format?: ReaderSeriesFormat): Promise<ReaderPreferences> {
     const before = normalizeReaderPreferences(previous)
     const requested = normalizeReaderPreferences(next)
-    return this.mutate(async (): Promise<ReaderPreferences> => {
-      const global = await this.readPreferences()
-      const override = await this.readSeriesModeOverride(comicId.trim())
-      const current = normalizeReaderPreferences(applyReaderSeriesModeOverride(global, override))
-      current.bannerFilterOverride = await this.readBannerOverride(comicId.trim()) ?? 'global'
-      // Column alignment is session-owned; it is never taken from a global echo.
-      current.columnMode = before.columnMode
-      return this.persistForComic(comicId,
-        rebaseReaderPreferenceChanges(current, before, requested), global)
+    const key = comicId.trim()
+    if (key.length === 0) throw new Error('reader_book_identity_required')
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<ReaderPreferences> => {
+      const database = await openUserDataDatabase(this.context)
+      const books = await readerBookRecords.prepare(this.context)
+      const modes = await readerModeRecords.prepare(this.context)
+      const banners = await readerBannerRecords.prepare(this.context)
+      const base = await this.readPreferences()
+      const existingMode = await this.readSeriesModeOverride(key)
+      const existingBanner = await this.readBannerOverride(key)
+      let fields = await this.readBookFields(key)
+      const oldFields = JSON.stringify(fields)
+      const beforeValues = before as Object as Record<string, Object>
+      const nextValues = requested as Object as Record<string, Object>
+      for (const field of BOOK_READER_PREFERENCE_FIELDS) {
+        if (beforeValues[field.key] !== nextValues[field.key]) fields[field.key] = nextValues[field.key]
+      }
+      const beforeDisplay = before.displaySettings as Object as Record<string, Object>
+      const nextDisplay = requested.displaySettings as Object as Record<string, Object>
+      for (const field of BOOK_READER_DISPLAY_FIELDS) {
+        if (beforeDisplay[field.key] !== nextDisplay[field.key]) fields[field.key] = nextDisplay[field.key]
+      }
+      const changedMode = before.pageMode !== requested.pageMode
+      const changedDirection = before.readingDirection !== requested.readingDirection
+      const changedLayout = changedMode || changedDirection
+      const changedBanner = before.bannerFilterOverride !== requested.bannerFilterOverride
+      let mode = existingMode
+      if (changedLayout) {
+        const matchesProjection = existingMode !== undefined && fields['projectedMode'] === existingMode.pageMode &&
+          fields['projectedDirection'] === existingMode.readingDirection
+        const inheritMode = !changedMode && (existingMode === undefined ||
+          (matchesProjection && fields['inheritMode'] === true))
+        const inheritDirection = !changedDirection && (existingMode === undefined ||
+          (matchesProjection && fields['inheritDirection'] === true))
+        mode = {
+          pageMode: changedMode ? requested.pageMode : (inheritMode ? base.pageMode : existingMode?.pageMode ?? base.pageMode),
+          readingDirection: changedDirection ? requested.readingDirection :
+            (inheritDirection ? base.readingDirection : existingMode?.readingDirection ?? base.readingDirection),
+        }
+        if (inheritMode || inheritDirection) {
+          fields['projectedMode'] = mode.pageMode
+          fields['projectedDirection'] = mode.readingDirection
+          fields['inheritMode'] = inheritMode
+          fields['inheritDirection'] = inheritDirection
+        } else {
+          const preferenceFields: Record<string, Object> = {}
+          const modeKeys = BOOK_READER_MODE_FIELDS.map(item => item.key)
+          for (const field of Object.keys(fields)) {
+            if (!modeKeys.includes(field)) preferenceFields[field] = fields[field]
+          }
+          fields = preferenceFields
+        }
+      }
+      const banner = changedBanner
+        ? (requested.bannerFilterOverride === 'global' || requested.bannerFilterOverride === undefined
+          ? undefined : normalizeBannerFilter(requested.bannerFilterOverride))
+        : existingBanner
+      const newFields = JSON.stringify(fields)
+      if (newFields !== oldFields || changedLayout || changedBanner) {
+        writeUserRecords(database, (): void => {
+          if (newFields !== oldFields) books.putInTransaction(key, Object.keys(fields).length > 0 ? newFields : undefined)
+          if (changedLayout && mode !== undefined) modes.putInTransaction(key, JSON.stringify(mode))
+          if (changedBanner) banners.putInTransaction(key, banner === undefined ? undefined : JSON.stringify(banner))
+        })
+      }
+      if (changedLayout && mode !== undefined) {
+        signalDeviceSyncBookMode({ comicId: key, mode: readerModeForDeviceSync(mode.pageMode),
+          direction: mode.readingDirection })
+      }
+      const effective = this.effectiveForComic(base, mode, fields, banner, format)
+      effective.columnMode = requested.columnMode
+      return effective
+    }))
+  }
+
+  async hasBookOverride(comicId: string): Promise<boolean> {
+    const key = comicId.trim()
+    return this.ordered(async (): Promise<boolean> => {
+      return (await readerModeRecords.prepare(this.context)).get(key) !== undefined ||
+        (await readerBookRecords.prepare(this.context)).get(key) !== undefined ||
+        (await readerBannerRecords.prepare(this.context)).get(key) !== undefined
     })
   }
 
-  private async persistForComic(comicId: string, requested: ReaderPreferences,
-    currentGlobal: ReaderPreferences): Promise<ReaderPreferences> {
-    const narrowed = this.cloneBase(requested)
-    // Keep global defaults, narrow book overrides and session pairing separate.
-    narrowed.pageMode = currentGlobal.pageMode
-    narrowed.readingDirection = currentGlobal.readingDirection
-    narrowed.columnMode = currentGlobal.columnMode
-    narrowed.bannerFilter = currentGlobal.bannerFilter
-    narrowed.bannerFilterOverride = undefined
-    const key = comicId.trim()
-    const previousMode = key.length > 0 ? await this.readSeriesModeOverride(key) : undefined
-    let mode: ReaderSeriesModeOverride | undefined
-    if (key.length > 0 && (requested.pageMode !== currentGlobal.pageMode ||
-      requested.readingDirection !== currentGlobal.readingDirection)) {
-      mode = { pageMode: requested.pageMode, readingDirection: requested.readingDirection }
-    }
-    const banner = key.length > 0 && requested.bannerFilterOverride !== undefined &&
-      requested.bannerFilterOverride !== 'global' ? normalizeBannerFilter(requested.bannerFilterOverride) : undefined
-    const changeMode = mode !== undefined || previousMode !== undefined
-    const edit: ReaderBookPreferenceEdit | undefined = key.length === 0 ? undefined : { key, changeMode, mode, banner }
-    const normalized = await this.persistPreferences(narrowed, false, undefined, undefined, edit)
-    if (changeMode) {
-      signalDeviceSyncBookMode({ comicId: key, mode: mode?.pageMode === 'auto_page' ? 'single_page' : mode?.pageMode,
-        direction: mode?.readingDirection })
-    }
-    const effective = this.cloneBase(normalized)
-    effective.pageMode = requested.pageMode
-    effective.readingDirection = requested.readingDirection
-    effective.columnMode = requested.columnMode
-    effective.bannerFilterOverride = banner ?? 'global'
-    publishReaderModeState(effective)
-    return effective
+  async hasBookModeOverride(comicId: string): Promise<boolean> {
+    return this.ordered(async (): Promise<boolean> => (await this.readSeriesModeOverride(comicId.trim())) !== undefined)
   }
 
-  /** RDR-005 read back this comic's narrow override, if it has one. */
-  async seriesModeOverride(comicId: string): Promise<ReaderSeriesModeOverride | undefined> {
+  /** Removing the book's choices returns it to current defaults, including the usual format hint. */
+  async clearSeriesOverride(comicId: string, format?: ReaderSeriesFormat): Promise<ReaderPreferences> {
     const key = comicId.trim()
-    if (key.length === 0) {
-      return undefined
-    }
-    return this.ordered(() => this.readSeriesModeOverride(key))
-  }
-
-  /** RDR-005 恢复默认: drop this comic's override and return the global defaults. */
-  async clearSeriesOverride(comicId: string): Promise<ReaderPreferences> {
-    return this.mutate(async (): Promise<ReaderPreferences> => {
-      await this.clearSeriesModeOverride(comicId)
-      signalDeviceSyncBookMode({ comicId })
-      const current = await this.readPreferences()
-      current.bannerFilterOverride = await this.readBannerOverride(comicId.trim()) ?? 'global'
-      publishReaderModeState(current)
-      return current
-    })
-  }
-
-  private async clearSeriesModeOverride(comicId: string): Promise<void> {
-    const key = comicId.trim()
-    if (key.length > 0) (await readerModeRecords.prepare(this.context)).put(key, undefined)
+    if (key.length === 0) throw new Error('reader_book_identity_required')
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<ReaderPreferences> => {
+      const database = await openUserDataDatabase(this.context)
+      const modes = await readerModeRecords.prepare(this.context)
+      const books = await readerBookRecords.prepare(this.context)
+      const banners = await readerBannerRecords.prepare(this.context)
+      const hadMode = modes.get(key) !== undefined
+      const base = await this.readPreferences()
+      writeUserRecords(database, (): void => {
+        books.putInTransaction(key, undefined)
+        modes.putInTransaction(key, undefined)
+        banners.putInTransaction(key, undefined)
+      })
+      if (hadMode) signalDeviceSyncBookMode({ comicId: key })
+      return this.effectiveForComic(base, undefined, {}, undefined, format)
+    }))
   }
 
   private async readSeriesModeOverride(key: string): Promise<ReaderSeriesModeOverride | undefined> {
@@ -1250,48 +1323,6 @@ export class ReaderPreferencesStore {
       })
       return current
     })
-  }
-
-  private cloneBase(current: ReaderPreferences): ReaderPreferences {
-    return {
-      pageMode: current.pageMode,
-      readingDirection: current.readingDirection,
-      themeMode: current.themeMode,
-      backgroundMode: current.backgroundMode,
-      showProgressControls: current.showProgressControls,
-      keepScreenAwake: current.keepScreenAwake,
-      fullscreen: current.fullscreen,
-      screenOrientation: current.screenOrientation,
-      imageFitMode: current.imageFitMode,
-      imageScalingQuality: current.imageScalingQuality,
-      showPageNumber: current.showPageNumber,
-      pageTurnAnimation: current.pageTurnAnimation,
-      doubleTapZoomEnabled: current.doubleTapZoomEnabled,
-      doubleTapIntervalMs: current.doubleTapIntervalMs,
-      autoPageSeconds: current.autoPageSeconds,
-      preloadPages: current.preloadPages,
-      preloadWifiOnly: current.preloadWifiOnly,
-      displaySettings: normalizeReaderDisplaySettings(current.displaySettings),
-      spreadLayoutMode: current.spreadLayoutMode,
-      columnMode: current.columnMode,
-      tapZonePreset: current.tapZonePreset,
-      tapZoneInvert: current.tapZoneInvert,
-      pageGapMode: current.pageGapMode,
-      bannerFilter: normalizeBannerFilter(current.bannerFilter),
-      bannerFilterOverride: current.bannerFilterOverride,
-      trimPageMarginsEnabled: current.trimPageMarginsEnabled,
-      cropStrength: current.cropStrength,
-      superResolutionEnabled: current.superResolutionEnabled,
-      superResolutionModel: current.superResolutionModel,
-      superResolutionBackend: current.superResolutionBackend,
-      superResolutionMaxHeight: current.superResolutionMaxHeight,
-      readerImplementation: current.readerImplementation,
-      wideImageMode: current.wideImageMode,
-      volumeKeyNavigationEnabled: current.volumeKeyNavigationEnabled,
-      eyeGazePageTurnEnabled: current.eyeGazePageTurnEnabled,
-      smartKeyPageTurnEnabled: current.smartKeyPageTurnEnabled,
-      volumeKeyBehavior: current.volumeKeyBehavior,
-    }
   }
 
   async savePageMode(pageMode: ReaderPageMode): Promise<ReaderPreferences> {

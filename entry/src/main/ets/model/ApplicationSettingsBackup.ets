@@ -13,6 +13,7 @@ import { LanguageSettings } from '../i18n/LanguageSettings'
 import { restoreReaderRemoteImageCache } from './ReaderPageSourceAdapter'
 import { invalidateLibraryAutomationPolicyCache } from './LibraryAutomationPreferencesStore'
 import { decodePreferenceRecordMap, migratedBackupPreference } from './MigratedPreferenceRecords'
+import { BOOK_READER_PREFERENCES_KEY, READER_FAVORITE_SETTINGS_KEY } from './ReaderPreferenceColumns'
 import { isValidHttpUrl, normalizeIndexUrl, parseSavedSourceIndexRepositories, SourceIndexRepository,
   serializeSourceIndexRepositories, effectiveSourceIndexRepositories } from '../sourceRuntime/SourceIndexMetadata'
 import { loadSourceSubscriptionPreferences, saveSourceSubscriptionPreferences, sourceSubscriptionBackupValues,
@@ -70,7 +71,7 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
     'backup.content.includeSettings', 'backup.content.includeDownloadQueue', 'backup.content.includeTrackerMappings',
   ],
   // Global ReaderPreferences stay in the existing settings field.
-  'koma_reader_preferences_v1': ['reader.seriesModeOverrides.v1'],
+  'koma_reader_preferences_v1': ['reader.seriesModeOverrides.v1', BOOK_READER_PREFERENCES_KEY, READER_FAVORITE_SETTINGS_KEY],
   'koma_manga_migration_v1': ['migration.selectedSources', 'migration.matchOptions'],
   'koma_source_package_manager_v1': ['source_index.repositories.v1', 'source_index.url'],
   'koma_search_history_v1': ['search.source.filter', 'search.results.only'],

@@ -3731,15 +3731,21 @@
     },
     {
       "name": "reader_series_override_reset",
-      "value": "전역 설정 사용"
+      "value": "전체 설정 따르기"
     },
+    {"name": "reader_book_settings_save_failed", "value": "이 작품의 읽기 설정을 저장할 수 없습니다"},
+    {"name": "reader_settings_tab_favorites", "value": "자주 쓰는 설정"},
+    {"name": "reader_settings_favorites_empty", "value": "설정 항목을 길게 눌러 추가하세요"},
+    {"name": "reader_setting_favorite_added", "value": "자주 쓰는 설정에 추가했어요"},
+    {"name": "reader_setting_favorite_removed", "value": "자주 쓰는 설정에서 삭제했어요"},
+    {"name": "reader_setting_favorite_save_failed", "value": "자주 쓰는 설정을 저장할 수 없습니다"},
     {
       "name": "reader_series_override_different",
-      "value": "전역 설정과 페이지 모드 또는 읽기 방향이 다릅니다"
+      "value": "이 작품의 개별 설정을 지우고 전체 기본값을 사용합니다"
     },
     {
       "name": "reader_series_override_inherited",
-      "value": "페이지 모드와 읽기 방향이 전역 설정과 일치합니다"
+      "value": "이 작품은 전체 기본값을 사용 중입니다"
     },
     {
       "name": "reader_control_zoom",

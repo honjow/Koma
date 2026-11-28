@@ -250,6 +250,8 @@ async function verifyRoundTrip() {
   const structuredValues = {
     'chapterList.overrides.v1': '{"work":{"sortBasis":"name"}}',
     'reader.seriesModeOverrides.v1': '{"work":{"pageMode":"double_page","readingDirection":"right_to_left"}}',
+    'reader.favoriteSettings.v1': '{"reader_screen_orientation_title":true}',
+    'reader.bookOverrides.v1': '{"work":{"superResolutionEnabled":false,"red":91}}',
     'catalog.filters': '{"rating":"all","pinnedSourceIds":["source-a","source-b"]}',
     'appearance.autoHideBottomBar': false,
     'navigation.backGuardEnabled': false,

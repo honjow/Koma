@@ -28,6 +28,7 @@ class ReaderSuperResolutionModelFileState {
 @ComponentV2
 export struct ReaderSuperResolutionModelsContent {
   @Param inModal: boolean = false
+  @Param manageFilesOnly: boolean = false
   @Param preferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
   @Event onPreferencesChange: (next: ReaderPreferences) => void = (_next: ReaderPreferences) => {}
   @Event modelsChanged: () => void = () => {}
@@ -164,7 +165,7 @@ export struct ReaderSuperResolutionModelsContent {
       if (!this.active || lifetime !== this.lifetime) return
       state.installed = true
       state.remainingDownloadBytes = 0
-      if (this.preferences.superResolutionModel === ReaderSuperResolutionModel.NONE) {
+      if (!this.manageFilesOnly && this.preferences.superResolutionModel === ReaderSuperResolutionModel.NONE) {
         this.selectModel(state.definition.id)
       }
       this.notifyModelsChanged()
@@ -205,7 +206,7 @@ export struct ReaderSuperResolutionModelsContent {
     ReaderSuperResolutionModelService.remove(this.context(), state.definition.id)
     state.installed = false
     state.remainingDownloadBytes = state.definition.downloadBytes()
-    if (this.preferences.superResolutionModel === state.definition.id) {
+    if (!this.manageFilesOnly && this.preferences.superResolutionModel === state.definition.id) {
       let replacement: string = ReaderSuperResolutionModel.NONE
       for (let i: number = 0; i < this.modelStates.length; i++) {
         if (this.modelStates[i].installed &&

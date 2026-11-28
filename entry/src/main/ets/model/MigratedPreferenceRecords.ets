@@ -3,6 +3,7 @@ import { preferences } from '@kit.ArkData'
 import { openUserDataDatabase } from './UserDataDatabase'
 import type { UserRecordValues } from './UserKeyedRecords'
 import { PreferenceColumnRows } from './PreferenceColumnRows'
+import { BOOK_READER_PREFERENCES_KEY, READER_FAVORITE_SETTINGS_KEY } from './ReaderPreferenceColumns'
 import { loadSourceSubscriptionPreferences, recoverSourceSubscriptionPreferences,
   SOURCE_INDEX_PREFERENCES, SOURCE_INDEX_REPOSITORIES, SOURCE_INDEX_URL } from '../sourceRuntime/SourceSubscriptionStorage'
 
@@ -237,8 +238,10 @@ const readerBannerCodec: PreferenceRecordCodec = {
 }
 export const readerModeRecords = new MigratedPreferenceRecords(READER_GROUP, 'reader.seriesModeOverrides.v1', [], readerModeCodec)
 export const readerBannerRecords = new MigratedPreferenceRecords(READER_GROUP, 'reader.bannerFilterOverrides.v1', [], readerBannerCodec)
+export const readerBookRecords = new MigratedPreferenceRecords(READER_GROUP, BOOK_READER_PREFERENCES_KEY)
+export const readerFavoriteRecords = new MigratedPreferenceRecords(READER_GROUP, READER_FAVORITE_SETTINGS_KEY)
 export const readerGlobalRecords = new MigratedPreferenceRecords(READER_GROUP, '',
-  [readerModeRecords.key, readerBannerRecords.key, 'reader.seriesOverrides.v1'])
+  [readerModeRecords.key, readerBannerRecords.key, readerBookRecords.key, readerFavoriteRecords.key, 'reader.seriesOverrides.v1'])
 export const trackerMappingRecords = new MigratedPreferenceRecords('koma_tracker_preferences_v1', 'tracker.comicMappings',
   [], orderedPreferenceRecords(['comicId', 'providerId']))
 const CATALOG_PIN_PREFIX = 'pin/'
@@ -273,9 +276,9 @@ const catalogFilterCodec: PreferenceRecordCodec = {
 }
 export const catalogFilterRecords = new MigratedPreferenceRecords('koma_source_catalog_filters_v1', 'catalog.filters', [], catalogFilterCodec)
 
-const backupPreferenceRecords: MigratedPreferenceRecords[] = [chapterListRecords, readerModeRecords, catalogFilterRecords]
+const backupPreferenceRecords: MigratedPreferenceRecords[] = [chapterListRecords, readerModeRecords, readerBookRecords, readerFavoriteRecords, catalogFilterRecords]
 const checkpointPreferenceRecords: MigratedPreferenceRecords[] = [
-  chapterListRecords, readerModeRecords, readerBannerRecords, trackerMappingRecords, catalogFilterRecords,
+  chapterListRecords, readerModeRecords, readerBannerRecords, readerBookRecords, readerFavoriteRecords, trackerMappingRecords, catalogFilterRecords,
 ]
 
 export function migratedBackupPreference(name: string, key: string): MigratedPreferenceRecords | undefined {

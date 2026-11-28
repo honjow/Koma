@@ -1,3 +1,4 @@
+import { ReaderSettingOption } from './ReaderSettingOption'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { readerHdrBrightnessAvailable } from '@reader-kit/ui'
 import { ReaderDisplaySettings, ReaderFilterBlendMode, normalizeReaderDisplaySettings } from '../model/ReaderDisplaySettings'
@@ -10,27 +11,55 @@ import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 
 @ComponentV2
 export struct ReaderDisplaySettingsContent {
+  @Param favoriteKeys: string[] | undefined = undefined
+  @Param onFavorite: ((key: string) => void) | undefined = undefined
+  @Param previewActive: boolean = true
   @Param embedded: boolean = false
   @Param settings: ReaderDisplaySettings = new ReaderDisplaySettings()
   @Event onChange: (settings: ReaderDisplaySettings) => void = () => {}
   @Event onClose: () => void = () => {}
   @Local private draft: ReaderDisplaySettings = new ReaderDisplaySettings()
   @Local private hdrAvailable: boolean = false
+  private previewOwned: boolean = false
   private preview: ReaderDisplayPreviewState = connectReaderDisplayPreview()
 
   aboutToAppear(): void {
     this.hdrAvailable = readerHdrBrightnessAvailable(this.getUIContext().getHostContext())
     this.draft = normalizeReaderDisplaySettings(this.settings)
-    this.preview.set(this.draft)
   }
-  aboutToDisappear(): void { this.preview.set(null) }
+
+  @Monitor('settings')
+  private settingChanged(): void {
+    if (!this.previewOwned) this.draft = normalizeReaderDisplaySettings(this.settings)
+  }
+
+  @Monitor('previewActive')
+  private previewAvailabilityChanged(): void {
+    if (!this.previewActive) {
+      this.clearPreview()
+      this.draft = normalizeReaderDisplaySettings(this.settings)
+    }
+  }
+
+  aboutToDisappear(): void { this.clearPreview() }
+
+  private clearPreview(): void {
+    if (!this.previewOwned) return
+    this.previewOwned = false
+    this.preview.set(null)
+  }
 
   private change(edit: (settings: ReaderDisplaySettings) => void, commit: boolean = true): void {
     const next = normalizeReaderDisplaySettings(this.draft)
     edit(next)
     this.draft = normalizeReaderDisplaySettings(next)
-    this.preview.set(this.draft)
-    if (commit) this.onChange(this.draft)
+    if (commit) {
+      this.clearPreview()
+      this.onChange(this.draft)
+    } else if (this.previewActive) {
+      this.previewOwned = true
+      this.preview.set(this.draft)
+    }
   }
 
   private setSlider(field: string, value: number, mode: SliderChangeMode): void {
@@ -54,51 +83,94 @@ export struct ReaderDisplaySettingsContent {
     }
   }
 
+  private showSetting(key: string): boolean {
+    return this.favoriteKeys === undefined || this.favoriteKeys.includes(key)
+  }
+
   @Builder
   private Controls() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      GroupedListSection({ inModal: true }) {
-        ConciseListRow({ title: AppStrings.get('reader_display_brightness_enabled'), hasSwitch: true,
-          checked: this.draft.brightnessEnabled, showChevron: false,
-          switchAction: (value: boolean): void => { this.change((next): void => { next.brightnessEnabled = value }) } })
-        if (this.draft.brightnessEnabled) ReaderDisplayValueSlider({ field: 'brightness', value: this.draft.brightness, min: -75, max: 100,
-            onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('brightness', value, mode) } })
-        if (this.hdrAvailable) {
-          ListDivider()
-          ConciseListRow({ title: AppStrings.get('reader_display_hdr_brightness'), hasSwitch: true,
-            checked: this.draft.hdrBrightnessEnabled, showChevron: false,
-            switchAction: (value: boolean): void => { this.change((next): void => { next.hdrBrightnessEnabled = value }) } })
+      if (this.showSetting('reader_display_brightness_enabled') ||
+        (this.hdrAvailable && this.showSetting('reader_display_hdr_brightness'))) {
+        GroupedListSection({ inModal: true }) {
+          if (this.showSetting('reader_display_brightness_enabled')) {
+            ReaderSettingOption({ settingKey: 'reader_display_brightness_enabled', onFavorite: this.onFavorite }) {
+              ConciseListRow({ title: AppStrings.get('reader_display_brightness_enabled'), hasSwitch: true,
+                checked: this.draft.brightnessEnabled, showChevron: false,
+                switchAction: (value: boolean): void => { this.change((next): void => { next.brightnessEnabled = value }) } })
+            }
+            if (this.draft.brightnessEnabled) {
+              ReaderDisplayValueSlider({ field: 'brightness', value: this.draft.brightness, min: -75, max: 100,
+                onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('brightness', value, mode) } })
+            }
+          }
+          if (this.hdrAvailable && this.showSetting('reader_display_hdr_brightness')) {
+            if (this.showSetting('reader_display_brightness_enabled')) {
+              ListDivider()
+            }
+            ReaderSettingOption({ settingKey: 'reader_display_hdr_brightness', onFavorite: this.onFavorite }) {
+              ConciseListRow({ title: AppStrings.get('reader_display_hdr_brightness'), hasSwitch: true,
+                checked: this.draft.hdrBrightnessEnabled, showChevron: false,
+                switchAction: (value: boolean): void => { this.change((next): void => { next.hdrBrightnessEnabled = value }) } })
+            }
+          }
         }
       }
-      GroupedListSection({ inModal: true }) {
-        ConciseListRow({ title: AppStrings.get('reader_display_filter_enabled'), hasSwitch: true,
-          checked: this.draft.filterEnabled, showChevron: false,
-          switchAction: (value: boolean): void => { this.change((next): void => { next.filterEnabled = value }) } })
-        if (this.draft.filterEnabled) {
-          ReaderDisplayValueSlider({ field: 'red', value: this.draft.red, min: 0, max: 255,
-            onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('red', value, mode) } })
-          ReaderDisplayValueSlider({ field: 'green', value: this.draft.green, min: 0, max: 255,
-            onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('green', value, mode) } })
-          ReaderDisplayValueSlider({ field: 'blue', value: this.draft.blue, min: 0, max: 255,
-            onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('blue', value, mode) } })
-          ReaderDisplayValueSlider({ field: 'alpha', value: this.draft.alpha, min: 0, max: 255,
-            onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('alpha', value, mode) } })
-          ConciseListRow({ title: AppStrings.get('reader_display_blend'),
-            trailingText: AppStrings.get('reader_display_blend_' + this.draft.blendMode),
-            trailingDropdown: true, dropdownMenuEnabled: true,
-            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BlendMenu(select) } })
+      if (this.showSetting('reader_display_filter_enabled') ||
+        (this.favoriteKeys !== undefined && this.showSetting('reader_display_blend'))) {
+        GroupedListSection({ inModal: true }) {
+          if (this.showSetting('reader_display_filter_enabled')) {
+            ReaderSettingOption({ settingKey: 'reader_display_filter_enabled', onFavorite: this.onFavorite }) {
+              ConciseListRow({ title: AppStrings.get('reader_display_filter_enabled'), hasSwitch: true,
+                checked: this.draft.filterEnabled, showChevron: false,
+                switchAction: (value: boolean): void => { this.change((next): void => { next.filterEnabled = value }) } })
+            }
+            if (this.draft.filterEnabled) {
+              ForEach(['red', 'green', 'blue', 'alpha'], (field: string) => {
+                ReaderDisplayValueSlider({ field: field, value: this.filterValue(field), min: 0, max: 255,
+                  onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider(field, value, mode) } })
+              }, (field: string): string => field)
+            }
+          }
+          if ((this.showSetting('reader_display_filter_enabled') && this.draft.filterEnabled) ||
+            (this.favoriteKeys !== undefined && this.showSetting('reader_display_blend'))) {
+            ReaderSettingOption({ settingKey: 'reader_display_blend', onFavorite: this.onFavorite }) {
+              ConciseListRow({ title: AppStrings.get('reader_display_blend'),
+                trailingText: AppStrings.get('reader_display_blend_' + this.draft.blendMode),
+                trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.draft.filterEnabled,
+                dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BlendMenu(select) } })
+            }
+          }
         }
       }
-      GroupedListSection({ inModal: true }) {
-        ConciseListRow({ title: AppStrings.get('reader_display_grayscale'), hasSwitch: true,
-          checked: this.draft.grayscale, showChevron: false,
-          switchAction: (value: boolean): void => { this.change((next): void => { next.grayscale = value }) } })
-        ListDivider()
-        ConciseListRow({ title: AppStrings.get('reader_display_inverted'), hasSwitch: true,
-          checked: this.draft.inverted, showChevron: false,
-          switchAction: (value: boolean): void => { this.change((next): void => { next.inverted = value }) } })
+      if (this.showSetting('reader_display_grayscale') || this.showSetting('reader_display_inverted')) {
+        GroupedListSection({ inModal: true }) {
+          if (this.showSetting('reader_display_grayscale')) {
+            ReaderSettingOption({ settingKey: 'reader_display_grayscale', onFavorite: this.onFavorite }) {
+              ConciseListRow({ title: AppStrings.get('reader_display_grayscale'), hasSwitch: true,
+                checked: this.draft.grayscale, showChevron: false,
+                switchAction: (value: boolean): void => { this.change((next): void => { next.grayscale = value }) } })
+            }
+          }
+          if (this.showSetting('reader_display_inverted')) {
+            if (this.showSetting('reader_display_grayscale')) {
+              ListDivider()
+            }
+            ReaderSettingOption({ settingKey: 'reader_display_inverted', onFavorite: this.onFavorite }) {
+              ConciseListRow({ title: AppStrings.get('reader_display_inverted'), hasSwitch: true,
+                checked: this.draft.inverted, showChevron: false,
+                switchAction: (value: boolean): void => { this.change((next): void => { next.inverted = value }) } })
+            }
+          }
+        }
       }
     }.width('100%')
+  }
+
+  private filterValue(channel: string): number {
+    if (channel === 'red') return this.draft.red
+    if (channel === 'green') return this.draft.green
+    return channel === 'blue' ? this.draft.blue : this.draft.alpha
   }
 
   build() {

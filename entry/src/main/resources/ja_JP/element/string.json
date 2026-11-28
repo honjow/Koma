@@ -3731,15 +3731,21 @@
     },
     {
       "name": "reader_series_override_reset",
-      "value": "グローバル設定を使用"
+      "value": "全体設定に従う"
     },
+    {"name": "reader_book_settings_save_failed", "value": "この作品の閲覧設定を保存できませんでした"},
+    {"name": "reader_settings_tab_favorites", "value": "よく使う項目"},
+    {"name": "reader_settings_favorites_empty", "value": "設定項目を長押しして追加できます"},
+    {"name": "reader_setting_favorite_added", "value": "よく使う項目に追加しました"},
+    {"name": "reader_setting_favorite_removed", "value": "よく使う項目から外しました"},
+    {"name": "reader_setting_favorite_save_failed", "value": "よく使う項目を保存できませんでした"},
     {
       "name": "reader_series_override_different",
-      "value": "ページモードや読書方向がグローバル設定と異なります"
+      "value": "この作品の個別設定を解除し、全体の既定値を使用します"
     },
     {
       "name": "reader_series_override_inherited",
-      "value": "ページモードと読書方向がグローバル設定と一致します"
+      "value": "この作品は全体の既定値を使用しています"
     },
     {
       "name": "reader_control_zoom",

@@ -21,7 +21,8 @@ import { ReaderTitleContent } from '../components/ReaderTitleContent'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ReaderDirectionControl } from '../components/ReaderDirectionControl'
 import { ReaderDirectionChoice, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
-import { ReadingDirection } from '../model/ComicModels'
+import { ReaderSeriesFormat, ReadingDirection } from '../model/ComicModels'
+import { ReaderSuperResolutionModelService } from '../model/ReaderSuperResolutionModelService'
 import { LibraryAutomationPreferencesStore } from '../model/LibraryAutomationPreferencesStore'
 import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
@@ -113,6 +114,12 @@ export struct KomaReaderLabPage {
   @Event onRouteVisibleChange: (visible: boolean) => void = (_visible: boolean) => {}
   @Event onRouteDisappear: () => void = () => {}
   @Local private seriesOverrideActive: boolean = false
+  private bookModeOverrideActive: boolean = false
+  private initialFormat?: ReaderSeriesFormat
+  private preferenceEditRevision: number = 0
+  @Local private checkedEnhancementModel: string = ''
+  @Local private usableEnhancementModel: string = ''
+  private enhancementModelCheck: number = 0
   // Original Koma ReaderChrome geometry and action placement. The counter
   // sides follow RTL together with the reversed slider; leaving them fixed
   // made the neighbouring page numbers disagree with the track direction.
@@ -411,6 +418,13 @@ export struct KomaReaderLabPage {
     this.observedCloseRequestId = this.closeRequestId
     this.error = ''
     this.seriesOverrideActive = false
+    this.bookModeOverrideActive = false
+    this.autoFormatApplied = false
+    this.preferenceEditRevision += 1
+    this.initialFormat = undefined
+    this.checkedEnhancementModel = ''
+    this.usableEnhancementModel = ''
+    this.enhancementModelCheck += 1
     this.observedCatalogUnit = null
     this.observedSourceSignature = ''
     this.initialization?.cancel()
@@ -503,13 +517,16 @@ export struct KomaReaderLabPage {
         ? await preferencesStore.loadForComic(this.unitKey.work, initialFormat) :
         await preferencesStore.load()
       if (this.productionEntry) {
-        this.seriesOverrideActive = await preferencesStore.seriesModeOverride(this.unitKey.work) !== undefined
+        this.initialFormat = initialFormat
+        this.seriesOverrideActive = await preferencesStore.hasBookOverride(this.unitKey.work)
+        this.bookModeOverrideActive = await preferencesStore.hasBookModeOverride(this.unitKey.work)
       }
       if (cancellation.isCancelled() || this.readerClosed) return
       this.preferencesStore = preferencesStore
       const column = this.readInitialColumn(this.unitKey.work, this.unitKey.unit)
       preferences.columnMode = column
       this.hostPreferences = preferences
+      this.refreshEnhancementModel()
       if (cancellation.isCancelled() || this.readerClosed) return
       if (this.request.progressReadWrite && !this.request.pageIndexProvided) {
         this.initialPageIndex = this.readInitialPage(this.unitKey.work, this.unitKey.unit)
@@ -992,18 +1009,43 @@ export struct KomaReaderLabPage {
     if (store === null) return
     const previous = this.hostPreferences
     const work = this.unitKey.work
+    const format = this.initialFormat
+    const revision = ++this.preferenceEditRevision
     this.hostPreferences = next
+    if (previous?.pageMode !== next.pageMode || previous?.readingDirection !== next.readingDirection) {
+      this.autoFormatApplied = true
+    }
     this.preferenceWrites = this.preferenceWrites.then(async (): Promise<void> => {
       if (this.productionEntry && previous !== null) {
-        await store.saveChangesForComic(work, previous, next)
-        const override = await store.seriesModeOverride(work)
-        if (!this.readerClosed && this.unitKey.work === work) this.seriesOverrideActive = override !== undefined
+        await store.saveChangesForComic(work, previous, next, format)
+        const overridden = await store.hasBookOverride(work)
+        if (!this.readerClosed && this.unitKey.work === work) this.seriesOverrideActive = overridden
       } else {
         await store.save(next)
       }
-    }).catch((): void => {
+    }).catch(async (): Promise<void> => {
       DiagnosticLogger.warn('reader', 'preference_persist_failed', '[KomaReaderLab] preference_persist_failed')
+      if (this.productionEntry && !this.readerClosed && this.preferenceEditRevision === revision) {
+        try {
+          const current = await store.loadForComic(work, format)
+          if (this.readerClosed || this.preferenceEditRevision !== revision) return
+          current.columnMode = next.columnMode
+          this.applyHostPreferences(current)
+        } catch (_error) {
+          // Keep the reader usable even if the preference store cannot be read back.
+          if (previous !== null && !this.readerClosed && this.preferenceEditRevision === revision) {
+            this.applyHostPreferences(previous)
+          }
+        }
+        if (!this.readerClosed && this.preferenceEditRevision === revision) this.preferenceWriteFailed()
+      }
     })
+  }
+
+  private preferenceWriteFailed(): void {
+    this.getUIContext().getPromptAction().showToast(komaToastOptions({
+      message: AppStrings.get('reader_book_settings_save_failed'),
+    }))
   }
 
   private onPolicyChanged(policy: ReaderDisplayPolicy): void {
@@ -1342,12 +1384,40 @@ export struct KomaReaderLabPage {
       AppStrings.get('reader_comic_translation_failed').replace('%s', code || 'unavailable'))
   }
 
-  /** Processing follows the store's published runtime snapshot, never an uncommitted sheet draft. */
+  @Computed
+  private get preferredEnhancementModel(): string {
+    return this.hostPreferences?.superResolutionModel ?? this.readerMode.superResolutionModel
+  }
+
+  @Monitor('preferredEnhancementModel')
+  private refreshEnhancementModel(): void {
+    if (!this.productionEntry || !this.request.preferencesReadWrite || this.hostPreferences === null ||
+      this.readerClosed) return
+    const preferred = this.preferredEnhancementModel
+    const request = ++this.enhancementModelCheck
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    void this.resolveEnhancementModel(context, preferred).then((model: string): void => {
+      if (this.readerClosed || request !== this.enhancementModelCheck) return
+      this.checkedEnhancementModel = preferred
+      this.usableEnhancementModel = model
+    }).catch((): void => {})
+  }
+
+  private async resolveEnhancementModel(context: common.UIAbilityContext, preferred: string): Promise<string> {
+    if (await ReaderSuperResolutionModelService.isInstalled(context, preferred)) return preferred
+    return (await ReaderSuperResolutionModelService.installedModels(context))[0] ?? 'none'
+  }
+
+  /** Both visible and prefetched enhancement requests consume the same work preference. */
   private superResolutionConfiguration(): KomaReaderSuperResolutionConfiguration {
-    return new KomaReaderSuperResolutionConfiguration(this.readerMode.superResolutionEnabled,
-      this.readerMode.superResolutionModel, this.readerMode.superResolutionBackend,
-      this.readerMode.superResolutionMaxHeight,
-      `${effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride)}:${this.imageRules.userRevision}`)
+    const prefs = this.hostPreferences
+    const preferred = this.preferredEnhancementModel
+    const model = this.checkedEnhancementModel === preferred ? this.usableEnhancementModel : preferred
+    const enabled = prefs?.superResolutionEnabled ?? this.readerMode.superResolutionEnabled
+    return new KomaReaderSuperResolutionConfiguration(enabled, model,
+      prefs?.superResolutionBackend ?? this.readerMode.superResolutionBackend,
+      prefs?.superResolutionMaxHeight ?? this.readerMode.superResolutionMaxHeight,
+      `${effectiveBannerFilter(prefs?.bannerFilter, prefs?.bannerFilterOverride)}:${this.imageRules.userRevision}`)
   }
 
   private cacheSettleTimer: number = -1
@@ -1430,10 +1500,10 @@ export struct KomaReaderLabPage {
   /**
    * First-open format hint for the shared reader. Same evidence policy as the
    * legacy page, applied to the session this page actually renders. The
-   * decision runs once and only widens this comic's persisted mode.
+   * hint runs once and stays in the session until the reader chooses a layout.
    */
   private maybeApplyMeasuredFormat(unitId: string): void {
-    if (this.autoFormatApplied || this.seriesOverrideActive || !this.productionEntry) return
+    if (this.autoFormatApplied || this.bookModeOverrideActive || !this.productionEntry) return
     const current = this.hostPreferences
     const session = this.session
     if (current === null || session === null || this.readerClosed) return
@@ -1457,9 +1527,7 @@ export struct KomaReaderLabPage {
     next.pageMode = 'continuous_scroll'
     const policy = KomaReaderInitialPolicy.resolveHost(next, next.columnMode)
     session.setPolicy(policy)
-    // enqueuePreferenceWrite reads hostPreferences as the baseline; leaving the
-    // current value in place is what makes this a real per-comic change.
-    this.enqueuePreferenceWrite(KomaReaderPreferenceBridge.applyPolicy(current, policy))
+    this.hostPreferences = KomaReaderPreferenceBridge.applyPolicy(current, policy)
   }
 
   private onHostPreferencesChanged(next: ReaderPreferences, fromCoveredEditor: boolean = false): void {
@@ -1467,6 +1535,14 @@ export struct KomaReaderLabPage {
     if (!this.request.preferencesReadWrite || session === null || this.readerClosed || (!this.routeActive && !fromCoveredEditor) ||
       !this.labVisibility.foreground) return
     const previous = this.hostPreferences
+    this.enqueuePreferenceWrite(next)
+    this.applyHostPreferences(next, previous)
+  }
+
+  private applyHostPreferences(next: ReaderPreferences, previous: ReaderPreferences | null = this.hostPreferences): void {
+    const session = this.session
+    if (session === null) return
+    this.hostPreferences = next
     if (previous !== null && previous.eyeGazePageTurnEnabled !== next.eyeGazePageTurnEnabled) {
       this.gazeTurnOverride = null
       if (next.eyeGazePageTurnEnabled) this.autoReadStopRevision += 1
@@ -1475,7 +1551,6 @@ export struct KomaReaderLabPage {
       previous.tapZoneInvert !== next.tapZoneInvert)) this.tapZonePreviewRevision += 1
     session.setPolicy(KomaReaderInitialPolicy.resolveHost(next, next.columnMode))
     const bannerChanged = effectiveBannerFilter(previous?.bannerFilter, previous?.bannerFilterOverride) !== effectiveBannerFilter(next.bannerFilter, next.bannerFilterOverride)
-    this.enqueuePreferenceWrite(next)
     if (bannerChanged) {
       const anchor = session.snapshot().anchor
       this.adapter?.invalidatePresentation()
@@ -1538,14 +1613,19 @@ export struct KomaReaderLabPage {
     const store = this.preferencesStore
     if (!this.productionEntry || store === null || this.readerClosed) return
     const work = this.unitKey.work
+    const format = this.initialFormat
+    const revision = ++this.preferenceEditRevision
     this.preferenceWrites = this.preferenceWrites.then(async (): Promise<void> => {
-      const effective = await store.clearSeriesOverride(work)
-      if (this.readerClosed || this.unitKey.work !== work) return
+      const effective = await store.clearSeriesOverride(work, format)
+      if (this.readerClosed || this.preferenceEditRevision !== revision) return
       effective.columnMode = this.hostPreferences?.columnMode ?? effective.columnMode
-      this.hostPreferences = effective
       this.seriesOverrideActive = false
-      this.session?.setPolicy(KomaReaderInitialPolicy.resolveHost(effective, effective.columnMode))
-    }).catch((): void => { DiagnosticLogger.warn('reader', 'preference_reset_failed', '[KomaReader] preference_reset_failed') })
+      this.bookModeOverrideActive = false
+      this.applyHostPreferences(effective)
+    }).catch((): void => {
+      DiagnosticLogger.warn('reader', 'preference_reset_failed', '[KomaReader] preference_reset_failed')
+      if (!this.readerClosed && this.preferenceEditRevision === revision) this.preferenceWriteFailed()
+    })
   }
 
   @Builder
@@ -1557,6 +1637,8 @@ export struct KomaReaderLabPage {
         selectedTab: this.readerMode.settingsSheetTab,
         onTabSelect: (index: number): void => { this.readerMode.settingsSheetTab = index },
         seriesOverrideActive: this.seriesOverrideActive,
+        bookSettingsAvailable: this.productionEntry,
+        onEnhancementModelsChanged: (): void => { this.refreshEnhancementModel() },
         cropControlsAvailable: true,
         enhancementControlsAvailable: true,
         onResetSeriesOverride: (): void => { this.resetSeriesOverride() },
@@ -1687,8 +1769,6 @@ export struct KomaReaderLabPage {
               activitySink: new ReaderActivitySink(null,
                 (busy: boolean): void => { this.setEnhancementInteractionBusy(busy) }),
               variantPolicy: this.translationPolicy(),
-              // NextE's existing per-visible-unit override: this toggles the
-              // current page(s), never the saved global enhancement setting.
               temporaryVariantControl: new ReaderTemporaryVariantControl(
                 this.enhancementPreference().variant === 'enhanced'),
               cropPolicy: new ReaderCropPolicy(

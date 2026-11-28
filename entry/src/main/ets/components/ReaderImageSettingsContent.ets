@@ -1,3 +1,4 @@
+import { ReaderSettingOption } from './ReaderSettingOption'
 import { ImageRuleStore } from '../model/ImageRuleStore'
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
 import { effectiveBannerFilter } from '../model/ImageBannerRules'
@@ -25,6 +26,9 @@ export struct ReaderImageSettingsContent {
   @Param bookBannerOptions: boolean = false
   @Param cropControlsAvailable: boolean = true
   @Param enhancementControlsAvailable: boolean = true
+  @Param trackModelChangesOnlyOnUserAction: boolean = false
+  @Param favoriteKeys: string[] | undefined = undefined
+  @Param onFavorite: ((key: string) => void) | undefined = undefined
   @Param modelsRevision: number = 0
   @Param searchTarget: string = ''
   @Event onSearchTargetArea: (area: Area) => void = (_area: Area) => {}
@@ -55,7 +59,7 @@ export struct ReaderImageSettingsContent {
     void ReaderSuperResolutionModelService.installedModels(context).then((installed: string[]) => {
       if (!this.active || lifetime !== this.lifetime) return
       this.installedModels = installed
-      if (this.preferences.superResolutionModel !== model || installed.includes(model)) return
+      if (this.trackModelChangesOnlyOnUserAction || this.preferences.superResolutionModel !== model || installed.includes(model)) return
       const replacement: string = installed.length > 0 ? installed[0] : 'none'
       if (model !== replacement || (replacement === 'none' && this.preferences.superResolutionEnabled)) {
         this.selectModel(replacement)
@@ -133,57 +137,84 @@ export struct ReaderImageSettingsContent {
     if (this.searchTarget === key) this.onSearchTargetArea(area)
   }
 
+  private shownSettings(keys: string[]): string[] {
+    return this.favoriteKeys === undefined ? keys : keys.filter((key: string): boolean => this.favoriteKeys?.includes(key) === true)
+  }
+
+  @Builder
+  private ImageSetting(key: string) {
+    if (key === 'image_plugins_title') {
+      ConciseListRow({ title: t('image_plugins_title'), subtitle: t('image_plugins_manage_hint'), subtitleMaxLines: 3,
+        trailingText: t(this.pluginUsageLabel()),
+        action: (): void => { this.onOpenPlugins() } }).id('reader-image-plugins')
+    } else if (key === 'settings_row_reader_trim_page_margins_title') {
+      ConciseListRow({ title: t('settings_row_reader_trim_page_margins_title'), hasSwitch: true,
+        checked: this.preferences.trimPageMarginsEnabled, showChevron: false,
+        switchAction: (enabled: boolean) => {
+          const next: ReaderPreferences = normalizeReaderPreferences(this.preferences)
+          next.trimPageMarginsEnabled = enabled
+          this.onPreferencesChange(next)
+        } }).id('reader-image-trim-margins')
+        .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-trim-margins', area) })
+    } else if (key === 'reader_crop_strength_title') {
+      ConciseListRow({ title: t('reader_crop_strength_title'), trailingText: getReaderCropStrengthLabel(this.preferences.cropStrength),
+        trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.preferences.trimPageMarginsEnabled,
+        dropdownMenuBuilder: (select: (action: () => void) => void) => { this.CropStrengthMenu(select) } })
+        .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-crop-strength', area) })
+    } else if (key === 'settings_reader_super_resolution') {
+      ConciseListRow({ title: t('settings_reader_super_resolution'), hasSwitch: true,
+        checked: this.preferences.superResolutionEnabled, showChevron: false,
+        isEnabled: this.installedModels.length > 0,
+        action: () => { this.enableEnhancement(!this.preferences.superResolutionEnabled) },
+        switchAction: (enabled: boolean) => { this.enableEnhancement(enabled) } }).id('reader-image-enhancement')
+        .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-super-resolution', area) })
+    } else if (key === 'settings_reader_super_resolution_model') {
+      ConciseListRow({ title: t('settings_reader_super_resolution_model'),
+        trailingText: this.installedModels.length === 0 ? t('settings_reader_super_resolution_models_none_installed') :
+          readerSuperResolutionModelLabel(this.trackModelChangesOnlyOnUserAction &&
+            !this.installedModels.includes(this.preferences.superResolutionModel) ? this.installedModels[0] :
+            this.preferences.superResolutionModel),
+        trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.installedModels.length > 0,
+        dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ModelMenu(select) } }).id('reader-image-model')
+        .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-super-resolution-model', area) })
+    } else if (key === 'settings_reader_super_resolution_models') {
+      ConciseListRow({ title: t('settings_reader_super_resolution_models'), action: () => { this.onOpenModels() } }).id('reader-image-models')
+    } else if (key === 'settings_reader_super_resolution_max_height') {
+      ConciseListRow({ title: t('settings_reader_super_resolution_max_height'),
+        subtitle: t('settings_reader_super_resolution_max_height_hint'), subtitleMaxLines: 3,
+        trailingText: `${this.preferences.superResolutionMaxHeight}px`, trailingDropdown: true, dropdownMenuEnabled: true,
+        isEnabled: this.preferences.superResolutionEnabled && this.preferences.superResolutionModel !== 'none',
+        dropdownMenuBuilder: (select: (action: () => void) => void) => { this.MaxHeightMenu(select) } }).id('reader-image-max-height')
+        .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-super-resolution-max-height', area) })
+    }
+  }
+
+  @Builder
+  private ImageSection(title: string | undefined, keys: string[]) {
+    if (this.shownSettings(keys).length > 0) {
+      GroupedListSection({ title: title }) {
+        ForEach(this.shownSettings(keys), (key: string, index: number) => {
+          if (index > 0) {
+            ListDivider()
+          }
+          ReaderSettingOption({ settingKey: key, onFavorite: this.onFavorite }) {
+            this.ImageSetting(key)
+          }
+        }, (key: string, index: number): string => key + ':' + (index === 0 ? 'first' : 'rest'))
+      }
+    }
+  }
+
   build() {
     Column({ space: ThemeConstants.SPACE_LG }) {
       if (this.showPlugins) {
-        GroupedListSection() {
-          ConciseListRow({ title: t('image_plugins_title'), subtitle: t('image_plugins_manage_hint'), subtitleMaxLines: 3,
-            trailingText: t(this.pluginUsageLabel()),
-            action: (): void => { this.onOpenPlugins() } }).id('reader-image-plugins')
-        }
+        this.ImageSection(undefined, ['image_plugins_title'])
       }
       if (this.cropControlsAvailable) {
-        GroupedListSection({ title: t('settings_reader_group_crop') }) {
-          ConciseListRow({ title: t('settings_row_reader_trim_page_margins_title'), hasSwitch: true,
-            checked: this.preferences.trimPageMarginsEnabled, showChevron: false,
-            switchAction: (enabled: boolean) => {
-              const next: ReaderPreferences = normalizeReaderPreferences(this.preferences)
-              next.trimPageMarginsEnabled = enabled
-              this.onPreferencesChange(next)
-            } }).id('reader-image-trim-margins')
-            .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-trim-margins', area) })
-          ListDivider()
-          ConciseListRow({ title: t('reader_crop_strength_title'), trailingText: getReaderCropStrengthLabel(this.preferences.cropStrength),
-            trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.preferences.trimPageMarginsEnabled,
-            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.CropStrengthMenu(select) } })
-            .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-crop-strength', area) })
-        }
+        this.ImageSection(t('settings_reader_group_crop'), ['settings_row_reader_trim_page_margins_title', 'reader_crop_strength_title'])
       }
       if (this.enhancementControlsAvailable) {
-        GroupedListSection({ title: t('settings_reader_group_image_enhancement') }) {
-          ConciseListRow({ title: t('settings_reader_super_resolution'), hasSwitch: true,
-            checked: this.preferences.superResolutionEnabled, showChevron: false,
-            isEnabled: this.installedModels.length > 0,
-            action: () => { this.enableEnhancement(!this.preferences.superResolutionEnabled) },
-            switchAction: (enabled: boolean) => { this.enableEnhancement(enabled) } }).id('reader-image-enhancement')
-            .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-super-resolution', area) })
-          ListDivider()
-          ConciseListRow({ title: t('settings_reader_super_resolution_model'),
-            trailingText: this.installedModels.length === 0 ? t('settings_reader_super_resolution_models_none_installed') :
-              readerSuperResolutionModelLabel(this.preferences.superResolutionModel),
-            trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.installedModels.length > 0,
-            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ModelMenu(select) } }).id('reader-image-model')
-            .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-super-resolution-model', area) })
-          ListDivider()
-          ConciseListRow({ title: t('settings_reader_super_resolution_models'), action: () => { this.onOpenModels() } }).id('reader-image-models')
-          ListDivider()
-          ConciseListRow({ title: t('settings_reader_super_resolution_max_height'),
-            subtitle: t('settings_reader_super_resolution_max_height_hint'), subtitleMaxLines: 3,
-            trailingText: `${this.preferences.superResolutionMaxHeight}px`, trailingDropdown: true, dropdownMenuEnabled: true,
-            isEnabled: this.preferences.superResolutionEnabled && this.preferences.superResolutionModel !== 'none',
-            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.MaxHeightMenu(select) } }).id('reader-image-max-height')
-            .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-super-resolution-max-height', area) })
-        }
+        this.ImageSection(t('settings_reader_group_image_enhancement'), ['settings_reader_super_resolution', 'settings_reader_super_resolution_model', 'settings_reader_super_resolution_models', 'settings_reader_super_resolution_max_height'])
       }
     }.width('100%')
   }

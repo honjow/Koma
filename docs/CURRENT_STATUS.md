@@ -86,6 +86,38 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "READER_BOOK_SETTINGS_AND_FAVORITES",
+      "number": 371,
+      "title": "阅读器作品设置、常用与当次超分",
+      "priority": "P1（用户已采用）",
+      "kind": "open",
+      "status": "作品设置与常用已本地提交，HD 等待共享依赖",
+      "stage": "作品设置与常用已在 197 联合候选验证",
+      "owner": "Koma 阅读器与 reader-kit",
+      "dependencies": [],
+      "relatedItems": [
+        "READER_SETTINGS_TABBED_SHEET"
+      ],
+      "reportedAt": "2026-11-28T12:26:18+08:00",
+      "reportedAtSource": "本会话用户明确按作品保存，并确认在设置半模态增加常用分段、长按提示及按原卡片分组。",
+      "result": "作品偏好仅写当前作品改过的字段。197 已见页面裁边和图像增强按原卡片分组，长按加入和移除各有 Toast。从常用关闭图像增强再复位，开关恢复且收藏保留。第 1 页点按后第 2 页正常增强；双章测试作品长按关闭后第 2 章保持关闭，退出重开同章恢复增强。用户复核后将「跟随全局设置」从右上角移至常用底部，入口显示当前作品的继承说明。 最终包 1b86be0e7280 在同一张半模态内两次设置与复位，说明分别显示清除单独设置及正在使用全局默认，字色保持可读。签名 Release、作品隔离和回滚、备份导出恢复与五语言资源检查通过。双章测试作品、历史入口和源图片已清理。197 恢复原作品第 1 页、阅读模式分段、10000 ms 超时和休眠，已释租并保留候选。",
+      "remaining": "reader-kit 的 HD 手势已本地提交 2ad4573。Koma 的 HD 长按接入和依赖引用待共享提交从公开依赖地址可检出后合入；联合候选仍在 197。触感反馈走系统短振，未单独量测马达。",
+      "boundaries": [
+        "保留三类既有设置与实时滤镜预览，增加常用分类。图像增强置于常规第一组。",
+        "常用只共享快捷入口，调整只保存到现在的作品；本次阅读的超分开关不写设置。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/reader-book-settings-20261128/device197__ALN-AL80/not-applicable/portrait-1260x2720/pin-enhancement-and-show-favorites/screen.png",
+        ".hvigor/outputs/reader-book-settings-20261128/device197__ALN-AL80/not-applicable/portrait-1260x2720/chapter-two-stays-disabled/screen.png",
+        ".hvigor/outputs/reader-book-settings-20261128/device197__ALN-AL80/not-applicable/portrait-1260x2720/reopen-recovers-book-enhancement/screen.png",
+        ".hvigor/outputs/reader-book-settings-20261128/device197__ALN-AL80/not-applicable/portrait-1260x2720/verified-footer-in-place-reset/before.png",
+        ".hvigor/outputs/reader-book-settings-20261128/device197__ALN-AL80/not-applicable/portrait-1260x2720/verified-footer-in-place-reset/screen.png",
+        ".hvigor/outputs/reader-book-settings-20261128/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-final-device-state/run-metadata.json",
+        ".hvigor/outputs/reader-book-settings-20261128/koma-reader-book-settings-verified-signed.hap"
+      ],
+      "updatedAt": "2026-11-28T12:54:49+08:00"
+    },
+    {
       "id": "LIBRARY_UPDATE_PROVIDER_CONCURRENCY",
       "number": 370,
       "title": "书架检查更新按来源并行",
@@ -13919,6 +13951,30 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-book-settings-local-commit-20261128",
+      "at": "2026-11-28T12:54:49+08:00",
+      "itemId": "READER_BOOK_SETTINGS_AND_FAVORITES",
+      "title": "按作品设置与常用本地提交",
+      "detail": "本地提交不引用尚未公开的 reader-kit 对象。共享手势已有原仓本地提交 2ad4573，宿主长按接线随依赖引用保留待提交。已验签名候选包含完整联合修改。",
+      "kind": "open"
+    },
+    {
+      "id": "reader-book-settings-favorites-bottom-197-20261128",
+      "at": "2026-11-28T12:49:53+08:00",
+      "itemId": "READER_BOOK_SETTINGS_AND_FAVORITES",
+      "title": "197 验证底部跟随全局入口及会话超分",
+      "detail": "按用户纠正撤掉右上角菜单。最终包用裁边开关验证底部行从继承到有覆盖再回继承；双章测试正文确认长按跨章、重开恢复。工具栏和页码角标点按保留当前页语义。设备已恢复及释租。",
+      "kind": "accepted"
+    },
+    {
+      "id": "reader-book-settings-favorites-20261128",
+      "at": "2026-11-28T12:26:18+08:00",
+      "itemId": "READER_BOOK_SETTINGS_AND_FAVORITES",
+      "title": "实现作品设置、常用分段与 HD 长按",
+      "detail": "按用户批准方案实现，局部数据库事务和备份测试已通过，设备候选正在复验。",
+      "kind": "open"
+    },
     {
       "id": "197-old-zip-cbz-hash-case-and-upgrade-validation-20261128",
       "at": "2026-11-28T04:07:43+08:00",

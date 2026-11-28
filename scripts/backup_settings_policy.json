@@ -175,7 +175,9 @@
       "chapterList.overrides.v1"
     ],
     "koma_reader_preferences_v1": [
-      "reader.seriesModeOverrides.v1"
+      "reader.seriesModeOverrides.v1",
+      "reader.bookOverrides.v1",
+      "reader.favoriteSettings.v1"
     ],
     "koma_source_catalog_filters_v1": [
       "catalog.filters"

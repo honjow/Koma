@@ -1,12 +1,12 @@
 import { common } from '@kit.AbilityKit'
 import { relationalStore } from '@kit.ArkData'
-import { CREATE_READER_PREFERENCES, CREATE_READER_SHARED_PREFERENCES, copyReaderPreferenceColumns,
+import { CREATE_BOOK_READER_PREFERENCES, CREATE_READER_PREFERENCES, CREATE_READER_SHARED_PREFERENCES, copyReaderPreferenceColumns,
   migrateSharedReaderPreferences } from './ReaderPreferenceColumns'
 import { addShelfCoverEnhancement, movePublicReadingAddresses, splitShelfScope } from './ShelfSharedRows'
 
 const DATABASE_NAME = 'Koma.db'
 const PREVIOUS_DATABASE_NAME = 'koma-user-data.db'
-const DATABASE_VERSION = 10
+const DATABASE_VERSION = 11
 const PREVIOUS_DATABASE_VERSION = 5
 const RENAMED_DATABASE = 'business-database-renamed-v1'
 const SHARED_DATA_SPLIT = 'shared-business-columns-v1'
@@ -237,6 +237,7 @@ const SEARCH_HISTORY_COLUMNS = '(entry_key TEXT PRIMARY KEY, query TEXT, updated
 const CONFIG_TABLES: string[] = [
   CREATE_READER_PREFERENCES,
   CREATE_READER_SHARED_PREFERENCES,
+  CREATE_BOOK_READER_PREFERENCES,
   'CREATE TABLE IF NOT EXISTS local_data_migrations (name TEXT PRIMARY KEY)',
   'CREATE TABLE IF NOT EXISTS search_history ' + SEARCH_HISTORY_COLUMNS,
   'CREATE TABLE IF NOT EXISTS search_history_local ' + SEARCH_HISTORY_COLUMNS,

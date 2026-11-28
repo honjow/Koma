@@ -28,7 +28,7 @@ const updateReports = evaluate(model+'LibraryUpdateReportRows.ets',{'./LocalData
 const preferenceRows = evaluate(model+'PreferenceColumnRows.ets',{'./UserDataDatabase':database,'./UserKeyedRecords':keyed,
  './LocalDataRows':localRows,'./LibraryUpdateReportRows':updateReports,'./ReaderPreferenceColumns':readerColumns});
 const migrations = evaluate(model+'MigratedPreferenceRecords.ets',{'@kit.ArkData':arkdata,'./UserDataDatabase':database,'./UserKeyedRecords':keyed,
- './PreferenceColumnRows':preferenceRows,
+ './PreferenceColumnRows':preferenceRows,'./ReaderPreferenceColumns':readerColumns,
  '../sourceRuntime/SourceSubscriptionStorage':{SOURCE_INDEX_PREFERENCES:'koma_source_package_manager_v1'}});
 const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
  '../deviceSync/DeviceSyncSignals':evaluate('entry/src/main/ets/deviceSync/DeviceSyncSignals.ets',{}),
@@ -158,10 +158,10 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  ]);
  const a=await store.loadForComic('A'), b=await other.loadForComic('B'), global=await store.load();
  assert.equal(a.pageMode,'double_page');assert.equal(a.readingDirection,ReadingDirection.RIGHT_TO_LEFT);
- assert.equal(b.pageMode,'vertical_page');assert.equal(global.pageMode,baseline.pageMode);assert.equal(global.columnMode,baseline.columnMode);assert.equal(global.autoPageSeconds,11);
- // A stale reader changing a global option must not rewrite another current option or another book.
+ assert.equal(b.pageMode,'vertical_page');assert.equal(global.pageMode,baseline.pageMode);assert.equal(global.columnMode,baseline.columnMode);assert.equal(global.autoPageSeconds,baseline.autoPageSeconds);assert.equal(b.autoPageSeconds,11);
+ // A book edit preserves the global value and any other book's override.
  await store.saveChangesForComic('A',a,{...a,keepScreenAwake:false});
- assert.equal((await store.load()).autoPageSeconds,11);assert.equal((await store.loadForComic('B')).pageMode,'vertical_page');
+ assert.equal((await store.load()).autoPageSeconds,baseline.autoPageSeconds);assert.equal((await store.loadForComic('B')).pageMode,'vertical_page');
  await store.clearSeriesOverride('A');assert.equal((await store.loadForComic('A')).pageMode,baseline.pageMode);assert.equal((await store.loadForComic('B')).pageMode,'vertical_page');
  const pending=store.savePreloadPages(4);assert.throws(()=>activity.beginRestore(),/backup_restore_busy/);await pending;
  published.length=0;failCommit();await assert.rejects(()=>other.savePreloadPages(2),/fixture_database_commit_failed/);assert.equal(published.length,0,'failed commit must not publish committed runtime state');
@@ -194,7 +194,7 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  assert.equal((await store.loadForComic('book-B')).pageMode,'vertical_page');
  const completedTransactions=rdb.commits;
  await store.saveChangesForComic('book-A',aBefore,{...aBefore,pageMode:'double_page'});
- assert.equal(rdb.commits-completedTransactions,1,'global fields and per-book override must commit together');
+ assert.equal(rdb.commits-completedTransactions,1,'layout projection and inheritance must commit in one transaction');
  const beforeReset=readRows();failCommit();
  await assert.rejects(()=>store.clearSeriesOverride('book-A'),/fixture_database_commit_failed/);
  assert.deepEqual(readRows(),beforeReset,'failed reset must restore original per-book payload');
@@ -243,6 +243,38 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  await store.saveChangesForComic('banner-a',bookA,{...bookA,bannerFilterOverride:'global'});
  assert.equal((await store.loadForComic('banner-a')).bannerFilterOverride,'global');
  await store.copyBannerOverride('banner-copy','',true);assert.equal((await store.loadForComic('banner-copy')).bannerFilterOverride,'global');
+ // An explicit setting affects only this book. Untouched settings, including the
+ // other fields in the same filter or layout, continue to inherit later changes.
+ const localBook = await store.loadForComic('sparse');
+ await store.saveChangesForComic('sparse',localBook,{...localBook,pageMode:'double_page',
+  superResolutionEnabled:true,superResolutionModel:'system',
+  displaySettings:{...localBook.displaySettings,red:91},bannerFilterOverride:'off'});
+ const oldGlobal = await store.load();
+ await other.saveChanges(oldGlobal,{...oldGlobal,readingDirection:ReadingDirection.RIGHT_TO_LEFT,
+  displaySettings:{...oldGlobal.displaySettings,red:21,blue:62}});
+ const sparse = await other.loadForComic('sparse');
+ const untouched = await other.loadForComic('untouched');
+ assert.equal(sparse.pageMode,'double_page');
+ assert.equal(sparse.readingDirection,ReadingDirection.RIGHT_TO_LEFT);
+ assert.equal(sparse.superResolutionEnabled,true);
+ assert.equal(sparse.displaySettings.red,91);
+ assert.equal(sparse.displaySettings.blue,62);
+ assert.equal(sparse.bannerFilterOverride,'off');
+ assert.equal(untouched.superResolutionEnabled,oldGlobal.superResolutionEnabled);
+ assert.equal(untouched.displaySettings.red,21);
+ const favorite = 'reader_screen_orientation_title';
+ assert.deepEqual(await store.toggleFavoriteSetting(favorite),[favorite]);
+ assert.deepEqual(await other.favoriteSettingKeys(),[favorite]);
+ failCommit();
+ await assert.rejects(store.clearSeriesOverride('sparse'),/fixture_database_commit_failed/);
+ assert.equal((await store.loadForComic('sparse')).displaySettings.red,91);
+ assert.equal((await store.loadForComic('sparse')).bannerFilterOverride,'off');
+ await store.clearSeriesOverride('sparse');
+ assert.deepEqual(await store.loadForComic('sparse'),untouched);
+ assert.equal(await store.hasBookOverride('sparse'),false);
+ assert.deepEqual(await other.favoriteSettingKeys(),[favorite],'book reset preserves favorite shortcuts');
+ assert.deepEqual(await other.toggleFavoriteSetting(favorite),[]);
+ assert.equal(await store.hasBookOverride('B'),true);
  // Approved switch migration reads old global/book values without changing off.
  const legacyBannerContext={filesDir:'/owned-memory/legacy-banner'};
  const oldDisk=new Map(); data.set(legacyBannerContext.filesDir,oldDisk); oldDisk.set('reader.bannerFilter','source');

@@ -23,7 +23,7 @@
 | 书源订阅与登记 | `source_subscriptions` 按 URL，活动地址在 `source_subscription_selection`；`source_registry_entries` 按书源 ID。 | 订阅日期、禁用、名称与顺序可直接查询。登记保存包版本、路径、登录声明、本地化名称与能力；凭据仍归安全存储。 |
 | 书源配置与图片规则 | `source_preference_sources`、配置组、字段和列表项目子表；`image_rule_subscriptions` 与 `image_rule_installations` 分开。 | 书源和插件声明的字段名在运行时确定，值按文本、数值、开关或有序字符串列表存储。查询预设按书源分组。图片规则资产用已有不可变文件，表保存摘要和来源，安装配置与资产同属原 owner。 |
 | 书源浏览入口 | `typed_local_preferences` 的 `preferences/koma_source_browse_destination_v1/` 域，按书源 ID 单行读写。 | 文本值保存最后分类 ID，空字符串表示首页，无记录表示首次默认。属于本机导航偏好，不进入应用设置备份和云同步；恢复时先核对当前源提供的分类。 |
-| 阅读与章节设置 | `reader_shared_preferences` 保存全局可共享设置，`reader_preferences` 保存设备设置。按书的阅读覆盖在 `book_reader_modes`，其他按书设置在 `book_preferences`。 | 自动翻页模式覆盖留在设备设置。各设置入口只更新所属列。备份仍沿原设置字段。 |
+| 阅读与章节设置 | `reader_shared_preferences` 保存全局可共享设置，`reader_preferences` 保存设备设置。按书的模式沿用 `book_reader_modes` 与 `book_reader_modes_local`，其余阅读偏好按作品存入稀疏的 `book_reader_preferences`，横幅与章节列表留在 `book_preferences`。 | 未覆盖列继续继承，各设置入口只更新所属作品或全局默认。作品覆盖和常用入口进入设置备份，现有云端同步字段不扩充。 |
 | 追踪 | `tracker_mappings`、`tracker_progress_outbox` 和待发送章集合子表。 | 追踪搭配、媒体 ID、进度、重试和失败原因分列，按 provider 和作品查询。保留旧记录中相同业务键的出现次数及原处理顺序。 |
 | 书架更新 | `library_chapter_discoveries`、`library_update_job`、汇总及按作品/提供方的结果和失败原因表。 | 发现的章节按作品与时间查询。检查任务、汇总和各条结果可独立读写。 |
 | 搜索历史 | `search_history` 按规范化搜索词，`search_history_local` 保留设备范围。 | 按更新时间及同一时刻的顺序读取，有现有索引。 |

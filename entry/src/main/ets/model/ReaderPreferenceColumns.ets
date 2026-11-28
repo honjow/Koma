@@ -54,6 +54,38 @@ const DISPLAY_COLUMNS: string[] = [
   'display_red', 'display_green', 'display_blue', 'display_alpha', 'display_blend_mode', 'display_grayscale', 'display_inverted',
 ]
 
+export const READER_FAVORITE_SETTINGS_KEY = 'reader.favoriteSettings.v1'
+export const BOOK_READER_PREFERENCES_KEY = 'reader.bookOverrides.v1'
+export const BOOK_READER_PREFERENCE_FIELDS: ReaderPreferenceField[] = fields.filter(
+  (field: ReaderPreferenceField): boolean => !['reader.pageMode', 'reader.readingDirection', 'reader.columnMode',
+    'reader.themeMode', 'reader.bannerFilter', 'reader.readerImplementation'].includes(field.key))
+  .map((field: ReaderPreferenceField): ReaderPreferenceField => ({
+    key: field.key.substring('reader.'.length), column: field.column, type: field.type,
+  }))
+
+// Display controls inherit independently, including the individual filter sliders.
+export const BOOK_READER_DISPLAY_FIELDS: ReaderPreferenceField[] = [
+  'brightnessEnabled', 'brightness', 'hdrBrightnessEnabled', 'filterEnabled', 'red', 'green', 'blue', 'alpha',
+  'blendMode', 'grayscale', 'inverted',
+].map((key: string, index: number): ReaderPreferenceField => ({ key: key, column: DISPLAY_COLUMNS[index],
+  type: key === 'blendMode' ? 'string' :
+    (key === 'brightness' || ['red', 'green', 'blue', 'alpha'].includes(key) ? 'number' : 'boolean'),
+}))
+
+// The wire/book mode table still holds the old pair. Keep the exact pair that
+// was projected for a local partial choice so a different incoming pair wins.
+export const BOOK_READER_MODE_FIELDS: ReaderPreferenceField[] = [
+  { key: 'projectedMode', column: 'projected_mode', type: 'string' },
+  { key: 'projectedDirection', column: 'projected_direction', type: 'string' },
+  { key: 'inheritMode', column: 'inherit_mode', type: 'boolean' },
+  { key: 'inheritDirection', column: 'inherit_direction', type: 'boolean' },
+]
+
+export const BOOK_READER_FIELDS = BOOK_READER_PREFERENCE_FIELDS.concat(BOOK_READER_DISPLAY_FIELDS, BOOK_READER_MODE_FIELDS)
+export const CREATE_BOOK_READER_PREFERENCES = 'CREATE TABLE IF NOT EXISTS book_reader_preferences (' +
+  'comic_id TEXT PRIMARY KEY NOT NULL, ' + BOOK_READER_FIELDS.map((field: ReaderPreferenceField): string =>
+    field.column + ' ' + sqlType(field.type)).join(', ') + ')'
+
 function sqlType(type: string): string {
   if (type === 'number') return 'REAL'
   return type === 'boolean' ? 'INTEGER' : 'TEXT'
