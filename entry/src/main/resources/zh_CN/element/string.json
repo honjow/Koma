@@ -959,6 +959,8 @@
     { "name": "reader_control_mode", "value": "分页模式" },
     { "name": "reader_series_override_badge", "value": "本书" },
     { "name": "reader_series_override_reset", "value": "跟随全局设置" },
+    {"name": "reader_session_enhancement_enabled", "value": "本次阅读已开启超分"},
+    {"name": "reader_session_enhancement_disabled", "value": "本次阅读已关闭超分"},
     {"name": "reader_book_settings_save_failed", "value": "无法保存这部作品的阅读设置"},
     {"name": "reader_settings_tab_favorites", "value": "常用"},
     {"name": "reader_settings_favorites_empty", "value": "长按设置项即可加入常用"},

@@ -3733,6 +3733,8 @@
       "name": "reader_series_override_reset",
       "value": "全体設定に従う"
     },
+    {"name": "reader_session_enhancement_enabled", "value": "今回の読書で超解像をオンにしました"},
+    {"name": "reader_session_enhancement_disabled", "value": "今回の読書で超解像をオフにしました"},
     {"name": "reader_book_settings_save_failed", "value": "この作品の閲覧設定を保存できませんでした"},
     {"name": "reader_settings_tab_favorites", "value": "よく使う項目"},
     {"name": "reader_settings_favorites_empty", "value": "設定項目を長押しして追加できます"},

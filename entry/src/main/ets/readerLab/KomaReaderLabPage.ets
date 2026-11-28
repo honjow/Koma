@@ -22,6 +22,7 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ReaderDirectionControl } from '../components/ReaderDirectionControl'
 import { ReaderDirectionChoice, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
 import { ReaderSeriesFormat, ReadingDirection } from '../model/ComicModels'
+import { vibrator } from '@kit.SensorServiceKit'
 import { ReaderSuperResolutionModelService } from '../model/ReaderSuperResolutionModelService'
 import { LibraryAutomationPreferencesStore } from '../model/LibraryAutomationPreferencesStore'
 import { common } from '@kit.AbilityKit'
@@ -62,6 +63,8 @@ import { GazePageTurnIndicator } from '../readerGaze/GazePageTurnIndicator'
 import { GazePhase } from '../readerGaze/GazePageTurnEngine'
 import { ReaderTurnAssist, ReaderTurnAssistControl } from '../components/ReaderTurnAssistControl'
 import { ReaderSmartKeyNavigation } from '../model/ReaderSmartKeyNavigation'
+
+const READER_ENHANCEMENT_HAPTIC_MS = 20
 
 // A surface keeps one non-null session for its whole component lifetime.
 // Re-entry replaces the entry, rather than updating a mounted surface to null.
@@ -117,6 +120,7 @@ export struct KomaReaderLabPage {
   private bookModeOverrideActive: boolean = false
   private initialFormat?: ReaderSeriesFormat
   private preferenceEditRevision: number = 0
+  @Local private sessionEnhancement: boolean | null = null
   @Local private checkedEnhancementModel: string = ''
   @Local private usableEnhancementModel: string = ''
   private enhancementModelCheck: number = 0
@@ -422,6 +426,7 @@ export struct KomaReaderLabPage {
     this.autoFormatApplied = false
     this.preferenceEditRevision += 1
     this.initialFormat = undefined
+    this.sessionEnhancement = null
     this.checkedEnhancementModel = ''
     this.usableEnhancementModel = ''
     this.enhancementModelCheck += 1
@@ -1408,16 +1413,39 @@ export struct KomaReaderLabPage {
     return (await ReaderSuperResolutionModelService.installedModels(context))[0] ?? 'none'
   }
 
-  /** Both visible and prefetched enhancement requests consume the same work preference. */
+  /** Both visible and prefetched enhancement requests consume the same host session choice. */
   private superResolutionConfiguration(): KomaReaderSuperResolutionConfiguration {
     const prefs = this.hostPreferences
     const preferred = this.preferredEnhancementModel
     const model = this.checkedEnhancementModel === preferred ? this.usableEnhancementModel : preferred
-    const enabled = prefs?.superResolutionEnabled ?? this.readerMode.superResolutionEnabled
+    const enabled = this.sessionEnhancement ?? prefs?.superResolutionEnabled ?? this.readerMode.superResolutionEnabled
     return new KomaReaderSuperResolutionConfiguration(enabled, model,
       prefs?.superResolutionBackend ?? this.readerMode.superResolutionBackend,
       prefs?.superResolutionMaxHeight ?? this.readerMode.superResolutionMaxHeight,
       `${effectiveBannerFilter(prefs?.bannerFilter, prefs?.bannerFilterOverride)}:${this.imageRules.userRevision}`)
+  }
+
+  private canToggleSessionEnhancement(): boolean {
+    return this.productionEntry && this.request.preferencesReadWrite && this.checkedEnhancementModel ===
+      this.preferredEnhancementModel && this.usableEnhancementModel !== '' && this.usableEnhancementModel !== 'none'
+  }
+
+  private toggleSessionEnhancement(): void {
+    if (this.readerClosed || !this.routeActive || !this.labVisibility.foreground || !this.canToggleSessionEnhancement()) return
+    const enabled = !this.superResolutionConfiguration().enabled
+    this.sessionEnhancement = enabled
+    try {
+      if (vibrator.isHdHapticSupported()) {
+        void vibrator.startVibration({ type: 'preset', effectId: vibrator.HapticFeedback.EFFECT_SOFT, count: 1 },
+          { usage: 'physicalFeedback' }).catch((): void => {})
+      } else {
+        void vibrator.startVibration({ type: 'time', duration: READER_ENHANCEMENT_HAPTIC_MS },
+          { usage: 'physicalFeedback' }).catch((): void => {})
+      }
+    } catch (_error) {}
+    this.getUIContext().getPromptAction().showToast(komaToastOptions({
+      message: AppStrings.get(enabled ? 'reader_session_enhancement_enabled' : 'reader_session_enhancement_disabled'),
+    }))
   }
 
   private cacheSettleTimer: number = -1
@@ -1535,6 +1563,8 @@ export struct KomaReaderLabPage {
     if (!this.request.preferencesReadWrite || session === null || this.readerClosed || (!this.routeActive && !fromCoveredEditor) ||
       !this.labVisibility.foreground) return
     const previous = this.hostPreferences
+    if (previous?.superResolutionEnabled !== next.superResolutionEnabled ||
+      previous?.superResolutionModel !== next.superResolutionModel) this.sessionEnhancement = null
     this.enqueuePreferenceWrite(next)
     this.applyHostPreferences(next, previous)
   }
@@ -1621,6 +1651,7 @@ export struct KomaReaderLabPage {
       effective.columnMode = this.hostPreferences?.columnMode ?? effective.columnMode
       this.seriesOverrideActive = false
       this.bookModeOverrideActive = false
+      this.sessionEnhancement = null
       this.applyHostPreferences(effective)
     }).catch((): void => {
       DiagnosticLogger.warn('reader', 'preference_reset_failed', '[KomaReader] preference_reset_failed')
@@ -1770,7 +1801,9 @@ export struct KomaReaderLabPage {
                 (busy: boolean): void => { this.setEnhancementInteractionBusy(busy) }),
               variantPolicy: this.translationPolicy(),
               temporaryVariantControl: new ReaderTemporaryVariantControl(
-                this.enhancementPreference().variant === 'enhanced'),
+                this.enhancementPreference().variant === 'enhanced', null,
+                this.canToggleSessionEnhancement() ? this.superResolutionConfiguration().enabled : null,
+                this.canToggleSessionEnhancement() ? (): void => { this.toggleSessionEnhancement() } : null),
               cropPolicy: new ReaderCropPolicy(
                 this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled, true,
                 this.hostPreferences?.cropStrength ?? this.readerMode.cropStrength),

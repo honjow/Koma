@@ -959,6 +959,8 @@
     { "name": "reader_control_mode", "value": "Page layout" },
     { "name": "reader_series_override_badge", "value": "this book" },
     { "name": "reader_series_override_reset", "value": "Follow global settings" },
+    {"name": "reader_session_enhancement_enabled", "value": "Super resolution on for this session"},
+    {"name": "reader_session_enhancement_disabled", "value": "Super resolution off for this session"},
     {"name": "reader_book_settings_save_failed", "value": "Could not save reading settings for this title"},
     {"name": "reader_settings_tab_favorites", "value": "Favorites"},
     {"name": "reader_settings_favorites_empty", "value": "Touch and hold a setting to add it here"},

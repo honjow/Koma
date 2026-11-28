@@ -959,6 +959,8 @@
     { "name": "reader_control_mode", "value": "分頁模式" },
     { "name": "reader_series_override_badge", "value": "本書" },
     { "name": "reader_series_override_reset", "value": "跟隨全域設定" },
+    {"name": "reader_session_enhancement_enabled", "value": "本次閱讀已開啟超解析度"},
+    {"name": "reader_session_enhancement_disabled", "value": "本次閱讀已關閉超解析度"},
     {"name": "reader_book_settings_save_failed", "value": "無法儲存這部作品的閱讀設定"},
     {"name": "reader_settings_tab_favorites", "value": "常用"},
     {"name": "reader_settings_favorites_empty", "value": "長按設定項目即可加入常用"},

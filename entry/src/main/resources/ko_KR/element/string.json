@@ -3733,6 +3733,8 @@
       "name": "reader_series_override_reset",
       "value": "전체 설정 따르기"
     },
+    {"name": "reader_session_enhancement_enabled", "value": "이번 읽기에서 초해상도를 켰습니다"},
+    {"name": "reader_session_enhancement_disabled", "value": "이번 읽기에서 초해상도를 껐습니다"},
     {"name": "reader_book_settings_save_failed", "value": "이 작품의 읽기 설정을 저장할 수 없습니다"},
     {"name": "reader_settings_tab_favorites", "value": "자주 쓰는 설정"},
     {"name": "reader_settings_favorites_empty", "value": "설정 항목을 길게 눌러 추가하세요"},

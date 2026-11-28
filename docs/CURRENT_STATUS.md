@@ -91,8 +91,8 @@
       "title": "阅读器作品设置、常用与当次超分",
       "priority": "P1（用户已采用）",
       "kind": "open",
-      "status": "作品设置与常用已本地提交，HD 等待共享依赖",
-      "stage": "作品设置与常用已在 197 联合候选验证",
+      "status": "197 已验证，HD 共享依赖已接入",
+      "stage": "完整应用改动提交到主分支",
       "owner": "Koma 阅读器与 reader-kit",
       "dependencies": [],
       "relatedItems": [
@@ -101,7 +101,7 @@
       "reportedAt": "2026-11-28T12:26:18+08:00",
       "reportedAtSource": "本会话用户明确按作品保存，并确认在设置半模态增加常用分段、长按提示及按原卡片分组。",
       "result": "作品偏好仅写当前作品改过的字段。197 已见页面裁边和图像增强按原卡片分组，长按加入和移除各有 Toast。从常用关闭图像增强再复位，开关恢复且收藏保留。第 1 页点按后第 2 页正常增强；双章测试作品长按关闭后第 2 章保持关闭，退出重开同章恢复增强。用户复核后将「跟随全局设置」从右上角移至常用底部，入口显示当前作品的继承说明。 最终包 1b86be0e7280 在同一张半模态内两次设置与复位，说明分别显示清除单独设置及正在使用全局默认，字色保持可读。签名 Release、作品隔离和回滚、备份导出恢复与五语言资源检查通过。双章测试作品、历史入口和源图片已清理。197 恢复原作品第 1 页、阅读模式分段、10000 ms 超时和休眠，已释租并保留候选。",
-      "remaining": "reader-kit 的 HD 手势已本地提交 2ad4573。Koma 的 HD 长按接入和依赖引用待共享提交从公开依赖地址可检出后合入；联合候选仍在 197。触感反馈走系统短振，未单独量测马达。",
+      "remaining": "触感反馈使用系统短振，未单独量测马达。",
       "boundaries": [
         "保留三类既有设置与实时滤镜预览，增加常用分类。图像增强置于常规第一组。",
         "常用只共享快捷入口，调整只保存到现在的作品；本次阅读的超分开关不写设置。"
@@ -113,9 +113,10 @@
         ".hvigor/outputs/reader-book-settings-20261128/device197__ALN-AL80/not-applicable/portrait-1260x2720/verified-footer-in-place-reset/before.png",
         ".hvigor/outputs/reader-book-settings-20261128/device197__ALN-AL80/not-applicable/portrait-1260x2720/verified-footer-in-place-reset/screen.png",
         ".hvigor/outputs/reader-book-settings-20261128/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-final-device-state/run-metadata.json",
-        ".hvigor/outputs/reader-book-settings-20261128/koma-reader-book-settings-verified-signed.hap"
+        ".hvigor/outputs/reader-book-settings-20261128/koma-reader-book-settings-verified-signed.hap",
+        "https://github.com/erosTeam/reader-kit/commit/2ad45733d6fdaf41097984d702fc1fa1b66fd273"
       ],
-      "updatedAt": "2026-11-28T12:54:49+08:00"
+      "updatedAt": "2026-11-28T12:57:15+08:00"
     },
     {
       "id": "LIBRARY_UPDATE_PROVIDER_CONCURRENCY",
@@ -13951,6 +13952,14 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-book-settings-hd-integrated-20261128",
+      "at": "2026-11-28T12:57:15+08:00",
+      "itemId": "READER_BOOK_SETTINGS_AND_FAVORITES",
+      "title": "接入 HD 会话长按与公开共享提交",
+      "detail": "reader-kit 原仓 main 与 Koma 公开依赖地址均已核对 2ad4573，子模块从公共地址取回该对象。Koma 主仓接入已在 197 联合候选验证的会话、触感和提示。",
+      "kind": "accepted"
+    },
     {
       "id": "reader-book-settings-local-commit-20261128",
       "at": "2026-11-28T12:54:49+08:00",
